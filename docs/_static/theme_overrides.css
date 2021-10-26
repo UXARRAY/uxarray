@@ -1,0 +1,4 @@
+/* delete margin from side of content */
+.wy-nav-content {
+    max-width: none !important;
+}

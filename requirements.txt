@@ -1,0 +1,7 @@
+cf_xarray>=0.3.1
+cftime
+dask[array]
+eofs
+metpy
+numpy
+xarray

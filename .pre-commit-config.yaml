@@ -1,0 +1,22 @@
+repos:
+-   repo: https://github.com/pre-commit/mirrors-yapf    # To format the code to conform YAPF
+    rev: v0.31.0
+    hooks:
+      - id: yapf
+        args: ['--in-place', '--recursive', '--style', 'google']
+
+-   repo: https://github.com/myint/docformatter    # To format the doc strings to conform PEP257
+    rev: v1.4
+    hooks:
+    - id: docformatter
+      args: [--in-place]
+
+-   repo: https://github.com/pre-commit/pre-commit-hooks    # Some common pre-commit hooks
+    rev: v3.4.0
+    hooks:
+    - id: check-yaml               # Checks the syntax of .yaml files.
+      args: [--allow-multiple-documents]
+      exclude: 'meta.yaml'    # Exclude this because it gives an error for '%' in Line 1 and couldn't fix yet
+    - id: end-of-file-fixer        # Makes sure files end with a newline.
+    - id: trailing-whitespace      # Checks for any tabs or spaces after the last non-whitespace character on the line.
+    - id: check-docstring-first    # Checks that code comes after the docstrings.
