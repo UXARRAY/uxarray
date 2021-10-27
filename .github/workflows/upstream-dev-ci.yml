@@ -30,7 +30,7 @@ jobs:
           channel-priority: strict
           mamba-version: '*'
           python-version: 3.8
-          channels: conda-forge, UXARRAY
+          channels: conda-forge
           environment-file: build_envs/upstream-dev-environment.yml
 
       - name: Install uxarray

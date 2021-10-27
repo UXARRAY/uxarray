@@ -22,12 +22,6 @@ requirements:
     - setuptools
   run:
     - python
-    - cf_xarray>=0.3.1
-    - cftime
-    - dask
-    - eofs
-    - metpy
-    - numpy
     - xarray
 
 test:
@@ -35,7 +29,6 @@ test:
     - test
   requires:
     - pytest
-    - netcdf4
   imports:
     - uxarray
   commands:

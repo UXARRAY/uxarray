@@ -1,15 +1,8 @@
 name: uxarray_build
 channels:
   - conda-forge
-  - UXARRAY
 dependencies:
   - python
-  - cf_xarray>=0.3.1
-  - cftime
-  - dask
-  - distributed
-  - netcdf4
-  - numpy
   - pip
   - pytest
   - pytest-cov

@@ -11,7 +11,7 @@ Installing Uxarray via Conda
 The easiest way to install GeoCAT-comp is using
 `Conda <http://conda.pydata.org/docs/>`_::
 
-    conda create -n uxarray -c conda-forge -c UXARRAY uxarray
+    conda create -n uxarray -c conda-forge uxarray
 
 where "uxarray" is the name of a new conda environment, which can then be
 activated using::
@@ -24,7 +24,7 @@ environment.  The following :code:`conda create` command can be used to create a
 :code:`conda` environment that includes some of these additional commonly used Python
 packages pre-installed::
 
-    conda create -n uxarray -c conda-forge -c UXARRAY uxarray matplotlib cartopy jupyter
+    conda create -n uxarray -c conda-forge uxarray matplotlib cartopy jupyter
 
 Alternatively, if you already created a conda environment using the first
 command (without the extra packages), you can activate and install the packages
@@ -33,14 +33,11 @@ in an existing environment with the following commands::
     conda activate uxarray # or whatever your environment is called
     conda install -c conda-forge matplotlib cartopy jupyter
 
-Please note that the use of the :code:`conda-forge` channel is essential to guarantee
-compatibility between dependency packages.
+
 
 Also, note that the Conda package manager automatically installs all `required`
 dependencies of Uxarray, meaning it is not necessary to explicitly install
-Python, NumPy, Xarray, or Dask when creating an environment and installing Uxarray.
-Although packages like Matplotlib are often used with GeoCAT-comp, they are considered
-`optional` dependencies and must be explicitly installed.
+Xarraywhen creating an environment and installing Uxarray.
 
 If you are interested in learning more about how Conda environments work, please
 visit the `managing environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
@@ -59,13 +56,6 @@ Required dependencies for building and testing Uxarray
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     - Python 3.7+
-    - `cf_xarray <https://cf-xarray.readthedocs.io/en/latest/>`_
-    - `cftime <https://unidata.github.io/cftime/>`_
-    - `eofs <https://ajdawson.github.io/eofs/latest/index.html>`_
-    - `dask <https://dask.org/>`_
-    - `distributed <https://distributed.readthedocs.io/en/latest/>`_
-    - `netcdf4 <https://unidata.github.io/netcdf4-python/>`_  (For tests only)
-    - `numpy <https://numpy.org/doc/stable/>`_
     - `pytest <https://docs.pytest.org/en/stable/>`_  (For tests only)
     - `xarray <http://xarray.pydata.org/en/stable/>`_
 

@@ -19,8 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-latest", "macos-latest"]
-        python-version: [ "3.7", "3.8", "3.9" ]
+        os: [ "ubuntu-latest", "macos-latest", "windows-latest"]
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
     steps:
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.9.1
@@ -36,7 +36,7 @@ jobs:
           activate-environment: uxarray_build
           channel-priority: strict
           python-version: ${{ matrix.python-version }}
-          channels: conda-forge, UXARRAY
+          channels: conda-forge
           environment-file: build_envs/environment.yml
 
       - name: Install uxarray

@@ -22,8 +22,8 @@
 Uxarray
 ===========
 
-Uxarray aims to provide xarray styled functionality for
-unstructured grid datasets following ugrid conventions.
+Uxarray aims to provide xarray styled functionality for unstructured grid datasets
+following ugrid conventions. More information on ugrid conventions can be found `here <https://ugrid-conventions.github.io/ugrid-conventions/>`_.
 
 .. toctree::
    :maxdepth: 2
@@ -44,8 +44,3 @@ Indices and tables
 
 
 --------------------
-
-*The National Center for Atmospheric Research is sponsored by the National
-Science Foundation. Any opinions, findings and conclusions or recommendations
-expressed in this material do not necessarily reflect the views of the
-National Science Foundation.*
