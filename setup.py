@@ -44,13 +44,12 @@ setup(
     package_dir={
         '': 'src',
         'uxarray': 'src/uxarray',
-        # 'geocat.comp': 'src/geocat/comp'
     },
-    namespace_packages=['UXARRAY'],
+    # namespace_packages=['UXARRAY'],
     packages=['uxarray'],
     url='https://github.com/UXARRAY/uxarray',
     project_urls={
-        # 'Documentation': 'https://geocat-comp.readthedocs.io',
+        # 'Documentation': 'https://uxarray.readthedocs.io',
         'Source': 'https://github.com/UXARRAY/uxarray',
         'Tracker': 'https://github.com/UXARRAY/uxarray/issues',
     },
