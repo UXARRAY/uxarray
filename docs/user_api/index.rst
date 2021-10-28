@@ -11,4 +11,3 @@ Uxarray native routines
 
 .. autosummary::
    :toctree: ./generated/
-

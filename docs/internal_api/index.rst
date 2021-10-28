@@ -10,5 +10,3 @@ Uxarray routines
 .. autosummary::
    :nosignatures:
    :toctree: ./generated/
-
-

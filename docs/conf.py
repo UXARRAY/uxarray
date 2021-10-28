@@ -81,8 +81,7 @@ project = u'uxarray'
 import datetime
 
 current_year = datetime.datetime.now().year
-copyright = u'{}, Uxarray'.format(
-    current_year)
+copyright = u'{}, Uxarray'.format(current_year)
 author = u'UXARRAY'
 
 
@@ -182,7 +181,6 @@ html_static_path = ['_static']
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
 #html_extra_path = []
-
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'uxarraydoc'

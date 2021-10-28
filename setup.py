@@ -26,7 +26,7 @@ setup(
     python_requires='>=3.7',
     install_requires=requirements,
     description=
-    """Uxarray looks to implement xarray capabilities with ugrid conventions to 
+    """Uxarray looks to implement xarray capabilities with ugrid conventions to
     facilitate data visualization with unstructured grids""",
     long_description=long_description,
     long_description_content_type='text/markdown',
