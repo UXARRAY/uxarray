@@ -68,7 +68,7 @@ The Uxarray source code includes a conda environment definition file in
 the :code:`/build_envs` folder under the root directory that can be used to create a
 development environment containing all of the packages required to build Uxarray.
 The file :code:`environment.yml` is intended to be used on Linux systems and macOS.
-The following commands should work on both Linux and macOS::
+The following commands should work on Windows, Linux, and macOS::
 
     conda env create -f build_envs/environment.yml
     conda activate uxarray_build
