@@ -2,13 +2,13 @@ Installation
 ============
 
 This installation guide includes only the Uxarray installation and build instructions.
-Please refer to `Uxarray Contributor's Guide <https://github.com/UXARRAY/uxarray>`_ for installation of
+Please refer to `Uxarray Contributor's Guide <https://uxarray.readthedocs.io/en/latest/contribution.html>`_ for installation of
 the project.
 
 Installing Uxarray via Conda
 --------------------------------
 
-The easiest way to install GeoCAT-comp is using
+The easiest way to install Uxarray is using
 `Conda <http://conda.pydata.org/docs/>`_::
 
     conda create -n uxarray -c conda-forge uxarray

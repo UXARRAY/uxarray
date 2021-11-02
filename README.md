@@ -10,7 +10,8 @@
 Uxarray aims to address the geoscience community need for utilities that can handle 2D and 3D unstructured grid datasets.
 These utility functions were inspired by discussion on the [Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).
 Uxarray will provide Xarray styled funtions to better read in and use unstructured grid datasets that follow UGRID conventions.
-This effort is part of Project Raijin with support  from UC Davis, Argonne National Laboratory, and Lawrence Livermore National Laboratory.
+This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University)
+and SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).
 
 Uxarray is implemented in pure Python and does not explicitly contain or require any compiled code. This makes Uxarray more
 accessible to the general Python community. Any contributions to this repository in pure Python are welcome and documentation
@@ -20,10 +21,13 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 [Project Raijin Homepage](https://raijin.ucar.edu/)
 
+[SEATs Project Homepage]()
+
 [Project Raijin Contributor's Guide](https://raijin.ucar.edu/contributing.html)
 
-[Uxarray documentation on Read the Docs](https://uxarray.readthedocs.io)
+[SEATs Project COntributor's Guide]()
 
+[Uxarray documentation on Read the Docs](https://uxarray.readthedocs.io/en/latest)
 
 # Installation and build instructions
 
@@ -33,10 +37,14 @@ Please see our documentation for
 # Citing Uxarray
 
 Cite Uxarray using the following text:
-
+**UXARRAY. (Year).
+Uxarray (Uxarray version \<version\>) [Software].
+Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
 
 Update the Uxarray version and year as appropriate. For example:
-
+**UXARRAY Organization. (2021).
+Uxarray (version 0.0.1) [Software].
+Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
 
 For further information, please refer to
 [Project Raijin homepage - Citation](https://raijin.ucar.edu/).
