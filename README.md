@@ -3,7 +3,7 @@
 | **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]                                                                    |
 | **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                                                         |
 | **License**  |                                                                        [![License][license-badge]][repo-link]                                                                        |
-| **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           |
+<!-- | **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           | -->
 
 
 
