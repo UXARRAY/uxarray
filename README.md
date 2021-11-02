@@ -1,9 +1,9 @@
 | CI           | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![GitHub Workflow Status][github-conda-build-badge]][github-conda-build-link] [![Code Coverage Status][codecov-badge]][codecov-link] |
 | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
 | **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]                                                                    |
-| **License**  |                                                                        [![License][license-badge]][repo-link]                                                                        |
 | **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                                                         |
-| **Citing**  |                                                                              [![DOI][doi-badge]][doi-link]                                                                            |
+| **License**  |                                                                        [![License][license-badge]][repo-link]                                                                        |
+| **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           |
 
 
 
@@ -59,8 +59,8 @@ For further information, please refer to
 [rtd-badge]: https://img.shields.io/readthedocs/uxarray/latest.svg?style=for-the-badge
 [rtd-link]: https://uxarray.readthedocs.io/en/latest/?badge=latest
 [pypi-badge]: https://img.shields.io/pypi/v/uxarray?logo=pypi&style=for-the-badge
-[pypi-link]: https://pypi.org/project/uxarray -
-[conda-badge]: https://img.shields.io/conda/vn/UXARRAY/uxarray?logo=anaconda&style=for-the-badge -
+[pypi-link]: https://pypi.org/project/uxarray
+[conda-badge]: https://img.shields.io/conda/vn/UXARRAY/uxarray?logo=anaconda&style=for-the-badge
 [conda-link]: https://anaconda.org/conda-forge/uxarray
 [license-badge]: https://img.shields.io/github/license/UXARRAY/uxarray?style=for-the-badge
 <!---[doi-badge]: https://img.shields.io/badge/DOI-10.5065%2Fa8pp--4358-brightgreen?style=for-the-badge --->
