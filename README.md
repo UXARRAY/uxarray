@@ -1,7 +1,7 @@
 | CI           | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![GitHub Workflow Status][github-conda-build-badge]][github-conda-build-link] [![Code Coverage Status][codecov-badge]][codecov-link] |
 | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
 | **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]                                                                    |
-| **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                                                         |
+<!-- | **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                                                         | -->
 | **License**  |                                                                        [![License][license-badge]][repo-link]                                                                        |
 | **Citing**  |                                                                              [![DOI][doi-badge]][doi-link]                                                                            |
 
