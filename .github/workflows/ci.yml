@@ -1,0 +1,61 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  # schedule:
+  #    - cron: '0 0 * * *' # Daily “At 00:00”
+
+jobs:
+  test:
+    # if: |
+    #   github.repository == 'UXARRAY/uxarray'
+    name: Python (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "ubuntu-latest", "macos-latest", "windows-latest"]
+        python-version: [ "3.7", "3.8", "3.9"]
+    steps:
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          access_token: ${{ github.token }}
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          token: ${{ github.token }}
+      - name: conda_setup
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: uxarray_build
+          channel-priority: strict
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          environment-file: build_envs/environment.yml
+
+      - name: Install uxarray
+        run: |
+          python -m pip install . --no-deps
+
+      - name: Run Namespace Tests
+        run: |
+          python -m pytest test
+
+      - name: Run Coverage Tests
+        run: |
+          python -m pytest test -v --cov=./src/uxarray --cov-report=xml
+
+      - name: Upload code coverage to Codecov
+        uses: codecov/codecov-action@v2.1.0
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          env_vars: OS,PYTHON
+          name: codecov-umbrella
+          fail_ci_if_error: false

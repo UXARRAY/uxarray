@@ -1,0 +1,10 @@
+name: uxarray_build
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - pytest
+  - pytest-cov
+  - pip
+  - pip:
+    - git+https://github.com/pydata/xarray.git
