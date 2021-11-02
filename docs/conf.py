@@ -67,7 +67,7 @@ author = u'UXARRAY'
 
 # The version info for the project being documented
 def read_version():
-    for line in open('../../uxarray/meta.yaml').readlines():
+    for line in open('../meta.yaml').readlines():
         index = line.find('set version')
         if index > -1:
             return line[index + 15:].replace('\" %}', '').strip()
