@@ -37,7 +37,7 @@ jobs:
           channel-priority: strict
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
-          environment-file: build_envs/environment.yml
+          environment-file: ci/environment.yml
 
       - name: Install uxarray
         run: |
