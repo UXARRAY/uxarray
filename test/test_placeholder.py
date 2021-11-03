@@ -6,7 +6,7 @@ import xarray as xr
 # Import from directory structure if coverage test, or from installed
 # packages otherwise
 if "--cov" in str(sys.argv):
-    import src.uxarray
+    import uxarray
 else:
     import uxarray
 

@@ -49,7 +49,7 @@ jobs:
 
       - name: Run Coverage Tests
         run: |
-          python -m pytest test -v --cov=./src/uxarray --cov-report=xml
+          python -m pytest test -v --cov=./uxarray --cov-report=xml
 
       - name: Upload code coverage to Codecov
         uses: codecov/codecov-action@v2.1.0
