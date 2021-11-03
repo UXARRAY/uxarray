@@ -29,6 +29,7 @@ following ugrid conventions. More information on ugrid conventions can be found 
    :maxdepth: 2
 
    ./installation
+   ./contributing
    ./api
    ./examples
    ./citation
