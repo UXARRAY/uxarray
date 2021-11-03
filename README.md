@@ -27,7 +27,7 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 [Project Raijin Contributor's Guide](https://raijin.ucar.edu/contributing.html)
 
-[SEATs Project COntributor's Guide]()
+[SEATs Project Contributor's Guide]()
 
 # Installation and build instructions
 
