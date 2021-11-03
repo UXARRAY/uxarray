@@ -3,7 +3,7 @@
 | **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]                                                                    |
 | **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                                                         |
 | **License**  |                                                                        [![License][license-badge]][repo-link]                                                                        |
-| **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           |
+<!-- | **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           | -->
 
 
 
@@ -19,15 +19,15 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 # Documentation
 
+[Uxarray Documentation](https://uxarray.readthedocs.io/en/latest)
+
 [Project Raijin Homepage](https://raijin.ucar.edu/)
 
-[SEATs Project Homepage]()
+[SEATS Project Homepage]()
 
 [Project Raijin Contributor's Guide](https://raijin.ucar.edu/contributing.html)
 
-[SEATs Project COntributor's Guide]()
-
-[Uxarray documentation on Read the Docs](https://uxarray.readthedocs.io/en/latest)
+[SEATs Project Contributor's Guide]()
 
 # Installation and build instructions
 
@@ -37,11 +37,13 @@ Please see our documentation for
 # Citing Uxarray
 
 Cite Uxarray using the following text:
-**UXARRAY. (Year).
+
+**UXARRAY Organization. (Year).
 Uxarray (Uxarray version \<version\>) [Software].
 Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
 
 Update the Uxarray version and year as appropriate. For example:
+
 **UXARRAY Organization. (2021).
 Uxarray (version 0.0.1) [Software].
 Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
