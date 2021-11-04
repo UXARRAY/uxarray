@@ -19,7 +19,7 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 # Documentation
 
-[Uxarray Documentation](https://uxarray.readthedocs.io/en/latest)
+<a href="https://uxarray.readthedocs.io/en/latest" target="_blank">Uxarray Documentation</a>
 
 [Uxarray Contributor’s Guide](https://uxarray.readthedocs.io/en/latest/contributing.html)
 

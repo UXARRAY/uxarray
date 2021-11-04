@@ -1,10 +1,9 @@
 Installation
 ============
 
-This installation guide includes only the Uxarray installation and build instructions.
-
-Please refer to `Uxarray Contributor's Guide <https://uxarray.readthedocs.io/en/latest/contributing.html>`_ for
-detailed information about how to contribute to the uxarray project.
+This installation guide includes only the Uxarray installation instructions. Please
+refer to `Uxarray Contributor's Guide <https://uxarray.readthedocs.io/en/latest/contributing.html>`_
+for detailed information about how to contribute to the uxarray project.
 
 Installing Uxarray via Conda
 ----------------------------
@@ -34,14 +33,14 @@ Installing Uxarray from source (Github)
 
 Installing Uxarray from source code is a fairly straightforward task, but
 doing so should not be necessary for most users. If you `are` interested in
-installing Uxarray from source (e.g. maybe for obtaining the latest
-development version), you will need to get the latest version of the code::
+installing Uxarray from source, you will first need to get the latest version
+of the code::
 
     git clone https://github.com/UXARRAY/uxarray.git
     cd uxarray
 
-Required dependencies for installing and testing Uxarray from source
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Required dependencies for installing and testing Uxarray
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following packages should be installed (in your active conda
 environment)::
@@ -50,23 +49,24 @@ environment)::
     - `pytest <https://docs.pytest.org/en/stable/>`_  (For tests only)
     - `xarray <http://xarray.pydata.org/en/stable/>`_
 
-The next section describes how to setup conda environment with these
-dependencies.
+If you don't have these packages installed, the next section describes
+how to setup a conda environment with them.
 
-How to create a Conda environment for installing Uxarray
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Creating a Conda environment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Uxarray source code includes a conda environment definition file
 (:code:`environment.yml`) in the :code:`/ci` folder under the root
 directory that can be used to create a development environment
 containing all of the packages required to build Uxarray. The
-following commands should work on Windows, Linux, and macOS::
+following commands should work on Windows, Linux, and macOS to create
+and activate a new conda environment from that file::
 
     conda env create -f ci/environment.yml
     conda activate uxarray_build
 
-Installing Uxarray from source
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Installing from source
+^^^^^^^^^^^^^^^^^^^^^^
 
 Once the dependencies listed above are installed, you can install
 Uxarray with running the following command from the root-directory::
@@ -76,8 +76,8 @@ Uxarray with running the following command from the root-directory::
 For compatibility purposes, we strongly recommend using Conda to
 configure your build environment as described above.
 
-Testing a Uxarray code base
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Testing Uxarray source
+^^^^^^^^^^^^^^^^^^^^^^
 
 A Uxarray code base can be tested from the root directory of the source
 code repository using the following command (Explicit installation of the
