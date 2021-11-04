@@ -5,8 +5,8 @@ This installation guide includes only the Uxarray installation instructions. Ple
 refer to `Uxarray Contributor's Guide <https://uxarray.readthedocs.io/en/latest/contributing.html>`_
 for detailed information about how to contribute to the uxarray project.
 
-1. Installing Uxarray via Conda
--------------------------------
+Installing Uxarray via Conda
+----------------------------
 
 The easiest way to install Uxarray along with its dependencies is via
 `Conda <http://conda.pydata.org/docs/>`_::
@@ -21,15 +21,15 @@ If you are interested in learning more about how Conda environments work, please
 visit the `managing environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
 page of the Conda documentation.
 
-2. Installing Uxarray via PyPI
-------------------------------
+Installing Uxarray via PyPI
+---------------------------
 
 An alternative to Conda is using pip::
 
     pip install uxarray
 
-3. Installing Uxarray from source (Github)
-------------------------------------------
+Installing Uxarray from source (Github)
+---------------------------------------
 
 Installing Uxarray from source code is a fairly straightforward task, but
 doing so should not be necessary for most users. If you `are` interested in
@@ -39,7 +39,7 @@ of the code::
     git clone https://github.com/UXARRAY/uxarray.git
     cd uxarray
 
-3.1. Required dependencies for installing and testing Uxarray
+Required dependencies for installing and testing Uxarray
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following packages should be installed (in your active conda
@@ -52,7 +52,7 @@ environment)::
 If you don't have these packages installed, the next section describes
 how to setup a conda environment with them.
 
-3.2. Creating a Conda environment
+Creating a Conda environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Uxarray source code includes a conda environment definition file
@@ -65,7 +65,7 @@ and activate a new conda environment from that file::
     conda env create -f ci/environment.yml
     conda activate uxarray_build
 
-3.3. Installing from source
+Installing from source
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Once the dependencies listed above are installed, you can install
