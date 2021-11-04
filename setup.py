@@ -26,8 +26,7 @@ setup(
     python_requires='>=3.7',
     install_requires=requirements,
     description=
-    """Uxarray looks to implement xarray capabilities with ugrid conventions to
-    facilitate data visualization with unstructured grids""",
+    """Unstructured grid model reading and recognizing with xarray.""",
     long_description=long_description,
     long_description_content_type='text/markdown',
     classifiers=[
@@ -41,12 +40,8 @@ setup(
         'Topic :: Scientific/Engineering',
     ],
     include_package_data=True,
-    package_dir={
-        '': 'src',
-        'uxarray': 'src/uxarray',
-    },
+    packages=find_packages(exclude=["docs", "test", "docs.*", "test.*"]),
     # namespace_packages=['UXARRAY'],
-    packages=['uxarray'],
     url='https://github.com/UXARRAY/uxarray',
     project_urls={
         # 'Documentation': 'https://uxarray.readthedocs.io',

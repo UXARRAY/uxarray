@@ -31,7 +31,7 @@ jobs:
           mamba-version: '*'
           python-version: 3.8
           channels: conda-forge
-          environment-file: build_envs/upstream-dev-environment.yml
+          environment-file: ci/upstream-dev-environment.yml
 
       - name: Install uxarray
         run: |
@@ -39,4 +39,4 @@ jobs:
 
       - name: Running Tests
         run: |
-          python -m pytest test -v --cov=./src/uxarray --cov-report=xml
+          python -m pytest test -v --cov=./uxarray --cov-report=xml

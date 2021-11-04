@@ -21,18 +21,17 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 [Uxarray Documentation](https://uxarray.readthedocs.io/en/latest)
 
-[Project Raijin Homepage](https://raijin.ucar.edu/)
+[Uxarray Contributor’s Guide](https://uxarray.readthedocs.io/en/latest/contributing.html)
 
-[SEATS Project Homepage]()
+[Uxarray Installation](https://uxarray.readthedocs.io/en/latest/installation.html)
+
+[Project Raijin Homepage](https://raijin.ucar.edu/)
 
 [Project Raijin Contributor's Guide](https://raijin.ucar.edu/contributing.html)
 
+[SEATS Project Homepage]()
+
 [SEATs Project Contributor's Guide]()
-
-# Installation and build instructions
-
-Please see our documentation for
-[installation and build instructions](https://github.com/UXARRAY/uxarray/blob/main/INSTALLATION.md).
 
 # Citing Uxarray
 
