@@ -1,5 +1,5 @@
 # How to install Uxarray
 
 Please see our
-<a href="https://uxarray.readthedocs.io/en/latest/installation.html" target="_blank">Uxarray Installation</a>
+[Uxarray Installation](https://uxarray.readthedocs.io/en/latest/installation.html)
 instructions for detailed information!
