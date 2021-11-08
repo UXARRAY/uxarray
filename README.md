@@ -3,7 +3,7 @@
 | **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]                                                                    |
 | **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                                                         |
 | **License**  |                                                                        [![License][license-badge]][repo-link]                                                                        |
-<!-- | **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           | -->
+| **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           |
 
 
 
@@ -64,6 +64,6 @@ For further information, please refer to
 [conda-badge]: https://img.shields.io/conda/vn/UXARRAY/uxarray?logo=anaconda&style=for-the-badge
 [conda-link]: https://anaconda.org/conda-forge/uxarray
 [license-badge]: https://img.shields.io/github/license/UXARRAY/uxarray?style=for-the-badge
-<!---[doi-badge]: https://img.shields.io/badge/DOI-10.5065%2Fa8pp--4358-brightgreen?style=for-the-badge --->
-<!---[doi-link]: https://doi.org/10.5065/a8pp-4358 --->
+doi-badge]: [![DOI](https://zenodo.org/badge/421447986.svg)](https://zenodo.org/badge/latestdoi/421447986)
+[doi-link]: https://zenodo.org/badge/latestdoi/421447986
 [repo-link]: https://github.com/UXARRAY/uxarray
