@@ -64,6 +64,6 @@ For further information, please refer to
 [conda-badge]: https://img.shields.io/conda/vn/UXARRAY/uxarray?logo=anaconda&style=for-the-badge
 [conda-link]: https://anaconda.org/conda-forge/uxarray
 [license-badge]: https://img.shields.io/github/license/UXARRAY/uxarray?style=for-the-badge
-doi-badge]: [![DOI](https://zenodo.org/badge/421447986.svg)](https://zenodo.org/badge/latestdoi/421447986)
+[doi-badge]: [![DOI](https://zenodo.org/badge/421447986.svg)](https://zenodo.org/badge/latestdoi/421447986)
 [doi-link]: https://zenodo.org/badge/latestdoi/421447986
 [repo-link]: https://github.com/UXARRAY/uxarray
