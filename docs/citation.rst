@@ -15,4 +15,3 @@ Update the year, Uxarray version, and DOI part for UXarray version as appropriat
 **UXARRAY Organization. (2021).
 Uxarray (version 0.0.2) [Software].
 Project Raijin & Project SEATS. doi:10.5281/zenodo.5658256.**
-
