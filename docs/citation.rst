@@ -8,13 +8,11 @@ Cite Uxarray using the following text:
 
 **UXARRAY Organization. (Year).
 Uxarray (version \<version\>) [Software].
-Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
+Project Raijin & Project SEATS. doi:10.5281/zenodo.<doi-part-per-version>.**
 
-Update the Uxarray version and year as appropriate. For example:
+Update the year, Uxarray version, and DOI part for UXarray version as appropriate. For example:
 
 **UXARRAY Organization. (2021).
-Uxarray (version 0.0.1) [Software].
-Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
+Uxarray (version 0.0.2) [Software].
+Project Raijin & Project SEATS. doi:10.5281/zenodo.5658256.**
 
-For further information, please refer to
-`Uxarray homepage - Citation <https://github.com/UXARRAY/uxarray>`_.
