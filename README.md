@@ -35,20 +35,9 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 # Citing Uxarray
 
-Cite Uxarray using the following text:
+If you'd like to cite our work, please follow [How to cite 
+Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
-**UXARRAY Organization. (Year).
-Uxarray (Uxarray version \<version\>) [Software].
-Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
-
-Update the Uxarray version and year as appropriate. For example:
-
-**UXARRAY Organization. (2021).
-Uxarray (version 0.0.1) [Software].
-Project Raijin & Project SEATS. https://uxarray.readthedocs.io/en/latest/.**
-
-For further information, please refer to
-[Project Raijin homepage - Citation](https://raijin.ucar.edu/).
 
 
 [github-ci-badge]: https://img.shields.io/github/workflow/status/UXARRAY/uxarray/CI?label=CI&logo=github&style=for-the-badge
