@@ -35,7 +35,7 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 # Citing Uxarray
 
-If you'd like to cite our work, please follow [How to cite 
+If you'd like to cite our work, please follow [How to cite
 Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 
