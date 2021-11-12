@@ -27,7 +27,7 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 # Intended Functionality for DataArrays on Grids
 
-* Regridding of data between unstructured grids. 
+* Regridding of data between unstructured grids.
 * Global and regional integration of fields, including zonal averages.
 * Application of calculus operations, including divergence, curl, Laplacian and gradient.
 * Snapshots and composites following particular features.
@@ -85,4 +85,3 @@ Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 | :-----------: | :----------: |
 | <img src="logos/EarthCube_logo.png" alt="EarthCube Logo" width="200"/> | EarthCube aims to transform the conduct of geosciences research by developing and maintaining a well-connected and facile environment that improves access, sharing, visualization, and analysis of data and related resources. |
 | <img src="logos/PANGEO_logo.png" alt="PANGEO Logo" width="200"/> | Pangeo supports collaborative efforts to develop software and infrastructure to enable Big Data geoscience research. |
-
