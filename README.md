@@ -9,7 +9,7 @@
 
 Uxarray aims to address the geoscience community need for utilities that can handle 2D and 3D unstructured grid datasets.
 These utility functions were inspired by discussion on the [Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).
-Uxarray will provide Xarray styled funtions to better read in and use unstructured grid datasets that follow UGRID conventions.
+Uxarray will provide Xarray styled functions to better read in and use unstructured grid datasets that follow UGRID conventions.
 This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University)
 and SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).
 
