@@ -76,28 +76,28 @@ Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 <table>
   <tr>
-    <td><a href="https://www.nsf.gov/"><img src="logos/NSF_logo.png" alt="NSF Logo" width="400"/></a></td>
+    <td><a href="https://www.nsf.gov/"><img src="docs/_static/images/NSF_logo.png" alt="NSF Logo" width="400"/></a></td>
     <td>Project Raijin, entitled "Collaborative Research: EarthCube Capabilities: Raijin: Community Geoscience Analysis Tools for Unstructured Mesh Data", was awarded by NSF 21-515 EarthCube (Award Number (FAIN): 2126458) on 08/19/2021. The award period of performance has a start date of 09/01/2021 and end date of 08/31/2024.</td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td><a href="https://www.energy.gov/science/office-science"><img src="logos/DOE_Office_of_Science_logo.png" alt="DOE Logo" width="1200"/></a></td>
+    <td><a href="https://www.energy.gov/science/office-science"><img src="docs/_static/images/DOE_Office_of_Science_logo.png" alt="DOE Logo" width="1200"/></a></td>
     <td>SEATS is funded by the Regional and Global Modeling and Analysis (RGMA) program area in the U.S. Department of Energy (DOE) Earth and Environmental System Modeling Program which is part of the Earth and Environmental Systems Sciences Division of the Office of Biological and Environmental Research in DOE’s Office of Science.</td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td><a href="https://www.earthcube.org/"><img src="logos/EarthCube_logo.png" alt="EarthCube Logo" width="300"/></a></td>
+    <td><a href="https://www.earthcube.org/"><img src="docs/_static/images/EarthCube_logo.png" alt="EarthCube Logo" width="300"/></a></td>
     <td><a href="https://www.earthcube.org/">EarthCube</a> aims to transform the conduct of geosciences research by developing and maintaining a well-connected and facile environment that improves access, sharing, visualization, and analysis of data and related resources.</td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td><a href="https://pangeo.io/"><img src="logos/PANGEO_logo.png" alt="PANGEO Logo" width="400"/></a></td>
+    <td><a href="https://pangeo.io/"><img src="docs/_static/images/PANGEO_logo.png" alt="PANGEO Logo" width="400"/></a></td>
     <td><a href="https://pangeo.io/">Pangeo</a> supports collaborative efforts to develop software and infrastructure to enable Big Data geoscience research.</td>
   </tr>
 </table>
