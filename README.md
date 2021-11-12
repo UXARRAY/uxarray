@@ -74,8 +74,6 @@ Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 # Support
 
-# Support
-
 <table>
   <tr>
     <td><a href="https://www.nsf.gov/"><img src="logos/NSF_logo.png" alt="NSF Logo" width="400"/></a></td>
