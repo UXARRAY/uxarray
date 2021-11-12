@@ -28,8 +28,9 @@ repository.
 * Support for arbitrary structured and unstructured grids on the sphere, including latitude-longitude grids, grids
   with only partial coverage of the sphere, and grids with concave faces.
 * Support for finite volume and finite element outputs.
-* Support for edges that are either great circle arc or lines of constant latitude.
+* Support for edges that are either great circle arcs or lines of constant latitude.
 * Calculation of face areas, centroids, and bounding latitude-longitude boxes.
+* Triangular decompositions.
 * Calculation of supermeshes (consisting of grid lines from two input grids).
 
 # Intended Functionality for DataArrays on Grids
