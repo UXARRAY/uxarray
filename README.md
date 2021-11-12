@@ -9,7 +9,7 @@
 
 Uxarray aims to address the geoscience community need for tools that enable standard data analysis techniques to operate directly on unstructured grid data.  These utility functions were inspired by discussion on the [Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).
 
-Uxarray will provide Xarray styled funtions to better read in and use unstructured grid datasets that follow standard conventions, including UGRID, SCRIP, Exodus and shapefile formats.  This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University) and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).
+Uxarray will provide Xarray styled functions to better read in and use unstructured grid datasets that follow standard conventions, including UGRID, SCRIP, Exodus and shapefile formats.  This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University) and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).
 
 Uxarray is implemented in pure Python and does not explicitly contain or require any compiled code. This makes Uxarray more
 accessible to the general Python community. Any contributions to this repository in pure Python are welcome and documentation
@@ -21,8 +21,9 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 * Support for reading and writing shapefiles.
 * Support for arbitrary structured and unstructured grids on the sphere, including latitude-longitude grids, grids with only partial coverage of the sphere, and grids with concave faces.
 * Support for finite volume and finite element outputs.
-* Support for edges that are either great circle arc or lines of constant latitude.
+* Support for edges that are either great circle arcs or lines of constant latitude.
 * Calculation of face areas, centroids, and bounding latitude-longitude boxes.
+* Triangular decompositions.
 * Calculation of supermeshes (consisting of grid lines from two input grids).
 
 # Intended Functionality for DataArrays on Grids
