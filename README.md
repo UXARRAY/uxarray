@@ -7,15 +7,41 @@
 
 
 
-Uxarray aims to address the geoscience community need for utilities that can handle 2D and 3D unstructured grid datasets.
-These utility functions were inspired by discussion on the [Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).
-Uxarray will provide Xarray styled funtions to better read in and use unstructured grid datasets that follow UGRID conventions.
-This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University)
-and SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).
+Uxarray aims to address the geoscience community need for tools that enable standard data analysis techniques to
+operate directly on unstructured grid data.  Uxarray will provide Xarray styled functions to better read in and
+use unstructured grid datasets that follow standard conventions, including UGRID, SCRIP, Exodus and shapefile
+formats.  This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University)
+and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).  The
+Uxarray team welcomes other community members to become part of this collaboration at any level of contribution.
 
-Uxarray is implemented in pure Python and does not explicitly contain or require any compiled code. This makes Uxarray more
-accessible to the general Python community. Any contributions to this repository in pure Python are welcome and documentation
-for contribution guidelines can be found when clicking `New Issue` under the `Issues` tab in the Uxarray repository.
+Uxarray is implemented in pure Python and does not explicitly contain or require any compiled code. This makes Uxarray
+more accessible to the general Python community. Any contributions to this repository in pure Python are welcome and
+documentation for contribution guidelines can be found when clicking `New Issue` under the `Issues` tab in the Uxarray
+repository.
+
+The following intended functionality has been inspired by discussions with members of the scientific community,
+within the SEATS Project and Project Raijin, and on several community platforms such as
+[Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).  The Uxarray team is receptive to additional
+functionality requests.
+
+# Intended Functionality for Grids
+
+* Support for reading and writing UGRID, SCRIP and Exodus formatted grids.
+* Support for reading and writing shapefiles.
+* Support for arbitrary structured and unstructured grids on the sphere, including latitude-longitude grids, grids
+  with only partial coverage of the sphere, and grids with concave faces.
+* Support for finite volume and finite element outputs.
+* Support for edges that are either great circle arcs or lines of constant latitude.
+* Calculation of face areas, centroids, and bounding latitude-longitude boxes.
+* Triangular decompositions.
+* Calculation of supermeshes (consisting of grid lines from two input grids).
+
+# Intended Functionality for DataArrays on Grids
+
+* Regridding of data between unstructured grids.
+* Global and regional integration of fields, including zonal averages.
+* Application of calculus operations, including divergence, curl, Laplacian and gradient.
+* Snapshots and composites following particular features.
 
 # Documentation
 
@@ -27,16 +53,42 @@ for contribution guidelines can be found when clicking `New Issue` under the `Is
 
 [Project Raijin Homepage](https://raijin.ucar.edu/)
 
-[Project Raijin Contributor's Guide](https://raijin.ucar.edu/contributing.html)
-
-[SEATS Project Homepage]()
-
-[SEATs Project Contributor's Guide]()
+[SEATS Project Homepage](https://seatstandards.org)
 
 # Citing Uxarray
 
 If you'd like to cite our work, please follow [How to cite
 Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
+
+# Support
+
+<table>
+  <tr>
+    <td><a href="https://www.nsf.gov/"><img src="docs/_static/images/logos/NSF_logo.png" alt="NSF Logo" width="400"/></a></td>
+    <td>Project Raijin, entitled "Collaborative Research: EarthCube Capabilities: Raijin: Community Geoscience Analysis Tools for Unstructured Mesh Data", was awarded by NSF 21-515 EarthCube (Award Number (FAIN): 2126458) on 08/19/2021. The award period of performance has a start date of 09/01/2021 and end date of 08/31/2024.</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><a href="https://www.energy.gov/science/office-science"><img src="docs/_static/images/logos/DOE_Office_of_Science_logo.png" alt="DOE Logo" width="1200"/></a></td>
+    <td>SEATS is funded by the Regional and Global Modeling and Analysis (RGMA) program area in the U.S. Department of Energy (DOE) Earth and Environmental System Modeling Program which is part of the Earth and Environmental Systems Sciences Division of the Office of Biological and Environmental Research in DOE’s Office of Science.</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><a href="https://www.earthcube.org/"><img src="docs/_static/images/logos/EarthCube_logo.png" alt="EarthCube Logo" width="300"/></a></td>
+    <td><a href="https://www.earthcube.org/">EarthCube</a> aims to transform the conduct of geosciences research by developing and maintaining a well-connected and facile environment that improves access, sharing, visualization, and analysis of data and related resources.</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><a href="https://pangeo.io/"><img src="docs/_static/images/logos/PANGEO_logo.png" alt="PANGEO Logo" width="400"/></a></td>
+    <td><a href="https://pangeo.io/">Pangeo</a> supports collaborative efforts to develop software and infrastructure to enable Big Data geoscience research.</td>
+  </tr>
+</table>
 
 
 
