@@ -8,18 +8,21 @@
 
 
 Uxarray aims to address the geoscience community need for tools that enable standard data analysis techniques to
-operate directly on unstructured grid data.  These utility functions were inspired by discussion on the
-[Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).
-
-Uxarray will provide Xarray styled functions to better read in and use unstructured grid datasets that follow standard
-conventions, including UGRID, SCRIP, Exodus and shapefile formats.  This effort is a result of the collaboration
-between Project Raijin (NCAR and Pennsylvania State University) and the SEATS Project (Argonne National Laboratory,
-UC Davis, and Lawrence Livermore National Laboratory).
+operate directly on unstructured grid data.  Uxarray will provide Xarray styled functions to better read in and
+use unstructured grid datasets that follow standard conventions, including UGRID, SCRIP, Exodus and shapefile
+formats.  This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University)
+and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).  The
+Uxarray team welcomes other community members to become part of this collaboration at any level of contribution.
 
 Uxarray is implemented in pure Python and does not explicitly contain or require any compiled code. This makes Uxarray
 more accessible to the general Python community. Any contributions to this repository in pure Python are welcome and
 documentation for contribution guidelines can be found when clicking `New Issue` under the `Issues` tab in the Uxarray
 repository.
+
+The following intended functionality has been inspired by discussions with members of the scientific community,
+within the SEATS Project and Project Raijin, and on several community platforms such as
+[Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).  The Uxarray team is receptive to additional
+functionality requests.
 
 # Intended Functionality for Grids
 
@@ -50,11 +53,7 @@ repository.
 
 [Project Raijin Homepage](https://raijin.ucar.edu/)
 
-[Project Raijin Contributor's Guide](https://raijin.ucar.edu/contributing.html)
-
-[SEATS Project Homepage]()
-
-[SEATs Project Contributor's Guide]()
+[SEATS Project Homepage](https://seatstandards.org)
 
 # Citing Uxarray
 
