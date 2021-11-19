@@ -1,0 +1,3 @@
+def populate_exo_data(self, ds):
+    ds["mesh2_node_x"] = ds.coordx.values
+    # print(ds)
