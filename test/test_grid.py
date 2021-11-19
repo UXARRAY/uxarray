@@ -6,16 +6,16 @@ import xarray as xr
 # Import from directory structure if coverage test, or from installed
 # packages otherwise
 if "--cov" in str(sys.argv):
-    from uxarray import grid
+    from uxarray import Grid
 else:
-    from uxarray import grid
+    from uxarray import Grid
 
 
 class test_grid(TestCase):
 
     def test_load_exofile(self):
         exo_filename = "./test/hex_2x2x2_ss.exo"
-        tgrid = grid.Grid(exo_filename)
+        tgrid = Grid(exo_filename)
 
         # check get_filename function
         assert (tgrid.get_filename() == exo_filename)
@@ -27,18 +27,18 @@ class test_grid(TestCase):
 
     def test_load_exo2file(self):
         exo_filename = "./test/outCSne8.g"
-        tgrid = grid.Grid(exo_filename)
+        tgrid = Grid(exo_filename)
 
     def test_load_scrip(self):
         exo_filename = "./test/outCSne8.nc"
-        tgrid = grid.Grid(exo_filename)
+        tgrid = Grid(exo_filename)
 
     def test_load_ugrid(self):
         ugrid_file = "./test/sphere_mixed.1.lb8.ugrid"
-        tgrid = grid.Grid(ugrid_file)
+        tgrid = Grid(ugrid_file)
 
     # use external package to read?
     # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
     def test_load_shpfile(self):
         ugrid_file = "./test/grid_fire.shp"
-        tgrid = grid.Grid(ugrid_file)
+        tgrid = Grid(ugrid_file)
