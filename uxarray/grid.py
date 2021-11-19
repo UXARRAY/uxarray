@@ -127,7 +127,7 @@ class Grid:
         return self.isconcave
 
     # DataSet containing uxarray.Grid properties
-    def ds():
+    def ds(self):
         return self.grid_ds
 
     # Write a uxgrid to a file with specified format.
