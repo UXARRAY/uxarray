@@ -14,8 +14,13 @@ else:
 class test_grid(TestCase):
 
     def test_load_exofile(self):
-        exo_filename = "./test/hex_2x2x2_ss.exo"
-        tgrid = ux.Grid(exo_filename)
+
+        try:
+            exo_filename = "./hex_2x2x2_ss.exo"
+            tgrid = ux.Grid(exo_filename)
+        except:
+            exo_filename = "./test/hex_2x2x2_ss.exo"
+            tgrid = ux.Grid(exo_filename)
 
         # check get_filename function
         assert (tgrid.get_filename() == exo_filename)
@@ -26,12 +31,22 @@ class test_grid(TestCase):
         assert (tgrid.get_filename() == new_filename)
 
     def test_load_exo2file(self):
-        exo_filename = "./outCSne8.g"
-        tgrid = ux.Grid(exo_filename)
+
+        try:
+            exo_filename = "./outCSne8.g"
+            tgrid = ux.Grid(exo_filename)
+        except:
+            exo_filename = "./test/outCSne8.g"
+            tgrid = ux.Grid(exo_filename)
 
     def test_load_scrip(self):
-        exo_filename = "./outCSne8.nc"
-        tgrid = ux.Grid(exo_filename)
+
+        try:
+            exo_filename = "./outCSne8.nc"
+            tgrid = ux.Grid(exo_filename)
+        except:
+            exo_filename = "./test/outCSne8.nc"
+            tgrid = ux.Grid(exo_filename)
 
     # def test_load_ugrid(self):
     #     ugrid_file = "./sphere_mixed.1.lb8.ugrid"
