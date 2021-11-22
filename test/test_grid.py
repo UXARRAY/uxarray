@@ -14,7 +14,7 @@ else:
 class test_grid(TestCase):
 
     def test_load_exofile(self):
-        exo_filename = "./hex_2x2x2_ss.exo"
+        exo_filename = "./test/hex_2x2x2_ss.exo"
         tgrid = ux.Grid(exo_filename)
 
         # check get_filename function
