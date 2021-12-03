@@ -110,26 +110,6 @@ class Grid:
     # def __init__(self, verts):
     #     pass
 
-    # returns the filename of the grid
-    def get_filename(self):
-        return self.fname
-
-    # renames the grid
-    def rename_file(self, filename):
-        self.fname = filename
-
-    # A flag indicating the grid is a latitude longitude grid.
-    def islatlon(self):
-        return self.istlatlon
-
-    # A flag indicating the grid contains concave faces.
-    def isconcave(self):
-        return self.isconcave
-
-    # DataSet containing uxarray.Grid properties
-    def ds(self):
-        return self.grid_ds
-
     # Write a uxgrid to a file with specified format.
     def write(self, outfile, format):
         pass
