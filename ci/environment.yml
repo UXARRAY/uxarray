@@ -7,5 +7,7 @@ dependencies:
   - pytest
   - pytest-cov
   - xarray
+  - netcdf4
+  - scipy
   - pip:
       - pre-commit

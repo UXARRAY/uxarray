@@ -98,25 +98,17 @@ class Grid:
         elif self.meshFileType == "shp":
             self.read_and_populate_shpfile_data(filename)
 
-    # returns the filename of the grid
-    def get_filename(self):
-        return self.fname
+        # self.grid_ds["Mesh2_node_x"] = self.grid_ds.coordx.values
+        # self.grid_ds["Mesh2_node_y"] = self.grid_ds.coordy.values
+        # self.grid_ds["Mesh2_node_z"] = self.grid_ds.coordz.values
 
-    # renames the grid
-    def rename_file(self, filename):
-        self.fname = filename
+        # set faces
 
-    # A flag indicating the grid is a latitude longitude grid.
-    def islatlon(self):
-        return self.istlatlon
+        # self.grid_ds["Mesh2_faces"]
 
-    # A flag indicating the grid contains concave faces.
-    def isconcave(self):
-        return self.isconcave
-
-    # DataSet containing uxarray.Grid properties
-    def ds():
-        return self.grid_ds
+    # # Create a grid with one face with vertices specified by the given argument.
+    # def __init__(self, verts):
+    #     pass
 
     # Write a uxgrid to a file with specified format.
     def write(self, outfile, format):
