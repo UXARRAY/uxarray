@@ -41,28 +41,31 @@ class Grid:
         # initialize for vertices
         if in_type is np.ndarray:
             self.vertices = args[0]
-            self.init_vert()
+            self._init_vert()
 
         # initialize for file
         elif in_type is str and os.path.isfile(args[0]):
             self.filepath = args[0]
-            self.init_file()
+            self._init_file()
 
-        # initialize for gridspec
+        # initialize for gridspec (??)
         elif in_type is str:
             self.gridspec = args[0]
-            self.init_gridspec()
+            self._init_gridspec()
+
+        else:
+            pass
 
     # vertices init
-    def init_vert(self):
+    def _init_vert(self):
         print("initializing with vertices")
 
     # gridspec init
-    def init_gridspec(self):
+    def _init_gridspec(self):
         print("initializing with gridspec")
 
     # file init
-    def init_file(self):
+    def _init_file(self):
         print("initializing from file")
 
         # find the file type
@@ -91,7 +94,7 @@ class Grid:
                 raise RuntimeError(msg)
                 exit
 
-        print("Done loading: ", filename)
+        print("Done loading: ", self.filepath)
 
         # Detect mesh file type:
         # if ds has coordx - call it exo1 format
