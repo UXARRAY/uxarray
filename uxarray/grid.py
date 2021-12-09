@@ -24,7 +24,7 @@ class Grid:
     # Load the grid file specified by file.
     # The routine will automatically detect if it is a UGrid, SCRIP, Exodus, or shape file.
     def __init__(self, filename):
-        self.fname = filename
+        self.filename = filename
         self.islatlon = False
         self.concave = False
         self.meshFileType = ""
@@ -100,7 +100,7 @@ class Grid:
 
     # renames the grid
     def rename_file(self, filename):
-        self.fname = filename
+        self.filename = filename
 
     # A flag indicating the grid is a latitude longitude grid.
     def islatlon(self):
