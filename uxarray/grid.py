@@ -8,13 +8,13 @@
 #
 from logging import raiseExceptions
 import xarray as xr
+import numpy as np
 import os
 
 
 # grid class
 class Grid:
-
-    #Import methods
+    # Import methods
     from ._populate_exodus import populate_exo_data
     from ._populate_exodus2 import populate_exo2_data
     from ._populate_ugrid import read_and_populate_ugrid_data
@@ -23,22 +23,58 @@ class Grid:
 
     # Load the grid file specified by file.
     # The routine will automatically detect if it is a UGrid, SCRIP, Exodus, or shape file.
-    def __init__(self, filename):
-        self.filename = filename
-        self.islatlon = False
-        self.concave = False
-        self.meshFileType = ""
+    def __init__(self, *args, **kwargs):
+
+        # initialize possible variables
+        self.filepath = None
+        self.gridspec = None
+        self.vertices = None
+        self.islatlon = None
+        self.concave = None
+        self.meshFileType = None
+
+        self.grid_ds = None
+
+        # determine initialization type
+        in_type = type(args[0])
+
+        # initialize for vertices
+        if in_type is np.ndarray:
+            self.vertices = args[0]
+            self.init_vert()
+
+        # initialize for file
+        elif in_type is str and os.path.isfile(args[0]):
+            self.filepath = args[0]
+            self.init_file()
+
+        # initialize for gridspec
+        elif in_type is str:
+            self.gridspec = args[0]
+            self.init_gridspec()
+
+    # vertices init
+    def init_vert(self):
+        print("initializing with vertices")
+
+    # gridspec init
+    def init_gridspec(self):
+        print("initializing with gridspec")
+
+    # file init
+    def init_file(self):
+        print("initializing from file")
 
         # find the file type
         try:
             # extract the file name and extension
-            split = os.path.splitext(filename)
+            split = os.path.splitext(self.filepath)
             file_name = split[0]
             file_extension = split[1]
             # open dataset with xarray
-            self.grid_ds = xr.open_dataset(filename)
+            self.grid_ds = xr.open_dataset(self.filepath)
         except (TypeError, AttributeError) as e:
-            msg = str(e) + ': {}'.format(filename)
+            msg = str(e) + ': {}'.format(self.filepath)
             print(msg)
             raise RuntimeError(msg)
             exit
@@ -50,7 +86,7 @@ class Grid:
             elif file_extension == ".shp":
                 self.meshFileType = "shp"
             else:
-                msg = str(e) + ': {}'.format(filename)
+                msg = str(e) + ': {}'.format(self.filepath)
                 print(msg)
                 raise RuntimeError(msg)
                 exit
@@ -65,20 +101,20 @@ class Grid:
         try:
             self.grid_ds.coordx
             self.meshFileType = "exo1"
-        except (AttributeError) as e:
+        except AttributeError as e:
             pass
         try:
             self.grid_ds.grid_center_lon
             self.meshFileType = "scrip"
-        except (AttributeError) as e:
+        except AttributeError as e:
             pass
         try:
             self.grid_ds.coord
             self.meshFileType = "exo2"
-        except (AttributeError) as e:
+        except AttributeError as e:
             pass
 
-        if self.meshFileType == "":
+        if self.meshFileType is None:
             print("mesh file not supported")
 
         print("Mesh file type is", self.meshFileType)
@@ -100,7 +136,7 @@ class Grid:
 
     # renames the grid
     def rename_file(self, filename):
-        self.filename = filename
+        self.filepath = filename
 
     # A flag indicating the grid is a latitude longitude grid.
     def islatlon(self):
@@ -120,10 +156,6 @@ class Grid:
         # set faces
 
         # self.grid_ds["Mesh2_faces"]
-
-    # # Create a grid with one face with vertices specified by the given argument.
-    # def __init__(self, verts):
-    #     pass
 
     # Write a uxgrid to a file with specified format.
     def write(self, outfile, format):

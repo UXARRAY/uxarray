@@ -34,7 +34,7 @@ class test_grid(TestCase):
         # check rename filename function
         new_filename = "1hex.exo"
         tgrid.rename_file(new_filename)
-        assert (tgrid.filename == new_filename)
+        assert (tgrid.filepath == new_filename)
 
     def test_load_exo2file(self):
 
