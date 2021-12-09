@@ -22,13 +22,19 @@ class test_grid(TestCase):
             exo_filename = "./test/hex_2x2x2_ss.exo"
             tgrid = ux.Grid(exo_filename)
 
-        # check get_filename function
-        assert (tgrid.get_filename() == exo_filename)
+    def test_rename(self):
+
+        try:
+            exo_filename = "./hex_2x2x2_ss.exo"
+            tgrid = ux.Grid(exo_filename)
+        except:
+            exo_filename = "./test/hex_2x2x2_ss.exo"
+            tgrid = ux.Grid(exo_filename)
 
         # check rename filename function
         new_filename = "1hex.exo"
         tgrid.rename_file(new_filename)
-        assert (tgrid.get_filename() == new_filename)
+        assert (tgrid.fname == new_filename)
 
     def test_load_exo2file(self):
 
