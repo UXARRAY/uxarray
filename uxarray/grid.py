@@ -143,8 +143,8 @@ class Grid:
     def rename_file(self, filename):  
         path = PurePath(self.filepath)
         old_filename = path.name
-        new_filepath = str(path.parent)+"/"+filename
-        self.filepath = new_filepath
+        new_filepath = path.parent / filename
+        self.filepath = str(new_filepath)
 
     # A flag indicating the grid is a latitude longitude grid.
     def islatlon(self):
