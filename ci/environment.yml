@@ -9,5 +9,6 @@ dependencies:
   - xarray
   - netcdf4
   - scipy
+  - pathlib
   - pip:
       - pre-commit

@@ -9,6 +9,7 @@
 from logging import raiseExceptions
 import xarray as xr
 import numpy as np
+from pathlib import PurePath
 import os
 
 
@@ -37,6 +38,7 @@ class Grid:
 
         # determine initialization type
         in_type = type(args[0])
+        # print(in_type, "intype", os.getcwd(), args[0], os.path.isfile(args[0]))
 
         # initialize for vertices
         if in_type is np.ndarray:
@@ -71,9 +73,9 @@ class Grid:
         # find the file type
         try:
             # extract the file name and extension
-            split = os.path.splitext(self.filepath)
-            file_name = split[0]
-            file_extension = split[1]
+            path = PurePath(self.filepath)
+            file_extension = path.suffix
+            
             # open dataset with xarray
             self.grid_ds = xr.open_dataset(self.filepath)
         except (TypeError, AttributeError) as e:
@@ -133,13 +135,16 @@ class Grid:
         elif self.meshFileType == "scrip":
             self.populate_scrip_data(self.grid_ds)
         elif self.meshFileType == "ugrid":
-            self.read_and_populate_ugrid_data(filename)
+            self.read_and_populate_ugrid_data(self.filepath)
         elif self.meshFileType == "shp":
-            self.read_and_populate_shpfile_data(filename)
+            self.read_and_populate_shpfile_data(self.filepath)
 
-    # renames the grid
-    def rename_file(self, filename):
-        self.filepath = filename
+    # renames the grid file
+    def rename_file(self, filename):  
+        path = PurePath(self.filepath)
+        old_filename = path.name
+        new_filepath = str(path.parent)+"/"+filename
+        self.filepath = new_filepath
 
     # A flag indicating the grid is a latitude longitude grid.
     def islatlon(self):
@@ -152,13 +157,6 @@ class Grid:
     # DataSet containing uxarray.Grid properties
     def ds(self):
         return self.grid_ds
-        # self.grid_ds["Mesh2_node_x"] = self.grid_ds.coordx.values
-        # self.grid_ds["Mesh2_node_y"] = self.grid_ds.coordy.values
-        # self.grid_ds["Mesh2_node_z"] = self.grid_ds.coordz.values
-
-        # set faces
-
-        # self.grid_ds["Mesh2_faces"]
 
     # Write a uxgrid to a file with specified format.
     def write(self, outfile, format):
