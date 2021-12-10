@@ -75,7 +75,7 @@ class Grid:
             # extract the file name and extension
             path = PurePath(self.filepath)
             file_extension = path.suffix
-            
+
             # open dataset with xarray
             self.grid_ds = xr.open_dataset(self.filepath)
         except (TypeError, AttributeError) as e:
@@ -140,7 +140,7 @@ class Grid:
             self.read_and_populate_shpfile_data(self.filepath)
 
     # renames the grid file
-    def rename_file(self, filename):  
+    def rename_file(self, filename):
         path = PurePath(self.filepath)
         old_filename = path.name
         new_filepath = path.parent / filename
