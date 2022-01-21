@@ -241,5 +241,5 @@ document, but they could be different.
   Produce snapshots of the DataArray at the specific locations via stereographic projection.
 
 
-- (*) xarray.DataSet xarray.DataSet.composite(self, nodes)
+- (*) xarray.DataSet xarray.DataSet.composite(self, nodes) \
   Produce composites of the DataArray at the specific locations via stereographic projection.
