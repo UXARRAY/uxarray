@@ -4,7 +4,7 @@ User API
 ========
 
 This page will be automatically populated once one or more
-Uxarray functions are implemented.
+Uxarray user API functions are implemented.
 
 For now, please check the
 tentative `Uxarray API
