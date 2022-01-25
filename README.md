@@ -1,9 +1,9 @@
-| CI           | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![GitHub Workflow Status][github-conda-build-badge]][github-conda-build-link] [![Code Coverage Status][codecov-badge]][codecov-link] |
-| :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-| **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]                                                                    |
-| **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                                                         |
-| **License**  |                                                                        [![License][license-badge]][repo-link]                                                                        |
-| **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                                                                           |
+| CI           | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![Code Coverage Status][codecov-badge]][codecov-link]          |
+| :----------- | :--------------------------------------------------------------------------------------------------------------------------: |
+| **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]            |
+| **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link] |
+| **License**  |                                                                        [![License][license-badge]][repo-link]                |
+| **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                   |
 
 
 
@@ -93,9 +93,7 @@ Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 
 [github-ci-badge]: https://img.shields.io/github/workflow/status/UXARRAY/uxarray/CI?label=CI&logo=github&style=for-the-badge
-[github-conda-build-badge]: https://img.shields.io/github/workflow/status/UXARRAY/uxarray/build_test?label=conda-builds&logo=github&style=for-the-badge
 [github-ci-link]: https://github.com/UXARRAY/uxarray/actions?query=workflow%3ACI
-[github-conda-build-link]: https://github.com/UXARRAY/uxarray/actions?query=workflow%3Abuild_test
 [codecov-badge]: https://img.shields.io/codecov/c/github/UXARRAY/uxarray.svg?logo=codecov&style=for-the-badge
 [codecov-link]: https://codecov.io/gh/UXARRAY/uxarray
 [rtd-badge]: https://img.shields.io/readthedocs/uxarray/latest.svg?style=for-the-badge
