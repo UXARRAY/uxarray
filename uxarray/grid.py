@@ -54,9 +54,12 @@ class Grid:
 
         # check if this is a valid file:
         try:
-            if os.path.isfile(args[0]) == False:
+            if os.path.isfile(args[0]) == False and in_type is not np.ndarray:
                 print("File not found: ", args[0])
                 exit()
+            elif in_type is np.ndarray:
+                self.vertices = args[0]
+                self.from_vert()
         except ValueError as e:
             # initialize from vertices
             if in_type is np.ndarray:
