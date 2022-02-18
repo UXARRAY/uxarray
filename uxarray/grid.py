@@ -1,9 +1,10 @@
 """uxarray grid module."""
-
-from ast import Raise
-from logging import raiseExceptions
+import math
 import xarray as xr
 import numpy as np
+from ast import Raise
+from logging import raiseExceptions
+
 from pathlib import PurePath
 import os
 
@@ -93,8 +94,10 @@ class Grid:
         x_coord = self.vertices.transpose()[0]
         y_coord = self.vertices.transpose()[1]
 
-        # hard coded connectivity for single face with 4 nodes
-        conn = [[0, 1, 2, 3]]
+        # single face with all nodes
+        num_nodes = x_coord.size
+        conn = list(range(0, num_nodes))
+        conn = [conn]
 
         self.in_ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
                                                   dims=["nMesh2_node"])
