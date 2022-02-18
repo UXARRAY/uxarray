@@ -110,7 +110,7 @@ def write_exodus(self, outfile):
     date = now.strftime("%m/%d/%Y")
     time = now.strftime("%H:%M:%S")
 
-    title = f"uxarray(" + str(out_filename) + ")" + date + ": "+ time
+    title = f"uxarray(" + str(out_filename) + ")" + date + ": " + time
     fp_word = np.int32(8)
     version = np.float32(5.0)
     api_version = np.float32(5.0)
