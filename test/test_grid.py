@@ -54,9 +54,6 @@ class test_grid(TestCase):
     def test_read_ugrid(self):
         """Reads a ugrid file."""
         current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-        ugrid_file = current_path / "meshfiles" / "sphere_mixed.1.lb8.ugrid"
-        tgrid = ux.Grid(ugrid_file)
-
         ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
         ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
         ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
