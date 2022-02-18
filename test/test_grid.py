@@ -40,7 +40,7 @@ class test_grid(TestCase):
     def test_write_exodus(self):
         """Read a ugrid file and write exodus."""
         current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-        filename = current_path / "meshfiles" / "outCSne30.ug"
+        filename = current_path / "meshfiles" / "outCSne8.g"
         tgrid = ux.Grid(str(filename))
         outfile = current_path / "ouCSne8_uxarray.exo"
         tgrid.write(str(outfile), ".exo")

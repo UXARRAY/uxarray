@@ -110,23 +110,25 @@ def write_exodus(self, outfile):
     date = now.strftime("%m/%d/%Y")
     time = now.strftime("%H:%M:%S")
 
-    title = "uxarray(" + str(out_filename) + ")" + date + ": ", time
-
+    title = f"uxarray(" + str(out_filename) + ")" + date + ": "+ time
+    fp_word = np.int32(8)
+    version = np.float32(5.0)
+    api_version = np.float32(5.0)
     self.exo_ds.attrs = {
-        "api_version": "5.0",
-        "version": "5.0",
-        "floating_point_word_size": 8,
-        "file_size": 1,
-        "title:": title
+        "api_version": api_version,
+        "version": version,
+        "floating_point_word_size": fp_word,
+        "file_size": 0,
+        "title": title
     }
 
     self.exo_ds["time_whole"] = xr.DataArray(data=[], dims=["time_step"])
 
-    # qa_records = ["uxarray", "0.1", date, time]
-    qa_records = [title]
+    # qa_records
+    qa_records = [["uxarray"], ["1.0"], [date], [time]]
     self.exo_ds["qa_records"] = xr.DataArray(data=xr.DataArray(
         np.array(qa_records, dtype="S33")),
-                                             dims=["num_qa_rec", "four"])
+                                             dims=["four", "num_qa_rec"])
 
     # get orig dimention from Mesh2 attribute topology dimension
     dim = self.in_ds["Mesh2"].topology_dimension
@@ -141,7 +143,7 @@ def write_exodus(self, outfile):
         c_data = xr.DataArray([
             self.in_ds.Mesh2_node_x.data.tolist(),
             self.in_ds.Mesh2_node_y.data.tolist(),
-            self.in_ds.Mesh2_node_y.data.tolist()
+            self.in_ds.Mesh2_node_z.data.tolist()
         ])
 
     self.exo_ds["coord"] = xr.DataArray(data=c_data,
@@ -178,16 +180,16 @@ def write_exodus(self, outfile):
 
     self.exo_ds["eb_prop1"] = xr.DataArray(data=xr.DataArray(np.ones((1),
                                                                      "i4")),
-                                           dims=["num_el_in_blk"],
+                                           dims=["num_el_blk"],
                                            attrs={"name": "ID"})
 
     self.exo_ds["eb_status"] = xr.DataArray(data=xr.DataArray(
         np.array([num_attr], dtype="i4")),
-                                            dims=["num_el_in_blk"])
+                                            dims=["num_el_blk"])
 
     self.exo_ds["eb_names"] = xr.DataArray(data=xr.DataArray(
         np.array([''], dtype="S33")),
-                                           dims=["num_el_in_blk"])
+                                           dims=["num_el_blk"])
 
     if dim == 2:
         cnames = ["x", "y"]
@@ -209,7 +211,7 @@ def get_element_type(num_nodes):
     elif num_nodes == 3:
         element_type = "TRI"
     elif num_nodes == 4:
-        element_type = "SHELL"
+        element_type = "SHELL4"
     elif num_nodes == 8:
         element_type = "SHELL8"
     elif num_nodes == 9:
