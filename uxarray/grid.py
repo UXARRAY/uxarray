@@ -32,11 +32,20 @@ class Grid:
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec If loading from file, initialization happens via the
         specified file.
+        Args: input file name with extension as a string
+              vertex coordinates that form one face.
+        kwargs: can be a dict initializing specific variables: kwargs = {"concave" : True, "islatlon" : True"}
 
         Raises:
             RuntimeError: File not found
         """
         # initialize possible variables
+        for key, value in kwargs.items():
+            if key == "latlon":
+                self.islatlon = value
+            elif key == "gridspec":
+                self.gridspec = value
+
         self.filepath = None
         self.gridspec = None
         self.vertices = None
@@ -55,7 +64,7 @@ class Grid:
 
         # check if this is a valid file:
         try:
-            if os.path.isfile(args[0]) == False and in_type is not np.ndarray:
+            if os.path.isfile(args[0]) is False and in_type is not np.ndarray:
                 print("File not found: ", args[0])
                 exit()
             elif in_type is np.ndarray:
