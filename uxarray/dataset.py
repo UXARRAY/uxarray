@@ -11,6 +11,8 @@ from .grid import *
 def open_dataset(filename):
     """A class for uxarray dataset object returns an xarray object with Mesh2
     construct representing the grid.
+    args: takes mesh file name as input
+    output: returns xarray uxgrid object
 
     Examples
     ========
