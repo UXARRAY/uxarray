@@ -24,6 +24,10 @@ class test_dataset(TestCase):
         uds2_name = current_path / "meshfiles" / "outCSne8.g"
         uds3_name = current_path / "meshfiles" / "outCSne30.ug"
 
-        uds1 = ux.open_dataset(uds1_name, "ugrid")
-        uds2 = ux.open_dataset(uds2_name, "exo")
-        uds3 = ux.open_dataset(uds3_name, "ugrid")
+        uds1 = ux.open_dataset(uds1_name)
+        uds2 = ux.open_dataset(uds2_name)
+        uds3 = ux.open_dataset(uds3_name)
+
+        assert (uds1.nMesh2_node.size == 683)
+        assert (uds2.nMesh2_node.size == 386)
+        assert (uds3.nMesh2_node.size == 5402)

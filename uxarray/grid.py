@@ -65,8 +65,7 @@ class Grid:
         # check if this is a valid file:
         try:
             if os.path.isfile(args[0]) is False and in_type is not np.ndarray:
-                print("File not found: ", args[0])
-                exit()
+                raise FileNotFoundError("File not found: " + args[0])
             elif in_type is np.ndarray:
                 self.vertices = args[0]
                 self.from_vert()
@@ -94,7 +93,6 @@ class Grid:
     def from_vert(self):
         """Create a grid with one face with vertices specified by the given
         argument."""
-        print("Initializing with vertices")
         self._init_mesh2()
         self.in_ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
 
@@ -146,7 +144,7 @@ class Grid:
         elif self.meshFileType == "shp":
             self.read_shpfile(self.filepath)
         else:
-            raise RuntimeError("unknown file format.")
+            raise RuntimeError("unknown file format:" + self.meshFileType)
 
     # helper function to find file type
     def find_type(self):
@@ -170,7 +168,7 @@ class Grid:
             msg = str(e) + ': {}'.format(self.filepath)
             print(msg)
             raise RuntimeError(msg)
-            exit
+            exit()
         except (RuntimeError, OSError) as e:
             # check if this is a shp file
             # we won't use xarray to load that file
@@ -180,7 +178,7 @@ class Grid:
                 msg = str(e) + ': {}'.format(self.filepath)
                 print(msg)
                 raise RuntimeError(msg)
-                exit
+                exit()
         except ValueError as e:
             # check if this is a shp file
             # we won't use xarray to load that file
@@ -242,7 +240,6 @@ class Grid:
     # renames the grid file
     def saveas_file(self, filename):
         path = PurePath(self.filepath)
-        old_filename = path.name
         new_filepath = path.parent / filename
         self.filepath = str(new_filepath)
         self.write_ugrid(self.filepath)

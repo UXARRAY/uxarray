@@ -8,7 +8,7 @@ import os
 from .grid import *
 
 
-def open_dataset(filename, type):
+def open_dataset(filename):
     """A class for uxarray dataset object returns an xarray object with Mesh2
     construct representing the grid.
 
@@ -19,8 +19,9 @@ def open_dataset(filename, type):
     mesh = ux.open_dataset("filename.g")
     """
     print("opening dataset: ", filename)
-    if type == "exo" or "ugrid" or "scrip" or "shp":
-        ux_grid = Grid(str(filename))
+    ux_grid = Grid(str(filename))
+    if (ux_grid.in_ds):
+        return ux_grid.in_ds
     else:
-        print("Meshfile type is not supported")
-    return ux_grid.in_ds
+        raise RuntimeError("unable to get uxarray grid object from file:" +
+                           filename)
