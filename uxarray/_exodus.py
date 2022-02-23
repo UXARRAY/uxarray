@@ -13,7 +13,6 @@ def read_exodus(self, ext_ds):
 
     for key, value in ext_ds.variables.items():
         if key == "qa_records":
-            # print(value)
             pass
         elif key == "coord":
             self.in_ds.Mesh2.attrs['topology_dimension'] = ext_ds.dims[

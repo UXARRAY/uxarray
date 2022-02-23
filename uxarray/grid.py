@@ -1,12 +1,8 @@
 """uxarray grid module."""
-import math
+import os
 import xarray as xr
 import numpy as np
-from ast import Raise
-from logging import raiseExceptions
-
 from pathlib import PurePath
-import os
 
 
 class Grid:
@@ -62,7 +58,7 @@ class Grid:
         # determine initialization type - string signifies a file, numpy array signifies a list of verts
         in_type = type(args[0])
 
-        # check if this is a valid file:
+        # check if initializing from verts:
         try:
             if os.path.isfile(args[0]) is False and in_type is not np.ndarray:
                 raise FileNotFoundError("File not found: " + args[0])
@@ -74,8 +70,10 @@ class Grid:
             if in_type is np.ndarray:
                 self.vertices = args[0]
                 self.from_vert()
+            else:  
+                pass              
 
-        # initialize from file
+        # check if initialize from file:
         if in_type is str and os.path.isfile(args[0]):
             self.filepath = args[0]
             self.from_file()
@@ -87,7 +85,7 @@ class Grid:
 
         else:
             # this may just be initialization for options other than above
-            pass
+            print("Unable to initialize with args: ", args[0])
 
     # vertices init
     def from_vert(self):

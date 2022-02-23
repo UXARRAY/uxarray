@@ -8,7 +8,6 @@ dependencies:
   - pytest-cov
   - xarray
   - netcdf4
-  - scipy
   - pathlib
   - pip:
       - pre-commit
