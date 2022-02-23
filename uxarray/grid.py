@@ -70,8 +70,11 @@ class Grid:
             if in_type is np.ndarray:
                 self.vertices = args[0]
                 self.from_vert()
-            else:  
-                pass              
+            else:
+                print(
+                    "Init called with args other than verts (ndarray) or filename (str)"
+                )
+                exit()
 
         # check if initialize from file:
         if in_type is str and os.path.isfile(args[0]):
@@ -86,6 +89,7 @@ class Grid:
         else:
             # this may just be initialization for options other than above
             print("Unable to initialize with args: ", args[0])
+            exit()
 
     # vertices init
     def from_vert(self):
