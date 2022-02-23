@@ -87,9 +87,8 @@ class Grid:
             self.from_gridspec()
 
         else:
-            # this may just be initialization for options other than above
-            print("Unable to initialize with args: ", args[0])
-            exit()
+            # this may just be local initialization for with no options or options other than above
+            pass
 
     # vertices init
     def from_vert(self):
