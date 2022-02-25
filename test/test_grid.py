@@ -1,17 +1,11 @@
 import os
-import sys
 import numpy as np
 import xarray as xr
 
 from unittest import TestCase
 from pathlib import Path
 
-# Import from directory structure if coverage test, or from installed
-# packages otherwise
-if "--cov" in str(sys.argv):
-    import uxarray as ux
-else:
-    import uxarray as ux
+import uxarray as ux
 
 
 class test_grid(TestCase):

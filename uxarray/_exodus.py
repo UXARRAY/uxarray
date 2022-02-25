@@ -7,9 +7,9 @@ from datetime import datetime
 # Exodus Number is one-based.
 def read_exodus(self, ext_ds):
     print("Reading exodus file: ", self.filepath)
-    # populate self.in_ds
 
-    self._init_mesh2()
+    # populate self.in_ds
+    self.__init_mesh2__()
 
     for key, value in ext_ds.variables.items():
         if key == "qa_records":

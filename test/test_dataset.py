@@ -1,17 +1,11 @@
-import sys
-from unittest import TestCase
-
-from pathlib import Path
 import os
-
 import xarray as xr
+from unittest import TestCase
+from pathlib import Path
 
-# Import from directory structure if coverage test, or from installed
-# packages otherwise
-if "--cov" in str(sys.argv):
-    import uxarray as ux
-else:
-    import uxarray as ux
+import uxarray as ux
+
+from . import constants
 
 
 class test_dataset(TestCase):
@@ -28,6 +22,6 @@ class test_dataset(TestCase):
         uds2 = ux.open_dataset(uds2_name)
         uds3 = ux.open_dataset(uds3_name)
 
-        assert (uds1.nMesh2_node.size == 683)
-        assert (uds2.nMesh2_node.size == 386)
-        assert (uds3.nMesh2_node.size == 5402)
+        assert (uds1.nMesh2_node.size == constants.NNODES_ov_RLL10deg_CSne4)
+        assert (uds2.nMesh2_node.size == constants.NNODES_outCSne8)
+        assert (uds3.nMesh2_node.size == constants.NNODES_outCSne30)
