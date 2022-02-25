@@ -8,7 +8,7 @@ from pathlib import Path
 import uxarray as ux
 
 
-class test_grid(TestCase):
+class TestGrid(TestCase):
 
     def test_saveas(self):
         """Rename a file."""

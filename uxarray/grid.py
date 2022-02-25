@@ -6,7 +6,7 @@ from pathlib import PurePath
 
 
 class Grid:
-    """A class for uxarray grid object.
+    """The Uxarray Grid object class that describes an unstructured grid.
 
     Examples
     ========

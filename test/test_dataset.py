@@ -8,7 +8,7 @@ import uxarray as ux
 from . import constants
 
 
-class test_dataset(TestCase):
+class TestDataset(TestCase):
 
     def test_open_dataset(self):
         """Loads files of different formats using uxarray's open_dataset
