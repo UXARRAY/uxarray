@@ -18,13 +18,26 @@ class Grid:
     mesh.saveas("outfile.ug")
     """
 
-    # Import read/write methods from files in this folder
+    # Import read/write methods from python modules in this folder
     from ._exodus import read_exodus, write_exodus
     from ._ugrid import read_ugrid, write_ugrid
     from ._shpfile import read_shpfile
     from ._scrip import read_scrip
 
     def __init__(self, *args, **kwargs):
+        # TODO: fix when adding/exercising gridspec
+        self.filepath = None
+        self.gridspec = None
+        self.vertices = None
+        self.islatlon = None
+        self.concave = None
+        self.mesh_filetype = None
+
+        # this xarray variable holds an existing external netcdf file with loaded with xarray
+        self.ext_ds = None
+
+        # internal uxarray representation of mesh stored in internal object in_ds
+        self.in_ds = xr.Dataset()
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec If loading from file, initialization happens via the
         specified file.
@@ -52,25 +65,12 @@ class Grid:
             elif key == "gridspec":
                 self.gridspec = value
 
-        self.filepath = None
-        self.gridspec = None
-        self.vertices = None
-        self.islatlon = None
-        self.concave = None
-        self.mesh_filetype = None
-
-        # this xarray variable holds an existing external netcdf file with loaded with xarray
-        self.ext_ds = None
-
-        # internal uxarray representation of mesh stored in internal object in_ds
-        self.in_ds = xr.Dataset()
-
         # determine initialization type - string signifies a file, numpy array signifies a list of verts
         in_type = type(args[0])
 
         # check if initializing from verts:
         try:
-            if os.path.isfile(args[0]) is False and in_type is not np.ndarray:
+            if not os.path.isfile(args[0]) and in_type is not np.ndarray:
                 raise FileNotFoundError("File not found: " + args[0])
             elif in_type is np.ndarray:
                 self.vertices = args[0]
@@ -90,12 +90,10 @@ class Grid:
         if in_type is str and os.path.isfile(args[0]):
             self.filepath = args[0]
             self.__from_file__()
-
         # initialize for gridspec
         elif in_type is str:
             self.gridspec = args[0]
             self.__from_gridspec__()
-
         else:
             # this may just be local initialization for with no options or options other than above
             pass
@@ -142,8 +140,8 @@ class Grid:
         Raises:
             RuntimeError: Invalid file type
         """
-        # find the file type
-        self.mesh_filetype = self.__find_type__()
+        # call function to set mesh file type: self.mesh_filetype
+        self.__find_type__()
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
