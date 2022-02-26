@@ -1,5 +1,4 @@
 import os
-import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
