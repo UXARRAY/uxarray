@@ -3,13 +3,15 @@ import os
 import xarray as xr
 import numpy as np
 from pathlib import PurePath
+from datetime import datetime
 
 
 class Grid:
     """The Uxarray Grid object class that describes an unstructured grid.
-
+    Parameters
+    ----------
     Examples
-    ========
+    ----------
     import uxarray as ux
     # open an exodus file with Grid object
     mesh = ux.Grid("filename.g")
@@ -18,26 +20,7 @@ class Grid:
     mesh.saveas("outfile.ug")
     """
 
-    # Import read/write methods from python modules in this folder
-    from ._exodus import read_exodus, write_exodus
-    from ._ugrid import read_ugrid, write_ugrid
-    from ._shpfile import read_shpfile
-    from ._scrip import read_scrip
-
     def __init__(self, *args, **kwargs):
-        # TODO: fix when adding/exercising gridspec
-        self.filepath = None
-        self.gridspec = None
-        self.vertices = None
-        self.islatlon = None
-        self.concave = None
-        self.mesh_filetype = None
-
-        # this xarray variable holds an existing external netcdf file with loaded with xarray
-        self.ext_ds = None
-
-        # internal uxarray representation of mesh stored in internal object in_ds
-        self.in_ds = xr.Dataset()
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec If loading from file, initialization happens via the
         specified file.
@@ -58,6 +41,20 @@ class Grid:
         Raises:
             RuntimeError: File not found
         """
+        # TODO: fix when adding/exercising gridspec
+        self.filepath = None
+        self.gridspec = None
+        self.vertices = None
+        self.islatlon = None
+        self.concave = None
+        self.mesh_filetype = None
+
+        # this xarray variable holds an existing external netcdf file with loaded with xarray
+        self.ext_ds = None
+
+        # internal uxarray representation of mesh stored in internal object in_ds
+        self.in_ds = xr.Dataset()
+
         # Parse the keyword arguments and initialize class attributes
         for key, value in kwargs.items():
             if key == "latlon":
@@ -81,10 +78,9 @@ class Grid:
                 self.vertices = args[0]
                 self.__from_vert__()
             else:
-                print(
+                raise RuntimeError(
                     "Init called with args other than verts (ndarray) or filename (str)"
                 )
-                exit()
 
         # check if initialize from file:
         if in_type is str and os.path.isfile(args[0]):
@@ -164,7 +160,7 @@ class Grid:
         Raises:
             RuntimeError: Invalid file type
         """
-
+        msg = ""
         try:
             # extract the file name and extension
             path = PurePath(self.filepath)
@@ -175,9 +171,6 @@ class Grid:
             #
         except (TypeError, AttributeError) as e:
             msg = str(e) + ': {}'.format(self.filepath)
-            print(msg)
-            raise RuntimeError(msg)
-            exit()
         except (RuntimeError, OSError) as e:
             # check if this is a shp file
             # we won't use xarray to load that file
@@ -185,9 +178,6 @@ class Grid:
                 self.mesh_filetype = "shp"
             else:
                 msg = str(e) + ': {}'.format(self.filepath)
-                print(msg)
-                raise RuntimeError(msg)
-                exit()
         except ValueError as e:
             # check if this is a shp file
             # we won't use xarray to load that file
@@ -195,9 +185,11 @@ class Grid:
                 self.mesh_filetype = "shp"
             else:
                 msg = str(e) + ': {}'.format(self.filepath)
+        finally:
+            if (msg != ""):
+                msg = str(e) + ': {}'.format(self.filepath)
                 print(msg)
                 raise RuntimeError(msg)
-                exit
 
         # Detect mesh file type, based on attributes of ext_ds:
         # if ext_ds has coordx or coord - call it exo format
@@ -226,7 +218,6 @@ class Grid:
     def __init_mesh2__(self):
         # set default values and initialize Datavariable "Mesh2" for uxarray
         self.in_ds["Mesh2"] = xr.DataArray(
-            data=0,
             attrs={
                 "cf_role": "mesh_topology",
                 "long_name": "Topology data of unstructured mesh",
@@ -245,26 +236,6 @@ class Grid:
         self.write_ugrid(self.filepath)
         print(self.filepath)
 
-    # Calculate the area of all faces.
-    def calculate_total_face_area(self):
-        pass
-
-    # Build the node-face connectivity array.
-    def build_node_face_connectivity(self):
-        pass
-
-    # Build the edge-face connectivity array.
-    def build_edge_face_connectivity(self):
-        pass
-
-    # Build the array of latitude-longitude bounding boxes.
-    def buildlatlon_bounds(self):
-        pass
-
-    # Validate that the grid conforms to the UXGrid standards.
-    def validate(self):
-        pass
-
     def write(self, outfile, format=""):
         if format == "":
             path = PurePath(outfile)
@@ -276,3 +247,371 @@ class Grid:
             self.write_exodus(outfile)
         else:
             print("Format not supported for writing. ", format)
+
+    # Exodus Number is one-based.
+    def read_exodus(self, ext_ds):
+        print("Reading exodus file: ", self.filepath)
+
+        # populate self.in_ds
+        self.__init_mesh2__()
+
+        # find max face nodes
+        max_face_nodes = 0
+        for dim in ext_ds.dims:
+            if "num_nod_per_el" in dim:
+                if ext_ds.dims[dim] > max_face_nodes:
+                    max_face_nodes = ext_ds.dims[dim]
+
+        # create an empty conn array for storing all blk face_nodes_data
+        conn = np.empty((0, max_face_nodes))
+
+        for key, value in ext_ds.variables.items():
+            if key == "qa_records":
+                pass
+            elif key == "coord":
+                self.in_ds.Mesh2.attrs['topology_dimension'] = np.int32(
+                    ext_ds.dims['num_dim'])
+                self.in_ds["Mesh2_node_x"] = xr.DataArray(
+                    data=ext_ds.coord[0],
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "longitude",
+                        "long_name": "longitude of mesh nodes",
+                        "units": "degress_east",
+                    })
+                self.in_ds["Mesh2_node_y"] = xr.DataArray(
+                    data=ext_ds.coord[1],
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "lattitude",
+                        "long_name": "latitude of mesh nodes",
+                        "units": "degrees_north",
+                    })
+                self.in_ds["Mesh2_node_z"] = xr.DataArray(
+                    data=ext_ds.coord[2],
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "spherical",
+                        "long_name": "elevation",
+                        "units": "degree",
+                    })
+            elif key == "coordx":
+                self.in_ds["Mesh2_node_x"] = xr.DataArray(
+                    data=ext_ds.coordx,
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "longitude",
+                        "long_name": "longitude of mesh nodes",
+                        "units": "degress_east",
+                    })
+            elif key == "coordy":
+                self.in_ds["Mesh2_node_y"] = xr.DataArray(
+                    data=ext_ds.coordx,
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "lattitude",
+                        "long_name": "latitude of mesh nodes",
+                        "units": "degrees_north",
+                    })
+            elif key == "coordz":
+                self.in_ds["Mesh2_node_z"] = xr.DataArray(
+                    data=ext_ds.coordx,
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "spherical",
+                        "long_name": "elevation",
+                        "units": "degree",
+                    })
+            elif "connect" in key:
+                # check if num face nodes is less than max.
+                if (value.data.shape[1] < max_face_nodes):
+                    # create a temporary array to store connectivity
+                    tmp_conn = np.empty((value.data.shape[0], max_face_nodes))
+                    tmp_conn.fill(
+                        0
+                    )  # exodus in 1-based, fill with zeros here; during assignment subtract 1
+                    tmp_conn[:value.data.shape[0], :value.data.
+                             shape[1]] = value.data
+                elif (value.data.shape[1] == max_face_nodes):
+                    tmp_conn = value.data
+                else:
+                    raise (
+                        "found face_nodes_dim greater than nMaxMesh2_face_nodes"
+                    )
+
+                # concatenate to the previous blk
+                conn = np.concatenate((conn, tmp_conn))
+                # find the elem_type as etype for this element
+                for k, v in value.attrs.items():
+                    if k == "elem_type":
+                        # TODO: etype if not used now, remove if it'll never be required
+                        etype = v
+
+        # outside the k,v for loop
+        # set the face nodes data compiled in "connect" section
+        self.in_ds["Mesh2_face_nodes"] = xr.DataArray(
+            data=(conn[:] - 1),
+            dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+            attrs={
+                "cf_role":
+                    "face_node_connectivity",
+                "_FillValue":
+                    -1,
+                "start_index":
+                    np.int32(
+                        0
+                    )  #NOTE: This might cause an error if numbering has holes
+            })
+        print("Finished reading exodus file.")
+
+    def write_exodus(self, outfile):
+        # Note this is 1-based unlike native Mesh2 construct
+        print("Writing exodus file: ", outfile)
+
+        self.exo_ds = xr.Dataset()
+
+        path = PurePath(outfile)
+        out_filename = path.name
+
+        now = datetime.now()
+        date = now.strftime("%m/%d/%Y")
+        time = now.strftime("%H:%M:%S")
+
+        title = f"uxarray(" + str(out_filename) + ")" + date + ": " + time
+        fp_word = np.int32(8)
+        version = np.float32(5.0)
+        api_version = np.float32(5.0)
+        self.exo_ds.attrs = {
+            "api_version": api_version,
+            "version": version,
+            "floating_point_word_size": fp_word,
+            "file_size": 0,
+            "title": title
+        }
+
+        self.exo_ds["time_whole"] = xr.DataArray(data=[], dims=["time_step"])
+
+        # qa_records
+        qa_records = [["uxarray"], ["1.0"], [date], [time]]
+        self.exo_ds["qa_records"] = xr.DataArray(data=xr.DataArray(
+            np.array(qa_records, dtype="S33")),
+                                                 dims=["four", "num_qa_rec"])
+
+        # get orig dimention from Mesh2 attribute topology dimension
+        dim = self.in_ds["Mesh2"].topology_dimension
+
+        c_data = []
+        if dim == 2:
+            c_data = xr.DataArray([
+                self.in_ds.Mesh2_node_x.data.tolist(),
+                self.in_ds.Mesh2_node_y.data.tolist()
+            ])
+        elif dim == 3:
+            c_data = xr.DataArray([
+                self.in_ds.Mesh2_node_x.data.tolist(),
+                self.in_ds.Mesh2_node_y.data.tolist(),
+                self.in_ds.Mesh2_node_z.data.tolist()
+            ])
+
+        self.exo_ds["coord"] = xr.DataArray(data=c_data,
+                                            dims=["num_dim", "num_nodes"])
+
+        # process face nodes, this array holds num faces at corresponding location
+        # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
+        num_el_all_blks = np.zeros(self.in_ds.nMaxMesh2_face_nodes.size, "i4")
+        # this list stores connectivity without filling
+        conn_nofill = []
+
+        # store the number of faces in an array
+        for row in self.in_ds.Mesh2_face_nodes.data:
+
+            # find out -1 in each row, this indicates lower than max face nodes
+            arr = np.where(row == -1)
+            # arr[0].size returns the location of first -1 in the conn list
+            # if > 0, arr[0][0] is the num_nodes forming the face
+            if arr[0].size > 0:
+                # increment the number of faces at the corresponding location
+                num_el_all_blks[arr[0][0] - 1] += 1
+                # append without -1s eg. [1, 2, 3, -1] to [1, 2, 3]
+                # convert to list (for sorting later)
+                row = row[:(arr[0][0])].tolist()
+                list_node = list(map(int, row))
+                conn_nofill.append(list_node)
+            elif arr[0].size == 0:
+                # increment the number of faces for this "nMaxMesh2_face_nodes" face
+                num_el_all_blks[self.in_ds.nMaxMesh2_face_nodes.size - 1] += 1
+                # get integer list nodes
+                list_node = list(map(int, row.tolist()))
+                conn_nofill.append(list_node)
+            else:
+                raise RuntimeError(
+                    "num nodes in conn array is greater than nMaxMesh2_face_nodes. Abort!"
+                )
+        # get number of blks found
+        num_blks = np.count_nonzero(num_el_all_blks)
+
+        # sort connectivity by size, lower dim faces first
+        conn_nofill.sort(key=len)
+
+        # get index of blocks found
+        nonzero_el_index_blks = np.nonzero(num_el_all_blks)
+
+        # break Mesh2_face_nodes into blks
+        start = 0
+        for blk in range(num_blks):
+            blkID = blk + 1
+            str_el_in_blk = "num_el_in_blk" + str(blkID)
+            str_nod_per_el = "num_nod_per_el" + str(blkID)
+            str_att_in_blk = "num_att_in_blk" + str(blkID)
+            str_global_id = "global_id" + str(blkID)
+            str_edge_type = "edge_type" + str(blkID)
+            str_attrib = "attrib" + str(blkID)
+            str_connect = "connect" + str(blkID)
+
+            # get element type
+            num_nodes = len(conn_nofill[start + 1])
+            element_type = self.__get_element_type__(num_nodes)
+
+            # get number of faces for this block
+            num_faces = num_el_all_blks[nonzero_el_index_blks[0][blk]]
+            # assign Data variables
+            # convert list to np.array, sorted list guarantees we have the correct info
+            conn_blk = conn_nofill[start:start + num_faces]
+            conn_np = np.array([np.array(xi, dtype="i4") for xi in conn_blk])
+            self.exo_ds[str_connect] = xr.DataArray(
+                data=xr.DataArray((conn_np[:] + 1)),
+                dims=[str_el_in_blk, str_nod_per_el],
+                attrs={"elem_type": element_type})
+
+            # edgetype
+            self.exo_ds[str_edge_type] = xr.DataArray(
+                data=xr.DataArray(np.zeros((num_faces, num_nodes), "i4")),
+                dims=[str_el_in_blk, str_nod_per_el])
+
+            # global id
+            gid = np.arange(start + 1, start + num_faces + 1, 1)
+            self.exo_ds[str_global_id] = xr.DataArray(data=(gid),
+                                                      dims=[str_el_in_blk])
+
+            # attrib
+            # TODO: fix num attr
+            num_attr = 1
+            self.exo_ds[str_attrib] = xr.DataArray(
+                data=xr.DataArray(np.zeros((num_faces, num_attr), float)),
+                dims=[str_el_in_blk, str_att_in_blk])
+
+            start = num_faces
+
+        # blk for loop ends
+
+        # eb_prop1
+        prop1_vals = np.arange(1, num_blks + 1, 1)
+        self.exo_ds["eb_prop1"] = xr.DataArray(data=prop1_vals,
+                                               dims=["num_el_blk"],
+                                               attrs={"name": "ID"})
+        # eb_status
+        self.exo_ds["eb_status"] = xr.DataArray(data=xr.DataArray(
+            np.ones([num_blks], dtype="i4")),
+                                                dims=["num_el_blk"])
+
+        # eb_names
+        eb_names = np.empty(num_blks, dtype="S33")
+        eb_names.fill("")
+        self.exo_ds["eb_names"] = xr.DataArray(data=xr.DataArray(eb_names),
+                                               dims=["num_el_blk"])
+
+        if dim == 2:
+            cnames = ["x", "y"]
+        elif dim == 3:
+            cnames = ["x", "y", "z"]
+
+        self.exo_ds["coor_names"] = xr.DataArray(data=xr.DataArray(
+            np.array(cnames, dtype="S33")),
+                                                 dims=["num_dim"])
+
+        # done processing write the file to disk
+        self.exo_ds.to_netcdf(outfile)
+        print("Wrote: ", outfile)
+
+    def __get_element_type__(self, num_nodes):
+        ELEMENT_TYPE_DICT = {
+            2: "BEAM",
+            3: "TRI",
+            4: "SHELL4",
+            5: "SHELL5",
+            6: "TRI6",
+            7: "TRI7",
+            8: "SHELL8",
+        }
+        element_type = ELEMENT_TYPE_DICT[num_nodes]
+        return element_type
+
+    def read_ugrid(self, filename):
+        """Returns the xarray Dataset loaded during init."""
+        # simply return the xarray object loaded
+        self.in_ds = self.ext_ds
+        return self.ext_ds
+
+    # Write a uxgrid to a file with specified format.
+    def write_ugrid(self, outfile):
+        """Function to write ugrid, uses to_netcdf from xarray object."""
+        print("Writing ugrid file: ", outfile)
+        self.in_ds.to_netcdf(outfile)
+
+    def read_scrip(self, ds):
+        """This is just a function placeholder.
+
+        Not implemented.
+        """
+        print("Function placeholder, implementation coming soon.")
+        print("Reading SCRIP file: ", self.filepath)
+        # populate self.in_ds
+
+    def read_shpfile(self, filename):
+        """This is just a function placeholder.
+
+        Not implemented.
+        """
+        print("Function placeholder, implementation coming soon.")
+        print("Reading shape file: ", self.filepath)
+        # populate self.in_ds
+
+    # Calculate the area of all faces.
+    def calculate_total_face_area(self):
+        """This is just a function placeholder.
+
+        Not implemented.
+        """
+        print("Function placeholder, implementation coming soon.")
+
+    # Build the node-face connectivity array.
+    def build_node_face_connectivity(self):
+        """This is just a function placeholder.
+
+        Not implemented.
+        """
+        print("Function placeholder, implementation coming soon.")
+
+    # Build the edge-face connectivity array.
+    def build_edge_face_connectivity(self):
+        """This is just a function placeholder.
+
+        Not implemented.
+        """
+        print("Function placeholder, implementation coming soon.")
+
+    # Build the array of latitude-longitude bounding boxes.
+    def buildlatlon_bounds(self):
+        """This is just a function placeholder.
+
+        Not implemented.
+        """
+        print("Function placeholder, implementation coming soon.")
+
+    # Validate that the grid conforms to the UXGrid standards.
+    def validate(self):
+        """This is just a function placeholder.
+
+        Not implemented.
+        """
+        print("Function placeholder, implementation coming soon.")
