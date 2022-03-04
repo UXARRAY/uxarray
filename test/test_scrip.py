@@ -15,9 +15,9 @@ ne8 = 'meshfiles/outCSne8.nc'
 
 # ds_camse = xr.open_dataset(camse, decode_times=False, decode_cf=True)  # lat/lon
 ds_ne30 = xr.open_dataset(ne30, decode_times=False,
-                          decode_cf=True)  # mesh2_node_x/y
+                          engine='netcdf4')  # mesh2_node_x/y
 ds_ne8 = xr.open_dataset(ne8, decode_times=False,
-                         decode_cf=True)  # grid_corner_lat/lon
+                         engine='netcdf4')  # grid_corner_lat/lon
 
 
 def test_scrip_is_not_cf():
