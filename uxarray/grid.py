@@ -469,7 +469,7 @@ class Grid:
             str_connect = "connect" + str(blkID)
 
             # get element type
-            num_nodes = len(conn_nofill[start + 1])
+            num_nodes = len(conn_nofill[start])
             element_type = self.__get_element_type__(num_nodes)
 
             # get number of faces for this block
