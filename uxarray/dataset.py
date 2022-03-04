@@ -36,8 +36,4 @@ def open_dataset(filename, *args):
             raise RuntimeError("unable to merge grid and datafile", datafile)
         i += 1
 
-    if (ux_grid.in_ds):
-        return ux_grid.in_ds
-    else:
-        raise RuntimeError("unable to get uxarray grid object from file:" +
-                           filename)
+    return ux_grid.in_ds
