@@ -8,35 +8,45 @@ from datetime import datetime
 
 class Grid:
     """The Uxarray Grid object class that describes an unstructured grid.
-    Parameters
-    ----------
     Examples
     ----------
-    import uxarray as ux
-    # open an exodus file with Grid object
-    mesh = ux.Grid("filename.g")
+    Open an exodus file with Grid object
+    >>> mesh = ux.Grid("filename.g")
 
-    # save as ugrid file
-    mesh.saveas("outfile.ug")
+    Save as ugrid file
+    >>> mesh.saveas("outfile.ug")
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,
+                 *args,
+                 filepath=None,
+                 gridspec=None,
+                 vertices=None,
+                 concave=None,
+                 islatlon=None,
+                 mesh_filetype=None,
+                 **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec If loading from file, initialization happens via the
         specified file.
 
         # TODO: Add or remove new Args/kwargs below as this develops further
-
-        Args: input file name with extension as a string
-              vertex coordinates that form one face.
-        kwargs: optional
-        can be a dict initializing specific variables:
-        islatlon: bool: specify if the grid is lat/lon based:
-        concave: bool: specify if this grid has concave elements (internal checks for this are possible)
-        gridspec: bool: specifies gridspec
-        mesh_filetype: string: specify the mesh file type, eg. exo, ugrid, shp etc
-
-        example: kwargs = {"concave" : True, "islatlon" : True"}
+        Parameters
+        ----------
+        args : string, optional
+            - Input file name with extension or
+            - Vertex coordinates that form one face.
+        islatlon : bool, optional
+            Specify if the grid is lat/lon based:
+        concave: bool, optional
+            Specify if this grid has concave elements (internal checks for this are possible)
+        gridspec: bool, optional
+            Specifies gridspec
+        mesh_filetype: string, optional
+            Specify the mesh file type, eg. exo, ugrid, shp etc
+        kwargs : dict, optional
+            A dict initializing specific variables as stated above
+            - example: kwargs = {"concave" : True, "islatlon" : True"}
 
         Raises:
             RuntimeError: File not found
@@ -48,9 +58,6 @@ class Grid:
         self.islatlon = None
         self.concave = None
         self.mesh_filetype = None
-
-        # this xarray variable holds an existing external netcdf file with loaded with xarray
-        self.ext_ds = None
 
         # internal uxarray representation of mesh stored in internal object in_ds
         self.in_ds = xr.Dataset()
@@ -124,10 +131,6 @@ class Grid:
                 "start_index": 0
             })
 
-    # TODO: gridspec init
-    def __from_gridspec__(self):
-        print("initializing with gridspec")
-
     # load mesh from a file
     def __from_file__(self):
         """Loads a mesh file Also, called by __init__ routine This routine will
@@ -137,13 +140,13 @@ class Grid:
             RuntimeError: Invalid file type
         """
         # call function to set mesh file type: self.mesh_filetype
-        self.__find_type__()
+        self.mesh_filetype = self.find_type(self.filepath)
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.read_exodus(self.ext_ds)
+            self.read_exodus(self.filepath)
         elif self.mesh_filetype == "scrip":
-            self.read_scrip(self.ext_ds)
+            self.read_scrip(self.filepath)
         elif self.mesh_filetype == "ugrid":
             self.read_ugrid(self.filepath)
         elif self.mesh_filetype == "shp":
@@ -152,71 +155,71 @@ class Grid:
             raise RuntimeError("unknown file format:" + self.mesh_filetype)
 
     # helper function to find file type
-    def __find_type__(self):
-        """Checks file path and contents to determine file type Also, called by
-        __init__ routine This routine will automatically detect if it is a
-        UGrid, SCRIP, Exodus, or shape file.
+    def find_type(self, filepath):
+        """Checks file path and contents to determine file type, called by
+        __from_file__ routine. Automatically detection supported for UGrid,
+        SCRIP, Exodus, or shape file.
 
         Raises:
             RuntimeError: Invalid file type
         """
         msg = ""
+        # exodus with coord
         try:
             # extract the file name and extension
-            path = PurePath(self.filepath)
+            path = PurePath(filepath)
             file_extension = path.suffix
 
-            # try to open file with xarray
-            self.ext_ds = xr.open_dataset(self.filepath, mask_and_scale=False)
-            #
+            # try to open file with xarray and test for exodus
+            ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coord"]
+            mesh_filetype = "exo"
+        except KeyError as e:
+            # exodus with coordx
+            try:
+                ext_ds = xr.open_dataset(filepath,
+                                         mask_and_scale=False)["coordx"]
+                mesh_filetype = "exo"
+            except KeyError as e:
+                # scrip with grid_center_lon
+                try:
+                    ext_ds = xr.open_dataset(
+                        filepath, mask_and_scale=False)["grid_center_lon"]
+                    mesh_filetype = "scrip"
+                except KeyError as e:
+                    # ugrid with Mesh2
+                    try:
+                        ext_ds = xr.open_dataset(filepath,
+                                                 mask_and_scale=False)["Mesh2"]
+                        mesh_filetype = "ugrid"
+                    except KeyError as e:
+                        print("This is not a supported NetCDF file")
         except (TypeError, AttributeError) as e:
-            msg = str(e) + ': {}'.format(self.filepath)
+            msg = str(e) + ': {}'.format(filepath)
         except (RuntimeError, OSError) as e:
             # check if this is a shp file
             # we won't use xarray to load that file
             if file_extension == ".shp":
-                self.mesh_filetype = "shp"
+                mesh_filetype = "shp"
             else:
-                msg = str(e) + ': {}'.format(self.filepath)
+                msg = str(e) + ': {}'.format(filepath)
         except ValueError as e:
             # check if this is a shp file
             # we won't use xarray to load that file
             if file_extension == ".shp":
-                self.mesh_filetype = "shp"
+                mesh_filetype = "shp"
             else:
-                msg = str(e) + ': {}'.format(self.filepath)
+                msg = str(e) + ': {}'.format(filepath)
         finally:
             if (msg != ""):
-                msg = str(e) + ': {}'.format(self.filepath)
+                msg = str(e) + ': {}'.format(filepath)
                 print(msg)
                 raise RuntimeError(msg)
 
-        # Detect mesh file type, based on attributes of ext_ds:
-        # if ext_ds has coordx or coord - call it exo format
-        # if ext_ds has grid_size - call it SCRIP format
-        # if ext_ds has ? read as shape file populate_scrip_dataformat
-        # TODO: add detection of shpfile etc.
-        if self.ext_ds is None:  # this is None, when xarray was not used to load the input mesh file
-            print(
-                "external file was not loaded by xarray, setting meshfile type to shp"
-            )
-            # TODO: add more checks for detecting shp file
-            self.mesh_filetype = "shp"
-        elif "coordx" in self.ext_ds.data_vars or "coord" in self.ext_ds.data_vars:
-            self.mesh_filetype = "exo"
-        elif "grid_center_lon" in self.ext_ds.data_vars:
-            self.mesh_filetype = "scrip"
-        elif "Mesh2" in self.ext_ds.data_vars:
-            self.mesh_filetype = "ugrid"
-        else:
-            print("mesh file not supported")
-            self.mesh_filetype = None
-
-        return self.mesh_filetype
+        return mesh_filetype
 
     # initialize mesh2 DataVariable for uxarray
     def __init_mesh2__(self):
-        # set default values and initialize Datavariable "Mesh2" for uxarray
+        # set default attrs and initialize Datavariable "Mesh2" for uxarray
         self.in_ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
@@ -230,6 +233,10 @@ class Grid:
 
     # renames the grid file
     def saveas_file(self, filename):
+        """Saves the loaded mesh file as UGRID file
+        Parameters
+        ----------
+        filename : string, required"""
         path = PurePath(self.filepath)
         new_filepath = path.parent / filename
         self.filepath = str(new_filepath)
@@ -237,6 +244,8 @@ class Grid:
         print(self.filepath)
 
     def write(self, outfile, format=""):
+        """General write function It calls the approriate file writer based on
+        the extension of the output file requested."""
         if format == "":
             path = PurePath(outfile)
             format = path.suffix
@@ -249,8 +258,14 @@ class Grid:
             print("Format not supported for writing. ", format)
 
     # Exodus Number is one-based.
-    def read_exodus(self, ext_ds):
+    def read_exodus(self, filepath):
+        """Exodus file reader."""
         print("Reading exodus file: ", self.filepath)
+
+        # Not loading specific variables.
+        # as there is no way to know number of face types etc. without loading
+        # connect1, connect2, connect3, etc..
+        ext_ds = xr.open_dataset(self.filepath, mask_and_scale=False)
 
         # populate self.in_ds
         self.__init_mesh2__()
@@ -363,8 +378,16 @@ class Grid:
                     )  #NOTE: This might cause an error if numbering has holes
             })
         print("Finished reading exodus file.")
+        # done reading exodus flie, close the external xarray ds object
+        ext_ds.close()
+        return self.in_ds
 
     def write_exodus(self, outfile):
+        """Exodus file writer
+        Parameters
+        ----------
+        outfile : string, required
+            Name of output file"""
         # Note this is 1-based unlike native Mesh2 construct
         print("Writing exodus file: ", outfile)
 
@@ -532,6 +555,8 @@ class Grid:
         # done processing write the file to disk
         self.exo_ds.to_netcdf(outfile)
         print("Wrote: ", outfile)
+        # now close the dataset
+        self.exo_ds.close()
 
     def __get_element_type__(self, num_nodes):
         ELEMENT_TYPE_DICT = {
@@ -548,9 +573,12 @@ class Grid:
 
     def read_ugrid(self, filename):
         """Returns the xarray Dataset loaded during init."""
+
+        ext_ds = xr.open_dataset(self.filepath, mask_and_scale=False)
         # simply return the xarray object loaded
-        self.in_ds = self.ext_ds
-        return self.ext_ds
+        self.in_ds = ext_ds
+        ext_ds.close()
+        return self.in_ds
 
     # Write a uxgrid to a file with specified format.
     def write_ugrid(self, outfile):
@@ -558,7 +586,7 @@ class Grid:
         print("Writing ugrid file: ", outfile)
         self.in_ds.to_netcdf(outfile)
 
-    def read_scrip(self, ds):
+    def read_scrip(self, filename):
         """This is just a function placeholder.
 
         Not implemented.
