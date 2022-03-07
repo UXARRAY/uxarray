@@ -4,6 +4,7 @@ import sys
 import pytest
 from unittest import TestCase
 import os
+from pathlib import Path
 
 if "--cov" in str(sys.argv):
     from uxarray.reader import populate_scrip_data
