@@ -2,6 +2,7 @@
 import os
 import xarray as xr
 import numpy as np
+from warnings import warn
 from pathlib import PurePath
 from datetime import datetime
 
@@ -277,7 +278,7 @@ class Grid:
 
         Not implemented.
         """
-        print("Function placeholder, implementation coming soon.")
+        warn("Function placeholder, implementation coming soon.")
 
     # Build the node-face connectivity array.
     def build_node_face_connectivity(self):
@@ -285,7 +286,7 @@ class Grid:
 
         Not implemented.
         """
-        print("Function placeholder, implementation coming soon.")
+        warn("Function placeholder, implementation coming soon.")
 
     # Build the edge-face connectivity array.
     def build_edge_face_connectivity(self):
@@ -293,7 +294,7 @@ class Grid:
 
         Not implemented.
         """
-        print("Function placeholder, implementation coming soon.")
+        warn("Function placeholder, implementation coming soon.")
 
     # Build the array of latitude-longitude bounding boxes.
     def buildlatlon_bounds(self):
@@ -301,7 +302,7 @@ class Grid:
 
         Not implemented.
         """
-        print("Function placeholder, implementation coming soon.")
+        warn("Function placeholder, implementation coming soon.")
 
     # Validate that the grid conforms to the UXGrid standards.
     def validate(self):
@@ -309,4 +310,4 @@ class Grid:
 
         Not implemented.
         """
-        print("Function placeholder, implementation coming soon.")
+        warn("Function placeholder, implementation coming soon.")
