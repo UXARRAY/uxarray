@@ -3,17 +3,18 @@ import xarray as xr
 import sys
 import pytest
 from unittest import TestCase
+import os
 
 if "--cov" in str(sys.argv):
     from uxarray.reader import populate_scrip_data
 else:
     import uxarray
 
-# camse = 'meshfiles/f.asd2017.cesm20b05.FAMIPC6CLM5.ne0conus30x8_t12.cam.i.1980-01-01-00000.nc'
-ne30 = 'meshfiles/outCSne30.ug'
-ne8 = 'meshfiles/outCSne8.nc'
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-# ds_camse = xr.open_dataset(camse, decode_times=False, decode_cf=True)  # lat/lon
+ne30 = curent_path / 'meshfiles' / 'outCSne30.ug'
+ne8 = curent_path / 'meshfiles' / 'outCSne8.nc'
+
 ds_ne30 = xr.open_dataset(ne30, decode_times=False,
                           engine='netcdf4')  # mesh2_node_x/y
 ds_ne8 = xr.open_dataset(ne8, decode_times=False,
