@@ -18,3 +18,4 @@ Routines
    grid.Grid
    grid.Grid.find_type
    _exodus.read_exodus
+   _exodus.write_exodus
