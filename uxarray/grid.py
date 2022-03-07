@@ -105,7 +105,16 @@ class Grid:
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
         argument."""
-        self.__init_mesh2__()
+        self.in_ds["Mesh2"] = xr.DataArray(
+            attrs={
+                "cf_role": "mesh_topology",
+                "long_name": "Topology data of unstructured mesh",
+                "topology_dimension": -1,
+                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
+                "node_dimension": "nMesh2_node",
+                "face_node_connectivity": "Mesh2_face_nodes",
+                "face_dimension": "nMesh2_face"
+            })
         self.in_ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
 
         self.in_ds["Mesh2"].topology_dimension
@@ -144,13 +153,13 @@ class Grid:
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.read_exodus(self.filepath)
+            self.in_ds = self.read_exodus(self.filepath)
         elif self.mesh_filetype == "scrip":
-            self.read_scrip(self.filepath)
+            self.in_ds = self.read_scrip(self.filepath)
         elif self.mesh_filetype == "ugrid":
-            self.read_ugrid(self.filepath)
+            self.in_ds = self.read_ugrid(self.filepath)
         elif self.mesh_filetype == "shp":
-            self.read_shpfile(self.filepath)
+            self.in_ds = self.read_shpfile(self.filepath)
         else:
             raise RuntimeError("unknown file format:" + self.mesh_filetype)
 
@@ -260,15 +269,26 @@ class Grid:
     # Exodus Number is one-based.
     def read_exodus(self, filepath):
         """Exodus file reader."""
-        print("Reading exodus file: ", self.filepath)
+        print("Reading exodus file: ", filepath)
 
         # Not loading specific variables.
         # as there is no way to know number of face types etc. without loading
         # connect1, connect2, connect3, etc..
-        ext_ds = xr.open_dataset(self.filepath, mask_and_scale=False)
+        ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
+        in_ds = xr.Dataset()
 
-        # populate self.in_ds
-        self.__init_mesh2__()
+        # populate in_ds
+        # self.__init_mesh2__()
+        in_ds["Mesh2"] = xr.DataArray(
+            attrs={
+                "cf_role": "mesh_topology",
+                "long_name": "Topology data of unstructured mesh",
+                "topology_dimension": -1,
+                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
+                "node_dimension": "nMesh2_node",
+                "face_node_connectivity": "Mesh2_face_nodes",
+                "face_dimension": "nMesh2_face"
+            })
 
         # find max face nodes
         max_face_nodes = 0
@@ -284,9 +304,9 @@ class Grid:
             if key == "qa_records":
                 pass
             elif key == "coord":
-                self.in_ds.Mesh2.attrs['topology_dimension'] = np.int32(
+                in_ds.Mesh2.attrs['topology_dimension'] = np.int32(
                     ext_ds.dims['num_dim'])
-                self.in_ds["Mesh2_node_x"] = xr.DataArray(
+                in_ds["Mesh2_node_x"] = xr.DataArray(
                     data=ext_ds.coord[0],
                     dims=["nMesh2_node"],
                     attrs={
@@ -294,7 +314,7 @@ class Grid:
                         "long_name": "longitude of mesh nodes",
                         "units": "degress_east",
                     })
-                self.in_ds["Mesh2_node_y"] = xr.DataArray(
+                in_ds["Mesh2_node_y"] = xr.DataArray(
                     data=ext_ds.coord[1],
                     dims=["nMesh2_node"],
                     attrs={
@@ -302,7 +322,7 @@ class Grid:
                         "long_name": "latitude of mesh nodes",
                         "units": "degrees_north",
                     })
-                self.in_ds["Mesh2_node_z"] = xr.DataArray(
+                in_ds["Mesh2_node_z"] = xr.DataArray(
                     data=ext_ds.coord[2],
                     dims=["nMesh2_node"],
                     attrs={
@@ -311,7 +331,7 @@ class Grid:
                         "units": "degree",
                     })
             elif key == "coordx":
-                self.in_ds["Mesh2_node_x"] = xr.DataArray(
+                in_ds["Mesh2_node_x"] = xr.DataArray(
                     data=ext_ds.coordx,
                     dims=["nMesh2_node"],
                     attrs={
@@ -320,7 +340,7 @@ class Grid:
                         "units": "degress_east",
                     })
             elif key == "coordy":
-                self.in_ds["Mesh2_node_y"] = xr.DataArray(
+                in_ds["Mesh2_node_y"] = xr.DataArray(
                     data=ext_ds.coordx,
                     dims=["nMesh2_node"],
                     attrs={
@@ -329,7 +349,7 @@ class Grid:
                         "units": "degrees_north",
                     })
             elif key == "coordz":
-                self.in_ds["Mesh2_node_z"] = xr.DataArray(
+                in_ds["Mesh2_node_z"] = xr.DataArray(
                     data=ext_ds.coordx,
                     dims=["nMesh2_node"],
                     attrs={
@@ -364,7 +384,7 @@ class Grid:
 
         # outside the k,v for loop
         # set the face nodes data compiled in "connect" section
-        self.in_ds["Mesh2_face_nodes"] = xr.DataArray(
+        in_ds["Mesh2_face_nodes"] = xr.DataArray(
             data=(conn[:] - 1),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
@@ -380,7 +400,7 @@ class Grid:
         print("Finished reading exodus file.")
         # done reading exodus flie, close the external xarray ds object
         ext_ds.close()
-        return self.in_ds
+        return in_ds
 
     def write_exodus(self, outfile):
         """Exodus file writer
