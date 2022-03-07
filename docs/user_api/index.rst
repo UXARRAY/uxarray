@@ -14,8 +14,10 @@ documentation and let us know if you have any feedback!
 Routines
 --------
 
-Uxarray native routines
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autosummary::
-   :toctree: ./generated/
+   :toctree: _autosummary
+   :recursive:
+
+   grid.Grid.find_type
+   _exodus.read_exodus

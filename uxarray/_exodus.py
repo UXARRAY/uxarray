@@ -6,7 +6,14 @@ from datetime import datetime
 
 # Exodus Number is one-based.
 def read_exodus(filepath):
-    """Exodus file reader."""
+    """Exodus file reader for generating and returning a Uxarray Grid.
+
+    Parameters
+    ----------
+    filepath : str, optional
+        Path of the file to be read in.
+    """
+
     print("Reading exodus file: ", filepath)
 
     # Not loading specific variables.

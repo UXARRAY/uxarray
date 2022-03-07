@@ -1,3 +1,5 @@
+.. currentmodule:: uxarray
+
 Internal API
 ============
 
@@ -18,3 +20,6 @@ Uxarray routines
 .. autosummary::
    :nosignatures:
    :toctree: ./generated/
+
+
+    _exodus._get_element_type
