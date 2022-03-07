@@ -232,20 +232,6 @@ class Grid:
 
         return mesh_filetype
 
-    # initialize mesh2 DataVariable for uxarray
-    def __init_mesh2__(self):
-        # set default attrs and initialize Datavariable "Mesh2" for uxarray
-        self.in_ds["Mesh2"] = xr.DataArray(
-            attrs={
-                "cf_role": "mesh_topology",
-                "long_name": "Topology data of unstructured mesh",
-                "topology_dimension": -1,
-                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
-                "node_dimension": "nMesh2_node",
-                "face_node_connectivity": "Mesh2_face_nodes",
-                "face_dimension": "nMesh2_face"
-            })
-
     # renames the grid file
     def saveas_file(self, filepath):
         """Saves the loaded mesh file as UGRID file
