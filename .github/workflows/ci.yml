@@ -27,7 +27,7 @@ jobs:
         with:
           access_token: ${{ github.token }}
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ github.token }}
       - name: conda_setup
