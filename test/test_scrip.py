@@ -13,8 +13,8 @@ else:
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-ne30 = curent_path / 'meshfiles' / 'outCSne30.ug'
-ne8 = curent_path / 'meshfiles' / 'outCSne8.nc'
+ne30 = current_path / 'meshfiles' / 'outCSne30.ug'
+ne8 = current_path / 'meshfiles' / 'outCSne8.nc'
 
 ds_ne30 = xr.open_dataset(ne30, decode_times=False,
                           engine='netcdf4')  # mesh2_node_x/y
