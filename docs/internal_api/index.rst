@@ -15,4 +15,7 @@ Routines
    :nosignatures:
    :toctree: ./generated/
 
+   grid.Grid.__init__
+   grid.Grid.__from_file__
+   grid.Grid.__from_vert__
     _exodus._get_element_type

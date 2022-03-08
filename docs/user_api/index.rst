@@ -11,11 +11,24 @@ documentation to see the tentative whole API and let us know if you have any fee
 Routines
 --------
 
+
+Grid Class
+----------
 .. autosummary::
    :toctree: _autosummary
-   :recursive:
+
 
    grid.Grid
-   grid.Grid.find_type
+
+Grid functions
+--------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.Grid.determine_file_type
+   grid.Grid.saveas_file
+   grid.Grid.write
    _exodus.read_exodus
    _exodus.write_exodus
+   _ugrid.write_ugrid
+   _ugrid.read_ugrid

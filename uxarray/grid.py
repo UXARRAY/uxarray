@@ -54,7 +54,8 @@ class Grid:
             A dict initializing specific variables as stated above
             - example: kwargs = {"concave" : True, "islatlon" : True"}
 
-        Raises:
+        Raises
+        ------
             RuntimeError: File not found
         """
         # TODO: fix when adding/exercising gridspec
@@ -155,7 +156,7 @@ class Grid:
             RuntimeError: Invalid file type
         """
         # call function to set mesh file type: self.mesh_filetype
-        self.mesh_filetype = self.find_type(self.filepath)
+        self.mesh_filetype = self.determine_file_type(self.filepath)
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
@@ -170,10 +171,9 @@ class Grid:
             raise RuntimeError("unknown file format:" + self.mesh_filetype)
 
     # helper function to find file type
-    def find_type(self, filepath):
-        """Checks file path and contents to determine file type, called by
-        __from_file__ routine. Automatically detection supported for UGrid,
-        SCRIP, Exodus, or shape file.
+    def determine_file_type(self, filepath):
+        """Checks file path and contents to determine file type. Supports detection of UGrid,
+        SCRIP, Exodus and shape file.
 
         Raises:
             RuntimeError: Invalid file type
@@ -260,40 +260,30 @@ class Grid:
 
     # Calculate the area of all faces.
     def calculate_total_face_area(self):
-        """This is just a function placeholder.
-
-        Not implemented.
+        """Not implemented.
         """
         warn("Function placeholder, implementation coming soon.")
 
     # Build the node-face connectivity array.
     def build_node_face_connectivity(self):
-        """This is just a function placeholder.
-
-        Not implemented.
+        """Not implemented.
         """
         warn("Function placeholder, implementation coming soon.")
 
     # Build the edge-face connectivity array.
     def build_edge_face_connectivity(self):
-        """This is just a function placeholder.
-
-        Not implemented.
+        """Not implemented.
         """
         warn("Function placeholder, implementation coming soon.")
 
     # Build the array of latitude-longitude bounding boxes.
     def buildlatlon_bounds(self):
-        """This is just a function placeholder.
-
-        Not implemented.
+        """Not implemented.
         """
         warn("Function placeholder, implementation coming soon.")
 
     # Validate that the grid conforms to the UXGrid standards.
     def validate(self):
-        """This is just a function placeholder.
-
-        Not implemented.
+        """Not implemented.
         """
         warn("Function placeholder, implementation coming soon.")
