@@ -180,25 +180,24 @@ class Grid:
 
     # renames the grid file
     def saveas_file(self, filepath):
-        """Saves the loaded mesh file as UGRID file.
+        """Saves the loaded mesh file as the file with desired type. Internally
+        calls the write function.
 
         Parameters
         ----------
         filename : string, required
         """
 
-        path = PurePath(self.filepath)
-        if path.parent == PurePath("./"):
-            new_filepath = path.parent / filepath
-        else:
-            new_filepath = filepath
-        self.filepath = str(new_filepath)
+        path = PurePath(filepath)
+        if not os.path.isdir(path.parent):
+            raise FileNotFoundError("Check file path:" + filepath)
+        # call write
         self.write(filepath)
-        print(self.filepath)
+        # set filepath to this new file
+        self.filepath = str(filepath)
 
     def write(self, outfile, format=""):
-        """General write function. It calls the approriate file writer based on
-        the extension of the output file requested.
+        """Writes mesh file as per extension supplied in the outfile string.
 
         Parameters
         ----------
@@ -210,7 +209,7 @@ class Grid:
             outfile_path = PurePath(outfile)
             format = outfile_path.suffix
             if not os.path.isdir(outfile_path.parent):
-                raise ("File not found: " + outfile)
+                raise ("File directory not found: " + outfile)
 
         if format == ".ugrid" or format == ".ug":
             write_ugrid(self.in_ds, outfile)

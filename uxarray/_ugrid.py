@@ -2,7 +2,13 @@ import xarray as xr
 
 
 def read_ugrid(filepath):
-    """Returns the xarray Dataset loaded during init."""
+    """UGRID file reader.
+
+    Parameters: string, required
+        Name of file to be read
+
+    Returns: the xarray Dataset loaded during init.
+    """
 
     ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
     in_ds = xr.Dataset()
@@ -14,6 +20,13 @@ def read_ugrid(filepath):
 
 # Write a uxgrid to a file with specified format.
 def write_ugrid(in_ds, outfile):
-    """Function to write ugrid, uses to_netcdf from xarray object."""
+    """UGRID file writer.
+    Parameters
+    ----------
+    outfile : string, required
+        Name of output file
+
+    Uses to_netcdf from xarray object.
+    """
     print("Writing ugrid file: ", outfile)
     in_ds.to_netcdf(outfile)

@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Exodus Number is one-based.
 def read_exodus(filepath):
-    """Exodus file reader for generating and returning a Uxarray Grid.
+    """Exodus file reader.
 
     Parameters
     ----------
@@ -146,11 +146,13 @@ def read_exodus(filepath):
 
 
 def write_exodus(in_ds, outfile):
-    """Exodus file writer
-   Parameters
-   ----------
-   outfile : string, required
-      Name of output file"""
+    """Exodus file writer.
+
+    Parameters
+    ----------
+    outfile : string, required
+       Name of output file
+    """
     # Note this is 1-based unlike native Mesh2 construct
     print("Writing exodus file: ", outfile)
 
