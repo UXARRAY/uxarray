@@ -3,8 +3,9 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
-
 from . import constants
+
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class TestDataset(TestCase):
@@ -12,7 +13,7 @@ class TestDataset(TestCase):
     def test_open_dataset(self):
         """Loads files of different formats using uxarray's open_dataset
         call."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         uds1_name = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
         uds2_name = current_path / "meshfiles" / "outCSne8.g"
         uds3_name = current_path / "meshfiles" / "outCSne30.ug"

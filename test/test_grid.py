@@ -7,12 +7,14 @@ from pathlib import Path
 
 import uxarray as ux
 
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
 
 class TestGrid(TestCase):
 
     def test_saveas(self):
         """Rename a file."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         exo_filename = current_path / "meshfiles" / "outCSne8.g"
         # grid object expects a string argument for loading a file
         tgrid = ux.Grid(str(exo_filename))
@@ -25,7 +27,7 @@ class TestGrid(TestCase):
 
     def test_read_exodus(self):
         """Read an exodus file and writes a ugrid file."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
         tgrid = ux.Grid(str(exo2_filename))
         outfile = current_path / "write_test_outCSne8.ug"
@@ -33,7 +35,7 @@ class TestGrid(TestCase):
 
     def test_write_exodus(self):
         """Read a ugrid file and write exodus."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         filename = current_path / "meshfiles" / "outCSne8.g"
         tgrid = ux.Grid(str(filename))
         outfile = current_path / "ouCSne8_uxarray.exo"
@@ -41,13 +43,13 @@ class TestGrid(TestCase):
 
     def test_read_scrip(self):
         """Reads a scrip file and write ugrid file."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         scrip_filename = current_path / "meshfiles" / "outCSne8.nc"
         tgrid = ux.Grid(str(scrip_filename))
 
     def test_read_ugrid(self):
         """Reads a ugrid file."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
         ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
         ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
@@ -60,7 +62,7 @@ class TestGrid(TestCase):
     # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         shp_filename = current_path / "meshfiles" / "grid_fire.shp"
         tgrid = ux.Grid(str(shp_filename))
 
@@ -69,14 +71,13 @@ class TestGrid(TestCase):
         verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
         vgrid = ux.Grid(verts)
 
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
         face_filename = current_path / "meshfiles" / "1face.g"
         vgrid.write(face_filename)
 
     def test_mixed_exodus(self):
         """Read/write an exodus file with two types of faces (triangle and
         quadrilaterals) and writes a ugrid file."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
         exo2_filename = current_path / "meshfiles" / "mixed.exo"
         tgrid = ux.Grid(str(exo2_filename))
         outfile = current_path / "write_test_mixed.ug"
