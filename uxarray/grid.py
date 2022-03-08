@@ -6,20 +6,25 @@ from warnings import warn
 from pathlib import PurePath
 from datetime import datetime
 
+# reader and writer imports
 from ._exodus import read_exodus, write_exodus
 from ._ugrid import read_ugrid, write_ugrid
 from ._shapefile import read_shpfile
 from ._scrip import read_scrip
+from .helpers import determine_file_type
 
 
 class Grid:
     """The Uxarray Grid object class that describes an unstructured grid.
+
     Examples
     ----------
-    Open an exodus file with Grid object
+    Open an exodus file with Uxarray Grid object
+
     >>> mesh = ux.Grid("filename.g")
 
     Save as ugrid file
+
     >>> mesh.saveas("outfile.ug")
     """
 
@@ -37,6 +42,7 @@ class Grid:
         specified file.
 
         # TODO: Add or remove new Args/kwargs below as this develops further
+
         Parameters
         ----------
         args : string, optional
@@ -95,6 +101,8 @@ class Grid:
                 raise RuntimeError(
                     "Init called with args other than verts (ndarray) or filename (str)"
                 )
+        except TypeError as e:
+            raise RuntimeError("sting or np.ndarray supported as input")
 
         # check if initialize from file:
         if in_type is str and os.path.isfile(args[0]):
@@ -153,10 +161,10 @@ class Grid:
         automatically detect if it is a UGrid, SCRIP, Exodus, or shape file.
 
         Raises:
-            RuntimeError: Invalid file type
+            RuntimeError: Unknown file format
         """
         # call function to set mesh file type: self.mesh_filetype
-        self.mesh_filetype = self.determine_file_type(self.filepath)
+        self.mesh_filetype = determine_file_type(self.filepath)
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
@@ -170,86 +178,39 @@ class Grid:
         else:
             raise RuntimeError("unknown file format:" + self.mesh_filetype)
 
-    # helper function to find file type
-    def determine_file_type(self, filepath):
-        """Checks file path and contents to determine file type. Supports
-        detection of UGrid, SCRIP, Exodus and shape file.
-
-        Raises:
-            RuntimeError: Invalid file type
-        """
-        msg = ""
-        # exodus with coord
-        try:
-            # extract the file name and extension
-            path = PurePath(filepath)
-            file_extension = path.suffix
-
-            # try to open file with xarray and test for exodus
-            ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coord"]
-            mesh_filetype = "exo"
-        except KeyError as e:
-            # exodus with coordx
-            try:
-                ext_ds = xr.open_dataset(filepath,
-                                         mask_and_scale=False)["coordx"]
-                mesh_filetype = "exo"
-            except KeyError as e:
-                # scrip with grid_center_lon
-                try:
-                    ext_ds = xr.open_dataset(
-                        filepath, mask_and_scale=False)["grid_center_lon"]
-                    mesh_filetype = "scrip"
-                except KeyError as e:
-                    # ugrid with Mesh2
-                    try:
-                        ext_ds = xr.open_dataset(filepath,
-                                                 mask_and_scale=False)["Mesh2"]
-                        mesh_filetype = "ugrid"
-                    except KeyError as e:
-                        print("This is not a supported NetCDF file")
-        except (TypeError, AttributeError) as e:
-            msg = str(e) + ': {}'.format(filepath)
-        except (RuntimeError, OSError) as e:
-            # check if this is a shp file
-            # we won't use xarray to load that file
-            if file_extension == ".shp":
-                mesh_filetype = "shp"
-            else:
-                msg = str(e) + ': {}'.format(filepath)
-        except ValueError as e:
-            # check if this is a shp file
-            # we won't use xarray to load that file
-            if file_extension == ".shp":
-                mesh_filetype = "shp"
-            else:
-                msg = str(e) + ': {}'.format(filepath)
-        finally:
-            if (msg != ""):
-                msg = str(e) + ': {}'.format(filepath)
-                print(msg)
-                raise RuntimeError(msg)
-
-        return mesh_filetype
-
     # renames the grid file
     def saveas_file(self, filepath):
-        """Saves the loaded mesh file as UGRID file
+        """Saves the loaded mesh file as UGRID file.
+
         Parameters
         ----------
-        filename : string, required"""
+        filename : string, required
+        """
+
         path = PurePath(self.filepath)
-        new_filepath = path.parent / filepath
+        if path.parent == PurePath("./"):
+            new_filepath = path.parent / filepath
+        else:
+            new_filepath = filepath
         self.filepath = str(new_filepath)
-        write_ugrid(self.in_ds, filepath)
+        self.write(filepath)
         print(self.filepath)
 
     def write(self, outfile, format=""):
-        """General write function It calls the approriate file writer based on
-        the extension of the output file requested."""
+        """General write function. It calls the approriate file writer based on
+        the extension of the output file requested.
+
+        Parameters
+        ----------
+        output filename : string, required
+        format : extension, optional
+            Automatically detected if nothing is specified, defaults to ""
+        """
         if format == "":
-            path = PurePath(outfile)
-            format = path.suffix
+            outfile_path = PurePath(outfile)
+            format = outfile_path.suffix
+            if not os.path.isdir(outfile_path.parent):
+                raise ("File not found: " + outfile)
 
         if format == ".ugrid" or format == ".ug":
             write_ugrid(self.in_ds, outfile)

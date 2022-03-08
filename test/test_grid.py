@@ -18,8 +18,8 @@ class TestGrid(TestCase):
         tgrid = ux.Grid(str(exo_filename))
 
         new_filename = "new_outCSne8.g"
-        tgrid.saveas_file(new_filename)
         new_filepath = current_path / "meshfiles" / new_filename
+        tgrid.saveas_file(new_filepath)
 
         assert (tgrid.filepath == str(new_filepath))
 
