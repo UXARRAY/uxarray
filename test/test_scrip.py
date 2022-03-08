@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 if "--cov" in str(sys.argv):
-    from uxarray.reader import _populate_scrip_data
+    from uxarray.reader._scrip import _populate_scrip_data
 else:
     import uxarray
 
@@ -33,6 +33,7 @@ def test_scrip_is_not_cf():
 def test_new_var_name():
     """tests that cf compliant variable names have been correctly created based
     on prior variable names."""
+
     _populate_scrip_data(ds_ne8, is_cf=False)
 
     assert ds_ne8['Mesh2_node_x'].all() == ds_ne8['grid_corner_lat'].all()
