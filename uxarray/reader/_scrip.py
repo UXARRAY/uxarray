@@ -6,11 +6,12 @@ _Y_NODES = ("lon", "longitude", "Lon", "Longitude", "Y", "y", "grid_corner_lon",
             "grid_corner_longitude")
 
 
-def viewkeys(d):
+def _viewkeys(d):
     """Return either the keys or viewkeys method for a dictionary.
-
+    Parameters
+    ----------
     Args:
-        d (:obj:`dict`): A dictionary.
+        d :obj:`dict`: A dictionary.
     Returns:
         view method: Either the keys or viewkeys method.
     """
@@ -22,51 +23,66 @@ def viewkeys(d):
 
 
 def _get_nodes(ds):
-    """Outter wrapper function for datasets that are not cf compliant.
+    """Outer wrapper function for datasets that are not cf compliant.
 
-    :param ds: xarray.Dataset
-    :return: xarray.Dataset with cf compliant naming of lat/lon variables
+    ds : :class:`xarray.Dataset`
+        Scrip dataset of interest being used
+
+    return : :class:`xarray.Dataset`
+        Dataset updated with cf compliant naming of lat/lon variables
     """
 
-    NODE_X = None
-    NODE_Y = None
+    node_x = None
+    node_y = None
 
     for name in _X_NODES:
-        if name in viewkeys(ds):
+        if name in _viewkeys(ds):
             ds['Mesh2_node_x'] = ds[name]
-            NODE_X = ds['Mesh2_node_x']
+            node_x = ds['Mesh2_node_x']
 
             break
 
     for name in _Y_NODES:
-        if name in viewkeys(ds):
+        if name in _viewkeys(ds):
             ds['Mesh2_node_y'] = ds[name]
-            NODE_Y = ds['Mesh2_node_y']
+            node_y = ds['Mesh2_node_y']
 
             break
 
-    return NODE_X, NODE_Y
+    return node_x, node_y
 
 
-def populate_scrip_data(ds, is_cf=True):
+def _populate_scrip_data(ds, is_cf=True):
     """Function to reassign lat/lon variables to mesh2_node variables. Could be
     possible to expand this to include:
 
     - Error message if variable name is not in current dictionary
     - Further capability to have a user input for variables not in dictionary
 
-    :param ds: xarray.Dataset used
-    :param cf: Bool tells code if dataset is cf compliant or not, default True
-    :return: Reassigns data variables to be mesh2_node_x and mesh2_node_y
+    Parameters
+    ----------
+    ds : :class:`xarray.Dataset`
+        Scrip dataset of interest being used
+
+    cf : :class:`bool` optional
+        User defined if dataset is known as cf compliant or not, default True
+
+    Returns
+    --------
+    node_x : :class:`xarray.Variable`
+        Reassigns data variables to be mesh2_node_x
+
+    node_y : :class:`xarray.Variable`
+        Reassigns data variables to be mesh2_node_y
     """
 
-    NODE_X = None
-    NODE_Y = None
+    node_x = None
+    node_y = None
 
     if is_cf == True:
         try:
-            NODE_X = ds['Mesh2_node_x']
-            NODE_Y = ds['Mesh2_node_y']
+            node_x = ds['Mesh2_node_x']
+            node_y = ds['Mesh2_node_y']
         except:
             raise Exception(
                 "Variables not in form 'Mesh2_node_x' or 'Mesh2_node_y' please specify cf=False"
@@ -75,4 +91,4 @@ def populate_scrip_data(ds, is_cf=True):
     else:
         _get_nodes(ds)
 
-    return NODE_X, NODE_Y
+    return node_x, node_y
