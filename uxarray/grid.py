@@ -65,12 +65,13 @@ class Grid:
             RuntimeError: File not found
         """
         # TODO: fix when adding/exercising gridspec
-        self.filepath = None
-        self.gridspec = None
-        self.vertices = None
-        self.islatlon = None
-        self.concave = None
-        self.mesh_filetype = None
+        # pull in optional arguments
+        self.filepath = filepath
+        self.gridspec = gridspec
+        self.vertices = vertices
+        self.islatlon = islatlon
+        self.concave = concave
+        self.mesh_filetype = mesh_filetype
 
         # internal uxarray representation of mesh stored in internal object in_ds
         self.in_ds = xr.Dataset()
