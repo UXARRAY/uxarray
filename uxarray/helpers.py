@@ -62,7 +62,7 @@ def determine_file_type(filepath):
         else:
             msg = str(e) + ': {}'.format(filepath)
     finally:
-        if (msg != ""):
+        if msg != "":
             msg = str(e) + ': {}'.format(filepath)
             print(msg)
             raise RuntimeError(msg)
