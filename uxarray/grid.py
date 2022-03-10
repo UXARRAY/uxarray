@@ -195,27 +195,27 @@ class Grid:
         # set filepath to this new file
         self.filepath = str(filepath)
 
-    def write(self, outfile, format=""):
+    def write(self, outfile, extension=""):
         """Writes mesh file as per extension supplied in the outfile string.
 
         Parameters
         ----------
-        output filename : string, required
-        format : extension, optional
-            Automatically detected if nothing is specified, defaults to ""
+        outfile : string, required
+        extension : file extension, optional
+            Defaults to ""
         """
-        if format == "":
+        if extension == "":
             outfile_path = PurePath(outfile)
-            format = outfile_path.suffix
+            extension = outfile_path.suffix
             if not os.path.isdir(outfile_path.parent):
                 raise ("File directory not found: " + outfile)
 
-        if format == ".ugrid" or format == ".ug":
+        if extension == ".ugrid" or extension == ".ug":
             write_ugrid(self.in_ds, outfile)
-        elif format == ".g" or format == ".exo":
+        elif extension == ".g" or extension == ".exo":
             write_exodus(self.in_ds, outfile)
         else:
-            print("Format not supported for writing. ", format)
+            print("Format not supported for writing: ", extension)
 
     # Calculate the area of all faces.
     def calculate_total_face_area(self):
