@@ -104,7 +104,7 @@ def read_exodus(filepath):
                 })
         elif "connect" in key:
             # check if num face nodes is less than max.
-            if (value.data.shape[1] < max_face_nodes):
+            if value.data.shape[1] < max_face_nodes:
                 # create a temporary array to store connectivity
                 tmp_conn = np.empty((value.data.shape[0], max_face_nodes))
                 tmp_conn.fill(
@@ -112,10 +112,10 @@ def read_exodus(filepath):
                 )  # exodus in 1-based, fill with zeros here; during assignment subtract 1
                 tmp_conn[:value.data.shape[0], :value.data.
                          shape[1]] = value.data
-            elif (value.data.shape[1] == max_face_nodes):
+            elif value.data.shape[1] == max_face_nodes:
                 tmp_conn = value.data
             else:
-                raise ("found face_nodes_dim greater than nMaxMesh2_face_nodes")
+                raise "found face_nodes_dim greater than nMaxMesh2_face_nodes"
 
             # concatenate to the previous blk
             conn = np.concatenate((conn, tmp_conn))
@@ -137,10 +137,10 @@ def read_exodus(filepath):
                 -1,
             "start_index":
                 np.int32(
-                    0)  #NOTE: This might cause an error if numbering has holes
+                    0)  # NOTE: This might cause an error if numbering has holes
         })
     print("Finished reading exodus file.")
-    # done reading exodus flie, close the external xarray ds object
+    # done reading exodus file, close the external xarray ds object
     ext_ds.close()
     return in_ds
 
@@ -150,6 +150,8 @@ def write_exodus(in_ds, outfile):
 
     Parameters
     ----------
+    in_ds : xarray.Dataset, required
+        Dataset to be written to exodus file.
     outfile : string, required
        Name of output file
     """
@@ -185,7 +187,7 @@ def write_exodus(in_ds, outfile):
         np.array(qa_records, dtype="S33")),
                                         dims=["four", "num_qa_rec"])
 
-    # get orig dimention from Mesh2 attribute topology dimension
+    # get orig dimension from Mesh2 attribute topology dimension
     dim = in_ds["Mesh2"].topology_dimension
 
     c_data = []
@@ -269,7 +271,7 @@ def write_exodus(in_ds, outfile):
                                            dims=[str_el_in_blk, str_nod_per_el],
                                            attrs={"elem_type": element_type})
 
-        # edgetype
+        # edge type
         exo_ds[str_edge_type] = xr.DataArray(
             data=xr.DataArray(np.zeros((num_faces, num_nodes), "i4")),
             dims=[str_el_in_blk, str_nod_per_el])
@@ -304,11 +306,12 @@ def write_exodus(in_ds, outfile):
     eb_names.fill("")
     exo_ds["eb_names"] = xr.DataArray(data=xr.DataArray(eb_names),
                                       dims=["num_el_blk"])
-
     if dim == 2:
         cnames = ["x", "y"]
     elif dim == 3:
         cnames = ["x", "y", "z"]
+    else:
+        raise RuntimeError("dim must be 2 or 3")
 
     exo_ds["coor_names"] = xr.DataArray(data=xr.DataArray(
         np.array(cnames, dtype="S33")),
@@ -317,6 +320,7 @@ def write_exodus(in_ds, outfile):
     # done processing write the file to disk
     exo_ds.to_netcdf(outfile)
     print("Wrote: ", outfile)
+
     # now close the dataset
     exo_ds.close()
 
