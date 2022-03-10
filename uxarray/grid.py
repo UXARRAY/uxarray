@@ -184,7 +184,7 @@ class Grid:
 
         Parameters
         ----------
-        filename : string, required
+        filepath : string, required
         """
 
         path = PurePath(filepath)
