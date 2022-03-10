@@ -23,6 +23,8 @@ def write_ugrid(in_ds, outfile):
     """UGRID file writer.
     Parameters
     ----------
+    in_ds : xarray.Dataset
+        Dataset to be written to file
     outfile : string, required
         Name of output file
 
