@@ -74,13 +74,6 @@ class Grid:
         # internal uxarray representation of mesh stored in internal object in_ds
         self.in_ds = xr.Dataset()
 
-        # Parse the keyword arguments and initialize class attributes
-        for key, value in kwargs.items():
-            if key == "latlon":
-                self.islatlon = value
-            elif key == "gridspec":
-                self.gridspec = value
-
         # determine initialization type - string signifies a file, numpy array signifies a list of verts
         in_type = type(args[0])
 
