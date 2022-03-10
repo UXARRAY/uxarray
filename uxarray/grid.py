@@ -35,8 +35,7 @@ class Grid:
                  vertices=None,
                  concave=None,
                  islatlon=None,
-                 mesh_filetype=None,
-                 **kwargs):
+                 mesh_filetype=None):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec If loading from file, initialization happens via the
         specified file.
