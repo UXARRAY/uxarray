@@ -4,7 +4,6 @@ import xarray as xr
 import numpy as np
 from warnings import warn
 from pathlib import PurePath
-from datetime import datetime
 
 # reader and writer imports
 from ._exodus import read_exodus, write_exodus
