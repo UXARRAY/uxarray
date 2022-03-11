@@ -36,7 +36,7 @@ class Grid:
 
         Parameters
         ----------
-        data_arg : string, array, required
+        data_arg : string, ndarray, list, tuple, required
             - Input file name with extension or
             - Vertex coordinates that form one face.
 
@@ -50,9 +50,6 @@ class Grid:
             Specifies gridspec
         mesh_filetype: string, optional
             Specify the mesh file type, eg. exo, ugrid, shp etc
-        kwargs : dict, optional
-            A dict initializing specific variables as stated above
-            - example: kwargs = {"concave" : True, "islatlon" : True"}
 
         Raises
         ------
@@ -61,13 +58,12 @@ class Grid:
 
         # TODO: fix when adding/exercising gridspec
         # unpacking args
-        self.data_arg = args[0]
+        data_arg = args[0]
 
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'filepath', 'gridspec', 'vertices', 'islatlon', 'concave',
-            'mesh_filetype'
+            'gridspec', 'vertices', 'islatlon', 'concave', 'mesh_filetype'
         ]
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
@@ -76,38 +72,27 @@ class Grid:
         self.in_ds = xr.Dataset()
 
         # determine initialization type - string signifies a file, numpy array signifies a list of verts
-        in_type = type(self.data_arg)
+        in_type = type(data_arg)
 
         # check if initializing from verts:
-        try:
-            if not os.path.isfile(self.data_arg) and in_type is not np.ndarray:
-                raise FileNotFoundError("File not found: " + self.data_arg)
-            elif in_type is np.ndarray:
-                self.vertices = self.data_arg
-                self.__from_vert__()
-        except ValueError as e:
-            # initialize from vertices
-            if in_type is np.ndarray:
-                self.vertices = self.data_arg
-                self.__from_vert__()
-            else:
-                raise RuntimeError(
-                    "Init called with args other than verts (ndarray) or filename (str)"
-                )
-        except TypeError as e:
-            raise RuntimeError("sting or np.ndarray supported as input")
+        if isinstance(data_arg, (list, tuple, np.ndarray)):
+            self.vertices = data_arg
+            self.__from_vert__()
 
-        # check if initialize from file:
-        if in_type is str and os.path.isfile(self.data_arg):
-            self.filepath = self.data_arg
+        # check if initializing from string
+        # TODO: re-add gridspec initialization when implemented
+        elif isinstance(data_arg, str):
+            # check if file exists
+            if not os.path.isfile(data_arg):
+                raise RuntimeError("File not found: " + data_arg)
+
+            self.filepath = data_arg
+            # call the appropriate reader
             self.__from_file__()
-        # initialize for gridspec
-        elif in_type is str:
-            self.gridspec = self.data_arg
-            self.__from_gridspec__()
+
+        # check if invalid initialization
         else:
-            # this may just be local initialization for with no options or options other than above
-            pass
+            raise RuntimeError(data_arg + " is not a valid input type")
 
     # vertices init
     def __from_vert__(self):
