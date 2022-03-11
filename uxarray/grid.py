@@ -27,14 +27,7 @@ class Grid:
     >>> mesh.saveas("outfile.ug")
     """
 
-    def __init__(self,
-                 *args,
-                 filepath=None,
-                 gridspec=None,
-                 vertices=None,
-                 concave=None,
-                 islatlon=None,
-                 mesh_filetype=None):
+    def __init__(self, *args, **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec If loading from file, initialization happens via the
         specified file.
@@ -62,14 +55,16 @@ class Grid:
         ------
             RuntimeError: File not found
         """
+
         # TODO: fix when adding/exercising gridspec
-        # pull in optional arguments
-        self.filepath = filepath
-        self.gridspec = gridspec
-        self.vertices = vertices
-        self.islatlon = islatlon
-        self.concave = concave
-        self.mesh_filetype = mesh_filetype
+        # unpack kwargs
+        # sets default values for all kwargs to None
+        kwargs_list = [
+            'filepath', 'gridspec', 'vertices', 'islatlon', 'concave',
+            'mesh_filetype'
+        ]
+        for key in kwargs_list:
+            setattr(self, key, kwargs.get(key, None))
 
         # internal uxarray representation of mesh stored in internal object in_ds
         self.in_ds = xr.Dataset()
@@ -168,7 +163,7 @@ class Grid:
         elif self.mesh_filetype == "shp":
             self.in_ds = read_shpfile(self.filepath)
         else:
-            raise RuntimeError("unknown file format:" + self.mesh_filetype)
+            raise RuntimeError("unknown file format: " + self.mesh_filetype)
 
     # renames the grid file
     def saveas_file(self, filepath):
