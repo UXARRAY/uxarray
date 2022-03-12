@@ -107,8 +107,6 @@ class Grid:
             })
         self.in_ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
 
-        self.in_ds["Mesh2"].topology_dimension
-
         x_coord = self.vertices.transpose()[0]
         y_coord = self.vertices.transpose()[1]
 
