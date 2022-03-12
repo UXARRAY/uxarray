@@ -47,6 +47,7 @@ def read_exodus(filepath):
 
     for key, value in ext_ds.variables.items():
         if key == "qa_records":
+            # TODO: Use the data here for Mesh2 construct, if required.
             pass
         elif key == "coord":
             in_ds.Mesh2.attrs['topology_dimension'] = np.int32(
