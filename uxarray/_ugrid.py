@@ -11,7 +11,6 @@ def read_ugrid(filepath):
     """
 
     ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
-    in_ds = xr.Dataset()
     # simply return the xarray object loaded
     in_ds = ext_ds
     ext_ds.close()
