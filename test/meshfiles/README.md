@@ -10,7 +10,7 @@
   * outCSne8.nc
   * outRLL1deg_vortex.nc
   * ov_RLL10deg_CSne4_vortex.nc
-* UGIRD:
+* UGRID:
   * outCSne30.ug
   * outRLL1deg.ug
   * ov_RLL10deg_CSne4.ug

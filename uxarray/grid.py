@@ -71,9 +71,6 @@ class Grid:
         # internal uxarray representation of mesh stored in internal object in_ds
         self.in_ds = xr.Dataset()
 
-        # determine initialization type - string signifies a file, numpy array signifies a list of verts
-        in_type = type(data_arg)
-
         # check if initializing from verts:
         if isinstance(data_arg, (list, tuple, np.ndarray)):
             self.vertices = data_arg
