@@ -185,7 +185,7 @@ def write_exodus(in_ds, outfile):
     # qa_records
     qa_records = [["uxarray"], ["1.0"], [date], [time]]
     exo_ds["qa_records"] = xr.DataArray(data=xr.DataArray(
-        np.array(qa_records, dtype="S33")),
+        np.array(qa_records, dtype='str')),
                                         dims=["four", "num_qa_rec"])
 
     # get orig dimension from Mesh2 attribute topology dimension
@@ -303,8 +303,7 @@ def write_exodus(in_ds, outfile):
                                        dims=["num_el_blk"])
 
     # eb_names
-    eb_names = np.empty(num_blks, dtype="S33")
-    eb_names.fill("")
+    eb_names = np.empty(num_blks, dtype='str')
     exo_ds["eb_names"] = xr.DataArray(data=xr.DataArray(eb_names),
                                       dims=["num_el_blk"])
     if dim == 2:
@@ -315,7 +314,7 @@ def write_exodus(in_ds, outfile):
         raise RuntimeError("dim must be 2 or 3")
 
     exo_ds["coor_names"] = xr.DataArray(data=xr.DataArray(
-        np.array(cnames, dtype="S33")),
+        np.array(cnames, dtype='str')),
                                         dims=["num_dim"])
 
     # done processing write the file to disk
