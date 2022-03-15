@@ -28,4 +28,4 @@ Helper functions
 .. autosummary::
    :toctree: _autosummary
 
-   helpers.determine_file_type
+   determine_file_type

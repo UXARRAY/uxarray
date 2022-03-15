@@ -18,6 +18,7 @@ class Grid:
 
     Examples
     ----------
+
     Open an exodus file with Uxarray Grid object
 
     >>> mesh = ux.Grid("filename.g")
@@ -36,12 +37,14 @@ class Grid:
 
         Parameters
         ----------
+
         data_arg : string, ndarray, list, tuple, required
             - Input file name with extension or
             - Vertex coordinates that form one face.
 
         Other Parameters
         ----------------
+
         islatlon : bool, optional
             Specify if the grid is lat/lon based:
         concave: bool, optional
@@ -53,6 +56,7 @@ class Grid:
 
         Raises
         ------
+
             RuntimeError: File not found
         """
 
@@ -134,6 +138,7 @@ class Grid:
         automatically detect if it is a UGrid, SCRIP, Exodus, or shape file.
 
         Raises:
+
             RuntimeError: Unknown file format
         """
         # call function to set mesh file type: self.mesh_filetype
@@ -158,6 +163,7 @@ class Grid:
 
         Parameters
         ----------
+
         filepath : string, required
         """
 
@@ -174,6 +180,7 @@ class Grid:
 
         Parameters
         ----------
+
         outfile : string, required
         extension : file extension, optional
             Defaults to ""

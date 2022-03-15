@@ -64,7 +64,6 @@ def determine_file_type(filepath):
     finally:
         if msg != "":
             msg = str(e) + ': {}'.format(filepath)
-            print(msg)
             raise RuntimeError(msg)
 
     return mesh_filetype

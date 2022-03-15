@@ -10,6 +10,7 @@ def _read_exodus(filepath):
 
     Parameters
     ----------
+
     filepath : str, optional
         Path of the file to be read in.
     """
@@ -139,8 +140,7 @@ def _read_exodus(filepath):
                     0)  # NOTE: This might cause an error if numbering has holes
         })
     print("Finished reading exodus file.")
-    # done reading exodus file, close the external xarray ds object
-    ext_ds.close()
+
     return ds
 
 
@@ -149,6 +149,7 @@ def _write_exodus(ds, outfile):
 
     Parameters
     ----------
+
     ds : xarray.Dataset, required
         Dataset to be written to exodus file.
     outfile : string, required
@@ -320,7 +321,7 @@ def _write_exodus(ds, outfile):
 
 
 def _get_element_type(num_nodes):
-    """Helper function to get element type from number of nodes."""
+    """Helper function to get exodus element type from number of nodes."""
     ELEMENT_TYPE_DICT = {
         2: "BEAM",
         3: "TRI",
