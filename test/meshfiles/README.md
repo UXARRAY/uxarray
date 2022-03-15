@@ -14,3 +14,4 @@
   * outCSne30.ug
   * outRLL1deg.ug
   * ov_RLL10deg_CSne4.ug
+  * outCSne30_var2.ug
