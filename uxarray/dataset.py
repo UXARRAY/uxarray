@@ -41,9 +41,9 @@ def open_dataset(grid_filename, *args):
         try:
             print("Merging grid and data")
             # xarray merge functionality called
-            ux_grid.in_ds = xr.merge([ux_grid.in_ds, xr_datafile[i]])
+            ux_grid.ds = xr.merge([ux_grid.ds, xr_datafile[i]])
         except:
             raise RuntimeError("unable to merge grid and datafile", datafile)
         i += 1
 
-    return ux_grid.in_ds
+    return ux_grid.ds

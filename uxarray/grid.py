@@ -68,8 +68,8 @@ class Grid:
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
 
-        # internal uxarray representation of mesh stored in internal object in_ds
-        self.in_ds = xr.Dataset()
+        # internal uxarray representation of mesh stored in internal object ds
+        self.ds = xr.Dataset()
 
         # check if initializing from verts:
         if isinstance(data_arg, (list, tuple, np.ndarray)):
@@ -95,7 +95,7 @@ class Grid:
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
         argument."""
-        self.in_ds["Mesh2"] = xr.DataArray(
+        self.ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
                 "long_name": "Topology data of unstructured mesh",
@@ -105,7 +105,7 @@ class Grid:
                 "face_node_connectivity": "Mesh2_face_nodes",
                 "face_dimension": "nMesh2_face"
             })
-        self.in_ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
+        self.ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
 
         x_coord = self.vertices.transpose()[0]
         y_coord = self.vertices.transpose()[1]
@@ -115,11 +115,11 @@ class Grid:
         conn = list(range(0, num_nodes))
         conn = [conn]
 
-        self.in_ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
+        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
                                                   dims=["nMesh2_node"])
-        self.in_ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
+        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
                                                   dims=["nMesh2_node"])
-        self.in_ds["Mesh2_face_nodes"] = xr.DataArray(
+        self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(conn),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
@@ -141,13 +141,13 @@ class Grid:
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.in_ds = read_exodus(self.filepath)
+            self.ds = read_exodus(self.filepath)
         elif self.mesh_filetype == "scrip":
-            self.in_ds = read_scrip(self.filepath)
+            self.ds = read_scrip(self.filepath)
         elif self.mesh_filetype == "ugrid":
-            self.in_ds = read_ugrid(self.filepath)
+            self.ds = read_ugrid(self.filepath)
         elif self.mesh_filetype == "shp":
-            self.in_ds = read_shpfile(self.filepath)
+            self.ds = read_shpfile(self.filepath)
         else:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
 
@@ -185,9 +185,9 @@ class Grid:
                 raise ("File directory not found: " + outfile)
 
         if extension == ".ugrid" or extension == ".ug":
-            write_ugrid(self.in_ds, outfile)
+            write_ugrid(self.ds, outfile)
         elif extension == ".g" or extension == ".exo":
-            write_exodus(self.in_ds, outfile)
+            write_exodus(self.ds, outfile)
         else:
             print("Format not supported for writing: ", extension)
 

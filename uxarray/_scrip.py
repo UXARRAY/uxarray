@@ -8,4 +8,4 @@ def read_scrip(filepath):
     """
     warn("Function not implemented yet. FYI, attempted to read SCRIP file: " +
          str(filepath))
-    # TODO: create in_ds
+    # TODO: create ds

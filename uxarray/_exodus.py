@@ -20,11 +20,11 @@ def read_exodus(filepath):
     # as there is no way to know number of face types etc. without loading
     # connect1, connect2, connect3, etc..
     ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
-    in_ds = xr.Dataset()
+    ds = xr.Dataset()
 
-    # populate in_ds
+    # populate ds
     # self.__init_mesh2__()
-    in_ds["Mesh2"] = xr.DataArray(
+    ds["Mesh2"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
             "long_name": "Topology data of unstructured mesh",
@@ -50,9 +50,9 @@ def read_exodus(filepath):
             # TODO: Use the data here for Mesh2 construct, if required.
             pass
         elif key == "coord":
-            in_ds.Mesh2.attrs['topology_dimension'] = np.int32(
+            ds.Mesh2.attrs['topology_dimension'] = np.int32(
                 ext_ds.dims['num_dim'])
-            in_ds["Mesh2_node_x"] = xr.DataArray(
+            ds["Mesh2_node_x"] = xr.DataArray(
                 data=ext_ds.coord[0],
                 dims=["nMesh2_node"],
                 attrs={
@@ -60,7 +60,7 @@ def read_exodus(filepath):
                     "long_name": "longitude of mesh nodes",
                     "units": "degress_east",
                 })
-            in_ds["Mesh2_node_y"] = xr.DataArray(
+            ds["Mesh2_node_y"] = xr.DataArray(
                 data=ext_ds.coord[1],
                 dims=["nMesh2_node"],
                 attrs={
@@ -68,7 +68,7 @@ def read_exodus(filepath):
                     "long_name": "latitude of mesh nodes",
                     "units": "degrees_north",
                 })
-            in_ds["Mesh2_node_z"] = xr.DataArray(
+            ds["Mesh2_node_z"] = xr.DataArray(
                 data=ext_ds.coord[2],
                 dims=["nMesh2_node"],
                 attrs={
@@ -77,7 +77,7 @@ def read_exodus(filepath):
                     "units": "degree",
                 })
         elif key == "coordx":
-            in_ds["Mesh2_node_x"] = xr.DataArray(
+            ds["Mesh2_node_x"] = xr.DataArray(
                 data=ext_ds.coordx,
                 dims=["nMesh2_node"],
                 attrs={
@@ -86,7 +86,7 @@ def read_exodus(filepath):
                     "units": "degress_east",
                 })
         elif key == "coordy":
-            in_ds["Mesh2_node_y"] = xr.DataArray(
+            ds["Mesh2_node_y"] = xr.DataArray(
                 data=ext_ds.coordx,
                 dims=["nMesh2_node"],
                 attrs={
@@ -95,7 +95,7 @@ def read_exodus(filepath):
                     "units": "degrees_north",
                 })
         elif key == "coordz":
-            in_ds["Mesh2_node_z"] = xr.DataArray(
+            ds["Mesh2_node_z"] = xr.DataArray(
                 data=ext_ds.coordx,
                 dims=["nMesh2_node"],
                 attrs={
@@ -128,7 +128,7 @@ def read_exodus(filepath):
 
     # outside the k,v for loop
     # set the face nodes data compiled in "connect" section
-    in_ds["Mesh2_face_nodes"] = xr.DataArray(
+    ds["Mesh2_face_nodes"] = xr.DataArray(
         data=(conn[:] - 1),
         dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
         attrs={
@@ -143,15 +143,15 @@ def read_exodus(filepath):
     print("Finished reading exodus file.")
     # done reading exodus file, close the external xarray ds object
     ext_ds.close()
-    return in_ds
+    return ds
 
 
-def write_exodus(in_ds, outfile):
+def write_exodus(ds, outfile):
     """Exodus file writer.
 
     Parameters
     ----------
-    in_ds : xarray.Dataset, required
+    ds : xarray.Dataset, required
         Dataset to be written to exodus file.
     outfile : string, required
        Name of output file
@@ -189,31 +189,31 @@ def write_exodus(in_ds, outfile):
                                         dims=["four", "num_qa_rec"])
 
     # get orig dimension from Mesh2 attribute topology dimension
-    dim = in_ds["Mesh2"].topology_dimension
+    dim = ds["Mesh2"].topology_dimension
 
     c_data = []
     if dim == 2:
         c_data = xr.DataArray([
-            in_ds.Mesh2_node_x.data.tolist(),
-            in_ds.Mesh2_node_y.data.tolist()
+            ds.Mesh2_node_x.data.tolist(),
+            ds.Mesh2_node_y.data.tolist()
         ])
     elif dim == 3:
         c_data = xr.DataArray([
-            in_ds.Mesh2_node_x.data.tolist(),
-            in_ds.Mesh2_node_y.data.tolist(),
-            in_ds.Mesh2_node_z.data.tolist()
+            ds.Mesh2_node_x.data.tolist(),
+            ds.Mesh2_node_y.data.tolist(),
+            ds.Mesh2_node_z.data.tolist()
         ])
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
 
     # process face nodes, this array holds num faces at corresponding location
     # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
-    num_el_all_blks = np.zeros(in_ds.nMaxMesh2_face_nodes.size, "i4")
+    num_el_all_blks = np.zeros(ds.nMaxMesh2_face_nodes.size, "i4")
     # this list stores connectivity without filling
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in in_ds.Mesh2_face_nodes.data:
+    for row in ds.Mesh2_face_nodes.data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
@@ -229,7 +229,7 @@ def write_exodus(in_ds, outfile):
             conn_nofill.append(list_node)
         elif arr[0].size == 0:
             # increment the number of faces for this "nMaxMesh2_face_nodes" face
-            num_el_all_blks[in_ds.nMaxMesh2_face_nodes.size - 1] += 1
+            num_el_all_blks[ds.nMaxMesh2_face_nodes.size - 1] += 1
             # get integer list nodes
             list_node = list(map(int, row.tolist()))
             conn_nofill.append(list_node)
@@ -320,9 +320,6 @@ def write_exodus(in_ds, outfile):
     # done processing write the file to disk
     exo_ds.to_netcdf(outfile)
     print("Wrote: ", outfile)
-
-    # now close the dataset
-    exo_ds.close()
 
 
 def _get_element_type(num_nodes):
