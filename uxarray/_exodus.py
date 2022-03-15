@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 # Exodus Number is one-based.
-def read_exodus(filepath):
+def _read_exodus(filepath):
     """Exodus file reader.
 
     Parameters
@@ -68,14 +68,13 @@ def read_exodus(filepath):
                     "long_name": "latitude of mesh nodes",
                     "units": "degrees_north",
                 })
-            ds["Mesh2_node_z"] = xr.DataArray(
-                data=ext_ds.coord[2],
-                dims=["nMesh2_node"],
-                attrs={
-                    "standard_name": "spherical",
-                    "long_name": "elevation",
-                    "units": "degree",
-                })
+            ds["Mesh2_node_z"] = xr.DataArray(data=ext_ds.coord[2],
+                                              dims=["nMesh2_node"],
+                                              attrs={
+                                                  "standard_name": "spherical",
+                                                  "long_name": "elevation",
+                                                  "units": "degree",
+                                              })
         elif key == "coordx":
             ds["Mesh2_node_x"] = xr.DataArray(
                 data=ext_ds.coordx,
@@ -95,14 +94,13 @@ def read_exodus(filepath):
                     "units": "degrees_north",
                 })
         elif key == "coordz":
-            ds["Mesh2_node_z"] = xr.DataArray(
-                data=ext_ds.coordx,
-                dims=["nMesh2_node"],
-                attrs={
-                    "standard_name": "spherical",
-                    "long_name": "elevation",
-                    "units": "degree",
-                })
+            ds["Mesh2_node_z"] = xr.DataArray(data=ext_ds.coordx,
+                                              dims=["nMesh2_node"],
+                                              attrs={
+                                                  "standard_name": "spherical",
+                                                  "long_name": "elevation",
+                                                  "units": "degree",
+                                              })
         elif "connect" in key:
             # check if num face nodes is less than max.
             if value.data.shape[1] < max_face_nodes:
@@ -146,7 +144,7 @@ def read_exodus(filepath):
     return ds
 
 
-def write_exodus(ds, outfile):
+def _write_exodus(ds, outfile):
     """Exodus file writer.
 
     Parameters
@@ -193,10 +191,9 @@ def write_exodus(ds, outfile):
 
     c_data = []
     if dim == 2:
-        c_data = xr.DataArray([
-            ds.Mesh2_node_x.data.tolist(),
-            ds.Mesh2_node_y.data.tolist()
-        ])
+        c_data = xr.DataArray(
+            [ds.Mesh2_node_x.data.tolist(),
+             ds.Mesh2_node_y.data.tolist()])
     elif dim == 3:
         c_data = xr.DataArray([
             ds.Mesh2_node_x.data.tolist(),

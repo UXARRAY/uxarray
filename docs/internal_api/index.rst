@@ -18,4 +18,8 @@ Routines
    grid.Grid.__init__
    grid.Grid.__from_file__
    grid.Grid.__from_vert__
-    _exodus._get_element_type
+   _exodus._read_exodus
+   _exodus._write_exodus
+   _exodus._get_element_type
+   _ugrid._write_ugrid
+   _ugrid._read_ugrid

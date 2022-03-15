@@ -6,10 +6,10 @@ from warnings import warn
 from pathlib import PurePath
 
 # reader and writer imports
-from ._exodus import read_exodus, write_exodus
-from ._ugrid import read_ugrid, write_ugrid
-from ._shapefile import read_shpfile
-from ._scrip import read_scrip
+from ._exodus import _read_exodus, _write_exodus
+from ._ugrid import _read_ugrid, _write_ugrid
+from ._shapefile import _read_shpfile
+from ._scrip import _read_scrip
 from .helpers import determine_file_type
 
 
@@ -116,9 +116,9 @@ class Grid:
         conn = [conn]
 
         self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
-                                                  dims=["nMesh2_node"])
+                                               dims=["nMesh2_node"])
         self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
-                                                  dims=["nMesh2_node"])
+                                               dims=["nMesh2_node"])
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(conn),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
@@ -141,13 +141,13 @@ class Grid:
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.ds = read_exodus(self.filepath)
+            self.ds = _read_exodus(self.filepath)
         elif self.mesh_filetype == "scrip":
-            self.ds = read_scrip(self.filepath)
+            self.ds = _read_scrip(self.filepath)
         elif self.mesh_filetype == "ugrid":
-            self.ds = read_ugrid(self.filepath)
+            self.ds = _read_ugrid(self.filepath)
         elif self.mesh_filetype == "shp":
-            self.ds = read_shpfile(self.filepath)
+            self.ds = _read_shpfile(self.filepath)
         else:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
 
@@ -185,9 +185,9 @@ class Grid:
                 raise ("File directory not found: " + outfile)
 
         if extension == ".ugrid" or extension == ".ug":
-            write_ugrid(self.ds, outfile)
+            _write_ugrid(self.ds, outfile)
         elif extension == ".g" or extension == ".exo":
-            write_exodus(self.ds, outfile)
+            _write_exodus(self.ds, outfile)
         else:
             print("Format not supported for writing: ", extension)
 

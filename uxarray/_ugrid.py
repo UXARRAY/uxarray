@@ -1,7 +1,7 @@
 import xarray as xr
 
 
-def read_ugrid(filepath):
+def _read_ugrid(filepath):
     """UGRID file reader.
 
     Parameters: string, required
@@ -10,14 +10,12 @@ def read_ugrid(filepath):
     Returns: the xarray Dataset loaded during init.
     """
 
-    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
     # simply return the xarray object loaded
-    ds = ext_ds
-    return ds
+    return xr.open_dataset(filepath, mask_and_scale=False)
 
 
 # Write a uxgrid to a file with specified format.
-def write_ugrid(ds, outfile):
+def _write_ugrid(ds, outfile):
     """UGRID file writer.
     Parameters
     ----------

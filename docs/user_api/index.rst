@@ -22,10 +22,6 @@ Grid functions
 
    grid.Grid.saveas_file
    grid.Grid.write
-   _exodus.read_exodus
-   _exodus.write_exodus
-   _ugrid.write_ugrid
-   _ugrid.read_ugrid
 
 Helper functions
 ----------------

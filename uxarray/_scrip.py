@@ -1,7 +1,7 @@
 from warnings import warn
 
 
-def read_scrip(filepath):
+def _read_scrip(filepath):
     """This is just a function placeholder.
 
     Not implemented.
