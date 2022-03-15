@@ -2,6 +2,7 @@ name: uxarray_build
 channels:
   - conda-forge
 dependencies:
+  - dask
   - netcdf4
   - pathlib
   - pip
