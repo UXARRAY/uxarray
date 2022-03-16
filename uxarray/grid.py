@@ -25,7 +25,7 @@ class Grid:
 
     Save as ugrid file
 
-    >>> mesh.saveas("outfile.ug")
+    >>> mesh.write("outfile.ug")
     """
 
     def __init__(self, *args, **kwargs):
@@ -155,25 +155,6 @@ class Grid:
             self.ds = _read_shpfile(self.filepath)
         else:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
-
-    # renames the grid file
-    def saveas_file(self, filepath):
-        """Saves the loaded mesh file as the file with desired type. Internally
-        calls the write function.
-
-        Parameters
-        ----------
-
-        filepath : string, required
-        """
-
-        path = PurePath(filepath)
-        if not os.path.isdir(path.parent):
-            raise FileNotFoundError("Check file path:" + filepath)
-        # call write
-        self.write(filepath)
-        # set filepath to this new file
-        self.filepath = str(filepath)
 
     def write(self, outfile, extension=""):
         """Writes mesh file as per extension supplied in the outfile string.
