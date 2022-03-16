@@ -20,7 +20,6 @@ Grid functions
 .. autosummary::
    :toctree: _autosummary
 
-   grid.Grid.saveas_file
    grid.Grid.write
 
 Helper functions
