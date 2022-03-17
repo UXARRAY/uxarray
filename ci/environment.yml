@@ -2,14 +2,11 @@ name: uxarray_build
 channels:
   - conda-forge
 dependencies:
+  - dask
   - netcdf4
   - pathlib
-  - pip
+  - pre_commit
   - pytest
   - pytest-cov
   - python
   - xarray
-  - dask
-
-  - pip:
-      - pre-commit
