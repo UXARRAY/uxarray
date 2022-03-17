@@ -15,14 +15,14 @@ Grid Class
 
    grid.Grid
 
-Grid functions
+Grid Methods
 --------------
 .. autosummary::
    :toctree: _autosummary
 
    grid.Grid.write
 
-Helper functions
+Helper Functions
 ----------------
 .. autosummary::
    :toctree: _autosummary
