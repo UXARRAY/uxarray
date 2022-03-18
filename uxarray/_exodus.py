@@ -169,11 +169,11 @@ def _write_exodus(ds, outfile):
 
     title = f"uxarray(" + str(out_filename) + ")" + date + ": " + time
     fp_word = np.int32(8)
-    version = np.float32(5.0)
+    exo_version = np.float32(5.0)
     api_version = np.float32(5.0)
     exo_ds.attrs = {
         "api_version": api_version,
-        "version": version,
+        "version": exo_version,
         "floating_point_word_size": fp_word,
         "file_size": 0,
         "title": title
@@ -182,7 +182,9 @@ def _write_exodus(ds, outfile):
     exo_ds["time_whole"] = xr.DataArray(data=[], dims=["time_step"])
 
     # qa_records
-    qa_records = [["uxarray"], ["1.0"], [date], [time]]
+    # version identifier of the application code: https://gsjaardema.github.io/seacas-docs/exodusII-new.pdf page: 12
+    ux_exodus_version = 1.0
+    qa_records = [["uxarray"], [ux_exodus_version], [date], [time]]
     exo_ds["qa_records"] = xr.DataArray(data=xr.DataArray(
         np.array(qa_records, dtype='str')),
                                         dims=["four", "num_qa_rec"])
