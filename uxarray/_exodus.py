@@ -164,7 +164,7 @@ def _write_exodus(ds, outfile):
     out_filename = path.name
 
     now = datetime.now()
-    date = now.strftime("%m/%d/%Y")
+    date = now.strftime("%Y:%m:%d")
     time = now.strftime("%H:%M:%S")
 
     title = f"uxarray(" + str(out_filename) + ")" + date + ": " + time
