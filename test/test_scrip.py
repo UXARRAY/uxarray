@@ -1,7 +1,6 @@
 from uxarray.reader._scrip import _populate_scrip_data
 import xarray as xr
 import sys
-import pytest
 
 import os
 from pathlib import Path
@@ -22,29 +21,29 @@ ds_ne8 = xr.open_dataset(ne8, decode_times=False,
                          engine='netcdf4')  # grid_corner_lat/lon
 
 
-def test_scrip_is_not_cf():
+def test_scrip_is_ugrid():
     """tests that if the wrong cf argument is given, the function will raise an
     exception."""
-    with pytest.raises(Exception):
-        _populate_scrip_data(ds_ne8, is_cf=True)
-        _populate_scrip_data(ds_ne30, is_cf=False)
-
-
-def test_new_var_name():
-    """tests that cf compliant variable names have been correctly created based
-    on prior variable names."""
-
-    _populate_scrip_data(ds_ne8, is_cf=False)
-
-    assert ds_ne8['Mesh2_node_x'].all() == ds_ne8['grid_corner_lat'].all()
-
-
-def test_var_name_pass():
-    """tests that cf compliant names and dataset overall is returned
-    untouched."""
-    _populate_scrip_data(ds_ne30)
+    new_ds = _populate_scrip_data(ds_ne30)
     try:
-        ds_ne30['Mesh2_node_x']
+        new_ds['Mesh2']
+    except KeyError:
+        print("Variable not found")
 
-    except NameError:
-        print('Mesh2_node_x is not in this dataset')
+
+def test_scrip_is_not_ugrid():
+    """tests that if the wrong cf argument is given, the function will raise an
+    exception."""
+    new_ds = _populate_scrip_data(ds_ne8)
+    try:
+        new_ds['Mesh2']
+    except KeyError:
+        print("Variable not found")
+
+
+def test_ugrid_variable_names():
+    mesh30 = _populate_scrip_data(ds_ne30)
+    print('here')
+    mesh08 = _populate_scrip_data(ds_ne30)
+    assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
+    assert ds_ne8['grid_corner_lon'].all() == mesh08['Mesh2_node_x'].all()
