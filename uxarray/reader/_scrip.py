@@ -23,8 +23,8 @@ def _is_scrip(in_ds, out_ds):
         # Create array using matching grid corners to create face nodes
         face_arr = []
         for i in range(len(in_ds['grid_corner_lat'] - 1)):
-            x = in_ds_ne8['grid_corner_lon'][i].values
-            y = in_ds_ne8['grid_corner_lat'][i].values
+            x = in_ds['grid_corner_lon'][i].values
+            y = in_ds['grid_corner_lat'][i].values
             face = np.hstack([x[:, np.newaxis], y[:, np.newaxis]])
             face_arr.append(face)
 
