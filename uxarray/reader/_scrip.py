@@ -1,4 +1,5 @@
 import xarray as xr
+import numpy as np
 
 
 def _is_scrip(in_ds, out_ds):
