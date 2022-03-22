@@ -8,6 +8,11 @@
 import os
 import sys
 
+sys.path.insert(0,
+                os.path.abspath('../'))  # Source code dir relative to this file
+
+import uxarray
+
 try:
     from unittest.mock import MagicMock
 except ImportError:
@@ -108,6 +113,8 @@ else:
     import sphinx_rtd_theme
     html_theme = 'sphinx_rtd_theme'
     html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+autosummary_imported_members = True
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
