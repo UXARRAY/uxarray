@@ -88,7 +88,3 @@ def _populate_scrip_data(in_ds):
         })
 
     return out_ds
-
-
-# ESMF files https://svn-ccsm-inputdata.cgd.ucar.edu/trunk/inputdata/share/meshes/
-# ESMF/SCRIP info: https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html

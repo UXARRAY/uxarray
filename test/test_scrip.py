@@ -43,7 +43,6 @@ def test_scrip_is_not_ugrid():
 
 def test_ugrid_variable_names():
     mesh30 = _populate_scrip_data(ds_ne30)
-    print('here')
     mesh08 = _populate_scrip_data(ds_ne30)
     assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
     assert ds_ne8['grid_corner_lon'].all() == mesh08['Mesh2_node_x'].all()
