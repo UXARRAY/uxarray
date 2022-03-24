@@ -64,7 +64,6 @@ def _is_ugrid(ds, outfile):
 
         # done processing write the file to disk
         scrip_ds.to_netcdf(outfile)
-        print("Wrote: ", outfile)
 
     return scrip_ds
 
@@ -163,7 +162,7 @@ def _read_scrip(file_path):
     return out_ds
 
 
-def _write_scrip(file_path):
+def _write_scrip(file_path, out_file):
     """Function to change UGRID file to SCRIP file.
 
     Currently supports unstructured SCRIP grid files following traditional SCRIP
@@ -181,6 +180,10 @@ def _write_scrip(file_path):
         location of UGRID dataset of interest in format:
         "path/to/file"
 
+    out_file: :class:`string`
+        Name for file to be returned
+
+
     Returns
     --------
     out_ds : :class:`xarray.DataArray`
@@ -191,7 +194,7 @@ def _write_scrip(file_path):
     out_ds = xr.Dataset()
     try:
         if in_ds['Mesh2']:
-            _is_ugrid(in_ds, file_path)
+            _is_ugrid(in_ds, out_file)
 
     except KeyError:
         if in_ds['grid_corner_lat'].all() is not None:

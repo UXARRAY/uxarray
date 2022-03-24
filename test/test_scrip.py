@@ -1,4 +1,4 @@
-from uxarray._scrip import _read_scrip
+from uxarray._scrip import _read_scrip, _write_scrip
 import xarray as xr
 import sys
 
@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 if "--cov" in str(sys.argv):
-    from uxarray._scrip import _read_scrip
+    from uxarray._scrip import _read_scrip, _write_scrip
 else:
     import uxarray
 
@@ -49,7 +49,7 @@ def test_ugrid_variable_names():
 
 
 def test_ugrid_to_scrip():
-    is_ugrid = _write_scrip(ne30)
+    is_ugrid = _write_scrip(ne30, "ugrid_to_scrip.nc")
     try:
         is_ugrid['grid_corner_lat']
     except KeyError:
@@ -57,7 +57,7 @@ def test_ugrid_to_scrip():
 
 
 def test_scrip_to_scrip():
-    is_scrip = _write_scrip(ne8)
+    is_scrip = _write_scrip(ne8, "scrip_to_scrip.nc")
     try:
         is_scrip['grid_corner_lat']
     except KeyError:
