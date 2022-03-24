@@ -1,11 +1,208 @@
-from warnings import warn
+import xarray as xr
+import numpy as np
+from pathlib import PurePath
+from datetime import datetime
 
 
-def _read_scrip(filepath):
-    """This is just a function placeholder.
+def _is_ugrid(ds, outfile):
+    """If in file is UGRID file, function will reassign UGRID variables to
+    SCRIP conventions in out_ds.
 
-    Not implemented.
+    Parameters
+    ----------
+    ds : :class:`xarray.Dataset`
+        Original UGRID dataset of interest being used
+
+    outfile : :class:`string`
+        file to be returned by _populate_scrip_data, used as an empty placeholder file
+        to store reassigned SCRIP variables in UGRID conventions
     """
-    warn("Function not implemented yet. FYI, attempted to read SCRIP file: " +
-         str(filepath))
-    # TODO: create ds
+
+    if ds['Mesh2'].all():
+        scrip_ds = xr.Dataset()
+
+        path = PurePath(outfile)
+        out_filename = path.name
+
+        now = datetime.now()
+        date = now.strftime("%Y:%m:%d")
+        time = now.strftime("%H:%M:%S")
+
+        title = f"uxarray(" + str(out_filename) + ")" + date + ": " + time
+        fp_word = np.int32(8)
+        exo_version = np.float32(5.0)
+        api_version = np.float32(5.0)
+        scrip_ds.attrs = {
+            "api_version": api_version,
+            "version": exo_version,
+            "floating_point_word_size": fp_word,
+            "file_size": 0,
+            "title": title
+        }
+
+        # get orig dimension from Mesh2 attribute topology dimension
+        dim = ds["Mesh2"].topology_dimension
+
+        corner_lon = xr.DataArray(ds.Mesh2_node_x.data.tolist())
+        corner_lat = xr.DataArray(ds.Mesh2_node_y.data.tolist())
+
+        scrip_ds['grid_corner_lon'] = xr.DataArray(data=corner_lon,
+                                                   dims=["grid_corners"])
+        scrip_ds['grid_corner_lat'] = xr.DataArray(data=corner_lat,
+                                                   dims=["grid_corners"])
+        try:
+            if ds['Mesh2_face_x'] is not None:
+                center_lon = xr.DataArray(ds.Mesh2_face_x.data.tolist())
+                center_lat = xr.DataArray(ds.Mesh2_face_y.data.tolist())
+
+                scrip_ds['grid_center_lon'] = xr.DataArray(data=center_lon,
+                                                           dims=["grid_size"])
+                scrip_ds['grid_center_lat'] = xr.DataArray(data=center_lat,
+                                                           dims=["grid_size"])
+        except KeyError:
+            pass
+
+        # done processing write the file to disk
+        scrip_ds.to_netcdf(outfile)
+        print("Wrote: ", outfile)
+
+    return scrip_ds
+
+
+def _is_scrip(in_ds, out_ds):
+    """If in file is an unstructured SCRIP file, function will reassign SCRIP
+    variables to UGRID conventions in out_ds.
+
+    Parameters
+    ----------
+    in_ds : :class:`xarray.Dataset`
+        Original scrip dataset of interest being used
+
+    out_ds : :class:`xarray.Variable`
+        file to be returned by _populate_scrip_data, used as an empty placeholder file
+        to store reassigned SCRIP variables in UGRID conventions
+    """
+
+    if in_ds['grid_area'].all():
+
+        # Create Mesh2_node_x/y variables from grid_corner_lat/lon
+        out_ds['Mesh2_node_x'] = in_ds['grid_corner_lon']
+        out_ds['Mesh2_node_y'] = in_ds['grid_corner_lat']
+
+        # Create Mesh2_face_x/y from grid_center_lat/lon
+        out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
+        out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
+
+        # Create array using matching grid corners to create face nodes
+        face_arr = []
+        for i in range(len(in_ds['grid_corner_lat'] - 1)):
+            x = in_ds['grid_corner_lon'][i].values
+            y = in_ds['grid_corner_lat'][i].values
+            face = np.hstack([x[:, np.newaxis], y[:, np.newaxis]])
+            face_arr.append(face)
+
+        face_node = np.asarray(face_arr)
+
+        out_ds['Mesh2_face_nodes'] = xr.DataArray(
+            face_node, dims=['grid_size', 'grid_corners', 'lat/lon'])
+    else:
+        raise Exception("Structured scrip files are not yet supported")
+
+
+def _read_scrip(file_path):
+    """Function to reassign lat/lon variables to mesh2_node variables.
+
+    Currently supports unstructured SCRIP grid files following traditional SCRIP
+    naming practices (grid_corner_lat, grid_center_lat, etc) and SCRIP files with
+    UGRID conventions.
+
+    Unstructured grid SCRIP files will have 'grid_rank=1' and include variables
+    "grid_imask" and "grid_area" in the dataset.
+
+    More information on structured vs unstructured SCRIP files can be found here:
+    https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html
+
+    Parameters
+    ----------
+    file_path : :class:`string`
+        location of SCRIP dataset of interest in format:
+        "path/to/file"
+
+    Returns
+    --------
+    out_ds : :class:`xarray.DataArray`
+    """
+    in_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
+    out_ds = xr.Dataset()
+    try:
+        # If not ugrid compliant, translates scrip to ugrid conventions
+        _is_scrip(in_ds, out_ds)
+
+    except KeyError:
+        if in_ds['Mesh2']:
+            # If is ugrid compliant, returns the dataset unchanged
+            try:
+                out_ds = in_ds
+                return out_ds
+            except:
+                # If not ugrid or scrip, returns error
+                raise Exception(
+                    "Variables not in recognized form (SCRIP or UGRID)")
+
+    out_ds["Mesh2"] = xr.DataArray(
+        attrs={
+            "cf_role": "mesh_topology",
+            "long_name": "Topology data of 2D unstructured mesh",
+            "topology_dimension": 2,
+            "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
+            "node_dimension": "nMesh2_node",
+            "face_node_connectivity": "Mesh2_face_nodes",
+            "face_dimension": "nMesh2_face"
+        })
+
+    return out_ds
+
+
+def _write_scrip(file_path):
+    """Function to change UGRID file to SCRIP file.
+
+    Currently supports unstructured SCRIP grid files following traditional SCRIP
+    naming practices (grid_corner_lat, grid_center_lat, etc)
+
+    Unstructured grid SCRIP files will have 'grid_rank=1' and include variables
+    "grid_imask" and "grid_area" in the dataset.
+
+    More information on structured vs unstructured SCRIP files can be found here:
+    https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html
+
+    Parameters
+    ----------
+    file_path : :class:`string`
+        location of UGRID dataset of interest in format:
+        "path/to/file"
+
+    Returns
+    --------
+    out_ds : :class:`xarray.DataArray`
+        SCRIP file with UGRID conventions for 2D flexible mesh topology
+    """
+    in_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
+
+    out_ds = xr.Dataset()
+    try:
+        if in_ds['Mesh2']:
+            _is_ugrid(in_ds, file_path)
+
+    except KeyError:
+        if in_ds['grid_corner_lat'].all() is not None:
+
+            try:
+                # If is SCRIP compliant, returns the dataset unchanged
+                out_ds = in_ds
+
+            except:
+                # If not ugrid or scrip, returns error
+                raise Exception(
+                    "Variables not in recognized form (SCRIP or UGRID)")
+
+    return out_ds

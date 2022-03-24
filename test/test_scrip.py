@@ -1,4 +1,4 @@
-from uxarray.reader._scrip import _populate_scrip_data
+from uxarray._scrip import _read_scrip
 import xarray as xr
 import sys
 
@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 if "--cov" in str(sys.argv):
-    from uxarray.reader._scrip import _populate_scrip_data
+    from uxarray._scrip import _read_scrip
 else:
     import uxarray
 
@@ -24,7 +24,7 @@ ds_ne8 = xr.open_dataset(ne8, decode_times=False,
 def test_scrip_is_ugrid():
     """tests that if the wrong cf argument is given, the function will raise an
     exception."""
-    new_ds = _populate_scrip_data(ds_ne30)
+    new_ds = _read_scrip(ne30)
     try:
         new_ds['Mesh2']
     except KeyError:
@@ -34,7 +34,7 @@ def test_scrip_is_ugrid():
 def test_scrip_is_not_ugrid():
     """tests that if the wrong cf argument is given, the function will raise an
     exception."""
-    new_ds = _populate_scrip_data(ds_ne8)
+    new_ds = _read_scrip(ne8)
     try:
         new_ds['Mesh2']
     except KeyError:
@@ -42,7 +42,23 @@ def test_scrip_is_not_ugrid():
 
 
 def test_ugrid_variable_names():
-    mesh30 = _populate_scrip_data(ds_ne30)
-    mesh08 = _populate_scrip_data(ds_ne30)
+    mesh30 = _read_scrip(ne30)
+    mesh08 = _read_scrip(ne8)
     assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
     assert ds_ne8['grid_corner_lon'].all() == mesh08['Mesh2_node_x'].all()
+
+
+def test_ugrid_to_scrip():
+    is_ugrid = _write_scrip(ne30)
+    try:
+        is_ugrid['grid_corner_lat']
+    except KeyError:
+        print("ugrid to scrip unsuccessful")
+
+
+def test_scrip_to_scrip():
+    is_scrip = _write_scrip(ne8)
+    try:
+        is_scrip['grid_corner_lat']
+    except KeyError:
+        print("scrip to scrip unsuccessful")
