@@ -63,8 +63,9 @@ def determine_file_type(filepath):
         else:
             msg = str(e) + ': {}'.format(filepath)
     finally:
-        if msg != "": # we did not catch this above
-            msg = "Unable to determine file type, mesh file not supported" + ': {}'.format(filepath)
+        if msg != "":  # we did not catch this above
+            msg = "Unable to determine file type, mesh file not supported" + ': {}'.format(
+                filepath)
             print(msg)
             os._exit(0)
 
