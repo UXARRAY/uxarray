@@ -9,7 +9,7 @@ from pathlib import PurePath
 from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
-from ._scrip import _read_scrip
+from ._scrip import _read_scrip, _write_scrip
 from .helpers import determine_file_type
 
 

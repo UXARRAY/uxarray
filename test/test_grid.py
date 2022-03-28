@@ -57,5 +57,12 @@ class TestGrid(TestCase):
     def test_read_scrip(self):
         """Reads a scrip file and write ugrid file."""
 
-        scrip_filename = current_path / "meshfiles" / "outCSne8.nc"
-        tgrid = ux.Grid(str(scrip_filename))
+        scrip_8 = current_path / "meshfiles" / "outCSne8.nc"
+        scrip_30 = current_path / "meshfiles" / "outCSne30.ug"
+
+        # Test read from scrip and from ugrid for grid class
+        ux.Grid(str(scrip_8))
+        print("passed read scrip")
+
+        ux.Grid(str(scrip_30))
+        print("passed read ugrid")
