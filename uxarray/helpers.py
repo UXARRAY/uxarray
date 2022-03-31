@@ -18,6 +18,7 @@ def determine_file_type(filepath):
        RuntimeError: Invalid file type
     """
     msg = ""
+    mesh_filetype = "unknown"
     # exodus with coord
     try:
         # extract the file name and extension
@@ -39,13 +40,30 @@ def determine_file_type(filepath):
                     filepath, mask_and_scale=False)["grid_center_lon"]
                 mesh_filetype = "scrip"
             except KeyError as e:
-                # ugrid with Mesh2
+
+                # ugrid with Mesh2/Mesh/mesh/Mesh
                 try:
-                    ext_ds = xr.open_dataset(filepath,
-                                             mask_and_scale=False)["Mesh2"]
-                    mesh_filetype = "ugrid"
+                    cf_role = xr.open_dataset(
+                        filepath, mask_and_scale=False)["Mesh2"].cf_role
+                    mesh_filetype = check_ugrid_cf_role(cf_role)
                 except KeyError as e:
-                    print("This is not a supported NetCDF file")
+                    try:
+                        cf_role = xr.open_dataset(
+                            filepath, mask_and_scale=False)["Mesh"].cf_role
+                        mesh_filetype = check_ugrid_cf_role(cf_role)
+                    except KeyError as e:
+                        try:
+                            cf_role = xr.open_dataset(
+                                filepath, mask_and_scale=False)["mesh"].cf_role
+                            mesh_filetype = check_ugrid_cf_role(cf_role)
+                        except KeyError as e:
+                            try:
+                                cf_role = xr.open_dataset(
+                                    filepath,
+                                    mask_and_scale=False)["mesh2"].cf_role
+                                mesh_filetype = check_ugrid_cf_role(cf_role)
+                            except KeyError as e:
+                                print("This is not a supported NetCDF file")
     except (TypeError, AttributeError) as e:
         msg = str(e) + ': {}'.format(filepath)
     except (RuntimeError, OSError) as e:
@@ -69,4 +87,15 @@ def determine_file_type(filepath):
             print(msg)
             os._exit(0)
 
+    return mesh_filetype
+
+
+def check_ugrid_cf_role(cf_role):
+    if cf_role == "mesh_topology":
+        mesh_filetype = "ugrid"
+    else:
+        print(
+            "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
+        )
+        exit()
     return mesh_filetype

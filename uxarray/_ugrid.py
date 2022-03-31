@@ -10,6 +10,7 @@ def _read_ugrid(filepath):
     Returns: the xarray Dataset loaded during init.
     """
 
+    # TODO: obtain and change to Mesh2 construct, see Issue #27
     # simply return the xarray object loaded
     return xr.open_dataset(filepath, mask_and_scale=False)
 
