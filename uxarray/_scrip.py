@@ -4,9 +4,9 @@ from pathlib import PurePath
 from datetime import datetime
 
 
-def _is_ugrid(ds, outfile):
-    """If in file is UGRID file, function will reassign UGRID variables to
-    SCRIP conventions in out_ds.
+def _to_ugrid(ds, outfile):
+    """If input dataset (ds) is UGRID file, function will reassign UGRID
+    variables to SCRIP conventions in output file located in outfile.
 
     Parameters
     ----------
@@ -14,7 +14,7 @@ def _is_ugrid(ds, outfile):
         Original UGRID dataset of interest being used
 
     outfile : :class:`string`
-        file to be returned by _populate_scrip_data, used as an empty placeholder file
+        Name of file to be returned by _populate_scrip_data, used as an empty placeholder file
         to store reassigned SCRIP variables in UGRID conventions
     """
 
@@ -68,16 +68,16 @@ def _is_ugrid(ds, outfile):
     return scrip_ds
 
 
-def _is_scrip(in_ds, out_ds):
-    """If in file is an unstructured SCRIP file, function will reassign SCRIP
-    variables to UGRID conventions in out_ds.
+def _to_scrip(in_ds, outfile):
+    """If input dataset (ds) file is an unstructured SCRIP file, function will
+    reassign SCRIP variables to UGRID conventions in output file (outfile).
 
     Parameters
     ----------
     in_ds : :class:`xarray.Dataset`
         Original scrip dataset of interest being used
 
-    out_ds : :class:`xarray.Variable`
+    outfile : :class:`xarray.Variable`
         file to be returned by _populate_scrip_data, used as an empty placeholder file
         to store reassigned SCRIP variables in UGRID conventions
     """
@@ -85,12 +85,12 @@ def _is_scrip(in_ds, out_ds):
     if in_ds['grid_area'].all():
 
         # Create Mesh2_node_x/y variables from grid_corner_lat/lon
-        out_ds['Mesh2_node_x'] = in_ds['grid_corner_lon']
-        out_ds['Mesh2_node_y'] = in_ds['grid_corner_lat']
+        outfile['Mesh2_node_x'] = in_ds['grid_corner_lon']
+        outfile['Mesh2_node_y'] = in_ds['grid_corner_lat']
 
         # Create Mesh2_face_x/y from grid_center_lat/lon
-        out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
-        out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
+        outfile['Mesh2_face_x'] = in_ds['grid_center_lon']
+        outfile['Mesh2_face_y'] = in_ds['grid_center_lat']
 
         # Create array using matching grid corners to create face nodes
         face_arr = []
@@ -102,16 +102,18 @@ def _is_scrip(in_ds, out_ds):
 
         face_node = np.asarray(face_arr)
 
-        out_ds['Mesh2_face_nodes'] = xr.DataArray(
+        outfile['Mesh2_face_nodes'] = xr.DataArray(
             face_node, dims=['grid_size', 'grid_corners', 'lat/lon'])
     else:
         raise Exception("Structured scrip files are not yet supported")
+
+    return outfile
 
 
 def _read_scrip(file_path):
     """Function to reassign lat/lon variables to mesh2_node variables.
 
-    Currently supports unstructured SCRIP grid files following traditional SCRIP
+    Currently, supports unstructured SCRIP grid files following traditional SCRIP
     naming practices (grid_corner_lat, grid_center_lat, etc) and SCRIP files with
     UGRID conventions.
 
@@ -131,24 +133,24 @@ def _read_scrip(file_path):
     --------
     out_ds : :class:`xarray.DataArray`
     """
-    in_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
-    out_ds = xr.Dataset()
+    ext_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
+    ds = xr.Dataset()
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
-        _is_scrip(in_ds, out_ds)
+        _to_scrip(ext_ds, ds)
 
     except KeyError:
-        if in_ds['Mesh2']:
+        if ext_ds['Mesh2']:
             # If is ugrid compliant, returns the dataset unchanged
             try:
-                out_ds = in_ds
-                return out_ds
+                ds = ext_ds
+                return ds
             except:
                 # If not ugrid or scrip, returns error
                 raise Exception(
                     "Variables not in recognized form (SCRIP or UGRID)")
 
-    out_ds["Mesh2"] = xr.DataArray(
+    ds["Mesh2"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
             "long_name": "Topology data of 2D unstructured mesh",
@@ -159,10 +161,10 @@ def _read_scrip(file_path):
             "face_dimension": "nMesh2_face"
         })
 
-    return out_ds
+    return ds
 
 
-def _write_scrip(file_path, out_file):
+def _write_scrip(ds, outfile):
     """Function to change UGRID file to SCRIP file.
 
     Currently supports unstructured SCRIP grid files following traditional SCRIP
@@ -176,11 +178,10 @@ def _write_scrip(file_path, out_file):
 
     Parameters
     ----------
-    file_path : :class:`string`
-        location of UGRID dataset of interest in format:
-        "path/to/file"
+    ds : :class: `xarray.Dataset`
+        UGRID dataset of interest
 
-    out_file: :class:`string`
+    outfile: :class:`string`
         Name for file to be returned
 
 
@@ -189,23 +190,23 @@ def _write_scrip(file_path, out_file):
     out_ds : :class:`xarray.DataArray`
         SCRIP file with UGRID conventions for 2D flexible mesh topology
     """
-    in_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
 
     out_ds = xr.Dataset()
     try:
-        if in_ds['Mesh2']:
-            _is_ugrid(in_ds, out_file)
+        if ds['Mesh2']:
+            out_ds = _to_ugrid(ds, outfile)
 
     except KeyError:
-        if in_ds['grid_corner_lat'].all() is not None:
+        if ds['grid_corner_lat'].all() is not None:
 
             try:
                 # If is SCRIP compliant, returns the dataset unchanged
-                out_ds = in_ds
+                out_ds = ds
 
             except:
                 # If not ugrid or scrip, returns error
                 raise Exception(
-                    "Variables not in recognized form (SCRIP or UGRID)")
+                    "Variables not in recognized form (unstructured SCRIP or UGRID)"
+                )
 
     return out_ds
