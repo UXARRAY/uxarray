@@ -49,7 +49,7 @@ def test_ugrid_variable_names():
 
 
 def test_ugrid_to_scrip():
-    is_ugrid = _write_scrip(ne30, "ugrid_to_scrip.nc")
+    is_ugrid = _write_scrip(ds_ne30, "ugrid_to_scrip.nc")
     try:
         is_ugrid['grid_corner_lat']
     except KeyError:
@@ -57,7 +57,7 @@ def test_ugrid_to_scrip():
 
 
 def test_scrip_to_scrip():
-    is_scrip = _write_scrip(ne8, "scrip_to_scrip.nc")
+    is_scrip = _write_scrip(ds_ne8, "scrip_to_scrip.nc")
     try:
         is_scrip['grid_corner_lat']
     except KeyError:
