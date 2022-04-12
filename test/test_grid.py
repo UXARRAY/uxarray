@@ -61,7 +61,8 @@ class TestGrid(TestCase):
         scrip_30 = current_path / "meshfiles" / "outCSne30.ug"
 
         # Test read from scrip and from ugrid for grid class
-        ux.Grid(str(scrip_8))
+        scrip = ux.Grid(str(scrip_8))
+        print(scrip)
         print("passed read scrip")
 
         ux.Grid(str(scrip_30))

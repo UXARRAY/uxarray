@@ -1,6 +1,7 @@
 from uxarray._scrip import _read_scrip, _write_scrip
 import xarray as xr
 import sys
+import numpy as np
 
 import os
 from pathlib import Path
@@ -44,8 +45,14 @@ def test_scrip_is_not_ugrid():
 def test_ugrid_variable_names():
     mesh30 = _read_scrip(ne30)
     mesh08 = _read_scrip(ne8)
+
+    # Create a flattened and unique array for comparisons
+    corner_lon = ds_ne8['grid_corner_lon'].values
+    corner_lon = corner_lon.flatten()
+    strip_lon = np.unique(corner_lon)
+
     assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
-    assert ds_ne8['grid_corner_lon'].all() == mesh08['Mesh2_node_x'].all()
+    assert strip_lon.all() == mesh08['Mesh2_node_x'].all()
 
 
 def test_ugrid_to_scrip():

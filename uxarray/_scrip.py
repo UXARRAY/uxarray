@@ -4,7 +4,7 @@ from pathlib import PurePath
 from datetime import datetime
 
 
-def _to_ugrid(ds, outfile):
+def _to_scrip(ds, outfile):
     """If input dataset (ds) is UGRID file, function will reassign UGRID
     variables to SCRIP conventions in output file located in outfile.
 
@@ -68,7 +68,7 @@ def _to_ugrid(ds, outfile):
     return scrip_ds
 
 
-def _to_scrip(in_ds, outfile):
+def _to_ugrid(in_ds, outfile):
     """If input dataset (ds) file is an unstructured SCRIP file, function will
     reassign SCRIP variables to UGRID conventions in output file (outfile).
 
@@ -85,8 +85,16 @@ def _to_scrip(in_ds, outfile):
     if in_ds['grid_area'].all():
 
         # Create Mesh2_node_x/y variables from grid_corner_lat/lon
-        outfile['Mesh2_node_x'] = in_ds['grid_corner_lon']
-        outfile['Mesh2_node_y'] = in_ds['grid_corner_lat']
+        corner_lat = in_ds['grid_corner_lat'].values
+        corner_lat = corner_lat.flatten()
+        strip_lat = np.unique(corner_lat)
+
+        corner_lon = in_ds['grid_corner_lon'].values
+        corner_lon = corner_lon.flatten()
+        strip_lon = np.unique(corner_lon)
+
+        outfile['Mesh2_node_x'] = strip_lon
+        outfile['Mesh2_node_y'] = strip_lat
 
         # Create Mesh2_face_x/y from grid_center_lat/lon
         outfile['Mesh2_face_x'] = in_ds['grid_center_lon']
@@ -137,7 +145,7 @@ def _read_scrip(file_path):
     ds = xr.Dataset()
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
-        _to_scrip(ext_ds, ds)
+        _to_ugrid(ext_ds, ds)
 
     except KeyError:
         if ext_ds['Mesh2']:
@@ -194,7 +202,7 @@ def _write_scrip(ds, outfile):
     out_ds = xr.Dataset()
     try:
         if ds['Mesh2']:
-            out_ds = _to_ugrid(ds, outfile)
+            out_ds = _to_scrip(ds, outfile)
 
     except KeyError:
         if ds['grid_corner_lat'].all() is not None:
