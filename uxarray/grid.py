@@ -2,6 +2,7 @@
 import os
 import xarray as xr
 import numpy as np
+import math
 from warnings import warn
 from pathlib import PurePath
 
@@ -10,7 +11,7 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
-from .helpers import determine_file_type
+from .helpers import determine_file_type, calculate_face_area
 
 
 class Grid:
@@ -111,8 +112,24 @@ class Grid:
             })
         self.ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
 
+        # if type == "spherical":
+
+        # set default coordinate units to spherical coordinates
+        # users can change to cartesian if using cartesian for initialization
+        x_units = "degees_east"
+        y_units = "degrees_north"
+        if self.vertices[0].size > 2:
+            z_units = "elevation"
+        # elif type == "cartesian":
+        # x_units = "cartesian unit"
+        # y_units = "cartesian unit"
+        # if self.vertices[0].size > 2:
+        #     z_units = "cartesian unit"
+
         x_coord = self.vertices.transpose()[0]
         y_coord = self.vertices.transpose()[1]
+        if self.vertices[0].size > 2:
+            z_coord = self.vertices.transpose()[2]
 
         # single face with all nodes
         num_nodes = x_coord.size
@@ -120,9 +137,16 @@ class Grid:
         conn = [conn]
 
         self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
-                                               dims=["nMesh2_node"])
+                                               dims=["nMesh2_node"],
+                                               attrs={"units": x_units})
         self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
-                                               dims=["nMesh2_node"])
+                                               dims=["nMesh2_node"],
+                                               attrs={"units": y_units})
+        if self.vertices[0].size > 2:
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
+                                                   dims=["nMesh2_node"],
+                                                   attrs={"units": z_units})
+
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(conn),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
@@ -179,10 +203,32 @@ class Grid:
         else:
             print("Format not supported for writing: ", extension)
 
-    # Calculate the area of all faces.
     def calculate_total_face_area(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
+        """Function to calculate the total surface area of all the faces in a
+        mesh."""
+        total_face_area = 0
+
+        # get the coordinate units
+        units = "spherical"
+        if not "degree" in self.ds.Mesh2_node_x.units:
+            units = "cartesian"
+
+        for i in range(self.ds.nMesh2_face.size):
+            x = []
+            y = []
+            z = []
+            for j in range(len(self.ds.Mesh2_face_nodes[i])):
+                node_id = self.ds.Mesh2_face_nodes.data[i][j]
+                x.append(self.ds.Mesh2_node_x.data[node_id])
+                y.append(self.ds.Mesh2_node_y.data[node_id])
+                if self.ds.Mesh2.topology_dimension > 2:
+                    z.append(self.ds.Mesh2_node_z.data[node_id])
+                else:
+                    z.append(0)
+
+            total_face_area += calculate_face_area(x, y, z, units)
+
+        return total_face_area
 
     # Build the node-face connectivity array.
     def build_node_face_connectivity(self):

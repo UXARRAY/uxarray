@@ -21,6 +21,7 @@ Grid Methods
    :toctree: _autosummary
 
    grid.Grid.write
+   grid.Grid.calculate_total_face_area
 
 Helper Functions
 ----------------
@@ -28,3 +29,7 @@ Helper Functions
    :toctree: _autosummary
 
    determine_file_type
+   calculate_face_area
+   spherical_to_cartesian_unit
+   dot
+   cross
