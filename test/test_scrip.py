@@ -1,15 +1,10 @@
 from uxarray._scrip import _read_scrip, _write_scrip
 import xarray as xr
-import sys
+from unittest import TestCase
 import numpy as np
 
 import os
 from pathlib import Path
-
-if "--cov" in str(sys.argv):
-    from uxarray._scrip import _read_scrip, _write_scrip
-else:
-    import uxarray
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -22,50 +17,49 @@ ds_ne8 = xr.open_dataset(ne8, decode_times=False,
                          engine='netcdf4')  # grid_corner_lat/lon
 
 
-def test_scrip_is_ugrid():
-    """tests that if the wrong cf argument is given, the function will raise an
-    exception."""
-    new_ds = _read_scrip(ne30)
-    try:
-        new_ds['Mesh2']
-    except KeyError:
-        print("Variable not found")
+class TestGrid(TestCase):
 
+    def test_scrip_is_ugrid(self):
+        """tests that if ugrid dataset is given, ugrid dataset is returned
+        unchanged."""
+        new_ds = _read_scrip(ne30)
 
-def test_scrip_is_not_ugrid():
-    """tests that if the wrong cf argument is given, the function will raise an
-    exception."""
-    new_ds = _read_scrip(ne8)
-    try:
-        new_ds['Mesh2']
-    except KeyError:
-        print("Variable not found")
+        assert ds_ne30['Mesh2'] == new_ds['Mesh2']
 
+    def test_scrip_is_not_ugrid(self):
+        """tests that function has correctly created a ugrid function and no
+        longer uses SCRIP variable names (grid_corner_lat), the function will
+        raise an exception."""
+        new_ds = _read_scrip(ne8)
 
-def test_ugrid_variable_names():
-    mesh30 = _read_scrip(ne30)
-    mesh08 = _read_scrip(ne8)
+        assert ds_ne8['grid_corner_lat'].any()
 
-    # Create a flattened and unique array for comparisons
-    corner_lon = ds_ne8['grid_corner_lon'].values
-    corner_lon = corner_lon.flatten()
-    strip_lon = np.unique(corner_lon)
+        with self.assertRaises(KeyError):
+            new_ds['grid_corner_lat']
 
-    assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
-    assert strip_lon.all() == mesh08['Mesh2_node_x'].all()
+    def test_ugrid_variable_names(self):
+        """Tests that returned dataset uses UGRID compliant variables."""
+        mesh30 = _read_scrip(ne30)
+        mesh08 = _read_scrip(ne8)
 
+        # Create a flattened and unique array for comparisons
+        corner_lon = ds_ne8['grid_corner_lon'].values
+        corner_lon = corner_lon.flatten()
+        strip_lon = np.unique(corner_lon)
 
-def test_ugrid_to_scrip():
-    is_ugrid = _write_scrip(ds_ne30, "ugrid_to_scrip.nc")
-    try:
-        is_ugrid['grid_corner_lat']
-    except KeyError:
-        print("ugrid to scrip unsuccessful")
+        assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
+        assert strip_lon.all() == mesh08['Mesh2_node_x'].all()
 
+    def test_ugrid_to_scrip(self):
+        """Tests if write to scrip function will convert UGRID file to SCRIP
+        file successfully."""
+        is_ugrid = _write_scrip(ds_ne30, "ugrid_to_scrip.nc")
 
-def test_scrip_to_scrip():
-    is_scrip = _write_scrip(ds_ne8, "scrip_to_scrip.nc")
-    try:
-        is_scrip['grid_corner_lat']
-    except KeyError:
-        print("scrip to scrip unsuccessful")
+        assert is_ugrid['grid_corner_lat'].any()
+
+    def test_scrip_to_scrip(self):
+        """Tets if scrip function is returned unchanged after being used in
+        write function."""
+        is_scrip = _write_scrip(ds_ne8, "scrip_to_scrip.nc")
+
+        assert is_scrip['grid_corner_lat'].any()

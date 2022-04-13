@@ -166,13 +166,12 @@ def _read_scrip(file_path):
     except KeyError:
         if ext_ds['Mesh2']:
             # If is ugrid compliant, returns the dataset unchanged
-            try:
-                ds = ext_ds
-                return ds
-            except:
-                # If not ugrid or scrip, returns error
-                raise Exception(
-                    "Variables not in recognized form (SCRIP or UGRID)")
+            ds = ext_ds
+            return ds
+
+        else:
+            # If not ugrid or scrip, returns error
+            raise Exception("Variables not in recognized form (SCRIP or UGRID)")
 
     # Add necessary UGRID attributes to new dataset
     ds["Mesh2"] = xr.DataArray(
