@@ -85,16 +85,32 @@ def _to_ugrid(in_ds, outfile):
     if in_ds['grid_area'].all():
 
         # Create Mesh2_node_x/y variables from grid_corner_lat/lon
+        # Turn latitude scrip array into 1D instead of 2D
         corner_lat = in_ds['grid_corner_lat'].values
         corner_lat = corner_lat.flatten()
-        strip_lat = np.unique(corner_lat)
 
+        # Return only the index of unique values to preserve order
+        lat_idx = np.unique(corner_lat, return_index=True)[1]
+        sort_lat = sorted(lat_idx)
+
+        # Create placeholder array for the sorted unique values
+        unique_lat = np.zeros(len(sort_lat))
+        for i in range(len(sort_lat) - 1):
+            unique_lat[i] = (corner_lat[sort_lat[i]])
+
+        # Repeat above steps with longitude data instead
         corner_lon = in_ds['grid_corner_lon'].values
         corner_lon = corner_lon.flatten()
-        strip_lon = np.unique(corner_lon)
+        lon_idx = np.unique(corner_lon, return_index=True)[1]
+        sort_lon = sorted(lon_idx)
 
-        outfile['Mesh2_node_x'] = strip_lon
-        outfile['Mesh2_node_y'] = strip_lat
+        unique_lon = np.zeros(len(sort_lon))
+        for i in range(len(sort_lon) - 1):
+            unique_lon[i] = (corner_lon[sort_lon[i]])
+
+        # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
+        outfile['Mesh2_node_x'] = unique_lon
+        outfile['Mesh2_node_y'] = unique_lat
 
         # Create Mesh2_face_x/y from grid_center_lat/lon
         outfile['Mesh2_face_x'] = in_ds['grid_center_lon']
@@ -158,6 +174,7 @@ def _read_scrip(file_path):
                 raise Exception(
                     "Variables not in recognized form (SCRIP or UGRID)")
 
+    # Add necessary UGRID attributes to new dataset
     ds["Mesh2"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
@@ -174,8 +191,10 @@ def _read_scrip(file_path):
 
 def _write_scrip(ds, outfile):
     """Function to change UGRID file to SCRIP file.
+    NOTE: Function is still a work in progress. future plans include accurately
+    creating a 2D array for grid_corner_lat/lon from 1D array of Mesh_2_node_x/y
 
-    Currently supports unstructured SCRIP grid files following traditional SCRIP
+    Currently, supports unstructured SCRIP grid files following traditional SCRIP
     naming practices (grid_corner_lat, grid_center_lat, etc)
 
     Unstructured grid SCRIP files will have 'grid_rank=1' and include variables
