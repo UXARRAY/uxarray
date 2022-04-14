@@ -41,29 +41,26 @@ def determine_file_type(filepath):
                 mesh_filetype = "scrip"
             except KeyError as e:
 
-                # ugrid with Mesh2/Mesh/mesh/Mesh
+                # check mesh topology and dimension
                 try:
-                    cf_role = xr.open_dataset(
-                        filepath, mask_and_scale=False)["Mesh2"].cf_role
-                    mesh_filetype = check_ugrid_cf_role(cf_role)
+                    standard_name = lambda v: v is not None
+                    base_dv_td = list(
+                        xr.open_dataset(
+                            filepath, mask_and_scale=False).filter_by_attrs(
+                                topology_dimension=standard_name).keys())[0]
+                    base_dv_mt = list(
+                        xr.open_dataset(filepath,
+                                        mask_and_scale=False).filter_by_attrs(
+                                            cf_role="mesh_topology").keys())[0]
+                    if base_dv_mt != "" and base_dv_td != "":
+                        mesh_filetype = "ugrid"
+                    else:
+                        print(
+                            "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
+                        )
+                        exit()
                 except KeyError as e:
-                    try:
-                        cf_role = xr.open_dataset(
-                            filepath, mask_and_scale=False)["Mesh"].cf_role
-                        mesh_filetype = check_ugrid_cf_role(cf_role)
-                    except KeyError as e:
-                        try:
-                            cf_role = xr.open_dataset(
-                                filepath, mask_and_scale=False)["mesh"].cf_role
-                            mesh_filetype = check_ugrid_cf_role(cf_role)
-                        except KeyError as e:
-                            try:
-                                cf_role = xr.open_dataset(
-                                    filepath,
-                                    mask_and_scale=False)["mesh2"].cf_role
-                                mesh_filetype = check_ugrid_cf_role(cf_role)
-                            except KeyError as e:
-                                print("This is not a supported NetCDF file")
+                    msg = str(e) + ': {}'.format(filepath)
     except (TypeError, AttributeError) as e:
         msg = str(e) + ': {}'.format(filepath)
     except (RuntimeError, OSError) as e:
