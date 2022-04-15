@@ -118,5 +118,4 @@ def _read_scrip(file_path):
             "face_node_connectivity": "Mesh2_face_nodes",
             "face_dimension": "nMesh2_face"
         })
-
     return ds
