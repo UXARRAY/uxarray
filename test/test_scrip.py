@@ -1,4 +1,4 @@
-from uxarray._scrip import _read_scrip, _write_scrip
+from uxarray._scrip import _read_scrip
 import xarray as xr
 from unittest import TestCase
 import numpy as np
@@ -49,17 +49,3 @@ class TestGrid(TestCase):
 
         assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
         assert strip_lon.all() == mesh08['Mesh2_node_x'].all()
-
-    def test_ugrid_to_scrip(self):
-        """Tests if write to scrip function will convert UGRID file to SCRIP
-        file successfully."""
-        is_ugrid = _write_scrip(ds_ne30, "ugrid_to_scrip.nc")
-
-        assert is_ugrid['grid_corner_lat'].any()
-
-    def test_scrip_to_scrip(self):
-        """Tets if scrip function is returned unchanged after being used in
-        write function."""
-        is_scrip = _write_scrip(ds_ne8, "scrip_to_scrip.nc")
-
-        assert is_scrip['grid_corner_lat'].any()
