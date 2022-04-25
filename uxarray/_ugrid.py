@@ -12,6 +12,18 @@ def _read_ugrid(filepath):
 
     # TODO: obtain and change to Mesh2 construct, see Issue #27
     # simply return the xarray object loaded
+    
+    base_dv_mt = list(
+        xr.open_dataset(filepath,
+                        mask_and_scale=False).filter_by_attrs(
+                            cf_role="mesh_topology").keys())[0]
+    
+    if base_dv_mt != "Mesh2":
+        # Make it Mesh2
+        print("It is not Mesh2")
+    else:
+        print("It is Mesh2")
+    # print
     return xr.open_dataset(filepath, mask_and_scale=False)
 
 
