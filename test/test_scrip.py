@@ -19,12 +19,11 @@ ds_ne8 = xr.open_dataset(ne8, decode_times=False,
 
 class TestGrid(TestCase):
 
-    def test_scrip_is_ugrid(self):
-        """tests that if ugrid dataset is given, ugrid dataset is returned
-        unchanged."""
-        new_ds = _read_scrip(ne30)
+    def test_exception_nonSCRIP(self):
+        """Checks that exception is raised if non-SCRIP formatted file is
+        passed to function."""
 
-        assert ds_ne30['Mesh2'] == new_ds['Mesh2']
+        self.assertRaises(Exception, _read_scrip(ne30))
 
     def test_scrip_is_not_ugrid(self):
         """tests that function has correctly created a ugrid function and no
@@ -39,7 +38,6 @@ class TestGrid(TestCase):
 
     def test_ugrid_variable_names(self):
         """Tests that returned dataset uses UGRID compliant variables."""
-        mesh30 = _read_scrip(ne30)
         mesh08 = _read_scrip(ne8)
 
         # Create a flattened and unique array for comparisons
@@ -47,5 +45,4 @@ class TestGrid(TestCase):
         corner_lon = corner_lon.flatten()
         strip_lon = np.unique(corner_lon)
 
-        assert ds_ne30['Mesh2_node_x'].all() == mesh30['Mesh2_node_x'].all()
         assert strip_lon.all() == mesh08['Mesh2_node_x'].all()
