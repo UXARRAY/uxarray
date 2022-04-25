@@ -140,27 +140,3 @@ def _read_scrip(file_path):
             "face_dimension": "nMesh2_face"
         })
     return ds
-
-
-from pathlib import Path
-import os
-
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-
-ne30 = '/Users/misi1684/uxarray/test/meshfiles/outCSne30.ug'
-ne8 = '/Users/misi1684/uxarray/test/meshfiles/outCSne8.nc'
-
-ds_ne30 = xr.open_dataset(ne30, decode_times=False,
-                          engine='netcdf4')  # mesh2_node_x/y
-ds_ne8 = xr.open_dataset(ne8, decode_times=False,
-                         engine='netcdf4')  # grid_corner_lat/lon
-
-lats = ds_ne8['grid_corner_lat'].stack(y=("grid_size", "grid_corners"))
-
-scrip = _read_scrip(ne8)
-print(ds_ne30['Mesh2_node_x'])
-print(ds_ne30['Mesh2_face_nodes'][0:15])
-print(
-    "Variables not in recognized SCRIP form. Please refer to",
-    "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
-    "for more information on SCRIP Grid file formatting")
