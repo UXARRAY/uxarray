@@ -20,21 +20,22 @@ def _to_ugrid(in_ds, outfile):
 
         # Create Mesh2_node_x/y variables from grid_corner_lat/lon
         # Turn latitude scrip array into 1D instead of 2D
-        corner_lat = in_ds['grid_corner_lat'].values
-        corner_lat = corner_lat.flatten()
+        corner_lat = in_ds['grid_corner_lat'].stack(y=("grid_size",
+                                                       "grid_corners"))
 
         # Return only the index of unique values to preserve order
-        lat_idx = np.unique(corner_lat, return_index=True)[1]
+        lat_idx = np.unique(corner_lat.values, return_index=True)[1]
         sort_lat = sorted(lat_idx)
 
         # Create placeholder array for the sorted unique values
         unique_lat = np.zeros(len(sort_lat))
+        # unique_lat = corner_lat[sort_lat]
         for i in range(len(sort_lat) - 1):
             unique_lat[i] = (corner_lat[sort_lat[i]])
 
         # Repeat above steps with longitude data instead
-        corner_lon = in_ds['grid_corner_lon'].values
-        corner_lon = corner_lon.flatten()
+        corner_lon = in_ds['grid_corner_lon'].stack(x=("grid_size",
+                                                       "grid_corners"))
         lon_idx = np.unique(corner_lon, return_index=True)[1]
         sort_lon = sorted(lon_idx)
 
@@ -51,17 +52,41 @@ def _to_ugrid(in_ds, outfile):
         outfile['Mesh2_face_y'] = in_ds['grid_center_lat']
 
         # Create array using matching grid corners to create face nodes
-        face_arr = []
-        for i in range(len(in_ds['grid_corner_lat'] - 1)):
-            x = in_ds['grid_corner_lon'][i].values
-            y = in_ds['grid_corner_lat'][i].values
-            face = np.hstack([x[:, np.newaxis], y[:, np.newaxis]])
-            face_arr.append(face)
+        # find max face nodes
+        max_face_nodes = 0
+        for dim in in_ds.dims:
+            if "grid_corners" in dim:
+                if in_ds.dims[dim] > max_face_nodes:
+                    max_face_nodes = in_ds.dims[dim]
 
-        face_node = np.asarray(face_arr)
+        # create an empty conn array for storing all blk face_nodes_data
+        conn = np.empty((len(unique_lon), max_face_nodes))
 
-        outfile['Mesh2_face_nodes'] = xr.DataArray(
-            face_node, dims=['grid_size', 'grid_corners', 'lat/lon'])
+        # set the face nodes data compiled in "connect" section
+        outfile["Mesh2_face_nodes"] = xr.DataArray(
+            data=(conn[:] - 1),
+            dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+            attrs={
+                "cf_role":
+                    "face_node_connectivity",
+                "_FillValue":
+                    -1,
+                "start_index":
+                    np.int32(
+                        0
+                    )  # NOTE: This might cause an error if numbering has holes
+            })
+        # face_arr = []
+        # for i in range(len(in_ds['grid_corner_lat'] - 1)):
+        #     x = in_ds['grid_corner_lon'][i].values
+        #     y = in_ds['grid_corner_lat'][i].values
+        #     face = np.hstack([x[:, np.newaxis], y[:, np.newaxis]])
+        #     face_arr.append(face)
+        #
+        # face_node = np.asarray(face_arr)
+        #
+        # outfile['Mesh2_face_nodes'] = xr.DataArray(
+        #     face_node, dims=['grid_size', 'grid_corners', 'lat/lon'])
     else:
         raise Exception("Structured scrip files are not yet supported")
 
@@ -89,7 +114,7 @@ def _read_scrip(file_path):
 
     Returns
     --------
-    out_ds : :class:`xarray.DataArray`
+    out_ds : :class:`xarray.Dataset`
     """
     ext_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
     ds = xr.Dataset()
@@ -97,15 +122,11 @@ def _read_scrip(file_path):
         # If not ugrid compliant, translates scrip to ugrid conventions
         _to_ugrid(ext_ds, ds)
 
-    except KeyError:
-        if ext_ds['Mesh2']:
-            # If is ugrid compliant, returns the dataset unchanged
-            ds = ext_ds
-            return ds
-
-        else:
-            # If not ugrid or scrip, returns error
-            raise Exception("Variables not in recognized form (SCRIP or UGRID)")
+    except:
+        raise Exception(
+            "Variables not in recognized SCRIP form. Please refer to",
+            "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
+            "for more information on SCRIP Grid file formatting")
 
     # Add necessary UGRID attributes to new dataset
     ds["Mesh2"] = xr.DataArray(
