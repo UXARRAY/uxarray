@@ -24,19 +24,19 @@ class TestDataset(TestCase):
         uds2 = ux.open_dataset(uds2_name)
         uds3 = ux.open_dataset(uds3_name)
 
-        assert (uds1.nMesh2_node.size == constants.NNODES_ov_RLL10deg_CSne4)
-        assert (uds2.nMesh2_node.size == constants.NNODES_outCSne8)
-        assert (uds3.nMesh2_node.size == constants.NNODES_outCSne30)
+        assert (uds1.ds.nMesh2_node.size == constants.NNODES_ov_RLL10deg_CSne4)
+        assert (uds2.ds.nMesh2_node.size == constants.NNODES_outCSne8)
+        assert (uds3.ds.nMesh2_node.size == constants.NNODES_outCSne30)
 
-        assert (len(uds3.data_vars) == constants.DATAVARS_outCSne30)
+        assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30)
 
     def test_open_single_dataset(self):
         """Loads one grid and data file using uxarray's open_dataset call."""
 
         uds3 = ux.open_dataset(uds3_name, uds3_data_name1)
 
-        assert (uds3.nMesh2_node.size == constants.NNODES_outCSne30)
-        assert (len(uds3.data_vars) == constants.DATAVARS_outCSne30 + 1)
+        assert (uds3.ds.nMesh2_node.size == constants.NNODES_outCSne30)
+        assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 1)
 
     def test_open_multiple_dataset(self):
         """Loads a grid file and two data files of different formats using
@@ -44,5 +44,5 @@ class TestDataset(TestCase):
 
         uds3 = ux.open_dataset(uds3_name, uds3_data_name1, uds3_data_name2)
 
-        assert (uds3.nMesh2_node.size == constants.NNODES_outCSne30)
-        assert (len(uds3.data_vars) == constants.DATAVARS_outCSne30 + 2)
+        assert (uds3.ds.nMesh2_node.size == constants.NNODES_outCSne30)
+        assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 2)
