@@ -59,8 +59,8 @@ class Grid:
 
             RuntimeError: File not found
         """
-        #
-        self.set_vars()
+        # initialize internal variable names
+        self.__init_var_names__()
 
         # TODO: fix when adding/exercising gridspec
         # unpacking args
@@ -148,11 +148,11 @@ class Grid:
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.ds = _read_exodus(self.filepath, self.ugrid_vars)
+            self.ds = _read_exodus(self.filepath, self.var_names_dict)
         elif self.mesh_filetype == "scrip":
             self.ds = _read_scrip(self.filepath)
         elif self.mesh_filetype == "ugrid":
-            self.ds = _read_ugrid(self.filepath, self.ugrid_vars)
+            self.ds = _read_ugrid(self.filepath, self.var_names_dict)
         elif self.mesh_filetype == "shp":
             self.ds = _read_shpfile(self.filepath)
         else:
@@ -175,9 +175,9 @@ class Grid:
                 raise ("File directory not found: " + outfile)
 
         if extension == ".ugrid" or extension == ".ug":
-            _write_ugrid(self.ds, outfile, self.ugrid_vars)
+            _write_ugrid(self.ds, outfile, self.var_names_dict)
         elif extension == ".g" or extension == ".exo":
-            _write_exodus(self.ds, outfile, self.ugrid_vars)
+            _write_exodus(self.ds, outfile, self.var_names_dict)
         else:
             print("Format not supported for writing: ", extension)
 
@@ -206,8 +206,14 @@ class Grid:
         """Not implemented."""
         warn("Function placeholder, implementation coming soon.")
 
-    def set_vars(self):
-        self.ugrid_vars = {
+    def __init_var_names__(self):
+        """A dictionary for storing uxarray's internal representation of xarray
+        object.
+
+        ugrid conventions are flexible with names of variables, this dict stores the conversion
+        http://ugrid-conventions.github.io/ugrid-conventions/
+        """
+        self.var_names_dict = {
             "Mesh2": "Mesh2",
             "Mesh2_node_x": "Mesh2_node_x",
             "Mesh2_node_y": "Mesh2_node_y",

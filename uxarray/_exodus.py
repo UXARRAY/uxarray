@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 # Exodus Number is one-based.
-def _read_exodus(filepath, ugrid_vars):
+def _read_exodus(filepath, var_names_dict):
     """Exodus file reader.
 
     Parameters
@@ -154,7 +154,7 @@ def _read_exodus(filepath, ugrid_vars):
     return ds
 
 
-def _write_exodus(ds, outfile, ugrid_vars):
+def _write_exodus(ds, outfile, var_names_dict):
     """Exodus file writer.
 
     Parameters
@@ -200,32 +200,32 @@ def _write_exodus(ds, outfile, ugrid_vars):
                                         dims=["four", "num_qa_rec"])
 
     # get orig dimension from Mesh2 attribute topology dimension
-    dim = ds[ugrid_vars["Mesh2"]].topology_dimension
+    dim = ds[var_names_dict["Mesh2"]].topology_dimension
 
     c_data = []
     if dim == 2:
         c_data = xr.DataArray([
-            ds[ugrid_vars["Mesh2_node_x"]].data.tolist(),
-            ds[ugrid_vars["Mesh2_node_y"]].data.tolist()
+            ds[var_names_dict["Mesh2_node_x"]].data.tolist(),
+            ds[var_names_dict["Mesh2_node_y"]].data.tolist()
         ])
     elif dim == 3:
         c_data = xr.DataArray([
-            ds[ugrid_vars["Mesh2_node_x"]].data.tolist(),
-            ds[ugrid_vars["Mesh2_node_y"]].data.tolist(),
-            ds[ugrid_vars["Mesh2_node_z"]].data.tolist()
+            ds[var_names_dict["Mesh2_node_x"]].data.tolist(),
+            ds[var_names_dict["Mesh2_node_y"]].data.tolist(),
+            ds[var_names_dict["Mesh2_node_z"]].data.tolist()
         ])
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
 
     # process face nodes, this array holds num faces at corresponding location
     # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
-    num_el_all_blks = np.zeros(ds[ugrid_vars["nMaxMesh2_face_nodes"]].size,
+    num_el_all_blks = np.zeros(ds[var_names_dict["nMaxMesh2_face_nodes"]].size,
                                "i4")
     # this list stores connectivity without filling
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds[ugrid_vars["Mesh2_face_nodes"]].data:
+    for row in ds[var_names_dict["Mesh2_face_nodes"]].data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
@@ -241,7 +241,7 @@ def _write_exodus(ds, outfile, ugrid_vars):
             conn_nofill.append(list_node)
         elif arr[0].size == 0:
             # increment the number of faces for this "nMaxMesh2_face_nodes" face
-            num_el_all_blks[ds[ugrid_vars["nMaxMesh2_face_nodes"]].size -
+            num_el_all_blks[ds[var_names_dict["nMaxMesh2_face_nodes"]].size -
                             1] += 1
             # get integer list nodes
             list_node = list(map(int, row.tolist()))

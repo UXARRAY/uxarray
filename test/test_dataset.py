@@ -28,9 +28,9 @@ class TestDataset(TestCase):
         uds3 = ux.open_dataset(uds3_name)
 
         # get node names for each grid object
-        n1 = uds1.ugrid_vars["Mesh2_node_x"]
-        n2 = uds2.ugrid_vars["Mesh2_node_x"]
-        n3 = uds3.ugrid_vars["Mesh2_node_x"]
+        n1 = uds1.var_names_dict["Mesh2_node_x"]
+        n2 = uds2.var_names_dict["Mesh2_node_x"]
+        n3 = uds3.var_names_dict["Mesh2_node_x"]
 
         assert (uds1.ds[n1].size == constants.NNODES_ov_RLL10deg_CSne4)
         assert (uds2.ds[n2].size == constants.NNODES_outCSne8)
@@ -43,7 +43,7 @@ class TestDataset(TestCase):
 
         uds3 = ux.open_dataset(uds3_name, uds3_data_name1)
 
-        n3 = uds3.ugrid_vars["Mesh2_node_x"]
+        n3 = uds3.var_names_dict["Mesh2_node_x"]
 
         assert (uds3.ds[n3].size == constants.NNODES_outCSne30)
         assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 1)
@@ -54,7 +54,7 @@ class TestDataset(TestCase):
 
         uds3 = ux.open_dataset(uds3_name, uds3_data_name1, uds3_data_name2)
 
-        n3 = uds3.ugrid_vars["Mesh2_node_x"]
+        n3 = uds3.var_names_dict["Mesh2_node_x"]
 
         assert (uds3.ds[n3].size == constants.NNODES_outCSne30)
         assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 2)

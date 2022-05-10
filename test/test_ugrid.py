@@ -25,9 +25,9 @@ class TestUgrid(TestCase):
         tgrid3 = ux.Grid(str(ug_filename3))
 
         # num_node_var = ux.ugrid_vars["nMesh2_node"]
-        n1 = tgrid1.ugrid_vars["Mesh2_node_x"]
-        n2 = tgrid2.ugrid_vars["Mesh2_node_x"]
-        n3 = tgrid3.ugrid_vars["Mesh2_node_x"]
+        n1 = tgrid1.var_names_dict["Mesh2_node_x"]
+        n2 = tgrid2.var_names_dict["Mesh2_node_x"]
+        n3 = tgrid3.var_names_dict["Mesh2_node_x"]
 
         assert (tgrid1.ds[n1].size == constants.NNODES_outCSne30)
         assert (tgrid2.ds[n2].size == constants.NNODES_outRLL1deg)
