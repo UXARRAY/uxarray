@@ -24,10 +24,14 @@ class TestUgrid(TestCase):
         tgrid2 = ux.Grid(str(ug_filename2))
         tgrid3 = ux.Grid(str(ug_filename3))
 
-        assert (tgrid1.ds.nMesh2_node.size == constants.NNODES_outCSne30)
-        assert (tgrid2.ds.nMesh2_node.size == constants.NNODES_outRLL1deg)
-        assert (
-            tgrid3.ds.nMesh2_node.size == constants.NNODES_ov_RLL10deg_CSne4)
+        # num_node_var = ux.ugrid_vars["nMesh2_node"]
+        n1 = tgrid1.ugrid_vars["Mesh2_node_x"]
+        n2 = tgrid2.ugrid_vars["Mesh2_node_x"]
+        n3 = tgrid3.ugrid_vars["Mesh2_node_x"]
+
+        assert (tgrid1.ds[n1].size == constants.NNODES_outCSne30)
+        assert (tgrid2.ds[n2].size == constants.NNODES_outRLL1deg)
+        assert (tgrid3.ds[n3].size == constants.NNODES_ov_RLL10deg_CSne4)
 
     def test_write_ugrid(self):
         """Read an exodus file and writes a ugrid file."""

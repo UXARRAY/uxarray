@@ -44,6 +44,8 @@ def determine_file_type(filepath):
                 # check mesh topology and dimension
                 try:
                     standard_name = lambda v: v is not None
+                    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
+                    # return type KeysView
                     base_dv_nc = list(
                         xr.open_dataset(
                             filepath, mask_and_scale=False).filter_by_attrs(

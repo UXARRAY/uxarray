@@ -59,6 +59,8 @@ class Grid:
 
             RuntimeError: File not found
         """
+        #
+        self.set_vars()
 
         # TODO: fix when adding/exercising gridspec
         # unpacking args
@@ -146,11 +148,11 @@ class Grid:
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.ds = _read_exodus(self.filepath)
+            self.ds = _read_exodus(self.filepath, self.ugrid_vars)
         elif self.mesh_filetype == "scrip":
             self.ds = _read_scrip(self.filepath)
         elif self.mesh_filetype == "ugrid":
-            self.ds = _read_ugrid(self.filepath)
+            self.ds = _read_ugrid(self.filepath, self.ugrid_vars)
         elif self.mesh_filetype == "shp":
             self.ds = _read_shpfile(self.filepath)
         else:
@@ -173,9 +175,9 @@ class Grid:
                 raise ("File directory not found: " + outfile)
 
         if extension == ".ugrid" or extension == ".ug":
-            _write_ugrid(self.ds, outfile)
+            _write_ugrid(self.ds, outfile, self.ugrid_vars)
         elif extension == ".g" or extension == ".exo":
-            _write_exodus(self.ds, outfile)
+            _write_exodus(self.ds, outfile, self.ugrid_vars)
         else:
             print("Format not supported for writing: ", extension)
 
@@ -203,3 +205,16 @@ class Grid:
     def validate(self):
         """Not implemented."""
         warn("Function placeholder, implementation coming soon.")
+
+    def set_vars(self):
+        self.ugrid_vars = {
+            "Mesh2": "Mesh2",
+            "Mesh2_node_x": "Mesh2_node_x",
+            "Mesh2_node_y": "Mesh2_node_y",
+            "Mesh2_node_z": "Mesh2_node_z",
+            "Mesh2_face_nodes": "Mesh2_face_nodes",
+            # initialize dims
+            "nMesh2_node": "nMesh2_node",
+            "nMesh2_face": "nMesh2_face",
+            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
+        }
