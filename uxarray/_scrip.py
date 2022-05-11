@@ -14,8 +14,8 @@ def _to_ugrid(in_ds):
     Returns
     -------
     out_ds : :class:`xarray.Dataset`
-        file to be returned by _populate_scrip_data, used as an empty placeholder file
-        to store reassigned SCRIP variables in UGRID conventions
+        File to be returned by _populate_scrip_data, stores reassigned SCRIP
+        variables in UGRID conventions
     """
     out_ds = xr.Dataset()
     if in_ds['grid_area'].all():
