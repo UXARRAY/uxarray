@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 
 
-def _to_ugrid(in_ds):
+def _to_ugrid(in_ds, out_ds):
     """If input dataset (ds) file is an unstructured SCRIP file, function will
     reassign SCRIP variables to UGRID conventions in output file (outfile).
 
@@ -11,13 +11,11 @@ def _to_ugrid(in_ds):
     in_ds : :class:`xarray.Dataset`
         Original scrip dataset of interest being used
 
-    Returns
-    -------
-    out_ds : :class:`xarray.Dataset`
-        File to be returned by _populate_scrip_data, stores reassigned SCRIP
-        variables in UGRID conventions
+    out_ds : :class:`xarray.Variable`
+        file to be returned by _populate_scrip_data, used as an empty placeholder file
+        to store reassigned SCRIP variables in UGRID conventions
     """
-    out_ds = xr.Dataset()
+
     if in_ds['grid_area'].all():
 
         # Create Mesh2_node_x/y variables from grid_corner_lat/lon
@@ -109,26 +107,28 @@ def _read_scrip(file_path):
     out_ds : :class:`xarray.Dataset`
     """
     ext_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
+    ds = xr.Dataset()
 
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
-        ds = _to_ugrid(ext_ds)
+        _to_ugrid(ext_ds, ds)
 
-    except KeyError:
+        # Add necessary UGRID attributes to new dataset
+        ds["Mesh2"] = xr.DataArray(
+            attrs={
+                "cf_role": "mesh_topology",
+                "long_name": "Topology data of 2D unstructured mesh",
+                "topology_dimension": 2,
+                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
+                "node_dimension": "nMesh2_node",
+                "face_node_connectivity": "Mesh2_face_nodes",
+                "face_dimension": "nMesh2_face"
+            })
+
+    except:
         print(
             "Variables not in recognized SCRIP form. Please refer to",
             "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
             "for more information on SCRIP Grid file formatting")
 
-    # Add necessary UGRID attributes to new dataset
-    ds["Mesh2"] = xr.DataArray(
-        attrs={
-            "cf_role": "mesh_topology",
-            "long_name": "Topology data of 2D unstructured mesh",
-            "topology_dimension": 2,
-            "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
-            "node_dimension": "nMesh2_node",
-            "face_node_connectivity": "Mesh2_face_nodes",
-            "face_dimension": "nMesh2_face"
-        })
     return ds

@@ -23,7 +23,7 @@ class TestGrid(TestCase):
         """Checks that exception is raised if non-SCRIP formatted file is
         passed to function."""
 
-        self.assertRaises(Exception, _read_scrip(ne30))
+        self.assertRaises(TypeError, _read_scrip(ne30))
 
     def test_scrip_is_not_ugrid(self):
         """tests that function has correctly created a ugrid function and no
