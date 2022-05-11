@@ -15,12 +15,14 @@ def _read_ugrid(filepath, var_names_dict):
 
     xr_ds = xr.open_dataset(filepath, mask_and_scale=False)
 
-    #
-    base_dv_mt = list(xr_ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
+    # get the data variable name that has attribute "cf_role" set to "mesh_topology"
+    # this is the base xarray.DataArray name
+    base_xarray_var = list(
+        xr_ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
 
-    var_names_dict["Mesh2"] = base_dv_mt
+    var_names_dict["Mesh2"] = base_xarray_var
 
-    coord_names = xr_ds[base_dv_mt].node_coordinates.split()
+    coord_names = xr_ds[base_xarray_var].node_coordinates.split()
 
     if len(coord_names) == 1:
         var_names_dict["Mesh2_node_x"] = coord_names[0]
@@ -36,7 +38,7 @@ def _read_ugrid(filepath, var_names_dict):
     coord_dim_name = xr_ds[var_names_dict["Mesh2_node_x"]].dims
     var_names_dict["nMesh2_node"] = coord_dim_name[0]
 
-    face_node_names = xr_ds[base_dv_mt].face_node_connectivity.split()
+    face_node_names = xr_ds[base_xarray_var].face_node_connectivity.split()
 
     face_node_name = face_node_names[0]
     var_names_dict["Mesh2_face_nodes"] = xr_ds[face_node_name].name
@@ -53,7 +55,7 @@ def _read_ugrid(filepath, var_names_dict):
             var_names_dict["Mesh2_node_z"]
         ])
 
-    return xr_ds
+    return xr_ds, var_names_dict
 
 
 # Write a uxgrid to a file with specified format.
