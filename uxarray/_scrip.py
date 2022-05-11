@@ -1,6 +1,5 @@
 import xarray as xr
 import numpy as np
-import dask
 
 
 def _to_ugrid(in_ds):
@@ -26,20 +25,25 @@ def _to_ugrid(in_ds):
         corner_lat_xr = in_ds['grid_corner_lat']
         corner_lat = corner_lat_xr.values.ravel()
 
-        # Return only the index of unique values to preserve order
+        # Return only the index of unique values of latitude data
         lat_idx = np.unique(corner_lat, return_index=True)[1]
-        # lat_idx = np.unique(corner_lat.round(decimals=14), return_index=True)[1]
         sort_lat = sorted(lat_idx)
 
-        # Create array for the sorted unique values
-        unique_lat = corner_lat[sort_lat]
-
-        # Repeat above steps with lon data instead
+        # Repeat above steps with longitude data instead
         corner_lon_xr = in_ds['grid_corner_lon']
         corner_lon = corner_lon_xr.values.ravel()
 
-        # Use sort_lat to ensure returned arrays are same shape and track same indices
-        unique_lon = corner_lon[sort_lat]
+        lon_idx = np.unique(corner_lon, return_index=True)[1]
+        sort_lon = sorted(lon_idx)
+
+        # Combine lists of indexes to be used between both lat and lon coords
+        indexes = np.concatenate((sort_lon, sort_lat))
+        sort_idx = sorted(indexes)
+        unique_idx = np.unique(sort_idx)
+
+        # Create array for the sorted unique lat/lon values
+        unique_lon = corner_lon[unique_idx]
+        unique_lat = corner_lat[unique_idx]
 
         # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
         out_ds['Mesh2_node_x'] = unique_lon
@@ -74,17 +78,7 @@ def _to_ugrid(in_ds):
                         0
                     )  # NOTE: This might cause an error if numbering has holes
             })
-        # face_arr = []
-        # for i in range(len(in_ds['grid_corner_lat'] - 1)):
-        #     x = in_ds['grid_corner_lon'][i].values
-        #     y = in_ds['grid_corner_lat'][i].values
-        #     face = np.hstack([x[:, np.newaxis], y[:, np.newaxis]])
-        #     face_arr.append(face)
-        #
-        # face_node = np.asarray(face_arr)
-        #
-        # outfile['Mesh2_face_nodes'] = xr.DataArray(
-        #     face_node, dims=['grid_size', 'grid_corners', 'lat/lon'])
+
     else:
         raise Exception("Structured scrip files are not yet supported")
 
@@ -138,22 +132,3 @@ def _read_scrip(file_path):
             "face_dimension": "nMesh2_face"
         })
     return ds
-
-
-ne30 = '/Users/misi1684/uxarray/test/meshfiles/outCSne30.ug'
-ne8 = '/Users/misi1684/uxarray/test/meshfiles/outCSne8.nc'
-
-ds_ne30 = xr.open_dataset(ne30, decode_times=False,
-                          engine='netcdf4')  # mesh2_node_x/y
-ds_ne8 = xr.open_dataset(ne8, decode_times=False,
-                         engine='netcdf4')  # grid_corner_lat/lon
-ds = _read_scrip(ne8)
-print(ds['Mesh2_node_x'])
-# print(ds['Mesh2_node_y'])
-print("face_x/y")
-print("face_x shape", ds['Mesh2_face_x'].shape)
-print("face_y shape", ds['Mesh2_face_y'].shape)
-uni_x = np.unique(ds['Mesh2_face_x'])
-uni_y = np.unique(ds['Mesh2_face_y'])
-print("unique x", (uni_x.shape))
-print("unique y", (uni_y.shape))
