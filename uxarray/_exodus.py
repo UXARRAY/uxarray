@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 # Exodus Number is one-based.
-def _read_exodus(filepath):
+def _read_exodus(filepath, ds_var_names):
     """Exodus file reader.
 
     Parameters
@@ -69,13 +69,15 @@ def _read_exodus(filepath):
                     "long_name": "latitude of mesh nodes",
                     "units": "degrees_north",
                 })
-            ds["Mesh2_node_z"] = xr.DataArray(data=ext_ds.coord[2],
-                                              dims=["nMesh2_node"],
-                                              attrs={
-                                                  "standard_name": "spherical",
-                                                  "long_name": "elevation",
-                                                  "units": "degree",
-                                              })
+            if ext_ds.dims['num_dim'] > 2:
+                ds["Mesh2_node_z"] = xr.DataArray(
+                    data=ext_ds.coord[2],
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "spherical",
+                        "long_name": "elevation",
+                        "units": "degree",
+                    })
         elif key == "coordx":
             ds["Mesh2_node_x"] = xr.DataArray(
                 data=ext_ds.coordx,
@@ -95,13 +97,15 @@ def _read_exodus(filepath):
                     "units": "degrees_north",
                 })
         elif key == "coordz":
-            ds["Mesh2_node_z"] = xr.DataArray(data=ext_ds.coordx,
-                                              dims=["nMesh2_node"],
-                                              attrs={
-                                                  "standard_name": "spherical",
-                                                  "long_name": "elevation",
-                                                  "units": "degree",
-                                              })
+            if ext_ds.dims['num_dim'] > 2:
+                ds["Mesh2_node_z"] = xr.DataArray(
+                    data=ext_ds.coordx,
+                    dims=["nMesh2_node"],
+                    attrs={
+                        "standard_name": "spherical",
+                        "long_name": "elevation",
+                        "units": "degree",
+                    })
         elif "connect" in key:
             # check if num face nodes is less than max.
             if value.data.shape[1] < max_face_nodes:
@@ -141,10 +145,16 @@ def _read_exodus(filepath):
         })
     print("Finished reading exodus file.")
 
+    if ext_ds.dims['num_dim'] > 2:
+        # set coordinates
+        ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z"])
+    else:
+        ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
+
     return ds
 
 
-def _write_exodus(ds, outfile):
+def _write_exodus(ds, outfile, ds_var_names):
     """Exodus file writer.
 
     Parameters
@@ -190,30 +200,32 @@ def _write_exodus(ds, outfile):
                                         dims=["four", "num_qa_rec"])
 
     # get orig dimension from Mesh2 attribute topology dimension
-    dim = ds["Mesh2"].topology_dimension
+    dim = ds[ds_var_names["Mesh2"]].topology_dimension
 
     c_data = []
     if dim == 2:
-        c_data = xr.DataArray(
-            [ds.Mesh2_node_x.data.tolist(),
-             ds.Mesh2_node_y.data.tolist()])
+        c_data = xr.DataArray([
+            ds[ds_var_names["Mesh2_node_x"]].data.tolist(),
+            ds[ds_var_names["Mesh2_node_y"]].data.tolist()
+        ])
     elif dim == 3:
         c_data = xr.DataArray([
-            ds.Mesh2_node_x.data.tolist(),
-            ds.Mesh2_node_y.data.tolist(),
-            ds.Mesh2_node_z.data.tolist()
+            ds[ds_var_names["Mesh2_node_x"]].data.tolist(),
+            ds[ds_var_names["Mesh2_node_y"]].data.tolist(),
+            ds[ds_var_names["Mesh2_node_z"]].data.tolist()
         ])
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
 
     # process face nodes, this array holds num faces at corresponding location
     # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
-    num_el_all_blks = np.zeros(ds.nMaxMesh2_face_nodes.size, "i4")
+    num_el_all_blks = np.zeros(ds[ds_var_names["nMaxMesh2_face_nodes"]].size,
+                               "i4")
     # this list stores connectivity without filling
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds.Mesh2_face_nodes.data:
+    for row in ds[ds_var_names["Mesh2_face_nodes"]].data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
@@ -229,7 +241,8 @@ def _write_exodus(ds, outfile):
             conn_nofill.append(list_node)
         elif arr[0].size == 0:
             # increment the number of faces for this "nMaxMesh2_face_nodes" face
-            num_el_all_blks[ds.nMaxMesh2_face_nodes.size - 1] += 1
+            num_el_all_blks[ds[ds_var_names["nMaxMesh2_face_nodes"]].size -
+                            1] += 1
             # get integer list nodes
             list_node = list(map(int, row.tolist()))
             conn_nofill.append(list_node)
