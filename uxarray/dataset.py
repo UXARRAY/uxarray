@@ -45,4 +45,4 @@ def open_dataset(grid_filename, *args):
         ux_grid.ds = xr.merge([ux_grid.ds, all_data])
 
     # return grid with data
-    return ux_grid.ds
+    return ux_grid

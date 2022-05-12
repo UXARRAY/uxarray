@@ -21,6 +21,7 @@ def determine_file_type(filepath):
        RuntimeError: Invalid file type
     """
     msg = ""
+    mesh_filetype = "unknown"
     # exodus with coord
     try:
         # extract the file name and extension
@@ -42,13 +43,37 @@ def determine_file_type(filepath):
                     filepath, mask_and_scale=False)["grid_center_lon"]
                 mesh_filetype = "scrip"
             except KeyError as e:
-                # ugrid with Mesh2
+
+                # check mesh topology and dimension
                 try:
-                    ext_ds = xr.open_dataset(filepath,
-                                             mask_and_scale=False)["Mesh2"]
-                    mesh_filetype = "ugrid"
+                    standard_name = lambda v: v is not None
+                    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
+                    # return type KeysView
+                    base_dv_nc = list(
+                        xr.open_dataset(
+                            filepath, mask_and_scale=False).filter_by_attrs(
+                                node_coordinates=standard_name).keys())[0]
+                    base_dv_fc = list(
+                        xr.open_dataset(
+                            filepath, mask_and_scale=False).filter_by_attrs(
+                                face_node_connectivity=standard_name).keys())[0]
+                    base_dv_td = list(
+                        xr.open_dataset(
+                            filepath, mask_and_scale=False).filter_by_attrs(
+                                topology_dimension=standard_name).keys())[0]
+                    base_dv_mt = list(
+                        xr.open_dataset(filepath,
+                                        mask_and_scale=False).filter_by_attrs(
+                                            cf_role="mesh_topology").keys())[0]
+                    if base_dv_mt != "" and base_dv_td != "" and base_dv_fc != "" and base_dv_nc != "":
+                        mesh_filetype = "ugrid"
+                    else:
+                        print(
+                            "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
+                        )
+                        exit()
                 except KeyError as e:
-                    print("This is not a supported NetCDF file")
+                    msg = str(e) + ': {}'.format(filepath)
     except (TypeError, AttributeError) as e:
         msg = str(e) + ': {}'.format(filepath)
     except (RuntimeError, OSError) as e:
