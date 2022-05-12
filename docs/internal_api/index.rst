@@ -16,7 +16,7 @@ Grid Methods
    :toctree: ./generated/
 
    grid.Grid.__init__
-   grid.Grid.__init_var_names__
+   grid.Grid.__init_ds_var_names__
    grid.Grid.__from_file__
    grid.Grid.__from_vert__
 

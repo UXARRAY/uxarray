@@ -95,14 +95,3 @@ def determine_file_type(filepath):
             os._exit(0)
 
     return mesh_filetype
-
-
-def check_ugrid_cf_role(cf_role):
-    if cf_role == "mesh_topology":
-        mesh_filetype = "ugrid"
-    else:
-        print(
-            "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
-        )
-        exit()
-    return mesh_filetype
