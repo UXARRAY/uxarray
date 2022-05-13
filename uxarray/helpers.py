@@ -65,10 +65,9 @@ def determine_file_type(filepath):
                     if base_dv_mt != "" and base_dv_td != "" and base_dv_fc != "" and base_dv_nc != "":
                         mesh_filetype = "ugrid"
                     else:
-                        print(
+                        raise ValueError(
                             "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
                         )
-                        exit()
                 except KeyError as e:
                     msg = str(e) + ': {}'.format(filepath)
     except (TypeError, AttributeError) as e:
