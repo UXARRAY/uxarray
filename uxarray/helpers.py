@@ -46,23 +46,18 @@ def determine_file_type(filepath):
                     standard_name = lambda v: v is not None
                     # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
                     # return type KeysView
-                    base_dv_nc = list(
-                        xr.open_dataset(
-                            filepath, mask_and_scale=False).filter_by_attrs(
-                                node_coordinates=standard_name).keys())[0]
-                    base_dv_fc = list(
-                        xr.open_dataset(
-                            filepath, mask_and_scale=False).filter_by_attrs(
-                                face_node_connectivity=standard_name).keys())[0]
-                    base_dv_td = list(
-                        xr.open_dataset(
-                            filepath, mask_and_scale=False).filter_by_attrs(
-                                topology_dimension=standard_name).keys())[0]
-                    base_dv_mt = list(
-                        xr.open_dataset(filepath,
-                                        mask_and_scale=False).filter_by_attrs(
-                                            cf_role="mesh_topology").keys())[0]
-                    if base_dv_mt != "" and base_dv_td != "" and base_dv_fc != "" and base_dv_nc != "":
+                    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
+                    node_coords_dv = ext_ds.filter_by_attrs(
+                        node_coordinates=standard_name).keys()
+                    face_conn_dv = ext_ds.filter_by_attrs(
+                        face_node_connectivity=standard_name).keys()
+                    topo_dim_dv = ext_ds.filter_by_attrs(
+                        topology_dimension=standard_name).keys()
+                    mesh_topo_dv = ext_ds.filter_by_attrs(
+                        cf_role="mesh_topology").keys()
+                    if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[
+                            0] != "" and list(face_conn_dv)[0] != "" and list(
+                                node_coords_dv)[0] != "":
                         mesh_filetype = "ugrid"
                     else:
                         raise ValueError(
