@@ -30,20 +30,18 @@ def _to_ugrid(in_ds, out_ds):
         # Combine flat lat and lon arrays
         corner_lon_lat = np.vstack((corner_lon, corner_lat)).T
 
-        # Run numpy unique to determine which rows (i.e. node lon-lat's) are actually unique
+        # Run numpy unique to determine which rows/values are actually unique
         _, unq_ind, unq_inv = np.unique(corner_lon_lat,
                                         return_index=True,
                                         return_inverse=True,
                                         axis=0)
 
         # Now, calculate unique lon and lat values to account for 'Mesh2_node_x' and 'Mesh2_node_y'
-        unq_lon_lat = corner_lon_lat[unq_ind, :]
-        unq_lon = unq_lon_lat[:, 0]  # out_ds['Mesh2_node_x']
-        unq_lat = unq_lon_lat[:, 1]  # out_ds['Mesh2_node_y']
+        unq_lon = corner_lon_lat[unq_ind, :][:, 0]
+        unq_lat = corner_lon_lat[unq_ind, :][:, 1]
 
-        # Reshape face nodes array into original shape
-        unq_inv = np.reshape(unq_inv,
-                             corner_lat_xr.shape)  # out_ds['Mesh2_face_nodes']
+        # Reshape face nodes array into original shape for use in 'Mesh2_face_nodes'
+        unq_inv = np.reshape(unq_inv, corner_lat_xr.shape)
 
         # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
         out_ds['Mesh2_node_x'] = unq_lon
