@@ -23,48 +23,39 @@ def _to_ugrid(in_ds, out_ds):
         corner_lat_xr = in_ds['grid_corner_lat']
         corner_lat = corner_lat_xr.values.ravel()
 
-        # Return only the index of unique values of latitude data
-        lat_idx = np.unique(corner_lat, return_index=True)[1]
-        sort_lat = sorted(lat_idx)
-
         # Repeat above steps with longitude data instead
         corner_lon_xr = in_ds['grid_corner_lon']
         corner_lon = corner_lon_xr.values.ravel()
 
-        lon_idx = np.unique(corner_lon, return_index=True)[1]
-        sort_lon = sorted(lon_idx)
+        # Combine flat lat and lon arrays
+        corner_lon_lat = np.vstack((corner_lon, corner_lat)).T
 
-        # Combine lists of indexes to be used between both lat and lon coords
-        indexes = np.concatenate((sort_lon, sort_lat))
-        sort_idx = sorted(indexes)
-        unique_idx = np.unique(sort_idx)
+        # Run numpy unique to determine which rows (i.e. node lon-lat's) are actually unique
+        _, unq_ind, unq_inv = np.unique(corner_lon_lat,
+                                        return_index=True,
+                                        return_inverse=True,
+                                        axis=0)
 
-        # Create array for the sorted unique lat/lon values
-        unique_lon = corner_lon[unique_idx]
-        unique_lat = corner_lat[unique_idx]
+        # Now, calculate unique lon and lat values to account for 'Mesh2_node_x' and 'Mesh2_node_y'
+        unq_lon_lat = corner_lon_lat[unq_ind, :]
+        unq_lon = unq_lon_lat[:, 0]  # out_ds['Mesh2_node_x']
+        unq_lat = unq_lon_lat[:, 1]  # out_ds['Mesh2_node_y']
+
+        # Reshape face nodes array into original shape
+        unq_inv = np.reshape(unq_inv,
+                             corner_lat_xr.shape)  # out_ds['Mesh2_face_nodes']
 
         # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
-        out_ds['Mesh2_node_x'] = unique_lon
-        out_ds['Mesh2_node_y'] = unique_lat
+        out_ds['Mesh2_node_x'] = unq_lon
+        out_ds['Mesh2_node_y'] = unq_lat
 
         # Create Mesh2_face_x/y from grid_center_lat/lon
         out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
         out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
 
-        # Create array using matching grid corners to create face nodes
-        # find max face nodes
-        max_face_nodes = 0
-        for dim in in_ds.dims:
-            if "grid_corners" in dim:
-                if in_ds.dims[dim] > max_face_nodes:
-                    max_face_nodes = in_ds.dims[dim]
-
-        # create an empty conn array for storing all blk face_nodes_data
-        conn = np.empty((len(unique_lon), max_face_nodes))
-
         # set the face nodes data compiled in "connect" section
         out_ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=(conn[:] - 1),
+            data=unq_inv,
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role":
@@ -132,3 +123,13 @@ def _read_scrip(file_path):
             "for more information on SCRIP Grid file formatting")
 
     return ds
+
+
+ne30 = '../test/meshfiles/outCSne30.ug'
+ne8 = '../test/meshfiles/outCSne8.nc'
+
+ds_ne30 = xr.open_dataset(ne30, decode_times=False,
+                          engine='netcdf4')  # mesh2_node_x/y
+ds_ne8 = xr.open_dataset(ne8, decode_times=False,
+                         engine='netcdf4')  # grid_corner_lat/lon
+ds = _read_scrip(ne8)
