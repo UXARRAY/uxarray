@@ -123,13 +123,3 @@ def _read_scrip(file_path):
             "for more information on SCRIP Grid file formatting")
 
     return ds
-
-
-ne30 = '../test/meshfiles/outCSne30.ug'
-ne8 = '../test/meshfiles/outCSne8.nc'
-
-ds_ne30 = xr.open_dataset(ne30, decode_times=False,
-                          engine='netcdf4')  # mesh2_node_x/y
-ds_ne8 = xr.open_dataset(ne8, decode_times=False,
-                         engine='netcdf4')  # grid_corner_lat/lon
-ds = _read_scrip(ne8)
