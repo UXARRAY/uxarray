@@ -1,4 +1,3 @@
-import math
 import numpy as np
 import xarray as xr
 from pathlib import PurePath
@@ -101,9 +100,9 @@ def determine_file_type(filepath):
 
 def spherical_to_cartesian_unit(lat, lon, r=6371):
     lat, lon = np.deg2rad(lat), np.deg2rad(lon)
-    x = r * math.cos(lat) * math.cos(lon)  # x coordinate
-    y = r * math.cos(lat) * math.sin(lon)  # y coordinate
-    z = r * math.sin(lat)  # z coordinate
+    x = r * np.cos(lat) * np.cos(lon)  # x coordinate
+    y = r * np.cos(lat) * np.sin(lon)  # y coordinate
+    z = r * np.sin(lat)  # z coordinate
 
     coord = np.array([x, y, z])
     # make it coord on a sphere with unit radius
@@ -128,9 +127,9 @@ def spherical_to_cartesian_unit(node, r=6371):
     lat = node[0]
     lon = node[1]
     lat, lon = np.deg2rad(lat), np.deg2rad(lon)
-    x = r * math.cos(lat) * math.cos(lon)  # x coordinate
-    y = r * math.cos(lat) * math.sin(lon)  # y coordinate
-    z = r * math.sin(lat)  # z coordinate
+    x = r * np.cos(lat) * np.cos(lon)  # x coordinate
+    y = r * np.cos(lat) * np.sin(lon)  # y coordinate
+    z = r * np.sin(lat)  # z coordinate
 
     coord = np.array([x, y, z])
     # make it coord on a sphere with unit radius
@@ -188,54 +187,49 @@ def calculate_face_area(x, y, z, type="spherical"):
 
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     """Helper function for calculating face area."""
-    dF = [(1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
+    dF = np.array([(1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
           (1.0 - dB) * ((1.0 - dA) * node1[1] + dA * node2[1]) + dB * node3[1],
-          (1.0 - dB) * ((1.0 - dA) * node1[2] + dA * node2[2]) + dB * node3[2]]
+          (1.0 - dB) * ((1.0 - dA) * node1[2] + dA * node2[2]) + dB * node3[2]])
 
-    dDaF = [(1.0 - dB) * (node2[0] - node1[0]),
+    dDaF = np.array([(1.0 - dB) * (node2[0] - node1[0]),
             (1.0 - dB) * (node2[1] - node1[1]),
-            (1.0 - dB) * (node2[2] - node1[2])]
+            (1.0 - dB) * (node2[2] - node1[2])])
 
-    dDbF = [
+    dDbF = np.array([
         -(1.0 - dA) * node1[0] - dA * node2[0] + node3[0],
         -(1.0 - dA) * node1[1] - dA * node2[1] + node3[1],
         -(1.0 - dA) * node1[2] - dA * node2[2] + node3[2]
-    ]
+    ])
 
-    dInvR = 1.0 / math.sqrt(dF[0] * dF[0] + dF[1] * dF[1] + dF[2] * dF[2])
+    dInvR = 1.0 / np.sqrt(dF[0] * dF[0] + dF[1] * dF[1] + dF[2] * dF[2])
 
-    dDaG = [
+    dDaG = np.array([
         dDaF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
         (dDaF[1] * dF[1] + dDaF[2] * dF[2]),
         dDaF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
         (dDaF[0] * dF[0] + dDaF[2] * dF[2]),
         dDaF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
         (dDaF[0] * dF[0] + dDaF[1] * dF[1])
-    ]
+    ])
 
-    dDbG = [
+    dDbG = np.array([
         dDbF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
         (dDbF[1] * dF[1] + dDbF[2] * dF[2]),
         dDbF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
         (dDbF[0] * dF[0] + dDbF[2] * dF[2]),
         dDbF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
         (dDbF[0] * dF[0] + dDbF[1] * dF[1])
-    ]
+    ])
 
     dDenomTerm = dInvR * dInvR * dInvR
 
-    dDaG[0] *= dDenomTerm
-    dDaG[1] *= dDenomTerm
-    dDaG[2] *= dDenomTerm
-
-    dDbG[0] *= dDenomTerm
-    dDbG[1] *= dDenomTerm
-    dDbG[2] *= dDenomTerm
+    dDaG *= dDenomTerm
+    dDbG *= dDenomTerm
 
     #  Cross product gives local Jacobian
     nodeCross = cross(dDaG, dDbG)
     # print("nc", nodeCross)
-    dJacobian = math.sqrt(nodeCross[0] * nodeCross[0] +
+    dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] +
                           nodeCross[1] * nodeCross[1] +
                           nodeCross[2] * nodeCross[2])
 
