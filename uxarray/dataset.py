@@ -19,7 +19,7 @@ def open_dataset(grid_filename, *args):
     -------
 
     object : xarray Dataset
-        Contains the grid and corresponding data
+        uxarray grid object: Contains the grid and corresponding data
 
     Examples
     --------

@@ -25,9 +25,14 @@ class TestIntegrate(TestCase):
                           [-0.57735027, 5.77350269e-01, -0.57735027]])
         vgrid = ux.Grid(verts)
 
-        vgrid.ds.Mesh2_node_x.attrs["units"] = "cartesian"
-        vgrid.ds.Mesh2_node_y.attrs["units"] = "cartesian"
-        vgrid.ds.Mesh2_node_z.attrs["units"] = "cartesian"
+        # get node names for each grid object
+        x_var = vgrid.ds_var_names["Mesh2_node_x"]
+        y_var = vgrid.ds_var_names["Mesh2_node_y"]
+        z_var = vgrid.ds_var_names["Mesh2_node_z"]
+
+        vgrid.ds[x_var].attrs["units"] = "cartesian"
+        vgrid.ds[y_var].attrs["units"] = "cartesian"
+        vgrid.ds[z_var].attrs["units"] = "cartesian"
 
         area = vgrid.calculate_total_face_area()
 
@@ -45,8 +50,8 @@ class TestIntegrate(TestCase):
     def test_integrate(self):
         uds = ux.open_dataset(mesh_file30, data_file30, data_file30_v2)
 
-        integral_psi = uds.ds.integrate("psi")
-        integral_var2 = uds.ds.integrate("var2")
+        integral_psi = uds.integrate("psi")
+        integral_var2 = uds.integrate("var2")
 
         nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
         nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)

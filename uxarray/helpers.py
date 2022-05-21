@@ -229,25 +229,10 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     dDbG *= dDenomTerm
 
     #  Cross product gives local Jacobian
-    nodeCross = cross(dDaG, dDbG)
+    nodeCross = np.cross(dDaG, dDbG)
     # print("nc", nodeCross)
     dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] +
                         nodeCross[1] * nodeCross[1] +
                         nodeCross[2] * nodeCross[2])
 
     return dJacobian
-
-
-def cross(a, b):
-    """Cross product of 3D vector a and b."""
-    c = [0] * 3
-    c[0] = a[1] * b[2] - a[2] * b[1]
-    c[1] = a[2] * b[0] - a[0] * b[2]
-    c[2] = a[0] * b[1] - a[1] * b[0]
-    return c
-
-
-def dot(a, b):
-    """Dot product of 3D vector a and b."""
-    c = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-    return c
