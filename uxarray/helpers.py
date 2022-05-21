@@ -187,13 +187,15 @@ def calculate_face_area(x, y, z, type="spherical"):
 
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     """Helper function for calculating face area."""
-    dF = np.array([(1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
-          (1.0 - dB) * ((1.0 - dA) * node1[1] + dA * node2[1]) + dB * node3[1],
-          (1.0 - dB) * ((1.0 - dA) * node1[2] + dA * node2[2]) + dB * node3[2]])
+    dF = np.array([
+        (1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
+        (1.0 - dB) * ((1.0 - dA) * node1[1] + dA * node2[1]) + dB * node3[1],
+        (1.0 - dB) * ((1.0 - dA) * node1[2] + dA * node2[2]) + dB * node3[2]
+    ])
 
     dDaF = np.array([(1.0 - dB) * (node2[0] - node1[0]),
-            (1.0 - dB) * (node2[1] - node1[1]),
-            (1.0 - dB) * (node2[2] - node1[2])])
+                     (1.0 - dB) * (node2[1] - node1[1]),
+                     (1.0 - dB) * (node2[2] - node1[2])])
 
     dDbF = np.array([
         -(1.0 - dA) * node1[0] - dA * node2[0] + node3[0],
@@ -230,8 +232,8 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     nodeCross = cross(dDaG, dDbG)
     # print("nc", nodeCross)
     dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] +
-                          nodeCross[1] * nodeCross[1] +
-                          nodeCross[2] * nodeCross[2])
+                        nodeCross[1] * nodeCross[1] +
+                        nodeCross[2] * nodeCross[2])
 
     return dJacobian
 
