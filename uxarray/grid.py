@@ -2,7 +2,6 @@
 import os
 import xarray as xr
 import numpy as np
-import math
 from warnings import warn
 from pathlib import PurePath
 
@@ -220,12 +219,18 @@ class Grid:
             x = []
             y = []
             z = []
-            for j in range(len(self.ds.Mesh2_face_nodes[i])):
-                node_id = self.ds.Mesh2_face_nodes.data[i][j]
-                x.append(self.ds.Mesh2_node_x.data[node_id])
-                y.append(self.ds.Mesh2_node_y.data[node_id])
+
+            face_node_var = self.ds_var_names["Mesh2_face_nodes"]
+            node_x_var = self.ds_var_names["Mesh2_node_x"]
+            node_y_var = self.ds_var_names["Mesh2_node_y"]
+
+            for j in range(len(self.ds[face_node_var][i])):
+                node_id = self.ds[face_node_var].data[i][j]
+                x.append(self.ds[node_x_var].data[node_id])
+                y.append(self.ds[node_y_var].data[node_id])
                 if self.ds.Mesh2.topology_dimension > 2:
-                    z.append(self.ds.Mesh2_node_z.data[node_id])
+                    node_z_var = self.ds_var_names["Mesh2_node_z"]
+                    z.append(self.ds[node_z_var].data[node_id])
                 else:
                     z.append(0)
 
