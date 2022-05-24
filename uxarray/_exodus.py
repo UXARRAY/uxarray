@@ -123,6 +123,7 @@ def _read_exodus(filepath, ds_var_names):
 
             # concatenate to the previous blk
             conn = np.concatenate((conn, tmp_conn))
+            conn = conn.astype(int)
             # find the elem_type as etype for this element
             for k, v in value.attrs.items():
                 if k == "elem_type":

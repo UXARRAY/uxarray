@@ -300,7 +300,7 @@ class Grid:
         Open grid file along with data
         >>> integral_psi = grid.integrate("psi")
         """
-        integral = 0
+        integral = 0.0
 
         # area of a face call needs the units for coordinate conversion if spherical grid is used
         units = "spherical"

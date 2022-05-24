@@ -118,8 +118,8 @@ def spherical_to_cartesian_unit(node, r=6371):
     Returns: numpy array
         Cartesian coordinates of length 3
     """
-    lat = node[0]
-    lon = node[1]
+    lon = node[0]
+    lat = node[1]
     lat, lon = np.deg2rad(lat), np.deg2rad(lon)
     x = r * np.cos(lat) * np.cos(lon)  # x coordinate
     y = r * np.cos(lat) * np.sin(lon)  # y coordinate
