@@ -133,7 +133,7 @@ def spherical_to_cartesian_unit(node, r=6371):
 
 
 # Calculate the area of all faces.
-def calculate_face_area(x, y, z, type="spherical"):
+def calculate_face_area(x, y, z, coords_type="spherical"):
     """Calculate area of a face on sphere.
 
     Parameters
@@ -148,7 +148,7 @@ def calculate_face_area(x, y, z, type="spherical"):
     z : list, required
         z-coordinate of all the nodes forming the face
 
-    type : str, optional
+    coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
     """
     area = 0  # set area to 0
@@ -165,7 +165,7 @@ def calculate_face_area(x, y, z, type="spherical"):
         node1 = [x[0], y[0], z[0]]
         node2 = [x[j + 1], y[j + 1], z[j + 1]]
         node3 = [x[j + 2], y[j + 2], z[j + 2]]
-        if (type == "spherical"):
+        if (coords_type == "spherical"):
             node1 = spherical_to_cartesian_unit(node1)
             node2 = spherical_to_cartesian_unit(node2)
             node3 = spherical_to_cartesian_unit(node3)
