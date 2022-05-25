@@ -117,7 +117,7 @@ class Grid:
 
         # set default coordinate units to spherical coordinates
         # users can change to cartesian if using cartesian for initialization
-        x_units = "degees_east"
+        x_units = "degrees_east"
         y_units = "degrees_north"
         if self.vertices[0].size > 2:
             z_units = "elevation"
@@ -208,12 +208,12 @@ class Grid:
     def calculate_total_face_area(self):
         """Function to calculate the total surface area of all the faces in a
         mesh."""
-        total_face_area = 0
+        total_face_area = 0.0
 
-        # get the coordinate units
-        units = "spherical"
+        # determine the coordinates type
+        coords_type = "spherical"
         if not "degree" in self.ds.Mesh2_node_x.units:
-            units = "cartesian"
+            coords_type = "cartesian"
 
         for i in range(self.ds.nMesh2_face.size):
             x = []
@@ -225,16 +225,16 @@ class Grid:
             node_y_var = self.ds_var_names["Mesh2_node_y"]
 
             for j in range(len(self.ds[face_node_var][i])):
-                node_id = self.ds[face_node_var].data[i][j]
-                x.append(self.ds[node_x_var].data[node_id])
-                y.append(self.ds[node_y_var].data[node_id])
+                node_id = self.ds[face_node_var].item(i, j)
+                x.append(self.ds[node_x_var].item(node_id))
+                y.append(self.ds[node_y_var].item(node_id))
                 if self.ds.Mesh2.topology_dimension > 2:
                     node_z_var = self.ds_var_names["Mesh2_node_z"]
                     z.append(self.ds[node_z_var].data[node_id])
                 else:
                     z.append(0)
 
-            total_face_area += calculate_face_area(x, y, z, units)
+            total_face_area += calculate_face_area(x, y, z, coords_type)
 
         return total_face_area
 

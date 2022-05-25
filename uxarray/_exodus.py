@@ -59,7 +59,7 @@ def _read_exodus(filepath, ds_var_names):
                 attrs={
                     "standard_name": "longitude",
                     "long_name": "longitude of mesh nodes",
-                    "units": "degress_east",
+                    "units": "degrees_east",
                 })
             ds["Mesh2_node_y"] = xr.DataArray(
                 data=ext_ds.coord[1],
@@ -85,7 +85,7 @@ def _read_exodus(filepath, ds_var_names):
                 attrs={
                     "standard_name": "longitude",
                     "long_name": "longitude of mesh nodes",
-                    "units": "degress_east",
+                    "units": "degrees_east",
                 })
         elif key == "coordy":
             ds["Mesh2_node_y"] = xr.DataArray(
