@@ -151,7 +151,7 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
     """
-    area = 0  # set area to 0
+    area = 0.0  # set area to 0
     order = 6
     dG, dW = get_gauss_quadratureDG(order)
 
