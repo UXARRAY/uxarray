@@ -20,12 +20,10 @@ def _to_ugrid(in_ds, out_ds):
 
         # Create Mesh2_node_x/y variables from grid_corner_lat/lon
         # Turn latitude scrip array into 1D instead of 2D
-        corner_lat_xr = in_ds['grid_corner_lat']
-        corner_lat = corner_lat_xr.values.ravel()
+        corner_lat = in_ds['grid_corner_lat'].values.ravel()
 
         # Repeat above steps with longitude data instead
-        corner_lon_xr = in_ds['grid_corner_lon']
-        corner_lon = corner_lon_xr.values.ravel()
+        corner_lon = in_ds['grid_corner_lon'].values.ravel()
 
         # Combine flat lat and lon arrays
         corner_lon_lat = np.vstack((corner_lon, corner_lat)).T
@@ -41,7 +39,8 @@ def _to_ugrid(in_ds, out_ds):
         unq_lat = corner_lon_lat[unq_ind, :][:, 1]
 
         # Reshape face nodes array into original shape for use in 'Mesh2_face_nodes'
-        unq_inv = np.reshape(unq_inv, corner_lat_xr.shape)
+        unq_inv = np.reshape(unq_inv,
+                             (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
         # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
         out_ds['Mesh2_node_x'] = unq_lon
