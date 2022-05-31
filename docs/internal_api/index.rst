@@ -31,3 +31,5 @@ Grid Helper Modules
    _exodus._get_element_type
    _ugrid._write_ugrid
    _ugrid._read_ugrid
+   _scrip._read_scrip
+   _scrip._to_ugrid
