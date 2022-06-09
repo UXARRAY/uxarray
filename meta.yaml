@@ -28,6 +28,8 @@ test:
   source_files:
     - test
   requires:
+    - dask
+    - netcdf4
     - pytest
   imports:
     - uxarray
