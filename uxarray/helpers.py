@@ -211,7 +211,6 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
 
     #  Cross product gives local Jacobian
     nodeCross = np.cross(dDaG, dDbG)
-    # print("nc", nodeCross)
     dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] +
                         nodeCross[1] * nodeCross[1] +
                         nodeCross[2] * nodeCross[2])
