@@ -108,22 +108,14 @@ def _read_exodus(filepath, ds_var_names):
                     })
         elif "connect" in key:
             # check if num face nodes is less than max.
-            if value.data.shape[1] < max_face_nodes:
-                # create a temporary array to store connectivity
-                tmp_conn = np.empty((value.data.shape[0], max_face_nodes))
-                tmp_conn.fill(
-                    0
-                )  # exodus in 1-based, fill with zeros here; during assignment subtract 1
-                tmp_conn[:value.data.shape[0], :value.data.
-                         shape[1]] = value.data
-            elif value.data.shape[1] == max_face_nodes:
-                tmp_conn = value.data
+            if value.data.shape[1] <= max_face_nodes:
+                conn = np.full((value.data.shape[1], max_face_nodes),
+                               0,
+                               dtype=conn.dtype)
+                conn = value.data
             else:
                 raise "found face_nodes_dim greater than nMaxMesh2_face_nodes"
 
-            # concatenate to the previous blk
-            conn = np.concatenate((conn, tmp_conn))
-            conn = conn.astype(int)
             # find the elem_type as etype for this element
             for k, v in value.attrs.items():
                 if k == "elem_type":

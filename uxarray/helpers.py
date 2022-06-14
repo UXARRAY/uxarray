@@ -92,19 +92,6 @@ def determine_file_type(filepath):
     return mesh_filetype
 
 
-def spherical_to_cartesian_unit(lat, lon, r=6371):
-    lat, lon = np.deg2rad(lat), np.deg2rad(lon)
-    x = r * np.cos(lat) * np.cos(lon)  # x coordinate
-    y = r * np.cos(lat) * np.sin(lon)  # y coordinate
-    z = r * np.sin(lat)  # z coordinate
-
-    coord = np.array([x, y, z])
-    # make it coord on a sphere with unit radius
-    unit_coord = coord / np.linalg.norm(coord)
-
-    return unit_coord
-
-
 def spherical_to_cartesian_unit(node, r=6371):
     """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
 

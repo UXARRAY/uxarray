@@ -113,19 +113,12 @@ class Grid:
             })
         self.ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
 
-        # if type == "spherical":
-
         # set default coordinate units to spherical coordinates
         # users can change to cartesian if using cartesian for initialization
         x_units = "degrees_east"
         y_units = "degrees_north"
         if self.vertices[0].size > 2:
             z_units = "elevation"
-        # elif type == "cartesian":
-        # x_units = "cartesian unit"
-        # y_units = "cartesian unit"
-        # if self.vertices[0].size > 2:
-        #     z_units = "cartesian unit"
 
         x_coord = self.vertices.transpose()[0]
         y_coord = self.vertices.transpose()[1]
@@ -332,5 +325,4 @@ class Grid:
 
             integral += face_area * face_val
 
-        # print("Integral of ", var_key, " over the surface is ", integral)
         return integral
