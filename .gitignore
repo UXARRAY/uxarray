@@ -89,9 +89,6 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-#Pytest Ouput [need to be reverted later]
-./test
-
 # Translations
 *.mo
 *.pot
