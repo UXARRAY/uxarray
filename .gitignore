@@ -141,3 +141,6 @@ test/dask-worker-space/
 /dask-worker-space/
 .vscode/
 generated/
+*.g
+*.ug
+*.exo

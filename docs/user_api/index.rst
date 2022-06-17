@@ -31,4 +31,3 @@ Helper Functions
 
    determine_file_type
    calculate_face_area
-   spherical_to_cartesian_unit

@@ -92,7 +92,7 @@ def determine_file_type(filepath):
     return mesh_filetype
 
 
-def spherical_to_cartesian_unit(node, r=6371):
+def _spherical_to_cartesian_unit_(node, r=6371):
     """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
 
     Final output is cartesian coordinates on a sphere of unit radius
@@ -153,9 +153,9 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
         node2 = [x[j + 1], y[j + 1], z[j + 1]]
         node3 = [x[j + 2], y[j + 2], z[j + 2]]
         if (coords_type == "spherical"):
-            node1 = spherical_to_cartesian_unit(node1)
-            node2 = spherical_to_cartesian_unit(node2)
-            node3 = spherical_to_cartesian_unit(node3)
+            node1 = _spherical_to_cartesian_unit_(node1)
+            node2 = _spherical_to_cartesian_unit_(node2)
+            node3 = _spherical_to_cartesian_unit_(node3)
         for p in range(len(dW)):
             for q in range(len(dW)):
                 dA = dG[p]
@@ -167,7 +167,27 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
 
 
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
-    """Helper function for calculating face area."""
+    """Calculate Jacobian of a spherical triangle. This is a helper function
+    for calculating face area.
+
+    Parameters
+    ----------
+
+    node1 : list, required
+        First node of the triangle
+
+    node1 : list, required
+        Second node of the triangle
+
+    node3 : list, required
+        Third node of the triangle
+
+    dA : double, required
+        quadrature point
+
+    dB : double, required
+        quadrature point
+    """
     dF = np.array([
         (1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
         (1.0 - dB) * ((1.0 - dA) * node1[1] + dA * node2[1]) + dB * node3[1],
