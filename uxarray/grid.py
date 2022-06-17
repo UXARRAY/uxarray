@@ -301,28 +301,33 @@ class Grid:
             units = "cartesian"
 
         num_faces = self.ds.get(var_key).data.size
+
+        x = np.zeros((num_faces, self.ds.Mesh2_face_nodes.shape[1]))
+        y = np.zeros((num_faces, self.ds.Mesh2_face_nodes.shape[1]))
+        z = np.zeros((num_faces, self.ds.Mesh2_face_nodes.shape[1]))
+
         for i in range(num_faces):
-            x = []
-            y = []
-            z = []
+
             for j in range(len(self.ds.Mesh2_face_nodes[i])):
                 node_id = self.ds.Mesh2_face_nodes.data[i][j]
 
-                x.append(
-                    self.ds[self.ds_var_names["Mesh2_node_x"]].data[node_id])
-                y.append(
-                    self.ds[self.ds_var_names["Mesh2_node_y"]].data[node_id])
+                x[i][j] = self.ds[
+                    self.ds_var_names["Mesh2_node_x"]].data[node_id]
+                y[i][j] = self.ds[
+                    self.ds_var_names["Mesh2_node_y"]].data[node_id]
+
+                # check if z dimension
                 if self.ds.Mesh2.topology_dimension > 2:
-                    z.append(self.ds[
+                    z[i][j] = (self.ds[
                         self.ds_var_names["Mesh2_node_z"]].data[node_id])
-                else:
-                    z.append(0)
 
             # After getting all the nodes of a face assembled call the  cal. face area routine
-            face_area = calculate_face_area(x, y, z, units)
+            face_area = calculate_face_area(x[i], y[i], z[i], units)
             # get the value from the data file
             face_val = self.ds.get(var_key).to_numpy().data[i]
 
             integral += face_area * face_val
+
+            print(f'Face {i} integral: {integral}')
 
         return integral
