@@ -328,6 +328,4 @@ class Grid:
 
             integral += face_area * face_val
 
-            print(f'Face {i} integral: {integral}')
-
         return integral
