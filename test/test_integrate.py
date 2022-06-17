@@ -6,7 +6,11 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
-from . import constants
+
+try:
+    import constants
+except ImportError:
+    from . import constants
 
 # Data files
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
