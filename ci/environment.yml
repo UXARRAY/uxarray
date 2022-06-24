@@ -4,6 +4,7 @@ channels:
 dependencies:
   - dask
   - netcdf4
+  - numba
   - pathlib
   - pre_commit
   - pytest

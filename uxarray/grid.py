@@ -11,6 +11,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import determine_file_type, calculate_face_area
+from numba import njit
 
 
 class Grid:
@@ -201,7 +202,8 @@ class Grid:
     def calculate_total_face_area(self):
         """Function to calculate the total surface area of all the faces in a
         mesh."""
-        total_face_area = 0.0
+
+        total_face_area = np.float64(0.0)
 
         # determine the coordinates type
         coords_type = "spherical"

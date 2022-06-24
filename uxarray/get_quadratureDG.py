@@ -1,6 +1,8 @@
 import numpy as np
+from numba import njit
 
 
+@njit
 def get_gauss_quadratureDG(nCount):
     """Gauss Quadrature Points for integration.
 
@@ -129,9 +131,9 @@ def get_gauss_quadratureDG(nCount):
             0.0666713443086881
         ])
 
-    else:
-        msg = "quadrature order 1 to 10 is supported: ", nCount, " is invalid\n"
-        raise ValueError(msg)
+    # else:
+    #     msg = "quadrature order 1 to 10 is supported: ", nCount, " is invalid\n"
+    #     raise ValueError(msg)
 
     # Scale quadrature points
     dXi0 = 0.0

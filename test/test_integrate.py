@@ -54,8 +54,8 @@ class TestIntegrate(TestCase):
     def test_integrate(self):
         uds = ux.open_dataset(mesh_file30, data_file30, data_file30_v2)
 
-        integral_psi = uds.integrate("psi")
-        integral_var2 = uds.integrate("var2")
+        integral_psi = uds.integrate_0("psi")
+        integral_var2 = uds.integrate_0("var2")
 
         nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
         nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
