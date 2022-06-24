@@ -100,7 +100,7 @@ Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 [rtd-link]: https://uxarray.readthedocs.io/en/latest/?badge=latest
 [pypi-badge]: https://img.shields.io/pypi/v/uxarray?logo=pypi&style=for-the-badge
 [pypi-link]: https://pypi.org/project/uxarray
-[conda-badge]: https://img.shields.io/conda/vn/UXARRAY/uxarray?logo=anaconda&style=for-the-badge
+[conda-badge]: https://img.shields.io/conda/vn/conda-forge/uxarray
 [conda-link]: https://anaconda.org/conda-forge/uxarray
 [license-badge]: https://img.shields.io/github/license/UXARRAY/uxarray?style=for-the-badge
 [doi-badge]: https://zenodo.org/badge/421447986.svg
