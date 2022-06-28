@@ -10,4 +10,5 @@ dependencies:
   - pytest
   - pytest-cov
   - python
+  - scipy
   - xarray
