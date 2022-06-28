@@ -195,6 +195,11 @@ def get_all_face_area(x, y, z, face_nodes, dim, coords_type="spherical"):
 
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
+
+    Returns
+    -------
+
+    ndarray: area of all faces as a numpy array
     """
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
