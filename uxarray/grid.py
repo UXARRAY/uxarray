@@ -12,6 +12,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import determine_file_type, get_all_face_area
 
+
 class Grid:
     """The Uxarray Grid object class that describes an unstructured grid.
 
