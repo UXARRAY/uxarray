@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from pathlib import PurePath
 
-from .get_quadratureDG import get_gauss_quadratureDG
+from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit
 
 
@@ -142,8 +142,10 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
         coordinate type, default is spherical, can be cartesian also.
     """
     area = 0.0  # set area to 0
-    order = 6
+    order = 5
+
     dG, dW = get_gauss_quadratureDG(order)
+    # dG, dW = get_tri_quadratureDG(order)
 
     num_nodes = len(x)
 
@@ -166,6 +168,58 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
                 jacobian = calculate_spherical_triangle_jacobian(
                     node1, node2, node3, dA, dB)
                 area += dW[p] * dW[q] * jacobian
+    return area
+
+
+@njit
+def get_all_face_area(x, y, z, face_nodes, dim, coords_type="spherical"):
+    """Loop over all faces and return an numpy array with areas of each face.
+
+    Parameters
+    ----------
+
+    x : ndarray, required
+        x-coordinate of all the nodes
+
+    y : ndarray, required
+        y-coordinate of all the nodes
+
+    z : ndarray, required
+        z-coordinate of all the nodes
+
+    face_nodes : 2D ndarray, required
+         node ids of each face
+
+    dim : int, required
+         dimension
+
+    coords_type : str, optional
+        coordinate type, default is spherical, can be cartesian also.
+    """
+    num_faces = face_nodes.shape[0]
+    area = np.zeros(num_faces)  # set area of each face to 0
+
+    for i in range(num_faces):
+
+        num_face_nodes = len(face_nodes[i])
+        face_x = np.zeros(num_face_nodes)
+        face_y = np.zeros(num_face_nodes)
+        face_z = np.zeros(num_face_nodes)
+
+        for j in range(num_face_nodes):
+            node_id = face_nodes[i][j]
+
+            face_x[j] = x[node_id]
+            face_y[j] = y[node_id]
+
+            # check if z dimension
+            if dim > 2:
+                face_z[j] = z[node_id]
+
+        # After getting all the nodes of a face assembled call the  cal. face area routine
+        face_area = calculate_face_area(face_x, face_y, face_z, coords_type)
+        area[i] = face_area
+
     return area
 
 
