@@ -94,7 +94,7 @@ def determine_file_type(filepath):
 
 
 @njit
-def spherical_to_cartesian_unit(node, r=6371):
+def _spherical_to_cartesian_unit_(node, r=6371):
     """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
 
     Final output is cartesian coordinates on a sphere of unit radius
