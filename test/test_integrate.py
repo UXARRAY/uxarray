@@ -6,7 +6,11 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
-from . import constants
+
+try:
+    import constants
+except ImportError:
+    from . import constants
 
 # Data files
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -30,9 +34,9 @@ class TestIntegrate(TestCase):
         y_var = vgrid.ds_var_names["Mesh2_node_y"]
         z_var = vgrid.ds_var_names["Mesh2_node_z"]
 
-        vgrid.ds[x_var].attrs["units"] = "cartesian"
-        vgrid.ds[y_var].attrs["units"] = "cartesian"
-        vgrid.ds[z_var].attrs["units"] = "cartesian"
+        vgrid.ds[x_var].attrs["units"] = "m"
+        vgrid.ds[y_var].attrs["units"] = "m"
+        vgrid.ds[z_var].attrs["units"] = "m"
 
         area = vgrid.calculate_total_face_area()
 

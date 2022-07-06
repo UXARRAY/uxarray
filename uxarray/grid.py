@@ -10,7 +10,7 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
-from .helpers import determine_file_type, calculate_face_area
+from .helpers import determine_file_type, get_all_face_area
 
 
 class Grid:
@@ -61,6 +61,9 @@ class Grid:
         """
         # initialize internal variable names
         self.__init_ds_var_names__()
+
+        # initialize face_area variable
+        self._face_areas = None
 
         # TODO: fix when adding/exercising gridspec
         # unpacking args
@@ -201,35 +204,11 @@ class Grid:
     def calculate_total_face_area(self):
         """Function to calculate the total surface area of all the faces in a
         mesh."""
-        total_face_area = 0.0
 
-        # determine the coordinates type
-        coords_type = "spherical"
-        if not "degree" in self.ds.Mesh2_node_x.units:
-            coords_type = "cartesian"
+        # call function to get area of all the faces as a np array
+        face_areas = self.face_areas
 
-        for i in range(self.ds.nMesh2_face.size):
-            x = []
-            y = []
-            z = []
-
-            face_node_var = self.ds_var_names["Mesh2_face_nodes"]
-            node_x_var = self.ds_var_names["Mesh2_node_x"]
-            node_y_var = self.ds_var_names["Mesh2_node_y"]
-
-            for j in range(len(self.ds[face_node_var][i])):
-                node_id = self.ds[face_node_var].item(i, j)
-                x.append(self.ds[node_x_var].item(node_id))
-                y.append(self.ds[node_y_var].item(node_id))
-                if self.ds.Mesh2.topology_dimension > 2:
-                    node_z_var = self.ds_var_names["Mesh2_node_z"]
-                    z.append(self.ds[node_z_var].data[node_id])
-                else:
-                    z.append(0)
-
-            total_face_area += calculate_face_area(x, y, z, coords_type)
-
-        return total_face_area
+        return np.sum(face_areas)
 
     # Build the node-face connectivity array.
     def build_node_face_connectivity(self):
@@ -295,34 +274,55 @@ class Grid:
         """
         integral = 0.0
 
-        # area of a face call needs the units for coordinate conversion if spherical grid is used
-        units = "spherical"
-        if not "degree" in self.ds.Mesh2_node_x.units:
-            units = "cartesian"
+        # call function to get area of all the faces as a np array
+        face_areas = self.face_areas
 
-        num_faces = self.ds.get(var_key).data.size
-        for i in range(num_faces):
-            x = []
-            y = []
-            z = []
-            for j in range(len(self.ds.Mesh2_face_nodes[i])):
-                node_id = self.ds.Mesh2_face_nodes.data[i][j]
-
-                x.append(
-                    self.ds[self.ds_var_names["Mesh2_node_x"]].data[node_id])
-                y.append(
-                    self.ds[self.ds_var_names["Mesh2_node_y"]].data[node_id])
-                if self.ds.Mesh2.topology_dimension > 2:
-                    z.append(self.ds[
-                        self.ds_var_names["Mesh2_node_z"]].data[node_id])
-                else:
-                    z.append(0)
-
-            # After getting all the nodes of a face assembled call the  cal. face area routine
-            face_area = calculate_face_area(x, y, z, units)
-            # get the value from the data file
-            face_val = self.ds.get(var_key).to_numpy().data[i]
-
-            integral += face_area * face_val
+        face_vals = self.ds.get(var_key).to_numpy()
+        integral = np.dot(face_areas, face_vals)
 
         return integral
+
+    @property
+    def face_areas(self):
+        """ Face area calculation property for grid class, calculates area of all faces in the mesh
+        Returns
+        -------
+
+        ndarray: area of all the faces in the mesh.
+
+        Examples
+        --------
+
+        Open a uxarray grid file
+        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/outCSne30.ug")
+
+
+        Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
+        >>> a.face_areas
+        array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
+            0.00211174])
+        """
+        if self._face_areas is None:
+            # area of a face call needs the units for coordinate conversion if spherical grid is used
+            coords_type = "spherical"
+            if not "degree" in self.ds.Mesh2_node_x.units:
+                coords_type = "cartesian"
+
+            face_nodes = self.ds.Mesh2_face_nodes.data
+            dim = self.ds.Mesh2.attrs['topology_dimension']
+
+            # initialize z
+            z = np.zeros((self.ds.nMesh2_node.size))
+
+            # call func to cal face area of all nodes
+            x = self.ds[self.ds_var_names["Mesh2_node_x"]].data
+            y = self.ds[self.ds_var_names["Mesh2_node_y"]].data
+            # check if z dimension
+            if self.ds.Mesh2.topology_dimension > 2:
+                z = self.ds[self.ds_var_names["Mesh2_node_z"]].data
+
+            # call function to get area of all the faces as a np array
+            self._face_areas = get_all_face_area(x, y, z, face_nodes, dim,
+                                                 coords_type)
+
+        return self._face_areas
