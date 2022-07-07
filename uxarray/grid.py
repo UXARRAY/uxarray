@@ -10,7 +10,8 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
-from .helpers import determine_file_type, get_all_face_area
+from .helpers import determine_file_type
+from .helpers import get_all_face_area
 
 
 class Grid:
@@ -203,7 +204,13 @@ class Grid:
 
     def calculate_total_face_area(self):
         """Function to calculate the total surface area of all the faces in a
-        mesh."""
+        mesh.
+
+        Returns
+        -------
+
+        float: Sum of area of all the faces in the mesh
+        """
 
         # call function to get area of all the faces as a np array
         face_areas = self.face_areas
@@ -284,21 +291,24 @@ class Grid:
 
     @property
     def face_areas(self):
-        """ Face area calculation property for grid class, calculates area of all faces in the mesh
+        """Face area calculation property for grid class, calculates area of
+        all faces in the mesh.
+
         Returns
         -------
 
-        ndarray: area of all the faces in the mesh.
+        area of all the faces in the mesh. : ndarray
 
-        Examples
-        --------
+        Example
+        -------
 
         Open a uxarray grid file
+
         >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/outCSne30.ug")
 
-
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
-        >>> a.face_areas
+
+        >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
