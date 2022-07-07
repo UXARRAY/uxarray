@@ -43,6 +43,21 @@ class TestGrid(TestCase):
         face_filename = current_path / "meshfiles" / "1face.ug"
         vgrid.write(face_filename)
 
+    def test_init_ds_var_methods(self):
+        """Tests if accessing a variable though self.{NAME} is 
+        equivalent to doing self.ds[{NAME}]
+        """
+        # Variables in UGRID convention
+        grid = ux.open_dataset("meshfiles/outCSne30.ug")
+        self.assertEqual(grid.Mesh2_node_x, grid.ds['Mesh2_node_x'])
+        self.assertEqual(grid.Mesh2_node_y, grid.ds['Mesh2_node_y'])
+        self.assertEqual(grid.Mesh2_face_nodes, grid.ds['Mesh2_face_nodes'])
+
+        # Variables NOT in UGRID convention
+        grid = ux.open_dataset("meshfiles/grid.nc")
+        self.assertEqual(grid.Mesh2_node_x, grid.ds['mesh_node_x'])
+        self.assertEqual(grid.Mesh2_node_x, grid.ds['mesh_node_y'])
+        self.assertEqual(grid.Mesh2_face_nodes, grid.ds['mesh_face_nodes'])
 
 # TODO: Move to test_shpfile/scrip when implemented
 # use external package to read?
@@ -50,7 +65,7 @@ class TestGrid(TestCase):
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
-
+    
         shp_filename = current_path / "meshfiles" / "grid_fire.shp"
         tgrid = ux.Grid(str(shp_filename))
 

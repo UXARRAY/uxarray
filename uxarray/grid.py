@@ -97,6 +97,8 @@ class Grid:
         else:
             raise RuntimeError(data_arg + " is not a valid input type")
 
+        self.__init_ds_var_methods__()
+
     # vertices init
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
@@ -225,3 +227,35 @@ class Grid:
             "nMesh2_face": "nMesh2_face",
             "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
         }
+
+    def __init_ds_var_methods__(self):
+        """Initialize variables for directly accessing Coordinate and
+        Data variables through ugrid conventions
+
+        Examples
+        ----------
+        Initialize some Grid Object
+        >>> grid = ux.open_dataset(file_path)
+
+        Return Xarray Data Array
+        >>> x = grid.Mesh2_node_x      
+
+        Return Numpy Array
+        >>> x = grid.Mesh2_node_x.values
+        """
+    
+        # For Testing (caused other tests to fail)
+        if self.ds is None:
+            return
+
+        # Swap Keys & Values (Accessed with UGRID convention)
+        ds_ugrid_var_names = dict((k, v) for k,v in self.ds_var_names.items())
+      
+        for key, value in ds_ugrid_var_names.items():
+            # Ensure only present variables are set
+            if value in self.ds.data_vars or value in self.ds.coords:
+                setattr(self, key, self.ds[ds_ugrid_var_names[key]])
+
+
+        
+        
