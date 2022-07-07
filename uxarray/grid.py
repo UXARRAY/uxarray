@@ -299,8 +299,8 @@ class Grid:
 
         area of all the faces in the mesh. : ndarray
 
-        Example
-        -------
+        Examples
+        --------
 
         Open a uxarray grid file
 
