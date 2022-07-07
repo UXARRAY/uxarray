@@ -66,11 +66,6 @@ class TestGrid(TestCase):
         xr.testing.assert_equal(grid.Mesh2_face_nodes,
                                 grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
 
-        # Original and Standardized Attributes
-        # xr.testing.assert_equal(grid.mesh_node_x, grid.Mesh2_node_x)
-        # xr.testing.assert_equal(grid.mesh_node_y, grid.Mesh2_node_y)
-        # xr.testing.assert_equal(grid.mesh_face_nodes, grid.Mesh2_face_nodes)
-
 
 # TODO: Move to test_shpfile/scrip when implemented
 # use external package to read?
@@ -78,9 +73,9 @@ class TestGrid(TestCase):
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
-
-        shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-        tgrid = ux.Grid(str(shp_filename))
+        with self.assertRaises(RuntimeError):
+            shp_filename = current_path / "meshfiles" / "grid_fire.shp"
+            tgrid = ux.Grid(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file and write ugrid file."""

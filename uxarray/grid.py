@@ -245,10 +245,6 @@ class Grid:
         >>> x = grid.Mesh2_node_x
         """
 
-        # Ensure we have a Dataset
-        if self.ds is None:
-            return
-
         # Set UGRID standardized attribtues
         for key, value in self.ds_var_names.items():
             # Present Data Names
@@ -261,14 +257,3 @@ class Grid:
                 if value in self.ds.coords:
                     setattr(self, key, self.ds[value])
 
-        # # Set Original attribtues for non-UGRID names
-        # if self.ds_var_names.keys() != self.ds_var_names.items():
-        #     # Original Coordinate Names
-        #     if self.ds.coords is not None:
-        #         for value in self.ds.coords:
-        #             setattr(self, value, self.ds[value])
-
-        #     # Original Data Names
-        #     if self.ds.data_vars is not None:
-        #         for value in self.ds.data_vars:
-        #             setattr(self, value, self.ds[value])
