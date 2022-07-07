@@ -9,6 +9,7 @@ import uxarray as ux
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
+
 class TestGrid(TestCase):
 
     def test_read_ugrid_write_exodus(self):
@@ -43,22 +44,33 @@ class TestGrid(TestCase):
         vgrid.write(face_filename)
 
     def test_init_ds_var_methods(self):
-        """Tests if accessing a variable though self.{NAME} is 
-        equivalent to doing self.ds[{NAME}]
-        """
-        # Variables in UGRID convention
+        """Tests to see if accessing variables though set attribtues is equal
+        to using the dict."""
+        # Dataset with Variables in UGRID convention
         path = current_path / "meshfiles" / "outCSne30.ug"
         grid = ux.open_dataset(path)
-        xr.testing.assert_equal(grid.Mesh2_node_x, grid.ds['Mesh2_node_x'])
-        xr.testing.assert_equal(grid.Mesh2_node_y, grid.ds['Mesh2_node_y'])
-        xr.testing.assert_equal(grid.Mesh2_face_nodes, grid.ds['Mesh2_face_nodes'])
+        xr.testing.assert_equal(grid.Mesh2_node_x,
+                                grid.ds[grid.ds_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(grid.Mesh2_node_y,
+                                grid.ds[grid.ds_var_names["Mesh2_node_y"]])
+        xr.testing.assert_equal(grid.Mesh2_face_nodes,
+                                grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
 
-        # Variables NOT in UGRID convention
-        path = current_path / "meshfiles" / "grid.nc"
+        # Dataset with Variables NOT in UGRID convention
+        path = current_path / "meshfiles" / "mesh.nc"
         grid = ux.open_dataset(path)
-        xr.testing.assert_equal(grid.Mesh2_node_x, grid.ds['mesh_node_x'])
-        xr.testing.assert_equal(grid.Mesh2_node_y, grid.ds['mesh_node_y'])
-        xr.testing.assert_equal(grid.Mesh2_face_nodes, grid.ds['mesh_face_nodes'])
+        xr.testing.assert_equal(grid.Mesh2_node_x,
+                                grid.ds[grid.ds_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(grid.Mesh2_node_y,
+                                grid.ds[grid.ds_var_names["Mesh2_node_y"]])
+        xr.testing.assert_equal(grid.Mesh2_face_nodes,
+                                grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
+
+        # Original and Standardized Attributes
+        xr.testing.assert_equal(grid.mesh_node_x, grid.Mesh2_node_x)
+        xr.testing.assert_equal(grid.mesh_node_y, grid.Mesh2_node_y)
+        xr.testing.assert_equal(grid.mesh_face_nodes, grid.Mesh2_face_nodes)
+
 
 # TODO: Move to test_shpfile/scrip when implemented
 # use external package to read?
@@ -66,7 +78,7 @@ class TestGrid(TestCase):
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
-    
+
         shp_filename = current_path / "meshfiles" / "grid_fire.shp"
         tgrid = ux.Grid(str(shp_filename))
 

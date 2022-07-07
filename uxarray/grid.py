@@ -97,9 +97,9 @@ class Grid:
         else:
             raise RuntimeError(data_arg + " is not a valid input type")
 
-        self.__init_ds_var_methods__()
+        # initialize convenience attributes
+        self.__init_grid_var_attrs__()
 
-    # vertices init
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
         argument."""
@@ -228,33 +228,50 @@ class Grid:
             "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
         }
 
-    def __init_ds_var_methods__(self):
-        """Initialize variables for directly accessing Coordinate and
-        Data variables through ugrid conventions
+    def __init_grid_var_attrs__(self):
+        """Initialize attributes for directly accessing Coordinate and Data
+        variables through ugrid conventions and original names.
 
         Examples
         ----------
-        Initialize some Grid Object
-        >>> grid = ux.open_dataset(file_path)
+        Assuming the mesh node coordinates for longitude are stored with an input
+        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
+        dictionary with the key 'Mesh2_node_x'. In order to access it:
 
-        Return Xarray Data Array
-        >>> x = grid.Mesh2_node_x      
+        >>> x = grid.ds[]
 
-        Return Numpy Array
-        >>> x = grid.Mesh2_node_x.values
+        With the help of this function, we can directly access it through the
+        use of a standardized name (ugrid convention)
+        >>> x = grid.Mesh2_node_x
+
+        We can also access it through it's original variable name
+        >>> x = grid.mesh_node_x
         """
-    
-        # For Testing (caused other tests to fail)
+
+        # Ensure we have a Dataset
         if self.ds is None:
             return
 
-        # Swap Keys & Values (Accessed with UGRID convention) UGRID -> Orig
-        ds_ugrid_var_names = dict((k, v) for k,v in self.ds_var_names.items())
-      
-        for key, value in ds_ugrid_var_names.items():
-            # Ensure only present variables are set
-            if value in self.ds.data_vars or value in self.ds.coords:
-                setattr(self, key, self.ds[value])
+        # Set UGRID standardized attribtues
+        for key, value in self.ds_var_names.items():
+            # Present Data Names
+            if self.ds.data_vars is not None:
+                if value in self.ds.data_vars:
+                    setattr(self, key, self.ds[value])
 
+            # Present Coordinate Names
+            if self.ds.coords is not None:
+                if value in self.ds.coords:
+                    setattr(self, key, self.ds[value])
 
-        
+        # Set Original attribtues for non-UGRID names
+        if self.ds_var_names.keys() != self.ds_var_names.items():
+            # Original Coordinate Names
+            if self.ds.coords is not None:
+                for value in self.ds.coords:
+                    setattr(self, value, self.ds[value])
+
+            # Original Data Names
+            if self.ds.data_vars is not None:
+                for value in self.ds.data_vars:
+                    setattr(self, value, self.ds[value])
