@@ -230,7 +230,7 @@ class Grid:
 
     def __init_grid_var_attrs__(self):
         """Initialize attributes for directly accessing Coordinate and Data
-        variables through ugrid conventions and original names.
+        variables through ugrid conventions.
 
         Examples
         ----------
@@ -243,9 +243,6 @@ class Grid:
         With the help of this function, we can directly access it through the
         use of a standardized name (ugrid convention)
         >>> x = grid.Mesh2_node_x
-
-        We can also access it through it's original variable name
-        >>> x = grid.mesh_node_x
         """
 
         # Ensure we have a Dataset
@@ -264,14 +261,14 @@ class Grid:
                 if value in self.ds.coords:
                     setattr(self, key, self.ds[value])
 
-        # Set Original attribtues for non-UGRID names
-        if self.ds_var_names.keys() != self.ds_var_names.items():
-            # Original Coordinate Names
-            if self.ds.coords is not None:
-                for value in self.ds.coords:
-                    setattr(self, value, self.ds[value])
+        # # Set Original attribtues for non-UGRID names
+        # if self.ds_var_names.keys() != self.ds_var_names.items():
+        #     # Original Coordinate Names
+        #     if self.ds.coords is not None:
+        #         for value in self.ds.coords:
+        #             setattr(self, value, self.ds[value])
 
-            # Original Data Names
-            if self.ds.data_vars is not None:
-                for value in self.ds.data_vars:
-                    setattr(self, value, self.ds[value])
+        #     # Original Data Names
+        #     if self.ds.data_vars is not None:
+        #         for value in self.ds.data_vars:
+        #             setattr(self, value, self.ds[value])

@@ -67,9 +67,9 @@ class TestGrid(TestCase):
                                 grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
 
         # Original and Standardized Attributes
-        xr.testing.assert_equal(grid.mesh_node_x, grid.Mesh2_node_x)
-        xr.testing.assert_equal(grid.mesh_node_y, grid.Mesh2_node_y)
-        xr.testing.assert_equal(grid.mesh_face_nodes, grid.Mesh2_face_nodes)
+        # xr.testing.assert_equal(grid.mesh_node_x, grid.Mesh2_node_x)
+        # xr.testing.assert_equal(grid.mesh_node_y, grid.Mesh2_node_y)
+        # xr.testing.assert_equal(grid.mesh_face_nodes, grid.Mesh2_face_nodes)
 
 
 # TODO: Move to test_shpfile/scrip when implemented
