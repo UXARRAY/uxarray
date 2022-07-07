@@ -212,10 +212,10 @@ class Grid:
         float: Sum of area of all the faces in the mesh
         """
 
-        # call function to get area of all the faces as a np array
-        face_areas = self.face_areas
+        if self._face_areas is None:
+            self.calculate_each_face_area()
 
-        return np.sum(face_areas)
+        return np.sum(self._face_areas)
 
     # Build the node-face connectivity array.
     def build_node_face_connectivity(self):
@@ -281,16 +281,15 @@ class Grid:
         """
         integral = 0.0
 
-        # call function to get area of all the faces as a np array
-        face_areas = self.face_areas
+        if self._face_areas is None:
+            self.calculate_each_face_area()
 
         face_vals = self.ds.get(var_key).to_numpy()
-        integral = np.dot(face_areas, face_vals)
+        integral = np.dot(self._face_areas, face_vals)
 
         return integral
 
-    @property
-    def face_areas(self):
+    def calculate_each_face_area(self):
         """Face area calculation property for grid class, calculates area of
         all faces in the mesh.
 
@@ -308,7 +307,7 @@ class Grid:
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
-        >>> grid.face_areas
+        >>> grid.calculate_each_face_area
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
