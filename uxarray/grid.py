@@ -238,7 +238,7 @@ class Grid:
         name of 'mesh_node_x', we store this variable name in the `ds_var_names`
         dictionary with the key 'Mesh2_node_x'. In order to access it:
 
-        >>> x = grid.ds[]
+        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
 
         With the help of this function, we can directly access it through the
         use of a standardized name (ugrid convention)
