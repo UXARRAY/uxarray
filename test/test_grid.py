@@ -9,7 +9,6 @@ import uxarray as ux
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-
 class TestGrid(TestCase):
 
     def test_read_ugrid_write_exodus(self):
@@ -48,16 +47,18 @@ class TestGrid(TestCase):
         equivalent to doing self.ds[{NAME}]
         """
         # Variables in UGRID convention
-        grid = ux.open_dataset("meshfiles/outCSne30.ug")
-        self.assertEqual(grid.Mesh2_node_x, grid.ds['Mesh2_node_x'])
-        self.assertEqual(grid.Mesh2_node_y, grid.ds['Mesh2_node_y'])
-        self.assertEqual(grid.Mesh2_face_nodes, grid.ds['Mesh2_face_nodes'])
+        path = current_path / "meshfiles" / "outCSne30.ug"
+        grid = ux.open_dataset(path)
+        xr.testing.assert_equal(grid.Mesh2_node_x, grid.ds['Mesh2_node_x'])
+        xr.testing.assert_equal(grid.Mesh2_node_y, grid.ds['Mesh2_node_y'])
+        xr.testing.assert_equal(grid.Mesh2_face_nodes, grid.ds['Mesh2_face_nodes'])
 
         # Variables NOT in UGRID convention
-        grid = ux.open_dataset("meshfiles/grid.nc")
-        self.assertEqual(grid.Mesh2_node_x, grid.ds['mesh_node_x'])
-        self.assertEqual(grid.Mesh2_node_x, grid.ds['mesh_node_y'])
-        self.assertEqual(grid.Mesh2_face_nodes, grid.ds['mesh_face_nodes'])
+        path = current_path / "meshfiles" / "grid.nc"
+        grid = ux.open_dataset(path)
+        xr.testing.assert_equal(grid.Mesh2_node_x, grid.ds['mesh_node_x'])
+        xr.testing.assert_equal(grid.Mesh2_node_y, grid.ds['mesh_node_y'])
+        xr.testing.assert_equal(grid.Mesh2_face_nodes, grid.ds['mesh_face_nodes'])
 
 # TODO: Move to test_shpfile/scrip when implemented
 # use external package to read?

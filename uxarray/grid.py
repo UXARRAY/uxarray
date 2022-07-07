@@ -248,14 +248,13 @@ class Grid:
         if self.ds is None:
             return
 
-        # Swap Keys & Values (Accessed with UGRID convention)
+        # Swap Keys & Values (Accessed with UGRID convention) UGRID -> Orig
         ds_ugrid_var_names = dict((k, v) for k,v in self.ds_var_names.items())
       
         for key, value in ds_ugrid_var_names.items():
             # Ensure only present variables are set
             if value in self.ds.data_vars or value in self.ds.coords:
-                setattr(self, key, self.ds[ds_ugrid_var_names[key]])
+                setattr(self, key, self.ds[value])
 
 
-        
         
