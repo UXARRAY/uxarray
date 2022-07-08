@@ -256,4 +256,3 @@ class Grid:
             if self.ds.coords is not None:
                 if value in self.ds.coords:
                     setattr(self, key, self.ds[value])
-
