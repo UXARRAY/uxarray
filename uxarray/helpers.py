@@ -142,10 +142,10 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
         coordinate type, default is spherical, can be cartesian also.
     """
     area = 0.0  # set area to 0
-    order = 5
+    order = 4
 
-    dG, dW = get_gauss_quadratureDG(order)
-    # dG, dW = get_tri_quadratureDG(order)
+    # dG, dW = get_gauss_quadratureDG(order)
+    dG, dW = get_tri_quadratureDG(order)
 
     num_nodes = len(x)
 
@@ -162,12 +162,17 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
             node2 = _spherical_to_cartesian_unit_(node2)
             node3 = _spherical_to_cartesian_unit_(node3)
         for p in range(len(dW)):
-            for q in range(len(dW)):
-                dA = dG[p]
-                dB = dG[q]
-                jacobian = calculate_spherical_triangle_jacobian(
-                    node1, node2, node3, dA, dB)
-                area += dW[p] * dW[q] * jacobian
+            dA = dG[p][0]
+            dB = dG[p][1]
+            jacobian = calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, dB)
+            area += dW[p] * jacobian
+        #for p in range(len(dW)):
+        #    for q in range(len(dW)):
+        #        dA = dG[p]
+        #        dB = dG[q]
+        #        jacobian = calculate_spherical_triangle_jacobian(
+        #            node1, node2, node3, dA, dB)
+        #        area += dW[p] * dW[q] * jacobian
     return area
 
 
@@ -299,3 +304,75 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
                         nodeCross[2] * nodeCross[2])
 
     return dJacobian
+
+@njit
+def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, dB):
+ """Calculate Jacobian of a spherical triangle. This is a helper function
+    for calculating face area.
+
+    Parameters
+    ----------
+
+    node1 : list, required
+        First node of the triangle
+
+    node1 : list, required
+        Second node of the triangle
+
+    node3 : list, required
+        Third node of the triangle
+
+    dA : double, required
+        first component of barycentric coordinates of quadrature point
+
+    dB : double, required
+        second component of barycentric coordinates of quadrature point
+    """
+
+    dF = np.array([
+        dA * node1[0] + dB * node2[0] + (1.0 - dA - dB) * node3[0],
+        dA * node1[1] + dB * node2[1] + (1.0 - dA - dB) * node3[1],
+        dA * node1[2] + dB * node2[2] + (1.0 - dA - dB) * node3[2]
+    ])
+
+    dDaF = np.array([node1[0] - node3[0],
+                     node1[1] - node3[1],
+                     node1[2] - node3[2]])
+
+    dDaF = np.array([node2[0] - node3[0],
+                     node2[1] - node3[1],
+                     node2[2] - node3[2]])
+
+    dInvR = 1.0 / np.sqrt(dF[0] * dF[0] + dF[1] * dF[1] + dF[2] * dF[2])
+
+    dDaG = np.array([
+        dDaF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
+        (dDaF[1] * dF[1] + dDaF[2] * dF[2]),
+        dDaF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
+        (dDaF[0] * dF[0] + dDaF[2] * dF[2]),
+        dDaF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
+        (dDaF[0] * dF[0] + dDaF[1] * dF[1])
+    ])
+
+    dDbG = np.array([
+        dDbF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
+        (dDbF[1] * dF[1] + dDbF[2] * dF[2]),
+        dDbF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
+        (dDbF[0] * dF[0] + dDbF[2] * dF[2]),
+        dDbF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
+        (dDbF[0] * dF[0] + dDbF[1] * dF[1])
+    ])
+
+    dDenomTerm = dInvR * dInvR * dInvR
+
+    dDaG *= dDenomTerm
+    dDbG *= dDenomTerm
+
+    #  Cross product gives local Jacobian
+    nodeCross = np.cross(dDaG, dDbG)
+    dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] +
+                        nodeCross[1] * nodeCross[1] +
+                        nodeCross[2] * nodeCross[2])
+
+    return 0.5 * dJacobian    
+    

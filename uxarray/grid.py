@@ -214,10 +214,10 @@ class Grid:
         float: Sum of area of all the faces in the mesh
         """
 
-        if self._face_areas is None:
-            self.calculate_each_face_area()
+        # call function to get area of all the faces as a np array
+        face_areas = self.face_areas
 
-        return np.sum(self._face_areas)
+        return np.sum(face_areas)
 
     # Build the node-face connectivity array.
     def build_node_face_connectivity(self):
@@ -258,7 +258,35 @@ class Grid:
             "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
         }
 
-<<<<<<< HEAD
+    def __init_grid_var_attrs__(self):
+        """Initialize attributes for directly accessing Coordinate and Data
+        variables through ugrid conventions.
+
+        Examples
+        ----------
+        Assuming the mesh node coordinates for longitude are stored with an input
+        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
+        dictionary with the key 'Mesh2_node_x'. In order to access it:
+
+        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
+
+        With the help of this function, we can directly access it through the
+        use of a standardized name (ugrid convention)
+        >>> x = grid.Mesh2_node_x
+        """
+
+        # Set UGRID standardized attributes
+        for key, value in self.ds_var_names.items():
+            # Present Data Names
+            if self.ds.data_vars is not None:
+                if value in self.ds.data_vars:
+                    setattr(self, key, self.ds[value])
+
+            # Present Coordinate Names
+            if self.ds.coords is not None:
+                if value in self.ds.coords:
+                    setattr(self, key, self.ds[value])
+
     def integrate(self, var_key):
         """ Integrates over all the faces of the given mesh.
         Parameters
@@ -284,15 +312,16 @@ class Grid:
         """
         integral = 0.0
 
-        if self._face_areas is None:
-            self.calculate_each_face_area()
+        # call function to get area of all the faces as a np array
+        face_areas = self.face_areas
 
         face_vals = self.ds.get(var_key).to_numpy()
-        integral = np.dot(self._face_areas, face_vals)
+        integral = np.dot(face_areas, face_vals)
 
         return integral
 
-    def calculate_each_face_area(self):
+    @property
+    def face_areas(self):
         """Face area calculation property for grid class, calculates area of
         all faces in the mesh.
 
@@ -310,7 +339,7 @@ class Grid:
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
-        >>> grid.calculate_each_face_area
+        >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
@@ -338,7 +367,7 @@ class Grid:
                                                  coords_type)
 
         return self._face_areas
-=======
+
     def __init_grid_var_attrs__(self):
         """Initialize attributes for directly accessing Coordinate and Data
         variables through ugrid conventions.
@@ -367,4 +396,3 @@ class Grid:
             if self.ds.coords is not None:
                 if value in self.ds.coords:
                     setattr(self, key, self.ds[value])
->>>>>>> main
