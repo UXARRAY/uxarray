@@ -43,6 +43,39 @@ class TestGrid(TestCase):
         face_filename = current_path / "meshfiles" / "1face.ug"
         vgrid.write(face_filename)
 
+    def test_generate_edge_nodes(self):
+        """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes
+        """
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        tgrid1 = ux.Grid(str(ug_filename1))
+        mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
+
+        tgrid1.build_edge_face_connectivity()
+        mesh2_face_edges = tgrid1.Mesh2_face_edges
+        mesh2_edge_nodes = tgrid1.Mesh2_edge_nodes
+
+        # Assert if the mesh2_face_edges sizes are correct.
+        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],mesh2_face_nodes.sizes["nMesh2_face"])
+        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+        self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
+
+        # Assert if the mesh2_edge_nodes sizes are correct.
+        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds["Mesh2_node_x"].sizes["nMesh2_node"] - 2
+        self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+
+
+
+
+
+    def test_generate_Latlon_bounds(self):
+        """Generates a latlon_bounds Xarray from grid file
+        """
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        tgrid1 = ux.Grid(str(ug_filename1))
+        tgrid1.buildlatlon_bounds()
+
+
 
 # TODO: Move to test_shpfile/scrip when implemented
 # use external package to read?
@@ -64,3 +97,4 @@ class TestGrid(TestCase):
         ux.Grid(str(scrip_8))  # tests from scrip
 
         ux.Grid(str(ug_30))  # tests from ugrid
+

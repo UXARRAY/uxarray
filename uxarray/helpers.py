@@ -161,7 +161,6 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         return box_b
 
 
-
 # helper function to calculate the latlonbox width
 def get_latlonbox_width(latlonbox, is_lon_periodic):
     """Calculate the width of this LatLonBox
@@ -184,6 +183,7 @@ def get_latlonbox_width(latlonbox, is_lon_periodic):
     else:
         latlonbox[1][1] - latlonbox[1][0] + (2 * np.pi)
 
+
 # helper function to calculate latitude and longitude from a node's normalized 3D Cartesian
 # coordinates, in radians.
 def convert_node_XYZ_2_latlon_rad(node_coord):
@@ -201,9 +201,8 @@ def convert_node_XYZ_2_latlon_rad(node_coord):
     dz = node_coord[2]
 
     d_mag_2 = dx * dx + dy * dy + dz * dz
-
-    if np.absolute(d_mag_2 - 1.0) >= 0.01:
-        raise Exception('Grid point has non-unit magnitude:({}, {}, {}) (magnitude {})'.format(dx, dy, dz,d_mag_2 )) #"(%1.15e, %1.15e, %1.15e) (magnitude %1.15e)",
+    # if np.absolute(d_mag_2 - 1.0) >= 0.01:
+    #     raise Exception('Grid point has non-unit magnitude:({}, {}, {}) (magnitude {})'.format(dx, dy, dz,d_mag_2 )) #"(%1.15e, %1.15e, %1.15e) (magnitude %1.15e)",
 
     d_mag = np.absolute(d_mag_2)
     dx /= d_mag
@@ -214,7 +213,7 @@ def convert_node_XYZ_2_latlon_rad(node_coord):
     d_lat_rad = 0.0
 
     if np.absolute(dz) < (1.0 - reference_tolerance):
-        d_lon_rad = np.arctan(dy/dx)
+        d_lon_rad = np.arctan(dy / dx)
         d_lat_rad = np.arcsin(dz)
 
         if d_lon_rad < 0.0:
@@ -297,7 +296,6 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         return box_b
 
 
-
 # helper function to calculate the latlonbox width
 def get_latlonbox_width(latlonbox, is_lon_periodic):
     """Calculate the width of this LatLonBox
@@ -320,6 +318,7 @@ def get_latlonbox_width(latlonbox, is_lon_periodic):
     else:
         latlonbox[1][1] - latlonbox[1][0] + (2 * np.pi)
 
+
 # helper function to calculate latitude and longitude from a node's normalized 3D Cartesian
 # coordinates, in radians.
 def convert_node_XYZ_2_latlon_rad(node_coord):
@@ -339,9 +338,10 @@ def convert_node_XYZ_2_latlon_rad(node_coord):
     d_mag_2 = dx * dx + dy * dy + dz * dz
 
     if np.absolute(d_mag_2 - 1.0) >= 0.01:
-        raise Exception('Grid point has non-unit magnitude:({}, {}, {}) (magnitude {})'.format(dx, dy, dz,d_mag_2 )) #"(%1.15e, %1.15e, %1.15e) (magnitude %1.15e)",
+        raise Exception('Grid point has non-unit magnitude:({}, {}, {}) (magnitude {})'.format(dx, dy, dz,
+                                                                                               d_mag_2))  # "(%1.15e, %1.15e, %1.15e) (magnitude %1.15e)",
 
-    d_mag = np.absolute(d_mag_2)
+    d_mag = np.sqrt(d_mag_2)
     dx /= d_mag
     dy /= d_mag
     dz /= d_mag
@@ -350,7 +350,7 @@ def convert_node_XYZ_2_latlon_rad(node_coord):
     d_lat_rad = 0.0
 
     if np.absolute(dz) < (1.0 - reference_tolerance):
-        d_lon_rad = np.arctan(dy/dx)
+        d_lon_rad = np.arctan(dy / dx)
         d_lat_rad = np.arcsin(dz)
 
         if d_lon_rad < 0.0:
@@ -363,3 +363,31 @@ def convert_node_XYZ_2_latlon_rad(node_coord):
         d_lat_rad = -0.5 * np.pi
 
     return [d_lat_rad, d_lon_rad]
+
+
+class Edge:
+    """The Uxarray Edge object class for undirected edge.
+
+    """
+
+    def __init__(self, input_edge):
+        """ Initializing the Edge object from input edge [node 0, node 1]
+
+        """
+        self.node0 = input_edge[0]
+        self.node1 = input_edge[1]
+
+    def __eq__(self, other):
+        # Undirected edge
+        return (self.node0 == other.node0 and self.node1 == other.node1) or \
+               (self.node1 == other.node0 and self.node0 == other.node1)
+
+    def __hash__(self):
+        # Collisions are possible for hash
+        return hash(self.node0 + self.node1)
+
+
+    # Return nodes in list
+    def get_nodes(self):
+
+        return [self.node0, self.node1]
