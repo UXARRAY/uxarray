@@ -322,8 +322,8 @@ class Grid:
         return integral
 
     def get_face_areas(self, quadrature_rule="triangular", order=4):
-        """Face area calculation property for grid class, calculates area of
-        all faces in the mesh.
+        """Face areas calculation function for grid class, calculates area of
+        all faces in the grid.
 
         Returns
         -------
