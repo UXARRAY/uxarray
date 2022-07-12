@@ -24,18 +24,17 @@ def determine_file_type(filepath):
     if file_extension == ".shp":
         return "shp"
 
-    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
+    ds = xr.open_dataset(filepath, mask_and_scale=False)
     # exodus with coord or coordx
-    if "coord" in ext_ds:
-        ext_ds = ext_ds["coord"]
+    if "coord" in ds:
         mesh_filetype = "exo"
-    elif "coordx" in ext_ds:
-        ext_ds = ext_ds["coordx"]
+    elif "coordx" in ds:
         mesh_filetype = "exo"
-    elif "grid_center_lon" in ext_ds:
-        ext_ds = ext_ds["grid_center_lon"]
+    # scrip with grid_center_lon
+    elif "grid_center_lon" in ds:
         mesh_filetype = "scrip"
-    elif _is_ugrid(ext_ds):
+    # ugrid topology
+    elif _is_ugrid(ds):
         mesh_filetype = "ugrid"
     else:
         raise RuntimeError(f"Could not recognize {filepath} format.")
