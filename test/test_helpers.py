@@ -49,3 +49,19 @@ class TestIntegrate(TestCase):
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
         area = ux.calculate_face_area(x, y, z, "gaussian", 5, "cartesian")
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
+
+    def test_quadrature(self):
+        order = 1
+        dG, dW = ux.get_tri_quadratureDG(order)
+        G = np.array([[0.33333333, 0.33333333, 0.33333333]])
+        W = np.array([1.0])
+
+        np.testing.assert_array_almost_equal(G, dG)
+        np.testing.assert_array_almost_equal(W, dW)
+
+        dG, dW = ux.get_gauss_quadratureDG(order)
+        G = np.array([[0.5]])
+        W = np.array([1.0])
+
+        np.testing.assert_array_almost_equal(G, dG)
+        np.testing.assert_array_almost_equal(W, dW)

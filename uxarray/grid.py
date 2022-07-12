@@ -11,8 +11,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import determine_file_type
-# Note, calculate_face_area not used here, is used by test_helpers
-from .helpers import get_all_face_area_from_coords, calculate_face_area
+from .helpers import get_all_face_area_from_coords
 
 
 class Grid:

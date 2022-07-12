@@ -296,12 +296,3 @@ def get_tri_quadratureDG(nOrder):
         dW = np.array([1.000000000000000])
 
     return dG, dW
-
-
-# def main():
-#     order = 4
-#     dG, dW = get_gauss_quadratureDG(order)
-#     print(dG, dW)
-
-# if __name__ == "__main__":
-#     main()
