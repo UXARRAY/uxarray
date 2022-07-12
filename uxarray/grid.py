@@ -10,7 +10,7 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
-from .helpers import determine_file_type
+from .helpers import determine_file_type, is_url
 
 
 class Grid:
@@ -85,14 +85,12 @@ class Grid:
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(data_arg, str):
-            # check if file exists
-            if not os.path.isfile(data_arg):
-                raise RuntimeError("File not found: " + data_arg)
-
-            self.filepath = data_arg
-            # call the appropriate reader
-            self.__from_file__()
-
+            if is_url(data_arg) or os.path.isfile(data_arg):
+                # call the appropriate reader
+                self.filepath = data_arg
+                self.__from_file__()
+            else:
+                raise RuntimeError(f"Invalid URL or file: {data_arg}")
         # check if invalid initialization
         else:
             raise RuntimeError(data_arg + " is not a valid input type")

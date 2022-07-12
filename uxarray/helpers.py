@@ -17,75 +17,59 @@ def determine_file_type(filepath):
     Raises:
        RuntimeError: Invalid file type
     """
-    msg = ""
-    mesh_filetype = "unknown"
-    # exodus with coord
-    try:
-        # extract the file name and extension
-        path = PurePath(filepath)
-        file_extension = path.suffix
+    # extract the file name and extension
+    path = PurePath(filepath)
+    file_extension = path.suffix
+    # short-circuit for shapefiles
+    if file_extension == ".shp":
+        return "shp"
 
-        # try to open file with xarray and test for exodus
-        ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coord"]
+    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
+    # exodus with coord or coordx
+    if "coord" in ext_ds:
+        ext_ds = ext_ds["coord"]
         mesh_filetype = "exo"
-    except KeyError as e:
-        # exodus with coordx
-        try:
-            ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coordx"]
-            mesh_filetype = "exo"
-        except KeyError as e:
-            # scrip with grid_center_lon
-            try:
-                ext_ds = xr.open_dataset(
-                    filepath, mask_and_scale=False)["grid_center_lon"]
-                mesh_filetype = "scrip"
-            except KeyError as e:
-
-                # check mesh topology and dimension
-                try:
-                    standard_name = lambda v: v is not None
-                    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
-                    # return type KeysView
-                    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
-                    node_coords_dv = ext_ds.filter_by_attrs(
-                        node_coordinates=standard_name).keys()
-                    face_conn_dv = ext_ds.filter_by_attrs(
-                        face_node_connectivity=standard_name).keys()
-                    topo_dim_dv = ext_ds.filter_by_attrs(
-                        topology_dimension=standard_name).keys()
-                    mesh_topo_dv = ext_ds.filter_by_attrs(
-                        cf_role="mesh_topology").keys()
-                    if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[
-                            0] != "" and list(face_conn_dv)[0] != "" and list(
-                                node_coords_dv)[0] != "":
-                        mesh_filetype = "ugrid"
-                    else:
-                        raise ValueError(
-                            "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
-                        )
-                except KeyError as e:
-                    msg = str(e) + ': {}'.format(filepath)
-    except (TypeError, AttributeError) as e:
-        msg = str(e) + ': {}'.format(filepath)
-    except (RuntimeError, OSError) as e:
-        # check if this is a shp file
-        # we won't use xarray to load that file
-        if file_extension == ".shp":
-            mesh_filetype = "shp"
-        else:
-            msg = str(e) + ': {}'.format(filepath)
-    except ValueError as e:
-        # check if this is a shp file
-        # we won't use xarray to load that file
-        if file_extension == ".shp":
-            mesh_filetype = "shp"
-        else:
-            msg = str(e) + ': {}'.format(filepath)
-    finally:
-        if msg != "":  # we did not catch this above
-            msg = "Unable to determine file type, mesh file not supported" + ': {}'.format(
-                filepath)
-            print(msg)
-            os._exit(0)
-
+    elif "coordx" in ext_ds:
+        ext_ds = ext_ds["coordx"]
+        mesh_filetype = "exo"
+    elif "grid_center_lon" in ext_ds:
+        ext_ds = ext_ds["grid_center_lon"]
+        mesh_filetype = "scrip"
+    elif _is_ugrid(ext_ds):
+        mesh_filetype = "ugrid"
+    else:
+        raise RuntimeError(f"Could not recognize {filepath} format.")
     return mesh_filetype
+
+
+def is_url(url):
+    """Returns True is the passed string is a URL, False otherwise."""
+    from urllib.parse import (
+        urlparse,
+        uses_netloc,
+        uses_params,
+        uses_relative,
+    )
+
+    _VALID_URLS = set(uses_netloc + uses_params + uses_relative)
+    _VALID_URLS.discard("")
+
+    if not isinstance(url, str):
+        return False
+    return urlparse(url).scheme in _VALID_URLS
+
+
+def _is_ugrid(ds):
+    """Check mesh topology and dimension."""
+    standard_name = lambda v: v is not None
+    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
+    # return type KeysView
+    node_coords_dv = ds.filter_by_attrs(node_coordinates=standard_name)
+    face_conn_dv = ds.filter_by_attrs(face_node_connectivity=standard_name)
+    topo_dim_dv = ds.filter_by_attrs(topology_dimension=standard_name)
+    mesh_topo_dv = ds.filter_by_attrs(cf_role="mesh_topology")
+    if len(mesh_topo_dv) != 0 and len(topo_dim_dv) != 0 and len(
+            face_conn_dv) != 0 and len(node_coords_dv) != 0:
+        return True
+    else:
+        return False
