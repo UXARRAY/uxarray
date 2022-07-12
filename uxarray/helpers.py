@@ -123,7 +123,12 @@ def _spherical_to_cartesian_unit_(node, r=6371):
 
 # Calculate the area of all faces.
 @njit
-def calculate_face_area(x, y, z, coords_type="spherical"):
+def calculate_face_area(x,
+                        y,
+                        z,
+                        quadrature_rule="gaussian",
+                        order=4,
+                        coords_type="spherical"):
     """Calculate area of a face on sphere.
 
     Parameters
@@ -138,14 +143,26 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
     z : list, required
         z-coordinate of all the nodes forming the face
 
+    quadrature rule : string, optional
+        triangular and Gaussian quadrature supported, expected values: "triangular" or "guaussian"
+
+    order: int, optional
+        Supported values of order for Gaussian Quadrature: 1 to 10
+        Supported values of order for Triangular: 1, 4, 8, 10 and 12
+
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
     """
     area = 0.0  # set area to 0
-    order = 4
+    order = order
 
-    # dG, dW = get_gauss_quadratureDG(order)
-    dG, dW = get_tri_quadratureDG(order)
+    if quadrature_rule == "gaussian":
+        dG, dW = get_gauss_quadratureDG(order)
+    elif quadrature_rule == "triangular":
+        dG, dW = get_tri_quadratureDG(order)
+    else:
+        raise ValueError(
+            "Invalid quadrature rule, specify gaussian or triangular")
 
     num_nodes = len(x)
 
@@ -162,23 +179,35 @@ def calculate_face_area(x, y, z, coords_type="spherical"):
             node2 = _spherical_to_cartesian_unit_(node2)
             node3 = _spherical_to_cartesian_unit_(node3)
         for p in range(len(dW)):
-            dA = dG[p][0]
-            dB = dG[p][1]
-            jacobian = calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, dB)
-            area += dW[p] * jacobian
-        #for p in range(len(dW)):
-        #    for q in range(len(dW)):
-        #        dA = dG[p]
-        #        dB = dG[q]
-        #        jacobian = calculate_spherical_triangle_jacobian(
-        #            node1, node2, node3, dA, dB)
-        #        area += dW[p] * dW[q] * jacobian
+            if quadrature_rule == "gaussian":
+                for q in range(len(dW)):
+                    dA = dG[0][p]
+                    dB = dG[0][q]
+                    jacobian = calculate_spherical_triangle_jacobian(
+                        node1, node2, node3, dA, dB)
+                    area += dW[p] * dW[q] * jacobian
+            elif quadrature_rule == "triangular":
+                dA = dG[p][0]
+                dB = dG[p][1]
+                jacobian = calculate_spherical_triangle_jacobian_barycentric(
+                    node1, node2, node3, dA, dB)
+                area += dW[p] * jacobian
+
     return area
 
 
 @njit
-def get_all_face_area(x, y, z, face_nodes, dim, coords_type="spherical"):
-    """Loop over all faces and return an numpy array with areas of each face.
+def get_all_face_area_from_coords(x,
+                                  y,
+                                  z,
+                                  face_nodes,
+                                  dim,
+                                  quadrature_rule="triangular",
+                                  order=4,
+                                  coords_type="spherical"):
+    """Given coords, connectivity and other area calculation params, this
+    routine loop over all faces and return an numpy array with areas of each
+    face.
 
     Parameters
     ----------
@@ -198,6 +227,12 @@ def get_all_face_area(x, y, z, face_nodes, dim, coords_type="spherical"):
     dim : int, required
          dimension
 
+    quadrature_rule : str, optional
+        "triangular" or "gaussian". Defaults to triangular
+
+    order : int, optional
+        count or order for Gaussian or spherical resp. Defaults to 4 for spherical.
+
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
 
@@ -205,6 +240,11 @@ def get_all_face_area(x, y, z, face_nodes, dim, coords_type="spherical"):
     -------
 
     ndarray: area of all faces as a numpy array
+
+        Examples
+        --------
+
+        >>> areas = ux.get_all_face_area
     """
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
@@ -227,7 +267,12 @@ def get_all_face_area(x, y, z, face_nodes, dim, coords_type="spherical"):
                 face_z[j] = z[node_id]
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
-        face_area = calculate_face_area(face_x, face_y, face_z, coords_type)
+        # face_area = calculate_face_area(face_x, face_y, face_z, "gaussian",
+        # 4, coords_type)
+
+        face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
+                                        order, coords_type)
+
         area[i] = face_area
 
     return area
@@ -305,9 +350,11 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
 
     return dJacobian
 
+
 @njit
-def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, dB):
- """Calculate Jacobian of a spherical triangle. This is a helper function
+def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
+                                                      dB):
+    """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
 
     Parameters
@@ -335,13 +382,11 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, d
         dA * node1[2] + dB * node2[2] + (1.0 - dA - dB) * node3[2]
     ])
 
-    dDaF = np.array([node1[0] - node3[0],
-                     node1[1] - node3[1],
-                     node1[2] - node3[2]])
+    dDaF = np.array(
+        [node1[0] - node3[0], node1[1] - node3[1], node1[2] - node3[2]])
 
-    dDaF = np.array([node2[0] - node3[0],
-                     node2[1] - node3[1],
-                     node2[2] - node3[2]])
+    dDbF = np.array(
+        [node2[0] - node3[0], node2[1] - node3[1], node2[2] - node3[2]])
 
     dInvR = 1.0 / np.sqrt(dF[0] * dF[0] + dF[1] * dF[1] + dF[2] * dF[2])
 
@@ -374,5 +419,4 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, d
                         nodeCross[1] * nodeCross[1] +
                         nodeCross[2] * nodeCross[2])
 
-    return 0.5 * dJacobian    
-    
+    return 0.5 * dJacobian

@@ -38,9 +38,13 @@ class TestIntegrate(TestCase):
         vgrid.ds[y_var].attrs["units"] = "m"
         vgrid.ds[z_var].attrs["units"] = "m"
 
-        area = vgrid.calculate_total_face_area()
+        area_gaussian = vgrid.calculate_total_face_area(
+            quadrature_rule="gaussian", order=5)
+        nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
 
-        nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
+        area_triangular = vgrid.calculate_total_face_area(
+            quadrature_rule="triangular", order=4)
+        nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
 
     def test_calculate_total_face_area_file(self):
         """Create a uxarray grid from vertices and saves an exodus file."""

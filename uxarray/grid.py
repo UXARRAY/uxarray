@@ -11,7 +11,8 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import determine_file_type
-from .helpers import get_all_face_area
+# Note, calculate_face_area not used here, is used by test_helpers
+from .helpers import get_all_face_area_from_coords, calculate_face_area
 
 
 class Grid:
@@ -204,7 +205,7 @@ class Grid:
         else:
             print("Format not supported for writing: ", extension)
 
-    def calculate_total_face_area(self):
+    def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
         mesh.
 
@@ -215,7 +216,7 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas = self.face_areas
+        face_areas = self.get_face_areas(quadrature_rule, order)
 
         return np.sum(face_areas)
 
@@ -287,7 +288,7 @@ class Grid:
                 if value in self.ds.coords:
                     setattr(self, key, self.ds[value])
 
-    def integrate(self, var_key):
+    def integrate(self, var_key, quadrature_rule="triangular", order=4):
         """ Integrates over all the faces of the given mesh.
         Parameters
         ----------
@@ -313,15 +314,14 @@ class Grid:
         integral = 0.0
 
         # call function to get area of all the faces as a np array
-        face_areas = self.face_areas
+        face_areas = self.get_face_areas(quadrature_rule, order)
 
         face_vals = self.ds.get(var_key).to_numpy()
         integral = np.dot(face_areas, face_vals)
 
         return integral
 
-    @property
-    def face_areas(self):
+    def get_face_areas(self, quadrature_rule="triangular", order=4):
         """Face area calculation property for grid class, calculates area of
         all faces in the mesh.
 
@@ -339,7 +339,7 @@ class Grid:
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
-        >>> grid.face_areas
+        >>> grid.get_face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
@@ -363,10 +363,13 @@ class Grid:
                 z = self.ds[self.ds_var_names["Mesh2_node_z"]].data
 
             # call function to get area of all the faces as a np array
-            self._face_areas = get_all_face_area(x, y, z, face_nodes, dim,
-                                                 coords_type)
+            self._face_areas = get_all_face_area_from_coords(
+                x, y, z, face_nodes, dim, quadrature_rule, order, coords_type)
 
         return self._face_areas
+
+    # use the property keyword for declaration on face_areas property
+    face_areas = property(get_face_areas)
 
     def __init_grid_var_attrs__(self):
         """Initialize attributes for directly accessing Coordinate and Data

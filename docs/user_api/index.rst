@@ -23,7 +23,7 @@ Grid Methods
    grid.Grid.write
    grid.Grid.calculate_total_face_area
    grid.Grid.integrate
-   grid.Grid.face_areas
+   grid.Grid.get_face_areas
 
 Helper Functions
 ----------------
@@ -31,5 +31,5 @@ Helper Functions
    :toctree: _autosummary
 
    helpers.determine_file_type
-   helpers.get_all_face_area
+   helpers.get_all_face_area_from_coords
    helpers.calculate_face_area

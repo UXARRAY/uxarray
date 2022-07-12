@@ -23,27 +23,27 @@ def get_gauss_quadratureDG(nCount):
     """
     #Degree 1
     if (nCount == 1):
-        dG = np.array([0.0])
+        dG = np.array([[0.0]])
         dW = np.array([+2.0])
 
     #Degree 2
     elif (nCount == 2):
-        dG = np.array([-0.5773502691896257, +0.5773502691896257])
+        dG = np.array([[-0.5773502691896257, +0.5773502691896257]])
         dW = np.array([+1.0, +1.0])
 
     #Degree 3
     elif (nCount == 3):
-        dG = np.array([-0.7745966692414834, 0.0, +0.7745966692414834])
+        dG = np.array([[-0.7745966692414834, 0.0, +0.7745966692414834]])
 
         dW = np.array(
             [+0.5555555555555556, +0.8888888888888888, +0.5555555555555556])
 
     #Degree 4
     elif (nCount == 4):
-        dG = np.array([
+        dG = np.array([[
             -0.8611363115940526, -0.3399810435848563, +0.3399810435848563,
             +0.8611363115940526
-        ])
+        ]])
 
         dW = np.array([
             0.3478548451374538, 0.6521451548625461, 0.6521451548625461,
@@ -52,10 +52,10 @@ def get_gauss_quadratureDG(nCount):
 
     #Degree 5
     elif (nCount == 5):
-        dG = np.array([
+        dG = np.array([[
             -0.9061798459386640, -0.5384693101056831, 0.0, +0.5384693101056831,
             +0.9061798459386640
-        ])
+        ]])
 
         dW = np.array([
             0.2369268850561891, 0.4786286704993665, 0.5688888888888889,
@@ -64,10 +64,10 @@ def get_gauss_quadratureDG(nCount):
 
     #Degree 6
     elif (nCount == 6):
-        dG = np.array([
+        dG = np.array([[
             -0.9324695142031521, -0.6612093864662645, -0.2386191860831969,
             +0.2386191860831969, +0.6612093864662645, +0.9324695142031521
-        ])
+        ]])
 
         dW = np.array([
             0.1713244923791704, 0.3607615730481386, 0.4679139345726910,
@@ -76,10 +76,10 @@ def get_gauss_quadratureDG(nCount):
 
     #Degree 7
     elif (nCount == 7):
-        dG = np.array([
+        dG = np.array([[
             -0.9491079123427585, -0.7415311855993945, -0.4058451513773972, 0.0,
             +0.4058451513773972, +0.7415311855993945, +0.9491079123427585
-        ])
+        ]])
 
         dW = np.array([
             0.1294849661688697, 0.2797053914892766, 0.3818300505051189,
@@ -89,11 +89,11 @@ def get_gauss_quadratureDG(nCount):
 
     #Degree 8
     elif (nCount == 8):
-        dG = np.array([
+        dG = np.array([[
             -0.9602898564975363, -0.7966664774136267, -0.5255324099163290,
             -0.1834346424956498, +0.1834346424956498, +0.5255324099163290,
             +0.7966664774136267, +0.9602898564975363
-        ])
+        ]])
 
         dW = np.array([
             0.1012285362903763, 0.2223810344533745, 0.3137066458778873,
@@ -103,11 +103,11 @@ def get_gauss_quadratureDG(nCount):
 
     #Degree 9
     elif (nCount == 9):
-        dG = np.array([
+        dG = np.array([[
             -1.0, -0.899757995411460, -0.677186279510738, -0.363117463826178,
             0.0, +0.363117463826178, +0.677186279510738, +0.899757995411460,
             +1.0
-        ])
+        ]])
 
         dW = np.array([
             0.0812743883615744, 0.1806481606948574, 0.2606106964029354,
@@ -117,12 +117,12 @@ def get_gauss_quadratureDG(nCount):
 
     #Degree 10
     elif (nCount == 10):
-        dG = np.array([
+        dG = np.array([[
             -0.9739065285171717, -0.8650633666889845, -0.6794095682990244,
             -0.4333953941292472, -0.1488743389816312, +0.1488743389816312,
             +0.4333953941292472, +0.6794095682990244, +0.8650633666889845,
             +0.9739065285171717
-        ])
+        ]])
 
         dW = np.array([
             0.0666713443086881, 0.1494513491505806, 0.2190863625159820,
@@ -130,7 +130,6 @@ def get_gauss_quadratureDG(nCount):
             0.2692667193099963, 0.2190863625159820, 0.1494513491505806,
             0.0666713443086881
         ])
-
     # else:
     #     msg = "quadrature order 1 to 10 is supported: ", nCount, " is invalid\n"
     #     raise ValueError(msg)
@@ -139,13 +138,13 @@ def get_gauss_quadratureDG(nCount):
     dXi0 = 0.0
     dXi1 = 1.0
     for i in range(nCount):
-        dG[i] = dXi0 + 0.5 * (dXi1 - dXi0) * (dG[i] + 1.0)
+        dG[0][i] = dXi0 + 0.5 * (dXi1 - dXi0) * (dG[0][i] + 1.0)
         dW[i] = 0.5 * (dXi1 - dXi0) * dW[i]
 
     return dG, dW
 
 
-# @njit
+@njit
 def get_tri_quadratureDG(nOrder):
     """Triangular Quadrature Points for integration.
 
@@ -294,6 +293,15 @@ def get_tri_quadratureDG(nOrder):
     elif (nOrder == 1):
         dG = np.array(
             [[0.333333333333333, 0.333333333333333, 0.333333333333333]])
-        dW = np.array([[1.000000000000000]])
+        dW = np.array([1.000000000000000])
 
     return dG, dW
+
+
+# def main():
+#     order = 4
+#     dG, dW = get_gauss_quadratureDG(order)
+#     print(dG, dW)
+
+# if __name__ == "__main__":
+#     main()
