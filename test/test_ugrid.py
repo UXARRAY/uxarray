@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import xarray as xr
 
 from unittest import TestCase
@@ -35,6 +34,15 @@ class TestUgrid(TestCase):
                 constants.NNODES_outRLL1deg)
         assert (ux_grid3.ds[ux_grid3_node_x_var].size ==
                 constants.NNODES_ov_RLL10deg_CSne4)
+
+    def test_read_ugrid_opendap(self):
+        """Read an ugrid model from an OPeNDAP URL."""
+
+        url = "http://www.smast.umassd.edu:8080/thredds/dodsC/FVCOM/NECOFS/Forecasts/NECOFS_GOM3_FORECAST.nc"
+        ugrid = ux.open_dataset(url, drop_variables="siglay")
+        assert isinstance(getattr(ugrid, "Mesh2_node_x"), xr.DataArray)
+        assert isinstance(getattr(ugrid, "Mesh2_node_y"), xr.DataArray)
+        assert isinstance(getattr(ugrid, "Mesh2_face_nodes"), xr.DataArray)
 
     def test_write_ugrid(self):
         """Read an exodus file and writes a ugrid file."""
