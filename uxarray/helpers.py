@@ -1,44 +1,43 @@
-import os
 import xarray as xr
 from pathlib import PurePath
 
 
-# helper function to find file type
-def determine_file_type(filepath):
-    """Checks file path and contents to determine file type. Supports detection
+def parse_grid_type(filepath, **kw):
+    """Checks input and contents to determine grid type. Supports detection
     of UGrid, SCRIP, Exodus and shape file.
 
     Parameters: string, required
        Filepath of the file for which the filetype is to be determined.
 
-    Returns: string
+    Returns: string and ugrid aware xarray.Dataset
        File type: ug, exo, scrip or shp
 
     Raises:
-       RuntimeError: Invalid file type
+       RuntimeError: Invalid grid type
     """
     # extract the file name and extension
     path = PurePath(filepath)
     file_extension = path.suffix
     # short-circuit for shapefiles
     if file_extension == ".shp":
-        return "shp"
+        mesh_filetype, xr_ds = "shp", None
+        return mesh_filetype, xr_ds
 
-    ds = xr.open_dataset(filepath, mask_and_scale=False)
+    xr_ds = xr.open_dataset(filepath, mask_and_scale=False, **kw)
     # exodus with coord or coordx
-    if "coord" in ds:
+    if "coord" in xr_ds:
         mesh_filetype = "exo"
-    elif "coordx" in ds:
+    elif "coordx" in xr_ds:
         mesh_filetype = "exo"
     # scrip with grid_center_lon
-    elif "grid_center_lon" in ds:
+    elif "grid_center_lon" in xr_ds:
         mesh_filetype = "scrip"
     # ugrid topology
-    elif _is_ugrid(ds):
+    elif _is_ugrid(xr_ds):
         mesh_filetype = "ugrid"
     else:
         raise RuntimeError(f"Could not recognize {filepath} format.")
-    return mesh_filetype
+    return mesh_filetype, xr_ds
 
 
 def is_url(url):

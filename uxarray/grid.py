@@ -10,7 +10,7 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
-from .helpers import determine_file_type, is_url
+from .helpers import parse_grid_type, is_url
 
 
 class Grid:
@@ -144,16 +144,15 @@ class Grid:
             RuntimeError: Unknown file format
         """
         # call function to set mesh file type: self.mesh_filetype
-        self.mesh_filetype = determine_file_type(self.filepath)
+        self.mesh_filetype, self.ds = parse_grid_type(self.filepath)
 
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.ds = _read_exodus(self.filepath, self.ds_var_names)
+            self.ds = _read_exodus(self.ds, self.ds_var_names)
         elif self.mesh_filetype == "scrip":
-            self.ds = _read_scrip(self.filepath)
+            self.ds = _read_scrip(self.ds)
         elif self.mesh_filetype == "ugrid":
-            self.ds, self.ds_var_names = _read_ugrid(self.filepath,
-                                                     self.ds_var_names)
+            self.ds, self.ds_var_names = _read_ugrid(self.ds, self.ds_var_names)
         elif self.mesh_filetype == "shp":
             self.ds = _read_shpfile(self.filepath)
         else:
