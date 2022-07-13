@@ -1,10 +1,10 @@
 """uxarray dataset module."""
 
 from .grid import *
-from pathlib import PurePath
+from .helpers import parse_grid_type
 
 
-def open_dataset(grid_filename, *args):
+def open_dataset(grid_filename, *args, **kw):
     """Given a grid file and/or other files with corresponding data.
     This function merges them to output a xarray dataset object.
     Parameters
@@ -31,12 +31,8 @@ def open_dataset(grid_filename, *args):
     Open grid file along with data
     >>> mesh_and_data = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
     """
-    print("Loading initial grid from file: ", grid_filename)
-    ux_grid = Grid(str(grid_filename))
-
-    # open all the datafiles with xarrays
-    xr_datafile = [None] * len(args)
-    # i = 0
+    mesh_filetype, xr_ds = parse_grid_type(grid_filename, **kw)
+    ux_grid = Grid(data_arg=xr_ds, mesh_filetype=mesh_filetype)
 
     if len(args) > 0:
         # load all the datafiles using mfdataset

@@ -20,9 +20,9 @@ class TestUgrid(TestCase):
         ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
         ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
 
-        ux_grid1 = ux.Grid(str(ug_filename1))
-        ux_grid2 = ux.Grid(str(ug_filename2))
-        ux_grid3 = ux.Grid(str(ug_filename3))
+        ux_grid1 = ux.open_dataset(str(ug_filename1))
+        ux_grid2 = ux.open_dataset(str(ug_filename2))
+        ux_grid3 = ux.open_dataset(str(ug_filename3))
 
         # num_node_var = ux.ugrid_vars["nMesh2_node"]
         ux_grid1_node_x_var = ux_grid1.ds_var_names["Mesh2_node_x"]
@@ -40,6 +40,6 @@ class TestUgrid(TestCase):
         """Read an exodus file and writes a ugrid file."""
 
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
-        ux_grid = ux.Grid(str(exo2_filename))
+        ux_grid = ux.open_dataset(str(exo2_filename))
         outfile = current_path / "write_test_outCSne8.ug"
         ux_grid.write(str(outfile))

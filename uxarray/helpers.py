@@ -3,8 +3,8 @@ from pathlib import PurePath
 
 
 def parse_grid_type(filepath, **kw):
-    """Checks input and contents to determine grid type. Supports detection
-    of UGrid, SCRIP, Exodus and shape file.
+    """Checks input and contents to determine grid type. Supports detection of
+    UGrid, SCRIP, Exodus and shape file.
 
     Parameters: string, required
        Filepath of the file for which the filetype is to be determined.
@@ -38,23 +38,6 @@ def parse_grid_type(filepath, **kw):
     else:
         raise RuntimeError(f"Could not recognize {filepath} format.")
     return mesh_filetype, xr_ds
-
-
-def is_url(url):
-    """Returns True is the passed string is a URL, False otherwise."""
-    from urllib.parse import (
-        urlparse,
-        uses_netloc,
-        uses_params,
-        uses_relative,
-    )
-
-    _VALID_URLS = set(uses_netloc + uses_params + uses_relative)
-    _VALID_URLS.discard("")
-
-    if not isinstance(url, str):
-        return False
-    return urlparse(url).scheme in _VALID_URLS
 
 
 def _is_ugrid(ds):
