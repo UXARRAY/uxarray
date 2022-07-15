@@ -27,4 +27,5 @@ Helper Functions
 .. autosummary::
    :toctree: _autosummary
 
-   determine_file_type
+   parse_grid_type
+   uxarray.helpers._is_ugrid
