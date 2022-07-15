@@ -28,4 +28,3 @@ Helper Functions
    :toctree: _autosummary
 
    parse_grid_type
-   uxarray.helpers._is_ugrid

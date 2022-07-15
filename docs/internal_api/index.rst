@@ -34,3 +34,4 @@ Grid Helper Modules
    _ugrid._read_ugrid
    _scrip._read_scrip
    _scrip._to_ugrid
+   helpers._is_ugrid
