@@ -84,6 +84,7 @@ class Grid:
         elif isinstance(data_arg, xr.Dataset):
             self.xr_ds = data_arg
             self.__from_ds__()
+            self.xr_ds.close()
         else:
             raise RuntimeError(f"{data_arg} is not a valid input type.")
 
