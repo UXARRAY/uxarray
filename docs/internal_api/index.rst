@@ -17,7 +17,7 @@ Grid Methods
 
    grid.Grid.__init__
    grid.Grid.__init_ds_var_names__
-   grid.Grid.__from_file__
+   grid.Grid.__from_ds__
    grid.Grid.__from_vert__
    grid.Grid.__init_grid_var_attrs__
 
@@ -34,3 +34,4 @@ Grid Helper Modules
    _ugrid._read_ugrid
    _scrip._read_scrip
    _scrip._to_ugrid
+   helpers._is_ugrid

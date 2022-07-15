@@ -71,7 +71,7 @@ def _to_ugrid(in_ds, out_ds):
     return out_ds
 
 
-def _read_scrip(file_path):
+def _read_scrip(ext_ds):
     """Function to reassign lat/lon variables to mesh2_node variables.
 
     Currently, supports unstructured SCRIP grid files following traditional SCRIP
@@ -84,17 +84,9 @@ def _read_scrip(file_path):
     More information on structured vs unstructured SCRIP files can be found here:
     https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html
 
-    Parameters
-    ----------
-    file_path : :class:`string`
-        location of SCRIP dataset of interest in format:
-        "path/to/file"
-
-    Returns
-    --------
-    out_ds : :class:`xarray.Dataset`
+    Parameters: xarray.Dataset, required
+    Returns: ugrid aware xarray.Dataset
     """
-    ext_ds = xr.open_dataset(file_path, decode_times=False, engine='netcdf4')
     ds = xr.Dataset()
 
     try:

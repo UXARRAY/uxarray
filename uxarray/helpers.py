@@ -1,91 +1,56 @@
-import os
 import xarray as xr
 from pathlib import PurePath
 
 
-# helper function to find file type
-def determine_file_type(filepath):
-    """Checks file path and contents to determine file type. Supports detection
-    of UGrid, SCRIP, Exodus and shape file.
+def parse_grid_type(filepath, **kw):
+    """Checks input and contents to determine grid type. Supports detection of
+    UGrid, SCRIP, Exodus and shape file.
 
     Parameters: string, required
        Filepath of the file for which the filetype is to be determined.
 
-    Returns: string
+    Returns: string and ugrid aware xarray.Dataset
        File type: ug, exo, scrip or shp
 
     Raises:
-       RuntimeError: Invalid file type
+       RuntimeError: Invalid grid type
     """
-    msg = ""
-    mesh_filetype = "unknown"
-    # exodus with coord
-    try:
-        # extract the file name and extension
-        path = PurePath(filepath)
-        file_extension = path.suffix
+    # extract the file name and extension
+    path = PurePath(filepath)
+    file_extension = path.suffix
+    # short-circuit for shapefiles
+    if file_extension == ".shp":
+        mesh_filetype, dataset = "shp", None
+        return mesh_filetype, dataset
 
-        # try to open file with xarray and test for exodus
-        ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coord"]
+    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
+    # exodus with coord or coordx
+    if "coord" in dataset:
         mesh_filetype = "exo"
-    except KeyError as e:
-        # exodus with coordx
-        try:
-            ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coordx"]
-            mesh_filetype = "exo"
-        except KeyError as e:
-            # scrip with grid_center_lon
-            try:
-                ext_ds = xr.open_dataset(
-                    filepath, mask_and_scale=False)["grid_center_lon"]
-                mesh_filetype = "scrip"
-            except KeyError as e:
+    elif "coordx" in dataset:
+        mesh_filetype = "exo"
+    # scrip with grid_center_lon
+    elif "grid_center_lon" in dataset:
+        mesh_filetype = "scrip"
+    # ugrid topology
+    elif _is_ugrid(dataset):
+        mesh_filetype = "ugrid"
+    else:
+        raise RuntimeError(f"Could not recognize {filepath} format.")
+    return mesh_filetype, dataset
 
-                # check mesh topology and dimension
-                try:
-                    standard_name = lambda v: v is not None
-                    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
-                    # return type KeysView
-                    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
-                    node_coords_dv = ext_ds.filter_by_attrs(
-                        node_coordinates=standard_name).keys()
-                    face_conn_dv = ext_ds.filter_by_attrs(
-                        face_node_connectivity=standard_name).keys()
-                    topo_dim_dv = ext_ds.filter_by_attrs(
-                        topology_dimension=standard_name).keys()
-                    mesh_topo_dv = ext_ds.filter_by_attrs(
-                        cf_role="mesh_topology").keys()
-                    if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[
-                            0] != "" and list(face_conn_dv)[0] != "" and list(
-                                node_coords_dv)[0] != "":
-                        mesh_filetype = "ugrid"
-                    else:
-                        raise ValueError(
-                            "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
-                        )
-                except KeyError as e:
-                    msg = str(e) + ': {}'.format(filepath)
-    except (TypeError, AttributeError) as e:
-        msg = str(e) + ': {}'.format(filepath)
-    except (RuntimeError, OSError) as e:
-        # check if this is a shp file
-        # we won't use xarray to load that file
-        if file_extension == ".shp":
-            mesh_filetype = "shp"
-        else:
-            msg = str(e) + ': {}'.format(filepath)
-    except ValueError as e:
-        # check if this is a shp file
-        # we won't use xarray to load that file
-        if file_extension == ".shp":
-            mesh_filetype = "shp"
-        else:
-            msg = str(e) + ': {}'.format(filepath)
-    finally:
-        if msg != "":  # we did not catch this above
-            msg = "Unable to determine file type, mesh file not supported" + ': {}'.format(
-                filepath)
-            print(msg)
-            os._exit(0)
 
-    return mesh_filetype
+def _is_ugrid(ds):
+    """Check mesh topology and dimension."""
+    standard_name = lambda v: v is not None
+    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
+    # return type KeysView
+    node_coords_dv = ds.filter_by_attrs(node_coordinates=standard_name)
+    face_conn_dv = ds.filter_by_attrs(face_node_connectivity=standard_name)
+    topo_dim_dv = ds.filter_by_attrs(topology_dimension=standard_name)
+    mesh_topo_dv = ds.filter_by_attrs(cf_role="mesh_topology")
+    if len(mesh_topo_dv) != 0 and len(topo_dim_dv) != 0 and len(
+            face_conn_dv) != 0 and len(node_coords_dv) != 0:
+        return True
+    else:
+        return False
