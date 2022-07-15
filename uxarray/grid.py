@@ -27,7 +27,7 @@ class Grid:
     >>> mesh.write("outfile.ug")
     """
 
-    def __init__(self, data_arg, **kwargs):
+    def __init__(self, dataset, **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec If loading from file, initialization happens via the
         specified file.
@@ -75,18 +75,16 @@ class Grid:
         self.ds = xr.Dataset()
 
         # check if initializing from verts:
-        if isinstance(data_arg, (list, tuple, np.ndarray)):
-            self.vertices = data_arg
+        if isinstance(dataset, (list, tuple, np.ndarray)):
+            self.vertices = dataset
             self.__from_vert__()
 
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
-        elif isinstance(data_arg, xr.Dataset):
-            self.xr_ds = data_arg
-            self.__from_ds__()
-            self.xr_ds.close()
+        elif isinstance(dataset, xr.Dataset):
+            self.__from_ds__(dataset=dataset)
         else:
-            raise RuntimeError(f"{data_arg} is not a valid input type.")
+            raise RuntimeError(f"{dataset} is not a valid input type.")
 
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
@@ -128,20 +126,20 @@ class Grid:
             })
 
     # load mesh from a file
-    def __from_ds__(self):
+    def __from_ds__(self, dataset):
         """Loads a mesh dataset."""
         # call reader as per mesh_filetype
         if self.mesh_filetype == "exo":
-            self.ds = _read_exodus(self.xr_ds, self.ds_var_names)
+            self.ds = _read_exodus(dataset, self.ds_var_names)
         elif self.mesh_filetype == "scrip":
-            self.ds = _read_scrip(self.xr_ds)
+            self.ds = _read_scrip(dataset)
         elif self.mesh_filetype == "ugrid":
-            self.ds, self.ds_var_names = _read_ugrid(self.xr_ds,
-                                                     self.ds_var_names)
+            self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
         elif self.mesh_filetype == "shp":
             self.ds = _read_shpfile(self.filepath)
         else:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
+        dataset.close()
 
     def write(self, outfile, extension=""):
         """Writes mesh file as per extension supplied in the outfile string.

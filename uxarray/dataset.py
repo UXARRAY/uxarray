@@ -31,8 +31,8 @@ def open_dataset(grid_filename, *args, **kw):
     Open grid file along with data
     >>> mesh_and_data = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
     """
-    mesh_filetype, xr_ds = parse_grid_type(grid_filename, **kw)
-    ux_grid = Grid(data_arg=xr_ds, mesh_filetype=mesh_filetype)
+    mesh_filetype, dataset = parse_grid_type(grid_filename, **kw)
+    ux_grid = Grid(dataset=dataset, mesh_filetype=mesh_filetype)
 
     if len(args) > 0:
         # load all the datafiles using mfdataset

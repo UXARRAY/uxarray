@@ -20,24 +20,24 @@ def parse_grid_type(filepath, **kw):
     file_extension = path.suffix
     # short-circuit for shapefiles
     if file_extension == ".shp":
-        mesh_filetype, xr_ds = "shp", None
-        return mesh_filetype, xr_ds
+        mesh_filetype, dataset = "shp", None
+        return mesh_filetype, dataset
 
-    xr_ds = xr.open_dataset(filepath, mask_and_scale=False, **kw)
+    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
     # exodus with coord or coordx
-    if "coord" in xr_ds:
+    if "coord" in dataset:
         mesh_filetype = "exo"
-    elif "coordx" in xr_ds:
+    elif "coordx" in dataset:
         mesh_filetype = "exo"
     # scrip with grid_center_lon
-    elif "grid_center_lon" in xr_ds:
+    elif "grid_center_lon" in dataset:
         mesh_filetype = "scrip"
     # ugrid topology
-    elif _is_ugrid(xr_ds):
+    elif _is_ugrid(dataset):
         mesh_filetype = "ugrid"
     else:
         raise RuntimeError(f"Could not recognize {filepath} format.")
-    return mesh_filetype, xr_ds
+    return mesh_filetype, dataset
 
 
 def _is_ugrid(ds):
