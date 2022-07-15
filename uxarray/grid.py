@@ -37,7 +37,7 @@ class Grid:
         Parameters
         ----------
 
-        data_arg : xarray.Dataset, ndarray, list, tuple, required
+        dataset : xarray.Dataset, ndarray, list, tuple, required
             - Input xarray.Dataset or
             - Vertex coordinates that form one face.
 
