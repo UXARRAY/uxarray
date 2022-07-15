@@ -345,21 +345,21 @@ class Grid:
         if self._face_areas is None:
             # area of a face call needs the units for coordinate conversion if spherical grid is used
             coords_type = "spherical"
-            if not "degree" in self.ds.Mesh2_node_x.units:
+            if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.ds.Mesh2_face_nodes.data
-            dim = self.ds.Mesh2.attrs['topology_dimension']
+            face_nodes = self.Mesh2_face_nodes.data
+            dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z
             z = np.zeros((self.ds.nMesh2_node.size))
 
             # call func to cal face area of all nodes
-            x = self.ds[self.ds_var_names["Mesh2_node_x"]].data
-            y = self.ds[self.ds_var_names["Mesh2_node_y"]].data
+            x = self.Mesh2_node_x.data
+            y = self.Mesh2_node_y.data
             # check if z dimension
-            if self.ds.Mesh2.topology_dimension > 2:
-                z = self.ds[self.ds_var_names["Mesh2_node_z"]].data
+            if self.Mesh2.topology_dimension > 2:
+                z = self.Mesh2_node_z.data
 
             # call function to get area of all the faces as a np array
             self._face_areas = get_all_face_area_from_coords(
