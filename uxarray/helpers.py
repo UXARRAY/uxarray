@@ -168,8 +168,9 @@ def calculate_face_area(x,
 
     # num triangles is two less than the total number of nodes
     num_triangles = num_nodes - 2
+
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
-    # loop thru all triangles
+    # loop through all sub-triangles of face
     for j in range(0, num_triangles):
         node1 = np.array([x[0], y[0], z[0]], dtype=np.float64)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)

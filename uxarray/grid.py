@@ -133,8 +133,7 @@ class Grid:
 
         # single face with all nodes
         num_nodes = x_coord.size
-        conn = list(range(0, num_nodes))
-        conn = [conn]
+        connectivity = [list(range(0, num_nodes))]
 
         self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
                                                dims=["nMesh2_node"],
@@ -148,7 +147,7 @@ class Grid:
                                                    attrs={"units": z_units})
 
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(conn),
+            data=xr.DataArray(connectivity),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
@@ -288,7 +287,8 @@ class Grid:
                     setattr(self, key, self.ds[value])
 
     def integrate(self, var_key, quadrature_rule="triangular", order=4):
-        """ Integrates over all the faces of the given mesh.
+        """Integrates over all the faces of the given mesh.
+
         Parameters
         ----------
 
@@ -298,16 +298,17 @@ class Grid:
         Returns
         -------
 
-        double: integration result.
+        integration result : float
 
         Examples
         --------
 
         Open grid file only
+
         >>> grid = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
 
-
         Open grid file along with data
+
         >>> integral_psi = grid.integrate("psi")
         """
         integral = 0.0
