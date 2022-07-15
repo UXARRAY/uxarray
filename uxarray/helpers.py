@@ -144,7 +144,7 @@ def calculate_face_area(x,
         z-coordinate of all the nodes forming the face
 
     quadrature rule : string, optional
-        triangular and Gaussian quadrature supported, expected values: "triangular" or "guaussian"
+        triangular and Gaussian quadrature supported, expected values: "triangular" or "gaussian"
 
     order: int, optional
         Supported values of order for Gaussian Quadrature: 1 to 10
