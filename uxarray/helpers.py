@@ -11,14 +11,22 @@ def determine_file_type(filepath):
     """Checks file path and contents to determine file type. Supports detection
     of UGrid, SCRIP, Exodus and shape file.
 
-    Parameters: string, required
+    Parameters
+    ----------
+    filepath : str
        Filepath of the file for which the filetype is to be determined.
 
-    Returns: string
-       File type: ug, exo, scrip or shp
+    Returns
+    -------
+    mesh_filetype : str
+        File type of the file, ug, exo, scrip or shp
 
-    Raises:
-       RuntimeError: Invalid file type
+    Raises
+    ------
+    RuntimeError
+            If invalid file type
+    ValueError
+        If file is not in UGRID format
     """
     msg = ""
     mesh_filetype = "unknown"
@@ -101,7 +109,6 @@ def _spherical_to_cartesian_unit_(node, r=6371):
 
     Parameters:
     -----------
-
     node: a list consisting of lat and lon
 
     Returns: numpy array
@@ -133,7 +140,6 @@ def calculate_face_area(x,
 
     Parameters
     ----------
-
     x : list, required
         x-coordinate of all the nodes forming the face
 
@@ -143,12 +149,15 @@ def calculate_face_area(x,
     z : list, required
         z-coordinate of all the nodes forming the face
 
-    quadrature rule : string, optional
+    quadrature_rule : str, optional
         triangular and Gaussian quadrature supported, expected values: "triangular" or "gaussian"
 
     order: int, optional
-        Supported values of order for Gaussian Quadrature: 1 to 10
-        Supported values of order for Triangular: 1, 4, 8, 10 and 12
+        Order of the quadrature rule. Default is 4.
+
+        Supported values:
+            - Gaussian Quadrature: 1 to 10
+            - Triangular: 1, 4, 8, 10 and 12
 
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
@@ -212,7 +221,6 @@ def get_all_face_area_from_coords(x,
 
     Parameters
     ----------
-
     x : ndarray, required
         x-coordinate of all the nodes
 
@@ -239,13 +247,7 @@ def get_all_face_area_from_coords(x,
 
     Returns
     -------
-
-    ndarray: area of all faces as a numpy array
-
-        Examples
-        --------
-
-        >>> areas = ux.get_all_face_area
+    area of all faces : ndarray
     """
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
@@ -286,21 +288,24 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
 
     Parameters
     ----------
-
     node1 : list, required
         First node of the triangle
 
-    node1 : list, required
+    node2 : list, required
         Second node of the triangle
 
     node3 : list, required
         Third node of the triangle
 
-    dA : double, required
+    dA : float, required
         quadrature point
 
-    dB : double, required
+    dB : float, required
         quadrature point
+
+    Returns
+    -------
+    jacobian : float
     """
     dF = np.array([
         (1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
@@ -360,21 +365,24 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
 
     Parameters
     ----------
-
     node1 : list, required
         First node of the triangle
 
-    node1 : list, required
+    node2 : list, required
         Second node of the triangle
 
     node3 : list, required
         Third node of the triangle
 
-    dA : double, required
+    dA : float, required
         first component of barycentric coordinates of quadrature point
 
-    dB : double, required
+    dB : float, required
         second component of barycentric coordinates of quadrature point
+
+    Returns
+    -------
+    jacobian : float
     """
 
     dF = np.array([

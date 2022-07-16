@@ -35,3 +35,5 @@ Helper Functions
    helpers.calculate_face_area
    helpers.calculate_spherical_triangle_jacobian
    helpers.calculate_spherical_triangle_jacobian_barycentric
+   get_gauss_quadratureDG
+   get_tri_quadratureDG
