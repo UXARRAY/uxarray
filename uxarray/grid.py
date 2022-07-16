@@ -93,6 +93,70 @@ class Grid:
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
 
+    def __init_ds_var_names__(self):
+        """A dictionary for storing uxarray's internal representation of xarray
+        object.
+
+        ugrid conventions are flexible with names of variables, this dict stores the conversion
+        http://ugrid-conventions.github.io/ugrid-conventions/
+        """
+        self.ds_var_names = {
+            "Mesh2": "Mesh2",
+            "Mesh2_node_x": "Mesh2_node_x",
+            "Mesh2_node_y": "Mesh2_node_y",
+            "Mesh2_node_z": "Mesh2_node_z",
+            "Mesh2_face_nodes": "Mesh2_face_nodes",
+            # initialize dims
+            "nMesh2_node": "nMesh2_node",
+            "nMesh2_face": "nMesh2_face",
+            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
+        }
+
+    def __init_grid_var_attrs__(self):
+        """Initialize attributes for directly accessing Coordinate and Data
+        variables through ugrid conventions.
+
+        Examples
+        ----------
+        Assuming the mesh node coordinates for longitude are stored with an input
+        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
+        dictionary with the key 'Mesh2_node_x'. In order to access it:
+
+        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
+
+        With the help of this function, we can directly access it through the
+        use of a standardized name (ugrid convention)
+        >>> x = grid.Mesh2_node_x
+        """
+
+        # Set UGRID standardized attributes
+        for key, value in self.ds_var_names.items():
+            # Present Data Names
+            if self.ds.data_vars is not None:
+                if value in self.ds.data_vars:
+                    setattr(self, key, self.ds[value])
+
+            # Present Coordinate Names
+            if self.ds.coords is not None:
+                if value in self.ds.coords:
+                    setattr(self, key, self.ds[value])
+
+    # load mesh from a file
+    def __from_ds__(self, dataset):
+        """Loads a mesh dataset."""
+        # call reader as per mesh_filetype
+        if self.mesh_filetype == "exo":
+            self.ds = _read_exodus(dataset, self.ds_var_names)
+        elif self.mesh_filetype == "scrip":
+            self.ds = _read_scrip(dataset)
+        elif self.mesh_filetype == "ugrid":
+            self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
+        elif self.mesh_filetype == "shp":
+            self.ds = _read_shpfile(self.filepath)
+        else:
+            raise RuntimeError("unknown file format: " + self.mesh_filetype)
+        dataset.close()
+
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
         argument."""
@@ -145,44 +209,20 @@ class Grid:
                 "start_index": 0
             })
 
-    # load mesh from a file
-    def __from_ds__(self, dataset):
-        """Loads a mesh dataset."""
-        # call reader as per mesh_filetype
-        if self.mesh_filetype == "exo":
-            self.ds = _read_exodus(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "scrip":
-            self.ds = _read_scrip(dataset)
-        elif self.mesh_filetype == "ugrid":
-            self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "shp":
-            self.ds = _read_shpfile(self.filepath)
-        else:
-            raise RuntimeError("unknown file format: " + self.mesh_filetype)
-        dataset.close()
+    # Build the edge-face connectivity array.
+    def build_edge_face_connectivity(self):
+        """Not implemented."""
+        warn("Function placeholder, implementation coming soon.")
 
-    def write(self, outfile, extension=""):
-        """Writes mesh file as per extension supplied in the outfile string.
+    # Build the array of latitude-longitude bounding boxes.
+    def buildlatlon_bounds(self):
+        """Not implemented."""
+        warn("Function placeholder, implementation coming soon.")
 
-        Parameters
-        ----------
-
-        outfile : string, required
-        extension : file extension, optional
-            Defaults to ""
-        """
-        if extension == "":
-            outfile_path = PurePath(outfile)
-            extension = outfile_path.suffix
-            if not os.path.isdir(outfile_path.parent):
-                raise ("File directory not found: " + outfile)
-
-        if extension == ".ugrid" or extension == ".ug":
-            _write_ugrid(self.ds, outfile, self.ds_var_names)
-        elif extension == ".g" or extension == ".exo":
-            _write_exodus(self.ds, outfile, self.ds_var_names)
-        else:
-            print("Format not supported for writing: ", extension)
+    # Build the node-face connectivity array.
+    def build_node_face_connectivity(self):
+        """Not implemented."""
+        warn("Function placeholder, implementation coming soon.")
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
@@ -198,78 +238,6 @@ class Grid:
         face_areas = self.get_face_areas(quadrature_rule, order)
 
         return np.sum(face_areas)
-
-    # Build the node-face connectivity array.
-    def build_node_face_connectivity(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Build the edge-face connectivity array.
-    def build_edge_face_connectivity(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Build the array of latitude-longitude bounding boxes.
-    def buildlatlon_bounds(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Validate that the grid conforms to the UXGrid standards.
-    def validate(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    def __init_ds_var_names__(self):
-        """A dictionary for storing uxarray's internal representation of xarray
-        object.
-
-        ugrid conventions are flexible with names of variables, this dict stores the conversion
-        http://ugrid-conventions.github.io/ugrid-conventions/
-        """
-        self.ds_var_names = {
-            "Mesh2": "Mesh2",
-            "Mesh2_node_x": "Mesh2_node_x",
-            "Mesh2_node_y": "Mesh2_node_y",
-            "Mesh2_node_z": "Mesh2_node_z",
-            "Mesh2_face_nodes": "Mesh2_face_nodes",
-            # initialize dims
-            "nMesh2_node": "nMesh2_node",
-            "nMesh2_face": "nMesh2_face",
-            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
-        }
-
-    def integrate(self, var_key, quadrature_rule="triangular", order=4):
-        """ Integrates over all the faces of the given mesh.
-        Parameters
-        ----------
-
-        var_key : string, required
-            Name of variable for integration.
-
-        Returns
-        -------
-
-        double: integration result.
-
-        Examples
-        --------
-
-        Open grid file only
-        >>> grid = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-
-
-        Open grid file along with data
-        >>> integral_psi = grid.integrate("psi")
-        """
-        integral = 0.0
-
-        # call function to get area of all the faces as a np array
-        face_areas = self.get_face_areas(quadrature_rule, order)
-
-        face_vals = self.ds.get(var_key).to_numpy()
-        integral = np.dot(face_areas, face_vals)
-
-        return integral
 
     def get_face_areas(self, quadrature_rule="triangular", order=4):
         """Face areas calculation function for grid class, calculates area of
@@ -318,34 +286,66 @@ class Grid:
 
         return self._face_areas
 
+    def integrate(self, var_key, quadrature_rule="triangular", order=4):
+        """ Integrates over all the faces of the given mesh.
+        Parameters
+        ----------
+
+        var_key : string, required
+            Name of variable for integration.
+
+        Returns
+        -------
+
+        double: integration result.
+
+        Examples
+        --------
+
+        Open grid file only
+        >>> grid = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
+
+
+        Open grid file along with data
+        >>> integral_psi = grid.integrate("psi")
+        """
+        integral = 0.0
+
+        # call function to get area of all the faces as a np array
+        face_areas = self.get_face_areas(quadrature_rule, order)
+
+        face_vals = self.ds.get(var_key).to_numpy()
+        integral = np.dot(face_areas, face_vals)
+
+        return integral
+
     # use the property keyword for declaration on face_areas property
     face_areas = property(get_face_areas)
 
-    def __init_grid_var_attrs__(self):
-        """Initialize attributes for directly accessing Coordinate and Data
-        variables through ugrid conventions.
+    # Validate that the grid conforms to the UXGrid standards.
+    def validate(self):
+        """Not implemented."""
+        warn("Function placeholder, implementation coming soon.")
 
-        Examples
+    def write(self, outfile, extension=""):
+        """Writes mesh file as per extension supplied in the outfile string.
+
+        Parameters
         ----------
-        Assuming the mesh node coordinates for longitude are stored with an input
-        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
-        dictionary with the key 'Mesh2_node_x'. In order to access it:
 
-        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
-
-        With the help of this function, we can directly access it through the
-        use of a standardized name (ugrid convention)
-        >>> x = grid.Mesh2_node_x
+        outfile : string, required
+        extension : file extension, optional
+            Defaults to ""
         """
+        if extension == "":
+            outfile_path = PurePath(outfile)
+            extension = outfile_path.suffix
+            if not os.path.isdir(outfile_path.parent):
+                raise ("File directory not found: " + outfile)
 
-        # Set UGRID standardized attributes
-        for key, value in self.ds_var_names.items():
-            # Present Data Names
-            if self.ds.data_vars is not None:
-                if value in self.ds.data_vars:
-                    setattr(self, key, self.ds[value])
-
-            # Present Coordinate Names
-            if self.ds.coords is not None:
-                if value in self.ds.coords:
-                    setattr(self, key, self.ds[value])
+        if extension == ".ugrid" or extension == ".ug":
+            _write_ugrid(self.ds, outfile, self.ds_var_names)
+        elif extension == ".g" or extension == ".exo":
+            _write_exodus(self.ds, outfile, self.ds_var_names)
+        else:
+            print("Format not supported for writing: ", extension)
