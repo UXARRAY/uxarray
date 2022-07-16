@@ -49,7 +49,7 @@ class TestIntegrate(TestCase):
     def test_calculate_total_face_area_file(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
 
-        grid = ux.Grid(str(mesh_file30))
+        grid = ux.open_dataset(str(mesh_file30))
 
         area = grid.calculate_total_face_area()
 

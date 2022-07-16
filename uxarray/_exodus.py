@@ -5,22 +5,16 @@ from datetime import datetime
 
 
 # Exodus Number is one-based.
-def _read_exodus(filepath, ds_var_names):
+def _read_exodus(ext_ds, ds_var_names):
     """Exodus file reader.
 
-    Parameters
-    ----------
-
-    filepath : str, optional
-        Path of the file to be read in.
+    Parameters: xarray.Dataset, required
+    Returns: ugrid aware xarray.Dataset
     """
-
-    print("Reading exodus file: ", filepath)
 
     # Not loading specific variables.
     # as there is no way to know number of face types etc. without loading
     # connect1, connect2, connect3, etc..
-    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
     ds = xr.Dataset()
 
     # populate ds

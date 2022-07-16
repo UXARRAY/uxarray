@@ -20,11 +20,6 @@ exodus = current_path / "meshfiles" / "outCSne8.g"
 
 class TestIntegrate(TestCase):
 
-    def test_determine_file_type(self):
-        """Determine if a file is of type exodus."""
-        ftype = ux.determine_file_type(exodus)
-        assert (ftype == "exo")
-
     def test_face_area_coords(self):
         """Test function for helper function get_all_face_area_from_coords."""
         # Note: currently only testing one face, but this can be used to get area of multiple faces
