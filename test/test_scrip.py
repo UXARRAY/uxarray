@@ -23,13 +23,13 @@ class TestGrid(TestCase):
         """Checks that exception is raised if non-SCRIP formatted file is
         passed to function."""
 
-        self.assertRaises(TypeError, _read_scrip(ne30))
+        self.assertRaises(TypeError, _read_scrip(ds_ne30))
 
     def test_scrip_is_not_ugrid(self):
         """tests that function has correctly created a ugrid function and no
         longer uses SCRIP variable names (grid_corner_lat), the function will
         raise an exception."""
-        new_ds = _read_scrip(ne8)
+        new_ds = _read_scrip(ds_ne8)
 
         assert ds_ne8['grid_corner_lat'].any()
 
@@ -38,7 +38,7 @@ class TestGrid(TestCase):
 
     def test_ugrid_variable_names(self):
         """Tests that returned dataset uses UGRID compliant variables."""
-        mesh08 = _read_scrip(ne8)
+        mesh08 = _read_scrip(ds_ne8)
 
         # Create a flattened and unique array for comparisons
         corner_lon = ds_ne8['grid_corner_lon'].values

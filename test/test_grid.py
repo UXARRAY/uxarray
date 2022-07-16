@@ -23,9 +23,9 @@ class TestGrid(TestCase):
         ug_outfile2 = current_path / "meshfiles" / "outRLL1deg.g"
         ug_outfile3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.g"
 
-        tgrid1 = ux.Grid(str(ug_filename1))
-        tgrid2 = ux.Grid(str(ug_filename2))
-        tgrid3 = ux.Grid(str(ug_filename3))
+        tgrid1 = ux.open_dataset(str(ug_filename1))
+        tgrid2 = ux.open_dataset(str(ug_filename2))
+        tgrid3 = ux.open_dataset(str(ug_filename3))
 
         tgrid1.write(str(ug_outfile1))
         tgrid2.write(str(ug_outfile2))
@@ -75,7 +75,7 @@ class TestGrid(TestCase):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
             shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-            tgrid = ux.Grid(str(shp_filename))
+            tgrid = ux.open_dataset(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file and write ugrid file."""
@@ -84,6 +84,6 @@ class TestGrid(TestCase):
         ug_30 = current_path / "meshfiles" / "outCSne30.ug"
 
         # Test read from scrip and from ugrid for grid class
-        ux.Grid(str(scrip_8))  # tests from scrip
+        ux.open_dataset(str(scrip_8))  # tests from scrip
 
-        ux.Grid(str(ug_30))  # tests from ugrid
+        ux.open_dataset(str(ug_30))  # tests from ugrid

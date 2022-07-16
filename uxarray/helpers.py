@@ -6,10 +6,9 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit
 
 
-# helper function to find file type
-def determine_file_type(filepath):
-    """Checks file path and contents to determine file type. Supports detection
-    of UGrid, SCRIP, Exodus and shape file.
+def parse_grid_type(filepath, **kw):
+    """Checks input and contents to determine grid type. Supports detection of
+    UGrid, SCRIP, Exodus and shape file.
 
     Parameters
     ----------
@@ -28,54 +27,52 @@ def determine_file_type(filepath):
     ValueError
         If file is not in UGRID format
     """
-    msg = ""
-    mesh_filetype = "unknown"
-    # exodus with coord
-    try:
-        # extract the file name and extension
-        path = PurePath(filepath)
-        file_extension = path.suffix
+    # extract the file name and extension
+    path = PurePath(filepath)
+    file_extension = path.suffix
+    # short-circuit for shapefiles
+    if file_extension == ".shp":
+        mesh_filetype, dataset = "shp", None
+        return mesh_filetype, dataset
 
-        # try to open file with xarray and test for exodus
-        ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coord"]
+    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
+    # exodus with coord or coordx
+    if "coord" in dataset:
         mesh_filetype = "exo"
-    except KeyError as e:
-        # exodus with coordx
-        try:
-            ext_ds = xr.open_dataset(filepath, mask_and_scale=False)["coordx"]
-            mesh_filetype = "exo"
-        except KeyError as e:
-            # scrip with grid_center_lon
-            try:
-                ext_ds = xr.open_dataset(
-                    filepath, mask_and_scale=False)["grid_center_lon"]
-                mesh_filetype = "scrip"
-            except KeyError as e:
+    elif "coordx" in dataset:
+        mesh_filetype = "exo"
+    # scrip with grid_center_lon
+    elif "grid_center_lon" in dataset:
+        mesh_filetype = "scrip"
+    # ugrid topology
+    elif _is_ugrid(dataset):
+        mesh_filetype = "ugrid"
+    else:
+        raise RuntimeError(f"Could not recognize {filepath} format.")
+    return mesh_filetype, dataset
 
-                # check mesh topology and dimension
-                try:
-                    standard_name = lambda v: v is not None
-                    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
-                    # return type KeysView
-                    ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
-                    node_coords_dv = ext_ds.filter_by_attrs(
-                        node_coordinates=standard_name).keys()
-                    face_conn_dv = ext_ds.filter_by_attrs(
-                        face_node_connectivity=standard_name).keys()
-                    topo_dim_dv = ext_ds.filter_by_attrs(
-                        topology_dimension=standard_name).keys()
-                    mesh_topo_dv = ext_ds.filter_by_attrs(
-                        cf_role="mesh_topology").keys()
-                    if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[
-                            0] != "" and list(face_conn_dv)[0] != "" and list(
-                                node_coords_dv)[0] != "":
-                        mesh_filetype = "ugrid"
-                    else:
-                        raise ValueError(
-                            "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
-                        )
-                except KeyError as e:
-                    msg = str(e) + ': {}'.format(filepath)
+    # check mesh topology and dimension
+    try:
+        standard_name = lambda v: v is not None
+        # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
+        # return type KeysView
+        ext_ds = xr.open_dataset(filepath, mask_and_scale=False)
+        node_coords_dv = ext_ds.filter_by_attrs(
+            node_coordinates=standard_name).keys()
+        face_conn_dv = ext_ds.filter_by_attrs(
+            face_node_connectivity=standard_name).keys()
+        topo_dim_dv = ext_ds.filter_by_attrs(
+            topology_dimension=standard_name).keys()
+        mesh_topo_dv = ext_ds.filter_by_attrs(cf_role="mesh_topology").keys()
+        if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[0] != "" and list(
+                face_conn_dv)[0] != "" and list(node_coords_dv)[0] != "":
+            mesh_filetype = "ugrid"
+        else:
+            raise ValueError(
+                "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
+            )
+    except KeyError as e:
+        msg = str(e) + ': {}'.format(filepath)
     except (TypeError, AttributeError) as e:
         msg = str(e) + ': {}'.format(filepath)
     except (RuntimeError, OSError) as e:
@@ -254,25 +251,15 @@ def get_all_face_area_from_coords(x,
 
     for i in range(num_faces):
 
-        num_face_nodes = len(face_nodes[i])
-        face_x = np.zeros(num_face_nodes)
-        face_y = np.zeros(num_face_nodes)
-        face_z = np.zeros(num_face_nodes)
+        face_z = np.zeros(len(face_nodes[i]))
 
-        for j in range(num_face_nodes):
-            node_id = face_nodes[i][j]
-
-            face_x[j] = x[node_id]
-            face_y[j] = y[node_id]
-
-            # check if z dimension
-            if dim > 2:
-                face_z[j] = z[node_id]
+        face_x = x[face_nodes[i]]
+        face_y = y[face_nodes[i]]
+        # check if z dimension
+        if dim > 2:
+            face_z = z[face_nodes[i]]
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
-        # face_area = calculate_face_area(face_x, face_y, face_z, "gaussian",
-        # 4, coords_type)
-
         face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
                                         order, coords_type)
 
@@ -429,3 +416,19 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
                         nodeCross[2] * nodeCross[2])
 
     return 0.5 * dJacobian
+
+
+def _is_ugrid(ds):
+    """Check mesh topology and dimension."""
+    standard_name = lambda v: v is not None
+    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
+    # return type KeysView
+    node_coords_dv = ds.filter_by_attrs(node_coordinates=standard_name)
+    face_conn_dv = ds.filter_by_attrs(face_node_connectivity=standard_name)
+    topo_dim_dv = ds.filter_by_attrs(topology_dimension=standard_name)
+    mesh_topo_dv = ds.filter_by_attrs(cf_role="mesh_topology")
+    if len(mesh_topo_dv) != 0 and len(topo_dim_dv) != 0 and len(
+            face_conn_dv) != 0 and len(node_coords_dv) != 0:
+        return True
+    else:
+        return False
