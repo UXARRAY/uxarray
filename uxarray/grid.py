@@ -2,6 +2,7 @@
 import os
 import xarray as xr
 import numpy as np
+import random
 from warnings import warn
 from pathlib import PurePath
 
@@ -10,7 +11,8 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
-from .helpers import determine_file_type, insert_pt_in_latlonbox, convert_node_XYZ_2_latlon_rad, Edge
+from .helpers import determine_file_type, insert_pt_in_latlonbox, Edge, is_parallel, is_intersect, \
+    get_intersection_point, convert_node_latlon_rad_to_xyz, dot_product
 
 
 class Grid:
@@ -224,7 +226,7 @@ class Grid:
             mesh2_edge_nodes.append(edge.get_nodes())
 
         self.Mesh2_edge_nodes = xr.DataArray(
-            data= mesh2_edge_nodes,
+            data=mesh2_edge_nodes,
             dims=["nMesh2_edge", "Two"]
         )
 
@@ -248,232 +250,100 @@ class Grid:
 
         reference_tolerance = 1.0e-12
 
-        '''
-        Loop over each face to generate LatlonBox
-        '''
-        for i in range(self.Mesh2_face_edges.sizes["nMesh2_face"]):
-            face = self.Mesh2_face_edges.values[i]
-            i_winding_number = 0
-            for edge in face:
-                node_1 = edge[0]
-                node_2 = edge[1]
+        for face in self.Mesh2_face_edges:
 
-                # # One of the edges crosses z=0; assume this does not contain the pole point
-                # if (self.Mesh2_node_z[node_1] <= -reference_tolerance) and (
-                #         self.Mesh2_node_z[node_2] >= reference_tolerance):
-                #     i_winding_number = 0
-                #     break
-                #
-                # if (self.Mesh2_node_z[node_1] >= reference_tolerance) and (
-                #         self.Mesh2_node_z[node_2] <= -reference_tolerance):
-                #     i_winding_number = 0
-                #     break
-                #
-                # # One of the points on this edge is a pole point (counts as face including pole points)
-                # if np.absolute(np.absolute(self.Mesh2_node_z[node_1]) - 1.0) < reference_tolerance:
-                #     i_winding_number = 2000
-                #     break
+            # Check if face contains pole points
+            _lambda = 0
+            v1 = [0, 0, 1]
+            v2 = [np.cos(_lambda), np.sin(_lambda), 0]
 
-                # n1 is on the line of constant x (winding should be accounted for in previous step)
-                if np.absolute(self.ds["Mesh2_node_y"][node_1]) < reference_tolerance:
-                    # edge passes through the pole
-                    # TODO: This only works for great circle arcs.  Fix for lines of constant latitude.
-                    if np.absolute(self.ds["Mesh2_node_y"][node_2]) < reference_tolerance:
-                        if (self.ds["Mesh2_node_x"][node_1] >= reference_tolerance) and (
-                                self.ds["Mesh2_node_x"][node_1] <= reference_tolerance):
-                            i_winding_number = 3000
-                            break
-                        if (self.ds["Mesh2_node_x"][node_1] <= reference_tolerance) and (
-                                self.ds["Mesh2_node_x"][node_1] >= reference_tolerance):
-                            i_winding_number = 4000
-                            break
-                    continue
+            num_intersects = self.count_face_edge_intersection(face, [v1, v2])
+            while num_intersects == -1:
+                # if one edge of the grid cell is parallel to the arc (v1 , v2 ) then vary the choice of v2 .
+                # TODO: Replace the random choice with calculated ref-edge
+                _lambda = random.randrange(0, 2 * np.pi, 1)
+                v2 = [np.cos(_lambda), np.sin(_lambda), 0]
+                num_intersects = self.count_face_edge_intersection(face, [v1, v2])
 
-                # Both endpoints of line lay on same side of y = 0
-                if (self.ds["Mesh2_node_y"][node_1] <= reference_tolerance) and (
-                        self.ds["Mesh2_node_y"][node_2] <= reference_tolerance):
-                    continue
-
-                if (self.ds["Mesh2_node_y"][node_1] >= reference_tolerance) and (
-                        self.ds["Mesh2_node_y"][node_2] >= reference_tolerance):
-                    continue
-
-                # Determine intersection with line (x,y,z)=(x,0,1)
-                # TODO: ??????? How to calculate it without the Z coordinate
-                d_denom = self.ds["Mesh2_node_y"][node_1] * self.Mesh2_node_z[node_2] - self.ds["Mesh2_node_y"][
-                    node_2] * \
-                          self.ds["Mesh2_node_y"][node_1] * self.Mesh2_node_z[node_1]
-
-                if np.absolute(d_denom) < reference_tolerance:
-                    continue
-
-                d_xint = (self.ds["Mesh2_node_y"][node_1] * self.ds["Mesh2_node_x"][node_1] * self.ds["Mesh2_node_y"][
-                    node_2]) / d_denom
-                if d_xint > 0.0:
-                    if (self.ds["Mesh2_node_y"][node_1] < reference_tolerance) and (
-                            self.ds["Mesh2_node_y"][node_2] > reference_tolerance):
-                        i_winding_number += 1
-                    else:
-                        i_winding_number -= 1
-                else:
-                    if (self.ds["Mesh2_node_y"][node_1] < reference_tolerance) and (
-                            self.ds["Mesh2_node_y"][node_2] > reference_tolerance):
-                        i_winding_number -= 1
-                    else:
-                        i_winding_number += 1
-
-            # Face containing a pole point; latlon box determined by minimum/maximum latitude
-            if np.absolute(i_winding_number) > 1:
-
-                # TODO: Fix for faces that only contain the pole at one edge endpoint
-                d_lat_extent_rad = 0.0
-                for j in range(len(face)):
+            if num_intersects / 2 != 0:
+                # if the face contains the pole point
+                for i in range(0, len(face)):
                     edge = face[i]
-                    node_1 = edge[0]
-                    node_2 = edge[1]
-
-                    d_lat_rad = 0.0
-                    d_lon_rad = 0.0
+                    # All the following calculation is based on the 3D XYZ coord
+                    n1 = []
+                    n2 = []
+                    if self.ds["Mesh2_node_z"].values.size == 0:
+                        # Convert the 2D [lon, lat] to 3D [x, y, z]
+                        n1 = convert_node_latlon_rad_to_xyz([self.ds["Mesh2_node_x"][edge[0]],
+                                                             self.ds["Mesh2_node_y"][edge[0]]])
+                        n2 = convert_node_latlon_rad_to_xyz([self.ds["Mesh2_node_x"][edge[1]],
+                                                             self.ds["Mesh2_node_y"][edge[1]]])
+                    else:
+                        # The mesh grid is stored as 3D [x, y, z]
+                        n1 = [self.ds["Mesh2_node_x"][edge[0]], self.ds["Mesh2_node_y"][edge[0]],
+                              self.ds["Mesh2_node_z"][edge[0]]]
+                        n2 = [self.ds["Mesh2_node_x"][edge[1]], self.ds["Mesh2_node_y"][edge[1]],
+                              self.ds["Mesh2_node_z"][edge[1]]]
 
                     # Set the latitude extent
-                    # TODO: What does this latitude extend do with the z coord?
-                    if j == 0:
-                        if self.Mesh2_node_z[node_1] < 0.0:
+                    d_lat_extent_rad = 0
+                    if i == 0:
+                        if n1[2] < 0.0:
                             d_lat_extent_rad = -0.5 * np.pi
                         else:
                             d_lat_extent_rad = 0.5 * np.pi
 
-                    # Insert edge endpoint into box
-                    # temp_latlon_box = [d_lat_rad,d_lon_rad]
-                    # temp_latlon_array[j]
-                    if np.absolute(d_lat_rad) < d_lat_extent_rad:
-                        d_lat_extent_rad = d_lat_rad
+                    # insert edge endpoint into box
+                    # TODO: Make sure ds["Mesh2_node_x"] and ds["Mesh2_node_y"] always store the lon/lat value
+                    if np.absolute(self.ds["Mesh2_node_x"][edge[0]]) < d_lat_extent_rad:
+                        d_lat_extent_rad = self.ds["Mesh2_node_x"][edge[0]]
 
-                    # Assumes all Edges are great circle arc:
-
+                    # TODO: Consider about the constant latitude edge type.
                     # Determine if latitude is maximized between endpoints
-                    d_dot_n1_n2 = self.ds["Mesh2_node_x"][node_1] * self.ds["Mesh2_node_x"][node_2] + \
-                                  self.ds["Mesh2_node_y"][
-                                      node_1] * self.ds["Mesh2_node_y"][node_2]
+                    dot_n1_n2 = dot_product(n1, n2)
+                    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
+                    if np.absolute(d_de_nom) < reference_tolerance:
+                        continue
 
-                    # TODO: denom without z coord
-                    d_denom = (self.Mesh2_node_z[node_1] * self.Mesh2_node_z[node_2]) * (d_dot_n1_n2 - 1.0)
-
-                    # Maximum latitude occurs between endpoints of edge
-                    # TODO: d_a_max without z coord
-                    d_a_max = (self.Mesh2_node_z[node_1] * d_dot_n1_n2 - self.Mesh2_node_z[node_2]) / d_denom
+                    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / d_de_nom
                     if (d_a_max > 0.0) and (d_a_max < 1.0):
-                        node_3_x = self.ds["Mesh2_node_x"][node_1] * (1.0 - d_a_max) + self.ds["Mesh2_node_x"][
-                            node_2] * d_a_max
-                        node_3_y = self.ds["Mesh2_node_y"][node_1] * (1.0 - d_a_max) + self.ds["Mesh2_node_y"][
-                            node_2] * d_a_max
-                        magnitude = np.sqrt(node_3_x ** 2 + node_3_y ** 2)
-                        node_3_x /= magnitude
-                        node_3_y /= magnitude
-
-                        # TODO: d_lat_rad without z coord
-                        d_lat_rad = node_3_z
-                        if d_lat_rad > 1.0:
-                            d_lat_rad = 0.5 * np.pi
-                        elif d_lat_rad < -1.0:
-                            d_lat_rad = -0.5 * np.pi
-                        else:
-                            d_lat_rad = np.arcsin(d_lat_rad)
-
-                        if np.absolute(d_lat_rad) < np.absolute(d_lat_extent_rad):
-                            d_lat_extent_rad = d_lat_rad
-                    # Edges that are lines of constant latitude
-
-                    if d_lat_extent_rad < 0.0:
-                        lat_lon_box = [-0.5 * np.pi, d_lat_extent_rad, 0.0, 2.0 * np.pi]  # [lat_array, lon_array]
-                        temp_latlon_array[i] = lat_lon_box
-                    else:
-                        lat_lon_box = [d_lat_extent_rad, 0.5 * np.pi, 0.0, 2.0 * np.pi]  # [lat_array, lon_array]
-                        temp_latlon_array[i] = lat_lon_box
-            # Normal face
-            else:
-                for j in range(len(face)):
-                    edge = face[i]
-
-                    # Edges that are great circle arcs
-                    if self.Mesh2_edge_types[edge] == 0:
-                        edge = face[i]
-                        node_1 = edge[0]
-                        node_2 = edge[1]
-
-                        # Determine if latitude is maximized between endpoints
-                        d_dot_n1_n2 = self.ds["Mesh2_node_x"][node_1] * self.ds["Mesh2_node_x"][node_2] + \
-                                      self.ds["Mesh2_node_y"][
-                                          node_1] * self.ds["Mesh2_node_y"][node_2]
-
-                        # TODO: d_denom wihtout z coord
-                        d_denom = (self.Mesh2_node_z[node_1] * self.Mesh2_node_z[node_2]) * (d_dot_n1_n2 - 1.0)
-
-                        # Create the first end points of the edge
-                        d_lat_rad = self.ds["Mesh2_node_x"][node_1]
-                        d_lon_rad = self.ds["Mesh2_node_y"][node_1]
-
-                        lat_lon_box = [d_lat_rad, d_lat_rad, d_lon_rad, d_lon_rad]
-                        temp_latlon_array[i] = lat_lon_box
-
-                        # Either repeated point or Amax out of range
-                        if np.absolute(d_denom) < reference_tolerance:
-                            continue
-
-                        # Maximum latitude occurs between endpoints of edge
-                        d_a_max = (self.Mesh2_node_z[node_1] * d_dot_n1_n2 - self.Mesh2_node_z[node_2]) / d_denom
-                        if d_a_max > 0.0 and d_a_max < 1.0:
-                            node_3_x = self.Mesh2_node_x[node_1] * (1.0 - d_a_max) + self.Mesh2_node_x[node_2] * d_a_max
-                            node_3_y = self.Mesh2_node_y[node_1] * (1.0 - d_a_max) + self.Mesh2_node_y[node_2] * d_a_max
-                            node_3_z = self.Mesh2_node_z[node_1] * (1.0 - d_a_max) + self.Mesh2_node_z[node_2] * d_a_max
-                            magnitude = np.sqrt(node_3_x ** 2 + node_3_y ** 2 + node_3_z ** 2)
-                            node_3_x /= magnitude
-                            node_3_y /= magnitude
-                            node_3_z /= magnitude
-
-                            d_lat_rad = node_3_z
-
-                            if d_lat_rad > 1.0:
-                                d_lat_rad = 0.5 * np.pi
-                            elif d_lat_rad < -1.0:
-                                d_lat_rad = -0.5 * np.pi
-                            else:
-                                d_lat_rad = np.arcsin(d_lat_rad)
-
-                            temp_latlon_array[i] = insert_pt_in_latlonbox(temp_latlon_array[i], [d_lat_rad, d_lon_rad])
-                        # Edges that are lines of constant latitude
-                        elif self.Mesh2_edge_types[edge] == 1:
-                            edge = face[i]
-                            node_1 = edge[0]
-                            node_2 = edge[1]
-
-                            d_lat_rad = self.Mesh2_node_x[node_1]
-                            d_lon_rad = self.Mesh2_node_y[node_1]
-
-                            temp_latlon_array[i] = insert_pt_in_latlonbox(temp_latlon_array[i], [d_lat_rad, d_lon_rad])
-
-                            res_pt = convert_node_XYZ_2_latlon_rad(
-                                [self.Mesh2_node_x[node_2], self.Mesh2_node_y[node_2]], self.Mesh2_node_z[node_2])
-                            d_lat_rad = res_pt[0]
-                            d_lon_rad = res_pt[1]
-
-                            lat_lon_box = insert_pt_in_latlonbox(temp_latlon_array[i], [d_lat_rad, d_lon_rad])
-                            lat_lon_array = [lat_lon_box[0][0], lat_lon_box[0][1], lat_lon_box[1][0], lat_lon_box[1][1]]
-
-                            temp_latlon_array[i] = [lat_lon_box[0][0], lat_lon_box[0][1], lat_lon_box[1][0],
-                                                    lat_lon_box[1][1]]
-
-
-                        else:
-                            raise Exception('Unsupported edge type {}'.format(self.Mesh2_edge_types[edge]))
-
-        # Create a np.float64 DataArray of size (nMesh2_face, Four)
-        self.Mesh2_latlon_bounds = xr.DataArray(
-            data=temp_latlon_array,
-            dims=["nMesh2_face", "latlon_bounds"]
-        )
+                        pass
 
         warn("Function placeholder, implementation coming soon.")
+
+    # Count the number of total intersections of an edge and face (Algo. 2.4 Determining if a grid cell contains a
+    # given point)
+    def count_face_edge_intersection(self, face, ref_edge):
+        v1 = ref_edge[0]
+        v2 = ref_edge[1]
+        num_intersection = 0
+        for edge in face:
+            # All the following calculation is based on the 3D XYZ coord
+            w1 = []
+            w2 = []
+            if self.ds["Mesh2_node_z"].values.size == 0:
+                # Convert the 2D [lon, lat] to 3D [x, y, z]
+                w1 = convert_node_latlon_rad_to_xyz([self.ds["Mesh2_node_x"][edge[0]],
+                                                     self.ds["Mesh2_node_y"][edge[0]]])
+                w2 = convert_node_latlon_rad_to_xyz([self.ds["Mesh2_node_x"][edge[1]],
+                                                     self.ds["Mesh2_node_y"][edge[1]]])
+            else:
+                # The mesh grid is stored as 3D [x, y, z]
+                w1 = [self.ds["Mesh2_node_x"][edge[0]], self.ds["Mesh2_node_y"][edge[0]],
+                      self.ds["Mesh2_node_z"][edge[0]]]
+                w2 = [self.ds["Mesh2_node_x"][edge[1]], self.ds["Mesh2_node_y"][edge[1]],
+                      self.ds["Mesh2_node_z"][edge[1]]]
+
+            res = get_intersection_point(w1, w2, v1, v2)
+
+            # two vectors are intersected within range and not parralel
+            if (res != [0, 0, 0]) and (res != [-1, -1, -1]):
+                num_intersection += 1
+            elif res[0] * res[1] * res[2] == 0:
+                # if two vectors are parallel
+                return -1
+
+        return num_intersection
 
     # Validate that the grid conforms to the UXGrid standards.
     def validate(self):

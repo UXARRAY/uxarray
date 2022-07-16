@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import xarray as xr
+import random
+from uxarray import helpers
 
 from unittest import TestCase
 from pathlib import Path
@@ -55,18 +57,14 @@ class TestGrid(TestCase):
         mesh2_edge_nodes = tgrid1.Mesh2_edge_nodes
 
         # Assert if the mesh2_face_edges sizes are correct.
-        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],mesh2_face_nodes.sizes["nMesh2_face"])
-        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"], mesh2_face_nodes.sizes["nMesh2_face"])
+        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"], mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
         self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
 
         # Assert if the mesh2_edge_nodes sizes are correct.
         # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
         num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds["Mesh2_node_x"].sizes["nMesh2_node"] - 2
         self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
-
-
-
-
 
     def test_generate_Latlon_bounds(self):
         """Generates a latlon_bounds Xarray from grid file
@@ -75,11 +73,25 @@ class TestGrid(TestCase):
         tgrid1 = ux.Grid(str(ug_filename1))
         tgrid1.buildlatlon_bounds()
 
+    def test_sort_edges(self):
+        # Test if the edges are sorted properly
 
+        edges_ans = [[0, 1],
+                     [0, 2],
+                     [0, 3],
+                     [1, 1],
+                     [1, 2],
+                     [2, 4]]
 
-# TODO: Move to test_shpfile/scrip when implemented
-# use external package to read?
-# https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
+        edges = list(edges_ans)
+
+        random.shuffle(edges)
+        edges_res = helpers.sort_edge(edges)
+        self.assertEqual(edges_res, edges_ans)
+
+    # TODO: Move to test_shpfile/scrip when implemented
+    # use external package to read?
+    # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
@@ -97,4 +109,3 @@ class TestGrid(TestCase):
         ux.Grid(str(scrip_8))  # tests from scrip
 
         ux.Grid(str(ug_30))  # tests from ugrid
-
