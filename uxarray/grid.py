@@ -238,35 +238,6 @@ class Grid:
             "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
         }
 
-    def __init_grid_var_attrs__(self):
-        """Initialize attributes for directly accessing Coordinate and Data
-        variables through ugrid conventions.
-
-        Examples
-        ----------
-        Assuming the mesh node coordinates for longitude are stored with an input
-        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
-        dictionary with the key 'Mesh2_node_x'. In order to access it:
-
-        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
-
-        With the help of this function, we can directly access it through the
-        use of a standardized name (ugrid convention)
-        >>> x = grid.Mesh2_node_x
-        """
-
-        # Set UGRID standardized attributes
-        for key, value in self.ds_var_names.items():
-            # Present Data Names
-            if self.ds.data_vars is not None:
-                if value in self.ds.data_vars:
-                    setattr(self, key, self.ds[value])
-
-            # Present Coordinate Names
-            if self.ds.coords is not None:
-                if value in self.ds.coords:
-                    setattr(self, key, self.ds[value])
-
     def integrate(self, var_key, quadrature_rule="triangular", order=4):
         """ Integrates over all the faces of the given mesh.
         Parameters
@@ -367,7 +338,7 @@ class Grid:
         >>> x = grid.Mesh2_node_x
         """
 
-        # Set UGRID standardized attribtues
+        # Set UGRID standardized attributes
         for key, value in self.ds_var_names.items():
             # Present Data Names
             if self.ds.data_vars is not None:
