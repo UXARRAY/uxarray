@@ -3,7 +3,7 @@ import xarray as xr
 from pathlib import PurePath
 
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
-from numba import njit, config
+from numba import jit, njit, config
 
 config.DISABLE_JIT = False
 
@@ -205,7 +205,7 @@ def calculate_face_area(x,
     return area
 
 
-@njit
+@jit
 def get_all_face_area_from_coords(x,
                                   y,
                                   z,
@@ -248,26 +248,22 @@ def get_all_face_area_from_coords(x,
     -------
     area of all faces : ndarray
     """
-    num_faces = face_nodes.shape[0]
-    area = np.zeros(num_faces)  # set area of each face to 0
 
-    for i in range(num_faces):
+    areas = xr.apply_ufunc(
+        calculate_face_area,
+        xr.DataArray(x[face_nodes]),
+        xr.DataArray(y[face_nodes]),
+        xr.DataArray(z[face_nodes]),
+        quadrature_rule,
+        order,
+        coords_type,
+        input_core_dims=[["dim_1"], ["dim_1"], ["dim_1"], [], [],
+                         []],  # Set core dimensions
+        vectorize=True,  # loop over non-core dims
+        dask="parallelized",  # Dask parallelization
+    )
 
-        face_z = np.zeros(len(face_nodes[i]))
-
-        face_x = x[face_nodes[i]]
-        face_y = y[face_nodes[i]]
-        # check if z dimension
-        if dim > 2:
-            face_z = z[face_nodes[i]]
-
-        # After getting all the nodes of a face assembled call the  cal. face area routine
-        face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
-                                        order, coords_type)
-
-        area[i] = face_area
-
-    return area
+    return areas
 
 
 @njit
