@@ -30,6 +30,6 @@ Helper Functions
 .. autosummary::
    :toctree: _autosummary
 
-   helpers.determine_file_type
    helpers.get_all_face_area_from_coords
    helpers.calculate_face_area
+   helpers.parse_grid_type

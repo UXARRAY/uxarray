@@ -1,19 +1,14 @@
 import xarray as xr
 
 
-def _read_ugrid(filepath, var_names_dict):
+def _read_ugrid(xr_ds, var_names_dict):
     """UGRID file reader.
 
-    Parameters: string, required
-        Name of file to be read
-
-    Returns: the xarray Dataset loaded during init.
+    Parameters: xarray.Dataset, required
+    Returns: ugrid aware xarray.Dataset
     """
 
     # TODO: obtain and change to Mesh2 construct, see Issue #27
-    # simply return the xarray object loaded
-
-    xr_ds = xr.open_dataset(filepath, mask_and_scale=False)
 
     # get the data variable name that has attribute "cf_role" set to "mesh_topology"
     # this is the base xarray.DataArray name
