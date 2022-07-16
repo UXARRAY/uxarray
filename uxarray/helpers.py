@@ -10,14 +10,22 @@ def parse_grid_type(filepath, **kw):
     """Checks input and contents to determine grid type. Supports detection of
     UGrid, SCRIP, Exodus and shape file.
 
-    Parameters: string, required
+    Parameters
+    ----------
+    filepath : str
        Filepath of the file for which the filetype is to be determined.
 
-    Returns: string and ugrid aware xarray.Dataset
-       File type: ug, exo, scrip or shp
+    Returns
+    -------
+    mesh_filetype : str
+        File type of the file, ug, exo, scrip or shp
 
-    Raises:
-       RuntimeError: Invalid grid type
+    Raises
+    ------
+    RuntimeError
+            If invalid file type
+    ValueError
+        If file is not in UGRID format
     """
     # extract the file name and extension
     path = PurePath(filepath)
@@ -98,7 +106,6 @@ def _spherical_to_cartesian_unit_(node, r=6371):
 
     Parameters:
     -----------
-
     node: a list consisting of lat and lon
 
     Returns: numpy array
@@ -130,7 +137,6 @@ def calculate_face_area(x,
 
     Parameters
     ----------
-
     x : list, required
         x-coordinate of all the nodes forming the face
 
@@ -140,12 +146,15 @@ def calculate_face_area(x,
     z : list, required
         z-coordinate of all the nodes forming the face
 
-    quadrature rule : string, optional
-        triangular and Gaussian quadrature supported, expected values: "triangular" or "guaussian"
+    quadrature_rule : str, optional
+        triangular and Gaussian quadrature supported, expected values: "triangular" or "gaussian"
 
     order: int, optional
-        Supported values of order for Gaussian Quadrature: 1 to 10
-        Supported values of order for Triangular: 1, 4, 8, 10 and 12
+        Order of the quadrature rule. Default is 4.
+
+        Supported values:
+            - Gaussian Quadrature: 1 to 10
+            - Triangular: 1, 4, 8, 10 and 12
 
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
@@ -165,8 +174,9 @@ def calculate_face_area(x,
 
     # num triangles is two less than the total number of nodes
     num_triangles = num_nodes - 2
+
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
-    # loop thru all triangles
+    # loop through all sub-triangles of face
     for j in range(0, num_triangles):
         node1 = np.array([x[0], y[0], z[0]], dtype=np.float64)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)
@@ -208,7 +218,6 @@ def get_all_face_area_from_coords(x,
 
     Parameters
     ----------
-
     x : ndarray, required
         x-coordinate of all the nodes
 
@@ -235,13 +244,7 @@ def get_all_face_area_from_coords(x,
 
     Returns
     -------
-
-    ndarray: area of all faces as a numpy array
-
-        Examples
-        --------
-
-        >>> areas = ux.get_all_face_area
+    area of all faces : ndarray
     """
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
@@ -272,21 +275,24 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
 
     Parameters
     ----------
-
     node1 : list, required
         First node of the triangle
 
-    node1 : list, required
+    node2 : list, required
         Second node of the triangle
 
     node3 : list, required
         Third node of the triangle
 
-    dA : double, required
+    dA : float, required
         quadrature point
 
-    dB : double, required
+    dB : float, required
         quadrature point
+
+    Returns
+    -------
+    jacobian : float
     """
     dF = np.array([
         (1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
@@ -346,21 +352,24 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
 
     Parameters
     ----------
-
     node1 : list, required
         First node of the triangle
 
-    node1 : list, required
+    node2 : list, required
         Second node of the triangle
 
     node3 : list, required
         Third node of the triangle
 
-    dA : double, required
+    dA : float, required
         first component of barycentric coordinates of quadrature point
 
-    dB : double, required
+    dB : float, required
         second component of barycentric coordinates of quadrature point
+
+    Returns
+    -------
+    jacobian : float
     """
 
     dF = np.array([

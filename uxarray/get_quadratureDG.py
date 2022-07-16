@@ -8,17 +8,18 @@ def get_gauss_quadratureDG(nCount):
 
     Parameters
     ----------
-
     nCount : int, required
-         Degree (integer) of quadrature points required, supports: 1 to 10.
+         Degree of quadrature points required, supports: 1 to 10.
 
-    Returns:
+    Returns
+    -------
         dG : double
-            numpy array of size ncount, quadrature points
+            numpy array of size ncount, quadrature points. Scaled before returning.
         dW : double
-            numpy array of size ncount x 3, weights
-        Note: dG and dW are scaled before returning
-    Raises:
+            numpy array of size ncount x 3, weights. Scaled before returning.
+
+    Raises
+    ------
        RuntimeError: Invalid degree
     """
     #Degree 1
@@ -148,10 +149,15 @@ def get_gauss_quadratureDG(nCount):
 def get_tri_quadratureDG(nOrder):
     """Triangular Quadrature Points for integration.
 
-    Args:
-        nOrder (integer): Integration order, supports: 12, 10, 8, 4 and 1
-    Returns:
-        dG, dW: points and weights, with dimension order x 3
+    Parameters
+    ----------
+    nOrder : int
+        Integration order, supports: 12, 10, 8, 4 and 1
+
+    Returns
+    -------
+        dG, dW : ndarray
+            points and weights, with dimension order x 3
     """
     # 12th order quadrature rule (33 points)
     if (nOrder == 12):

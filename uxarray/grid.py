@@ -30,34 +30,28 @@ class Grid:
 
     def __init__(self, dataset, **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
-        or gridspec If loading from file, initialization happens via the
-        specified file.
-
-        # TODO: Add or remove new Args/kwargs below as this develops further
+        or gridspec.
 
         Parameters
         ----------
-
         dataset : xarray.Dataset, ndarray, list, tuple, required
-            - Input xarray.Dataset or
-            - Vertex coordinates that form one face.
+            Input xarray.Dataset or vertex coordinates that form one face.
 
         Other Parameters
         ----------------
-
         islatlon : bool, optional
-            Specify if the grid is lat/lon based:
+            Specify if the grid is lat/lon based
         concave: bool, optional
             Specify if this grid has concave elements (internal checks for this are possible)
         gridspec: bool, optional
             Specifies gridspec
-        mesh_filetype: string, optional
-            Specify the mesh file type, eg. exo, ugrid, shp etc
+        mesh_filetype: str, optional
+            Specify the mesh file type, eg. exo, ugrid, shp, etc
 
         Raises
         ------
-
-            RuntimeError: File not found
+            RuntimeError
+                If specified file not found
         """
         # initialize internal variable names
         self.__init_ds_var_names__()
@@ -95,7 +89,10 @@ class Grid:
 
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
-        argument."""
+        argument.
+
+        Called by :func:`__init__`.
+        """
         self.ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
@@ -122,8 +119,7 @@ class Grid:
 
         # single face with all nodes
         num_nodes = x_coord.size
-        conn = list(range(0, num_nodes))
-        conn = [conn]
+        connectivity = [list(range(0, num_nodes))]
 
         self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
                                                dims=["nMesh2_node"],
@@ -137,7 +133,7 @@ class Grid:
                                                    attrs={"units": z_units})
 
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(conn),
+            data=xr.DataArray(connectivity),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
@@ -166,32 +162,44 @@ class Grid:
 
         Parameters
         ----------
+        outfile : str, required
+            Path to output file
+        extension : str, optional
+            Extension of output file. Defaults to empty string.
+            Currently supported options are ".ugrid", ".ug", ".g", ".exo", and ""
 
-        outfile : string, required
-        extension : file extension, optional
-            Defaults to ""
+        Raises
+        ------
+        RuntimeError
+            If unsupported extension provided or directory not found
         """
         if extension == "":
             outfile_path = PurePath(outfile)
             extension = outfile_path.suffix
             if not os.path.isdir(outfile_path.parent):
-                raise ("File directory not found: " + outfile)
+                raise RuntimeError("File directory not found: " + outfile)
 
         if extension == ".ugrid" or extension == ".ug":
             _write_ugrid(self.ds, outfile, self.ds_var_names)
         elif extension == ".g" or extension == ".exo":
             _write_exodus(self.ds, outfile, self.ds_var_names)
         else:
-            print("Format not supported for writing: ", extension)
+            raise RuntimeError("Format not supported for writing: ", extension)
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
         mesh.
 
+        Parameters
+        ----------
+        quadrature_rule : str, optional
+            Quadrature rule to use. Defaults to "triangular".
+        order : int, optional
+            Order of quadrature rule. Defaults to 4.
+
         Returns
         -------
-
-        float: Sum of area of all the faces in the mesh
+        Sum of area of all the faces in the mesh : float
         """
 
         # call function to get area of all the faces as a np array
@@ -220,10 +228,10 @@ class Grid:
         warn("Function placeholder, implementation coming soon.")
 
     def __init_ds_var_names__(self):
-        """A dictionary for storing uxarray's internal representation of xarray
-        object.
+        """Populates a dictionary for storing uxarray's internal representation
+        of xarray object.
 
-        ugrid conventions are flexible with names of variables, this dict stores the conversion
+        Note ugrid conventions are flexible with names of variables, see:
         http://ugrid-conventions.github.io/ugrid-conventions/
         """
         self.ds_var_names = {
@@ -239,26 +247,29 @@ class Grid:
         }
 
     def integrate(self, var_key, quadrature_rule="triangular", order=4):
-        """ Integrates over all the faces of the given mesh.
+        """Integrates over all the faces of the given mesh.
+
         Parameters
         ----------
-
-        var_key : string, required
-            Name of variable for integration.
+        var_key : str, required
+            Name of dataset variable for integration
+        quadrature_rule : str, optional
+            Quadrature rule to use. Defaults to "triangular".
+        order : int, optional
+            Order of quadrature rule. Defaults to 4.
 
         Returns
         -------
-
-        double: integration result.
+        Calculated integral : float
 
         Examples
         --------
-
         Open grid file only
+
         >>> grid = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
 
-
         Open grid file along with data
+
         >>> integral_psi = grid.integrate("psi")
         """
         integral = 0.0
@@ -275,14 +286,19 @@ class Grid:
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
+        Parameters
+        ----------
+        quadrature_rule : str, optional
+            Quadrature rule to use. Defaults to "triangular".
+        order : int, optional
+            Order of quadrature rule. Defaults to 4.
+
         Returns
         -------
-
-        area of all the faces in the mesh. : ndarray
+        Area of all the faces in the mesh : np.ndarray
 
         Examples
         --------
-
         Open a uxarray grid file
 
         >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/outCSne30.ug")
@@ -335,6 +351,7 @@ class Grid:
 
         With the help of this function, we can directly access it through the
         use of a standardized name (ugrid convention)
+
         >>> x = grid.Mesh2_node_x
         """
 
