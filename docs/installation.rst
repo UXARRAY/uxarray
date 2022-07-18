@@ -9,7 +9,7 @@ Installing Uxarray via Conda
 ----------------------------
 
 The easiest way to install Uxarray along with its dependencies is via
-`Conda <http://conda.pydata.org/docs/>`_::
+`Conda <https://conda.io/en/latest>`_::
 
     conda install -c conda-forge uxarray
 
