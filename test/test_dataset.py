@@ -28,14 +28,13 @@ class TestDataset(TestCase):
         ux_ds3 = ux.open_dataset(uds3_name)
 
         # get node names for each grid object
-        ux_ds1_node_x_var = ux_ds1.ds_var_names["Mesh2_node_x"]
-        ux_ds2_node_x_var = ux_ds2.ds_var_names["Mesh2_node_x"]
-        ux_ds3_node_x_var = ux_ds3.ds_var_names["Mesh2_node_x"]
+        ux_ds1_node_x_var = ux_ds1.Mesh2_node_x
+        ux_ds2_node_x_var = ux_ds2.Mesh2_node_x
+        ux_ds3_node_x_var = ux_ds3.Mesh2_node_x
 
-        assert (ux_ds1.ds[ux_ds1_node_x_var].size ==
-                constants.NNODES_ov_RLL10deg_CSne4)
-        assert (ux_ds2.ds[ux_ds2_node_x_var].size == constants.NNODES_outCSne8)
-        assert (ux_ds3.ds[ux_ds3_node_x_var].size == constants.NNODES_outCSne30)
+        assert (ux_ds1_node_x_var.size == constants.NNODES_ov_RLL10deg_CSne4)
+        assert (ux_ds2_node_x_var.size == constants.NNODES_outCSne8)
+        assert (ux_ds3_node_x_var.size == constants.NNODES_outCSne30)
 
         assert (len(ux_ds3.ds.data_vars) == constants.DATAVARS_outCSne30)
 
@@ -44,9 +43,9 @@ class TestDataset(TestCase):
 
         uds3 = ux.open_dataset(uds3_name, uds3_data_name1)
 
-        n3 = uds3.ds_var_names["Mesh2_node_x"]
+        n3 = uds3.Mesh2_node_x
 
-        assert (uds3.ds[n3].size == constants.NNODES_outCSne30)
+        assert (n3.size == constants.NNODES_outCSne30)
         assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 1)
 
     def test_open_multiple_dataset(self):
@@ -55,9 +54,9 @@ class TestDataset(TestCase):
 
         uds3 = ux.open_dataset(uds3_name, uds3_data_name1, uds3_data_name2)
 
-        n3 = uds3.ds_var_names["Mesh2_node_x"]
+        n3 = uds3.Mesh2_node_x
 
-        assert (uds3.ds[n3].size == constants.NNODES_outCSne30)
+        assert (n3.size == constants.NNODES_outCSne30)
         assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 2)
 
     def test_open_non_mesh2_write_exodus(self):
