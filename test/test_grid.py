@@ -44,7 +44,7 @@ class TestGrid(TestCase):
         vgrid.write(face_filename)
 
     def test_init_grid_var_attrs(self):
-        """Tests to see if accessing variables though set attributes is equal
+        """Tests to see if accessing variables through set attributes is equal
         to using the dict."""
         # Dataset with Variables in UGRID convention
         path = current_path / "meshfiles" / "outCSne30.ug"
