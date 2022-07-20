@@ -27,17 +27,10 @@ class TestUgrid(TestCase):
         ux_grid2 = ux.open_dataset(str(ug_filename2))
         ux_grid3 = ux.open_dataset(str(ug_filename3))
 
-        # num_node_var = ux.ugrid_vars["nMesh2_node"]
-        ux_grid1_node_x_var = ux_grid1.ds_var_names["Mesh2_node_x"]
-        ux_grid2_node_x_var = ux_grid2.ds_var_names["Mesh2_node_x"]
-        ux_grid3_node_x_var = ux_grid3.ds_var_names["Mesh2_node_x"]
-
+        assert (ux_grid1.Mesh2_node_x.size == constants.NNODES_outCSne30)
+        assert (ux_grid2.Mesh2_node_x.size == constants.NNODES_outRLL1deg)
         assert (
-            ux_grid1.ds[ux_grid1_node_x_var].size == constants.NNODES_outCSne30)
-        assert (ux_grid2.ds[ux_grid2_node_x_var].size ==
-                constants.NNODES_outRLL1deg)
-        assert (ux_grid3.ds[ux_grid3_node_x_var].size ==
-                constants.NNODES_ov_RLL10deg_CSne4)
+            ux_grid3.Mesh2_node_x.size == constants.NNODES_ov_RLL10deg_CSne4)
 
     def test_read_ugrid_opendap(self):
         """Read an ugrid model from an OPeNDAP URL."""
