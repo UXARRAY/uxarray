@@ -339,7 +339,7 @@ class Grid:
     def face_areas(self):
         if self._face_areas is None:
             self.compute_face_areas()
-            return self._face_areas
+        return self._face_areas
 
     def __init_grid_var_attrs__(self):
         """Initialize attributes for directly accessing Coordinate and Data
