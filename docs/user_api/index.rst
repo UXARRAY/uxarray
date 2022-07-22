@@ -23,7 +23,7 @@ Grid Methods
    grid.Grid.write
    grid.Grid.calculate_total_face_area
    grid.Grid.integrate
-   grid.Grid.get_face_areas
+   grid.Grid.compute_face_areas
 
 Helper Functions
 ----------------
