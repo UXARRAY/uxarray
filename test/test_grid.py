@@ -93,24 +93,10 @@ class TestGrid(TestCase):
         """Generates a latlon_bounds Xarray from grid file
         """
         ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        tgrid1 = ux.Grid(str(ug_filename1))
+        tgrid1 = ux.open_dataset(str(ug_filename1))
         tgrid1.buildlatlon_bounds()
+        pass
 
-    def test_sort_edges(self):
-        # Test if the edges are sorted properly
-
-        edges_ans = [[0, 1],
-                     [0, 2],
-                     [0, 3],
-                     [1, 1],
-                     [1, 2],
-                     [2, 4]]
-
-        edges = list(edges_ans)
-
-        random.shuffle(edges)
-        edges_res = helpers.sort_edge(edges)
-        self.assertEqual(edges_res, edges_ans)
 
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?

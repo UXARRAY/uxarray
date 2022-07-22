@@ -1,5 +1,7 @@
 import xarray as xr
 from pathlib import PurePath
+import numpy as np
+import copy
 
 
 def parse_grid_type(filepath, **kw):
@@ -52,6 +54,7 @@ def _is_ugrid(ds):
     else:
         return False
 
+
 # helper function to insert a new point into the latlon box
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     """Compare the new point's latitude and longitude with the target the latlonbox.
@@ -93,13 +96,13 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     # New longitude lies within existing range
     if latlon_box[1][0] <= latlon_box[1][1]:
-        if lon_pt >= latlon_box[1][0] and lon_pt <= latlon_box[1][1]:
+        if latlon_box[1][0] <= lon_pt <= latlon_box[1][1]:
             return
     else:
         if lon_pt >= latlon_box[1][0] or lon_pt <= latlon_box[1][0]:
             return
 
-    # New longitude lies outside of existing range
+    # New longitude lies outside existing range
     box_a = latlon_box
     box_a[1][0] = lon_pt
 
@@ -145,6 +148,11 @@ def get_latlonbox_width(latlonbox, is_lon_periodic):
 
 # Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
 def convert_node_latlon_rad_to_xyz(node_coord):
+    """
+    Parameters: float list, required
+       the input 2D coordinates[latitude, longitude]
+    Returns: float list, the 3D coordinates in [X, Y, Z]
+    """
     lon = node_coord[0]
     lat = node_coord[1]
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
@@ -167,8 +175,6 @@ def convert_node_xyz_to_latlon_rad(node_coord):
     dz = node_coord[2]
 
     d_mag_2 = dx * dx + dy * dy + dz * dz
-    # if np.absolute(d_mag_2 - 1.0) >= 0.01:
-    #     raise Exception('Grid point has non-unit magnitude:({}, {}, {}) (magnitude {})'.format(dx, dy, dz,d_mag_2 )) #"(%1.15e, %1.15e, %1.15e) (magnitude %1.15e)",
 
     d_mag = np.absolute(d_mag_2)
     dx /= d_mag
@@ -210,7 +216,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     old_lon_width = 2.0 * np.pi
     lat_pt = new_pt[0]
     lon_pt = new_pt[1]
-    latlon_box = old_box  # The returned point
+    latlon_box = old_box  # The returned box
 
     if lon_pt < 0.0:
         raise Exception('lon_pt out of range ( {} < 0)"'.format(lon_pt))
@@ -231,21 +237,21 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
             latlon_box[1][1] = lon_pt
         if lon_pt < latlon_box[1][0]:
             latlon_box[1][0] = lon_pt
-        return
+        return latlon_box
 
     # New longitude lies within existing range
     if latlon_box[1][0] <= latlon_box[1][1]:
         if lon_pt >= latlon_box[1][0] and lon_pt <= latlon_box[1][1]:
-            return
+            return latlon_box
     else:
         if lon_pt >= latlon_box[1][0] or lon_pt <= latlon_box[1][0]:
-            return
+            return latlon_box
 
     # New longitude lies outside of existing range
-    box_a = latlon_box
+    box_a = copy.deepcopy(latlon_box)
     box_a[1][0] = lon_pt
 
-    box_b = latlon_box
+    box_b = copy.deepcopy(latlon_box)
     box_b[1][1] = lon_pt
 
     # The updated box is the box of minimum width
@@ -263,7 +269,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
 
 # helper function to calculate the latlonbox width
-def get_latlonbox_width(latlonbox, is_lon_periodic):
+def get_latlonbox_width(latlonbox, is_lon_periodic=True):
     """Calculate the width of this LatLonBox
     Parameters: latlonbox: float array, lat lon box [[lat_0, lat_1],[lon_0, lon_1]],required
                 is_lon_periodic: boolean, Flag indicating the latlonbox is a regional (default to be True).
@@ -282,9 +288,10 @@ def get_latlonbox_width(latlonbox, is_lon_periodic):
     elif latlonbox[1][0] <= latlonbox[1][1]:
         return latlonbox[1][1] - latlonbox[1][0]
     else:
-        latlonbox[1][1] - latlonbox[1][0] + (2 * np.pi)
+        return latlonbox[1][1] - latlonbox[1][0] + (2 * np.pi)
 
 
+# helper function to calculate the dot product of two vectors in 3D [x, y, z] coordinates
 def dot_product(vec0, vec1):
     return vec0[0] * vec1[0] + vec0[1] * vec1[1] + vec0[2] * vec1[2]
 
@@ -292,12 +299,14 @@ def dot_product(vec0, vec1):
 # helper function to calculate the cross product of two vectors with the same dimensions
 def cross_product(vec0, vec1):
     """Helper function to calculate the cross product of two vectors. Only support the
-     2D and 3D calculation. The two vectors must have the same dimensions
+     3D calculation. The two vectors must have the same dimensions
 
      Parameters
      ----------
-     vec0: list [x, y, z(optional)]
-     vec1: list [x, y, z(optional)]
+     vec0: list [x, y, z]
+     vec1: list [x, y, z]
+
+     Returns: float array, the result vector [x, y, z]
 
     """
 
@@ -305,149 +314,111 @@ def cross_product(vec0, vec1):
     if len(vec0) != len(vec1):
         raise ValueError("two vectors must have the same dimension")
 
-    if len(vec0) == 2:
-        return vec0[0] * vec1[1] - vec0[1] * vec1[0]
-    elif len(vec0) == 3:
-        vec_x = vec0[1] * vec1[2] - vec0[2] * vec1[1]
-        vec_y = vec0[0] * vec1[2] - vec0[2] * vec1[0]
-        vec_z = vec0[0] * vec1[1] - vec0[1] * vec1[0]
-        return [vec_x, vec_y, vec_z]
-    else:
-        raise ValueError("The vector dimensions cannot be larger than 3")
+    if len(vec0) != 3:
+        raise ValueError("The vector dimensions have to be 3")
+    vec_x = vec0[1] * vec1[2] - vec0[2] * vec1[1]
+    vec_y = vec0[0] * vec1[2] - vec0[2] * vec1[0]
+    vec_z = vec0[0] * vec1[1] - vec0[1] * vec1[0]
+    return [vec_x, vec_y, vec_z]
 
 
 # helper function to project node on the unit sphere
 def normalize_in_place(node):
-    if len(node) == 2:
-        magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1])
-        return [node[0] / magnitude, node[1] / magnitude]
+    """Helper function to project an arbitrary node in 3D coordinates [x, y, z] on the unit sphere
 
-    elif len(node) == 3:
-        magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] + node[2] * node[2])
-        return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
+     Parameters
+     ----------
+     node: float array [x, y, z]
+
+     Returns: float array, the result vector [x, y, z]
+
+    """
+    magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] + node[2] * node[2])
+    return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
 
 
 # helper function to calculate the point position of the intersection
 def get_intersection_point(w0, w1, v0, v1):
+    """Helper function to calculate the intersection point of two great circle arcs in 3D coordinates
+
+     Parameters
+     ----------
+     w0: float array [x, y, z], the end point of great circle arc w
+     w1: float array [x, y, z], the other end point of great circle arc w
+     v0: float array [x, y, z], the end point of great circle arc v
+     v1: float array [x, y, z], the other end point of great circle arc v
+
+
+     Returns: float array, the result vector [x, y, z]
+      [x, y, z]: the 3D coordinates of the intersection point
+      [0, 0, 0]: Indication that two great circle arcs are parallel to each other
+      [-1, -1, -1]: Indication that two great circle arcs doesn't have intersection
+
+
+    """
     w0 = normalize_in_place(w0)
     w1 = normalize_in_place(w1)
     v0 = normalize_in_place(v0)
     v1 = normalize_in_place(v1)
     x1 = cross_product(cross_product(w0, w1), cross_product(v0, v1))
-    x2 = -1 * x1
+    x2 = [-x1[0], -x1[1], -x1[2]]
 
     # Find out whether X1 or X2 is within the interval [wo, w1]
 
-    if within(w0[0], x1[0], w1[0]) and within(w0[1], x1[1], w1[1]):
-        if (len(x1) == 3 and within(w0[2], x1[2], w1[2])) or len(x1) == 2:
-            return x1
-    elif within(w0[0], x2[0], w1[0]) and within(w0[1], x2[1], w1[1]):
-        if (len(x2) == 3 and within(w0[2], x2[2], w1[2])) or len(x2) == 2:
-            return x2
+    if within(w0[0], x1[0], w1[0]) and within(w0[1], x1[1], w1[1]) and within(w0[2], x1[2], w1[2]):
+        return x1
+    elif within(w0[0], x2[0], w1[0]) and within(w0[1], x2[1], w1[1]) and within(w0[2], x2[2], w1[2]):
+        return x2
     elif x1[0] * x1[1] * x1[0] == 0:
         return [0, 0, 0]  # two vectors are parallel to each other
     else:
         return [-1, -1, -1]  # Intersection out of the interval or
 
 
+# helper function for get_intersection_point to determine whether one point is between the other two points
 def within(p, q, r):
+    """Helper function for get_intersection_point to determine whether the number q is between p and r
+
+     Parameters
+     ----------
+     p, q, r: float
+
+     Returns: boolean
+    """
     return p <= q <= r or r <= q <= p
-
-
-def is_parallel(w0, w1, v0, v1):
-    res = get_intersection_point(w0, w1, v0, v1)
-    if res[0] * res[1] * res[2] == 0:
-        return True
-    else:
-        return False
-
-
-def is_intersect(w0, w1, v0, v1):
-    res = get_intersection_point(w0, w1, v0, v1)
-
-    # two vectors are intersected within range and not parralel
-    if (res != [0, 0, 0]) and (res != [-1, -1, -1]):
-        return True
-    else:
-        return False
-
-
-# Helper function to sort edges of a polygon using dictionaries
-def sort_edge(edge_list, return_as_list=True):
-    dict_edge = {}
-    for edge in edge_list:
-        edge = np.sort(edge)
-        if edge[0] in dict_edge:
-            new_list = dict_edge[edge[0]]
-            new_list.append(edge[1])
-            dict_edge[edge[0]] = new_list
-        else:
-            dict_edge[edge[0]] = [edge[1]]
-
-    dict_edge = sorted(dict_edge.items())
-
-    # Pack them back as a list
-    res = []
-    for k, v in dict_edge:
-        v.sort()
-        for node_1 in v:
-            res.append([k, node_1])
-    return res
-
 
 class Edge:
     """The Uxarray Edge object class for undirected edge.
+       In current implementation, each node is the node index
 
     """
 
     def __init__(self, input_edge):
         """ Initializing the Edge object from input edge [node 0, node 1]
 
+        Parameters
+        ----------
+
+        input_edge : xarray.Dataset, ndarray, list, tuple, required
+            - The indexes of two nodes [node0_index, node1_index], the order doesn't matter
+
+        ----------------
+
         """
         # for every input_edge, sort the node index in ascending order.
         edge_sorted = np.sort(input_edge)
-        self.node0_index = edge_sorted[0]
-        self.node1_index = edge_sorted[1]
-
-    # TODO: PriorityQueue is not working properly for the current implementation now
-    def __lt__(self, other):
-        # self < other, sorted by the lowest node index
-        if self.node0_index != other.node0_index:
-            return self.node0_index < other.node0_index
-        else:
-            return self.node1_index < other.node1_index
+        self.node0 = edge_sorted[0]
+        self.node1 = edge_sorted[1]
 
     def __eq__(self, other):
         # Undirected edge
-        return (self.node0_index == other.node0_index and self.node1_index == other.node1_index) or \
-               (self.node1_index == other.node0_index and self.node0_index == other.node1_index)
+        return (self.node0 == other.node0 and self.node1 == other.node1) or \
+               (self.node1 == other.node0 and self.node0 == other.node1)
 
     def __hash__(self):
         # Collisions are possible for hash
-        return hash(self.node0_index + self.node1_index)
+        return hash(self.node0 + self.node1)
 
     # Return nodes in list
     def get_nodes(self):
-        return [self.node0_index, self.node1_index]
-
-
-class Node:
-    def __init__(self, input_node):
-        self.x = input_node[0]
-        self.y = input_node[1]
-        self.z = input_node[2]
-
-    def __lt__(self, other):
-        # sorted in the order of x, y, z
-        if self.x != other.x:
-            return self.x < other.x
-        elif self.y != other.y:
-            return self.y < other.y
-        else:
-            return self.z < self.z
-
-    def __eq__(self, other):
-        return self.x == other.x and self.y == other.y and self.z == other.z
-
-    def __hash__(self):
-        return hash(self.x + self.y + self.z)
+        return [self.node0, self.node1]
