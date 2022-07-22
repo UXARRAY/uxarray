@@ -142,7 +142,6 @@ test/dask-worker-space/
 .vscode/
 generated/
 
-
 # Test grid files.
 test/meshfiles/*.g
 test/meshfiles/*.ug

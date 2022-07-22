@@ -21,10 +21,19 @@ Grid Methods
    :toctree: _autosummary
 
    grid.Grid.write
+   grid.Grid.calculate_total_face_area
+   grid.Grid.integrate
+   grid.Grid.compute_face_areas
 
 Helper Functions
 ----------------
 .. autosummary::
    :toctree: _autosummary
 
-   parse_grid_type
+   helpers.get_all_face_area_from_coords
+   helpers.calculate_face_area
+   helpers.calculate_spherical_triangle_jacobian
+   helpers.calculate_spherical_triangle_jacobian_barycentric
+   get_gauss_quadratureDG
+   get_tri_quadratureDG
+   helpers.parse_grid_type

@@ -4,9 +4,13 @@ channels:
 dependencies:
   - dask
   - netcdf4
+  - numba
+  # pinning the numpy version for numba compatibility
+  - numpy>=1.2, <1.22
   - pathlib
   - pre_commit
   - pytest
   - pytest-cov
   - python
+  - scipy
   - xarray

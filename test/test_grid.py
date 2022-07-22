@@ -75,7 +75,7 @@ class TestGrid(TestCase):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
             shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-            tgrid = ux.Grid(str(shp_filename))
+            tgrid = ux.open_dataset(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file and write ugrid file."""
