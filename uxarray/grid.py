@@ -203,7 +203,7 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas = self.get_face_areas(quadrature_rule, order)
+        face_areas = self.compute_face_areas(quadrature_rule, order)
 
         return np.sum(face_areas)
 
@@ -275,14 +275,14 @@ class Grid:
         integral = 0.0
 
         # call function to get area of all the faces as a np array
-        face_areas = self.get_face_areas(quadrature_rule, order)
+        face_areas = self.compute_face_areas(quadrature_rule, order)
 
         face_vals = self.ds.get(var_key).to_numpy()
         integral = np.dot(face_areas, face_vals)
 
         return integral
 
-    def get_face_areas(self, quadrature_rule="triangular", order=4):
+    def compute_face_areas(self, quadrature_rule="triangular", order=4):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -335,7 +335,11 @@ class Grid:
         return self._face_areas
 
     # use the property keyword for declaration on face_areas property
-    face_areas = property(get_face_areas)
+    @property
+    def face_areas(self):
+        if self._face_areas is None:
+            self.compute_face_areas()
+            return self._face_areas
 
     def __init_grid_var_attrs__(self):
         """Initialize attributes for directly accessing Coordinate and Data
