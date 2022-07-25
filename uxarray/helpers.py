@@ -534,7 +534,7 @@ def get_latlonbox_width(latlonbox, is_lon_periodic):
 def convert_node_latlon_rad_to_xyz(node_coord):
     """
     Parameters: float list, required
-       the input 2D coordinates[latitude, longitude]
+       the input 2D coordinates[longitude, latitude]
     Returns: float list, the 3D coordinates in [X, Y, Z]
     """
     lon = node_coord[0]

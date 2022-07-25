@@ -12,7 +12,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 
-from .helpers import et_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge,  \
+from .helpers import get_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge,  \
     get_intersection_point, convert_node_latlon_rad_to_xyz, dot_product,  normalize_in_place
 
 
