@@ -11,6 +11,5 @@ dependencies:
   - pre_commit
   - pytest
   - pytest-cov
-  - python
   - scipy
   - xarray
