@@ -337,7 +337,7 @@ class Grid:
     # use the property keyword for declaration on face_areas property
     @property
     def face_areas(self):
-        """Declare on face_areas as a property."""
+        """Declare face_areas as a property."""
 
         if self._face_areas is None:
             self.compute_face_areas()
