@@ -14,6 +14,7 @@ source:
   git_tag: v{{ version }}   # For building from a specific tag
   git_url: https://github.com/UXARRAY/uxarray
   #url: https://github.com/UXARRAY/uxarray/archive/v{{ version }}.tar.gz   # For building from a specific tag's tarball
+  #path: . # for building from a local directory
 
 requirements:
   host:
@@ -31,10 +32,16 @@ test:
     - dask
     - netcdf4
     - pytest
+    - numba
+    - numpy>=1.2,<1.22
+    - scipy>=0.16
+    - xarray
   imports:
     - uxarray
   commands:
-    - pytest test
+    - conda info
+    - conda list
+    - python -m pytest
 
 about:
 #  home: https://
