@@ -106,8 +106,8 @@ def _spherical_to_cartesian_unit_(node, r=6371):
 
     Final output is cartesian coordinates on a sphere of unit radius
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     node: a list consisting of lat and lon
 
     Returns: numpy array
