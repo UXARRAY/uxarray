@@ -13,7 +13,9 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 
 from .helpers import get_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge,  \
-    get_intersection_point, convert_node_latlon_rad_to_xyz, dot_product,  normalize_in_place
+    get_intersection_point, convert_node_latlon_rad_to_xyz
+
+from .utilities import normalize_in_place
 
 
 
@@ -59,9 +61,7 @@ class Grid:
                 If specified file not found
         """
         # initialize internal variable names
-        self.Mesh2_face_edges = None
-        self.Mesh2_latlon_bounds = None
-        self.Mesh2_edge_nodes = None
+
         self.__init_ds_var_names__()
 
         # initialize face_area variable
@@ -148,6 +148,7 @@ class Grid:
                 "_FillValue": -1,
                 "start_index": 0
             })
+
 
     # load mesh from a file
     def __from_ds__(self, dataset):
@@ -248,12 +249,12 @@ class Grid:
         for edge in mesh2_edge_nodes_set:
             mesh2_edge_nodes.append(edge.get_nodes())
 
-        self.Mesh2_edge_nodes = xr.DataArray(
+        self.ds["Mesh2_edge_nodes"] = xr.DataArray(
             data=mesh2_edge_nodes,
             dims=["nMesh2_edge", "Two"]
         )
 
-        self.Mesh2_face_edges = xr.DataArray(
+        self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
             dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"]
         )
@@ -266,15 +267,14 @@ class Grid:
 
         # First make sure the Grid object has the Mesh2_face_edges
 
-        if self.Mesh2_edge_nodes is None:
-            self.build_edge_face_connectivity()
+        self.build_edge_face_connectivity()
 
-        temp_latlon_array = [[[0.0, 0.0], [0.0, 0.0]]] * self.Mesh2_face_edges.sizes["nMesh2_face"]
+        temp_latlon_array = [[[0.0, 0.0], [0.0, 0.0]]] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"]
 
         reference_tolerance = 1.0e-12
 
-        for i in range(0, len(self.Mesh2_face_edges)):
-            face = self.Mesh2_face_edges[i]
+        for i in range(0, len(self.ds["Mesh2_face_edges"])):
+            face = self.ds["Mesh2_face_edges"][i]
 
             debug_flag = -1
 
@@ -291,7 +291,7 @@ class Grid:
                 cnt = 0
                 sum_lon = 0.0
                 for key in sorted_edges:
-                    sum_lon += key
+                    sum_lon += key[0]
                     cnt += 1
                     if cnt >= 2:
                         break
@@ -315,7 +315,7 @@ class Grid:
                                                          self.ds["Mesh2_node_y"].values[edge[1]]])
 
                     # Set the latitude extent
-                    d_lat_extent_rad = 0
+                    d_lat_extent_rad = 0.0
                     if j == 0:
                         if n1[2] < 0.0:
                             d_lat_extent_rad = -0.5 * np.pi
@@ -329,7 +329,7 @@ class Grid:
 
                     # TODO: Consider about the constant latitude edge type.
                     # Determine if latitude is maximized between endpoints
-                    dot_n1_n2 = dot_product(n1, n2)
+                    dot_n1_n2 = np.dot(n1, n2)
                     d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
                     if np.absolute(d_de_nom) < reference_tolerance:
                         continue
@@ -347,7 +347,7 @@ class Grid:
                         if d_lat_rad > 1.0:
                             d_lat_rad = 0.5 * np.pi
                         elif d_lat_rad < -1.0:
-                            d_lat_rad + -0.5 * np.pi
+                            d_lat_rad = -0.5 * np.pi
                         else:
                             d_lat_rad = np.arcsin(d_lat_rad)
 
@@ -379,7 +379,7 @@ class Grid:
                                                          self.ds["Mesh2_node_y"].values[edge[1]]])
 
                     # Determine if latitude is maximized between endpoints
-                    dot_n1_n2 = dot_product(n1, n2)
+                    dot_n1_n2 = np.dot(n1, n2)
                     d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
 
                     # insert edge endpoint into box
@@ -388,10 +388,6 @@ class Grid:
                     d_lon_rad = np.deg2rad(self.ds["Mesh2_node_x"].values[edge[0]])
                     temp_latlon_array[i] = insert_pt_in_latlonbox(copy.deepcopy(temp_latlon_array[i]),
                                                                   [d_lat_rad, d_lon_rad])
-
-                    cur_latlon_box_0 = insert_pt_in_latlonbox(copy.deepcopy(temp_latlon_array[i]),
-                                                              [d_lat_rad, d_lon_rad])
-                    cur_latlon_box_1 = copy.deepcopy(cur_latlon_box_0)
 
                     if np.absolute(d_de_nom) < reference_tolerance:
                         continue
@@ -416,15 +412,12 @@ class Grid:
 
                         temp_latlon_array[i] = insert_pt_in_latlonbox(copy.deepcopy(temp_latlon_array[i]),
                                                                       [d_lat_rad, d_lon_rad])
-                        cur_latlon_box_1 = insert_pt_in_latlonbox(copy.deepcopy(temp_latlon_array[i]),
-                                                                  [d_lat_rad, d_lon_rad])
 
-                    debug_flag = 2
 
             assert temp_latlon_array[i][0][0] != temp_latlon_array[i][0][1]
             assert temp_latlon_array[i][1][0] != temp_latlon_array[i][1][1]
 
-        self.Mesh2_latlon_bounds = xr.DataArray(
+        self.ds["Mesh2_latlon_bounds"] = xr.DataArray(
             data=temp_latlon_array,
             dims=["nMesh2_face", "Latlon", "Two"]
         )

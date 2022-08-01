@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import xarray as xr
 from pathlib import PurePath
@@ -6,6 +8,7 @@ import copy
 
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
+from .utilities import normalize_in_place
 
 config.DISABLE_JIT = False
 
@@ -589,7 +592,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     """Compare the new point's latitude and longitude with the target the latlonbox.
 
     Parameters: old_box: float array, the original lat lon box [[lat_0, lat_1],[lon_0, lon_1]],required
-                new_pt: float array, the new lat lon point [lat, lon], required
+                new_pt: float array, the new lat lon point [lon, lat], required
                 is_lon_periodic: Flag indicating the latlonbox is a regional (default to be True).
 
     Returns: float array, a lat lon box [[lat_0, lat_1],[lon_0, lon_1]]
@@ -675,50 +678,213 @@ def get_latlonbox_width(latlonbox, is_lon_periodic=True):
         return latlonbox[1][1] - latlonbox[1][0] + (2 * np.pi)
 
 
-# helper function to calculate the dot product of two vectors in 3D [x, y, z] coordinates
-def dot_product(vec0, vec1):
-    return vec0[0] * vec1[0] + vec0[1] * vec1[1] + vec0[2] * vec1[2]
+import plotly.graph_objs as go
 
 
-# helper function to calculate the cross product of two vectors with the same dimensions
-def cross_product(vec0, vec1):
-    """Helper function to calculate the cross product of two vectors. Only support the
-     3D calculation. The two vectors must have the same dimensions
+def vector_plot(tvects, is_vect=True, orig=[0, 0, 0]):
+    """Plot vectors using plotly"""
 
-     Parameters
-     ----------
-     vec0: list [x, y, z]
-     vec1: list [x, y, z]
+    if is_vect:
+        if not hasattr(orig[0], "__iter__"):
+            coords = [[orig, np.sum([orig, v], axis=0)] for v in tvects]
+        else:
+            coords = [[o, np.sum([o, v], axis=0)] for o, v in zip(orig, tvects)]
+    else:
+        coords = tvects
 
-     Returns: float array, the result vector [x, y, z]
+    data = []
+    for i, c in enumerate(coords):
+        X1, Y1, Z1 = zip(c[0])
+        X2, Y2, Z2 = zip(c[1])
+        vector = go.Scatter3d(x=[X1[0], X2[0]],
+                              y=[Y1[0], Y2[0]],
+                              z=[Z1[0], Z2[0]],
+                              marker=dict(size=[0, 5],
+                                          color=['blue'],
+                                          line=dict(width=5,
+                                                    color='DarkSlateGrey')),
+                              name='Vector' + str(i + 1))
+        data.append(vector)
 
+    layout = go.Layout(
+        margin=dict(l=4,
+                    r=4,
+                    b=4,
+                    t=4)
+    )
+    fig = go.Figure(data=data, layout=layout)
+    fig.show()
+
+
+# helper function to calculate the angle of 3D vectors u,v in radian
+def angle_of_2_vectors(u, v):
+    # 𝜃=2 𝑎𝑡𝑎𝑛2(|| ||𝑣||𝑢−||𝑢||𝑣 ||, || ||𝑣||𝑢+||𝑢||𝑣 ||)
+    # this formula comes from W. Kahan's advice in his paper "How Futile are Mindless Assessments of Roundoff in
+    # Floating-Point Computation?" (https://www.cs.berkeley.edu/~wkahan/Mindless.pdf), section 12 "Mangled Angles."
+    v_norm_times_u = [np.linalg.norm(v) * u[i] for i in range(0, len(u))]
+    u_norm_times_v = [np.linalg.norm(u) * v[i] for i in range(0, len(v))]
+    vec_minus = [v_norm_times_u[i] - u_norm_times_v[i] for i in range(0, len(u_norm_times_v))]
+    vec_sum = [v_norm_times_u[i] + u_norm_times_v[i] for i in range(0, len(u_norm_times_v))]
+    angle_u_v_rad = 2 * math.atan2(np.linalg.norm(vec_minus),
+                               np.linalg.norm(vec_sum))
+    return angle_u_v_rad
+
+
+# Quantitative method to find the maximum latitude between in a great circle arc recursively
+def max_latitude(v1, v2):
+    """Calculate the width of this LatLonBox
+    Parameters:
+        v1: float array [x, y, z]
+        v2: float array [x, y, z]
+
+    Returns: float, maximum latitude
     """
 
-    # check if two vectors are in the same dimensions:
-    if len(vec0) != len(vec1):
-        raise ValueError("two vectors must have the same dimension")
+    # Find the parametrized equation for the great circle passing through v1 and v2
+    err_tolerance = 1.0e-12
+    v_temp = np.cross(v1, v2)
+    v0 = np.cross(v_temp, v1)
+    v0 = normalize_in_place(v0)
 
-    if len(vec0) != 3:
-        raise ValueError("The vector dimensions have to be 3")
-    vec_x = vec0[1] * vec1[2] - vec0[2] * vec1[1]
-    vec_y = vec0[0] * vec1[2] - vec0[2] * vec1[0]
-    vec_z = vec0[0] * vec1[1] - vec0[1] * vec1[0]
-    return [vec_x, vec_y, vec_z]
+    max_lat = - np.pi
+    max_section = [v1, v2]  # record the subsection that has the maximum latitude
+    b_latlon = convert_node_xyz_to_latlon_rad(v1)
+    c_latlon = convert_node_xyz_to_latlon_rad(v2)
+    v1_latlon = convert_node_xyz_to_latlon_rad(v1)
+    v2_latlon = convert_node_xyz_to_latlon_rad(v2)
+
+    # TODO: remove these 3 lines after debuging
+    while_loop_stoper_flag = 0
+    # angle_v1_v2_rad = np.arccos(
+    #     np.clip(np.dot(normalize_in_place(max_section[1]), normalize_in_place(max_section[0])), -1.0, 1.0))
+    # avg_angle_rad = angle_v1_v2_rad / 10
+    # lat_list = []
+    # vec_list = []
+    # for i in range(0, 10):
+    #     angle_rad_prev = avg_angle_rad * i
+    #     if i >= 9:
+    #         angle_rad_next = angle_v1_v2_rad
+    #     else:
+    #         angle_rad_next = angle_rad_prev + avg_angle_rad
+    #     # Get the two vectors of this section
+    #     w1_new = [0.0, 0.0, 0.0]
+    #     w1_new[0] = np.cos(angle_rad_prev) * v1[0] + np.sin(angle_rad_prev) * v0[0]
+    #     w1_new[1] = np.cos(angle_rad_prev) * v1[1] + np.sin(angle_rad_prev) * v0[1]
+    #     w1_new[2] = np.cos(angle_rad_prev) * v1[2] + np.sin(angle_rad_prev) * v0[2]
+    #     w2_new = [0.0, 0.0, 0.0]
+    #     w2_new[0] = np.cos(angle_rad_next) * v1[0] + np.sin(angle_rad_next) * v0[0]
+    #     w2_new[1] = np.cos(angle_rad_next) * v1[1] + np.sin(angle_rad_next) * v0[1]
+    #     w2_new[2] = np.cos(angle_rad_next) * v1[2] + np.sin(angle_rad_next) * v0[2]
+    #
+    #     # convert the 3D [x, y, z] vector into 2D lat/lon vector
+    #     w1_latlon = convert_node_xyz_to_latlon_rad(w1_new)
+    #     w2_latlon = convert_node_xyz_to_latlon_rad(w2_new)
+    #     lat_list.append([w1_latlon[0], w2_latlon[0]])
+    #     vec_list.append(w2_new)
+    #
+    # vector_plot([v0, v1, v2])
+    # vector_plot(vec_list)
+
+    while np.absolute(b_latlon[0] - c_latlon[0]) >= err_tolerance:
+        max_lat = - np.pi # reset the max_latitude for each while loop
+        v_b = max_section[0]
+        v_c = max_section[1]
+
+        if while_loop_stoper_flag >= 1000:
+            pass
+        # Divide the angle of v1/v2 into 10 subsections, the leftover will be put in the last one
+
+        angle_v1_v2_rad = angle_of_2_vectors(v_b, v_c)
+
+        avg_angle_rad = angle_v1_v2_rad / 10
+        # Update v0 based on max_section[0], since the angle is always from max_section[0] to v0
+        if angle_v1_v2_rad == 0.0:
+            pass
+        v0 = np.cross(v_temp, v_b)
+        v0 = normalize_in_place(v0)
+        avg_angle_rad = angle_v1_v2_rad / 10
+
+        # TODO: Delete the following lines after debugging
+        # max_0_latlon = convert_node_xyz_to_latlon_rad(v_b)
+        # max_1_latlon = convert_node_xyz_to_latlon_rad(v_c)
+        # w2_final = [0.0, 0.0, 0.0]
+        # w2_final[0] = np.cos(angle_v1_v2_rad) * v_b[0] + np.sin(angle_v1_v2_rad) * v0[0]
+        # w2_final[1] = np.cos(angle_v1_v2_rad) * v_b[1] + np.sin(angle_v1_v2_rad) * v0[1]
+        # w2_final[2] = np.cos(angle_v1_v2_rad) * v_b[2] + np.sin(angle_v1_v2_rad) * v0[2]
+        # w2_latlon_final = convert_node_xyz_to_latlon_rad(w2_final)
+        # if w2_latlon_final[0] != c_latlon[0]:
+        #     pass
+        for i in range(0, 10):
+            angle_rad_prev = avg_angle_rad * i
+            if i >= 9:
+                angle_rad_next = angle_v1_v2_rad
+            else:
+                angle_rad_next = angle_rad_prev + avg_angle_rad
+
+            # Get the two vectors of this section
+            w1_new = [0.0, 0.0, 0.0]
+            w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(angle_rad_prev) * v0[0]
+            w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(angle_rad_prev) * v0[1]
+            w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(angle_rad_prev) * v0[2]
+            w2_new = [0.0, 0.0, 0.0]
+            w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(angle_rad_next) * v0[0]
+            w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(angle_rad_next) * v0[1]
+            w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(angle_rad_next) * v0[2]
+
+            # convert the 3D [x, y, z] vector into 2D lat/lon vector
+            w1_latlon = convert_node_xyz_to_latlon_rad(w1_new)
+            w2_latlon = convert_node_xyz_to_latlon_rad(w2_new)
+
+            # Manually set the left and right boundaries to avoid error accumulation
+            if i == 0:
+                w1_latlon[0] = b_latlon[0]
+            elif i >= 9:
+                w2_latlon[0] = c_latlon[0]
+
+            max_lat = max(max_lat, w1_latlon[0], w2_latlon[0])
+
+            if np.absolute(w2_latlon[0] - w1_latlon[0]) <= err_tolerance or w1_latlon[0] == max_lat == w1_latlon[1]:
+                max_section = [w1_new, w2_new]
+                break
 
 
-# helper function to project node on the unit sphere
-def normalize_in_place(node):
-    """Helper function to project an arbitrary node in 3D coordinates [x, y, z] on the unit sphere
+            # if the largest absolute value of lat at each sub-interval point b_i.
+            # Repeat algorithm with the sub-interval points (b,c)=(b_{i-1},b_{i+1})
+            if np.absolute(max_lat - w1_latlon[0]) <= err_tolerance:
+                if i != 0:
+                    angle_rad_prev -= avg_angle_rad
+                    w1_new = [0.0, 0.0, 0.0]
+                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(angle_rad_prev) * v0[0]
+                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(angle_rad_prev) * v0[1]
+                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(angle_rad_prev) * v0[2]
+                    w2_new = [0.0, 0.0, 0.0]
+                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(angle_rad_next) * v0[0]
+                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(angle_rad_next) * v0[1]
+                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(angle_rad_next) * v0[2]
+                    max_section = [w1_new, w2_new]
+                else:
+                    max_section = [v_b, w2_new]
 
-     Parameters
-     ----------
-     node: float array [x, y, z]
+            elif np.absolute(max_lat - w2_latlon[0]) <= err_tolerance:
+                if i != 9:
+                    angle_rad_next += avg_angle_rad
+                    w1_new = [0.0, 0.0, 0.0]
+                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(angle_rad_prev) * v0[0]
+                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(angle_rad_prev) * v0[1]
+                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(angle_rad_prev) * v0[2]
+                    w2_new = [0.0, 0.0, 0.0]
+                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(angle_rad_next) * v0[0]
+                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(angle_rad_next) * v0[1]
+                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(angle_rad_next) * v0[2]
+                    max_section = [w1_new, w2_new]
+                else:
+                    max_section = [w1_new, v_c]
 
-     Returns: float array, the result vector [x, y, z]
+        b_latlon = convert_node_xyz_to_latlon_rad(copy.deepcopy(max_section[0]))
+        c_latlon = convert_node_xyz_to_latlon_rad(copy.deepcopy(max_section[1]))
 
-    """
-    magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] + node[2] * node[2])
-    return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
+        while_loop_stoper_flag += 1
+    return np.average([b_latlon[0], c_latlon[0]])
 
 
 # helper function to calculate the point position of the intersection
@@ -744,7 +910,7 @@ def get_intersection_point(w0, w1, v0, v1):
     w1 = normalize_in_place(w1)
     v0 = normalize_in_place(v0)
     v1 = normalize_in_place(v1)
-    x1 = cross_product(cross_product(w0, w1), cross_product(v0, v1))
+    x1 = np.cross(np.cross(w0, w1), np.cross(v0, v1)).tolist()
     x2 = [-x1[0], -x1[1], -x1[2]]
 
     # Find out whether X1 or X2 is within the interval [wo, w1]
@@ -770,6 +936,7 @@ def within(p, q, r):
      Returns: boolean
     """
     return p <= q <= r or r <= q <= p
+
 
 class Edge:
     """The Uxarray Edge object class for undirected edge.
