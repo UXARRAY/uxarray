@@ -179,7 +179,7 @@ class Grid:
         num_nodes = self.ds.Mesh2_node_x.size
         node_cart_list = [[0.0, 0.0, 0.0]] * num_nodes
         for i in range(num_nodes):
-            if "degree" in self.Mesh2_node_x.units:
+            if "degree" in self.ds.Mesh2_node_x.units:
                 node = [self.ds["Mesh2_node_x"][i],
                         self.ds["Mesh2_node_y"][i]]  # [lon, lat]
                 node_cart = _spherical_to_cartesian_unit_(node)  # [x, y, z]
