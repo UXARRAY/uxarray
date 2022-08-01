@@ -13,7 +13,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 
 from .helpers import get_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge,  \
-    get_intersection_point, convert_node_latlon_rad_to_xyz
+    get_intersection_point, convert_node_latlon_rad_to_xyz, _spherical_to_cartesian_unit_
 
 from .utilities import normalize_in_place
 
@@ -161,6 +161,34 @@ class Grid:
             self.ds = _read_shpfile(self.filepath)
         else:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
+
+    #   Mesh2_node_x
+    #      unit x = "lon"
+    #   Mesh2_node_y
+    #      unit x = "lat"
+    #   Mesh2_node_z
+    #      unit x = "m"
+    #   Mesh2_node_cart_x
+    #      unit m
+    #   Mesh2_node_cart_y
+    #      unit m
+    #   Mesh2_node_cart_z
+    #      unit m
+
+    # check for units and create Mesh2_node_cart_x/y/z set to self.ds
+        num_nodes = self.ds.Mesh2_node_x.size
+        node_cart_list = [[0.0, 0.0, 0.0]] * num_nodes
+        for i in range(num_nodes):
+            if "degree" in self.Mesh2_node_x.units:
+                node = [self.ds["Mesh2_node_x"][i],
+                        self.ds["Mesh2_node_y"][i]]  # [lon, lat]
+                node_cart = _spherical_to_cartesian_unit_(node)  # [x, y, z]
+                node_cart_list[i] = node_cart
+
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list[:][0])
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list[:][1])
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list[:][2])
+
         dataset.close()
 
     def write(self, outfile, extension=""):
@@ -528,15 +556,25 @@ class Grid:
         http://ugrid-conventions.github.io/ugrid-conventions/
         """
         self.ds_var_names = {
-            "Mesh2": "Mesh2",
-            "Mesh2_node_x": "Mesh2_node_x",
-            "Mesh2_node_y": "Mesh2_node_y",
-            "Mesh2_node_z": "Mesh2_node_z",
-            "Mesh2_face_nodes": "Mesh2_face_nodes",
+            "Mesh2":
+                "Mesh2",
+            "Mesh2_node_x":
+                "Mesh2_node_x",
+            "Mesh2_node_y":
+                "Mesh2_node_y",
+            "Mesh2_node_z":
+                "Mesh2_node_z",
+            "Mesh2_face_nodes":
+                "Mesh2_face_nodes",
             # initialize dims
-            "nMesh2_node": "nMesh2_node",
-            "nMesh2_face": "nMesh2_face",
-            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
+            "nMesh2_node":
+                "nMesh2_node",
+            "nMesh2_face":
+                "nMesh2_face",
+            "nMaxMesh2_face_nodes":
+                "nMaxMesh2_face_nodes"
+                # initialize cart storage
+                "Mesh2_node"
         }
 
     def integrate(self, var_key, quadrature_rule="triangular", order=4):
