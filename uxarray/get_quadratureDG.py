@@ -1,7 +1,7 @@
 import numpy as np
 from numba import njit, config
 
-config.DISABLE_JIT = False
+config.DISABLE_JIT = True
 
 
 @njit
