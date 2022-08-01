@@ -17,7 +17,6 @@ def parse_grid_type(filepath, **kw):
     """Checks input and contents to determine grid type. Supports detection of
     UGrid, SCRIP, Exodus and shape file.
 
-
     Parameters
     ----------
     filepath : str
@@ -444,7 +443,8 @@ def _is_ugrid(ds):
 
 # helper function to insert a new point into the latlon box
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
-    """Compare the new point's latitude and longitude with the target the latlonbox.
+    """Compare the new point's latitude and longitude with the target the
+    latlonbox.
 
     Parameters: old_box: float array, the original lat lon box [[lat_0, lat_1],[lon_0, lon_1]],required
                 new_pt: float array, the new lat lon point [lat, lon], required
@@ -464,7 +464,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         raise Exception('lon_pt out of range ( {} < 0)"'.format(lon_pt))
 
     if lon_pt > old_lon_width:
-        raise Exception('lon_pt out of range ( {} > {})"'.format(lon_pt, old_lon_width))
+        raise Exception('lon_pt out of range ( {} > {})"'.format(
+            lon_pt, old_lon_width))
 
     # Expand latitudes
     if lat_pt > latlon_box[0][1]:
@@ -501,7 +502,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     d_width_a = get_latlonbox_width(box_a)
     d_width_b = get_latlonbox_width(box_b)
 
-    if (d_width_a - d_width_now) < -1.0e-14 or (d_width_b - d_width_now) < -1.0e-14:
+    if (d_width_a - d_width_now) < -1.0e-14 or (d_width_b -
+                                                d_width_now) < -1.0e-14:
         raise Exception('logic error')
 
     if d_width_a < d_width_b:
@@ -589,7 +591,8 @@ def convert_node_xyz_to_latlon_rad(node_coord):
 
 # helper function to insert a new point into the latlon box
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
-    """Compare the new point's latitude and longitude with the target the latlonbox.
+    """Compare the new point's latitude and longitude with the target the
+    latlonbox.
 
     Parameters: old_box: float array, the original lat lon box [[lat_0, lat_1],[lon_0, lon_1]],required
                 new_pt: float array, the new lat lon point [lon, lat], required
@@ -609,7 +612,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         raise Exception('lon_pt out of range ( {} < 0)"'.format(lon_pt))
 
     if lon_pt > old_lon_width:
-        raise Exception('lon_pt out of range ( {} > {})"'.format(lon_pt, old_lon_width))
+        raise Exception('lon_pt out of range ( {} > {})"'.format(
+            lon_pt, old_lon_width))
 
     # Expand latitudes
     if lat_pt > latlon_box[0][1]:
@@ -646,7 +650,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     d_width_a = get_latlonbox_width(box_a)
     d_width_b = get_latlonbox_width(box_b)
 
-    if (d_width_a - d_width_now) < -1.0e-14 or (d_width_b - d_width_now) < -1.0e-14:
+    if (d_width_a - d_width_now) < -1.0e-14 or (d_width_b -
+                                                d_width_now) < -1.0e-14:
         raise Exception('logic error')
 
     if d_width_a < d_width_b:
@@ -682,7 +687,7 @@ import plotly.graph_objs as go
 
 
 def vector_plot(tvects, is_vect=True, orig=[0, 0, 0]):
-    """Plot vectors using plotly"""
+    """Plot vectors using plotly."""
 
     if is_vect:
         if not hasattr(orig[0], "__iter__"):
@@ -706,12 +711,7 @@ def vector_plot(tvects, is_vect=True, orig=[0, 0, 0]):
                               name='Vector' + str(i + 1))
         data.append(vector)
 
-    layout = go.Layout(
-        margin=dict(l=4,
-                    r=4,
-                    b=4,
-                    t=4)
-    )
+    layout = go.Layout(margin=dict(l=4, r=4, b=4, t=4))
     fig = go.Figure(data=data, layout=layout)
     fig.show()
 
@@ -723,10 +723,16 @@ def angle_of_2_vectors(u, v):
     # Floating-Point Computation?" (https://www.cs.berkeley.edu/~wkahan/Mindless.pdf), section 12 "Mangled Angles."
     v_norm_times_u = [np.linalg.norm(v) * u[i] for i in range(0, len(u))]
     u_norm_times_v = [np.linalg.norm(u) * v[i] for i in range(0, len(v))]
-    vec_minus = [v_norm_times_u[i] - u_norm_times_v[i] for i in range(0, len(u_norm_times_v))]
-    vec_sum = [v_norm_times_u[i] + u_norm_times_v[i] for i in range(0, len(u_norm_times_v))]
+    vec_minus = [
+        v_norm_times_u[i] - u_norm_times_v[i]
+        for i in range(0, len(u_norm_times_v))
+    ]
+    vec_sum = [
+        v_norm_times_u[i] + u_norm_times_v[i]
+        for i in range(0, len(u_norm_times_v))
+    ]
     angle_u_v_rad = 2 * math.atan2(np.linalg.norm(vec_minus),
-                               np.linalg.norm(vec_sum))
+                                   np.linalg.norm(vec_sum))
     return angle_u_v_rad
 
 
@@ -746,8 +752,9 @@ def max_latitude(v1, v2):
     v0 = np.cross(v_temp, v1)
     v0 = normalize_in_place(v0)
 
-    max_lat = - np.pi
-    max_section = [v1, v2]  # record the subsection that has the maximum latitude
+    max_lat = -np.pi
+    max_section = [v1,
+                   v2]  # record the subsection that has the maximum latitude
     b_latlon = convert_node_xyz_to_latlon_rad(v1)
     c_latlon = convert_node_xyz_to_latlon_rad(v2)
     v1_latlon = convert_node_xyz_to_latlon_rad(v1)
@@ -786,7 +793,7 @@ def max_latitude(v1, v2):
     # vector_plot(vec_list)
 
     while np.absolute(b_latlon[0] - c_latlon[0]) >= err_tolerance:
-        max_lat = - np.pi # reset the max_latitude for each while loop
+        max_lat = -np.pi  # reset the max_latitude for each while loop
         v_b = max_section[0]
         v_c = max_section[1]
 
@@ -823,13 +830,19 @@ def max_latitude(v1, v2):
 
             # Get the two vectors of this section
             w1_new = [0.0, 0.0, 0.0]
-            w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(angle_rad_prev) * v0[0]
-            w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(angle_rad_prev) * v0[1]
-            w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(angle_rad_prev) * v0[2]
+            w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(
+                angle_rad_prev) * v0[0]
+            w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(
+                angle_rad_prev) * v0[1]
+            w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(
+                angle_rad_prev) * v0[2]
             w2_new = [0.0, 0.0, 0.0]
-            w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(angle_rad_next) * v0[0]
-            w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(angle_rad_next) * v0[1]
-            w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(angle_rad_next) * v0[2]
+            w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(
+                angle_rad_next) * v0[0]
+            w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(
+                angle_rad_next) * v0[1]
+            w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(
+                angle_rad_next) * v0[2]
 
             # convert the 3D [x, y, z] vector into 2D lat/lon vector
             w1_latlon = convert_node_xyz_to_latlon_rad(w1_new)
@@ -843,10 +856,11 @@ def max_latitude(v1, v2):
 
             max_lat = max(max_lat, w1_latlon[0], w2_latlon[0])
 
-            if np.absolute(w2_latlon[0] - w1_latlon[0]) <= err_tolerance or w1_latlon[0] == max_lat == w1_latlon[1]:
+            if np.absolute(w2_latlon[0] -
+                           w1_latlon[0]) <= err_tolerance or w1_latlon[
+                               0] == max_lat == w1_latlon[1]:
                 max_section = [w1_new, w2_new]
                 break
-
 
             # if the largest absolute value of lat at each sub-interval point b_i.
             # Repeat algorithm with the sub-interval points (b,c)=(b_{i-1},b_{i+1})
@@ -854,13 +868,19 @@ def max_latitude(v1, v2):
                 if i != 0:
                     angle_rad_prev -= avg_angle_rad
                     w1_new = [0.0, 0.0, 0.0]
-                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(angle_rad_prev) * v0[0]
-                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(angle_rad_prev) * v0[1]
-                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(angle_rad_prev) * v0[2]
+                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(
+                        angle_rad_prev) * v0[0]
+                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(
+                        angle_rad_prev) * v0[1]
+                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(
+                        angle_rad_prev) * v0[2]
                     w2_new = [0.0, 0.0, 0.0]
-                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(angle_rad_next) * v0[0]
-                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(angle_rad_next) * v0[1]
-                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(angle_rad_next) * v0[2]
+                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(
+                        angle_rad_next) * v0[0]
+                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(
+                        angle_rad_next) * v0[1]
+                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(
+                        angle_rad_next) * v0[2]
                     max_section = [w1_new, w2_new]
                 else:
                     max_section = [v_b, w2_new]
@@ -869,13 +889,19 @@ def max_latitude(v1, v2):
                 if i != 9:
                     angle_rad_next += avg_angle_rad
                     w1_new = [0.0, 0.0, 0.0]
-                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(angle_rad_prev) * v0[0]
-                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(angle_rad_prev) * v0[1]
-                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(angle_rad_prev) * v0[2]
+                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(
+                        angle_rad_prev) * v0[0]
+                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(
+                        angle_rad_prev) * v0[1]
+                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(
+                        angle_rad_prev) * v0[2]
                     w2_new = [0.0, 0.0, 0.0]
-                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(angle_rad_next) * v0[0]
-                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(angle_rad_next) * v0[1]
-                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(angle_rad_next) * v0[2]
+                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(
+                        angle_rad_next) * v0[0]
+                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(
+                        angle_rad_next) * v0[1]
+                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(
+                        angle_rad_next) * v0[2]
                     max_section = [w1_new, w2_new]
                 else:
                     max_section = [w1_new, v_c]
@@ -889,22 +915,21 @@ def max_latitude(v1, v2):
 
 # helper function to calculate the point position of the intersection
 def get_intersection_point(w0, w1, v0, v1):
-    """Helper function to calculate the intersection point of two great circle arcs in 3D coordinates
+    """Helper function to calculate the intersection point of two great circle
+    arcs in 3D coordinates.
 
-     Parameters
-     ----------
-     w0: float array [x, y, z], the end point of great circle arc w
-     w1: float array [x, y, z], the other end point of great circle arc w
-     v0: float array [x, y, z], the end point of great circle arc v
-     v1: float array [x, y, z], the other end point of great circle arc v
-
-
-     Returns: float array, the result vector [x, y, z]
-      [x, y, z]: the 3D coordinates of the intersection point
-      [0, 0, 0]: Indication that two great circle arcs are parallel to each other
-      [-1, -1, -1]: Indication that two great circle arcs doesn't have intersection
+    Parameters
+    ----------
+    w0: float array [x, y, z], the end point of great circle arc w
+    w1: float array [x, y, z], the other end point of great circle arc w
+    v0: float array [x, y, z], the end point of great circle arc v
+    v1: float array [x, y, z], the other end point of great circle arc v
 
 
+    Returns: float array, the result vector [x, y, z]
+     [x, y, z]: the 3D coordinates of the intersection point
+     [0, 0, 0]: Indication that two great circle arcs are parallel to each other
+     [-1, -1, -1]: Indication that two great circle arcs doesn't have intersection
     """
     w0 = normalize_in_place(w0)
     w1 = normalize_in_place(w1)
@@ -915,9 +940,11 @@ def get_intersection_point(w0, w1, v0, v1):
 
     # Find out whether X1 or X2 is within the interval [wo, w1]
 
-    if within(w0[0], x1[0], w1[0]) and within(w0[1], x1[1], w1[1]) and within(w0[2], x1[2], w1[2]):
+    if within(w0[0], x1[0], w1[0]) and within(w0[1], x1[1], w1[1]) and within(
+            w0[2], x1[2], w1[2]):
         return x1
-    elif within(w0[0], x2[0], w1[0]) and within(w0[1], x2[1], w1[1]) and within(w0[2], x2[2], w1[2]):
+    elif within(w0[0], x2[0], w1[0]) and within(w0[1], x2[1], w1[1]) and within(
+            w0[2], x2[2], w1[2]):
         return x2
     elif x1[0] * x1[1] * x1[0] == 0:
         return [0, 0, 0]  # two vectors are parallel to each other
@@ -927,25 +954,26 @@ def get_intersection_point(w0, w1, v0, v1):
 
 # helper function for get_intersection_point to determine whether one point is between the other two points
 def within(p, q, r):
-    """Helper function for get_intersection_point to determine whether the number q is between p and r
+    """Helper function for get_intersection_point to determine whether the
+    number q is between p and r.
 
-     Parameters
-     ----------
-     p, q, r: float
+    Parameters
+    ----------
+    p, q, r: float
 
-     Returns: boolean
+    Returns: boolean
     """
     return p <= q <= r or r <= q <= p
 
 
 class Edge:
     """The Uxarray Edge object class for undirected edge.
-       In current implementation, each node is the node index
 
+    In current implementation, each node is the node index
     """
 
     def __init__(self, input_edge):
-        """ Initializing the Edge object from input edge [node 0, node 1]
+        """Initializing the Edge object from input edge [node 0, node 1]
 
         Parameters
         ----------
@@ -954,7 +982,6 @@ class Edge:
             - The indexes of two nodes [node0_index, node1_index], the order doesn't matter
 
         ----------------
-
         """
         # for every input_edge, sort the node index in ascending order.
         edge_sorted = np.sort(input_edge)
