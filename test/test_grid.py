@@ -70,12 +70,12 @@ class TestGrid(TestCase):
     def test_generate_edge_nodes(self):
         """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
         ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        tgrid1 = ux.Grid(str(ug_filename1))
+        tgrid1 = ux.open_dataset(str(ug_filename1))
         mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
 
         tgrid1.build_edge_face_connectivity()
-        mesh2_face_edges = tgrid1.Mesh2_face_edges
-        mesh2_edge_nodes = tgrid1.Mesh2_edge_nodes
+        mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
+        mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
 
         # Assert if the mesh2_face_edges sizes are correct.
         self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
