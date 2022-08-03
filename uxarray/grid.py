@@ -691,6 +691,10 @@ class Grid:
         #   Mesh2_node_cart_z
         #      unit m
 
+        # Check if the cartesian coordinates are already populated
+        if "Mesh2_node_cart_x" in self.ds.keys():
+            return
+
         # check for units and create Mesh2_node_cart_x/y/z set to self.ds
         num_nodes = self.ds.Mesh2_node_x.size
         node_cart_list = [[0.0, 0.0, 0.0]] * num_nodes
@@ -711,6 +715,10 @@ class Grid:
          Helper function that populates the longitude and latitude and store it into the Mesh2_node_x and Mesh2_node_y
           use case: If the grid file's Mesh2_node_x 's unit is in meter
         """
+
+        # Check if the "Mesh2_node_x" is already in longitude
+        if "degree" in self.ds.Mesh2_node_x.units:
+            return
         num_nodes = self.ds.Mesh2_node_x.size
         node_latlon_list = [[0.0, 0.0]] * num_nodes
         for i in range(num_nodes):
