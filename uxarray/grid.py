@@ -13,7 +13,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 
 from .helpers import get_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge,  \
-    get_intersection_point, convert_node_latlon_rad_to_xyz, _spherical_to_cartesian_unit_
+    get_intersection_point, convert_node_latlon_rad_to_xyz, _spherical_to_cartesian_unit_, convert_node_xyz_to_latlon_rad
 
 from .utilities import normalize_in_place
 
@@ -161,34 +161,6 @@ class Grid:
             self.ds = _read_shpfile(self.filepath)
         else:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
-
-    #   Mesh2_node_x
-    #      unit x = "lon"
-    #   Mesh2_node_y
-    #      unit x = "lat"
-    #   Mesh2_node_z
-    #      unit x = "m"
-    #   Mesh2_node_cart_x
-    #      unit m
-    #   Mesh2_node_cart_y
-    #      unit m
-    #   Mesh2_node_cart_z
-    #      unit m
-
-    # check for units and create Mesh2_node_cart_x/y/z set to self.ds
-        num_nodes = self.ds.Mesh2_node_x.size
-        node_cart_list = [[0.0, 0.0, 0.0]] * num_nodes
-        for i in range(num_nodes):
-            if "degree" in self.ds.Mesh2_node_x.units:
-                node = [self.ds["Mesh2_node_x"][i],
-                        self.ds["Mesh2_node_y"][i]]  # [lon, lat]
-                node_cart = _spherical_to_cartesian_unit_(node)  # [x, y, z]
-                node_cart_list[i] = node_cart
-
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list[:][0])
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list[:][1])
-        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list[:][2])
-
         dataset.close()
 
     def write(self, outfile, extension=""):
@@ -292,6 +264,11 @@ class Grid:
 
         self.build_edge_face_connectivity()
 
+        # TODO: Change to check if the ds already has the ds["Mesh2_node_cart_x"] coordinates
+
+        if "Mesh2_node_cart_x" not in self.ds.keys():
+            self.__populate_cartesian_xyz_coord()
+
         temp_latlon_array = [[[0.0, 0.0], [0.0, 0.0]]
                             ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"]
 
@@ -333,15 +310,13 @@ class Grid:
                     n1 = []
                     n2 = []
 
-                    # Convert the 2D [lon, lat] to 3D [x, y, z]
-                    n1 = convert_node_latlon_rad_to_xyz([
-                        self.ds["Mesh2_node_x"].values[edge[0]],
-                        self.ds["Mesh2_node_y"].values[edge[0]]
-                    ])
-                    n2 = convert_node_latlon_rad_to_xyz([
-                        self.ds["Mesh2_node_x"].values[edge[1]],
-                        self.ds["Mesh2_node_y"].values[edge[1]]
-                    ])
+                    # Get the edge end points in 3D [x, y, z] coordinates
+                    n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
+                          self.ds["Mesh2_node_cart_y"].values[edge[0]],
+                          self.ds["Mesh2_node_cart_z"].values[edge[0]]]
+                    n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
+                          self.ds["Mesh2_node_cart_y"].values[edge[1]],
+                          self.ds["Mesh2_node_cart_z"].values[edge[1]]]
 
                     # Set the latitude extent
                     d_lat_extent_rad = 0.0
@@ -352,7 +327,6 @@ class Grid:
                             d_lat_extent_rad = 0.5 * np.pi
 
                     # insert edge endpoint into box
-                    # TODO: Make sure ds["Mesh2_node_x"] and ds["Mesh2_node_y"] always store the lon/lat value
                     if np.absolute(self.ds["Mesh2_node_y"].values[
                             edge[0]]) < d_lat_extent_rad:
                         d_lat_extent_rad = self.ds["Mesh2_node_y"].values[
@@ -404,22 +378,19 @@ class Grid:
                     # All the following calculation is based on the 3D XYZ coord
                     # And assume the self.ds["Mesh2_node_x"] always store the lon info
 
-                    # Convert the 2D [lon, lat] to 3D [x, y, z]
-                    n1 = convert_node_latlon_rad_to_xyz([
-                        self.ds["Mesh2_node_x"].values[edge[0]],
-                        self.ds["Mesh2_node_y"].values[edge[0]]
-                    ])
-                    n2 = convert_node_latlon_rad_to_xyz([
-                        self.ds["Mesh2_node_x"].values[edge[1]],
-                        self.ds["Mesh2_node_y"].values[edge[1]]
-                    ])
+                    # Get the edge end points in 3D [x, y, z] coordinates
+                    n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
+                          self.ds["Mesh2_node_cart_y"].values[edge[0]],
+                          self.ds["Mesh2_node_cart_z"].values[edge[0]]]
+                    n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
+                          self.ds["Mesh2_node_cart_y"].values[edge[1]],
+                          self.ds["Mesh2_node_cart_z"].values[edge[1]]]
 
                     # Determine if latitude is maximized between endpoints
                     dot_n1_n2 = np.dot(n1, n2)
                     d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
 
                     # insert edge endpoint into box
-                    # TODO: Make sure ds["Mesh2_node_x"] and ds["Mesh2_node_y"] always store the lon/lat value
                     d_lat_rad = np.deg2rad(
                         self.ds["Mesh2_node_y"].values[edge[0]])
                     d_lon_rad = np.deg2rad(
@@ -701,3 +672,58 @@ class Grid:
             if self.ds.coords is not None:
                 if value in self.ds.coords:
                     setattr(self, key, self.ds[value])
+
+    def __populate_cartesian_xyz_coord(self):
+        """
+        A helper function that populates the xyz attribute in Mesh.ds
+        use case: If the grid file's Mesh2_node_x 's unit is in degree
+        """
+        #   Mesh2_node_x
+        #      unit x = "lon" degree
+        #   Mesh2_node_y
+        #      unit x = "lat" degree
+        #   Mesh2_node_z
+        #      unit x = "m"
+        #   Mesh2_node_cart_x
+        #      unit m
+        #   Mesh2_node_cart_y
+        #      unit m
+        #   Mesh2_node_cart_z
+        #      unit m
+
+        # check for units and create Mesh2_node_cart_x/y/z set to self.ds
+        num_nodes = self.ds.Mesh2_node_x.size
+        node_cart_list = [[0.0, 0.0, 0.0]] * num_nodes
+        for i in range(num_nodes):
+            if "degree" in self.ds.Mesh2_node_x.units:
+                node = [self.ds["Mesh2_node_x"][i],
+                        self.ds["Mesh2_node_y"][i]]  # [lon, lat]
+                node_cart = _spherical_to_cartesian_unit_(node)  # [x, y, z]
+                node_cart_list[i] = node_cart
+
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list[:][0])
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list[:][1])
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list[:][2])
+
+
+    def __populate_lonlat_coord(self):
+        """
+         Helper function that populates the longitude and latitude and store it into the Mesh2_node_x and Mesh2_node_y
+          use case: If the grid file's Mesh2_node_x 's unit is in meter
+        """
+        num_nodes = self.ds.Mesh2_node_x.size
+        node_latlon_list = [[0.0, 0.0]] * num_nodes
+        for i in range(num_nodes):
+            if "m" in self.ds.Mesh2_node_x.units:
+                node = [self.ds["Mesh2_node_x"][i],
+                        self.ds["Mesh2_node_y"][i],
+                        self.ds["Mesh2_node_z"][i]]  # [x, y, z]
+                node_latlon = convert_node_xyz_to_latlon_rad(node)  # [lat, lon]
+                node_latlon[0] = np.rad2deg(node_latlon[0])
+                node_latlon[1] = np.rad2deg(node_latlon[1])
+                node_latlon_list[i] = node_latlon
+
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_latlon_list[:][1])
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_latlon_list[:][0])
+        # TODO: Update the self.ds.Mesh2_node_x.units to "degree"
+
