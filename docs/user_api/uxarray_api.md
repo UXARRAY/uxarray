@@ -16,10 +16,6 @@ Describes an unstructured grid.
   MaxNumFacesPerNode (max number of faces per node),Two, Three, Four}`
 
 
-- uxarray.Grid.filename: string \
-  Original filename for this uxarray.Grid.
-
-
 - (*) uxarray.Grid.islatlon: boolean \
   A flag indicating the grid is a latitude longitude grid.
 
@@ -32,6 +28,16 @@ Describes an unstructured grid.
 
 - (*) uxarray.Grid.edgedual: uxarray.Grid \
   The edge dual grid.
+
+
+- uxarray.Grid.source_grid: string \
+  The source file for this uxarray.Grid's definition (For
+  diagnostics and reporting purposes).
+
+
+- uxarray.Grid.source_datasets: string \
+  The source file(s) for this uxarray.Grid's corresponding
+  data (For diagnostics and reporting purposes).
 
 
 - (*) uxarray.Grid.vertexdual: uxarray.Grid \
