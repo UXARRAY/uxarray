@@ -13,7 +13,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 
 from .helpers import get_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge,  \
-    get_intersection_point, convert_node_latlon_rad_to_xyz, _spherical_to_cartesian_unit_, convert_node_xyz_to_latlon_rad
+    get_intersection_point, convert_node_lonlat_rad_to_xyz, _spherical_to_cartesian_unit_, convert_node_xyz_to_lonlat_rad
 
 from .utilities import normalize_in_place
 
@@ -238,8 +238,8 @@ class Grid:
                 mesh2_edge_nodes_set.add(Edge([face[i], face[i + 1]]))
                 cur_face_edge.append([face[i], face[i + 1]])
             # Two nodes are connected if one is the first element of the array and the other is the last
-            mesh2_edge_nodes_set.add(Edge([face[0], face[face.size - 1]]))
-            cur_face_edge.append([face[0], face[face.size - 1]])
+            mesh2_edge_nodes_set.add(Edge([face[face.size - 1], face[0]]))
+            cur_face_edge.append([face[face.size - 1], face[0]])
             mesh2_face_edges.append(cur_face_edge)
 
         # Convert the Edge object set into list
@@ -269,8 +269,9 @@ class Grid:
         if "Mesh2_node_cart_x" not in self.ds.keys():
             self.__populate_cartesian_xyz_coord()
 
-        temp_latlon_array = [[[0.0, 0.0], [0.0, 0.0]]
-                            ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"]
+        temp_latlon_array = [[[np.pi, -np.pi], [0.0, 0.0]]
+                            ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"] # Intializd the min_lat as pi, and max_lat as -pi
+
 
         reference_tolerance = 1.0e-12
 
@@ -494,13 +495,13 @@ class Grid:
             w2 = []
 
             # Convert the 2D [lon, lat] to 3D [x, y, z]
-            w1 = convert_node_latlon_rad_to_xyz([
-                self.ds["Mesh2_node_x"].values[edge[0]],
-                self.ds["Mesh2_node_y"].values[edge[0]]
+            w1 = convert_node_lonlat_rad_to_xyz([
+                np.deg2rad(self.ds["Mesh2_node_x"].values[edge[0]]),
+                np.deg2rad(self.ds["Mesh2_node_y"].values[edge[0]])
             ])
-            w2 = convert_node_latlon_rad_to_xyz([
-                self.ds["Mesh2_node_x"].values[edge[1]],
-                self.ds["Mesh2_node_y"].values[edge[1]]
+            w2 = convert_node_lonlat_rad_to_xyz([
+                np.deg2rad(self.ds["Mesh2_node_x"].values[edge[1]]),
+                np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
             ])
 
             res = get_intersection_point(w1, w2, v1, v2)
@@ -508,7 +509,7 @@ class Grid:
             # two vectors are intersected within range and not parralel
             if (res != [0, 0, 0]) and (res != [-1, -1, -1]):
                 num_intersection += 1
-            elif res[0] * res[1] * res[2] == 0:
+            elif res[0] == 0 and res[1] == 0 and res[2] == 0:
                 # if two vectors are parallel
                 return -1
 
@@ -697,17 +698,21 @@ class Grid:
 
         # check for units and create Mesh2_node_cart_x/y/z set to self.ds
         num_nodes = self.ds.Mesh2_node_x.size
-        node_cart_list = [[0.0, 0.0, 0.0]] * num_nodes
+        node_cart_list_x = [0.0] * num_nodes
+        node_cart_list_y = [0.0] * num_nodes
+        node_cart_list_z = [0.0] * num_nodes
         for i in range(num_nodes):
             if "degree" in self.ds.Mesh2_node_x.units:
-                node = [self.ds["Mesh2_node_x"][i],
-                        self.ds["Mesh2_node_y"][i]]  # [lon, lat]
-                node_cart = _spherical_to_cartesian_unit_(node)  # [x, y, z]
-                node_cart_list[i] = node_cart
+                node = [np.deg2rad(self.ds["Mesh2_node_x"].values[i]),
+                        np.deg2rad(self.ds["Mesh2_node_y"].values[i])]  # [lon, lat]
+                node_cart = convert_node_lonlat_rad_to_xyz(node)  # [x, y, z]
+                node_cart_list_x[i] = node_cart[0]
+                node_cart_list_y[i] = node_cart[1]
+                node_cart_list_z[i] = node_cart[2]
 
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list[:][0])
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list[:][1])
-        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list[:][2])
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
 
 
     def __populate_lonlat_coord(self):
@@ -720,18 +725,31 @@ class Grid:
         if "degree" in self.ds.Mesh2_node_x.units:
             return
         num_nodes = self.ds.Mesh2_node_x.size
-        node_latlon_list = [[0.0, 0.0]] * num_nodes
+        node_latlon_list_lat = [0.0] * num_nodes
+        node_latlon_list_lon = [0.0] * num_nodes
+        node_cart_list_x = [0.0] * num_nodes
+        node_cart_list_y = [0.0] * num_nodes
+        node_cart_list_z = [0.0] * num_nodes
         for i in range(num_nodes):
             if "m" in self.ds.Mesh2_node_x.units:
                 node = [self.ds["Mesh2_node_x"][i],
                         self.ds["Mesh2_node_y"][i],
                         self.ds["Mesh2_node_z"][i]]  # [x, y, z]
-                node_latlon = convert_node_xyz_to_latlon_rad(node)  # [lat, lon]
-                node_latlon[0] = np.rad2deg(node_latlon[0])
-                node_latlon[1] = np.rad2deg(node_latlon[1])
-                node_latlon_list[i] = node_latlon
+                node_lonlat = convert_node_xyz_to_lonlat_rad(node)  # [lon, lat]
+                node_cart_list_x[i] = self.ds["Mesh2_node_x"].values[i]
+                node_cart_list_y[i] = self.ds["Mesh2_node_y"].values[i]
+                node_cart_list_z[i] = self.ds["Mesh2_node_z"].values[i]
+                node_lonlat[0] = np.rad2deg(node_lonlat[0])
+                node_lonlat[1] = np.rad2deg(node_lonlat[1])
+                node_latlon_list_lon[i] = node_lonlat[0]
+                node_latlon_list_lat[i] = node_lonlat[1]
 
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_latlon_list[:][1])
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_latlon_list[:][0])
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
+
+        self.ds["Mesh2_node_x"].values = node_latlon_list_lon
+        self.ds["Mesh2_node_y"].values = node_latlon_list_lat
+
         # TODO: Update the self.ds.Mesh2_node_x.units to "degree"
+        self.ds.Mesh2_node_x.units = "degree_east"
 

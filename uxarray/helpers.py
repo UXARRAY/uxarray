@@ -536,7 +536,7 @@ def get_latlonbox_width(latlonbox, is_lon_periodic):
 
 
 # Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
-def convert_node_latlon_rad_to_xyz(node_coord):
+def convert_node_lonlat_rad_to_xyz(node_coord):
     """
     Parameters: float list, required
        the input 2D coordinates[longitude, latitude]
@@ -549,7 +549,7 @@ def convert_node_latlon_rad_to_xyz(node_coord):
 
 # helper function to calculate latitude and longitude from a node's normalized 3D Cartesian
 # coordinates, in radians.
-def convert_node_xyz_to_latlon_rad(node_coord):
+def convert_node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented in the [x, y, z] 3D Cartesian coordinates.
     Parameters: node_coord: float array, [x, y, z],required
 
@@ -559,9 +559,7 @@ def convert_node_xyz_to_latlon_rad(node_coord):
        Exception: Logic Errors
     """
     reference_tolerance = 1.0e-12
-    dx = node_coord[0]
-    dy = node_coord[1]
-    dz = node_coord[2]
+    [dx, dy, dz] = normalize_in_place(node_coord)
 
     d_mag_2 = dx * dx + dy * dy + dz * dz
 
@@ -586,7 +584,7 @@ def convert_node_xyz_to_latlon_rad(node_coord):
         d_lon_rad = 0.0
         d_lat_rad = -0.5 * np.pi
 
-    return [d_lat_rad, d_lon_rad]
+    return [d_lon_rad, d_lat_rad]
 
 
 # helper function to insert a new point into the latlon box
@@ -755,44 +753,15 @@ def max_latitude(v1, v2):
     max_lat = -np.pi
     max_section = [v1,
                    v2]  # record the subsection that has the maximum latitude
-    b_latlon = convert_node_xyz_to_latlon_rad(v1)
-    c_latlon = convert_node_xyz_to_latlon_rad(v2)
-    v1_latlon = convert_node_xyz_to_latlon_rad(v1)
-    v2_latlon = convert_node_xyz_to_latlon_rad(v2)
+    b_lonlat = convert_node_xyz_to_lonlat_rad(v1)
+    c_lonlat = convert_node_xyz_to_lonlat_rad(v2)
+    v1_latlon = convert_node_xyz_to_lonlat_rad(v1)
+    v2_latlon = convert_node_xyz_to_lonlat_rad(v2)
 
     # TODO: remove these 3 lines after debuging
     while_loop_stoper_flag = 0
-    # angle_v1_v2_rad = np.arccos(
-    #     np.clip(np.dot(normalize_in_place(max_section[1]), normalize_in_place(max_section[0])), -1.0, 1.0))
-    # avg_angle_rad = angle_v1_v2_rad / 10
-    # lat_list = []
-    # vec_list = []
-    # for i in range(0, 10):
-    #     angle_rad_prev = avg_angle_rad * i
-    #     if i >= 9:
-    #         angle_rad_next = angle_v1_v2_rad
-    #     else:
-    #         angle_rad_next = angle_rad_prev + avg_angle_rad
-    #     # Get the two vectors of this section
-    #     w1_new = [0.0, 0.0, 0.0]
-    #     w1_new[0] = np.cos(angle_rad_prev) * v1[0] + np.sin(angle_rad_prev) * v0[0]
-    #     w1_new[1] = np.cos(angle_rad_prev) * v1[1] + np.sin(angle_rad_prev) * v0[1]
-    #     w1_new[2] = np.cos(angle_rad_prev) * v1[2] + np.sin(angle_rad_prev) * v0[2]
-    #     w2_new = [0.0, 0.0, 0.0]
-    #     w2_new[0] = np.cos(angle_rad_next) * v1[0] + np.sin(angle_rad_next) * v0[0]
-    #     w2_new[1] = np.cos(angle_rad_next) * v1[1] + np.sin(angle_rad_next) * v0[1]
-    #     w2_new[2] = np.cos(angle_rad_next) * v1[2] + np.sin(angle_rad_next) * v0[2]
-    #
-    #     # convert the 3D [x, y, z] vector into 2D lat/lon vector
-    #     w1_latlon = convert_node_xyz_to_latlon_rad(w1_new)
-    #     w2_latlon = convert_node_xyz_to_latlon_rad(w2_new)
-    #     lat_list.append([w1_latlon[0], w2_latlon[0]])
-    #     vec_list.append(w2_new)
-    #
-    # vector_plot([v0, v1, v2])
-    # vector_plot(vec_list)
 
-    while np.absolute(b_latlon[0] - c_latlon[0]) >= err_tolerance:
+    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
         max_lat = -np.pi  # reset the max_latitude for each while loop
         v_b = max_section[0]
         v_c = max_section[1]
@@ -812,15 +781,6 @@ def max_latitude(v1, v2):
         avg_angle_rad = angle_v1_v2_rad / 10
 
         # TODO: Delete the following lines after debugging
-        # max_0_latlon = convert_node_xyz_to_latlon_rad(v_b)
-        # max_1_latlon = convert_node_xyz_to_latlon_rad(v_c)
-        # w2_final = [0.0, 0.0, 0.0]
-        # w2_final[0] = np.cos(angle_v1_v2_rad) * v_b[0] + np.sin(angle_v1_v2_rad) * v0[0]
-        # w2_final[1] = np.cos(angle_v1_v2_rad) * v_b[1] + np.sin(angle_v1_v2_rad) * v0[1]
-        # w2_final[2] = np.cos(angle_v1_v2_rad) * v_b[2] + np.sin(angle_v1_v2_rad) * v0[2]
-        # w2_latlon_final = convert_node_xyz_to_latlon_rad(w2_final)
-        # if w2_latlon_final[0] != c_latlon[0]:
-        #     pass
         for i in range(0, 10):
             angle_rad_prev = avg_angle_rad * i
             if i >= 9:
@@ -845,26 +805,26 @@ def max_latitude(v1, v2):
                 angle_rad_next) * v0[2]
 
             # convert the 3D [x, y, z] vector into 2D lat/lon vector
-            w1_latlon = convert_node_xyz_to_latlon_rad(w1_new)
-            w2_latlon = convert_node_xyz_to_latlon_rad(w2_new)
+            w1_lonlat = convert_node_xyz_to_lonlat_rad(w1_new)
+            w2_lonlat = convert_node_xyz_to_lonlat_rad(w2_new)
 
             # Manually set the left and right boundaries to avoid error accumulation
             if i == 0:
-                w1_latlon[0] = b_latlon[0]
+                w1_lonlat[1] = b_lonlat[1]
             elif i >= 9:
-                w2_latlon[0] = c_latlon[0]
+                w2_lonlat[1] = c_lonlat[1]
 
-            max_lat = max(max_lat, w1_latlon[0], w2_latlon[0])
+            max_lat = max(max_lat, w1_lonlat[1], w2_lonlat[1])
 
-            if np.absolute(w2_latlon[0] -
-                           w1_latlon[0]) <= err_tolerance or w1_latlon[
-                               0] == max_lat == w1_latlon[1]:
+            if np.absolute(w2_lonlat[1] -
+                           w1_lonlat[1]) <= err_tolerance or w1_lonlat[
+                               1] == max_lat == w2_lonlat[1]:
                 max_section = [w1_new, w2_new]
                 break
 
             # if the largest absolute value of lat at each sub-interval point b_i.
             # Repeat algorithm with the sub-interval points (b,c)=(b_{i-1},b_{i+1})
-            if np.absolute(max_lat - w1_latlon[0]) <= err_tolerance:
+            if np.absolute(max_lat - w1_lonlat[1]) <= err_tolerance:
                 if i != 0:
                     angle_rad_prev -= avg_angle_rad
                     w1_new = [0.0, 0.0, 0.0]
@@ -885,7 +845,7 @@ def max_latitude(v1, v2):
                 else:
                     max_section = [v_b, w2_new]
 
-            elif np.absolute(max_lat - w2_latlon[0]) <= err_tolerance:
+            elif np.absolute(max_lat - w2_lonlat[1]) <= err_tolerance:
                 if i != 9:
                     angle_rad_next += avg_angle_rad
                     w1_new = [0.0, 0.0, 0.0]
@@ -906,11 +866,11 @@ def max_latitude(v1, v2):
                 else:
                     max_section = [w1_new, v_c]
 
-        b_latlon = convert_node_xyz_to_latlon_rad(copy.deepcopy(max_section[0]))
-        c_latlon = convert_node_xyz_to_latlon_rad(copy.deepcopy(max_section[1]))
+        b_lonlat = convert_node_xyz_to_lonlat_rad(copy.deepcopy(max_section[0]))
+        c_lonlat = convert_node_xyz_to_lonlat_rad(copy.deepcopy(max_section[1]))
 
         while_loop_stoper_flag += 1
-    return np.average([b_latlon[0], c_latlon[0]])
+    return np.average([b_lonlat[1], c_lonlat[1]])
 
 
 # helper function to calculate the point position of the intersection
@@ -946,7 +906,7 @@ def get_intersection_point(w0, w1, v0, v1):
     elif within(w0[0], x2[0], w1[0]) and within(w0[1], x2[1], w1[1]) and within(
             w0[2], x2[2], w1[2]):
         return x2
-    elif x1[0] * x1[1] * x1[0] == 0:
+    elif x1[0] == 0 and x1[1] == 0 and x1[2] == 0:
         return [0, 0, 0]  # two vectors are parallel to each other
     else:
         return [-1, -1, -1]  # Intersection out of the interval or
