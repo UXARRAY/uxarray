@@ -755,32 +755,20 @@ def max_latitude(v1, v2):
                    v2]  # record the subsection that has the maximum latitude
     b_lonlat = convert_node_xyz_to_lonlat_rad(v1)
     c_lonlat = convert_node_xyz_to_lonlat_rad(v2)
-    v1_latlon = convert_node_xyz_to_lonlat_rad(v1)
-    v2_latlon = convert_node_xyz_to_lonlat_rad(v2)
 
-    # TODO: remove these 3 lines after debuging
-    while_loop_stoper_flag = 0
 
     while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
         max_lat = -np.pi  # reset the max_latitude for each while loop
         v_b = max_section[0]
         v_c = max_section[1]
 
-        if while_loop_stoper_flag >= 1000:
-            pass
         # Divide the angle of v1/v2 into 10 subsections, the leftover will be put in the last one
-
-        angle_v1_v2_rad = angle_of_2_vectors(v_b, v_c)
-
-        avg_angle_rad = angle_v1_v2_rad / 10
         # Update v0 based on max_section[0], since the angle is always from max_section[0] to v0
-        if angle_v1_v2_rad == 0.0:
-            pass
+        angle_v1_v2_rad = angle_of_2_vectors(v_b, v_c)
         v0 = np.cross(v_temp, v_b)
         v0 = normalize_in_place(v0)
         avg_angle_rad = angle_v1_v2_rad / 10
 
-        # TODO: Delete the following lines after debugging
         for i in range(0, 10):
             angle_rad_prev = avg_angle_rad * i
             if i >= 9:
@@ -789,20 +777,10 @@ def max_latitude(v1, v2):
                 angle_rad_next = angle_rad_prev + avg_angle_rad
 
             # Get the two vectors of this section
-            w1_new = [0.0, 0.0, 0.0]
-            w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(
-                angle_rad_prev) * v0[0]
-            w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(
-                angle_rad_prev) * v0[1]
-            w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(
-                angle_rad_prev) * v0[2]
-            w2_new = [0.0, 0.0, 0.0]
-            w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(
-                angle_rad_next) * v0[0]
-            w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(
-                angle_rad_next) * v0[1]
-            w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(
-                angle_rad_next) * v0[2]
+            w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
+                angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
+            w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
+                angle_rad_next) * v0[i] for i in range(0, len(v_b))]
 
             # convert the 3D [x, y, z] vector into 2D lat/lon vector
             w1_lonlat = convert_node_xyz_to_lonlat_rad(w1_new)
@@ -827,20 +805,10 @@ def max_latitude(v1, v2):
             if np.absolute(max_lat - w1_lonlat[1]) <= err_tolerance:
                 if i != 0:
                     angle_rad_prev -= avg_angle_rad
-                    w1_new = [0.0, 0.0, 0.0]
-                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(
-                        angle_rad_prev) * v0[0]
-                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(
-                        angle_rad_prev) * v0[1]
-                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(
-                        angle_rad_prev) * v0[2]
-                    w2_new = [0.0, 0.0, 0.0]
-                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(
-                        angle_rad_next) * v0[0]
-                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(
-                        angle_rad_next) * v0[1]
-                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(
-                        angle_rad_next) * v0[2]
+                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
+                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
+                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
+                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
                     max_section = [w1_new, w2_new]
                 else:
                     max_section = [v_b, w2_new]
@@ -848,20 +816,10 @@ def max_latitude(v1, v2):
             elif np.absolute(max_lat - w2_lonlat[1]) <= err_tolerance:
                 if i != 9:
                     angle_rad_next += avg_angle_rad
-                    w1_new = [0.0, 0.0, 0.0]
-                    w1_new[0] = np.cos(angle_rad_prev) * v_b[0] + np.sin(
-                        angle_rad_prev) * v0[0]
-                    w1_new[1] = np.cos(angle_rad_prev) * v_b[1] + np.sin(
-                        angle_rad_prev) * v0[1]
-                    w1_new[2] = np.cos(angle_rad_prev) * v_b[2] + np.sin(
-                        angle_rad_prev) * v0[2]
-                    w2_new = [0.0, 0.0, 0.0]
-                    w2_new[0] = np.cos(angle_rad_next) * v_b[0] + np.sin(
-                        angle_rad_next) * v0[0]
-                    w2_new[1] = np.cos(angle_rad_next) * v_b[1] + np.sin(
-                        angle_rad_next) * v0[1]
-                    w2_new[2] = np.cos(angle_rad_next) * v_b[2] + np.sin(
-                        angle_rad_next) * v0[2]
+                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
+                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
+                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
+                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
                     max_section = [w1_new, w2_new]
                 else:
                     max_section = [w1_new, v_c]
@@ -869,7 +827,6 @@ def max_latitude(v1, v2):
         b_lonlat = convert_node_xyz_to_lonlat_rad(copy.deepcopy(max_section[0]))
         c_lonlat = convert_node_xyz_to_lonlat_rad(copy.deepcopy(max_section[1]))
 
-        while_loop_stoper_flag += 1
     return np.average([b_lonlat[1], c_lonlat[1]])
 
 

@@ -118,35 +118,7 @@ class TestGrid(TestCase):
             lat_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][1]
             lat_max_quant = max_lat_list[i]
             self.assertLessEqual( np.absolute(lat_max_algo - lat_max_quant), 1.0e-12)
-            # if np.absolute(lat_max_algo - lat_max_quant) <= 1.0e-12:
-            #     print("i: %2d, pass" % (i))
-            # else:
-            #     # See how this face look like:
-            #     face = tgrid1.ds["Mesh2_face_edges"].values[i]
-            #     face_latlon_list = []
-            #     face_latlon_deg_list = []
-            #     for j in range(0, len(face)):
-            #         edge = face[j]
-            #         # Convert the 2D [lon, lat] to 3D [x, y, z]
-            #         n1 = [
-            #             np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[0]]),
-            #             np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[0]])
-            #         ]
-            #         n2 = [
-            #             np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[1]]),
-            #             np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[1]])
-            #         ]
-            #         face_latlon_list.append([n1, n2])
-            #         n1_deg = [
-            #             tgrid1.ds["Mesh2_node_x"].values[edge[0]],
-            #             tgrid1.ds["Mesh2_node_y"].values[edge[0]]
-            #         ]
-            #         n2_deg = [
-            #             tgrid1.ds["Mesh2_node_x"].values[edge[1]],
-            #             tgrid1.ds["Mesh2_node_y"].values[edge[1]]
-            #         ]
-            #         face_latlon_deg_list.append([n1_deg, n2_deg])
-            #     pass
+
 
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?
