@@ -829,6 +829,99 @@ def max_latitude(v1, v2):
 
     return np.average([b_lonlat[1], c_lonlat[1]])
 
+# Quantitative method to find the minimum latitude between in a great circle arc recursively
+def min_latitude(v1, v2):
+    """Calculate the width of this LatLonBox
+    Parameters:
+        v1: float array [x, y, z]
+        v2: float array [x, y, z]
+
+    Returns: float, minimum latitude
+    """
+
+    # Find the parametrized equation for the great circle passing through v1 and v2
+    err_tolerance = 1.0e-12
+    v_temp = np.cross(v1, v2)
+    v0 = np.cross(v_temp, v1)
+    v0 = normalize_in_place(v0)
+
+    min_section = [v1,
+                   v2]  # record the subsection that has the maximum latitude
+    b_lonlat = convert_node_xyz_to_lonlat_rad(v1)
+    c_lonlat = convert_node_xyz_to_lonlat_rad(v2)
+
+
+    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
+        min_lat = np.pi  # reset the max_latitude for each while loop
+        v_b = min_section[0]
+        v_c = min_section[1]
+
+        # Divide the angle of v1/v2 into 10 subsections, the leftover will be put in the last one
+        # Update v0 based on min_section[0], since the angle is always from min_section[0] to v0
+        angle_v1_v2_rad = angle_of_2_vectors(v_b, v_c)
+        v0 = np.cross(v_temp, v_b)
+        v0 = normalize_in_place(v0)
+        avg_angle_rad = angle_v1_v2_rad / 10
+
+        for i in range(0, 10):
+            angle_rad_prev = avg_angle_rad * i
+            if i >= 9:
+                angle_rad_next = angle_v1_v2_rad
+            else:
+                angle_rad_next = angle_rad_prev + avg_angle_rad
+
+            # Get the two vectors of this section
+            w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
+                angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
+            w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
+                angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+
+            # convert the 3D [x, y, z] vector into 2D lat/lon vector
+            w1_lonlat = convert_node_xyz_to_lonlat_rad(w1_new)
+            w2_lonlat = convert_node_xyz_to_lonlat_rad(w2_new)
+
+            # Manually set the left and right boundaries to avoid error accumulation
+            if i == 0:
+                w1_lonlat[1] = b_lonlat[1]
+            elif i >= 9:
+                w2_lonlat[1] = c_lonlat[1]
+
+            min_lat = min(min_lat, w1_lonlat[1], w2_lonlat[1])
+
+            if np.absolute(w2_lonlat[1] -
+                           w1_lonlat[1]) <= err_tolerance or w1_lonlat[
+                               1] == min_lat == w2_lonlat[1]:
+                min_section = [w1_new, w2_new]
+                break
+
+            # if the largest absolute value of lat at each sub-interval point b_i.
+            # Repeat algorithm with the sub-interval points (b,c)=(b_{i-1},b_{i+1})
+            if np.absolute(min_lat - w1_lonlat[1]) <= err_tolerance:
+                if i != 0:
+                    angle_rad_prev -= avg_angle_rad
+                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
+                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
+                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
+                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+                    min_section = [w1_new, w2_new]
+                else:
+                    min_section = [v_b, w2_new]
+
+            elif np.absolute(min_lat - w2_lonlat[1]) <= err_tolerance:
+                if i != 9:
+                    angle_rad_next += avg_angle_rad
+                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
+                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
+                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
+                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+                    min_section = [w1_new, w2_new]
+                else:
+                    min_section = [w1_new, v_c]
+
+        b_lonlat = convert_node_xyz_to_lonlat_rad(copy.deepcopy(min_section[0]))
+        c_lonlat = convert_node_xyz_to_lonlat_rad(copy.deepcopy(min_section[1]))
+
+    return np.average([b_lonlat[1], c_lonlat[1]])
 
 # helper function to calculate the point position of the intersection
 def get_intersection_point(w0, w1, v0, v1):

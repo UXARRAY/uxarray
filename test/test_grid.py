@@ -90,7 +90,7 @@ class TestGrid(TestCase):
             "Mesh2_node_x"].sizes["nMesh2_node"] - 2
         self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
-    def test_generate_Latlon_bounds(self):
+    def test_generate_Latlon_bounds_latitude_max(self):
         """Generates a latlon_bounds Xarray from grid file."""
         ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
         tgrid1 = ux.open_dataset(str(ug_filename1))
@@ -118,6 +118,35 @@ class TestGrid(TestCase):
             lat_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][1]
             lat_max_quant = max_lat_list[i]
             self.assertLessEqual( np.absolute(lat_max_algo - lat_max_quant), 1.0e-12)
+
+    def test_generate_Latlon_bounds_latitude_min(self):
+        """Generates a latlon_bounds Xarray from grid file."""
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        tgrid1 = ux.open_dataset(str(ug_filename1))
+        tgrid1.buildlatlon_bounds()
+        min_lat_list = [np.pi] * len(tgrid1.ds["Mesh2_face_edges"])
+        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+            face = tgrid1.ds["Mesh2_face_edges"].values[i]
+            min_lat_face = np.pi
+            for j in range(0, len(face)):
+                edge = face[j]
+                # Convert the 2D [lon, lat] to 3D [x, y, z]
+                n1 = helpers.convert_node_lonlat_rad_to_xyz([
+                    np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[0]]),
+                    np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[0]])
+                ])
+                n2 = helpers.convert_node_lonlat_rad_to_xyz([
+                    np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[1]]),
+                    np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[1]])
+                ])
+                min_lat_edge = helpers.min_latitude(n1, n2)
+                min_lat_face = min(min_lat_edge, min_lat_face)
+            min_lat_list[i] = min_lat_face
+
+        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+            lat_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][0]
+            lat_min_quant = min_lat_list[i]
+            self.assertLessEqual(np.absolute(lat_min_algo - lat_min_quant), 1.0e-12)
 
 
     # TODO: Move to test_shpfile/scrip when implemented
