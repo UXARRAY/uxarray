@@ -734,28 +734,28 @@ def angle_of_2_vectors(u, v):
     return angle_u_v_rad
 
 
-# Quantitative method to find the maximum latitude between in a great circle arc recursively
+# Quantitative method to find the maximum latitude between in a great circle arc
 def max_latitude(v1, v2):
-    """Calculate the width of this LatLonBox
+    """Quantitative method to find the maximum latitude between in a great circle arc
     Parameters:
-        v1: float array [x, y, z]
-        v2: float array [x, y, z]
-
+        v1: float array [lon, lat] in degree east
+        v2: float array [lon, lat] in degree east
     Returns: float, maximum latitude
     """
 
     # Find the parametrized equation for the great circle passing through v1 and v2
     err_tolerance = 1.0e-12
-    v_temp = np.cross(v1, v2)
-    v0 = np.cross(v_temp, v1)
+    b_lonlat = np.deg2rad(v1)
+    c_lonlat = np.deg2rad(v2)
+
+    v1_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(v1))
+    v2_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(v2))
+    v_temp = np.cross(v1_cart, v2_cart)
+    v0 = np.cross(v_temp, v1_cart)
     v0 = normalize_in_place(v0)
 
-    max_lat = -np.pi
-    max_section = [v1,
-                   v2]  # record the subsection that has the maximum latitude
-    b_lonlat = convert_node_xyz_to_lonlat_rad(v1)
-    c_lonlat = convert_node_xyz_to_lonlat_rad(v2)
-
+    max_section = [v1_cart,
+                   v2_cart]  # record the subsection that has the maximum latitude
 
     while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
         max_lat = -np.pi  # reset the max_latitude for each while loop
@@ -831,24 +831,28 @@ def max_latitude(v1, v2):
 
 # Quantitative method to find the minimum latitude between in a great circle arc recursively
 def min_latitude(v1, v2):
-    """Calculate the width of this LatLonBox
+    """Quantitative method to find the minimum latitude between in a great circle arc recursively
     Parameters:
-        v1: float array [x, y, z]
-        v2: float array [x, y, z]
+        v1: float array [lon, lat] in degree east
+        v2: float array [lon, lat] in degree east
 
     Returns: float, minimum latitude
     """
 
     # Find the parametrized equation for the great circle passing through v1 and v2
     err_tolerance = 1.0e-12
-    v_temp = np.cross(v1, v2)
-    v0 = np.cross(v_temp, v1)
+    b_lonlat = np.deg2rad(v1)
+    c_lonlat = np.deg2rad(v2)
+
+    v1_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(v1))
+    v2_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(v2))
+    v_temp = np.cross(v1_cart, v2_cart)
+    v0 = np.cross(v_temp, v1_cart)
     v0 = normalize_in_place(v0)
 
-    min_section = [v1,
-                   v2]  # record the subsection that has the maximum latitude
-    b_lonlat = convert_node_xyz_to_lonlat_rad(v1)
-    c_lonlat = convert_node_xyz_to_lonlat_rad(v2)
+    min_section = [v1_cart,
+                   v2_cart]  # record the subsection that has the maximum latitude
+
 
 
     while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
@@ -922,6 +926,10 @@ def min_latitude(v1, v2):
         c_lonlat = convert_node_xyz_to_lonlat_rad(copy.deepcopy(min_section[1]))
 
     return np.average([b_lonlat[1], c_lonlat[1]])
+
+# Quantitative method to find the minimum Longitude between in a great circle
+def max_Longitude(v1, v2):
+    pass
 
 # helper function to calculate the point position of the intersection
 def get_intersection_point(w0, w1, v0, v1):

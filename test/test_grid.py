@@ -101,15 +101,11 @@ class TestGrid(TestCase):
             max_lat_face = -np.pi
             for j in range(0, len(face)):
                 edge = face[j]
-                # Convert the 2D [lon, lat] to 3D [x, y, z]
-                n1 = helpers.convert_node_lonlat_rad_to_xyz([
-                    np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[0]]),
-                    np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[0]])
-                ])
-                n2 = helpers.convert_node_lonlat_rad_to_xyz([
-                    np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[1]]),
-                    np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[1]])
-                ])
+
+                n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                      tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
+                n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                      tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
                 max_lat_edge = helpers.max_latitude(n1, n2)
                 max_lat_face = max(max_lat_edge, max_lat_face)
             max_lat_list[i] = max_lat_face
@@ -131,14 +127,10 @@ class TestGrid(TestCase):
             for j in range(0, len(face)):
                 edge = face[j]
                 # Convert the 2D [lon, lat] to 3D [x, y, z]
-                n1 = helpers.convert_node_lonlat_rad_to_xyz([
-                    np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[0]]),
-                    np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[0]])
-                ])
-                n2 = helpers.convert_node_lonlat_rad_to_xyz([
-                    np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[1]]),
-                    np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[1]])
-                ])
+                n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                      tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
+                n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                      tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
                 min_lat_edge = helpers.min_latitude(n1, n2)
                 min_lat_face = min(min_lat_edge, min_lat_face)
             min_lat_list[i] = min_lat_face
