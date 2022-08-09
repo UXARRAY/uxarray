@@ -928,8 +928,28 @@ def min_latitude(v1, v2):
     return np.average([b_lonlat[1], c_lonlat[1]])
 
 # Quantitative method to find the minimum Longitude between in a great circle
-def max_Longitude(v1, v2):
-    pass
+def maxmin_Longitude(v1, v2):
+    """Quantitative method to find the minimum Longitude between in a great circle arc.
+      And it assumes that an edge's longitude span cannot be larger than 180 degree.
+    Parameters:
+        v1: float array [lon, lat] in degree east
+        v2: float array [lon, lat] in degree east
+
+    Returns: float array, [lon_min, lon_max]
+    """
+    # First reorder the two ends points based on the rule: the span of its longitude must less than 180 degree
+    [start_lon, end_lon] = np.sort(v1[0], v2[0])
+    if end_lon - start_lon <= 180:
+        return [start_lon, end_lon]
+    else:
+        # swap the start and end longitude
+        temp_lon = start_lon
+        start_lon = end_lon
+        end_lon = temp_lon
+    return [start_lon, end_lon]
+
+
+
 
 # helper function to calculate the point position of the intersection
 def get_intersection_point(w0, w1, v0, v1):
