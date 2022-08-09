@@ -3,6 +3,7 @@ import xarray as xr
 from pathlib import PurePath
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
+import math
 
 config.DISABLE_JIT = False
 
@@ -434,12 +435,13 @@ def _is_ugrid(ds):
     else:
         return False
 
+
 # Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
-def convert_node_latlon_rad_to_xyz(node_coord):
+def convert_node_lonlat_rad_to_xyz(node_coord):
     """
     Parameters: float list, required
-       the input 2D coordinates[longitude, latitude]
-    Returns: float list, the 3D coordinates in [X, Y, Z]
+       the input 2D coordinates[longitude, latitude] in radiance
+    Returns: float list, the 3D coordinates in [x, y, z]
     """
     lon = node_coord[0]
     lat = node_coord[1]
@@ -448,17 +450,15 @@ def convert_node_latlon_rad_to_xyz(node_coord):
 
 # helper function to calculate latitude and longitude from a node's normalized 3D Cartesian
 # coordinates, in radians.
-def convert_node_xyz_to_latlon_rad(node_coord):
+def convert_node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented in the [x, y, z] 3D Cartesian coordinates.
     Parameters: node_coord: float array, [x, y, z],required
-    Returns: float array, [latitude_rad, longitude_rad]
+    Returns: float array, [longitude_rad, latitude_rad]
     Raises:
        Exception: Logic Errors
     """
     reference_tolerance = 1.0e-12
-    dx = node_coord[0]
-    dy = node_coord[1]
-    dz = node_coord[2]
+    [dx, dy, dz] = normalize_in_place(node_coord)
 
     d_mag_2 = dx * dx + dy * dy + dz * dz
 
@@ -471,7 +471,7 @@ def convert_node_xyz_to_latlon_rad(node_coord):
     d_lat_rad = 0.0
 
     if np.absolute(dz) < (1.0 - reference_tolerance):
-        d_lon_rad = np.arctan(dy / dx)
+        d_lon_rad = math.atan2(dy, dx)
         d_lat_rad = np.arcsin(dz)
 
         if d_lon_rad < 0.0:
@@ -483,17 +483,17 @@ def convert_node_xyz_to_latlon_rad(node_coord):
         d_lon_rad = 0.0
         d_lat_rad = -0.5 * np.pi
 
-    # helper function to project node on the unit sphere
-    def normalize_in_place(node):
-        """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
-        on the unit sphere.
-        Parameters
-        ----------
-        node: float array [x, y, z]
-        Returns: float array, the result vector [x, y, z]
-        """
-        magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] +
-                            node[2] * node[2])
-        return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
+    return [d_lon_rad, d_lat_rad]
 
-    return [d_lat_rad, d_lon_rad]
+# helper function to project node on the unit sphere
+def normalize_in_place(node):
+    """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
+    on the unit sphere.
+    Parameters
+    ----------
+    node: float array [x, y, z]
+    Returns: float array, the result vector [x, y, z]
+    """
+    magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] +
+                        node[2] * node[2])
+    return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
