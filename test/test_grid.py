@@ -40,11 +40,14 @@ class TestGrid(TestCase):
         verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
         vgrid = ux.Grid(verts, vertices=True, islatlon=True, concave=False)
 
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.source_datasets is None)
+
         face_filename = current_path / "meshfiles" / "1face.ug"
         vgrid.write(face_filename)
 
-    def test_init_ds_var_methods(self):
-        """Tests to see if accessing variables though set attribtues is equal
+    def test_init_grid_var_attrs(self):
+        """Tests to see if accessing variables through set attributes is equal
         to using the dict."""
         # Dataset with Variables in UGRID convention
         path = current_path / "meshfiles" / "outCSne30.ug"
@@ -75,7 +78,7 @@ class TestGrid(TestCase):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
             shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-            tgrid = ux.Grid(str(shp_filename))
+            tgrid = ux.open_dataset(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file and write ugrid file."""
