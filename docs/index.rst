@@ -3,6 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. module:: uxarray
+
 .. meta::
    :description: Uxarray Python module
    :keywords: weather research and forecasting,
@@ -19,11 +21,15 @@
 .. |
 .. |
 
-Uxarray
-===========
+Uxarray Documentation
+=====================
 
 Uxarray aims to provide xarray styled functionality for unstructured grid datasets
-following ugrid conventions. More information on ugrid conventions can be found `here <https://ugrid-conventions.github.io/ugrid-conventions/>`_.
+following ugrid conventions.
+
+More information on ugrid conventions can be found `here <https://ugrid-conventions.github.io/ugrid-conventions/>`_.
+
+
 
 .. toctree::
    :maxdepth: 2
@@ -34,15 +40,6 @@ following ugrid conventions. More information on ugrid conventions can be found 
    ./examples
    ./citation
    ./support
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
 
 --------------------
 
