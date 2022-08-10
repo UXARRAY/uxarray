@@ -113,7 +113,7 @@ class TestGrid(TestCase):
         for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
             lat_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][1]
             lat_max_quant = max_lat_list[i]
-            self.assertLessEqual( np.absolute(lat_max_algo - lat_max_quant), 1.0e-12)
+            self.assertLessEqual(np.absolute(lat_max_algo - lat_max_quant), 1.0e-12)
 
     def test_generate_Latlon_bounds_latitude_min(self):
         """Generates a latlon_bounds Xarray from grid file."""
@@ -144,10 +144,10 @@ class TestGrid(TestCase):
         ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
         tgrid1 = ux.open_dataset(str(ug_filename1))
         tgrid1.buildlatlon_bounds()
-        minmax_lon_rad_list = [[2 * np.pi, -2 * np.pi]] * len(tgrid1.ds["Mesh2_face_edges"])
+        minmax_lon_rad_list = [[404.0, 404.0]] * len(tgrid1.ds["Mesh2_face_edges"])
         for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
             face = tgrid1.ds["Mesh2_face_edges"].values[i]
-            minmax_lon_rad_face = [2 * np.pi, -2 * np.pi]
+            minmax_lon_rad_face = [404.0, 404.0]
             if i == 14:
                 pass
             for j in range(0, len(face)):
@@ -157,23 +157,31 @@ class TestGrid(TestCase):
                 n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
                       tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
                 [min_lon_rad_edge, max_lon_rad_edge] = helpers.minmax_Longitude_rad(n1, n2)
+                if minmax_lon_rad_face[0] == minmax_lon_rad_face[1] == 404.0:
+                    minmax_lon_rad_face = [min_lon_rad_edge, max_lon_rad_edge]
+                    continue
 
                 # Longnitude range expansion: Compare between [min_lon_rad_edge, max_lon_rad_edge] and minmax_lon_rad_face
                 if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
-                    if min_lon_rad_edge < max_lon_rad_edge:
+                    if min_lon_rad_edge <= max_lon_rad_edge:
                         minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
                         minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
                     else:
                         # The min_lon_rad_edge is on the left side of minmax_lon_rad_face range
-                        if min_lon_rad_edge -  minmax_lon_rad_face[0] > 180:
+                        if minmax_lon_rad_face[1] <= np.pi:
                             minmax_lon_rad_face = [min_lon_rad_edge, max(max_lon_rad_edge, minmax_lon_rad_face[1])]
                         else:
                             # if it's on the right side of the minmax_lon_rad_face range
+                            minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max_lon_rad_edge]
 
                 else:
-                    pass
-
-
+                    if min_lon_rad_edge <= max_lon_rad_edge:
+                        if max_lon_rad_edge <= np.pi:
+                            minmax_lon_rad_face = [minmax_lon_rad_face[0], max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+                        else:
+                            minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max_lon_rad_edge]
+                    else:
+                        [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max(max_lon_rad_edge, minmax_lon_rad_face[1])]
 
 
             minmax_lon_rad_list[i] = minmax_lon_rad_face
@@ -184,7 +192,6 @@ class TestGrid(TestCase):
             if np.absolute(lon_min_algo - lon_min_quant) >= 1.0e-12:
                 pass
 
-
             # self.assertLessEqual(np.absolute(lon_min_algo - lon_min_quant), 1.0e-12)
 
             lon_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][1]
@@ -192,8 +199,6 @@ class TestGrid(TestCase):
             # self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
             if np.absolute(lon_max_algo - lon_max_quant) >= 1.0e-12:
                 pass
-
-
 
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?
