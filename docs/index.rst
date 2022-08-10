@@ -41,12 +41,12 @@ following ugrid conventions.
   API Reference <api>
   Cite Uxarray <citation>
 
-  .. toctree::
-    :maxdepth: 2
-    :hidden:
-    :caption: For developers
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: For developers
 
-    Contributor's Guide <contributing>
+  Contributor's Guide <contributing>
 
 .. toctree::
     :maxdepth: 1
