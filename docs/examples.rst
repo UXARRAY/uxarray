@@ -1,3 +1,7 @@
+.. currentmodule:: xarray
+
+.. _examples:
+
 Usage Examples
 ==============
 

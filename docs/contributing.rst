@@ -1,3 +1,8 @@
+.. currentmodule:: xarray
+
+.. _contributing:
+
+
 Contributor's Guide
 ===================
 

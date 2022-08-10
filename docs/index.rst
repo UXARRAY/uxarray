@@ -27,30 +27,40 @@ Uxarray Documentation
 Uxarray aims to provide xarray styled functionality for unstructured grid datasets
 following ugrid conventions.
 
-More information on ugrid conventions can be found `here <https://ugrid-conventions.github.io/ugrid-conventions/>`_.
+**Helpful Links**:
+`Ugrid conventions <https://ugrid-conventions.github.io/ugrid-conventions/>`__ |
 
-
-
-.. toctree::
-   :maxdepth: 2
-
-   ./installation
-   ./contributing
-   ./examples
-   ./citation
-   ./support
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: For users
 
+  Installation <installation>
+  Usage Examples <examples>
   API Reference <api>
+  Cite Uxarray <citation>
+
+  .. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: For developers
+
+    Contributor's Guide <contributing>
+
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+    :caption: Community
+
+    GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
+    GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
+
 
 --------------------
 
-Support
-=======
+Supported By
+============
 
 .. raw:: html
 
