@@ -39,8 +39,23 @@ extensions = [
     'sphinx.ext.intersphinx', 'sphinx.ext.mathjax'
 ]
 
+extlinks = {
+    "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
+    "pull": ("https://github.com/uxarray/uxarray/pull/%s", "PR"),
+}
+
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/3/', None),
+    "python": ("https://docs.python.org/3/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "iris": ("https://scitools-iris.readthedocs.io/en/latest", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy", None),
+    "numba": ("https://numba.pydata.org/numba-doc/latest", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "dask": ("https://docs.dask.org/en/latest", None),
+    "cftime": ("https://unidata.github.io/cftime", None),
+    "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
+    "sparse": ("https://sparse.pydata.org/en/latest/", None),
     'xarray': ('http://xarray.pydata.org/en/stable/', None),
 }
 
@@ -106,15 +121,35 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if on_rtd:
-    html_theme = 'default'
-else:
-    import sphinx_rtd_theme
-    html_theme = 'sphinx_rtd_theme'
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = "sphinx_book_theme"
+html_title = ""
 
 autosummary_imported_members = True
+
+html_context = {
+    "github_user": "uxarray",
+    "github_repo": "uxarray",
+    "github_version": "main",
+    "doc_path": "doc",
+}
+
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+html_theme_options = dict(
+    # analytics_id=''  this is configured in rtfd.io
+    # canonical_url="",
+    repository_url="https://github.com/uxarray/uxarray",
+    repository_branch="main",
+    path_to_docs="doc",
+    use_edit_page_button=True,
+    use_repository_button=True,
+    use_issues_button=True,
+    home_page_in_toc=True,
+    extra_navbar="",
+    navbar_footer_text="",
+    #extra_footer="""<p></p>""",
+)
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
@@ -122,7 +157,7 @@ autosummary_imported_members = True
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-# html_logo = '_static/images/nsf.png'
+html_logo = '_static/images/logos/xarray_temp_logo.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
