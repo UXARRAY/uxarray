@@ -451,7 +451,9 @@ def convert_node_lonlat_rad_to_xyz(node_coord):
 # helper function to calculate latitude and longitude from a node's normalized 3D Cartesian
 # coordinates, in radians.
 def convert_node_xyz_to_lonlat_rad(node_coord):
-    """Calculate the latitude and longitude in radiance for a node represented in the [x, y, z] 3D Cartesian coordinates.
+    """Calculate the latitude and longitude in radiance for a node represented
+    in the [x, y, z] 3D Cartesian coordinates.
+
     Parameters: node_coord: float array, [x, y, z],required
     Returns: float array, [longitude_rad, latitude_rad]
     Raises:
@@ -484,6 +486,7 @@ def convert_node_xyz_to_lonlat_rad(node_coord):
         d_lat_rad = -0.5 * np.pi
 
     return [d_lon_rad, d_lat_rad]
+
 
 # helper function to project node on the unit sphere
 def normalize_in_place(node):

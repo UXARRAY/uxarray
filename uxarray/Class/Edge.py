@@ -1,6 +1,9 @@
 import numpy as np
+
+
 class Edge:
     """The Uxarray Edge object class for undirected edge.
+
     In current implementation, each node is the node index
     """
 
