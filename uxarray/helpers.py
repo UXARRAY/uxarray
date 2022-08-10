@@ -572,7 +572,7 @@ def convert_node_xyz_to_lonlat_rad(node_coord):
     d_lat_rad = 0.0
 
     if np.absolute(dz) < (1.0 - reference_tolerance):
-        d_lon_rad = np.arctan(dy / dx)
+        d_lon_rad = math.atan2(dy, dx)
         d_lat_rad = np.arcsin(dz)
 
         if d_lon_rad < 0.0:
@@ -601,6 +601,11 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     Raises:
        Exception: Logic Errors
     """
+    # If the box is null (no point inserted yet)
+    if old_box[0][0] == old_box[0][1] == 404.0:
+        latlon_box = [[new_pt[0], new_pt[0]], [new_pt[1], new_pt[1]]]
+        return latlon_box
+
     old_lon_width = 2.0 * np.pi
     lat_pt = new_pt[0]
     lon_pt = new_pt[1]
@@ -633,7 +638,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         if lon_pt >= latlon_box[1][0] and lon_pt <= latlon_box[1][1]:
             return latlon_box
     else:
-        if lon_pt >= latlon_box[1][0] or lon_pt <= latlon_box[1][0]:
+        if lon_pt >= latlon_box[1][0] or lon_pt <= latlon_box[1][1]:
             return latlon_box
 
     # New longitude lies outside of existing range
@@ -735,12 +740,12 @@ def angle_of_2_vectors(u, v):
 
 
 # Quantitative method to find the maximum latitude between in a great circle arc
-def max_latitude(v1, v2):
+def max_latitude_rad(v1, v2):
     """Quantitative method to find the maximum latitude between in a great circle arc
     Parameters:
         v1: float array [lon, lat] in degree east
         v2: float array [lon, lat] in degree east
-    Returns: float, maximum latitude
+    Returns: float, maximum latitude in radian
     """
 
     # Find the parametrized equation for the great circle passing through v1 and v2
@@ -830,13 +835,13 @@ def max_latitude(v1, v2):
     return np.average([b_lonlat[1], c_lonlat[1]])
 
 # Quantitative method to find the minimum latitude between in a great circle arc recursively
-def min_latitude(v1, v2):
+def min_latitude_rad(v1, v2):
     """Quantitative method to find the minimum latitude between in a great circle arc recursively
     Parameters:
         v1: float array [lon, lat] in degree east
         v2: float array [lon, lat] in degree east
 
-    Returns: float, minimum latitude
+    Returns: float, minimum latitude in radian
     """
 
     # Find the parametrized equation for the great circle passing through v1 and v2
@@ -927,26 +932,26 @@ def min_latitude(v1, v2):
 
     return np.average([b_lonlat[1], c_lonlat[1]])
 
-# Quantitative method to find the minimum Longitude between in a great circle
-def maxmin_Longitude(v1, v2):
+# Quantitative method to find the minimum and maximum Longitude between in a great circle
+def minmax_Longitude_rad(v1, v2):
     """Quantitative method to find the minimum Longitude between in a great circle arc.
       And it assumes that an edge's longitude span cannot be larger than 180 degree.
     Parameters:
         v1: float array [lon, lat] in degree east
         v2: float array [lon, lat] in degree east
 
-    Returns: float array, [lon_min, lon_max]
+    Returns: float array, [lon_min, lon_max] in radian
     """
     # First reorder the two ends points based on the rule: the span of its longitude must less than 180 degree
-    [start_lon, end_lon] = np.sort(v1[0], v2[0])
+    [start_lon, end_lon] = np.sort([v1[0], v2[0]])
     if end_lon - start_lon <= 180:
-        return [start_lon, end_lon]
+        return [np.deg2rad(start_lon), np.deg2rad(end_lon)]
     else:
         # swap the start and end longitude
         temp_lon = start_lon
         start_lon = end_lon
         end_lon = temp_lon
-    return [start_lon, end_lon]
+    return [np.deg2rad(start_lon), np.deg2rad(end_lon)]
 
 
 

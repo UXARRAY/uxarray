@@ -106,7 +106,7 @@ class TestGrid(TestCase):
                       tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
                 n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
                       tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
-                max_lat_edge = helpers.max_latitude(n1, n2)
+                max_lat_edge = helpers.max_latitude_rad(n1, n2)
                 max_lat_face = max(max_lat_edge, max_lat_face)
             max_lat_list[i] = max_lat_face
 
@@ -126,12 +126,11 @@ class TestGrid(TestCase):
             min_lat_face = np.pi
             for j in range(0, len(face)):
                 edge = face[j]
-                # Convert the 2D [lon, lat] to 3D [x, y, z]
                 n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
                       tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
                 n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
                       tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
-                min_lat_edge = helpers.min_latitude(n1, n2)
+                min_lat_edge = helpers.min_latitude_rad(n1, n2)
                 min_lat_face = min(min_lat_edge, min_lat_face)
             min_lat_list[i] = min_lat_face
 
@@ -139,6 +138,61 @@ class TestGrid(TestCase):
             lat_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][0]
             lat_min_quant = min_lat_list[i]
             self.assertLessEqual(np.absolute(lat_min_algo - lat_min_quant), 1.0e-12)
+
+    def test_generate_Latlon_bounds_longitude_minmax(self):
+        """Generates a latlon_bounds Xarray from grid file."""
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        tgrid1 = ux.open_dataset(str(ug_filename1))
+        tgrid1.buildlatlon_bounds()
+        minmax_lon_rad_list = [[2 * np.pi, -2 * np.pi]] * len(tgrid1.ds["Mesh2_face_edges"])
+        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+            face = tgrid1.ds["Mesh2_face_edges"].values[i]
+            minmax_lon_rad_face = [2 * np.pi, -2 * np.pi]
+            if i == 14:
+                pass
+            for j in range(0, len(face)):
+                edge = face[j]
+                n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                      tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
+                n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                      tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
+                [min_lon_rad_edge, max_lon_rad_edge] = helpers.minmax_Longitude_rad(n1, n2)
+
+                # Longnitude range expansion: Compare between [min_lon_rad_edge, max_lon_rad_edge] and minmax_lon_rad_face
+                if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
+                    if min_lon_rad_edge < max_lon_rad_edge:
+                        minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
+                        minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
+                    else:
+                        # The min_lon_rad_edge is on the left side of minmax_lon_rad_face range
+                        if min_lon_rad_edge -  minmax_lon_rad_face[0] > 180:
+                            minmax_lon_rad_face = [min_lon_rad_edge, max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+                        else:
+                            # if it's on the right side of the minmax_lon_rad_face range
+
+                else:
+                    pass
+
+
+
+
+            minmax_lon_rad_list[i] = minmax_lon_rad_face
+
+        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+            lon_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][0]
+            lon_min_quant = minmax_lon_rad_list[i][0]
+            if np.absolute(lon_min_algo - lon_min_quant) >= 1.0e-12:
+                pass
+
+
+            # self.assertLessEqual(np.absolute(lon_min_algo - lon_min_quant), 1.0e-12)
+
+            lon_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][1]
+            lon_max_quant = minmax_lon_rad_list[i][1]
+            # self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
+            if np.absolute(lon_max_algo - lon_max_quant) >= 1.0e-12:
+                pass
+
 
 
     # TODO: Move to test_shpfile/scrip when implemented

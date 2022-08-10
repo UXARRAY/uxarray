@@ -269,8 +269,9 @@ class Grid:
         if "Mesh2_node_cart_x" not in self.ds.keys():
             self.__populate_cartesian_xyz_coord()
 
-        temp_latlon_array = [[[np.pi, -np.pi], [0.0, 0.0]]
-                            ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"] # Intializd the min_lat as pi, and max_lat as -pi
+        # All value are inialized as 404.0 to indicate that they're null
+        temp_latlon_array = [[[404.0, 404.0], [404.0, 404.0]]
+                            ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"]
 
 
         reference_tolerance = 1.0e-12
