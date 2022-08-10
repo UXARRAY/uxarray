@@ -36,10 +36,16 @@ More information on ugrid conventions can be found `here <https://ugrid-conventi
 
    ./installation
    ./contributing
-   ./api
    ./examples
    ./citation
    ./support
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: For users
+
+  API Reference <api>
 
 --------------------
 
