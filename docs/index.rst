@@ -49,12 +49,12 @@ following ugrid conventions.
   Contributor's Guide <contributing>
 
 .. toctree::
-    :maxdepth: 1
-    :hidden:
-    :caption: Community
+  :maxdepth: 1
+  :hidden:
+  :caption: Community
 
-    GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
-    GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
+  GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
+  GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
 
 
 --------------------
