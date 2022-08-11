@@ -36,7 +36,7 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 # ones.
 extensions = [
     'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autosummary',
-    'sphinx.ext.intersphinx', 'sphinx.ext.mathjax'
+    'sphinx.ext.intersphinx', 'sphinx.ext.mathjax', 'myst_nb'
 ]
 
 extlinks = {
@@ -70,7 +70,11 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.ipynb': 'myst-nb',
+    '.myst': 'myst-nb',
+}
 
 # The master toctree document.
 master_doc = 'index'

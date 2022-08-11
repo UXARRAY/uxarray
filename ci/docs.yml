@@ -20,3 +20,4 @@ dependencies:
   - jupyter_client
   - matplotlib-base
   - sphinx-book-theme
+  - myst-nb
