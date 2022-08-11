@@ -145,9 +145,9 @@ html_theme_options = dict(
     use_edit_page_button=True,
     use_repository_button=True,
     use_issues_button=True,
-    home_page_in_toc=True,
+    home_page_in_toc=False,
     extra_navbar="",
-    navbar_footer_text="",
+    #navbar_footer_text="",
     #extra_footer="""<p></p>""",
 )
 
@@ -158,6 +158,11 @@ html_theme_options = dict(
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = '_static/images/logos/xarray_temp_logo.png'
+
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
+# pixels large.
+html_favicon = '_static/images/logos/xarray_temp_logo.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
