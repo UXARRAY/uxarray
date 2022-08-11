@@ -14,6 +14,7 @@ Grid Class
    :toctree: _autosummary
 
    grid.Grid
+   grid.Edge
 
 Grid Methods
 --------------
