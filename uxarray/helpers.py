@@ -994,6 +994,44 @@ def get_intersection_point(w0, w1, v0, v1):
     else:
         return [-1, -1, -1]  # Intersection out of the interval or
 
+# Helper function for the test_generate_Latlon_bounds_longitude_minmax
+def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
+    """Helper function top expand the longitude boundary of a face
+
+    Parameters
+    ----------
+    min_lon_rad_edge, max_lon_rad_edge: float
+    minmax_lon_rad_face: float array [min_lon_rad_face, max_lon_rad_face]
+
+    Returns:
+    minmax_lon_rad_face: float array [new_min_lon_rad_face, new_max_lon_rad_face]
+    """
+    # Longnitude range expansion: Compare between [min_lon_rad_edge, max_lon_rad_edge] and minmax_lon_rad_face
+    if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
+        if min_lon_rad_edge <= max_lon_rad_edge:
+            minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
+            minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
+        else:
+            # The min_lon_rad_edge is on the left side of minmax_lon_rad_face range
+            if minmax_lon_rad_face[1] <= np.pi:
+                minmax_lon_rad_face = [min_lon_rad_edge, max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+            else:
+                # if it's on the right side of the minmax_lon_rad_face range
+                minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max_lon_rad_edge]
+
+    else:
+        if min_lon_rad_edge <= max_lon_rad_edge:
+            if max_lon_rad_edge <= np.pi:
+                minmax_lon_rad_face = [minmax_lon_rad_face[0], max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+            else:
+                minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), minmax_lon_rad_face[1]]
+        else:
+            [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+
+    if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
+
+
+    return minmax_lon_rad_face
 
 # helper function for get_intersection_point to determine whether one point is between the other two points
 def within(p, q, r):

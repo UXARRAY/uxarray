@@ -148,7 +148,7 @@ class TestGrid(TestCase):
         for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
             face = tgrid1.ds["Mesh2_face_edges"].values[i]
             minmax_lon_rad_face = [404.0, 404.0]
-            if i == 14:
+            if i == 4034:
                 pass
             for j in range(0, len(face)):
                 edge = face[j]
@@ -160,28 +160,7 @@ class TestGrid(TestCase):
                 if minmax_lon_rad_face[0] == minmax_lon_rad_face[1] == 404.0:
                     minmax_lon_rad_face = [min_lon_rad_edge, max_lon_rad_edge]
                     continue
-
-                # Longnitude range expansion: Compare between [min_lon_rad_edge, max_lon_rad_edge] and minmax_lon_rad_face
-                if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
-                    if min_lon_rad_edge <= max_lon_rad_edge:
-                        minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
-                        minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
-                    else:
-                        # The min_lon_rad_edge is on the left side of minmax_lon_rad_face range
-                        if minmax_lon_rad_face[1] <= np.pi:
-                            minmax_lon_rad_face = [min_lon_rad_edge, max(max_lon_rad_edge, minmax_lon_rad_face[1])]
-                        else:
-                            # if it's on the right side of the minmax_lon_rad_face range
-                            minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max_lon_rad_edge]
-
-                else:
-                    if min_lon_rad_edge <= max_lon_rad_edge:
-                        if max_lon_rad_edge <= np.pi:
-                            minmax_lon_rad_face = [minmax_lon_rad_face[0], max(max_lon_rad_edge, minmax_lon_rad_face[1])]
-                        else:
-                            minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max_lon_rad_edge]
-                    else:
-                        [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+                minmax_lon_rad_face = helpers.expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face)
 
 
             minmax_lon_rad_list[i] = minmax_lon_rad_face
