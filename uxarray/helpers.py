@@ -1029,8 +1029,15 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
             [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max(max_lon_rad_edge, minmax_lon_rad_face[1])]
 
     if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
-
-
+        if minmax_lon_rad_face[1] - minmax_lon_rad_face[0] > np.pi:
+            temp = minmax_lon_rad_face[0]
+            minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
+            minmax_lon_rad_face[1] = temp
+    else:
+        if (np.pi - minmax_lon_rad_face[0]) + minmax_lon_rad_face[1] > np.pi:
+            temp = minmax_lon_rad_face[0]
+            minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
+            minmax_lon_rad_face[1] = temp
     return minmax_lon_rad_face
 
 # helper function for get_intersection_point to determine whether one point is between the other two points
