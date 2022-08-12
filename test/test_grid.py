@@ -40,6 +40,9 @@ class TestGrid(TestCase):
         verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
         vgrid = ux.Grid(verts, vertices=True, islatlon=True, concave=False)
 
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.source_datasets is None)
+
         face_filename = current_path / "meshfiles" / "1face.ug"
         vgrid.write(face_filename)
 

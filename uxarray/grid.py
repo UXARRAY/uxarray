@@ -64,7 +64,8 @@ class Grid:
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'concave', 'mesh_filetype'
+            'gridspec', 'vertices', 'islatlon', 'concave', 'mesh_filetype',
+            'source_grid', 'source_datasets'
         ]
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
@@ -76,6 +77,8 @@ class Grid:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             self.vertices = dataset
             self.__from_vert__()
+            self.source_grid = "From vertices"
+            self.source_datasets = None
 
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented

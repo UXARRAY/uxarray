@@ -37,6 +37,9 @@ class TestDataset(TestCase):
 
         assert (len(ux_ds3.ds.data_vars) == constants.DATAVARS_outCSne30)
 
+        assert (ux_ds1.source_grid == uds1_name)
+        assert (ux_ds1.source_datasets is None)
+
     def test_open_single_dataset(self):
         """Loads one grid and data file using uxarray's open_dataset call."""
 
@@ -44,6 +47,10 @@ class TestDataset(TestCase):
 
         assert (uds3.Mesh2_node_x.size == constants.NNODES_outCSne30)
         assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 1)
+
+        assert (uds3.source_grid == uds3_name)
+        assert (len(uds3.source_datasets) == 1)
+        assert (uds3.source_datasets[0] == uds3_data_name1)
 
     def test_open_multiple_dataset(self):
         """Loads a grid file and two data files of different formats using
@@ -53,6 +60,11 @@ class TestDataset(TestCase):
 
         assert (uds3.Mesh2_node_x.size == constants.NNODES_outCSne30)
         assert (len(uds3.ds.data_vars) == constants.DATAVARS_outCSne30 + 2)
+
+        assert (uds3.source_grid == uds3_name)
+        assert (len(uds3.source_datasets) == 2)
+        assert (uds3.source_datasets[0] == uds3_data_name1)
+        assert (uds3.source_datasets[1] == uds3_data_name2)
 
     def test_open_non_mesh2_write_exodus(self):
         """Loads grid files of different formats using uxarray's open_dataset
