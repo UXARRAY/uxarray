@@ -279,7 +279,8 @@ class Grid:
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
 
-            debug_flag = -1
+            if i == 4034:
+                pass
 
             # Check if face contains pole points
             _lambda = 0
