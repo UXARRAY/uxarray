@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import uxarray as ux
 
 
 def _to_ugrid(in_ds, out_ds):
@@ -133,12 +134,14 @@ def _write_scrip(ext_ds, outfile):
         Original UGRID dataset of interest being used
 
     outfile : :class:`string`
-        Name of file to be created
+        Name of file to be created. Saved to working directory, or to specified location if full path
+        to new file is provided.
 
     Returns
     -------
     ds : :class:`xarray.Dataset`
-        File to be returned by _write_scrip
+        File to be returned by _write_scrip. Saved both as an independent file and as an active
+        dataset for immediate use.
     """
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()
@@ -146,12 +149,15 @@ def _write_scrip(ext_ds, outfile):
     # Create grid instance of input ugrid file for later use
     grid = ux.open_dataset(ext_ds)
 
+    # Create Xarray.Dataset from input UGRID file
+    in_ds = xr.open_dataset(ext_ds, decode_times=False, engine='netcdf4')
+
     # Make grid corner lat/lon
-    f_nodes = ds_ne30['Mesh2_face_nodes'].values.ravel()
+    f_nodes = in_ds['Mesh2_face_nodes'].values.ravel()
 
     # Extract lat/lon node data
-    y_val = ds_ne30['Mesh2_node_y']
-    x_val = ds_ne30['Mesh2_node_x']
+    y_val = in_ds['Mesh2_node_y']
+    x_val = in_ds['Mesh2_node_x']
 
     # Create empty arrays to hold lat/lon data
     lat_nodes = np.zeros_like(f_nodes)
@@ -162,8 +168,8 @@ def _write_scrip(ext_ds, outfile):
         lon_nodes[i] = x_val[int(f_nodes[i])]
 
     # Reshape arrays to be 2D instead of 1D
-    reshp_lat = np.reshape(lat_nodes, [ds_ne30['Mesh2_face_nodes'].shape[0], 4])
-    reshp_lon = np.reshape(lon_nodes, [ds_ne30['Mesh2_face_nodes'].shape[0], 4])
+    reshp_lat = np.reshape(lat_nodes, [in_ds['Mesh2_face_nodes'].shape[0], 4])
+    reshp_lon = np.reshape(lon_nodes, [in_ds['Mesh2_face_nodes'].shape[0], 4])
 
     # Add data to new scrip output file
     ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
@@ -185,10 +191,9 @@ def _write_scrip(ext_ds, outfile):
     # Create grid_area using Grid class functions
     f_area = grid.compute_face_areas(quadrature_rule='gaussian')
 
-    ds["grid_area"] = xr.DataArray(
-        data=f_area,
-        dims=["grid_size"],
-    )
-    # print(type(ds))
+    ds["grid_area"] = xr.DataArray(data=f_area, dims=["grid_size"])
+
+    # Create and save new SCRIP file
     ds.to_netcdf(outfile)
+
     return ds
