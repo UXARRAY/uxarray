@@ -1,4 +1,4 @@
-from uxarray._scrip import _read_scrip
+from uxarray._scrip import _read_scrip, _write_scrip
 import xarray as xr
 from unittest import TestCase
 import numpy as np
@@ -35,6 +35,18 @@ class TestGrid(TestCase):
 
         with self.assertRaises(KeyError):
             new_ds['grid_corner_lat']
+
+    def test_scrip_writer(self):
+        """Tests that input UGRID file has been successfully translated to a
+        SCRIP file by looking for specific variable names in the input and
+        returned datasets."""
+        scrip30 = _write_scrip(ne30, "test_scrip_outfile.nc")
+
+        assert scrip30['grid_corner_lat'].any()  # New variable
+
+        with self.assertRaises(KeyError):
+            assert ds_ne30['grid_corner_lat'].any(
+            )  # Does not exist previously in the file
 
     def test_ugrid_variable_names(self):
         """Tests that returned dataset uses UGRID compliant variables."""
