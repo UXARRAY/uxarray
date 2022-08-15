@@ -12,9 +12,9 @@ Grid Class
 ----------
 .. autosummary::
    :toctree: _autosummary
-
+   ./edge.Edge
    grid.Grid
-   grid.Edge
+
 
 Grid Methods
 --------------
