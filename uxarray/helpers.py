@@ -994,7 +994,7 @@ def get_intersection_point(w0, w1, v0, v1):
 
 
 # Helper function for the test_generate_Latlon_bounds_longitude_minmax
-def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
+def __expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
     """Helper function top expand the longitude boundary of a face
 
     Parameters
@@ -1009,7 +1009,7 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
     if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
         if min_lon_rad_edge <= max_lon_rad_edge:
             if min_lon_rad_edge < minmax_lon_rad_face[0] and max_lon_rad_edge < minmax_lon_rad_face[1]:
-                # First try add from the left:
+                # First try to add from the left:
                 left_width = minmax_lon_rad_face[1] - min_lon_rad_edge
                 if left_width <= np.pi:
                     minmax_lon_rad_face = [min_lon_rad_edge, minmax_lon_rad_face[1]]
@@ -1064,32 +1064,20 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
                 else:
                     minmax_lon_rad_face[0] = minmax_lon_rad_face[0]
 
-                if 2* np.pi > max_lon_rad_edge >= minmax_lon_rad_face[0] or max_lon_rad_edge < minmax_lon_rad_face[1]:
+                if 2 * np.pi > max_lon_rad_edge >= minmax_lon_rad_face[0] or max_lon_rad_edge < minmax_lon_rad_face[1]:
                     minmax_lon_rad_face[1] = minmax_lon_rad_face[1]
                 else:
                     minmax_lon_rad_face[1] = max(minmax_lon_rad_face[1], max_lon_rad_edge)
-
-
-
 
         else:
             minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
             minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
 
-    # if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
-    #     if minmax_lon_rad_face[1] - minmax_lon_rad_face[0] > np.pi:
-    #         temp = minmax_lon_rad_face[0]
-    #         minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
-    #         minmax_lon_rad_face[1] = temp
-    # else:
-    #     if (minmax_lon_rad_face[0] - np.pi) + minmax_lon_rad_face[1] > np.pi:
-    #         temp = minmax_lon_rad_face[0]
-    #         minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
-    #         minmax_lon_rad_face[1] = temp
     return minmax_lon_rad_face
 
+
 # helper function to determine whether the insert_edge is on the left side of the ref_edge
-def __on_left(ref_edge, insert_edge, safe_call= False):
+def __on_left(ref_edge, insert_edge, safe_call=False):
     """Helper function used for the longitude test case only. Only designed to consider a specific scenario
     as described below
 
@@ -1122,7 +1110,7 @@ def __on_left(ref_edge, insert_edge, safe_call= False):
 
 
 # helper function to determine whether the insert_edge is on the right side of the ref_edge
-def __on_right(ref_edge, insert_edge, safe_call= False):
+def __on_right(ref_edge, insert_edge, safe_call=False):
     """Helper function used for the longitude test case only. Only designed to consider a specific scenario
     as described below
 
@@ -1154,7 +1142,6 @@ def __on_right(ref_edge, insert_edge, safe_call= False):
             right_flag = True
 
     return right_flag
-
 
 
 # helper function for get_intersection_point to determine whether one point is between the other two points

@@ -12,8 +12,9 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 
-from .helpers import get_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge,  \
-    get_intersection_point, convert_node_lonlat_rad_to_xyz, _spherical_to_cartesian_unit_, convert_node_xyz_to_lonlat_rad
+from .helpers import get_all_face_area_from_coords, parse_grid_type, insert_pt_in_latlonbox, Edge, \
+    get_intersection_point, convert_node_lonlat_rad_to_xyz, _spherical_to_cartesian_unit_, \
+    convert_node_xyz_to_lonlat_rad
 
 from .utilities import normalize_in_place
 
@@ -271,16 +272,12 @@ class Grid:
 
         # All value are inialized as 404.0 to indicate that they're null
         temp_latlon_array = [[[404.0, 404.0], [404.0, 404.0]]
-                            ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"]
-
+                             ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"]
 
         reference_tolerance = 1.0e-12
 
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
-
-            if i == 4185:
-                pass
 
             # Check if face contains pole points
             _lambda = 0
@@ -331,7 +328,7 @@ class Grid:
 
                     # insert edge endpoint into box
                     if np.absolute(self.ds["Mesh2_node_y"].values[
-                            edge[0]]) < d_lat_extent_rad:
+                                       edge[0]]) < d_lat_extent_rad:
                         d_lat_extent_rad = self.ds["Mesh2_node_y"].values[
                             edge[0]]
 
@@ -718,7 +715,6 @@ class Grid:
         self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
         self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
 
-
     def __populate_lonlat_coord(self):
         """
          Helper function that populates the longitude and latitude and store it into the Mesh2_node_x and Mesh2_node_y
@@ -756,4 +752,3 @@ class Grid:
 
         # TODO: Update the self.ds.Mesh2_node_x.units to "degree"
         self.ds.Mesh2_node_x.units = "degree_east"
-
