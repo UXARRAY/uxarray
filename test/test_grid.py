@@ -148,7 +148,7 @@ class TestGrid(TestCase):
         for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
             face = tgrid1.ds["Mesh2_face_edges"].values[i]
             minmax_lon_rad_face = [404.0, 404.0]
-            if i == 4034:
+            if i == 4185:
                 pass
             for j in range(0, len(face)):
                 edge = face[j]
@@ -168,16 +168,16 @@ class TestGrid(TestCase):
         for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
             lon_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][0]
             lon_min_quant = minmax_lon_rad_list[i][0]
-            if np.absolute(lon_min_algo - lon_min_quant) >= 1.0e-12:
-                pass
+            # if np.absolute(lon_min_algo - lon_min_quant) >= 1.0e-12:
+            #     pass
 
-            # self.assertLessEqual(np.absolute(lon_min_algo - lon_min_quant), 1.0e-12)
+            self.assertLessEqual(np.absolute(lon_min_algo - lon_min_quant), 1.0e-12)
 
             lon_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][1]
             lon_max_quant = minmax_lon_rad_list[i][1]
-            # self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
-            if np.absolute(lon_max_algo - lon_max_quant) >= 1.0e-12:
-                pass
+            self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
+            # if np.absolute(lon_max_algo - lon_max_quant) >= 1.0e-12:
+            #     pass
 
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?

@@ -279,7 +279,7 @@ class Grid:
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
 
-            if i == 4034:
+            if i == 4185:
                 pass
 
             # Check if face contains pole points
@@ -401,6 +401,8 @@ class Grid:
                     temp_latlon_array[i] = insert_pt_in_latlonbox(
                         copy.deepcopy(temp_latlon_array[i]),
                         [d_lat_rad, d_lon_rad])
+
+                    debug_temp = temp_latlon_array[i]
 
                     if np.absolute(d_de_nom) < reference_tolerance:
                         continue

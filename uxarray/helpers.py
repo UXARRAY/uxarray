@@ -801,7 +801,7 @@ def max_latitude_rad(v1, v2):
 
             if np.absolute(w2_lonlat[1] -
                            w1_lonlat[1]) <= err_tolerance or w1_lonlat[
-                               1] == max_lat == w2_lonlat[1]:
+                1] == max_lat == w2_lonlat[1]:
                 max_section = [w1_new, w2_new]
                 break
 
@@ -834,6 +834,7 @@ def max_latitude_rad(v1, v2):
 
     return np.average([b_lonlat[1], c_lonlat[1]])
 
+
 # Quantitative method to find the minimum latitude between in a great circle arc recursively
 def min_latitude_rad(v1, v2):
     """Quantitative method to find the minimum latitude between in a great circle arc recursively
@@ -857,8 +858,6 @@ def min_latitude_rad(v1, v2):
 
     min_section = [v1_cart,
                    v2_cart]  # record the subsection that has the maximum latitude
-
-
 
     while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
         min_lat = np.pi  # reset the max_latitude for each while loop
@@ -899,7 +898,7 @@ def min_latitude_rad(v1, v2):
 
             if np.absolute(w2_lonlat[1] -
                            w1_lonlat[1]) <= err_tolerance or w1_lonlat[
-                               1] == min_lat == w2_lonlat[1]:
+                1] == min_lat == w2_lonlat[1]:
                 min_section = [w1_new, w2_new]
                 break
 
@@ -932,6 +931,7 @@ def min_latitude_rad(v1, v2):
 
     return np.average([b_lonlat[1], c_lonlat[1]])
 
+
 # Quantitative method to find the minimum and maximum Longitude between in a great circle
 def minmax_Longitude_rad(v1, v2):
     """Quantitative method to find the minimum Longitude between in a great circle arc.
@@ -952,8 +952,6 @@ def minmax_Longitude_rad(v1, v2):
         start_lon = end_lon
         end_lon = temp_lon
     return [np.deg2rad(start_lon), np.deg2rad(end_lon)]
-
-
 
 
 # helper function to calculate the point position of the intersection
@@ -994,6 +992,7 @@ def get_intersection_point(w0, w1, v0, v1):
     else:
         return [-1, -1, -1]  # Intersection out of the interval or
 
+
 # Helper function for the test_generate_Latlon_bounds_longitude_minmax
 def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
     """Helper function top expand the longitude boundary of a face
@@ -1006,11 +1005,31 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
     Returns:
     minmax_lon_rad_face: float array [new_min_lon_rad_face, new_max_lon_rad_face]
     """
-    # Longnitude range expansion: Compare between [min_lon_rad_edge, max_lon_rad_edge] and minmax_lon_rad_face
+    # Longitude range expansion: Compare between [min_lon_rad_edge, max_lon_rad_edge] and minmax_lon_rad_face
     if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
         if min_lon_rad_edge <= max_lon_rad_edge:
-            minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
-            minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
+            if min_lon_rad_edge < minmax_lon_rad_face[0] and max_lon_rad_edge < minmax_lon_rad_face[1]:
+                # First try add from the left:
+                left_width = minmax_lon_rad_face[1] - min_lon_rad_edge
+                if left_width <= np.pi:
+                    minmax_lon_rad_face = [min_lon_rad_edge, minmax_lon_rad_face[1]]
+                else:
+                    # add from the right:
+                    minmax_lon_rad_face = [minmax_lon_rad_face[0], min_lon_rad_edge]
+
+            elif min_lon_rad_edge > minmax_lon_rad_face[0] and max_lon_rad_edge > minmax_lon_rad_face[1]:
+                # First try to add from the right
+                right_width = max_lon_rad_edge - minmax_lon_rad_face[0]
+                if right_width <= np.pi:
+                    minmax_lon_rad_face = [minmax_lon_rad_face[0], max_lon_rad_edge]
+                else:
+                    # then add from the left
+                    minmax_lon_rad_face = [max_lon_rad_edge, minmax_lon_rad_face[1]]
+
+            else:
+                minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]),
+                                       max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+
         else:
             # The min_lon_rad_edge is on the left side of minmax_lon_rad_face range
             if minmax_lon_rad_face[1] <= np.pi:
@@ -1021,24 +1040,122 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
 
     else:
         if min_lon_rad_edge <= max_lon_rad_edge:
-            if max_lon_rad_edge <= np.pi:
-                minmax_lon_rad_face = [minmax_lon_rad_face[0], max(max_lon_rad_edge, minmax_lon_rad_face[1])]
-            else:
-                minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), minmax_lon_rad_face[1]]
-        else:
-            [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+            if __on_left(minmax_lon_rad_face, [min_lon_rad_edge, max_lon_rad_edge], safe_call=True):
+                # First try adding from the left:
+                left_width = (2 * np.pi - min_lon_rad_edge) + minmax_lon_rad_face[1]
+                if left_width <= np.pi:
+                    minmax_lon_rad_face = [min_lon_rad_edge, minmax_lon_rad_face[1]]
+                else:
+                    # Then add from the right
+                    minmax_lon_rad_face = [minmax_lon_rad_face[0], min_lon_rad_edge]
 
-    if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
-        if minmax_lon_rad_face[1] - minmax_lon_rad_face[0] > np.pi:
-            temp = minmax_lon_rad_face[0]
-            minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
-            minmax_lon_rad_face[1] = temp
-    else:
-        if (np.pi - minmax_lon_rad_face[0]) + minmax_lon_rad_face[1] > np.pi:
-            temp = minmax_lon_rad_face[0]
-            minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
-            minmax_lon_rad_face[1] = temp
+            elif __on_right(minmax_lon_rad_face, [min_lon_rad_edge, max_lon_rad_edge], safe_call=True):
+                # First try adding from the right
+                right_width = (2 * np.pi - minmax_lon_rad_face[0]) + max_lon_rad_edge
+                if right_width <= np.pi:
+                    minmax_lon_rad_face = [minmax_lon_rad_face[0], max_lon_rad_edge]
+                else:
+                    # Then try adding from the left
+                    minmax_lon_rad_face = [max_lon_rad_edge, minmax_lon_rad_face[1]]
+
+            else:
+                if within(minmax_lon_rad_face[1], min_lon_rad_edge, minmax_lon_rad_face[0]):
+                    minmax_lon_rad_face[0] = min_lon_rad_edge
+                else:
+                    minmax_lon_rad_face[0] = minmax_lon_rad_face[0]
+
+                if 2* np.pi > max_lon_rad_edge >= minmax_lon_rad_face[0] or max_lon_rad_edge < minmax_lon_rad_face[1]:
+                    minmax_lon_rad_face[1] = minmax_lon_rad_face[1]
+                else:
+                    minmax_lon_rad_face[1] = max(minmax_lon_rad_face[1], max_lon_rad_edge)
+
+
+
+
+        else:
+            minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
+            minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
+
+    # if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
+    #     if minmax_lon_rad_face[1] - minmax_lon_rad_face[0] > np.pi:
+    #         temp = minmax_lon_rad_face[0]
+    #         minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
+    #         minmax_lon_rad_face[1] = temp
+    # else:
+    #     if (minmax_lon_rad_face[0] - np.pi) + minmax_lon_rad_face[1] > np.pi:
+    #         temp = minmax_lon_rad_face[0]
+    #         minmax_lon_rad_face[0] = minmax_lon_rad_face[1]
+    #         minmax_lon_rad_face[1] = temp
     return minmax_lon_rad_face
+
+# helper function to determine whether the insert_edge is on the left side of the ref_edge
+def __on_left(ref_edge, insert_edge, safe_call= False):
+    """Helper function used for the longitude test case only. Only designed to consider a specific scenario
+    as described below
+
+    Parameters
+    ----------
+    ref_edge: The edge that goes across the 0 longitude line: [min_longitude, max_longitude] and min_long > max_long
+
+    insert_edge: the inserted edge, [min_longitude, max_longitude]
+
+    safe_call (default to be False): When call this function, user must make sure it's under the safe and ideal condition
+
+    Returns: boolean
+
+    True: the insert_edge is on the left side of the ref_edge ( the insert_edge's min_longitude
+            is larger than 180 longitude, and its max_longitude between 180 longitude and the max_longitude of the ref_edge
+    False: It's not on the left side of the ref_edge. Cannot guarantee it's on the right side
+    """
+    if ref_edge[0] <= ref_edge[1]:
+        raise Exception('This function can only be applied to the edge that goes across the 0 longitude line')
+    if not safe_call:
+        raise Exception('Calling this function here is not safe')
+    left_flag = False
+    if insert_edge[1] >= ref_edge[1] and insert_edge[1] >= ref_edge[0]:
+        if within(ref_edge[1], insert_edge[0], ref_edge[0]):
+            left_flag = True
+    elif insert_edge[1] <= ref_edge[1] and insert_edge[1] <= ref_edge[0]:
+        if within(ref_edge[1], insert_edge[0], ref_edge[0]):
+            left_flag = True
+    return left_flag
+
+
+# helper function to determine whether the insert_edge is on the right side of the ref_edge
+def __on_right(ref_edge, insert_edge, safe_call= False):
+    """Helper function used for the longitude test case only. Only designed to consider a specific scenario
+    as described below
+
+    Parameters
+    ----------
+    ref_edge: The edge that goes across the 0 longitude line: [min_longitude, max_longitude] and min_long > max_long
+
+    insert_edge: the inserted edge, [min_longitude, max_longitude]
+
+    safe_call (default to be False): When call this function, user must make sure it's under the safe and ideal condition
+
+    Returns: boolean
+
+    True: the insert_edge is on the right side of the ref_edge ( the insert_edge's min_longitude
+            is between the ref_edge's min_longitude and 0 longitude, and the insert_edge's max_longitude is between
+            ref_edge's max_longitude and 180 longitude
+    False: It's not on the right side of the ref_edge. Cannot guarantee it's on the left side
+    """
+    if ref_edge[0] <= ref_edge[1]:
+        raise Exception('This function can only be applied to the edge that goes across the 0 longitude line')
+    if not safe_call:
+        raise Exception('Calling this function here is not safe')
+    right_flag = False
+    if insert_edge[0] >= ref_edge[0] and insert_edge[0] >= ref_edge[1]:
+        if within(ref_edge[1], insert_edge[1], ref_edge[0]):
+            right_flag = True
+    elif insert_edge[0] <= ref_edge[0] and insert_edge[0] <= ref_edge[1]:
+        if within(ref_edge[1], insert_edge[1], ref_edge[0]):
+            right_flag = True
+
+    return right_flag
+
+
 
 # helper function for get_intersection_point to determine whether one point is between the other two points
 def within(p, q, r):
