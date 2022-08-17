@@ -994,7 +994,7 @@ def get_intersection_point(w0, w1, v0, v1):
 
 
 # Helper function for the test_generate_Latlon_bounds_longitude_minmax
-def __expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
+def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
     """Helper function top expand the longitude boundary of a face
 
     Parameters

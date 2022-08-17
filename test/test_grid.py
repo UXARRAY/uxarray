@@ -158,8 +158,8 @@ class TestGrid(TestCase):
                 if minmax_lon_rad_face[0] == minmax_lon_rad_face[1] == 404.0:
                     minmax_lon_rad_face = [min_lon_rad_edge, max_lon_rad_edge]
                     continue
-                minmax_lon_rad_face = helpers.__expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge,
-                                                                     minmax_lon_rad_face)
+                minmax_lon_rad_face = helpers.expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge,
+                                                                   minmax_lon_rad_face)
 
             minmax_lon_rad_list[i] = minmax_lon_rad_face
 
