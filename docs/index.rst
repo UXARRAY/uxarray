@@ -36,7 +36,6 @@ following ugrid conventions.
   Usage Examples <examples>
   API Reference <api>
   Tutorials <tutorials>
-  Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
   Cite Uxarray <citation>
 
 .. toctree::
@@ -53,6 +52,7 @@ following ugrid conventions.
 
   GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
   GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
+  Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
 
 
 --------------------
