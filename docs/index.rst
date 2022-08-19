@@ -27,32 +27,57 @@ Uxarray Documentation
 Uxarray aims to provide xarray styled functionality for unstructured grid datasets
 following ugrid conventions.
 
+.. grid:: 1 1 2 2
+    :align: center
+    :gutter: 2
+
+    .. grid-item-card:: Getting started
+        :img-top: _static/images/nsf.png
+
+        Getting Started
+
+    .. grid-item-card::  User guide
+        :img-top: _static/images/nsf.png
+
+        User Guide
+
+    .. grid-item-card::  API documentation
+        :img-top: _static/images/nsf.png
+
+        API Documentation
+
+    .. grid-item-card::  Installation
+        :img-top: _static/images/nsf.png
+
+        Installation
+
+
 .. toctree::
-  :maxdepth: 2
-  :hidden:
-  :caption: For users
+    :maxdepth: 2
+    :hidden:
+    :caption: For users
 
-  Installation <installation>
-  Usage Examples <examples>
-  API Reference <api>
-  Tutorials <tutorials>
-  Cite Uxarray <citation>
-
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-  :caption: For developers
-
-  Contributor's Guide <contributing>
+    Installation <installation>
+    Usage Examples <examples>
+    API Reference <api>
+    Tutorials <tutorials>
+    Cite Uxarray <citation>
 
 .. toctree::
-  :maxdepth: 1
-  :hidden:
-  :caption: Community
+    :maxdepth: 2
+    :hidden:
+    :caption: For developers
 
-  GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
-  GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
-  Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
+    Contributor's Guide <contributing>
+
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+    :caption: Community
+
+    GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
+    GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
+    Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
 
 
 --------------------
