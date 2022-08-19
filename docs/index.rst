@@ -28,28 +28,31 @@ Uxarray aims to provide xarray styled functionality for unstructured grid datase
 following ugrid conventions.
 
 .. grid:: 1 1 2 2
-    :align: center
     :gutter: 2
 
-    .. grid-item-card:: Getting started
-        :img-top: _static/images/nsf.png
+    .. grid-item-card:: Getting Started
+        :link: quick-start
+        :link-type: doc
 
-        Getting Started
+        A guide to get you started!
 
-    .. grid-item-card::  User guide
-        :img-top: _static/images/nsf.png
+    .. grid-item-card::  Examples
+        :link: examples
+        :link-type: doc
 
-        User Guide
-
-    .. grid-item-card::  API documentation
-        :img-top: _static/images/nsf.png
-
-        API Documentation
+        A gallery of examples for uxarray use cases
 
     .. grid-item-card::  Installation
-        :img-top: _static/images/nsf.png
+        :link: installation
+        :link-type: doc
 
-        Installation
+        How to install Uxarray.
+
+    .. grid-item-card::  API documentation
+        :link: api
+        :link-type: doc
+
+        See the API
 
 
 .. toctree::
@@ -58,6 +61,7 @@ following ugrid conventions.
     :caption: For users
 
     Installation <installation>
+    Getting Started <quickstart>
     Usage Examples <examples>
     API Reference <api>
     Tutorials <tutorials>
