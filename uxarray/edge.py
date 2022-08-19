@@ -9,11 +9,11 @@ class Edge:
 
     def __init__(self, input_edge):
         """Initializing the Edge object from input edge [node 0, node 1]
+
         Parameters
         ----------
         input_edge : xarray.Dataset, ndarray, list, tuple, required
             - The indexes of two nodes [node0_index, node1_index], the order doesn't matter
-        ----------------
         """
         # for every input_edge, sort the node index in ascending order.
         edge_sorted = np.sort(input_edge)

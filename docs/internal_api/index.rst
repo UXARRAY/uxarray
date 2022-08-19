@@ -21,6 +21,16 @@ Grid Methods
    grid.Grid.__from_vert__
    grid.Grid.__init_grid_var_attrs__
 
+Edge Methods
+------------
+.. autosummary::
+
+   :toctree: ./generated/
+
+   edge.Edge.__init__
+   edge.Edge.__eq__
+   edge.Edge.__hash__
+
 Grid Helper Modules
 --------------------
 .. autosummary::
@@ -34,7 +44,7 @@ Grid Helper Modules
    _ugrid._read_ugrid
    _scrip._read_scrip
    _scrip._to_ugrid
-   helpers._spherical_to_cartesian_unit_
+   helpers._spherical_to_cartesian_unit
    helpers._is_ugrid
    helpers.normalize_in_place
    helpers.convert_node_xyz_to_lonlat_rad

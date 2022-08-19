@@ -12,7 +12,7 @@ Grid Class
 ----------
 .. autosummary::
    :toctree: _autosummary
-   ./edge.Edge
+
    grid.Grid
 
 
@@ -25,6 +25,20 @@ Grid Methods
    grid.Grid.calculate_total_face_area
    grid.Grid.integrate
    grid.Grid.compute_face_areas
+
+Edge Class
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   edge.Edge
+
+Edge Methods
+------------
+.. autosummary::
+   :toctree: _autosummary
+
+   edge.Edge.get_nodes
 
 Helper Functions
 ----------------
