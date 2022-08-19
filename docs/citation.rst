@@ -1,4 +1,4 @@
-.. currentmodule:: xarray
+.. currentmodule:: uxarray
 
 .. _citation:
 

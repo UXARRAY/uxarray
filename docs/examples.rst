@@ -1,4 +1,4 @@
-.. currentmodule:: xarray
+.. currentmodule:: uxarray
 
 .. _examples:
 
@@ -14,5 +14,4 @@ gallery.
    :maxdepth: 2
    :hidden:
 
-   examples/index.rst
-   internal_api/index.rst
+   examples/blank.ipynb
