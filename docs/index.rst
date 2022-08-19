@@ -31,28 +31,32 @@ following ugrid conventions.
     :gutter: 2
 
     .. grid-item-card:: Getting Started
+        :img-background: _static/images/graphics/lp1.svg
         :link: quick-start
         :link-type: doc
 
-        A guide to get you started!
+        A good place to start for new users
 
     .. grid-item-card::  Examples
+        :img-background: _static/images/graphics/lp2.svg
         :link: examples
         :link-type: doc
 
-        A gallery of examples for uxarray use cases
+        A gallery of examples using uxarray
 
     .. grid-item-card::  Installation
+        :img-background: _static/images/graphics/lp3.svg
         :link: installation
         :link-type: doc
 
-        How to install Uxarray.
+        Installation instructions for uxarray
 
     .. grid-item-card::  API documentation
+        :img-background: _static/images/graphics/lp4.svg
         :link: api
         :link-type: doc
 
-        See the API
+        See the complete uxarray API
 
 
 .. toctree::
