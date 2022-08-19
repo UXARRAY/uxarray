@@ -39,6 +39,7 @@ following ugrid conventions.
   Installation <installation>
   Usage Examples <examples>
   API Reference <api>
+  Tutorials <tutorials>
   Cite Uxarray <citation>
 
 .. toctree::
