@@ -97,7 +97,7 @@ Supported By
        <td>Project Raijin, entitled "Collaborative Research: EarthCube Capabilities: Raijin: Community Geoscience Analysis Tools for Unstructured Mesh Data", was awarded by NSF 21-515 EarthCube (Award Number (FAIN): 2126458) on 08/19/2021. The award period of performance has a start date of 09/01/2021 and end date of 08/31/2024.</td>
      </tr>
      <tr style="height:80px">
-       <td><a href="https://www.energy.gov/science/office-science"><img src="_static/images/logos/DOE_Office_of_Science_logo.png" alt="DOE Logo" width="250"/></a></td>
+       <td><a href="https://www.energy.gov/science/office-science"><img src="_static/images/logos/DOE_vertical.png" alt="DOE Logo" width="250"/></a></td>
        <td>SEATS is funded by the Regional and Global Modeling and Analysis (RGMA) program area in the U.S. Department of Energy (DOE) Earth and Environmental System Modeling Program which is part of the Earth and Environmental Systems Sciences Division of the Office of Biological and Environmental Research in DOE’s Office of Science.</td>
      </tr>
      <tr style="height:80px">
