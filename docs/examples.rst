@@ -15,4 +15,3 @@ gallery.
    :hidden:
 
    examples/blank.ipynb
-   examples/poly_plot_example.ipynb
