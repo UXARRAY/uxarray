@@ -27,10 +27,6 @@ Uxarray Documentation
 Uxarray aims to provide xarray styled functionality for unstructured grid datasets
 following ugrid conventions.
 
-**Helpful Links**:
-`Ugrid conventions <https://ugrid-conventions.github.io/ugrid-conventions/>`__ |
-
-
 .. toctree::
   :maxdepth: 2
   :hidden:
@@ -40,6 +36,7 @@ following ugrid conventions.
   Usage Examples <examples>
   API Reference <api>
   Tutorials <tutorials>
+  Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
   Cite Uxarray <citation>
 
 .. toctree::
