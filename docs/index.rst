@@ -30,14 +30,12 @@ following ugrid conventions.
 .. grid:: 1 1 2 2
     :gutter: 2
 
-    .. grid-item::
+    .. grid-item-card:: Getting Started
+        :class-body: custom-card
+        :link: quickstart
+        :link-type: doc
 
-        .. card:: Getting Started
-            :class-card: sd-text-center
-            :link: quickstart
-            :link-type: doc
-
-            A good place to start for new users
+        A good place to start for new users
 
     .. grid-item-card::  Examples
         :img-background: _static/images/graphics/lp2.svg
