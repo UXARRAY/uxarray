@@ -178,6 +178,7 @@ html_favicon = '_static/images/logos/uxarray_temp_logo.png'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+html_css_files = ["theme_overrides.css"]
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'uxarraydoc'
