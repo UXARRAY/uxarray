@@ -4,13 +4,12 @@
 }
 
 .custom-title {
-    font-size: 1.75rem;
     font-weight: bold;
     color: #283618;
     text-align: left;
     margin: 0;
     padding: 0;
-    max-width: 80%;
+    max-width: 80%; /* so title does not overlap icon */
 }
 
 .custom-card {
