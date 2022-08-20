@@ -32,7 +32,7 @@ following ugrid conventions.
 
     .. grid-item-card:: Getting Started
         :class-title: custom-title
-        :img-background: _static/images/graphics/lp1.svg
+        :class-card: custom-card
         :img-top: _static/images/icons/tips.svg
         :link: quickstart
         :link-type: doc
@@ -41,7 +41,6 @@ following ugrid conventions.
 
     .. grid-item-card::  Examples
         :class-title: custom-title
-        :img-background: _static/images/graphics/lp2.svg
         :img-top: _static/images/icons/science.svg
         :link: examples
         :link-type: doc
@@ -50,7 +49,6 @@ following ugrid conventions.
 
     .. grid-item-card::  Installation
         :class-title: custom-title
-        :img-background: _static/images/graphics/lp3.svg
         :img-top: _static/images/icons/download.svg
         :link: installation
         :link-type: doc
@@ -59,7 +57,6 @@ following ugrid conventions.
 
     .. grid-item-card::  API
         :class-title: custom-title
-        :img-background: _static/images/graphics/lp4.svg
         :img-top: _static/images/icons/code.svg
         :link: api
         :link-type: doc
