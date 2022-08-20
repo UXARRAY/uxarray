@@ -184,6 +184,9 @@ htmlhelp_basename = 'uxarraydoc'
 
 autodoc_typehints = 'none'
 
+# custom css
+html_css_files = ['custom.css']
+
 
 # Allow for changes to be made to the css in the theme_overrides file
 def setup(app):

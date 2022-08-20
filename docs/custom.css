@@ -1,0 +1,5 @@
+.custom-card-container {
+  background-image: url(https://source.unsplash.com/random/800x600);
+  border-radius: 5px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
