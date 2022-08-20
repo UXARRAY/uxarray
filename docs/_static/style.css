@@ -2,13 +2,17 @@
 .sd-card-img-top {
     width: 15% !important;
     position: absolute !important;
-    margin-left: 80%;
     padding-top: 10px;
+    padding-left: 10px;
+    min-width: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+
 }
 
 /* override the default background image behavior */
-.sd-card-img-background {
-    resize: height !important;
+.sd-card-img {
+    height: auto;
 }
 
 /* override toc css */
