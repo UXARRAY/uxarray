@@ -48,6 +48,20 @@ class TestGrid(TestCase):
             assert ds_ne30['grid_corner_lat'].any(
             )  # Does not exist previously in the file
 
+    def test_scrip_variable_names(self):
+        """Tests that returned dataset from writer function has all required
+        SCRIP variables."""
+        scrip30 = _write_scrip(ne30, "write_to_scrip.nc")
+
+        # List of relevant variable names for a scrip file
+        var_list = [
+            'grid_corner_lat', 'grid_dims', 'grid_imask', 'grid_area',
+            'grid_center_lon'
+        ]
+
+        for i in range(len(var_list) - 1):
+            assert scrip30[var_list[i]].any()
+
     def test_ugrid_variable_names(self):
         """Tests that returned dataset uses UGRID compliant variables."""
         mesh08 = _read_scrip(ds_ne8)
