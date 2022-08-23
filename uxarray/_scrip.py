@@ -131,8 +131,8 @@ def _write_scrip(ext_ds, outfile):
 
     Parameters
     ----------
-    ext_ds : :class:`xarray.Dataset`
-        Original UGRID dataset of interest being used
+    ext_ds : :class:`string`
+        path to the original UGRID file of interest in format 'path/to/file'
 
     outfile : :class:`string`
         Name of file to be created. Saved to working directory, or to specified location if full path
@@ -147,18 +147,15 @@ def _write_scrip(ext_ds, outfile):
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()
 
-    # Create grid instance of input ugrid file for later use
+    # Create grid instance of input ugrid file
     grid = ux.open_dataset(ext_ds)
 
-    # Use Xarray to open dataset
-    ext_ds = xr.open_dataset(ext_ds, decode_times=False, engine='netcdf4')
-
     # Make grid corner lat/lon
-    f_nodes = ext_ds['Mesh2_face_nodes'].values.ravel()
+    f_nodes = grid.Mesh2_face_nodes.values.ravel()
 
     # Extract lat/lon node data
-    y_val = ext_ds['Mesh2_node_y']
-    x_val = ext_ds['Mesh2_node_x']
+    y_val = grid.Mesh2_node_y
+    x_val = grid.Mesh2_node_x
 
     # Create empty arrays to hold lat/lon data
     lat_nodes = np.zeros_like(f_nodes)
@@ -169,8 +166,8 @@ def _write_scrip(ext_ds, outfile):
         lon_nodes[i] = x_val[int(f_nodes[i])]
 
     # Reshape arrays to be 2D instead of 1D
-    reshp_lat = np.reshape(lat_nodes, [ext_ds['Mesh2_face_nodes'].shape[0], 4])
-    reshp_lon = np.reshape(lon_nodes, [ext_ds['Mesh2_face_nodes'].shape[0], 4])
+    reshp_lat = np.reshape(lat_nodes, [grid.Mesh2_face_nodes.shape[0], 4])
+    reshp_lon = np.reshape(lon_nodes, [grid.Mesh2_face_nodes.shape[0], 4])
 
     # Add data to new scrip output file
     ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
