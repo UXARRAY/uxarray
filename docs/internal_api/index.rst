@@ -33,6 +33,7 @@ Grid Helper Modules
    _ugrid._write_ugrid
    _ugrid._read_ugrid
    _scrip._read_scrip
+   _scrip._write_scrip
    _scrip._to_ugrid
    helpers._spherical_to_cartesian_unit_
    helpers._is_ugrid

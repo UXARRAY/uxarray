@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import numpy.testing as nt
+import xarray as xr
 
 from unittest import TestCase
 from pathlib import Path
@@ -16,6 +17,7 @@ except ImportError:
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 exodus = current_path / "meshfiles" / "outCSne8.g"
+ne8 = current_path / 'meshfiles' / 'outCSne8.nc'
 
 
 class TestIntegrate(TestCase):
@@ -60,3 +62,19 @@ class TestIntegrate(TestCase):
 
         np.testing.assert_array_almost_equal(G, dG)
         np.testing.assert_array_almost_equal(W, dW)
+
+    def test_grid_center(self):
+        ds_ne8 = xr.open_dataset(ne8)
+
+        # select actual center_lat/lon
+        scrip_center_lon = ds_ne8['grid_center_lon']
+        scrip_center_lat = ds_ne8['grid_center_lat']
+
+        # Calculate the center_lat/lon using same dataset's corner_lat/lon
+        calc_center = ux.grid_center_lat_lon(ds_ne8)
+        calc_lat = calc_center[0]
+        calc_lon = calc_center[1]
+
+        # Test that calculated center_lat/lon is the same as actual center_lat/lon
+        self.assertEqual(scrip_center_lat.any(), calc_lat.any())
+        self.assertEqual(scrip_center_lon.any(), calc_lon.any())
