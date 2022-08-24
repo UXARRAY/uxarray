@@ -69,109 +69,165 @@ class TestGrid(TestCase):
 
     def test_generate_edge_nodes(self):
         """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
-        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
+        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+            tgrid1 = ux.open_dataset(str(ug_filename1))
+            mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
 
-        tgrid1.build_edge_face_connectivity()
-        mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
-        mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
+            tgrid1.build_edge_face_connectivity()
+            mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
+            mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
 
-        # Assert if the mesh2_face_edges sizes are correct.
-        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
-                         mesh2_face_nodes.sizes["nMesh2_face"])
-        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
-                         mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
-        self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
+            # Assert if the mesh2_face_edges sizes are correct.
+            self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
+                             mesh2_face_nodes.sizes["nMesh2_face"])
+            self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
+                             mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+            self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
 
-        # Assert if the mesh2_edge_nodes sizes are correct.
-        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds[
-            "Mesh2_node_x"].sizes["nMesh2_node"] - 2
-        self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+            # Assert if the mesh2_edge_nodes sizes are correct.
+            # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds[
+                "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+            self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
     def test_generate_Latlon_bounds_latitude_max(self):
         """Generates a latlon_bounds Xarray from grid file."""
-        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        tgrid1.buildlatlon_bounds()
-        max_lat_list = [-np.pi] * len(tgrid1.ds["Mesh2_face_edges"])
-        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
-            face = tgrid1.ds["Mesh2_face_edges"].values[i]
-            max_lat_face = -np.pi
-            for j in range(0, len(face)):
-                edge = face[j]
+        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+            tgrid1 = ux.open_dataset(str(ug_filename1))
+            tgrid1.buildlatlon_bounds()
+            max_lat_list = [-np.pi] * len(tgrid1.ds["Mesh2_face_edges"])
+            for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+                face = tgrid1.ds["Mesh2_face_edges"].values[i]
+                max_lat_face = -np.pi
+                for j in range(0, len(face)):
+                    edge = face[j]
 
-                n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
-                      tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
-                n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
-                      tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
-                max_lat_edge = helpers.max_latitude_rad(n1, n2)
-                max_lat_face = max(max_lat_edge, max_lat_face)
-            max_lat_list[i] = max_lat_face
+                    # Skip the dumb edge
+                    if edge[0] == -1 or edge[1] == -1:
+                        continue
 
-        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
-            lat_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][1]
-            lat_max_quant = max_lat_list[i]
-            self.assertLessEqual(np.absolute(lat_max_algo - lat_max_quant), 1.0e-12)
+                    n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                          tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
+                    n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                          tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
+                    max_lat_edge = helpers.max_latitude_rad(n1, n2)
+                    max_lat_face = max(max_lat_edge, max_lat_face)
+                    lat_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][1]
+                max_lat_list[i] = max_lat_face
+
+            for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+                lat_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][1]
+                lat_max_quant = max_lat_list[i]
+                self.assertLessEqual(np.absolute(lat_max_algo - lat_max_quant), 1.0e-12)
 
     def test_generate_Latlon_bounds_latitude_min(self):
         """Generates a latlon_bounds Xarray from grid file."""
-        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        tgrid1.buildlatlon_bounds()
-        min_lat_list = [np.pi] * len(tgrid1.ds["Mesh2_face_edges"])
-        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
-            face = tgrid1.ds["Mesh2_face_edges"].values[i]
-            min_lat_face = np.pi
-            for j in range(0, len(face)):
-                edge = face[j]
-                n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
-                      tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
-                n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
-                      tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
-                min_lat_edge = helpers.min_latitude_rad(n1, n2)
-                min_lat_face = min(min_lat_edge, min_lat_face)
-            min_lat_list[i] = min_lat_face
+        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+            tgrid1 = ux.open_dataset(str(ug_filename1))
+            tgrid1.buildlatlon_bounds()
+            min_lat_list = [np.pi] * len(tgrid1.ds["Mesh2_face_edges"])
+            for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+                face = tgrid1.ds["Mesh2_face_edges"].values[i]
+                min_lat_face = np.pi
+                for j in range(0, len(face)):
+                    edge = face[j]
+                    # Skip the dumb edge
+                    if edge[0] == -1 or edge[1] == -1:
+                        continue
+                    n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                          tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
+                    n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                          tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
+                    min_lat_edge = helpers.min_latitude_rad(n1, n2)
+                    min_lat_face = min(min_lat_edge, min_lat_face)
+                min_lat_list[i] = min_lat_face
 
-        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
-            lat_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][0]
-            lat_min_quant = min_lat_list[i]
-            self.assertLessEqual(np.absolute(lat_min_algo - lat_min_quant), 1.0e-12)
+            for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+                lat_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][0]
+                lat_min_quant = min_lat_list[i]
+                self.assertLessEqual(np.absolute(lat_min_algo - lat_min_quant), 1.0e-12)
 
     def test_generate_Latlon_bounds_longitude_minmax(self):
         """Generates a the longitude boundary Xarray from grid file."""
-        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        tgrid1.buildlatlon_bounds()
-        minmax_lon_rad_list = [[404.0, 404.0]] * len(tgrid1.ds["Mesh2_face_edges"])
-        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
-            face = tgrid1.ds["Mesh2_face_edges"].values[i]
-            minmax_lon_rad_face = [404.0, 404.0]
-            for j in range(0, len(face)):
-                edge = face[j]
-                n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
-                      tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
-                n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
-                      tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
-                [min_lon_rad_edge, max_lon_rad_edge] = helpers.minmax_Longitude_rad(n1, n2)
-                if minmax_lon_rad_face[0] == minmax_lon_rad_face[1] == 404.0:
-                    minmax_lon_rad_face = [min_lon_rad_edge, max_lon_rad_edge]
-                    continue
-                minmax_lon_rad_face = helpers.expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge,
-                                                                   minmax_lon_rad_face)
+        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+            ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+            tgrid1 = ux.open_dataset(str(ug_filename1))
+            tgrid1.buildlatlon_bounds()
+            minmax_lon_rad_list = [[404.0, 404.0]] * len(tgrid1.ds["Mesh2_face_edges"])
+            for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+                face = tgrid1.ds["Mesh2_face_edges"].values[i]
+                minmax_lon_rad_face = [404.0, 404.0]
+                for j in range(0, len(face)):
+                    edge = face[j]
+                    if i == 14:
+                        pass
+                    # Skip the dumb edge
+                    if edge[0] == -1 or edge[1] == -1:
+                        continue
+                    n1 = [tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                          tgrid1.ds["Mesh2_node_y"].values[edge[0]]]
+                    n2 = [tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                          tgrid1.ds["Mesh2_node_y"].values[edge[1]]]
 
-            minmax_lon_rad_list[i] = minmax_lon_rad_face
+                    # if one of the point is the pole point, then insert the another point only:
+                    # North Pole:
+                    if (np.absolute(n1[0] - 0) < 1.0e-12 and np.absolute(n1[1] - 90) < 1.0e-12) or (
+                            np.absolute(n1[0] - 180) < 1.0e-12 and np.absolute(
+                        n1[1] - 90) < 1.0e-12):
+                        n1 = n2
 
-        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
-            lon_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][0]
-            lon_min_quant = minmax_lon_rad_list[i][0]
+                    # South Pole:
+                    if (np.absolute(n1[0] - 0) < 1.0e-12 and np.absolute(
+                            n1[1] - (-90)) < 1.0e-12) or (
+                            np.absolute(n1[0] - 180) < 1.0e-12 and np.absolute(
+                        n1[1] - (-90)) < 1.0e-12):
+                        n1 = n2
 
-            self.assertLessEqual(np.absolute(lon_min_algo - lon_min_quant), 1.0e-12)
+                    # North Pole:
+                    if (np.absolute(n2[0] - 0) < 1.0e-12 and np.absolute(n2[1] - 90) < 1.0e-12) or (
+                            np.absolute(n2[0] - 180) < 1.0e-12 and np.absolute(
+                        n2[1] - 90) < 1.0e-12):
+                        n2 = n1
 
-            lon_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][1]
-            lon_max_quant = minmax_lon_rad_list[i][1]
-            self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
+                    # South Pole:
+                    if (np.absolute(n2[0] - 0) < 1.0e-12 and np.absolute(
+                            n2[1] - (-90)) < 1.0e-12) or (
+                            np.absolute(n2[0] - 180) < 1.0e-12 and np.absolute(
+                        n2[1] - (-90)) < 1.0e-12):
+                        n2 = n1
+
+                    [min_lon_rad_edge, max_lon_rad_edge] = helpers.minmax_Longitude_rad(n1, n2)
+                    if minmax_lon_rad_face[0] == minmax_lon_rad_face[1] == 404.0:
+                        minmax_lon_rad_face = [min_lon_rad_edge, max_lon_rad_edge]
+                        continue
+                    minmax_lon_rad_face = helpers.expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge,
+                                                                       minmax_lon_rad_face)
+
+                minmax_lon_rad_list[i] = minmax_lon_rad_face
+
+            for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+                lon_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][0]
+                lon_min_quant = minmax_lon_rad_list[i][0]
+
+                # if np.absolute(lon_min_algo - lon_min_quant) >= 1.0e-12:
+                #     pass
+
+                self.assertLessEqual(np.absolute(lon_min_algo - lon_min_quant), 1.0e-12)
+
+                lon_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][1]
+                lon_max_quant = minmax_lon_rad_list[i][1]
+
+                # if np.absolute(lon_max_algo - lon_max_quant) >= 1.0e-12:
+                #     pass
+                self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
 
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?

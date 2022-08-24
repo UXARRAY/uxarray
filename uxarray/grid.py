@@ -235,12 +235,25 @@ class Grid:
             cur_face_edge = []
             # Loop over nodes in a face
             for i in range(0, face.size - 1):
+                # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
+                if face[i] == -1 or face[i + 1] == -1:
+                    continue
                 # Two nodes are connected to one another if they’re adjacent in the array
                 mesh2_edge_nodes_set.add(Edge([face[i], face[i + 1]]))
                 cur_face_edge.append([face[i], face[i + 1]])
             # Two nodes are connected if one is the first element of the array and the other is the last
-            mesh2_edge_nodes_set.add(Edge([face[face.size - 1], face[0]]))
-            cur_face_edge.append([face[face.size - 1], face[0]])
+
+            # First make sure to skip the dummy _FillValue=-1 node
+            last_node = face.size - 1
+            start_node = 0
+            while face[last_node] == -1 and last_node > 0:
+                last_node -= 1
+            while face[start_node] == -1 and start_node > 0:
+                start_node += 1
+            if face[last_node] < 0 or face[last_node] < 0:
+                raise Exception('Invalid node index')
+            mesh2_edge_nodes_set.add(Edge([face[last_node], face[start_node]]))
+            cur_face_edge.append([face[last_node], face[start_node]])
             mesh2_face_edges.append(cur_face_edge)
 
         # Convert the Edge object set into list
@@ -250,6 +263,11 @@ class Grid:
 
         self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
                                                    dims=["nMesh2_edge", "Two"])
+
+        for i in range(0, len(mesh2_face_edges)):
+            while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
+                # Append dummy edges
+                mesh2_face_edges[i].append([-1, -1])
 
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
@@ -263,9 +281,8 @@ class Grid:
 
         # First make sure the Grid object has the Mesh2_face_edges
 
-        self.build_edge_face_connectivity()
-
-        # TODO: Change to check if the ds already has the ds["Mesh2_node_cart_x"] coordinates
+        if "Mesh2_face_edges" not in self.ds.keys():
+            self.build_edge_face_connectivity()
 
         if "Mesh2_node_cart_x" not in self.ds.keys():
             self.__populate_cartesian_xyz_coord()
@@ -279,6 +296,9 @@ class Grid:
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
 
+            if i == 14:
+                pass
+
             # Check if face contains pole points
             _lambda = 0
             v1 = [0, 0, 1]
@@ -287,15 +307,9 @@ class Grid:
             num_intersects = self.__count_face_edge_intersection(face, [v1, v2])
             if num_intersects == -1:
                 # if one edge of the grid cell is parallel to the arc (v1 , v2 ) then vary the choice of v2 .
-                sorted_edges = self.__sort_edges(face)
+                sorted_edges_avg_lon = self.__avg_edges_longitude(face)
                 # only need to iterate the first two keys to average the longitude:
-                cnt = 0
-                sum_lon = 0.0
-                for key in sorted_edges:
-                    sum_lon += key[0]
-                    cnt += 1
-                    if cnt >= 2:
-                        break
+                sum_lon = sorted_edges_avg_lon[0] + sorted_edges_avg_lon[1]
 
                 v2 = [np.cos(sum_lon / 2), np.sin(sum_lon / 2), 0]
                 num_intersects = self.__count_face_edge_intersection(
@@ -307,8 +321,6 @@ class Grid:
                     edge = face[j]
                     # All the following calculation is based on the 3D XYZ coord
                     # And assume the self.ds["Mesh2_node_x"] always store the lon info
-                    n1 = []
-                    n2 = []
 
                     # Get the edge end points in 3D [x, y, z] coordinates
                     n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
@@ -374,6 +386,44 @@ class Grid:
                 for j in range(0, len(face)):
                     edge = face[j]
 
+                    if i == 3615:
+                        pass
+
+                    # Skip the dummy edges
+                    if edge[0] == -1 or edge[1] == -1:
+                        continue
+
+
+
+                    # For each edge, we only need to consider the first end point in each loop
+                    # Check if the end point is the pole point
+                    n1 = [self.ds["Mesh2_node_x"].values[edge[0]],
+                          self.ds["Mesh2_node_y"].values[edge[0]]]
+
+                    n1_rad = np.deg2rad(self.ds["Mesh2_node_y"].values[edge[0]])
+                    n2_rad = np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
+
+                    # North Pole:
+                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(n1[1] - 90) < reference_tolerance) or (np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(n1[1] - 90) < reference_tolerance):
+                        # insert edge endpoint into box
+                        d_lat_rad = np.deg2rad(
+                            self.ds["Mesh2_node_y"].values[edge[0]])
+                        d_lon_rad = 404.0
+                        temp_latlon_array[i] = insert_pt_in_latlonbox(
+                            copy.deepcopy(temp_latlon_array[i]),
+                            [d_lat_rad, d_lon_rad])
+                        continue
+
+                    # South Pole:
+                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(n1[1] - (-90)) < reference_tolerance) or (np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(n1[1] - (-90)) < reference_tolerance):
+                        d_lat_rad = np.deg2rad(
+                            self.ds["Mesh2_node_y"].values[edge[0]])
+                        d_lon_rad = 404.0
+                        temp_latlon_array[i] = insert_pt_in_latlonbox(
+                            copy.deepcopy(temp_latlon_array[i]),
+                            [d_lat_rad, d_lon_rad])
+                        continue
+
                     # Only consider the great circles arcs
                     # All the following calculation is based on the 3D XYZ coord
                     # And assume the self.ds["Mesh2_node_x"] always store the lon info
@@ -434,10 +484,9 @@ class Grid:
 
         warn("Function placeholder, implementation coming soon.")
 
-    # Helper function to sort edges of a face based on lowest longitude
-    def __sort_edges(self, face):
-        """Helper function to sort a list of edges in ascending order based on
-        their longnitude.
+    # Helper function to get the average longitude of each edge in sorted order (ascending0
+    def __avg_edges_longitude(self, face):
+        """Helper function to get the average longitude of each edge in sorted order (ascending0
 
         Parameters
         ----------
@@ -448,17 +497,14 @@ class Grid:
          [lon, lat]
         ]
 
-        Returns: Python dictionary:
-        keys are the minimum longnitude of each edge, in sorted order
-        values are the corresponding edge
-        {
-           lon0: edge0
-           lon1: edge1
-           lon2: edge2, edge3
-        }
+        Returns: 1D float array, record the average longitude of each edge
+
         """
-        edge_dict = {}
+        edge_list = []
         for edge in face.values:
+            # Skip the dump edges
+            if edge[0] == -1 or edge[1] == -1:
+                continue
             n1 = [
                 self.ds["Mesh2_node_x"].values[edge[0]],
                 self.ds["Mesh2_node_y"].values[edge[0]]
@@ -467,10 +513,14 @@ class Grid:
                 self.ds["Mesh2_node_x"].values[edge[1]],
                 self.ds["Mesh2_node_y"].values[edge[1]]
             ]
-            edge_dict[min(n1[0], n2[0])] = edge
-        edge_dict = sorted(edge_dict.items())
 
-        return edge_dict
+            # Since we only want to sort the Edge based on their longitude,
+            # We can utilize the Edge class < operator here by creating the Edge only using the longitude
+            edge_list.append((n1[0] + n2[0]) / 2)
+
+        edge_list.sort()
+
+        return edge_list
 
     # Count the number of total intersections of an edge and face (Algo. 2.4 Determining if a grid cell contains a
     # given point)
@@ -491,6 +541,9 @@ class Grid:
         v2 = ref_edge[1]
         num_intersection = 0
         for edge in face:
+            # Skip the dump edges
+            if edge[0] == -1 or edge[1] == -1:
+                continue
             # All the following calculation is based on the 3D XYZ coord
             w1 = []
             w2 = []

@@ -602,9 +602,28 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
        Exception: Logic Errors
     """
     # If the box is null (no point inserted yet)
+
     if old_box[0][0] == old_box[0][1] == 404.0:
-        latlon_box = [[new_pt[0], new_pt[0]], [new_pt[1], new_pt[1]]]
+        latlon_box = old_box
+        latlon_box[0] = [new_pt[0], new_pt[0]]
+
+    if old_box[1][0] == old_box[1][1] == 404.0:
+        latlon_box = old_box
+        latlon_box[1] = [new_pt[1], new_pt[1]]
+
+    if old_box[0][0] == old_box[0][1] == old_box[1][0] == old_box[1][1] ==  404.0:
         return latlon_box
+
+    # Deal with the pole point
+    if new_pt[1] == 404.0 and (
+            (np.absolute(new_pt[0] - 0.5 * np.pi) < 1.0e-12) or (np.absolute(new_pt[0] - (-0.5 * np.pi)) < 1.0e-12)):
+        latlon_box = old_box
+        if np.absolute(new_pt[0] - 0.5 * np.pi) < 1.0e-12:
+            latlon_box[0][1] = 0.5 * np.pi
+        elif np.absolute(new_pt[0] - (-0.5 * np.pi)) < 1.0e-12:
+            latlon_box[0][0] = -0.5 * np.pi
+        return latlon_box
+
 
     old_lon_width = 2.0 * np.pi
     lat_pt = new_pt[0]
@@ -749,7 +768,7 @@ def max_latitude_rad(v1, v2):
     """
 
     # Find the parametrized equation for the great circle passing through v1 and v2
-    err_tolerance = 1.0e-12
+    err_tolerance = 1.0e-15
     b_lonlat = np.deg2rad(v1)
     c_lonlat = np.deg2rad(v2)
 
@@ -762,7 +781,9 @@ def max_latitude_rad(v1, v2):
     max_section = [v1_cart,
                    v2_cart]  # record the subsection that has the maximum latitude
 
-    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
+    # Only stop the iteration when two endpoints are extremely closed
+    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance or np.absolute(
+            b_lonlat[0] - c_lonlat[0]) >= err_tolerance:
         max_lat = -np.pi  # reset the max_latitude for each while loop
         v_b = max_section[0]
         v_c = max_section[1]
@@ -846,7 +867,7 @@ def min_latitude_rad(v1, v2):
     """
 
     # Find the parametrized equation for the great circle passing through v1 and v2
-    err_tolerance = 1.0e-12
+    err_tolerance = 1.0e-15
     b_lonlat = np.deg2rad(v1)
     c_lonlat = np.deg2rad(v2)
 
@@ -859,7 +880,9 @@ def min_latitude_rad(v1, v2):
     min_section = [v1_cart,
                    v2_cart]  # record the subsection that has the maximum latitude
 
-    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance:
+    # Only stop the iteration when two endpoints are extremely closed
+    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance or np.absolute(
+            b_lonlat[0] - c_lonlat[0]) >= err_tolerance:
         min_lat = np.pi  # reset the max_latitude for each while loop
         v_b = min_section[0]
         v_c = min_section[1]
@@ -1179,6 +1202,12 @@ class Edge:
         edge_sorted = np.sort(input_edge)
         self.node0 = edge_sorted[0]
         self.node1 = edge_sorted[1]
+
+    def __lt__(self, other):
+        if self.node0 != other.node0:
+            return self.node0 < other.node0
+        else:
+            return self.node1 < other.node1
 
     def __eq__(self, other):
         # Undirected edge
