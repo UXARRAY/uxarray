@@ -273,11 +273,9 @@ class Grid:
             data=mesh2_face_edges,
             dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
 
-        warn("Function placeholder, implementation coming soon.")
 
     # Build the array of latitude-longitude bounding boxes.
     def buildlatlon_bounds(self):
-        """Not implemented."""
 
         # First make sure the Grid object has the Mesh2_face_edges
 
@@ -295,9 +293,6 @@ class Grid:
 
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
-
-            if i == 14:
-                pass
 
             # Check if face contains pole points
             _lambda = 0
@@ -344,7 +339,6 @@ class Grid:
                         d_lat_extent_rad = self.ds["Mesh2_node_y"].values[
                             edge[0]]
 
-                    # TODO: Consider about the constant latitude edge type.
                     # Determine if latitude is maximized between endpoints
                     dot_n1_n2 = np.dot(n1, n2)
                     d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
@@ -380,28 +374,19 @@ class Grid:
                         lat_list = [d_lat_extent_rad, 0.5 * np.pi]
 
                     temp_latlon_array[i] = [lat_list, lon_list]
-                    debug_flag = 1
             else:
                 # normal face
                 for j in range(0, len(face)):
                     edge = face[j]
-
-                    if i == 3615:
-                        pass
-
                     # Skip the dummy edges
                     if edge[0] == -1 or edge[1] == -1:
                         continue
-
-
 
                     # For each edge, we only need to consider the first end point in each loop
                     # Check if the end point is the pole point
                     n1 = [self.ds["Mesh2_node_x"].values[edge[0]],
                           self.ds["Mesh2_node_y"].values[edge[0]]]
 
-                    n1_rad = np.deg2rad(self.ds["Mesh2_node_y"].values[edge[0]])
-                    n2_rad = np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
 
                     # North Pole:
                     if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(n1[1] - 90) < reference_tolerance) or (np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(n1[1] - 90) < reference_tolerance):
@@ -449,8 +434,6 @@ class Grid:
                         copy.deepcopy(temp_latlon_array[i]),
                         [d_lat_rad, d_lon_rad])
 
-                    debug_temp = temp_latlon_array[i]
-
                     if np.absolute(d_de_nom) < reference_tolerance:
                         continue
 
@@ -482,7 +465,6 @@ class Grid:
         self.ds["Mesh2_latlon_bounds"] = xr.DataArray(
             data=temp_latlon_array, dims=["nMesh2_face", "Latlon", "Two"])
 
-        warn("Function placeholder, implementation coming soon.")
 
     # Helper function to get the average longitude of each edge in sorted order (ascending0
     def __avg_edges_longitude(self, face):
