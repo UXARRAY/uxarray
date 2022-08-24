@@ -273,7 +273,6 @@ class Grid:
             data=mesh2_face_edges,
             dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
 
-
     # Build the array of latitude-longitude bounding boxes.
     def buildlatlon_bounds(self):
 
@@ -387,9 +386,11 @@ class Grid:
                     n1 = [self.ds["Mesh2_node_x"].values[edge[0]],
                           self.ds["Mesh2_node_y"].values[edge[0]]]
 
-
                     # North Pole:
-                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(n1[1] - 90) < reference_tolerance) or (np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(n1[1] - 90) < reference_tolerance):
+                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(
+                            n1[1] - 90) < reference_tolerance) or (
+                            np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(
+                            n1[1] - 90) < reference_tolerance):
                         # insert edge endpoint into box
                         d_lat_rad = np.deg2rad(
                             self.ds["Mesh2_node_y"].values[edge[0]])
@@ -400,7 +401,10 @@ class Grid:
                         continue
 
                     # South Pole:
-                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(n1[1] - (-90)) < reference_tolerance) or (np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(n1[1] - (-90)) < reference_tolerance):
+                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(
+                            n1[1] - (-90)) < reference_tolerance) or (
+                            np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(
+                            n1[1] - (-90)) < reference_tolerance):
                         d_lat_rad = np.deg2rad(
                             self.ds["Mesh2_node_y"].values[edge[0]])
                         d_lon_rad = 404.0
@@ -464,7 +468,6 @@ class Grid:
 
         self.ds["Mesh2_latlon_bounds"] = xr.DataArray(
             data=temp_latlon_array, dims=["nMesh2_face", "Latlon", "Two"])
-
 
     # Helper function to get the average longitude of each edge in sorted order (ascending0
     def __avg_edges_longitude(self, face):
