@@ -1,7 +1,8 @@
 import os
 import numpy as np
 import xarray as xr
-
+import random
+from uxarray import helpers
 from unittest import TestCase
 from pathlib import Path
 
@@ -69,10 +70,89 @@ class TestGrid(TestCase):
         xr.testing.assert_equal(grid.Mesh2_face_nodes,
                                 grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
 
+    def test_generate_edge_nodes(self):
+        """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        tgrid1 = ux.open_dataset(str(ug_filename1))
+        mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
 
-# TODO: Move to test_shpfile/scrip when implemented
-# use external package to read?
-# https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
+        tgrid1.build_edge_face_connectivity()
+        mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
+        mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
+
+        # Assert if the mesh2_face_edges sizes are correct.
+        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
+                         mesh2_face_nodes.sizes["nMesh2_face"])
+        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
+                         mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+        self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
+
+        # Assert if the mesh2_edge_nodes sizes are correct.
+        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds[
+            "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+        self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+
+    def test_generate_Latlon_bounds(self):
+        """Generates a latlon_bounds Xarray from grid file."""
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        tgrid1 = ux.open_dataset(str(ug_filename1))
+        tgrid1.buildlatlon_bounds()
+        max_lat_list = [0.0] * len(tgrid1.ds["Mesh2_face_edges"])
+        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+            face = tgrid1.ds["Mesh2_face_edges"].values[i]
+            max_lat_face = 0.0
+            for j in range(0, len(face)):
+                edge = face[j]
+                # Convert the 2D [lon, lat] to 3D [x, y, z]
+                n1 = helpers.convert_node_latlon_rad_to_xyz([
+                    tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                    tgrid1.ds["Mesh2_node_y"].values[edge[0]]
+                ])
+                n2 = helpers.convert_node_latlon_rad_to_xyz([
+                    tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                    tgrid1.ds["Mesh2_node_y"].values[edge[1]]
+                ])
+                max_lat_edge = helpers.max_latitude(n1, n2)
+                max_lat_face = max(max_lat_edge, max_lat_face)
+            max_lat_list[i] = max_lat_face
+
+        for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+            lat_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][0][1]
+            lat_max_quant = max_lat_list[i]
+            if np.absolute(lat_max_algo - lat_max_quant) <= 1.0e-12:
+                print("i: %2d, pass" % (i))
+            else:
+                # See how this face look like:
+                face = tgrid1.ds["Mesh2_face_edges"].values[i]
+                face_latlon_list = []
+                face_latlon_deg_list = []
+                for j in range(0, len(face)):
+                    edge = face[j]
+                    # Convert the 2D [lon, lat] to 3D [x, y, z]
+                    n1 = [
+                        np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[0]]),
+                        np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[0]])
+                    ]
+                    n2 = [
+                        np.deg2rad(tgrid1.ds["Mesh2_node_x"].values[edge[1]]),
+                        np.deg2rad(tgrid1.ds["Mesh2_node_y"].values[edge[1]])
+                    ]
+                    face_latlon_list.append([n1, n2])
+                    n1_deg = [
+                        tgrid1.ds["Mesh2_node_x"].values[edge[0]],
+                        tgrid1.ds["Mesh2_node_y"].values[edge[0]]
+                    ]
+                    n2_deg = [
+                        tgrid1.ds["Mesh2_node_x"].values[edge[1]],
+                        tgrid1.ds["Mesh2_node_y"].values[edge[1]]
+                    ]
+                    face_latlon_deg_list.append([n1_deg, n2_deg])
+                pass
+
+    # TODO: Move to test_shpfile/scrip when implemented
+    # use external package to read?
+    # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
