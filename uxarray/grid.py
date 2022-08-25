@@ -10,7 +10,8 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
-from .helpers import get_all_face_area_from_coords
+from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad
+
 
 
 class Grid:
@@ -218,7 +219,56 @@ class Grid:
     # Build the edge-face connectivity array.
     def build_edge_face_connectivity(self):
         """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
+        mesh2_edge_nodes_set = set(
+        )  # Use the set data structure to store Edge object (undirected)
+
+        # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
+        mesh2_face_edges = []
+
+        mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
+
+        # Loop over each face
+        for face in mesh2_face_nodes:
+            cur_face_edge = []
+            # Loop over nodes in a face
+            for i in range(0, face.size - 1):
+                # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
+                if face[i] == -1 or face[i + 1] == -1:
+                    continue
+                # Two nodes are connected to one another if they’re adjacent in the array
+                mesh2_edge_nodes_set.add(Edge([face[i], face[i + 1]]))
+                cur_face_edge.append([face[i], face[i + 1]])
+            # Two nodes are connected if one is the first element of the array and the other is the last
+
+            # First make sure to skip the dummy _FillValue=-1 node
+            last_node = face.size - 1
+            start_node = 0
+            while face[last_node] == -1 and last_node > 0:
+                last_node -= 1
+            while face[start_node] == -1 and start_node > 0:
+                start_node += 1
+            if face[last_node] < 0 or face[last_node] < 0:
+                raise Exception('Invalid node index')
+            mesh2_edge_nodes_set.add(Edge([face[last_node], face[start_node]]))
+            cur_face_edge.append([face[last_node], face[start_node]])
+            mesh2_face_edges.append(cur_face_edge)
+
+        # Convert the Edge object set into list
+        mesh2_edge_nodes = []
+        for edge in mesh2_edge_nodes_set:
+            mesh2_edge_nodes.append(edge.get_nodes())
+
+        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
+                                                   dims=["nMesh2_edge", "Two"])
+
+        for i in range(0, len(mesh2_face_edges)):
+            while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
+                # Append dummy edges
+                mesh2_face_edges[i].append([-1, -1])
+
+        self.ds["Mesh2_face_edges"] = xr.DataArray(
+            data=mesh2_face_edges,
+            dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
 
     # Build the array of latitude-longitude bounding boxes.
     def buildlatlon_bounds(self):
@@ -375,3 +425,79 @@ class Grid:
             if self.ds.coords is not None:
                 if value in self.ds.coords:
                     setattr(self, key, self.ds[value])
+
+    def __populate_cartesian_xyz_coord(self):
+        """
+        A helper function that populates the xyz attribute in Mesh.ds
+        use case: If the grid file's Mesh2_node_x 's unit is in degree
+        """
+        #   Mesh2_node_x
+        #      unit x = "lon" degree
+        #   Mesh2_node_y
+        #      unit x = "lat" degree
+        #   Mesh2_node_z
+        #      unit x = "m"
+        #   Mesh2_node_cart_x
+        #      unit m
+        #   Mesh2_node_cart_y
+        #      unit m
+        #   Mesh2_node_cart_z
+        #      unit m
+
+        # Check if the cartesian coordinates are already populated
+        if "Mesh2_node_cart_x" in self.ds.keys():
+            return
+
+        # check for units and create Mesh2_node_cart_x/y/z set to self.ds
+        num_nodes = self.ds.Mesh2_node_x.size
+        node_cart_list_x = [0.0] * num_nodes
+        node_cart_list_y = [0.0] * num_nodes
+        node_cart_list_z = [0.0] * num_nodes
+        for i in range(num_nodes):
+            if "degree" in self.ds.Mesh2_node_x.units:
+                node = [np.deg2rad(self.ds["Mesh2_node_x"].values[i]),
+                        np.deg2rad(self.ds["Mesh2_node_y"].values[i])]  # [lon, lat]
+                node_cart = convert_node_lonlat_rad_to_xyz(node)  # [x, y, z]
+                node_cart_list_x[i] = node_cart[0]
+                node_cart_list_y[i] = node_cart[1]
+                node_cart_list_z[i] = node_cart[2]
+
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
+
+    def __populate_lonlat_coord(self):
+        """
+         Helper function that populates the longitude and latitude and store it into the Mesh2_node_x and Mesh2_node_y
+          use case: If the grid file's Mesh2_node_x 's unit is in meter
+        """
+
+        # Check if the "Mesh2_node_x" is already in longitude
+        if "degree" in self.ds.Mesh2_node_x.units:
+            return
+        num_nodes = self.ds.Mesh2_node_x.size
+        node_latlon_list_lat = [0.0] * num_nodes
+        node_latlon_list_lon = [0.0] * num_nodes
+        node_cart_list_x = [0.0] * num_nodes
+        node_cart_list_y = [0.0] * num_nodes
+        node_cart_list_z = [0.0] * num_nodes
+        for i in range(num_nodes):
+            if "m" in self.ds.Mesh2_node_x.units:
+                node = [self.ds["Mesh2_node_x"][i],
+                        self.ds["Mesh2_node_y"][i],
+                        self.ds["Mesh2_node_z"][i]]  # [x, y, z]
+                node_lonlat = convert_node_xyz_to_lonlat_rad(node)  # [lon, lat]
+                node_cart_list_x[i] = self.ds["Mesh2_node_x"].values[i]
+                node_cart_list_y[i] = self.ds["Mesh2_node_y"].values[i]
+                node_cart_list_z[i] = self.ds["Mesh2_node_z"].values[i]
+                node_lonlat[0] = np.rad2deg(node_lonlat[0])
+                node_lonlat[1] = np.rad2deg(node_lonlat[1])
+                node_latlon_list_lon[i] = node_lonlat[0]
+                node_latlon_list_lat[i] = node_lonlat[1]
+
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
+
+        self.ds["Mesh2_node_x"].values = node_latlon_list_lon
+        self.ds["Mesh2_node_y"].values = node_latlon_list_lat
+        self.ds.Mesh2_node_x.units = "degree_east"
