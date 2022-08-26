@@ -500,3 +500,35 @@ def normalize_in_place(node):
     magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] +
                         node[2] * node[2])
     return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
+
+
+# helper function to calculate the angle of 3D vectors u,v in radian
+def angle_of_2_vectors(u, v):
+    # 𝜃=2 𝑎𝑡𝑎𝑛2(|| ||𝑣||𝑢−||𝑢||𝑣 ||, || ||𝑣||𝑢+||𝑢||𝑣 ||)
+    # this formula comes from W. Kahan's advice in his paper "How Futile are Mindless Assessments of Roundoff in
+    # Floating-Point Computation?" (https://www.cs.berkeley.edu/~wkahan/Mindless.pdf), section 12 "Mangled Angles."
+    v_norm_times_u = [np.linalg.norm(v) * u[i] for i in range(0, len(u))]
+    u_norm_times_v = [np.linalg.norm(u) * v[i] for i in range(0, len(v))]
+    vec_minus = [
+        v_norm_times_u[i] - u_norm_times_v[i]
+        for i in range(0, len(u_norm_times_v))
+    ]
+    vec_sum = [
+        v_norm_times_u[i] + u_norm_times_v[i]
+        for i in range(0, len(u_norm_times_v))
+    ]
+    angle_u_v_rad = 2 * math.atan2(np.linalg.norm(vec_minus),
+                                   np.linalg.norm(vec_sum))
+    return angle_u_v_rad
+
+
+# helper function for get_intersection_point to determine whether one point is between the other two points
+def within(p, q, r):
+    """Helper function for get_intersection_point to determine whether the
+    number q is between p and r.
+    Parameters
+    ----------
+    p, q, r: float
+    Returns: boolean
+    """
+    return p <= q <= r or r <= q <= p
