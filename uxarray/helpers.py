@@ -532,3 +532,13 @@ def within(p, q, r):
     Returns: boolean
     """
     return p <= q <= r or r <= q <= p
+
+
+# Helper function to get the radius of a constant latitude arc
+def get_radius_of_latitude_rad(latitude):
+    longitude = 0.0
+    [x, y, z] = convert_node_lonlat_rad_to_xyz([longitude, latitude])
+    radius = np.sqrt(x * x + y * y)
+    return radius
+
+

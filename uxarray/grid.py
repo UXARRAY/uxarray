@@ -12,10 +12,9 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place
+    normalize_in_place, within, get_radius_of_latitude_rad
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point
 from .edge import Edge
-
 
 
 class Grid:
@@ -551,6 +550,30 @@ class Grid:
                 return -1
 
         return num_intersection
+
+    # Get the zonal average of the input variable
+    def get_zonal_avg(self, latitude):
+
+        # First build the latitude and longitude boundary
+        if "Mesh2_latlon_bounds" not in self.ds.keys() or "Mesh2_latlon_bounds" is None:
+            self.buildlatlon_bounds()
+
+        #  First Get the list of faces that falls into this latitude range
+        candidate_faces_index_list = []
+        for i in range(0, len(self.ds["Mesh2_face_edges"])):
+            face_latlon_bounds = self.ds["Mesh2_latlon_bounds"].values[i]
+            if within(face_latlon_bounds[0][0], latitude, face_latlon_bounds[0][1]):
+                candidate_faces_index_list.append(i)
+
+        # Then calculate the weight of each face
+
+        # First calculate the perimeter this constant latitude circle
+        lat_radius = get_radius_of_latitude_rad(latitude)
+        perimeter = 2 * np.pi * lat_radius
+        candidate_faces_weight_list = []
+        for i in candidate_faces_index_list:
+            face = self.ds["Mesh2_face_edges"].values[i]
+
 
     # Validate that the grid conforms to the UXGrid standards.
     def validate(self):
