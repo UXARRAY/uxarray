@@ -37,4 +37,3 @@ class TestEdge(TestCase):
                 node2 = random.randint(0, 100000)
 
             self.assertEqual(ux.Edge([node1, node2]), ux.Edge([node2, node1]))
-
