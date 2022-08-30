@@ -13,7 +13,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
     normalize_in_place, within, get_radius_of_latitude_rad
-from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point
+from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 from .edge import Edge
 
 
@@ -540,7 +540,7 @@ class Grid:
                 np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
             ])
 
-            res = get_intersection_point(w1, w2, v1, v2)
+            res = get_intersection_point_gcr_gcr(w1, w2, v1, v2)
 
             # two vectors are intersected within range and not parralel
             if (res != [0, 0, 0]) and (res != [-1, -1, -1]):

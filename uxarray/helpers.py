@@ -542,3 +542,53 @@ def get_radius_of_latitude_rad(latitude):
     return radius
 
 
+# Helper function to get the cartesian coordinates intersections of a great circle arc and line of constant latitude
+# Details explained in the paper chapt.2.2
+def get_intersection_point_gcr_constlat(gcr, const_lat_rad):
+    # Determine if latitude is maximized between endpoints
+    [n1, n2] = gcr
+
+    dot_n1_n2 = np.dot(n1, n2)
+    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
+    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / d_de_nom
+    # Verify that the great circle arc reaches the expected latitude on the interval a ∈ [0, 1].
+    if not within(0, d_a_max, 1):
+        return [-1, -1, -1]
+    # If z1 = z2 = 0 then the great circle arc corresponds to the equator.
+    if n1[2] == n2[2] == 0 and const_lat_rad != 0:
+        return [-1, -1, -1]
+
+    # To maximize conditioning, one should choose x1 to satisfy |z1| ≥ |z2|. If this inequality does not hold,
+    # x1 and x2 should be swapped first
+    if n1[2] < n2[2]:
+        temp = n1
+        n1 = n2
+        n2 = temp
+
+    z_0 = np.sin(const_lat_rad)
+    n_x = n1[1] * n2[2] - n2[1] * n1[2]
+    n_y = -n1[0] * n2[2] + n2[0] * n1[2]
+    a = n_x * n_x + n_y * n_y
+    b = 2 * z_0 * np.dot(n1, n2) - 2 * z_0 * n2[2] * (1 / n1[2])
+    c = (z_0 ** 2) * (n1[2] ** (-2))
+    if b * b - 4 * a * c < 0:
+        return [-1, -1, -1]
+
+    [t1, t2] = np.roots([a, b, c])
+    x1 = [z_0 * n1[0] * (1 / n1[2]) + t1 * n_y, z_0 * n1[1] * (1 / n1[2]) - t1 * n_x, z_0]
+    x2 = [z_0 * n1[0] * (1 / n1[2]) + t2 * n_y, z_0 * n1[1] * (1 / n1[2]) - t2 * n_x, z_0]
+
+    # Once the point of intersection x is found, one should test if either or both of these points lies on the
+    # interval between x1 and x2
+    if within(n1[0], x1[0], n2[0]) and within(n1[1], x1[1], n2[1]) and within(
+            n1[2], x1[2], n2[2]):
+        return x1
+    elif within(n1[0], x2[0], n2[0]) and within(n1[1], x2[1], n2[1]) and within(
+            n1[2], x2[2], n2[2]):
+        return x1
+    else:
+        return [-1, -1, -1]  # Intersection out of the interval
+
+
+
+
