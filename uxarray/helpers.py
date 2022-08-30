@@ -580,14 +580,16 @@ def get_intersection_point_gcr_constlat(gcr, const_lat_rad):
 
     # Once the point of intersection x is found, one should test if either or both of these points lies on the
     # interval between x1 and x2
+    res = [[-1, -1, -1], [-1, -1, -1]]
     if within(n1[0], x1[0], n2[0]) and within(n1[1], x1[1], n2[1]) and within(
             n1[2], x1[2], n2[2]):
-        return x1
-    elif within(n1[0], x2[0], n2[0]) and within(n1[1], x2[1], n2[1]) and within(
+        res[0] = x1
+    if within(n1[0], x2[0], n2[0]) and within(n1[1], x2[1], n2[1]) and within(
             n1[2], x2[2], n2[2]):
-        return x1
-    else:
-        return [-1, -1, -1]  # Intersection out of the interval
+        res[1] = x2
+
+    return res
+
 
 
 
