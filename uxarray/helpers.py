@@ -436,9 +436,8 @@ def _is_ugrid(ds):
         return False
 
 
-# Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
-def convert_node_lonlat_rad_to_xyz(node_coord):
-    """
+def _convert_node_lonlat_rad_to_xyz(node_coord):
+    """Helper function to Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
     Parameters: float list, required
        the input 2D coordinates[longitude, latitude] in radiance
     Returns: float list, the 3D coordinates in [x, y, z]
@@ -448,9 +447,7 @@ def convert_node_lonlat_rad_to_xyz(node_coord):
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
 
-# helper function to calculate latitude and longitude from a node's normalized 3D Cartesian
-# coordinates, in radians.
-def convert_node_xyz_to_lonlat_rad(node_coord):
+def _convert_node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
 
@@ -460,7 +457,7 @@ def convert_node_xyz_to_lonlat_rad(node_coord):
        Exception: Logic Errors
     """
     reference_tolerance = 1.0e-12
-    [dx, dy, dz] = normalize_in_place(node_coord)
+    [dx, dy, dz] = _normalize_in_place(node_coord)
 
     d_mag_2 = dx * dx + dy * dy + dz * dz
 
@@ -488,8 +485,7 @@ def convert_node_xyz_to_lonlat_rad(node_coord):
     return [d_lon_rad, d_lat_rad]
 
 
-# helper function to project node on the unit sphere
-def normalize_in_place(node):
+def _normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere.
     Parameters
