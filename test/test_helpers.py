@@ -92,6 +92,7 @@ class TestIntegrate(TestCase):
                 random.uniform(-0.5 * np.pi, 0.5 * np.pi)
             ]
             [x, y, z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
-            [new_lon, new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
+            [new_lon,
+             new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
             self.assertLessEqual(np.absolute(new_lon - lon), 1.0e-12)
             self.assertLessEqual(np.absolute(new_lat - lat), 1.0e-12)
