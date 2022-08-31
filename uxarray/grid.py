@@ -12,7 +12,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, within, get_radius_of_latitude_rad
+    normalize_in_place, within, get_radius_of_latitude_rad, get_intersection_point_gcr_constlat
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 from .edge import Edge
 
@@ -570,9 +570,49 @@ class Grid:
         # First calculate the perimeter this constant latitude circle
         lat_radius = get_radius_of_latitude_rad(latitude)
         perimeter = 2 * np.pi * lat_radius
-        candidate_faces_weight_list = []
+        candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
         for i in candidate_faces_index_list:
             face = self.ds["Mesh2_face_edges"].values[i]
+            intersections_pts_list = []
+            for j in range(0, len(face)):
+                edge = face[j]
+                # Get the edge end points in 3D [x, y, z] coordinates
+                n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
+                      self.ds["Mesh2_node_cart_y"].values[edge[0]],
+                      self.ds["Mesh2_node_cart_z"].values[edge[0]]]
+                n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
+                      self.ds["Mesh2_node_cart_y"].values[edge[1]],
+                      self.ds["Mesh2_node_cart_z"].values[edge[1]]]
+                intersections = get_intersection_point_gcr_constlat([n1, n2], latitude)
+                if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
+                    # The constant latitude didn't cross this edge
+                    continue
+                elif intersections[0] != [-1, -1, -1] and intersections[1] != [-1, -1, -1]:
+                    # The constant latitude goes across this edge ( 1 in and 1 out):
+                    x1 = intersections[0]
+                    x2 = intersections[1]
+                    x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
+                    x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
+                    candidate_faces_weight_list[i] += x1_x2_mag
+                    continue
+                else:
+                    if len(intersections_pts_list) == 2:
+                        x1 = intersections_pts_list[0]
+                        x2 = intersections_pts_list[1]
+                        x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
+                        x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
+                        candidate_faces_weight_list[i] += x1_x2_mag
+
+                    if intersections[0] != [-1, -1, -1]:
+                        intersections_pts_list.append(intersections[0])
+                    else:
+                        intersections_pts_list.append(intersections[1])
+
+
+
+
+
+
 
 
     # Validate that the grid conforms to the UXGrid standards.
