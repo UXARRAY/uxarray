@@ -64,7 +64,7 @@ class TestIntegrate(TestCase):
 
     def test_normalize_in_place(self):
         for i in range(0, 10):
-            [x, y, z] = ux._normalize_in_place(
+            [x, y, z] = ux.helpers._normalize_in_place(
                 [random.random(),
                  random.random(),
                  random.random()])
@@ -73,14 +73,14 @@ class TestIntegrate(TestCase):
 
     def test_convert_node_xyz_to_lonlat_rad(self):
         for i in range(0, 10):
-            [x, y, z] = ux._normalize_in_place([
+            [x, y, z] = ux.helpers._normalize_in_place([
                 random.uniform(-1, 1),
                 random.uniform(-1, 1),
                 random.uniform(-1, 1)
             ])
-            [lon, lat] = ux._convert_node_xyz_to_lonlat_rad([x, y, z])
+            [lon, lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
             [new_x, new_y,
-             new_z] = ux._convert_node_lonlat_rad_to_xyz([lon, lat])
+             new_z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
             self.assertLessEqual(np.absolute(new_x - x), 1.0e-12)
             self.assertLessEqual(np.absolute(new_y - y), 1.0e-12)
             self.assertLessEqual(np.absolute(new_z - z), 1.0e-12)
@@ -91,7 +91,7 @@ class TestIntegrate(TestCase):
                 random.uniform(0, 2 * np.pi),
                 random.uniform(-0.5 * np.pi, 0.5 * np.pi)
             ]
-            [x, y, z] = ux._convert_node_lonlat_rad_to_xyz([lon, lat])
-            [new_lon, new_lat] = ux._convert_node_xyz_to_lonlat_rad([x, y, z])
+            [x, y, z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
+            [new_lon, new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
             self.assertLessEqual(np.absolute(new_lon - lon), 1.0e-12)
             self.assertLessEqual(np.absolute(new_lat - lat), 1.0e-12)
