@@ -503,7 +503,7 @@ def normalize_in_place(node):
 
 
 # helper function to calculate the angle of 3D vectors u,v in radian
-def angle_of_2_vectors(u, v):
+def _angle_of_2_vectors(u, v):
     # 𝜃=2 𝑎𝑡𝑎𝑛2(|| ||𝑣||𝑢−||𝑢||𝑣 ||, || ||𝑣||𝑢+||𝑢||𝑣 ||)
     # this formula comes from W. Kahan's advice in his paper "How Futile are Mindless Assessments of Roundoff in
     # Floating-Point Computation?" (https://www.cs.berkeley.edu/~wkahan/Mindless.pdf), section 12 "Mangled Angles."
@@ -523,7 +523,7 @@ def angle_of_2_vectors(u, v):
 
 
 # helper function for get_intersection_point to determine whether one point is between the other two points
-def within(p, q, r):
+def _within(p, q, r):
     """Helper function for get_intersection_point to determine whether the
     number q is between p and r.
     Parameters
@@ -535,25 +535,28 @@ def within(p, q, r):
 
 
 # Helper function to get the radius of a constant latitude arc
-def get_radius_of_latitude_rad(latitude):
+def _get_radius_of_latitude_rad(latitude):
     longitude = 0.0
     [x, y, z] = convert_node_lonlat_rad_to_xyz([longitude, latitude])
     radius = np.sqrt(x * x + y * y)
     return radius
 
 
-# Helper function to get the cartesian coordinates intersections of a great circle arc and line of constant latitude
-# Details explained in the paper chapt.2.2
-def get_intersection_point_gcr_constlat(gcr, const_lat_rad):
-    # Determine if latitude is maximized between endpoints
+
+def _get_intersection_point_gcr_constlat(gcr, const_lat_rad):
+    """Helper function to get the cartesian coordinates intersections of a great circle arc and line of constant latitude
+    Details explained in the paper chapt.2.2
+    """
     [n1, n2] = gcr
+
+    #  Determine if latitude is maximized between endpoints
 
     dot_n1_n2 = np.dot(n1, n2)
     d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / d_de_nom
     res = [[-1, -1, -1], [-1, -1, -1]]
     # Verify that the great circle arc reaches the expected latitude on the interval a ∈ [0, 1].
-    if not within(0, d_a_max, 1):
+    if not _within(0, d_a_max, 1):
         return res
     # If z1 = z2 = 0 then the great circle arc corresponds to the equator.
     if n1[2] == n2[2] == 0 and const_lat_rad != 0:
@@ -582,13 +585,18 @@ def get_intersection_point_gcr_constlat(gcr, const_lat_rad):
     # Once the point of intersection x is found, one should test if either or both of these points lies on the
     # interval between x1 and x2
 
-    if within(n1[0], x1[0], n2[0]) and within(n1[1], x1[1], n2[1]) and within(
-            n1[2], x1[2], n2[2]):
+    if _within(n1[0], x1[0], n2[0]) and _within(n1[1], x1[1], n2[1]) and _within(n1[2], x1[2], n2[2]):
         res[0] = x1
-    if within(n1[0], x2[0], n2[0]) and within(n1[1], x2[1], n2[1]) and within(
-            n1[2], x2[2], n2[2]):
+    if _within(n1[0], x2[0], n2[0]) and _within(n1[1], x2[1], n2[1]) and _within(n1[2], x2[2], n2[2]):
         res[1] = x2
 
     return res
+
+
+def _sort_intersection_pts_with_lon(pts_lonlat_list, longitude_rad):
+    res = []
+    if 
+    for pt in pts_lonlat_list:
+        pass
 
 

@@ -12,7 +12,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, within, get_radius_of_latitude_rad, get_intersection_point_gcr_constlat
+    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_point_gcr_constlat
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 from .edge import Edge
 
@@ -562,18 +562,19 @@ class Grid:
         candidate_faces_index_list = []
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face_latlon_bounds = self.ds["Mesh2_latlon_bounds"].values[i]
-            if within(face_latlon_bounds[0][0], latitude, face_latlon_bounds[0][1]):
+            if _within(face_latlon_bounds[0][0], latitude, face_latlon_bounds[0][1]):
                 candidate_faces_index_list.append(i)
 
         # Then calculate the weight of each face
 
         # First calculate the perimeter this constant latitude circle
-        lat_radius = get_radius_of_latitude_rad(latitude)
+        lat_radius = _get_radius_of_latitude_rad(latitude)
         perimeter = 2 * np.pi * lat_radius
         candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
         for i in candidate_faces_index_list:
+            face_latlon_bounds = self.ds["Mesh2_latlon_bounds"].values[i]
             face = self.ds["Mesh2_face_edges"].values[i]
-            intersections_pts_list = []
+            intersections_pts_list_lonlat = []
             for j in range(0, len(face)):
                 edge = face[j]
                 # Get the edge end points in 3D [x, y, z] coordinates
@@ -583,7 +584,7 @@ class Grid:
                 n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
                       self.ds["Mesh2_node_cart_y"].values[edge[1]],
                       self.ds["Mesh2_node_cart_z"].values[edge[1]]]
-                intersections = get_intersection_point_gcr_constlat([n1, n2], latitude)
+                intersections = _get_intersection_point_gcr_constlat([n1, n2], latitude)
                 if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
                     # The constant latitude didn't cross this edge
                     continue
@@ -594,22 +595,18 @@ class Grid:
                     x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
                     x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
                     candidate_faces_weight_list[i] += x1_x2_mag
-                    continue
+                    intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
+                    intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
                 else:
-                    if len(intersections_pts_list) == 2:
-                        x1 = intersections_pts_list[0]
-                        x2 = intersections_pts_list[1]
-                        x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
-                        x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
-                        candidate_faces_weight_list[i] += x1_x2_mag
-
                     if intersections[0] != [-1, -1, -1]:
-                        intersections_pts_list.append(intersections[0])
+                        intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
                     else:
-                        intersections_pts_list.append(intersections[1])
+                        intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
 
-
-
+            # Sort
+            for j in range(0, len(intersections_pts_list_lonlat)):
+                # subtract off the left longitude of the lat-lon box
+                sorted_in_lon_intersections_pts_list = []
 
 
 

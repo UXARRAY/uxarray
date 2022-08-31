@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from .helpers import angle_of_2_vectors, within, normalize_in_place, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz
+from .helpers import _angle_of_2_vectors, _within, normalize_in_place, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz
 
 # helper function to insert a new point into the latlon box
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
@@ -147,7 +147,7 @@ def max_latitude_rad(v1, v2):
 
         # Divide the angle of v1/v2 into 10 subsections, the leftover will be put in the last one
         # Update v0 based on max_section[0], since the angle is always from max_section[0] to v0
-        angle_v1_v2_rad = angle_of_2_vectors(v_b, v_c)
+        angle_v1_v2_rad = _angle_of_2_vectors(v_b, v_c)
         v0 = np.cross(v_temp, v_b)
         v0 = normalize_in_place(v0)
         avg_angle_rad = angle_v1_v2_rad / 10
@@ -245,7 +245,7 @@ def min_latitude_rad(v1, v2):
 
         # Divide the angle of v1/v2 into 10 subsections, the leftover will be put in the last one
         # Update v0 based on min_section[0], since the angle is always from min_section[0] to v0
-        angle_v1_v2_rad = angle_of_2_vectors(v_b, v_c)
+        angle_v1_v2_rad = _angle_of_2_vectors(v_b, v_c)
         v0 = np.cross(v_temp, v_b)
         v0 = normalize_in_place(v0)
         avg_angle_rad = angle_v1_v2_rad / 10
@@ -356,11 +356,9 @@ def get_intersection_point_gcr_gcr(w0, w1, v0, v1):
 
     # Find out whether X1 or X2 is within the interval [wo, w1]
 
-    if within(w0[0], x1[0], w1[0]) and within(w0[1], x1[1], w1[1]) and within(
-            w0[2], x1[2], w1[2]):
+    if _within(w0[0], x1[0], w1[0]) and _within(w0[1], x1[1], w1[1]) and _within(w0[2], x1[2], w1[2]):
         return x1
-    elif within(w0[0], x2[0], w1[0]) and within(w0[1], x2[1], w1[1]) and within(
-            w0[2], x2[2], w1[2]):
+    elif _within(w0[0], x2[0], w1[0]) and _within(w0[1], x2[1], w1[1]) and _within(w0[2], x2[2], w1[2]):
         return x2
     elif x1[0] == 0 and x1[1] == 0 and x1[2] == 0:
         return [0, 0, 0]  # two vectors are parallel to each other
@@ -432,7 +430,7 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
                     minmax_lon_rad_face = [max_lon_rad_edge, minmax_lon_rad_face[1]]
 
             else:
-                if within(minmax_lon_rad_face[1], min_lon_rad_edge, minmax_lon_rad_face[0]):
+                if _within(minmax_lon_rad_face[1], min_lon_rad_edge, minmax_lon_rad_face[0]):
                     minmax_lon_rad_face[0] = min_lon_rad_edge
                 else:
                     minmax_lon_rad_face[0] = minmax_lon_rad_face[0]
@@ -469,10 +467,10 @@ def __on_left(ref_edge, insert_edge, safe_call=False):
         raise Exception('Calling this function here is not safe')
     left_flag = False
     if insert_edge[1] >= ref_edge[1] and insert_edge[1] >= ref_edge[0]:
-        if within(ref_edge[1], insert_edge[0], ref_edge[0]):
+        if _within(ref_edge[1], insert_edge[0], ref_edge[0]):
             left_flag = True
     elif insert_edge[1] <= ref_edge[1] and insert_edge[1] <= ref_edge[0]:
-        if within(ref_edge[1], insert_edge[0], ref_edge[0]):
+        if _within(ref_edge[1], insert_edge[0], ref_edge[0]):
             left_flag = True
     return left_flag
 
@@ -498,10 +496,10 @@ def __on_right(ref_edge, insert_edge, safe_call=False):
         raise Exception('Calling this function here is not safe')
     right_flag = False
     if insert_edge[0] >= ref_edge[0] and insert_edge[0] >= ref_edge[1]:
-        if within(ref_edge[1], insert_edge[1], ref_edge[0]):
+        if _within(ref_edge[1], insert_edge[1], ref_edge[0]):
             right_flag = True
     elif insert_edge[0] <= ref_edge[0] and insert_edge[0] <= ref_edge[1]:
-        if within(ref_edge[1], insert_edge[1], ref_edge[0]):
+        if _within(ref_edge[1], insert_edge[1], ref_edge[0]):
             right_flag = True
 
     return right_flag
