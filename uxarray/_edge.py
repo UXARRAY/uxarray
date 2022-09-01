@@ -1,14 +1,14 @@
 import numpy as np
 
 
-class Edge:
-    """The Uxarray Edge object class for undirected edge.
+class _Edge:
+    """The Uxarray _Edge object class for undirected edge.
 
     In current implementation, each node is the node index
     """
 
     def __init__(self, input_edge):
-        """Initializing the Edge object from input edge [node 0, node 1]
+        """Initializing the _Edge object from input edge [node 0, node 1]
 
         Parameters
         ----------
@@ -30,5 +30,5 @@ class Edge:
         return hash(self.node0 + self.node1)
 
     # Return nodes in list
-    def get_nodes(self):
+    def _get_nodes(self):
         return [self.node0, self.node1]

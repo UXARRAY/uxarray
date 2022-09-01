@@ -26,20 +26,6 @@ Grid Methods
    grid.Grid.integrate
    grid.Grid.compute_face_areas
 
-Edge Class
-----------
-.. autosummary::
-   :toctree: _autosummary
-
-   edge.Edge
-
-Edge Methods
-------------
-.. autosummary::
-   :toctree: _autosummary
-
-   edge.Edge.get_nodes
-
 Helper Functions
 ----------------
 .. autosummary::
