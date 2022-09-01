@@ -12,7 +12,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_point_gcr_constlat
+    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_point_gcr_constlat, _sort_intersection_pts_with_lon, _get_vector_magnitude
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 from .edge import Edge
 
@@ -590,11 +590,6 @@ class Grid:
                     continue
                 elif intersections[0] != [-1, -1, -1] and intersections[1] != [-1, -1, -1]:
                     # The constant latitude goes across this edge ( 1 in and 1 out):
-                    x1 = intersections[0]
-                    x2 = intersections[1]
-                    x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
-                    x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
-                    candidate_faces_weight_list[i] += x1_x2_mag
                     intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
                     intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
                 else:
@@ -603,10 +598,22 @@ class Grid:
                     else:
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
 
-            # Sort
-            for j in range(0, len(intersections_pts_list_lonlat)):
-                # subtract off the left longitude of the lat-lon box
-                sorted_in_lon_intersections_pts_list = []
+            sorted_in_lon_intersections_pts_list = _sort_intersection_pts_with_lon(intersections_pts_list_lonlat, face_latlon_bounds[1])
+
+            k = 0
+            cur_face_mag = 0
+            while k < len(sorted_in_lon_intersections_pts_list - 1):
+                cur_mag = _get_vector_magnitude(sorted_in_lon_intersections_pts_list[k], sorted_in_lon_intersections_pts_list[k+1])
+                cur_face_mag += cur_mag
+                k += 2
+            candidate_faces_weight_list[i] = cur_face_mag
+            del k
+
+
+
+
+
+
 
 
 

@@ -612,6 +612,12 @@ def _sort_intersection_pts_with_lon(pts_lonlat_rad_list, longitude_bound_rad):
     return res
 
 
+def _get_cart_vector_magnitude(start, end):
+    x1 = start
+    x2 = end
+    x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
+    x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
+    return x1_x2_mag
 
 
 
