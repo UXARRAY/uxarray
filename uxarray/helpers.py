@@ -593,10 +593,25 @@ def _get_intersection_point_gcr_constlat(gcr, const_lat_rad):
     return res
 
 
-def _sort_intersection_pts_with_lon(pts_lonlat_list, longitude_rad):
+def _sort_intersection_pts_with_lon(pts_lonlat_rad_list, longitude_bound_rad):
     res = []
-    if 
-    for pt in pts_lonlat_list:
-        pass
+    if longitude_bound_rad[0] <= longitude_bound_rad[1]:
+        # Normal case,
+        for pt in pts_lonlat_rad_list:
+            res.append(pt[0] - longitude_bound_rad[0])
+
+    else:
+        # The face that go across the 0 longitude
+        for pt in pts_lonlat_rad_list:
+            if _within(np.pi, pt[0], 2 * np.pi):
+                res.append(pt[0] - longitude_bound_rad[0])
+            else:
+                res.append(pt[0] + (2 * np.pi - longitude_bound_rad[0]))
+
+    res.sort()
+    return res
+
+
+
 
 
