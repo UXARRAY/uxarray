@@ -15,7 +15,6 @@ Grid Methods
    :nosignatures:
    :toctree: ./generated/
 
-   grid.Grid.__init__
    grid.Grid.__init_ds_var_names__
    grid.Grid.__from_ds__
    grid.Grid.__from_vert__
