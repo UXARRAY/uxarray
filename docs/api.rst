@@ -16,4 +16,3 @@ documentation to see the tentative whole API and let us know if you have any fee
 
    user_api/index.rst
    internal_api/index.rst
-   Draft API <user_api/uxarray_api.md>
