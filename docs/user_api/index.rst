@@ -35,5 +35,6 @@ Helper Functions
    helpers.calculate_spherical_triangle_jacobian
    helpers.calculate_spherical_triangle_jacobian_barycentric
    get_gauss_quadratureDG
+   helpers.grid_center_lat_lon
    get_tri_quadratureDG
    helpers.parse_grid_type
