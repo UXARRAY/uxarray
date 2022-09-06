@@ -12,9 +12,9 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_point_gcr_constlat, _sort_intersection_pts_with_lon, _get_vector_magnitude
+    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_point_gcr_constlat, _sort_intersection_pts_with_lon, _get_cart_vector_magnitude
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
-from .edge import Edge
+
 
 
 class Grid:
@@ -238,7 +238,7 @@ class Grid:
                 if face[i] == -1 or face[i + 1] == -1:
                     continue
                 # Two nodes are connected to one another if they’re adjacent in the array
-                mesh2_edge_nodes_set.add(Edge([face[i], face[i + 1]]))
+                mesh2_edge_nodes_set.add(frozenset({face[i], face[i + 1]}))
                 cur_face_edge.append([face[i], face[i + 1]])
             # Two nodes are connected if one is the first element of the array and the other is the last
 
@@ -251,18 +251,17 @@ class Grid:
                 start_node += 1
             if face[last_node] < 0 or face[last_node] < 0:
                 raise Exception('Invalid node index')
-            mesh2_edge_nodes_set.add(Edge([face[last_node], face[start_node]]))
+            mesh2_edge_nodes_set.add(frozenset({face[last_node], face[start_node]}))
             cur_face_edge.append([face[last_node], face[start_node]])
             mesh2_face_edges.append(cur_face_edge)
 
         # Convert the Edge object set into list
         mesh2_edge_nodes = []
         for edge in mesh2_edge_nodes_set:
-            mesh2_edge_nodes.append(edge.get_nodes())
+            mesh2_edge_nodes.append(list(edge))
 
         self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
                                                    dims=["nMesh2_edge", "Two"])
-
         for i in range(0, len(mesh2_face_edges)):
             while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
                 # Append dummy edges
@@ -292,7 +291,6 @@ class Grid:
 
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
-
             # Check if face contains pole points
             _lambda = 0
             v1 = [0, 0, 1]
@@ -313,6 +311,9 @@ class Grid:
                 # if the face contains the pole point
                 for j in range(0, len(face)):
                     edge = face[j]
+                    # Skip the dummy edges
+                    if edge[0] == -1 or edge[1] == -1:
+                        continue
                     # All the following calculation is based on the 3D XYZ coord
                     # And assume the self.ds["Mesh2_node_x"] always store the lon info
 
@@ -603,7 +604,7 @@ class Grid:
             k = 0
             cur_face_mag = 0
             while k < len(sorted_in_lon_intersections_pts_list - 1):
-                cur_mag = _get_vector_magnitude(sorted_in_lon_intersections_pts_list[k], sorted_in_lon_intersections_pts_list[k+1])
+                cur_mag = _get_cart_vector_magnitude(sorted_in_lon_intersections_pts_list[k], sorted_in_lon_intersections_pts_list[k+1])
                 cur_face_mag += cur_mag
                 k += 2
             candidate_faces_weight_list[i] = cur_face_mag
