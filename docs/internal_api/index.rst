@@ -21,16 +21,6 @@ Grid Methods
    grid.Grid.__from_vert__
    grid.Grid.__init_grid_var_attrs__
 
-_Edge Methods
-------------
-.. autosummary::
-
-   :toctree: ./generated/
-
-   _edge._Edge.__init__
-   _edge._Edge.__eq__
-   _edge._Edge.__hash__
-
 Grid Helper Modules
 --------------------
 .. autosummary::
