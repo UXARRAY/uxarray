@@ -553,7 +553,7 @@ class Grid:
         return num_intersection
 
     # Get the zonal average of the input variable
-    def get_zonal_avg(self, latitude):
+    def get_zonal_avg(self, var_key, latitude):
 
         # First build the latitude and longitude boundary
         if "Mesh2_latlon_bounds" not in self.ds.keys() or "Mesh2_latlon_bounds" is None:
@@ -601,14 +601,21 @@ class Grid:
 
             sorted_in_lon_intersections_pts_list = _sort_intersection_pts_with_lon(intersections_pts_list_lonlat, face_latlon_bounds[1])
 
+            # Calculate the magitude of each intersecting line for each face
             k = 0
             cur_face_mag = 0
             while k < len(sorted_in_lon_intersections_pts_list - 1):
                 cur_mag = _get_cart_vector_magnitude(sorted_in_lon_intersections_pts_list[k], sorted_in_lon_intersections_pts_list[k+1])
                 cur_face_mag += cur_mag
                 k += 2
-            candidate_faces_weight_list[i] = cur_face_mag
+
+            # Calculate the weight from each face by |intersection line length| / total perimeter
+            candidate_faces_weight_list[i] = cur_face_mag / perimeter
             del k
+
+        face_vals = self.ds.get(var_key).to_numpy()
+        zonal_average = np.dot(candidate_faces_weight_list, face_vals)
+        return zonal_average
 
 
 
