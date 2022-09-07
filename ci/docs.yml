@@ -23,5 +23,3 @@ dependencies:
     - myst-nb
     - sphinx-design
     - nbsphinx
-    - pip:
-        - sphinxext-opengraph

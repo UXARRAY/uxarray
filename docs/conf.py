@@ -41,7 +41,6 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'myst_nb',
-    "sphinxext.opengraph",
     "sphinx_design",
     "nbsphinx",
 ]
