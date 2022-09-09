@@ -30,7 +30,7 @@ class TestGrid(TestCase):
         """tests that function has correctly created a ugrid function and no
         longer uses SCRIP variable names (grid_corner_lat), the function will
         raise an exception."""
-        new_ds = ux.open_dataset()
+        new_ds = _read_scrip(ds_ne8)
 
         assert ds_ne8['grid_corner_lat'].any()
 
@@ -70,7 +70,8 @@ class TestGrid(TestCase):
     def test_scrip_variable_names(self):
         """Tests that returned dataset from writer function has all required
         SCRIP variables."""
-        scrip30 = _write_scrip(ne30, "write_to_scrip.nc")
+        ux_ne30 = ux.open_dataset(ne30)
+        scrip30 = _write_scrip(ux_ne30, "write_to_scrip.nc")
 
         # List of relevant variable names for a scrip file
         var_list = [
