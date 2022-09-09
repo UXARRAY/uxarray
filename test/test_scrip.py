@@ -43,11 +43,11 @@ class TestGrid(TestCase):
         returned datasets."""
         # Create UGRID from SCRIP file
         to_ugrid = _read_scrip(ds_ne8)
-        to_ugrid.to_netcdf("scrip_to_ugrid.ug")  # Save as new file
-        new_path = current_path / "scrip_to_ugrid.ug"
+        new_path = current_path / "meshfiles" / "scrip_to_ugrid.ug"
+        to_ugrid.to_netcdf(str(new_path))  # Save as new file
 
         # Use uxarray open_dataset to then create SCRIP file from new UGRID file
-        make_ux = ux.open_dataset(new_path)
+        make_ux = ux.open_dataset(str(new_path))
         to_scrip = _write_scrip(make_ux, "test_scrip_outfile.nc")
 
         # Test newly created SCRIP is same as original SCRIP
