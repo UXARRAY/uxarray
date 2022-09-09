@@ -216,7 +216,7 @@ def update_gallery(app: Sphinx):
 
     items_md = indent(dedent("\n".join(items)), prefix="    ")
     markdown = f"""
-.. grid:: 1 2 2 2
+.. grid:: 1 2 3 3
     :gutter: 2
 
     {items_md}
