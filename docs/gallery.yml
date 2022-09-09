@@ -1,7 +1,3 @@
 - title: Reading Data
   path: examples/reading-data.ipynb
   thumbnail: _static/images/logos/uxarray_temp_logo.png
-
-- title: Template
-  path: examples/template.ipynb
-  thumbnail: _static/images/logos/uxarray_temp_logo.png
