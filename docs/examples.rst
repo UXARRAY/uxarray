@@ -9,9 +9,14 @@ Here's some examples of how to use the uxarray. We are always planning to add
 more examples! If you are interested in contributing your own examples, please
 see the :doc:`contributing`.
 
+Reading in Data
+---------------
+.. toctree::
+
+   examples/reading-data.ipynb
+
 .. toctree::
    :maxdepth: 2
    :hidden:
 
    examples/template.ipynb
-   examples/reading-data.ipynb
