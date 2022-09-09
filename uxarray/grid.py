@@ -9,7 +9,7 @@ from pathlib import PurePath
 from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
-from ._scrip import _read_scrip
+from ._scrip import _read_scrip, _write_scrip
 from .helpers import get_all_face_area_from_coords
 
 
@@ -160,32 +160,35 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, outfile, extension=""):
+    def write(self, outfile, extension):
         """Writes mesh file as per extension supplied in the outfile string.
 
         Parameters
         ----------
         outfile : str, required
             Path to output file
-        extension : str, optional
-            Extension of output file. Defaults to empty string.
-            Currently supported options are ".ugrid", ".ug", ".g", ".exo", and ""
+        extension : str, required
+            File type of output file.
+            Currently supported options are "ugrid", "exodus", and "scrip"
 
         Raises
         ------
         RuntimeError
             If unsupported extension provided or directory not found
         """
+
         if extension == "":
             outfile_path = PurePath(outfile)
             extension = outfile_path.suffix
             if not os.path.isdir(outfile_path.parent):
                 raise RuntimeError("File directory not found: " + outfile)
 
-        if extension == ".ugrid" or extension == ".ug":
+        if extension == "ugrid":
             _write_ugrid(self.ds, outfile, self.ds_var_names)
-        elif extension == ".g" or extension == ".exo":
+        elif extension == "exodus":
             _write_exodus(self.ds, outfile, self.ds_var_names)
+        elif extension == "scrip":
+            _write_scrip(self, outfile)
         else:
             raise RuntimeError("Format not supported for writing: ", extension)
 

@@ -1,6 +1,6 @@
 import xarray as xr
 import numpy as np
-import uxarray as ux
+
 from .helpers import grid_center_lat_lon
 
 
@@ -45,8 +45,23 @@ def _to_ugrid(in_ds, out_ds):
                              (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
         # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
-        out_ds['Mesh2_node_x'] = unq_lon
-        out_ds['Mesh2_node_y'] = unq_lat
+        out_ds['Mesh2_node_x'] = xr.DataArray(
+            unq_lon,
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "longitude",
+                "long_name": "longitude of mesh nodes",
+                "units": "degrees_east",
+            })
+
+        out_ds['Mesh2_node_y'] = xr.DataArray(
+            unq_lat,
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "lattitude",
+                "long_name": "latitude of mesh nodes",
+                "units": "degrees_north",
+            })
 
         # Create Mesh2_face_x/y from grid_center_lat/lon
         out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
@@ -99,9 +114,9 @@ def _read_scrip(ext_ds):
         ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
-                "long_name": "Topology data of 2D unstructured mesh",
+                "long_name": "Topology data of unstructured mesh",
                 "topology_dimension": 2,
-                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
+                "node_coordinates": "Mesh2_node_x Mesh2_node_y",
                 "node_dimension": "nMesh2_node",
                 "face_node_connectivity": "Mesh2_face_nodes",
                 "face_dimension": "nMesh2_face"
@@ -141,40 +156,51 @@ def _write_scrip(ext_ds, outfile):
     Returns
     -------
     ds : :class:`xarray.Dataset`
-        File to be returned by _write_scrip. Saved both as an independent file and as an active
-        dataset for immediate use.
+        Dataset to be returned by _write_scrip. The function returns both the output dataset in SCRIP format for
+        immediate and saves it as an independent netCDF file.
     """
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()
 
     # Create grid instance of input ugrid file
-    grid = ux.open_dataset(ext_ds)
+    # ext_ds = xr.open_dataset(ext_ds, engine='scipy')
 
     # Make grid corner lat/lon
-    f_nodes = grid.Mesh2_face_nodes.values.ravel()
+    f_nodes = ext_ds.Mesh2_face_nodes.values.ravel()
 
     # Extract lat/lon node data
-    y_val = grid.Mesh2_node_y
-    x_val = grid.Mesh2_node_x
+    y_val = ext_ds.Mesh2_node_y
+    x_val = ext_ds.Mesh2_node_x
 
     # Create empty arrays to hold lat/lon data
     lat_nodes = np.zeros_like(f_nodes)
     lon_nodes = np.zeros_like(f_nodes)
 
+    # lat_nodes = y_val[f_nodes]
+    # lon_nodes = x_val[f_nodes]
     for i in range(len(f_nodes)):
         lat_nodes[i] = y_val[int(f_nodes[i])]
         lon_nodes[i] = x_val[int(f_nodes[i])]
 
     # Reshape arrays to be 2D instead of 1D
-    reshp_lat = np.reshape(lat_nodes, [grid.Mesh2_face_nodes.shape[0], 4])
-    reshp_lon = np.reshape(lon_nodes, [grid.Mesh2_face_nodes.shape[0], 4])
+    reshp_lat = np.reshape(
+        lat_nodes,
+        [ext_ds.Mesh2_face_nodes.shape[0], ext_ds.Mesh2_face_nodes.shape[1]])
+    reshp_lon = np.reshape(
+        lon_nodes,
+        [ext_ds.Mesh2_face_nodes.shape[0], ext_ds.Mesh2_face_nodes.shape[1]])
 
     # Add data to new scrip output file
-    ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
-                                         dims=["grid_size", 'grid_corners'])
+    ds['grid_corner_lat'] = xr.DataArray(
+        data=reshp_lat,
+        dims=["grid_size", 'grid_corners'],
+    )
+    # Convert data type to float, the Python eqv to double
+    ds['grid_corner_lat'].astype('float')
 
     ds['grid_corner_lon'] = xr.DataArray(data=reshp_lon,
                                          dims=["grid_size", 'grid_corners'])
+    ds['grid_corner_lon'].astype('float')
 
     # Create Grid rank, always 1 for unstructured grids
     ds["grid_rank"] = xr.DataArray(data=[1], dims=["grid_rank"])
@@ -187,7 +213,7 @@ def _write_scrip(ext_ds, outfile):
                                     dims=["grid_size"])
 
     # Create grid_area using Grid class functions
-    f_area = grid.compute_face_areas(quadrature_rule='gaussian')
+    f_area = ext_ds.compute_face_areas(quadrature_rule='gaussian')
 
     ds["grid_area"] = xr.DataArray(data=f_area, dims=["grid_size"])
 
@@ -195,8 +221,10 @@ def _write_scrip(ext_ds, outfile):
     center_lat, center_lon = grid_center_lat_lon(ds)
 
     ds['grid_center_lon'] = xr.DataArray(data=center_lon, dims=["grid_size"])
+    ds['grid_center_lon'].astype('float')
 
     ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
+    ds['grid_center_lat'].astype('float')
 
     # Create and save new scrip file
     ds.to_netcdf(outfile)
