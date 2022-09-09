@@ -14,3 +14,4 @@ see the :doc:`contributing`.
    :hidden:
 
    examples/template.ipynb
+   examples/reading-data.ipynb
