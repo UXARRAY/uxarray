@@ -37,7 +37,9 @@ def parse_grid_type(filepath, **kw):
         mesh_filetype, dataset = "shp", None
         return mesh_filetype, dataset
 
-    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
+    dataset = xr.open_dataset(filepath,
+                              mask_and_scale=False,
+                              engine='netcdf4'**kw)
     # exodus with coord or coordx
     if "coord" in dataset:
         mesh_filetype = "exo"
