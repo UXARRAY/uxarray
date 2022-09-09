@@ -1,3 +1,8 @@
+.. currentmodule:: uxarray
+
+.. _contributing:
+
+
 Contributor's Guide
 ===================
 
