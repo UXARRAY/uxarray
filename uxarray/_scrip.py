@@ -176,8 +176,6 @@ def _write_scrip(ext_ds, outfile):
     lat_nodes = np.zeros_like(f_nodes)
     lon_nodes = np.zeros_like(f_nodes)
 
-    # lat_nodes = y_val[f_nodes]
-    # lon_nodes = x_val[f_nodes]
     for i in range(len(f_nodes)):
         lat_nodes[i] = y_val[int(f_nodes[i])]
         lon_nodes[i] = x_val[int(f_nodes[i])]
