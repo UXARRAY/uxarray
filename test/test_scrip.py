@@ -1,4 +1,5 @@
 from uxarray._scrip import _read_scrip, _write_scrip
+import uxarray as ux
 import xarray as xr
 from unittest import TestCase
 import numpy as np
@@ -29,7 +30,7 @@ class TestGrid(TestCase):
         """tests that function has correctly created a ugrid function and no
         longer uses SCRIP variable names (grid_corner_lat), the function will
         raise an exception."""
-        new_ds = _read_scrip(ds_ne8)
+        new_ds = ux.open_dataset()
 
         assert ds_ne8['grid_corner_lat'].any()
 
@@ -40,13 +41,31 @@ class TestGrid(TestCase):
         """Tests that input UGRID file has been successfully translated to a
         SCRIP file by looking for specific variable names in the input and
         returned datasets."""
-        scrip30 = _write_scrip(ne30, "test_scrip_outfile.nc")
+        # Create UGRID from SCRIP file
+        to_ugrid = _read_scrip(ds_ne8)
+        to_ugrid.to_netcdf("scrip_to_ugrid.ug")  # Save as new file
+        new_path = current_path / "scrip_to_ugrid.ug"
 
-        assert scrip30['grid_corner_lat'].any()  # New variable
+        # Use uxarray open_dataset to then create SCRIP file from new UGRID file
+        make_ux = ux.open_dataset(new_path)
+        to_scrip = _write_scrip(make_ux, "test_scrip_outfile.nc")
 
+        # Test newly created SCRIP is same as original SCRIP
+        assert to_scrip['grid_corner_lat'].any(
+        ) == ds_ne8['grid_corner_lat'].any()  # New variable
+        assert to_scrip['grid_corner_lon'].any(
+        ) == ds_ne8['grid_corner_lon'].any()
+
+        # Tests that calculated center lat/lon values are equivalent to original
+        assert to_scrip['grid_center_lon'].any(
+        ) == ds_ne8['grid_center_lon'].any()
+        assert to_scrip['grid_center_lat'].any(
+        ) == ds_ne8['grid_center_lat'].any()
+
+        # Test that "mesh" variables are not in new file
         with self.assertRaises(KeyError):
-            assert ds_ne30['grid_corner_lat'].any(
-            )  # Does not exist previously in the file
+            assert to_scrip['Mesh2_node_x'].any()
+            assert to_scrip['Mesh2_node_y'].any()
 
     def test_scrip_variable_names(self):
         """Tests that returned dataset from writer function has all required
