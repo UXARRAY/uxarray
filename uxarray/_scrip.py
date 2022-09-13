@@ -162,9 +162,6 @@ def _write_scrip(ext_ds, outfile):
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()
 
-    # Create grid instance of input ugrid file
-    # ext_ds = xr.open_dataset(ext_ds, engine='scipy')
-
     # Make grid corner lat/lon
     f_nodes = ext_ds.Mesh2_face_nodes.values.ravel()
 
@@ -172,13 +169,9 @@ def _write_scrip(ext_ds, outfile):
     y_val = ext_ds.Mesh2_node_y
     x_val = ext_ds.Mesh2_node_x
 
-    # Create empty arrays to hold lat/lon data
-    lat_nodes = np.zeros_like(f_nodes)
-    lon_nodes = np.zeros_like(f_nodes)
-
-    for i in range(len(f_nodes)):
-        lat_nodes[i] = y_val[int(f_nodes[i])]
-        lon_nodes[i] = x_val[int(f_nodes[i])]
+    # Create arrays to hold lat/lon data
+    lat_nodes = y_val[f_nodes].values
+    lon_nodes = x_val[f_nodes].values
 
     # Reshape arrays to be 2D instead of 1D
     reshp_lat = np.reshape(
@@ -189,16 +182,11 @@ def _write_scrip(ext_ds, outfile):
         [ext_ds.Mesh2_face_nodes.shape[0], ext_ds.Mesh2_face_nodes.shape[1]])
 
     # Add data to new scrip output file
-    ds['grid_corner_lat'] = xr.DataArray(
-        data=reshp_lat,
-        dims=["grid_size", 'grid_corners'],
-    )
-    # Convert data type to float, the Python eqv to double
-    ds['grid_corner_lat'].astype('float')
+    ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
+                                         dims=["grid_size", 'grid_corners'])
 
     ds['grid_corner_lon'] = xr.DataArray(data=reshp_lon,
                                          dims=["grid_size", 'grid_corners'])
-    ds['grid_corner_lon'].astype('float')
 
     # Create Grid rank, always 1 for unstructured grids
     ds["grid_rank"] = xr.DataArray(data=[1], dims=["grid_rank"])

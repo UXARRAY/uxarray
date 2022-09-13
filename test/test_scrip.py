@@ -18,7 +18,7 @@ ds_ne8 = xr.open_dataset(ne8, decode_times=False,
                          engine='netcdf4')  # grid_corner_lat/lon
 
 
-class TestGrid(TestCase):
+class TestScrip(TestCase):
 
     def test_exception_nonSCRIP(self):
         """Checks that exception is raised if non-SCRIP formatted file is
@@ -51,21 +51,21 @@ class TestGrid(TestCase):
         to_scrip = _write_scrip(make_ux, "test_scrip_outfile.nc")
 
         # Test newly created SCRIP is same as original SCRIP
-        assert to_scrip['grid_corner_lat'].any(
-        ) == ds_ne8['grid_corner_lat'].any()  # New variable
-        assert to_scrip['grid_corner_lon'].any(
-        ) == ds_ne8['grid_corner_lon'].any()
+        np.testing.assert_array_almost_equal(to_scrip['grid_corner_lat'],
+                                             ds_ne8['grid_corner_lat'])
+        np.testing.assert_array_almost_equal(to_scrip['grid_corner_lon'],
+                                             ds_ne8['grid_corner_lon'])
 
         # Tests that calculated center lat/lon values are equivalent to original
-        assert to_scrip['grid_center_lon'].any(
-        ) == ds_ne8['grid_center_lon'].any()
-        assert to_scrip['grid_center_lat'].any(
-        ) == ds_ne8['grid_center_lat'].any()
+        np.testing.assert_array_almost_equal(to_scrip['grid_center_lon'],
+                                             ds_ne8['grid_center_lon'])
+        np.testing.assert_array_almost_equal(to_scrip['grid_center_lat'],
+                                             ds_ne8['grid_center_lat'])
 
         # Test that "mesh" variables are not in new file
         with self.assertRaises(KeyError):
-            assert to_scrip['Mesh2_node_x'].any()
-            assert to_scrip['Mesh2_node_y'].any()
+            assert to_scrip['Mesh2_node_x']
+            assert to_scrip['Mesh2_node_y']
 
     def test_scrip_variable_names(self):
         """Tests that returned dataset from writer function has all required

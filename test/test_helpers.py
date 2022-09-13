@@ -63,6 +63,9 @@ class TestIntegrate(TestCase):
         np.testing.assert_array_almost_equal(G, dG)
         np.testing.assert_array_almost_equal(W, dW)
 
+
+class TestGridCenter(TestCase):
+
     def test_grid_center(self):
         ds_ne8 = xr.open_dataset(ne8)
 
@@ -76,5 +79,5 @@ class TestIntegrate(TestCase):
         calc_lon = calc_center[1]
 
         # Test that calculated center_lat/lon is the same as actual center_lat/lon
-        self.assertEqual(scrip_center_lat.any(), calc_lat.any())
-        self.assertEqual(scrip_center_lon.any(), calc_lon.any())
+        np.testing.assert_array_almost_equal(scrip_center_lat, calc_lat)
+        np.testing.assert_array_almost_equal(scrip_center_lon, calc_lon)
