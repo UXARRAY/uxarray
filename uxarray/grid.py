@@ -182,7 +182,8 @@ class Grid:
         elif grid_type == "exodus":
             _write_exodus(self.ds, outfile, self.ds_var_names)
         elif grid_type == "scrip":
-            _write_scrip(self, outfile)
+            _write_scrip(outfile, self.Mesh2_face_nodes, self.Mesh2_node_x,
+                         self.Mesh2_node_y, self.face_areas)
         else:
             raise RuntimeError("Format not supported for writing: ", grid_type)
 

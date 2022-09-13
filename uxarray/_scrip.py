@@ -36,7 +36,7 @@ def _to_ugrid(in_ds, out_ds):
                                         return_inverse=True,
                                         axis=0)
 
-        # Now, calculate unique lon and lat values to account for 'Mesh2_node_x' and 'Mesh2_node_y'
+        # Now, calculate unique lon and lat values to account for 'mesh2_node_x' and 'mesh2_node_y'
         unq_lon = corner_lon_lat[unq_ind, :][:, 0]
         unq_lat = corner_lon_lat[unq_ind, :][:, 1]
 
@@ -131,9 +131,10 @@ def _read_scrip(ext_ds):
     return ds
 
 
-def _write_scrip(ext_ds, outfile):
+def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
+                 face_areas):
     """Function to reassign UGRID formatted variables to SCRIP formatted
-    variables.
+    variables and then writing them out to a netCDF file.
 
     Currently, supports creating unstructured SCRIP grid files following traditional
     SCRIP naming practices (grid_corner_lat, grid_center_lat, etc).
@@ -146,9 +147,6 @@ def _write_scrip(ext_ds, outfile):
 
     Parameters
     ----------
-    ext_ds : :class:`string`
-        path to the original UGRID file of interest in format 'path/to/file'
-
     outfile : :class:`string`
         Name of file to be created. Saved to working directory, or to specified location if full path
         to new file is provided.
@@ -163,23 +161,17 @@ def _write_scrip(ext_ds, outfile):
     ds = xr.Dataset()
 
     # Make grid corner lat/lon
-    f_nodes = ext_ds.Mesh2_face_nodes.values.ravel()
-
-    # Extract lat/lon node data
-    y_val = ext_ds.Mesh2_node_y
-    x_val = ext_ds.Mesh2_node_x
+    f_nodes = mesh2_face_nodes.values.ravel()
 
     # Create arrays to hold lat/lon data
-    lat_nodes = y_val[f_nodes].values
-    lon_nodes = x_val[f_nodes].values
+    lat_nodes = mesh2_node_y[f_nodes].values
+    lon_nodes = mesh2_node_x[f_nodes].values
 
     # Reshape arrays to be 2D instead of 1D
     reshp_lat = np.reshape(
-        lat_nodes,
-        [ext_ds.Mesh2_face_nodes.shape[0], ext_ds.Mesh2_face_nodes.shape[1]])
+        lat_nodes, [mesh2_face_nodes.shape[0], mesh2_face_nodes.shape[1]])
     reshp_lon = np.reshape(
-        lon_nodes,
-        [ext_ds.Mesh2_face_nodes.shape[0], ext_ds.Mesh2_face_nodes.shape[1]])
+        lon_nodes, [mesh2_face_nodes.shape[0], mesh2_face_nodes.shape[1]])
 
     # Add data to new scrip output file
     ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
@@ -198,19 +190,14 @@ def _write_scrip(ext_ds, outfile):
     ds["grid_imask"] = xr.DataArray(data=np.ones(len(reshp_lon), dtype=int),
                                     dims=["grid_size"])
 
-    # Create grid_area using Grid class functions
-    f_area = ext_ds.compute_face_areas(quadrature_rule='gaussian')
-
-    ds["grid_area"] = xr.DataArray(data=f_area, dims=["grid_size"])
+    ds["grid_area"] = xr.DataArray(data=face_areas, dims=["grid_size"])
 
     # Calculate and create grid center lat/lon using helper function
     center_lat, center_lon = grid_center_lat_lon(ds)
 
     ds['grid_center_lon'] = xr.DataArray(data=center_lon, dims=["grid_size"])
-    ds['grid_center_lon'].astype('float')
 
     ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
-    ds['grid_center_lat'].astype('float')
 
     # Create and save new scrip file
     ds.to_netcdf(outfile)

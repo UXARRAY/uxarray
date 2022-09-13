@@ -48,7 +48,9 @@ class TestScrip(TestCase):
 
         # Use uxarray open_dataset to then create SCRIP file from new UGRID file
         make_ux = ux.open_dataset(str(new_path))
-        to_scrip = _write_scrip(make_ux, "test_scrip_outfile.nc")
+        to_scrip = _write_scrip("test_scrip_outfile.nc",
+                                make_ux.Mesh2_face_nodes, make_ux.Mesh2_node_x,
+                                make_ux.Mesh2_node_y, make_ux.face_areas)
 
         # Test newly created SCRIP is same as original SCRIP
         np.testing.assert_array_almost_equal(to_scrip['grid_corner_lat'],
@@ -61,6 +63,14 @@ class TestScrip(TestCase):
                                              ds_ne8['grid_center_lon'])
         np.testing.assert_array_almost_equal(to_scrip['grid_center_lat'],
                                              ds_ne8['grid_center_lat'])
+
+        # Tests that calculated face area values are equivalent to original
+        np.testing.assert_array_almost_equal(to_scrip['grid_area'],
+                                             ds_ne8['grid_area'])
+
+        # Tests that calculated grid imask values are equivalent to original
+        np.testing.assert_array_almost_equal(to_scrip['grid_imask'],
+                                             ds_ne8['grid_imask'])
 
         # Test that "mesh" variables are not in new file
         with self.assertRaises(KeyError):
