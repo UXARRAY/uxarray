@@ -59,6 +59,7 @@ class Grid:
                 If specified file not found
         """
         # initialize internal variable names
+        self._latlonbound_tree = None
         self.__init_ds_var_names__()
 
         # initialize face_area variable
@@ -291,7 +292,7 @@ class Grid:
         reference_tolerance = 1.0e-12
 
         # Build an Interval tree based on the Latitude interval to store latitude-longitude boundaries
-        latlonbound_tree = IntervalTree()
+        self._latlonbound_tree = IntervalTree()
 
 
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
@@ -379,7 +380,6 @@ class Grid:
                         lat_list = [d_lat_extent_rad, 0.5 * np.pi]
 
                     temp_latlon_array[i] = [lat_list, lon_list]
-                    latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
             else:
                 # normal face
                 for j in range(0, len(face)):
@@ -405,9 +405,6 @@ class Grid:
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
                             [d_lat_rad, d_lon_rad])
-                        lat_list = temp_latlon_array[i][0]
-                        lon_list = temp_latlon_array[i][1]
-                        latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
                         continue
 
                     # South Pole:
@@ -421,9 +418,6 @@ class Grid:
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
                             [d_lat_rad, d_lon_rad])
-                        lat_list = temp_latlon_array[i][0]
-                        lon_list = temp_latlon_array[i][1]
-                        latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
                         continue
 
                     # Only consider the great circles arcs
@@ -450,9 +444,6 @@ class Grid:
                     temp_latlon_array[i] = insert_pt_in_latlonbox(
                         copy.deepcopy(temp_latlon_array[i]),
                         [d_lat_rad, d_lon_rad])
-                    lat_list = temp_latlon_array[i][0]
-                    lon_list = temp_latlon_array[i][1]
-                    latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
 
                     if np.absolute(d_de_nom) < reference_tolerance:
                         continue
@@ -478,12 +469,12 @@ class Grid:
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
                             [d_lat_rad, d_lon_rad])
-                        lat_list = temp_latlon_array[i][0]
-                        lon_list = temp_latlon_array[i][1]
-                        latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
 
             assert temp_latlon_array[i][0][0] != temp_latlon_array[i][0][1]
             assert temp_latlon_array[i][1][0] != temp_latlon_array[i][1][1]
+            lat_list = temp_latlon_array[i][0]
+            lon_list = temp_latlon_array[i][1]
+            self._latlonbound_tree[lat_list[0]:lat_list[1]] = i
 
         self.ds["Mesh2_latlon_bounds"] = xr.DataArray(
             data=temp_latlon_array, dims=["nMesh2_face", "Latlon", "Two"])
@@ -570,8 +561,8 @@ class Grid:
 
         return num_intersection
 
-    # Get the zonal average of the input variable
-    def get_zonal_avg(self, var_key, latitude):
+    # Get the non-conservative zonal average of the input variable
+    def get_nc_zonal_avg(self, var_key, latitude_rad):
 
         # First build the latitude and longitude boundary
         if "Mesh2_latlon_bounds" not in self.ds.keys() or "Mesh2_latlon_bounds" is None:
@@ -579,15 +570,16 @@ class Grid:
 
         #  First Get the list of faces that falls into this latitude range
         candidate_faces_index_list = []
-        for i in range(0, len(self.ds["Mesh2_face_edges"])):
-            face_latlon_bounds = self.ds["Mesh2_latlon_bounds"].values[i]
-            if _within(face_latlon_bounds[0][0], latitude, face_latlon_bounds[0][1]):
-                candidate_faces_index_list.append(i)
+
+        # Search through the interval tree for all the candidates face
+        candidate_face_set = self._latlonbound_tree.at(latitude_rad)
+        for interval in candidate_face_set:
+            candidate_faces_index_list.append(interval.data)
+
 
         # Then calculate the weight of each face
-
         # First calculate the perimeter this constant latitude circle
-        lat_radius = _get_radius_of_latitude_rad(latitude)
+        lat_radius = _get_radius_of_latitude_rad(latitude_rad)
         perimeter = 2 * np.pi * lat_radius
         candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
         for i in candidate_faces_index_list:
@@ -603,7 +595,7 @@ class Grid:
                 n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
                       self.ds["Mesh2_node_cart_y"].values[edge[1]],
                       self.ds["Mesh2_node_cart_z"].values[edge[1]]]
-                intersections = _get_intersection_point_gcr_constlat([n1, n2], latitude)
+                intersections = _get_intersection_point_gcr_constlat([n1, n2], latitude_rad)
                 if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
                     # The constant latitude didn't cross this edge
                     continue

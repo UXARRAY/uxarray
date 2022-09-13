@@ -220,6 +220,13 @@ class TestGrid(TestCase):
                 lon_max_quant = minmax_lon_rad_list[i][1]
                 self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
 
+    def test_nc_zonal_average(self):
+        ug_filename_list = ["outCSne30.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+            tgrid1 = ux.open_dataset(str(ug_filename1))
+            tgrid1.get_nc_zonal_avg("temperatrue", 1)
+
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?
     # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
