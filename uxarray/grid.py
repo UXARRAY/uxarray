@@ -160,15 +160,15 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, outfile, extension):
+    def write(self, outfile, grid_type):
         """Writes mesh file as per extension supplied in the outfile string.
 
         Parameters
         ----------
         outfile : str, required
             Path to output file
-        extension : str, required
-            File type of output file.
+        grid_type : str, required
+            Grid type of output file.
             Currently supported options are "ugrid", "exodus", and "scrip"
 
         Raises
@@ -177,20 +177,14 @@ class Grid:
             If unsupported extension provided or directory not found
         """
 
-        if extension == "":
-            outfile_path = PurePath(outfile)
-            extension = outfile_path.suffix
-            if not os.path.isdir(outfile_path.parent):
-                raise RuntimeError("File directory not found: " + outfile)
-
-        if extension == "ugrid":
+        if grid_type == "ugrid":
             _write_ugrid(self.ds, outfile, self.ds_var_names)
-        elif extension == "exodus":
+        elif grid_type == "exodus":
             _write_exodus(self.ds, outfile, self.ds_var_names)
-        elif extension == "scrip":
+        elif grid_type == "scrip":
             _write_scrip(self, outfile)
         else:
-            raise RuntimeError("Format not supported for writing: ", extension)
+            raise RuntimeError("Format not supported for writing: ", grid_type)
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
