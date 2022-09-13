@@ -67,6 +67,8 @@ class TestIntegrate(TestCase):
 class TestGridCenter(TestCase):
 
     def test_grid_center(self):
+        """Calculates if the calculated center point of a grid box is the same
+        as a given value for the same dataset."""
         ds_ne8 = xr.open_dataset(ne8)
 
         # select actual center_lat/lon

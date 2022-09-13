@@ -438,7 +438,17 @@ def _is_ugrid(ds):
 
 def grid_center_lat_lon(ds):
     """Using scrip file variable 'grid_corner_lat/lon, calculates the
-    grid_center_lat/lon."""
+    grid_center_lat/lon.
+
+    ds : :class:`xarray.Dataset`
+        Dataset that contains grid_corner_lat and grid_corner_lon data variables
+
+    Returns
+    -------
+    center_lon, center_lat
+        The calculated center points of the grid box based on the corner points
+    """
+
     # Calculate and create grid center lat/lon
     scrip_corner_lon = ds['grid_corner_lon']
     scrip_corner_lat = ds['grid_corner_lat']
