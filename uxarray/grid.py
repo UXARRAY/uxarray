@@ -174,7 +174,7 @@ class Grid:
         Raises
         ------
         RuntimeError
-            If unsupported extension provided or directory not found
+            If unsupported grid type provided or directory not found
         """
 
         if grid_type == "ugrid":
