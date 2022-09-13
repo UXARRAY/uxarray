@@ -151,6 +151,22 @@ def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
         Name of file to be created. Saved to working directory, or to specified location if full path
         to new file is provided.
 
+    mesh2_face_nodes : xarray.Dataarray
+        Face-node connectivity. This variable should come from the Grid object
+        that calls this function
+
+    mesh2_node_x : xarray.Dataarray
+        Nodes' x values. This variable should come from the Grid object that calls
+        this function
+
+    mesh2_node_y : xarray.Dataarray
+        Nodes' y values. This variable should come from the Grid object that calls
+        this function
+
+    face_areas : numpy.ndarray
+        Face areas. This variable should come from the Grid object that calls
+        this function
+
     Returns
     -------
     ds : :class:`xarray.Dataset`
