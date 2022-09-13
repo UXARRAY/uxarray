@@ -5,6 +5,7 @@ import numpy as np
 import copy
 from warnings import warn
 from pathlib import PurePath
+from intervaltree import Interval, IntervalTree
 
 # reader and writer imports
 from ._exodus import _read_exodus, _write_exodus
@@ -289,6 +290,10 @@ class Grid:
 
         reference_tolerance = 1.0e-12
 
+        # Build an Interval tree based on the Latitude interval to store latitude-longitude boundaries
+        latlonbound_tree = IntervalTree()
+
+
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
             # Check if face contains pole points
@@ -374,6 +379,7 @@ class Grid:
                         lat_list = [d_lat_extent_rad, 0.5 * np.pi]
 
                     temp_latlon_array[i] = [lat_list, lon_list]
+                    latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
             else:
                 # normal face
                 for j in range(0, len(face)):
@@ -399,6 +405,9 @@ class Grid:
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
                             [d_lat_rad, d_lon_rad])
+                        lat_list = temp_latlon_array[i][0]
+                        lon_list = temp_latlon_array[i][1]
+                        latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
                         continue
 
                     # South Pole:
@@ -412,6 +421,9 @@ class Grid:
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
                             [d_lat_rad, d_lon_rad])
+                        lat_list = temp_latlon_array[i][0]
+                        lon_list = temp_latlon_array[i][1]
+                        latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
                         continue
 
                     # Only consider the great circles arcs
@@ -438,6 +450,9 @@ class Grid:
                     temp_latlon_array[i] = insert_pt_in_latlonbox(
                         copy.deepcopy(temp_latlon_array[i]),
                         [d_lat_rad, d_lon_rad])
+                    lat_list = temp_latlon_array[i][0]
+                    lon_list = temp_latlon_array[i][1]
+                    latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
 
                     if np.absolute(d_de_nom) < reference_tolerance:
                         continue
@@ -463,6 +478,9 @@ class Grid:
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
                             [d_lat_rad, d_lon_rad])
+                        lat_list = temp_latlon_array[i][0]
+                        lon_list = temp_latlon_array[i][1]
+                        latlonbound_tree[lat_list[0]:lat_list[1]] = [lat_list, lon_list]
 
             assert temp_latlon_array[i][0][0] != temp_latlon_array[i][0][1]
             assert temp_latlon_array[i][1][0] != temp_latlon_array[i][1][1]
