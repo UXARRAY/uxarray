@@ -81,7 +81,9 @@ class TestScrip(TestCase):
         """Tests that returned dataset from writer function has all required
         SCRIP variables."""
         ux_ne30 = ux.open_dataset(ne30)
-        scrip30 = _write_scrip(ux_ne30, "write_to_scrip.nc")
+        scrip30 = _write_scrip("write_to_scrip.nc", ux_ne30.Mesh2_face_nodes,
+                               ux_ne30.Mesh2_node_x, ux_ne30.Mesh2_node_y,
+                               ux_ne30.face_areas)
 
         # List of relevant variable names for a scrip file
         var_list = [
