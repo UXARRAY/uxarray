@@ -7,11 +7,18 @@
 
 import os
 import sys
+import pathlib
+import yaml
+from sphinx.application import Sphinx
+from sphinx.util import logging
+from textwrap import dedent, indent
 
 sys.path.insert(0,
                 os.path.abspath('../'))  # Source code dir relative to this file
 
 import uxarray
+
+LOGGER = logging.getLogger("conf")
 
 try:
     from unittest.mock import MagicMock
@@ -185,6 +192,42 @@ htmlhelp_basename = 'uxarraydoc'
 autodoc_typehints = 'none'
 
 
+# custom scripts for making a gallery of examples notebooks
+def update_gallery(app: Sphinx):
+    """Update the gallery of examples notebooks."""
+
+    LOGGER.info("creating gallery...")
+
+    notebooks = yaml.safe_load(
+        pathlib.Path(app.srcdir, "gallery.yml").read_bytes())
+
+    items = [
+        f"""
+         .. grid-item-card::
+            :text-align: center
+            :link: {item['path']}
+
+            .. image:: {item['thumbnail']}
+                :alt: {item['title']}
+            +++
+            {item['title']}
+            """ for item in notebooks
+    ]
+
+    items_md = indent(dedent("\n".join(items)), prefix="    ")
+    markdown = f"""
+.. grid:: 1 2 3 3
+    :gutter: 2
+
+    {items_md}
+    """
+
+    pathlib.Path(app.srcdir, "notebook-examples.txt").write_text(markdown)
+
+    LOGGER.info("gallery created")
+
+
 # Allow for changes to be made to the css in the theme_overrides file
 def setup(app):
     app.add_css_file('theme_overrides.css')
+    app.connect("builder-inited", update_gallery)
