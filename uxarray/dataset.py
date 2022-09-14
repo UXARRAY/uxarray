@@ -14,30 +14,39 @@ def open_dataset(grid_file, *args, **kw):
 
     grid_file : string, required
         Grid file is the first argument, which should be the file that
-        houses the unstructured grid definition. It should be comapatible to
+        houses the unstructured grid definition. It should be compatible to
         be opened with xarray.open_dataset (e.g. path to a file in the local
         storage, OpenDAP URL, etc).
     *args : string, optional
-        Data file(s) corresponding to the grid_file. They should be comapatible
+        Data file(s) corresponding to the grid_file. They should be compatible
         to be opened with xarray.open_dataset (e.g. path to a file in the local
         storage, OpenDAP URL, etc).
 
     Returns
     -------
 
-    object : uxarray Grid
+    object : UXarray Grid
         UXarray Grid object that contains the grid definition and corresponding
         data.
 
     Examples
     --------
-
     Open grid file only
+
     >>> mesh = ux.open_dataset("grid_filename.g")
 
-
     Open grid file along with data
+
     >>> mesh_and_data = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
+
+    Open grid file along with multiple data files (two or more)
+
+    >>> mesh_and_data_2 = ux.open_dataset("grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc")
+
+    Open grid file along with a list of data files
+
+    >>> data_files = ["grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc", "grid_filename_vortex_3.nc"]
+    >>> mesh_and_data = ux.open_dataset("grid_filename.g", *data_files)
     """
     mesh_filetype, dataset = parse_grid_type(grid_file, **kw)
 

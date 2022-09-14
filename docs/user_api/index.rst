@@ -16,14 +16,22 @@ Grid Class
    grid.Grid
 
 Grid Methods
---------------
+------------
 .. autosummary::
    :toctree: _autosummary
 
-   grid.Grid.write
    grid.Grid.calculate_total_face_area
-   grid.Grid.integrate
    grid.Grid.compute_face_areas
+   grid.Grid.integrate
+   grid.Grid.write
+
+Reading Data
+------------
+.. autosummary::
+   :toctree: _autosummary
+
+   uxarray.open_dataset
+
 
 Helper Functions
 ----------------
