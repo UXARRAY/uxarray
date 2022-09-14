@@ -627,6 +627,15 @@ class Grid:
         zonal_average = np.dot(candidate_faces_weight_list, face_vals)
         return zonal_average
 
+    def get_dual_mesh(self):
+        """
+        Compute the dual mesh (the set of spherical polygons connecting centroids of each mesh centroid).
+        """
+        if "Mesh2_node_cart_x" not in self.ds.keys():
+            self.__populate_cartesian_xyz_coord()
+
+        for face in self.ds["Mesh2_face_nodes"].values:
+
 
 
 
