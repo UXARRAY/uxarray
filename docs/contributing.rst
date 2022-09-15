@@ -17,7 +17,7 @@ you are already or soon-to-be a UXarray contributor, please keep reading!
 UXarray is a community-owned, open-development effort that is a result
 of the collaboration between `Project Raijin <https://raijin.ucar.edu/>`_
 and DOE’s `SEATS Project <https://seatstandards.org/>`_ ]. Even though the
-Uxarray team has initiated and been expanding this package, outside
+UXarray team has initiated and been expanding this package, outside
 contributions are welcome and vital for its long-term sustainability.
 Therefore, we invite other community members to become part of this
 collaboration at any level of contribution.
