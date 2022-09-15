@@ -210,26 +210,6 @@ class Grid:
 
         return np.sum(face_areas)
 
-    # Build the node-face connectivity array.
-    def build_node_face_connectivity(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Build the edge-face connectivity array.
-    def build_edge_face_connectivity(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Build the array of latitude-longitude bounding boxes.
-    def buildlatlon_bounds(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Validate that the grid conforms to the UXGrid standards.
-    def validate(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
     def __init_ds_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
         of xarray object.
