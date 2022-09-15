@@ -22,6 +22,16 @@ contributions are welcome and vital for its long-term sustainability.
 Therefore, we invite other community members to become part of this
 collaboration at any level of contribution.
 
+Why the name "UXarray"?
+-----------------------
+
+We have created UXarray by composing `Xarray <https://docs.xarray.dev/en/stable/>`_,
+a Pangeo ecosystem package commonly-used  for structured grids
+recognition, to support reading and recognizing unstructured grid
+model outputs. We picked the name "UXarray" and preferred to
+capitalize the first two letters to emphasize it is Xarray for
+Unstructured grids.
+
 Many ways to contribute
 -----------------------
 
@@ -46,3 +56,19 @@ The UXarray content is hosted on GitHub, and through this document,
 we aim to ease the community's experience with contributing to this project.
 However, this guide might still be missing case-specific details; please do
 not hesitate to reach out to us to consult any such cases.
+
+Project Specific Resources
+--------------------------
+
+Some important UXarray resources are as follows:
+
+- `Uxarray GitHub repository <https://github.com/UXARRAY/uxarray>`_ houses
+  the open-source code base along with some significant documentation such
+  as “Readme”, “Installation”, “Contributing”, and UXarray draft API.
+- `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
+  tentatively shows the eventual list of UXarray functionalities. It is
+  open to community feedback and inputs!
+  - Please create a
+    GitHub `Discussion <https://github.com/UXARRAY/uxarray/discussions>`_ or
+    `Issue <https://github.com/UXARRAY/uxarray/issues>`_ if you feel there
+    should be change in any way in this document!
