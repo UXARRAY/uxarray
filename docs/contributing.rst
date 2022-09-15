@@ -66,9 +66,10 @@ we aim to ease the community's experience with contributing to this project.
 However, this guide might still be missing case-specific details; please do
 not hesitate to reach out to us to consult any such cases.
 
-Lastly, much of the information in this guide has been co-opted from the
-`GeoCAT <https://geocat.ucar.edu/pages/contributing.html>`_ project and
-`Project Pythia <https://projectpythia.org/contributing.html>`_.
+.. note::
+    Much of the information in this guide has been co-opted from the
+    `GeoCAT <https://geocat.ucar.edu/pages/contributing.html>`_ project and
+    `Project Pythia <https://projectpythia.org/contributing.html>`_.
 
 1.4. Project Specific Resources
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -113,10 +114,11 @@ Git. The latter, Git, is an open source, command line tool for collaborative
 software version control, while GitHub is an online, web-accessible service
 that greatly simplifies using the powerful, yet often complex, Git.
 
-Note: GitHub operates entirely within a web browser. You do not need to
-install anything, but you will need to set up a free GitHub account. Git
-is a command line tool that most likely will need to be installed on
-your machine and run from a "terminal" window, AKA a "shell".
+.. note::
+    GitHub operates entirely within a web browser. You do not need to
+    install anything, but you will need to set up a free GitHub account. Git
+    is a command line tool that most likely will need to be installed on
+    your machine and run from a "terminal" window, AKA a "shell".
 
 Using, and even just configuring, Git and GitHub are often the most
 daunting aspects of contributing to a GitHub hosted project. Here are
