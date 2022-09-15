@@ -8,8 +8,8 @@ Contributor's Guide
 
 Welcome to the Contributor's Guide for UXarray!
 
-So, welcome to the team! If you are reading this document, we hope that
-you are already or soon-to-be a UXarray contributor! Please keep reading!
+Welcome to the team! If you are reading this document, we hope that
+you are already or soon-to-be a UXarray contributor, please keep reading!
 
 1. Overview
 -----------
