@@ -321,9 +321,26 @@ guide and apply those instructions for the actual `UXarray repository
     :code:`git clone` command). You can type the following command in the terminal/shell to
     go into your local UXarray repository::
 
-        cd uxarray
+        $ cd uxarray
+
+3.3. Configure UXarray Conda Environment
+----------------------------------------
+
+In your local UXarray directory, creating a UXarray conda environment is needed for
+development purposes. USe the following commands for this::
+
+    $ conda env create --file ci/environment.yml
+    $ conda activate uxarray_build
+
+THe above commands will use the :code:`environment.yml` conda environment definition
+file that is housed in the :code:`ci` folder and create a conda environment with the
+name "uxarray_build". Once you activate that environment with the help of the second
+command, you will be able to develop UXarray codes in your local configuration.
 
 3.3. Use Feature Branches
 -------------------------
 
-In your local clone, make a new feature branch off of the :code:`main` branch.  titled issue_XXX where XXX is the number of the issue or something that is representative of the changes you’re making
+In your local clone, make a new feature branch off of the :code:`main` branch.
+Naming this branch, whenever applicable, like the following is not required but may be much
+helpful for tracking purposes: "issue_XXX" where XXX is the number of the issue or something
+that is representative of the changes you’re making.
