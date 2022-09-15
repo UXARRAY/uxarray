@@ -38,7 +38,7 @@ Unstructured grids.
 There are many different ways to contribute to UXarray. Anyone can, for
 example,
 
-- Write or revise user documentation (including this document)
+- Write or revise documentation (including this document)
 
 - Implement data analysis operators for unstructured grids from scratch
   or from their workflows
