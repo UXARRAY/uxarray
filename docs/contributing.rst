@@ -87,8 +87,8 @@ Some important UXarray resources are as follows:
 
   - Please create a
     GitHub `Discussion <https://github.com/UXARRAY/uxarray/discussions>`_ or
-    `Issue <https://github.com/UXARRAY/uxarray/issues>`_ if you feel there
-    should be change in any way in this document!
+    `Issue <https://github.com/UXARRAY/uxarray/issues>`_ if you feel any changes
+    should be made to this document!
 
 2. Configuring GitHub and Git, and Setting Up Python Environment
 ================================================================
