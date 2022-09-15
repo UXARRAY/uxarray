@@ -2,9 +2,9 @@
 
 .. _contributing:
 
-
+*******************
 Contributor's Guide
-===================
+*******************
 
 Welcome to the Contributor's Guide for UXarray!
 
@@ -12,7 +12,7 @@ Welcome to the team! If you are reading this document, we hope that
 you are already or soon-to-be a UXarray contributor, please keep reading!
 
 1. Overview
------------
+===========
 
 UXarray is a community-owned, open-development effort that is a result
 of the collaboration between `Project Raijin <https://raijin.ucar.edu/>`_
@@ -23,7 +23,7 @@ Therefore, we invite other community members to become part of this
 collaboration at any level of contribution.
 
 1.1. Why the name "UXarray"?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 We have created UXarray by composing `Xarray <https://docs.xarray.dev/en/stable/>`_,
 a Pangeo ecosystem package commonly-used  for structured grids
@@ -33,28 +33,24 @@ capitalize the first two letters to emphasize it is Xarray for
 Unstructured grids.
 
 1.2. Many ways to contribute
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 There are many different ways to contribute to UXarray. Anyone can, for
 example,
 
-- Write or revise documentation (including this document)
-
-- Implement data analysis operators for unstructured grids from scratch
+* Write or revise documentation (including this document)
+* Implement data analysis operators for unstructured grids from scratch
   or from their workflows
-
-- Develop example notebooks that demonstrate how a particular function
+* Develop example notebooks that demonstrate how a particular function
   is used
-
-- Answer a support question
-
-- Simply request a feature or report a bug
+* Answer a support question
+* Simply request a feature or report a bug
 
 All of these activities are signicant contributions to the on-going
 development and maintenance of UXarray.
 
 1.3. About this guide
-^^^^^^^^^^^^^^^^^^^^^
+---------------------
 
 The UXarray content is hosted on GitHub, and through this document,
 we aim to ease the community's experience with contributing to this project.
@@ -67,16 +63,16 @@ not hesitate to reach out to us to consult any such cases.
     `Project Pythia <https://projectpythia.org/contributing.html>`_.
 
 1.4. Project Specific Resources
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------
 
 Some important UXarray resources are as follows:
 
-- `Uxarray GitHub repository <https://github.com/UXARRAY/uxarray>`_ houses
+* `Uxarray GitHub repository <https://github.com/UXARRAY/uxarray>`_ houses
   the open-source code base along with some significant documentation such
   as `Readme <https://github.com/UXARRAY/uxarray/blob/main/README.md>`_ and
   `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_.
 
-- `Uxarray documentation <https://uxarray.readthedocs.io/en/latest/?badge=latest>`_
+* `Uxarray documentation <https://uxarray.readthedocs.io/en/latest/?badge=latest>`_
   houses significant documentation such as
   `Getting Started <https://uxarray.readthedocs.io/en/latest/quickstart.html>`_,
   `Installation <https://uxarray.readthedocs.io/en/latest/installation.html>`_,
@@ -85,7 +81,7 @@ Some important UXarray resources are as follows:
   `Tutorials <https://uxarray.readthedocs.io/en/latest/tutorials.html#>`_, and
   `API Reference <https://uxarray.readthedocs.io/en/latest/api.html>`_.
 
-- `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
+* `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
   tentatively shows the eventual list of UXarray functionalities. It is
   open to community feedback and inputs!
 
@@ -94,14 +90,14 @@ Some important UXarray resources are as follows:
     `Issue <https://github.com/UXARRAY/uxarray/issues>`_ if you feel there
     should be change in any way in this document!
 
-2. Working on the UXarray GitHub Repository
--------------------------------------------
+2. Configuring GitHub and Git and Understanding UXarray's Usage
+===============================================================
 
-In this section, we provide details about how to work on the UXarray
-GitHub repository. This is because most contributions, such as adding a new
-function or making changes to an existing one, writing a usage example, or
-making some modifications to this Contributor's Guide requires operating
-directly on the GitHub repository.
+In this section, we provide details about how to configure Github and Git
+in order to work with the UXarray GitHub repository. This is because most
+contributions, such as adding a new function or making changes to an
+existing one, writing a usage example, or making some modifications to this
+Contributor's Guide requires operating directly on the GitHub repository.
 
 Contributing to a GitHub repository follows almost the same process by
 any open development Python project maintained on GitHub.
@@ -114,7 +110,7 @@ guide), but we will provide great details about how to configure a GitHub
 development environment for UXarray development and how to contribute.
 
 2.1. Getting started with GitHub and Git
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------
 
 Contributing to UXarray requires using GitHub, as already mentioned, and
 Git. The latter, Git, is an open source, command line tool for collaborative
@@ -129,5 +125,141 @@ that greatly simplifies using the powerful, yet often complex, Git.
 
 Using, and even just configuring, Git and GitHub are often the most
 daunting aspects of contributing to a GitHub hosted project. Here are
-the basic steps for Git/GitHub configuration, all of which must be
-performed **before** the next subsection, forking a repo.
+the basic steps for GitHub/Git configuration and Python installation, all
+of which must be performed **before** contributing to UXarray.
+
+2.1.1. GitHub Setup
+^^^^^^^^^^^^^^^^^^^
+
+Create a free `GitHub <https://github.com/>`_ account. Note GitHub
+offers free personal use and paid enterprise accounts. The free account
+is all that is needed.
+
+2.1.2. Git Setup
+^^^^^^^^^^^^^^^^
+
+If not already installed on your machine, download and install the latest
+version of `Git <https://git-scm.com/downloads>`_. Once Git is installed
+you will need to open a terminal/shell and type the commands below to
+configure Git with a user name and your email. Note, it is recommended
+that you use the same user name/email as you did when setting up your GitHub
+account, though technically this may not be necessary::
+
+    $ git config --global user.name "Your name here"
+    $ git config --global user.email "your_email@example.com"
+
+Don’t type the $. This simply indicates the command line prompt.
+
+Configure your environment to authenticate with GitHub from Git. This is a
+complicated process, so suggest that you refer to the details on the `GitHub
+site <https://docs.github.com/en/get-started/quickstart/set-up-git#next-steps-authenticating-with-github-from-git>`_
+to complete this step.
+
+For further reading see the `Getting Started with Github
+<https://docs.github.com/en/get-started>`_.
+
+2.2. How UXarray Uses Git/GitHub
+--------------------------------
+
+UXarray uses the `GitHub Flow
+<https://docs.github.com/en/get-started/quickstart/github-flow>`_ model
+for its workflow. UXArray also uses an automated formatter on all commits
+in local development environment. This changes the normal workflow slightly,
+so in order to avoid any confusions, follow these steps:
+
+2.2.1. Select an issue to work on
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Virtually any work should be addressing an issue. There are a few options to
+select an issue to work on:
+
+1. First, check the existing `UXarray issues
+<https://github.com/UXARRAY/uxarray/issues>`_. These issues might have been
+created from either the
+
+* `UXarray draft API
+  <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
+  entries,
+* An entry in a `UXarray Discussion <https://github.com/UXARRAY/uxarray/discussions>`_
+* A feature request, bug report, or any finding of the developers or users
+  as a work to-do.
+
+2. If you are going to work on one of those issues above, self-assign that
+issue before you start working. Or else, if you are going to work on something
+else, create an issue and describe it clearly (e.g. what the work should be,
+which parts of UXarray it would need to change, etc.)
+
+.. note::
+    If you need any clarification/discussion about any requirements, or if you
+    think the implementation of that issue will require huge changes to the code,
+    design, documentation, etc. that issue itself is the right place to manage
+    such discussions with the other UXarray'ers. Don't hesitate to ask ad-hoc
+    meetings, etc.
+
+    Do not forget, early requirements analysis, specifications, and design
+    discussions can avoid redundat code review and modifications later!
+
+2.2.2. Fork or locally clone the UXarray repository
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Let us first make a decision of whether to fork or locally clone:
+
+Should you fork?
+~~~~~~~~~~~~~~~~
+
+"Fork"ing a repository as described below in this section creates a clone of
+the Uxarray repository under your own account or any GitHub organization of
+which you are a member on GitHub. Forking can be advisable for cases such as:
+
+* You want to safely make changes to the forked repository contents without changing
+  the actual UXarray repository. This is because any changes you make to your
+  fork will only be seen by you until you are ready to share them with others,
+  and hopefully “merge” your changes into UXarray.
+* You are not a regular contributor to the UXarray repository; thus, from time
+  to time, you would sync your fork to UXarray and make one or more contributions.
+* You are planning to initiate a new project by altering the forked repo
+  significantly from UXarray, but this case is out of this guide's scope.
+
+If you decide on forking the UXarray repository, here is how to do that:
+
+**Forking the UXarray repository**
+
+Refer to GitHub's `Forking a repository
+<https://docs.github.com/en/get-started/quickstart/fork-a-repo>`_ guide and apply
+instructions regarding the UXarray repository.
+
+.. note::
+    The above GitHub guide about forking a repository will also walk you through
+    cloning your forked repository into your local work environment. Please do not
+    forget to follow those instructions as well. Or, refer to `GitHub's Cloning a
+    repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
+    guide, and apply those instructions for the UXarray fork that is listed under
+    your GitHub account or organization.
+
+After these steps, you will have two copies of the forked UXarray repo, one remote
+and one local.
+
+
+Or, should you locally clone instead?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In contrast to above cases that might be better suitable for fork, a regular
+UXarray contributor who is comfortable with working on their local clone
+of the actual UXarray repository and making their changes immediately viewable by
+the other UXarray'ers (i.e. after "push"ing their "commit"s) can choose to locally
+clone the UXarray repository.
+
+**Locally cloning the UXarray repository**
+
+Refer to `GitHub's Cloning a repository
+<https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
+guide and apply those instructions for the actual `UXarray repository
+<https://github.com/UXARRAY/uxarray>`_.
+
+.. note::
+    Regardless of you either fork or clone, there will be a local directory created
+    in the name "uxarray" (unless you specified a different name at the step with the
+    `git clone` command). You can type the following command in the terminal/shell to
+    go into your local UXarray repository::
+
+        cd uxarray
