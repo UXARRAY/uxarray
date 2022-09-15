@@ -2,11 +2,6 @@
 
 .. _contributing:
 
-.. contents::
-   :depth: 3
-   :local:
-   :backlinks: none
-
 
 Contributor's Guide
 ===================
@@ -103,7 +98,9 @@ any open development Python project maintained on GitHub.
 However, it can still seem complex and somewhat varied from one project to
 another. As such, we will provide an overview of GitHub here and refer the
 reader to other more comprehensive resources for detailed information about
-it, but we will provide great details about how to configure a GitHub
+it (such as GitHub's this
+`Getting Started with Github <https://docs.github.com/en/get-started>`_
+guide), but we will provide great details about how to configure a GitHub
 development environment for UXarray development and how to contribute.
 
 2.1. Getting started with GitHub and Git
