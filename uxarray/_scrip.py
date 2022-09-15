@@ -146,39 +146,39 @@ def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
     Currently, supports creating unstructured SCRIP grid files following traditional
     SCRIP naming practices (grid_corner_lat, grid_center_lat, etc).
 
-    Unstructured grid SCRIP files will have 'grid_rank=1' and include variables
-    "grid_imask" and "grid_area" in the dataset.
+    Unstructured grid SCRIP files will have ``grid_rank=1`` and include variables
+    ``grid_imask`` and ``grid_area`` in the dataset.
 
-    More information on structured vs unstructured SCRIP files can be found here:
-    https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html
+    More information on structured vs unstructured SCRIP files can be found here on the `Earth System Modeling Framework <https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html>`_ website.
 
     Parameters
     ----------
-    outfile : :class:`string`
-        Name of file to be created. Saved to working directory, or to specified location if full path
-        to new file is provided.
+    outfile : str
+        Name of file to be created. Saved to working directory, or to
+        specified location if full path to new file is provided.
 
-    mesh2_face_nodes : xarray.Dataarray
-        Face-node connectivity. This variable should come from the Grid object
+    mesh2_face_nodes : xarray.DataArray
+        Face-node connectivity. This variable should come from the ``Grid``
+        object that calls this function
+
+    mesh2_node_x : xarray.DataArray
+        Nodes' x values. This variable should come from the ``Grid`` object
         that calls this function
 
-    mesh2_node_x : xarray.Dataarray
-        Nodes' x values. This variable should come from the Grid object that calls
-        this function
-
-    mesh2_node_y : xarray.Dataarray
-        Nodes' y values. This variable should come from the Grid object that calls
-        this function
+    mesh2_node_y : xarray.DataArray
+        Nodes' y values. This variable should come from the ``Grid`` object
+        that calls this function
 
     face_areas : numpy.ndarray
-        Face areas. This variable should come from the Grid object that calls
-        this function
+        Face areas. This variable should come from the ``Grid`` object
+        that calls this function
 
     Returns
     -------
-    ds : :class:`xarray.Dataset`
-        Dataset to be returned by _write_scrip. The function returns both the output dataset in SCRIP format for
-        immediate and saves it as an independent netCDF file.
+    ds : xarray.Dataset
+        Dataset to be returned by ``_write_scrip``. The function returns both
+        the output dataset in SCRIP format for immediate and saves it as an
+        independent netCDF file.
     """
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()
