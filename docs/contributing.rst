@@ -2,9 +2,10 @@
 
 .. _contributing:
 
-.. toctree::
- :maxdepth: 2
- :numbered:
+.. contents::
+   :depth: 3
+   :local:
+   :backlinks: none
 
 
 Contributor's Guide
