@@ -25,12 +25,12 @@ collaboration at any level of contribution.
 1.1. Why the name "UXarray"?
 ----------------------------
 
-We have created UXarray by composing `Xarray <https://docs.xarray.dev/en/stable/>`_,
-a Pangeo ecosystem package commonly-used  for structured grids
-recognition, to support reading and recognizing unstructured grid
-model outputs. We picked the name "UXarray" and preferred to
-capitalize the first two letters to emphasize it is Xarray for
-Unstructured grids.
+We have created UXarray based on `Xarray <https://docs.xarray.dev/en/stable/>`_
+(via composition of a Xarray dataset object), a Pangeo ecosystem package
+commonly-used  for structured grids recognition, to support reading and
+recognizing unstructured grid model outputs. We picked the name "UXarray"
+and preferred to capitalize the first two letters to emphasize it is Xarray
+for Unstructured grids.
 
 1.2. Many ways to contribute
 ----------------------------
