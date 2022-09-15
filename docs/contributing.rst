@@ -2,6 +2,10 @@
 
 .. _contributing:
 
+.. toctree::
+ :maxdepth: 2
+ :numbered:
+
 
 Contributor's Guide
 ===================
@@ -61,6 +65,10 @@ we aim to ease the community's experience with contributing to this project.
 However, this guide might still be missing case-specific details; please do
 not hesitate to reach out to us to consult any such cases.
 
+Lastly, much of the information in this guide has been co-opted from the
+`GeoCAT <https://geocat.ucar.edu/pages/contributing.html>`_ project and
+`Project Pythia <https://projectpythia.org/contributing.html>`_.
+
 1.4. Project Specific Resources
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -88,8 +96,8 @@ function or making changes to an existing one, writing a usage example, or
 making some modifications to this Contributor's Guide requires operating
 directly on the GitHub repository.
 
-Contributing to a GitHub repository follows almost the same
-process used by many open development Python tools maintained on GitHub.
+Contributing to a GitHub repository follows almost the same process by
+any open development Python project maintained on GitHub.
 However, it can still seem complex and somewhat varied from one project to
 another. As such, we will provide an overview of GitHub here and refer the
 reader to other more comprehensive resources for detailed information about
@@ -98,3 +106,18 @@ development environment for UXarray development and how to contribute.
 
 2.1. Getting started with GitHub and Git
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Contributing to UXarray requires using GitHub, as already mentioned, and
+Git. The latter, Git, is an open source, command line tool for collaborative
+software version control, while GitHub is an online, web-accessible service
+that greatly simplifies using the powerful, yet often complex, Git.
+
+Note: GitHub operates entirely within a web browser. You do not need to
+install anything, but you will need to set up a free GitHub account. Git
+is a command line tool that most likely will need to be installed on
+your machine and run from a "terminal" window, AKA a "shell".
+
+Using, and even just configuring, Git and GitHub are often the most
+daunting aspects of contributing to a GitHub hosted project. Here are
+the basic steps for Git/GitHub configuration, all of which must be
+performed **before** the next subsection, forking a repo.
