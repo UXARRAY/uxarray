@@ -126,7 +126,7 @@ that greatly simplifies using the powerful, yet often complex, Git.
 Using, and even just configuring, Git and GitHub are often the most
 daunting aspects of contributing to a GitHub hosted project. Here are
 the basic steps for GitHub/Git configuration and Python installation, all
-of which must be performed **before** contributing to UXarray.
+of which must be performed **before** contributing to UXarray:
 
 2.1.1. GitHub Setup
 ^^^^^^^^^^^^^^^^^^^
