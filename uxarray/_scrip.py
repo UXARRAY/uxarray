@@ -101,8 +101,15 @@ def _read_scrip(ext_ds):
     More information on structured vs unstructured SCRIP files can be found here:
     https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html
 
-    Parameters: xarray.Dataset, required
-    Returns: ugrid aware xarray.Dataset
+    Parameters
+    ----------
+    ext_ds : :class:`xarray.Dataset`, required
+        SCRIP datafile of interest
+
+    Returns
+    -------
+    ds : :class:`xarray.Dataset`
+        ugrid aware xarray.Dataset
     """
     ds = xr.Dataset()
 
