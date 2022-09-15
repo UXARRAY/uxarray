@@ -5,16 +5,17 @@ from .helpers import grid_center_lat_lon
 
 
 def _to_ugrid(in_ds, out_ds):
-    """If input dataset (ds) file is an unstructured SCRIP file, function will
-    reassign SCRIP variables to UGRID conventions in output file (outfile).
+    """If input dataset (``in_ds``) file is an unstructured SCRIP file,
+    function will reassign SCRIP variables to UGRID conventions in output file
+    (``out_ds``).
 
     Parameters
     ----------
-    in_ds : :class:`xarray.Dataset`
+    in_ds : xarray.Dataset
         Original scrip dataset of interest being used
 
-    out_ds : :class:`xarray.Variable`
-        file to be returned by _populate_scrip_data, used as an empty placeholder file
+    out_ds : xarray.Variable
+        file to be returned by ``_populate_scrip_data``, used as an empty placeholder file
         to store reassigned SCRIP variables in UGRID conventions
     """
 
@@ -95,21 +96,20 @@ def _read_scrip(ext_ds):
     naming practices (grid_corner_lat, grid_center_lat, etc) and SCRIP files with
     UGRID conventions.
 
-    Unstructured grid SCRIP files will have 'grid_rank=1' and include variables
-    "grid_imask" and "grid_area" in the dataset.
+    Unstructured grid SCRIP files will have ``grid_rank=1`` and include variables
+    ``grid_imask`` and ``grid_area`` in the dataset.
 
-    More information on structured vs unstructured SCRIP files can be found here:
-    https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html
+    More information on structured vs unstructured SCRIP files can be found here on the `Earth System Modeling Framework <https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html>`_ website.
 
     Parameters
     ----------
-    ext_ds : :class:`xarray.Dataset`, required
+    ext_ds : xarray.Dataset, required
         SCRIP datafile of interest
 
     Returns
     -------
-    ds : :class:`xarray.Dataset`
-        ugrid aware xarray.Dataset
+    ds : xarray.Dataset
+        ugrid aware :class:`xarray.Dataset`
     """
     ds = xr.Dataset()
 
