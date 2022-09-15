@@ -90,8 +90,8 @@ Some important UXarray resources are as follows:
     `Issue <https://github.com/UXARRAY/uxarray/issues>`_ if you feel there
     should be change in any way in this document!
 
-2. Configuring GitHub and Git and Understanding UXarray's Usage
-===============================================================
+2. Configuring GitHub and Git, and Setting Up Python Environment
+================================================================
 
 In this section, we provide details about how to configure Github and Git
 in order to work with the UXarray GitHub repository. This is because most
@@ -158,8 +158,45 @@ to complete this step.
 For further reading see the `Getting Started with Github
 <https://docs.github.com/en/get-started>`_.
 
-2.2. How UXarray Uses Git/GitHub
---------------------------------
+2.2. Setting Up Python Environment
+----------------------------------
+
+Before starting any Python or documentation development, you’ll need to
+create a Python environment along with a package manager. When we use the
+term “Python environment” here, we are referring to the Python programming
+language. Because there are so many Python packages available,
+maintaining interoperability between them is a huge challenge. To overcome
+some of these difficulties, we strongly recommend the use of `Anaconda
+<https://www.anaconda.com/download/>`_ or `Miniconda
+<https://conda.io/miniconda.html/>`_ as a package manager to manage your
+Python ecosystem. These package managers allow you to create a separate,
+custom Python environment for each specific Python set of tools. Yes, this
+unfortunately results in multiple copies of Python on your system, but it
+greatly reduces breaking toolchains whenever a change is made to your Python
+environment (and is more reliable than any other solution we’ve encountered).
+Also, the use of Anaconda/Miniconda is standard practice for working with
+Python in general, not simply for using UXarray.
+
+To configure your Python environment:
+
+1. Install either `Anaconda <https://www.anaconda.com/download/>`_ or
+`Miniconda <https://conda.io/miniconda.html/>`_.
+
+   * We recommend Miniconda as it does not install unnecessarily many
+     packages that will not be needed for UXarray development.
+
+2. Make sure your conda is up to date by running this command from the
+terminal::
+
+    conda update conda
+
+At this point you will have a current version of conda available on your
+system. Before using your conda environment to work on UXarray development,
+you’ll need to perform an additional setup that is going to be described in
+the next section.
+
+3. How UXarray Uses Git/GitHub
+==============================
 
 UXarray uses the `GitHub Flow
 <https://docs.github.com/en/get-started/quickstart/github-flow>`_ model
@@ -167,8 +204,8 @@ for its workflow. UXArray also uses an automated formatter on all commits
 in local development environment. This changes the normal workflow slightly,
 so in order to avoid any confusions, follow these steps:
 
-2.2.1. Select an issue to work on
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3.1. Select an issue to work on
+-------------------------------
 
 Virtually any work should be addressing an issue. There are a few options to
 select an issue to work on:
@@ -185,30 +222,49 @@ created from either the
   as a work to-do.
 
 2. If you are going to work on one of those issues above, self-assign that
-issue before you start working. Or else, if you are going to work on something
-else, create an issue and describe it clearly (e.g. what the work should be,
-which parts of UXarray it would need to change, etc.)
+issue before you start working.
+
+3. Or else, if you are going to work on something else, create an issue. The
+title, description, and label of an issue could be very helpful for the team to
+triage the issue and move forward with the work needed.
+
+* Title needs to reflect the purpose of the issue. Some examples:
+  - Start with "Add ..." if it is a new functionality needed
+  - Start with "Error ...", "Exception ...", or "Bug ..." if that is a bug
+* Use issue labels accordingly, e.g. "bug", "support", "enhancement",
+  "documentation", etc.
+* Clearly describe the issue (e.g. what the work should be, which parts of
+  UXarray it would need to change, if known, etc.)
+
+.. note::
+    The work that addresses an issue will, most of the time, be eventually
+    turned into a "pull request" (or maybe multiple in some cases) that lets you
+    tell others about changes you're aiming to make on the project. Once a pull
+    request (PR) is opened, it will require others' thorough review and discussion
+    before your changes can take place in the project. Hence, a rule of thumb about
+    pull requests should be that they should target logically connected, as atomic
+    as possible work.
 
 .. note::
     If you need any clarification/discussion about any requirements, or if you
-    think the implementation of that issue will require huge changes to the code,
-    design, documentation, etc. that issue itself is the right place to manage
-    such discussions with the other UXarray'ers. Don't hesitate to ask ad-hoc
-    meetings, etc.
+    think the implementation of that issue will require significant changes to
+    the code, design, documentation, etc. that issue itself is the right place
+    to manage such discussions with the other UXarray'ers. Don't hesitate to
+    ask ad-hoc meetings, etc.
 
     Do not forget, early requirements analysis, specifications, and design
     discussions can avoid redundat code review and modifications later!
 
-2.2.2. Fork or locally clone the UXarray repository
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3.2. Fork or locally clone the UXarray repository
+-------------------------------------------------
 
 Let us first make a decision of whether to fork or locally clone:
 
-Should you fork?
-~~~~~~~~~~~~~~~~
+3.2.1. Should you fork?
+^^^^^^^^^^^^^^^^^^^^^^^
 
-"Fork"ing a repository as described below in this section creates a clone of
-the Uxarray repository under your own account or any GitHub organization of
+"Fork"ing a repository as described below in this section creates a copy of
+the repository under your own account or any GitHub organization of
 which you are a member on GitHub. Forking can be advisable for cases such as:
 
 * You want to safely make changes to the forked repository contents without changing
@@ -219,6 +275,10 @@ which you are a member on GitHub. Forking can be advisable for cases such as:
   to time, you would sync your fork to UXarray and make one or more contributions.
 * You are planning to initiate a new project by altering the forked repo
   significantly from UXarray, but this case is out of this guide's scope.
+
+You can refer to the `Atlassian's Forking workflow
+<https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow>`_
+tutorial to further learn about forking.
 
 If you decide on forking the UXarray repository, here is how to do that:
 
@@ -239,9 +299,8 @@ instructions regarding the UXarray repository.
 After these steps, you will have two copies of the forked UXarray repo, one remote
 and one local.
 
-
-Or, should you locally clone instead?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+3.2.2. Should you locally clone instead?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In contrast to above cases that might be better suitable for fork, a regular
 UXarray contributor who is comfortable with working on their local clone
@@ -259,7 +318,12 @@ guide and apply those instructions for the actual `UXarray repository
 .. note::
     Regardless of you either fork or clone, there will be a local directory created
     in the name "uxarray" (unless you specified a different name at the step with the
-    `git clone` command). You can type the following command in the terminal/shell to
+    :code:`git clone` command). You can type the following command in the terminal/shell to
     go into your local UXarray repository::
 
         cd uxarray
+
+3.3. Use Feature Branches
+-------------------------
+
+In your local clone, make a new feature branch off of the :code:`main` branch.  titled issue_XXX where XXX is the number of the issue or something that is representative of the changes you’re making
