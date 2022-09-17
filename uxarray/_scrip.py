@@ -1,18 +1,21 @@
 import xarray as xr
 import numpy as np
 
+from .helpers import grid_center_lat_lon
+
 
 def _to_ugrid(in_ds, out_ds):
-    """If input dataset (ds) file is an unstructured SCRIP file, function will
-    reassign SCRIP variables to UGRID conventions in output file (outfile).
+    """If input dataset (``in_ds``) file is an unstructured SCRIP file,
+    function will reassign SCRIP variables to UGRID conventions in output file
+    (``out_ds``).
 
     Parameters
     ----------
-    in_ds : :class:`xarray.Dataset`
+    in_ds : xarray.Dataset
         Original scrip dataset of interest being used
 
-    out_ds : :class:`xarray.Variable`
-        file to be returned by _populate_scrip_data, used as an empty placeholder file
+    out_ds : xarray.Variable
+        file to be returned by ``_populate_scrip_data``, used as an empty placeholder file
         to store reassigned SCRIP variables in UGRID conventions
     """
 
@@ -34,7 +37,7 @@ def _to_ugrid(in_ds, out_ds):
                                         return_inverse=True,
                                         axis=0)
 
-        # Now, calculate unique lon and lat values to account for 'Mesh2_node_x' and 'Mesh2_node_y'
+        # Now, calculate unique lon and lat values to account for 'mesh2_node_x' and 'mesh2_node_y'
         unq_lon = corner_lon_lat[unq_ind, :][:, 0]
         unq_lat = corner_lon_lat[unq_ind, :][:, 1]
 
@@ -43,8 +46,23 @@ def _to_ugrid(in_ds, out_ds):
                              (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
         # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
-        out_ds['Mesh2_node_x'] = unq_lon
-        out_ds['Mesh2_node_y'] = unq_lat
+        out_ds['Mesh2_node_x'] = xr.DataArray(
+            unq_lon,
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "longitude",
+                "long_name": "longitude of mesh nodes",
+                "units": "degrees_east",
+            })
+
+        out_ds['Mesh2_node_y'] = xr.DataArray(
+            unq_lat,
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "lattitude",
+                "long_name": "latitude of mesh nodes",
+                "units": "degrees_north",
+            })
 
         # Create Mesh2_face_x/y from grid_center_lat/lon
         out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
@@ -78,14 +96,20 @@ def _read_scrip(ext_ds):
     naming practices (grid_corner_lat, grid_center_lat, etc) and SCRIP files with
     UGRID conventions.
 
-    Unstructured grid SCRIP files will have 'grid_rank=1' and include variables
-    "grid_imask" and "grid_area" in the dataset.
+    Unstructured grid SCRIP files will have ``grid_rank=1`` and include variables
+    ``grid_imask`` and ``grid_area`` in the dataset.
 
-    More information on structured vs unstructured SCRIP files can be found here:
-    https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html
+    More information on structured vs unstructured SCRIP files can be found here on the `Earth System Modeling Framework <https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html>`_ website.
 
-    Parameters: xarray.Dataset, required
-    Returns: ugrid aware xarray.Dataset
+    Parameters
+    ----------
+    ext_ds : xarray.Dataset, required
+        SCRIP datafile of interest
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        ugrid aware :class:`xarray.Dataset`
     """
     ds = xr.Dataset()
 
@@ -97,9 +121,9 @@ def _read_scrip(ext_ds):
         ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
-                "long_name": "Topology data of 2D unstructured mesh",
+                "long_name": "Topology data of unstructured mesh",
                 "topology_dimension": 2,
-                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
+                "node_coordinates": "Mesh2_node_x Mesh2_node_y",
                 "node_dimension": "nMesh2_node",
                 "face_node_connectivity": "Mesh2_face_nodes",
                 "face_dimension": "nMesh2_face"
@@ -110,5 +134,95 @@ def _read_scrip(ext_ds):
             "Variables not in recognized SCRIP form. Please refer to",
             "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
             "for more information on SCRIP Grid file formatting")
+
+    return ds
+
+
+def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
+                 face_areas):
+    """Function to reassign UGRID formatted variables to SCRIP formatted
+    variables and then writing them out to a netCDF file.
+
+    Currently, supports creating unstructured SCRIP grid files following traditional
+    SCRIP naming practices (grid_corner_lat, grid_center_lat, etc).
+
+    Unstructured grid SCRIP files will have ``grid_rank=1`` and include variables
+    ``grid_imask`` and ``grid_area`` in the dataset.
+
+    More information on structured vs unstructured SCRIP files can be found here on the `Earth System Modeling Framework <https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html>`_ website.
+
+    Parameters
+    ----------
+    outfile : str
+        Name of file to be created. Saved to working directory, or to
+        specified location if full path to new file is provided.
+
+    mesh2_face_nodes : xarray.DataArray
+        Face-node connectivity. This variable should come from the ``Grid``
+        object that calls this function
+
+    mesh2_node_x : xarray.DataArray
+        Nodes' x values. This variable should come from the ``Grid`` object
+        that calls this function
+
+    mesh2_node_y : xarray.DataArray
+        Nodes' y values. This variable should come from the ``Grid`` object
+        that calls this function
+
+    face_areas : numpy.ndarray
+        Face areas. This variable should come from the ``Grid`` object
+        that calls this function
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        Dataset to be returned by ``_write_scrip``. The function returns both
+        the output dataset in SCRIP format for immediate and saves it as an
+        independent netCDF file.
+    """
+    # Create empty dataset to put new scrip format data into
+    ds = xr.Dataset()
+
+    # Make grid corner lat/lon
+    f_nodes = mesh2_face_nodes.values.ravel()
+
+    # Create arrays to hold lat/lon data
+    lat_nodes = mesh2_node_y[f_nodes].values
+    lon_nodes = mesh2_node_x[f_nodes].values
+
+    # Reshape arrays to be 2D instead of 1D
+    reshp_lat = np.reshape(
+        lat_nodes, [mesh2_face_nodes.shape[0], mesh2_face_nodes.shape[1]])
+    reshp_lon = np.reshape(
+        lon_nodes, [mesh2_face_nodes.shape[0], mesh2_face_nodes.shape[1]])
+
+    # Add data to new scrip output file
+    ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
+                                         dims=["grid_size", 'grid_corners'])
+
+    ds['grid_corner_lon'] = xr.DataArray(data=reshp_lon,
+                                         dims=["grid_size", 'grid_corners'])
+
+    # Create Grid rank, always 1 for unstructured grids
+    ds["grid_rank"] = xr.DataArray(data=[1], dims=["grid_rank"])
+
+    # Create grid_dims value of len grid_size
+    ds["grid_dims"] = xr.DataArray(data=[len(lon_nodes)], dims=["grid_rank"])
+
+    # Create grid_imask representing fill values
+    ds["grid_imask"] = xr.DataArray(data=np.ones(len(reshp_lon), dtype=int),
+                                    dims=["grid_size"])
+
+    ds["grid_area"] = xr.DataArray(data=face_areas, dims=["grid_size"])
+
+    # Calculate and create grid center lat/lon using helper function
+    center_lat, center_lon = grid_center_lat_lon(ds)
+
+    ds['grid_center_lon'] = xr.DataArray(data=center_lon, dims=["grid_size"])
+
+    ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
+
+    # Create and save new scrip file
+    ds.to_netcdf(outfile)
 
     return ds
