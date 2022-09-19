@@ -337,7 +337,45 @@ second command, you will be able to develop UXarray codes in your local configur
 3.4. Install and Setup Pre-commit Hooks
 ---------------------------------------
 
+Pre-commit hooks are useful for identifying simple issues before submission to code
+review (i.e. in your local before commits are processed). You specify a list of hooks
+you want (this list has already been specified for UXarray in the
+`.pre-commit-config.yaml <https://github.com/UXARRAY/uxarray/blob/main/.pre-commit-config.yaml>`_
+file), and install pre-commit as described below. Pre-commit manages the installation
+and execution of the hooks specified.
 
+Hooks are run on every commit to automatically point out issues in code formatting such
+as the number of characters in each line, missing semicolons, trailing whitespace, debug
+statements, etc. By pointing these issues out before code review, this allows a code
+reviewer to focus on the architecture of a change while not wasting time with trivial
+style nitpicks. Refer to the `Pre-commit documentation <https://pre-commit.com/#intro>`_
+for further learning.
+
+.. note::
+    We also use pre-commit GitHub Actions workflow to make sure every code contribution
+    to our UXarray's GitHub repository (i.e. pull request) aligns with our code standards.
+    Therefore, the code changes that are not being checked through local pre-commit hooks
+    will eventually be tested against our workflow in the GitHub server as described in
+    `TODO`_. If there are any issues with the code format, it will lead the pull request
+    to fail pre-commit checks.
+
+3.4.1. Pre-commit setup
+^^^^^^^^^^^^^^^^^^^^^^^
+
+If you configured your Conda environment via the instructions in `3.3. Configure UXarray
+Conda Environment`_, you will have the :code:`pre-commit` package already installed in your
+environment (Otherwise, you will need to run :code:`conda install -c conda-forge pre_commit`
+to get it installed into your Conda environment for UXarray development). The only thing you
+will have to do additionally in order to set up pre-commit is to run the following command
+in your terminal in the UXarray root directory::
+
+    pre-commit install
+
+At this step, you are good to go with your pre-commit hooks to check your future commits.
+If, at any time, you'd like to run pre-commit hooks on your all files, you can run the
+following command::
+
+    pre-commit run --all-files
 
 3.5. Use Feature Branches
 -------------------------
