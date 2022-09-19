@@ -72,9 +72,9 @@ Some important UXarray resources are as follows:
   as `Readme <https://github.com/UXARRAY/uxarray/blob/main/README.md>`_ and
   `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_.
 
-* `UXarray documentation <https://uxarray.readthedocs.io/en/latest/?badge=latest>`_
+* `UXarray documentation <https://uxarray.readthedocs.io/>`_
   houses significant documentation such as
-  `Getting Started <https://uxarray.readthedocs.io/en/latest/quickstart.html>`_,
+  :ref:`quickstart`,
   `Installation <https://uxarray.readthedocs.io/en/latest/installation.html>`_,
   `Contributor's Guide <https://uxarray.readthedocs.io/en/latest/contributing.html>`_
   (i.e. this document), `Usage Examples <https://uxarray.readthedocs.io/en/latest/examples.html>`_,
@@ -106,8 +106,8 @@ another. As such, we will provide an overview of GitHub here and refer the
 reader to other more comprehensive resources for detailed information about
 it (such as GitHub's this
 `Getting Started with Github <https://docs.github.com/en/get-started>`_
-guide), but we will provide great details about how to configure a GitHub
-development environment for UXarray development and how to contribute.
+guide), but we will provide significant details about how to configure a
+GitHub development environment for UXarray development and how to contribute.
 
 2.1. Getting started with GitHub and Git
 ----------------------------------------
@@ -126,7 +126,7 @@ that greatly simplifies using the powerful, yet often complex, Git.
 Using, and even just configuring, Git and GitHub are often the most
 daunting aspects of contributing to a GitHub hosted project. Here are
 the basic steps for GitHub/Git configuration and Python installation, all
-of which must be performed **before** contributing to UXarray:
+of which need to be performed **before** contributing to UXarray:
 
 2.1.1. GitHub Setup
 ^^^^^^^^^^^^^^^^^^^
@@ -151,15 +151,15 @@ account, though technically this may not be necessary::
 Don’t type the $. This simply indicates the command line prompt.
 
 Configure your environment to authenticate with GitHub from Git. This is a
-complicated process, so suggest that you refer to the details on the `GitHub
+complicated process, so we suggest that you refer to the details on the `GitHub
 site <https://docs.github.com/en/get-started/quickstart/set-up-git#next-steps-authenticating-with-github-from-git>`_
 to complete this step.
 
 For further reading see the `Getting Started with Github
 <https://docs.github.com/en/get-started>`_.
 
-2.2. Setting Up Python Environment
-----------------------------------
+2.2. Python Environment Setup
+-----------------------------
 
 Before starting any Python or documentation development, you’ll need to
 create a Python environment along with a package manager. When we use the
@@ -190,9 +190,9 @@ terminal::
 
     conda update conda
 
-At this point you will have a current version of conda available on your
-system. Before using your conda environment to work on UXarray development,
-you’ll need to perform an additional setup that is going to be described in
+At this point, you will have a current version of conda available on your
+system. Before using your Python environment to work on UXarray development,
+you’ll need to perform additional steps that are going to be described in
 the next section.
 
 3. How UXarray Uses Git/GitHub
@@ -201,8 +201,9 @@ the next section.
 UXarray uses the `GitHub Flow
 <https://docs.github.com/en/get-started/quickstart/github-flow>`_ model
 for its workflow. UXArray also uses an automated formatter on all commits
-in local development environment. This changes the normal workflow slightly,
-so in order to avoid any confusions, follow these steps:
+in local development environment in order to ensure code formatting.
+This changes the normal workflow slightly, so in order to avoid any
+confusions, follow these steps:
 
 3.1. Select an issue to work on
 -------------------------------
@@ -327,17 +328,22 @@ guide and apply those instructions for the actual `UXarray repository
 ----------------------------------------
 
 In your local UXarray directory, creating a UXarray conda environment is needed for
-development purposes. USe the following commands for this::
+development purposes. Use the following commands for this::
 
     $ conda env create --file ci/environment.yml
     $ conda activate uxarray_build
 
 THe above commands will use the :code:`environment.yml` conda environment definition
-file that is housed in the :code:`ci` folder and create a conda environment with the
-name "uxarray_build". Once you activate that environment with the help of the second
-command, you will be able to develop UXarray codes in your local configuration.
+file that is hosted under the :code:`ci` folder and create a conda environment with
+the name "uxarray_build". Once you activate that environment with the help of the
+second command, you will be able to develop UXarray codes in your local configuration.
 
-3.3. Use Feature Branches
+3.4. Install and Setup Pre-commit Hooks
+---------------------------------------
+
+
+
+3.5. Use Feature Branches
 -------------------------
 
 In your local clone, make a new feature branch off of the :code:`main` branch.
