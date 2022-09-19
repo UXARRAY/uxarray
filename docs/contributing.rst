@@ -337,12 +337,12 @@ second command, you will be able to develop UXarray codes in your local configur
 3.4. Install and Setup Pre-commit Hooks
 ---------------------------------------
 
-Pre-commit hooks are useful for identifying simple issues before submission to code
-review (i.e. in your local before commits are processed). You specify a list of hooks
-you want (this list has already been specified for UXarray in the
+Pre-commit hooks are useful for identifying simple issues with the code format before
+submission to code review (i.e. in your local before commits are processed). You specify
+a list of hooks you want (this list has already been specified for UXarray in the
 `.pre-commit-config.yaml <https://github.com/UXARRAY/uxarray/blob/main/.pre-commit-config.yaml>`_
-file), and install pre-commit as described below. Pre-commit manages the installation
-and execution of the hooks specified.
+file, so there is no action needed), and install pre-commit as described below. Pre-commit
+manages the installation and execution of the hooks specified.
 
 Hooks are run on every commit to automatically point out issues in code formatting such
 as the number of characters in each line, missing semicolons, trailing whitespace, debug
@@ -380,7 +380,20 @@ following command::
 3.5. Use Feature Branches
 -------------------------
 
-In your local clone, make a new feature branch off of the :code:`main` branch.
-Naming this branch, whenever applicable, like the following is not required but may be much
-helpful for tracking purposes: "issue_XXX" where XXX is the number of the issue or something
-that is representative of the changes you’re making.
+In your local clone, make a new branch off of the :code:`main` branch (This is way to go
+most of the time, but there might be specific cases where, for example, a branch is needed
+to be created off of another feature branch). Naming this branch, whenever applicable,
+like the following is not required but may be much helpful for tracking purposes:
+"issue_XXX" where XXX is the number of the issue or something that is representative of
+the changes you’re making, e.g. "do-this-work", "add-that-function", etc.
+
+Here are example commands that assume, you are checking out the :code:`main` branch first,
+pulling  from the remote server to have everything in your local up-to-date, and creating a new
+branch off of :code:`main`::
+
+    git checkout main
+    git pull
+    git checkout -b <new_branch>
+
+Once you create the new branch, you are good to go with your local changes in the UXarray
+directory!
