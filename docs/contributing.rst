@@ -397,3 +397,79 @@ branch off of :code:`main`::
 
 Once you create the new branch, you are good to go with your local changes in the UXarray
 directory!
+
+3.7. Local changes, commits, and pushes
+---------------------------------------
+
+The local development process can very basically be itemized as follows:
+
+1. Make change(s) to your local copy of the UXarray repository
+
+2. Changes you’ve made locally must be “committed” (merged) to your local repository
+   (the .git subdirectory) using Git, but before the commit, you need to add them to the
+   "staged" changes for commit.
+
+   * You can see any uncommitted changes you’ve made to your local copy of the repository by
+     running the following command from anywhere (any directory) within the directory where
+     you ran :code:`git checkout`::
+
+        git status
+
+   * So, add changed file(s) into the staged changes to be included in a single commit::
+
+        git add PATH_TO_NEW_FILE
+
+     where `PATH_TO_NEW_FILE` is the path name of the newly created file.
+
+3. Now, commit the staged change(s)::
+
+        git commit -m "Descriptive comment about what this commit does"
+
+   * Limiting the commit to file(s) changed for an atomic task would be very much
+     helpful in cases you need to review and maybe revert commits.
+
+   * Do not forget that `pre-commit hooks` will check your code changes at this
+     point. If some of those hooks fail, you will need to add those files again
+     and attempt to make the same commit again as the hooks will have changed those
+     file(s) to make them comply with the code formatting rules.
+
+   * A good practice is to run::
+
+        git status
+
+     after your commit to verify everything looks as expected.
+
+4. Push your commit(s) into the remote repository::
+
+    git push
+
+   or::
+
+    git push --set-upstream origin <your-branch-name>
+
+   if you haven't created a corresponding remote branch for it yet).
+
+.. note:: Remember that we are still not proposing to merge our work into the UXarray
+    GitHub repository, which will be described in the next subsection, `3.7. Pull
+    Requests`_.
+
+3.7. Pull Requests
+------------------
+
+Pull requests (PR) are GitHub's way for developers to propose and collaborate on changes
+to a repository. If you are interested in learning the foundations about pull requests,
+please refer to GitHub's `Pull requests <https://docs.github.com/en/pull-requests>`_
+documentation.
+
+Once you have completed making changes to your local copy of the UXarray repository,
+pushed them all, and are ready to have your changes merged into the repository on GitHub,
+you need to submit a PR asking the UXarray maintainers to consider your merge request.
+The merge will occur between your personal GitHub repository (represented by your remote
+branch as you should have pushed all of your commits from local to that) and the UXarray's
+GitHub repository (represented by the :code:`main` branch). There might be some exceptions
+to this generic case, which can always be discussed with the maintainers and community.
+
+Git has lots and lots of commands, each with lots and lots of options. Here we only
+cover the very basics. Detailed information about Git can be found `here
+<https://git-scm.com/>`_, but your best friend for figuring out to do things with
+Git may be Google, and in particular `StackOverflow <https://stackoverflow.com/>`_.
