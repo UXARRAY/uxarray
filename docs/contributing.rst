@@ -73,13 +73,9 @@ Some important UXarray resources are as follows:
   `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_.
 
 * `UXarray documentation <https://uxarray.readthedocs.io/>`_
-  houses significant documentation such as
-  :ref:`quickstart`,
-  `Installation <https://uxarray.readthedocs.io/en/latest/installation.html>`_,
-  `Contributor's Guide <https://uxarray.readthedocs.io/en/latest/contributing.html>`_
-  (i.e. this document), `Usage Examples <https://uxarray.readthedocs.io/en/latest/examples.html>`_,
-  `Tutorials <https://uxarray.readthedocs.io/en/latest/tutorials.html#>`_, and
-  `API Reference <https://uxarray.readthedocs.io/en/latest/api.html>`_.
+  houses significant documentation such as :ref:`quickstart`, :ref:`installation`,
+  :ref:`contributing` (i.e. this document), :ref:`examples`, :ref:`tutorials`,
+  and :ref:`api`.
 
 * `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
   tentatively shows the eventual list of UXarray functionalities. It is
