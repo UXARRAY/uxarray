@@ -9,7 +9,7 @@ from pathlib import PurePath
 from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
-from ._scrip import _read_scrip
+from ._scrip import _read_scrip, _write_scrip
 from .helpers import get_all_face_area_from_coords
 
 
@@ -160,34 +160,32 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, outfile, extension=""):
+    def write(self, outfile, grid_type):
         """Writes mesh file as per extension supplied in the outfile string.
 
         Parameters
         ----------
         outfile : str, required
             Path to output file
-        extension : str, optional
-            Extension of output file. Defaults to empty string.
-            Currently supported options are ".ugrid", ".ug", ".g", ".exo", and ""
+        grid_type : str, required
+            Grid type of output file.
+            Currently supported options are "ugrid", "exodus", and "scrip"
 
         Raises
         ------
         RuntimeError
-            If unsupported extension provided or directory not found
+            If unsupported grid type provided or directory not found
         """
-        if extension == "":
-            outfile_path = PurePath(outfile)
-            extension = outfile_path.suffix
-            if not os.path.isdir(outfile_path.parent):
-                raise RuntimeError("File directory not found: " + outfile)
 
-        if extension == ".ugrid" or extension == ".ug":
+        if grid_type == "ugrid":
             _write_ugrid(self.ds, outfile, self.ds_var_names)
-        elif extension == ".g" or extension == ".exo":
+        elif grid_type == "exodus":
             _write_exodus(self.ds, outfile, self.ds_var_names)
+        elif grid_type == "scrip":
+            _write_scrip(outfile, self.Mesh2_face_nodes, self.Mesh2_node_x,
+                         self.Mesh2_node_y, self.face_areas)
         else:
-            raise RuntimeError("Format not supported for writing: ", extension)
+            raise RuntimeError("Format not supported for writing: ", grid_type)
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
@@ -209,26 +207,6 @@ class Grid:
         face_areas = self.compute_face_areas(quadrature_rule, order)
 
         return np.sum(face_areas)
-
-    # Build the node-face connectivity array.
-    def build_node_face_connectivity(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Build the edge-face connectivity array.
-    def build_edge_face_connectivity(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Build the array of latitude-longitude bounding boxes.
-    def buildlatlon_bounds(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Validate that the grid conforms to the UXGrid standards.
-    def validate(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
 
     def __init_ds_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation

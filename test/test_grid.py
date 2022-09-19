@@ -27,9 +27,27 @@ class TestGrid(TestCase):
         tgrid2 = ux.open_dataset(str(ug_filename2))
         tgrid3 = ux.open_dataset(str(ug_filename3))
 
-        tgrid1.write(str(ug_outfile1))
-        tgrid2.write(str(ug_outfile2))
-        tgrid3.write(str(ug_outfile3))
+        tgrid1.write(str(ug_outfile1), "exodus")
+        tgrid2.write(str(ug_outfile2), "exodus")
+        tgrid3.write(str(ug_outfile3), "exodus")
+
+    def test_read_ugrid_write_scrip(self):
+        """Reads in augrid file and writes to a scrip file."""
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
+        ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
+
+        ug_outfile1 = current_path / "meshfiles" / "outCSne30.nc"
+        ug_outfile2 = current_path / "meshfiles" / "outRLL1deg.nc"
+        ug_outfile3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.nc"
+
+        tgrid1 = ux.open_dataset(str(ug_filename1))
+        tgrid2 = ux.open_dataset(str(ug_filename2))
+        tgrid3 = ux.open_dataset(str(ug_filename3))
+
+        tgrid1.write(str(ug_outfile1), "scrip")
+        tgrid2.write(str(ug_outfile2), "scrip")
+        tgrid3.write(str(ug_outfile3), "scrip")
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a ugrid file.
@@ -44,7 +62,7 @@ class TestGrid(TestCase):
         assert (vgrid.source_datasets is None)
 
         face_filename = current_path / "meshfiles" / "1face.ug"
-        vgrid.write(face_filename)
+        vgrid.write(face_filename, "ugrid")
 
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal

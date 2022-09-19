@@ -70,4 +70,4 @@ class TestDataset(TestCase):
         """Loads grid files of different formats using uxarray's open_dataset
         call."""
         grid = ux.open_dataset(mesh_name)
-        grid.write(outmesh)
+        grid.write(outmesh, "exodus")
