@@ -468,9 +468,6 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
     dy /= np.absolute(dx * dx + dy * dy + dz * dz)
     dz /= np.absolute(dx * dx + dy * dy + dz * dz)
 
-    d_lon_rad = 0.0
-    d_lat_rad = 0.0
-
     if np.absolute(dz) < (1.0 - reference_tolerance):
         d_lon_rad = math.atan2(dy, dx)
         d_lat_rad = np.arcsin(dz)
