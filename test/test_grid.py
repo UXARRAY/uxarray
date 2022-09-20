@@ -45,9 +45,8 @@ class TestGrid(TestCase):
         tgrid2 = ux.open_dataset(str(ug_filename2))
         tgrid3 = ux.open_dataset(str(ug_filename3))
 
-        tgrid1.write(str(ug_outfile1), "scrip",
-                     "netcdf")  # Creates new netcdf file
-        tgrid2.write(str(ug_outfile2), "scrip")  # Does not create new file
+        tgrid1.write(str(ug_outfile1), "scrip")
+        tgrid2.write(str(ug_outfile2), "scrip")
         tgrid3.write(str(ug_outfile3), "scrip")
 
     def test_write_to_file(selfs):
