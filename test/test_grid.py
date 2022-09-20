@@ -49,7 +49,7 @@ class TestGrid(TestCase):
         tgrid2.write(str(ug_outfile2), "scrip")
         tgrid3.write(str(ug_outfile3), "scrip")
 
-    def test_write_to_file(selfs):
+    def test_write_to_file(self):
         """Tests that the writer functions create a correctly formatted file
         when correct arguments are used in writer call."""
         # Read in ugrid file to be used in writer funcitons
