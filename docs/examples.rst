@@ -18,4 +18,3 @@ see the :doc:`contributing`.
    examples/reading-data.ipynb
    examples/data-access.ipynb
    examples/template.ipynb
-
