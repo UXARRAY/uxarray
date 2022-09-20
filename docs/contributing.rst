@@ -629,19 +629,26 @@ The docstrings must contain:
 As we mentioned a few times throughout this guide, Uxarray has a static `documentation
 <https://uxarray.readthedocs.io/>`_ :ref:`index` page that is being generated automatically from the
 repository's code structure. However, there needs to be some manual additions to the
-proper documentation index file(s) for the automation to work. The following index files
-are used for UXarray documentation (directories relative from the root):
+proper documentation index file(s) for the automation to work.
 
-`docs/user_api/index.rst`
-
-`docs/internal_api/index.rst`
-
-which allows the following documentation to be automatically generated, respectively:
-
-`User API <user_api/index.rst>`_
-
-`Internal API <internal_api/index.rst>`_
+The index files `docs/user_api/index.rst` and `docs/internal_api/index.rst` (paths
+relative from the root directory) are used for UXarray documentation to allow the
+`User API <user_api/index.rst>`_ and `Internal API <internal_api/index.rst>`_,
+respectively, to be automatically generated.
 
 That being said, the code changes, which might be a new function implementation or some
 modifications to existing ones, must be added to the appropriate `index.rst`
 file so that its documentation page is automatically generated.
+
+3.7.3.4. Usage Examples
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+    This is not required for every PR and can be handled as separate PRs. However, it
+    would be a great practice to provide usage examples right away in the same PR,
+    especially for demonstrating the use of complex UXarray functions.
+
+The UXarray documentation houses `examples/<example-name>.ipynb` files (paths relative
+from the root directory) to provide `examples.rst>`_ to be automatically generated. If
+you prefer to provide usage examples for the work you have put together, please be sure
+to put your notebook(s) under this same directory.
