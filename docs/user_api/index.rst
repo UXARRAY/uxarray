@@ -17,24 +17,33 @@ Grid Class
 
 
 Grid Methods
---------------
+------------
 .. autosummary::
    :toctree: _autosummary
 
-   grid.Grid.write
    grid.Grid.calculate_total_face_area
-   grid.Grid.integrate
    grid.Grid.compute_face_areas
+   grid.Grid.integrate
+   grid.Grid.write
+
+Reading Data
+------------
+.. autosummary::
+   :toctree: _autosummary
+
+   uxarray.open_dataset
+
 
 Helper Functions
 ----------------
 .. autosummary::
    :toctree: _autosummary
 
-   helpers.get_all_face_area_from_coords
    helpers.calculate_face_area
    helpers.calculate_spherical_triangle_jacobian
    helpers.calculate_spherical_triangle_jacobian_barycentric
-   get_gauss_quadratureDG
-   get_tri_quadratureDG
+   helpers.get_all_face_area_from_coords
+   helpers.get_gauss_quadratureDG
+   helpers.get_tri_quadratureDG
+   helpers.grid_center_lat_lon
    helpers.parse_grid_type

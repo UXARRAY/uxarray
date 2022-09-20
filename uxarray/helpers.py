@@ -435,6 +435,53 @@ def _is_ugrid(ds):
     else:
         return False
 
+
+def grid_center_lat_lon(ds):
+    """Using scrip file variables ``grid_corner_lat`` and ``grid_corner_lon``,
+    calculates the ``grid_center_lat`` and ``grid_center_lon``.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset that contains ``grid_corner_lat`` and ``grid_corner_lon``
+        data variables
+
+    Returns
+    -------
+    center_lon : :class:`numpy.ndarray`
+        The calculated center longitudes of the grid box based on the corner
+        points
+    center_lat : :class:`numpy.ndarray`
+        The calculated center latitudes of the grid box based on the corner
+        points
+    """
+
+    # Calculate and create grid center lat/lon
+    scrip_corner_lon = ds['grid_corner_lon']
+    scrip_corner_lat = ds['grid_corner_lat']
+
+    # convert to radians
+    rad_corner_lon = np.deg2rad(scrip_corner_lon)
+    rad_corner_lat = np.deg2rad(scrip_corner_lat)
+
+    # get nodes per face
+    nodes_per_face = rad_corner_lat.shape[1]
+
+    # geographic center of each cell
+    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon),
+               axis=1) / nodes_per_face
+    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon),
+               axis=1) / nodes_per_face
+    z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
+
+    center_lon = np.rad2deg(np.arctan2(y, x))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+
+    # Make negative lons positive
+    center_lon[center_lon < 0] += 360
+
+    return center_lat, center_lon
+
 @njit
 def _convert_node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
