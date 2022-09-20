@@ -19,6 +19,7 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 exodus = current_path / "meshfiles" / "outCSne8.g"
 ne8 = current_path / 'meshfiles' / 'outCSne8.nc'
+err_tolerance = 1.0e-12
 
 
 class TestIntegrate(TestCase):
@@ -91,7 +92,7 @@ class TestGridCenter(TestCase):
              random.random(),
              random.random()])
         self.assertLessEqual(
-            np.absolute(np.sqrt(x * x + y * y + z * z) - 1), 1.0e-12)
+            np.absolute(np.sqrt(x * x + y * y + z * z) - 1), err_tolerance)
 
     def test_convert_node_xyz_to_lonlat_rad(self):
         [x, y, z] = ux.helpers._normalize_in_place([
@@ -102,9 +103,9 @@ class TestGridCenter(TestCase):
         [lon, lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
         [new_x, new_y,
          new_z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
-        self.assertLessEqual(np.absolute(new_x - x), 1.0e-12)
-        self.assertLessEqual(np.absolute(new_y - y), 1.0e-12)
-        self.assertLessEqual(np.absolute(new_z - z), 1.0e-12)
+        self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
+        self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
+        self.assertLessEqual(np.absolute(new_z - z), err_tolerance)
 
     def test_convert_node_latlon_rad_to_xyz(self):
         [lon, lat] = [
@@ -114,5 +115,5 @@ class TestGridCenter(TestCase):
         [x, y, z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
         [new_lon,
          new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
-        self.assertLessEqual(np.absolute(new_lon - lon), 1.0e-12)
-        self.assertLessEqual(np.absolute(new_lat - lat), 1.0e-12)
+        self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
+        self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
