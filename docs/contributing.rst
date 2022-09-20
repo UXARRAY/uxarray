@@ -362,10 +362,10 @@ for further learning.
 .. note::
     We also use pre-commit GitHub Actions workflow to make sure every code contribution
     to our UXarray's GitHub repository (i.e. pull request) aligns with our code standards.
-    Therefore, the code changes that are not being checked through local pre-commit hooks
-    will eventually be tested against our workflow in the GitHub server as described in
-    `TODO`_. If there are any issues with the code format, it will lead the pull request
-    to fail pre-commit checks.
+    Therefore, the code changes that are not being checked through local `pre-commit
+    hooks` will eventually be tested against our workflow in the GitHub server as
+    described in `3.7.4.2. GitHub Actions checks`_. If there are any issues with the
+    code format, it will lead the pull request to fail the pre-commit checks.
 
 3.4.1. Pre-commit setup
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -589,8 +589,8 @@ need not to be magic values (i.e. they need to be justified and/or documented).
 
 .. note:: Our test suite that includes all the unit tests is executed automarically
 for PRs with the help of GitHub Actions workflows to ensure new code passes tests.
-Hence, please check `TODO`_ to make sure your PR tests are all passing before asking
-others to review your work.
+Hence, please check `3.7.4.2. GitHub Actions checks`_ to make sure your PR tests are
+all passing before asking others to review your work.
 
 3.7.3.2. Docstrings
 ~~~~~~~~~~~~~~~~~~~
@@ -621,7 +621,7 @@ The docstrings must contain:
    * No need for these examples to actually be executable
 
    * If a usage example is longer than a handful of lines, a more complete
-     example may be created instead, referring to `TODO `_.
+     example may be created instead, referring to `3.7.3.4. Usage Examples`_.
 
 3.7.3.3. Documentation
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -640,15 +640,63 @@ That being said, the code changes, which might be a new function implementation 
 modifications to existing ones, must be added to the appropriate `index.rst`
 file so that its documentation page is automatically generated.
 
-3.7.3.4. Usage Examples
+.. note::
+    Please also ensure that you are changing the `UXarray draft API
+    <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
+    accordingly if you are proposing chanes to the API (e.g. new functions/attributes,
+    modification(s) to existing functions, etc.)
+
+3.7.3.5. Usage Examples
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
-    This is not required for every PR and can be handled as separate PRs. However, it
-    would be a great practice to provide usage examples right away in the same PR,
-    especially for demonstrating the use of complex UXarray functions.
+    This may not be required for every PR and can be handled as separate PRs when
+    needed. However, it would be a great practice to provide usage examples in the
+    same PR, especially for demonstrating the use of complex UXarray functions.
 
 The UXarray documentation houses `examples/<example-name>.ipynb` files (paths relative
 from the root directory) to provide `examples.rst>`_ to be automatically generated. If
 you prefer to provide usage examples for the work you have put together, please be sure
 to put your notebook(s) under this same directory.
+
+3.7.4. After You Open The Pull Request
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here are a few more tips that could be helpful throughout getting your PR merged:
+
+3.7.4.1. Addressing reviews
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Now that you have opened a PR that has the necessary elements with it and got reviewers
+assigned, you will hopefully begin to receive reviews soon from them. Please make sure
+to address those review comments, change requests, etc to get your PR ready to be
+merged.
+
+.. note::
+    When you addressed all of a reviewer's comments/requests, do not forget to
+    re-request their next review!
+
+
+3.7.4.2. GitHub Actions checks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+UXarray employs a number of GitHub Actions workflows (please refer to the `GitHub
+Actions <https://docs.github.com/en/actions>`_ guide for detailed information) to make
+sure our PRs, branches, etc. pass certain test scenarios such as the pre-commit hooks,
+code test suite, and documentation generation. The pre-commit hooks workflow ensures
+the code being proposed to be merged is complying with code standards. The test suite
+workflows ensure that the changes are passing for those tests described in `3.7.3.1.
+Unit tests`_ for a matrix of various platforms and Python versions. The documentation
+generation workflow ensures the changes proposed are still allowing our documentation
+to be generated without any issues.
+
+.. note::
+    We require PRs to pass all of these checks before getting merged in order to
+    always ensure our :code:`main` branch stability.
+
+These checks can be extremely helpful for contributors to be sure about they are
+changing things in correct directions and their PRs are ready to be reviewed and
+merged. For example, the :code:`docs/readthedocs.org:uxarray` check can show whether
+the UXarray documentation is able to be generated (i.e. pass/fail) and if it passes, it
+also shows, just by clicking to its `Details`, the corresponding documentation being
+generated for the PR.
