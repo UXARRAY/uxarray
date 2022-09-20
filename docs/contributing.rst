@@ -144,7 +144,15 @@ account, though technically this may not be necessary::
     $ git config --global user.name "Your name here"
     $ git config --global user.email "your_email@example.com"
 
-Don’t type the $. This simply indicates the command line prompt.
+.. note::
+    Don’t type the $. This simply indicates the command line prompt.
+
+.. note::
+
+    Git has lots and lots of commands, each with lots and lots of options. Here we only
+    cover the very basics. Detailed information about Git can be found `here
+    <https://git-scm.com/>`_, but your best friend for figuring out to do things with
+    Git may be Google, and in particular `StackOverflow <https://stackoverflow.com/>`_.
 
 Configure your environment to authenticate with GitHub from Git. This is a
 complicated process, so we suggest that you refer to the details on the `GitHub
@@ -464,12 +472,105 @@ documentation.
 Once you have completed making changes to your local copy of the UXarray repository,
 pushed them all, and are ready to have your changes merged into the repository on GitHub,
 you need to submit a PR asking the UXarray maintainers to consider your merge request.
-The merge will occur between your personal GitHub repository (represented by your remote
-branch as you should have pushed all of your commits from local to that) and the UXarray's
-GitHub repository (represented by the :code:`main` branch). There might be some exceptions
-to this generic case, which can always be discussed with the maintainers and community.
 
-Git has lots and lots of commands, each with lots and lots of options. Here we only
-cover the very basics. Detailed information about Git can be found `here
-<https://git-scm.com/>`_, but your best friend for figuring out to do things with
-Git may be Google, and in particular `StackOverflow <https://stackoverflow.com/>`_.
+The merge will occur between your personal branch that should have all of your commits
+from local in the GitHub repository (either in your fork or in the actual UXarray repo)
+and the :code:`main` branch, if not other, in the UXarray's GitHub repository. There
+might be some exceptions to this generic case, which can always be learned through
+reading or discussed with the maintainers and community.
+
+.. note::
+    While pull requests are supposed to be based on changes that are ready to be tested,
+    reviewed, and eventually be merged to repositories; there is an exception to this:
+    Draft Pull Requests. We encourage Draft PRs if you just want to just start a
+    conversation about your code that isn’t in any state to be judged, and get feedback
+    as well as some guidance from others. Please read this GitHub `blog
+    <https://github.blog/2019-02-14-introducing-draft-pull-requests/>`_ about draft PRs.
+
+Please refer to Github's `Creating a pull request
+<https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request>`_
+guide for the instructions. We are especially avoiding to detail these instructions
+here as there are manly referrals to GitHub's graphical user interface, which might be
+changed in the future.
+
+.. note::
+    Below are significant things about pull requests that can be very helpful throughout
+    the entire contribution process (i.e. review and merge) process when performed:
+
+3.7.1. Review your changes
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Before you finalize opening the actual PR, it is a good practice to review the changes
+that you’ve made. You should be able to review all of the changes that will go into
+this PR just before you press the `Create pull request` button.
+
+If there is any changes you want to make in the PR, you can delay creating the PR
+and push new commits, revert existing changes, etc. You can then create the PR.
+
+3.7.2. Elements of Most Pull Requests
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Despite the fact that pull requests can differ regarding their purposes (e.g.
+correction of a single typo in only one file could make a PR), most of the PRs may
+consist of code changes that should, most of the time, include some other elements
+with it. Hanving all of such elements addressed in a PR could make the review and
+merge process a lot easier. Assuming such code changes, these are what might
+accompany them:
+
+3.7.2.1. Unit tests
+~~~~~~~~~~~~~~~~~~~
+
+Virtually all new Uxarray code needs to include unit tests of it implemented.
+The UXarray project makes use of diverse technologies for unit testing as
+follows:
+
+* All the unit tests of every single Python module (i.e. `.py` file) should be
+  implemented as a separate test script under the :code:`\test` folder of the
+  repository's root directory.
+
+* The `pytest <https://docs.pytest.org/en/stable/contents.html>`_ testing framework
+  is used as `runner` for the tests. If you configured your Conda environment via
+  the instructions in `3.3. Configure UXarray Conda Environment`_, you will have
+  the :code:`pytest` package already installed in your environment (Otherwise, you
+  will need to run :code:`conda install -c conda-forge pytest` to get it installed
+  into your Conda environment for UXarray development).
+
+* Test scripts themselves are not intended to use `pytest` through implementation.
+Instead, `pytest` should be used only for running test scripts as follows::
+
+    pytest test/<test_script_name>.py
+
+Not using `pytest` for implementation allows the unit tests to be also run
+by using::
+
+    python -m unittest test/<test_script_name>.py
+
+Also, all of the test scripts can be run at once with the following command::
+
+    pytest test
+
+* Python's unit testing framework, `unittest
+<https://docs.python.org/3/library/unittest.html>`_ is used for implementation of
+the test scripts.
+
+* Recommended, but not mandatory, implementation approach is as follows:
+
+  - Common data structures, variables and functions,  as well as
+    expected outputs, which could be used by multiple test methods throughout
+    the test script, are defined either under a base test class or in the very
+    beginning of the test script for being used by multiple unit test cases.
+
+  - Reference results (i.e. expected output or ground truth for not
+    all but the most cases) need not to be magic values (i.e. they need to
+    be justified and/or documented).
+
+  - Any group of testing functions dedicated to testing a particular
+    phenomenon (e.g. a specific edge case, data structure, etc.) is
+    implemented by a class, which inherits `TestCase` from Python's
+    `unittest` and likely the base test class implemented for the purpose
+    mentioned above.
+
+  - Assertions are used for testing various cases such as array comparison.
+
+  - Please see previously implemented test cases for reference of the
+    recommended testing approach
