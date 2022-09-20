@@ -160,16 +160,46 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, outfile, grid_type):
+    def outfile_encoder(self, outfile, file_type):
+        """Writes xarray.Dataset to new file in current directory in specified
+        file type.
+
+        Parameters
+        ----------
+        outfile : str, required
+
+        file_type : str, required
+            New file type to be created from write function. Supported options are
+            "netcdf" and "zarr"
+        """
+        if file_type == "netcdf":
+            self.ds.to_netcdf(outfile)
+
+        elif file_type == "zarr":
+            self.ds.to_zarr()
+
+        else:
+            raise RuntimeError("Format not supported for writing: ", file_type)
+
+    def write(self, outfile, grid_type, save_as=None):
         """Writes mesh file as per extension supplied in the outfile string.
 
         Parameters
         ----------
         outfile : str, required
-            Path to output file
+            Name of or path to output file. If path is not given,
+            file is saved to current working directory
+
+            ex: "path/to/new/file/location/new_file.nc" or
+                "new_file.nc"
+
         grid_type : str, required
             Grid type of output file.
             Currently supported options are "ugrid", "exodus", and "scrip"
+
+        save_as : str, optional
+            The specific file type to save newly created datasets to.
+            Current options are "zarr" and "netcdf"
 
         Raises
         ------
@@ -179,13 +209,19 @@ class Grid:
 
         if grid_type == "ugrid":
             _write_ugrid(self.ds, outfile, self.ds_var_names)
+
         elif grid_type == "exodus":
             _write_exodus(self.ds, outfile, self.ds_var_names)
+
         elif grid_type == "scrip":
             _write_scrip(outfile, self.Mesh2_face_nodes, self.Mesh2_node_x,
                          self.Mesh2_node_y, self.face_areas)
+
         else:
             raise RuntimeError("Format not supported for writing: ", grid_type)
+
+        if save_as != None:
+            self.outfile_encoder(outfile, save_as)
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a

@@ -222,7 +222,4 @@ def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
 
     ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
 
-    # Create and save new scrip file
-    ds.to_netcdf(outfile)
-
     return ds

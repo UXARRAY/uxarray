@@ -66,5 +66,6 @@ def _write_ugrid(ds, outfile, ugrid_vars):
     Uses to_netcdf from xarray object.
     """
 
-    print("Writing ugrid file: ", outfile)
-    ds.to_netcdf(outfile)
+    # print("Writing ugrid file: ", outfile)
+    # ds.to_netcdf(outfile)
+    return ds
