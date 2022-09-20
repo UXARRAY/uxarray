@@ -192,7 +192,7 @@ To configure your Python environment:
 2. Make sure your conda is up to date by running this command from the
 terminal::
 
-    conda update conda
+    $ conda update conda
 
 At this point, you will have a current version of conda available on your
 system. Before using your Python environment to work on UXarray development,
@@ -377,13 +377,13 @@ to get it installed into your Conda environment for UXarray development). The on
 will have to do additionally in order to set up pre-commit is to run the following command
 in your terminal in the UXarray root directory::
 
-    pre-commit install
+    $ pre-commit install
 
 At this step, you are good to go with your pre-commit hooks to check your future commits.
 If, at any time, you'd like to run pre-commit hooks on your all files, you can run the
 following command::
 
-    pre-commit run --all-files
+    $ pre-commit run --all-files
 
 3.5. Use Feature Branches
 -------------------------
@@ -399,9 +399,9 @@ Here are example commands that assume, you are checking out the :code:`main` bra
 pulling  from the remote server to have everything in your local up-to-date, and creating a new
 branch off of :code:`main`::
 
-    git checkout main
-    git pull
-    git checkout -b <new_branch>
+    $ git checkout main
+    $ git pull
+    $ git checkout -b <new_branch>
 
 Once you create the new branch, you are good to go with your local changes in the UXarray
 directory!
@@ -413,6 +413,10 @@ The local development process can very basically be itemized as follows:
 
 1. Make change(s) to your local copy of the UXarray repository
 
+   .. note::
+        Please refer to `3.7.2. Common Elements of Most Pull Requests`_ to make sure your local
+        changes have all of the elements they should cover.
+
 2. Changes you’ve made locally must be “committed” (merged) to your local repository
    (the .git subdirectory) using Git, but before the commit, you need to add them to the
    "staged" changes for commit.
@@ -421,17 +425,17 @@ The local development process can very basically be itemized as follows:
      running the following command from anywhere (any directory) within the directory where
      you ran :code:`git checkout`::
 
-        git status
+        $ git status
 
    * So, add changed file(s) into the staged changes to be included in a single commit::
 
-        git add PATH_TO_NEW_FILE
+        $ git add PATH_TO_NEW_FILE
 
      where `PATH_TO_NEW_FILE` is the path name of the newly created file.
 
 3. Now, commit the staged change(s)::
 
-        git commit -m "Descriptive comment about what this commit does"
+        $ git commit -m "Descriptive comment about what this commit does"
 
    * Limiting the commit to file(s) changed for an atomic task would be very much
      helpful in cases you need to review and maybe revert commits.
@@ -443,17 +447,17 @@ The local development process can very basically be itemized as follows:
 
    * A good practice is to run::
 
-        git status
+        $ git status
 
      after your commit to verify everything looks as expected.
 
 4. Push your commit(s) into the remote repository::
 
-    git push
+    $ git push
 
    or::
 
-    git push --set-upstream origin <your-branch-name>
+    $ git push --set-upstream origin <your-branch-name>
 
    if you haven't created a corresponding remote branch for it yet).
 
@@ -507,13 +511,13 @@ this PR just before you press the `Create pull request` button.
 If there is any changes you want to make in the PR, you can delay creating the PR
 and push new commits, revert existing changes, etc. You can then create the PR.
 
-3.7.2. Elements of Most Pull Requests
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3.7.2. Common Elements of Most Pull Requests
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Despite the fact that pull requests can differ regarding their purposes (e.g.
 correction of a single typo in only one file could make a PR), most of the PRs may
 consist of code changes that should, most of the time, include some other elements
-with it. Hanving all of such elements addressed in a PR could make the review and
+with it. Having all of such elements addressed in a PR could make the review and
 merge process a lot easier. Assuming such code changes, these are what might
 accompany them:
 
@@ -538,20 +542,23 @@ follows:
 * Test scripts themselves are not intended to use `pytest` through implementation.
 Instead, `pytest` should be used only for running test scripts as follows::
 
-    pytest test/<test_script_name>.py
+    $ pytest test/<test_script_name>.py
 
 Not using `pytest` for implementation allows the unit tests to be also run
 by using::
 
-    python -m unittest test/<test_script_name>.py
+    $ python -m unittest test/<test_script_name>.py
 
 Also, all of the test scripts can be run at once with the following command::
 
-    pytest test
+    $ pytest test
 
 * Python's unit testing framework, `unittest
 <https://docs.python.org/3/library/unittest.html>`_ is used for implementation of
 the test scripts.
+
+* Reference results (i.e. expected output or ground truth for not all but the most cases)
+need not to be magic values (i.e. they need to be justified and/or documented).
 
 * Recommended, but not mandatory, implementation approach is as follows:
 
@@ -559,10 +566,6 @@ the test scripts.
     expected outputs, which could be used by multiple test methods throughout
     the test script, are defined either under a base test class or in the very
     beginning of the test script for being used by multiple unit test cases.
-
-  - Reference results (i.e. expected output or ground truth for not
-    all but the most cases) need not to be magic values (i.e. they need to
-    be justified and/or documented).
 
   - Any group of testing functions dedicated to testing a particular
     phenomenon (e.g. a specific edge case, data structure, etc.) is
@@ -574,3 +577,60 @@ the test scripts.
 
   - Please see previously implemented test cases for reference of the
     recommended testing approach
+
+.. note:: Our test suite that includes all the unit tests is executed automarically
+for PRs with the help of GitHub Actions workflows to ensure new code passes tests.
+Hence, please check `TODO`_ to make sure your PR tests are all passing before asking
+others to review your work.
+
+3.7.2.2. Docstrings
+~~~~~~~~~~~~~~~~~~~
+
+All Python functions must contain a `Google Style Python
+<https://github.com/google/styleguide/blob/gh-pages/pyguide.md>`_ *docstring* (i.e.
+triple quoted comment blocks). These docstrings are accessed from the Python interpreter
+whenever the user types::
+
+    help <FUNCTION_NAME>
+
+They are also automatically converted into web-accessible documentation available from
+the `UXarray documentation <https://uxarray.readthedocs.io/>`_.
+
+The docstrings must contain:
+
+1. A brief description of the functionality provided. What does this function do?
+
+2. If available, references to the algorithm or implementation employed
+
+3. A complete description of arguments and return values in Google format
+
+   * Please refer to the existing functions that already have this
+
+4. One or more very short usage examples that demonstrates how to invoke
+   the function, and possibly what to expect it to return
+
+   * No need for these examples to actually be executable
+
+   * If a usage example is longer than a handful of lines, a more complete
+     example may be created instead, referring to `TODO `_.
+
+3.7.2.3. Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+As we mentioned a few times throughout this guide, Uxarray has a static `documentation
+<https://uxarray.readthedocs.io/>`_ :ref:`index` page that is being generated automatically from the
+repository's code structure. However, there needs to be some manual additions to the
+proper documentation index file(s) for the automation to work. The following index files
+are used for UXarray documentation (directories relative from the root):
+
+    `docs/user_api/index.rst`
+    `docs/internal_api/index.rst`
+
+which allows the following documentation to be autoamtically generated, respectively:
+
+    :ref:`user_api/index`
+    :ref:`internal_api/index`
+
+That being said, the code changes, which might be a new function implementation or some
+modifications to existing ones, must be added to the appropriate `index.rst`
+file so that its documentation page is automatically generated.
