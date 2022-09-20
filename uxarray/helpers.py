@@ -435,18 +435,22 @@ def _is_ugrid(ds):
     else:
         return False
 
-
+@njit
 def _convert_node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
     Parameters: float list, required
        the input 2D coordinates[longitude, latitude] in radiance
     Returns: float list, the 3D coordinates in [x, y, z]
+    Raises:
+        Exception: Runtime Errors
     """
+    if len(node_coord) != 2:
+        raise RuntimeError("Input array should have a length of 2: [longitude, latitude]")
     lon = node_coord[0]
     lat = node_coord[1]
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
-
+@njit
 def _convert_node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
@@ -454,17 +458,15 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
     Parameters: node_coord: float array, [x, y, z],required
     Returns: float array, [longitude_rad, latitude_rad]
     Raises:
-       Exception: Logic Errors
+       Exception: Runtime Errors
     """
+    if len(node_coord) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     reference_tolerance = 1.0e-12
     [dx, dy, dz] = _normalize_in_place(node_coord)
-
-    d_mag_2 = dx * dx + dy * dy + dz * dz
-
-    d_mag = np.absolute(d_mag_2)
-    dx /= d_mag
-    dy /= d_mag
-    dz /= d_mag
+    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
 
     d_lon_rad = 0.0
     d_lat_rad = 0.0
@@ -484,7 +486,7 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
 
     return [d_lon_rad, d_lat_rad]
 
-
+@njit
 def _normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere.
@@ -492,7 +494,12 @@ def _normalize_in_place(node):
     ----------
     node: float array [x, y, z]
     Returns: float array, the result vector [x, y, z]
+        Raises:
+       Exception: Runtime Errors
     """
+    if len(node) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+
     magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] +
                         node[2] * node[2])
     return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
