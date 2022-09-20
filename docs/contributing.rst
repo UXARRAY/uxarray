@@ -414,7 +414,7 @@ The local development process can very basically be itemized as follows:
 1. Make change(s) to your local copy of the UXarray repository
 
    .. note::
-        Please refer to `3.7.2. Common Elements of Most Pull Requests`_ to make sure your local
+        Please refer to `3.7.3. Common Elements of Most Pull Requests`_ to make sure your local
         changes have all of the elements they should cover.
 
 2. Changes you’ve made locally must be “committed” (merged) to your local repository
@@ -501,7 +501,16 @@ changed in the future.
     Below are significant things about pull requests that can be very helpful throughout
     the entire contribution process (i.e. review and merge) process when performed:
 
-3.7.1. Review your changes
+3.7.1. Link PR to Issue
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Don't forget to link your PR to the issue you have been working on! This will help not
+only keep track of issues easier but also get them closed automatically once your PR is
+merged. You can refer to GitHub's `Linking a pull request to an issue
+<https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue>`_
+for this.
+
+3.7.2. Review your changes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Before you finalize opening the actual PR, it is a good practice to review the changes
@@ -511,7 +520,7 @@ this PR just before you press the `Create pull request` button.
 If there is any changes you want to make in the PR, you can delay creating the PR
 and push new commits, revert existing changes, etc. You can then create the PR.
 
-3.7.2. Common Elements of Most Pull Requests
+3.7.3. Common Elements of Most Pull Requests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Despite the fact that pull requests can differ regarding their purposes (e.g.
@@ -521,7 +530,7 @@ with it. Having all of such elements addressed in a PR could make the review and
 merge process a lot easier. Assuming such code changes, these are what might
 accompany them:
 
-3.7.2.1. Unit tests
+3.7.3.1. Unit tests
 ~~~~~~~~~~~~~~~~~~~
 
 Virtually all new Uxarray code needs to include unit tests of it implemented.
@@ -583,7 +592,7 @@ for PRs with the help of GitHub Actions workflows to ensure new code passes test
 Hence, please check `TODO`_ to make sure your PR tests are all passing before asking
 others to review your work.
 
-3.7.2.2. Docstrings
+3.7.3.2. Docstrings
 ~~~~~~~~~~~~~~~~~~~
 
 All Python functions must contain a `Google Style Python
@@ -614,7 +623,7 @@ The docstrings must contain:
    * If a usage example is longer than a handful of lines, a more complete
      example may be created instead, referring to `TODO `_.
 
-3.7.2.3. Documentation
+3.7.3.3. Documentation
 ~~~~~~~~~~~~~~~~~~~~~~
 
 As we mentioned a few times throughout this guide, Uxarray has a static `documentation
@@ -624,12 +633,14 @@ proper documentation index file(s) for the automation to work. The following ind
 are used for UXarray documentation (directories relative from the root):
 
 `docs/user_api/index.rst`
+
 `docs/internal_api/index.rst`
 
 which allows the following documentation to be automatically generated, respectively:
 
-:ref:`user_api/index`
-:ref:`internal_api/index`
+`User API <user_api/index.rst>`_
+
+`Internal API <internal_api/index.rst>`_
 
 That being said, the code changes, which might be a new function implementation or some
 modifications to existing ones, must be added to the appropriate `index.rst`
