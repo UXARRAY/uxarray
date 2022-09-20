@@ -1,7 +1,3 @@
 - title: Reading Data
   path: examples/reading-data.ipynb
   thumbnail: _static/thumbnails/default.svg
-
-- title: Accessing Data
-  path: examples/data-access.ipynb
-  thumbnail: _static/thumbnails/default.svg
