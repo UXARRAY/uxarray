@@ -1,4 +1,4 @@
-{% set version = "2022.08.0" %}
+{% set version = "2022.09.0" %}
 
 package:
   name: 'uxarray'
