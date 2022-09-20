@@ -623,13 +623,13 @@ repository's code structure. However, there needs to be some manual additions to
 proper documentation index file(s) for the automation to work. The following index files
 are used for UXarray documentation (directories relative from the root):
 
-    `docs/user_api/index.rst`
-    `docs/internal_api/index.rst`
+`docs/user_api/index.rst`
+`docs/internal_api/index.rst`
 
-which allows the following documentation to be autoamtically generated, respectively:
+which allows the following documentation to be automatically generated, respectively:
 
-    :ref:`user_api/index`
-    :ref:`internal_api/index`
+:ref:`user_api/index`
+:ref:`internal_api/index`
 
 That being said, the code changes, which might be a new function implementation or some
 modifications to existing ones, must be added to the appropriate `index.rst`
