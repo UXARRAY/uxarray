@@ -21,7 +21,6 @@ exodus = current_path / "meshfiles" / "outCSne8.g"
 ne8 = current_path / 'meshfiles' / 'outCSne8.nc'
 err_tolerance = 1.0e-12
 
-
 class TestIntegrate(TestCase):
 
     def test_face_area_coords(self):
@@ -88,11 +87,10 @@ class TestGridCenter(TestCase):
 
     def test_normalize_in_place(self):
         [x, y, z] = ux.helpers._normalize_in_place(
-            [random.random(),
-             random.random(),
+            [random.random(), random.random(),
              random.random()])
-        self.assertLessEqual(
-            np.absolute(np.sqrt(x * x + y * y + z * z) - 1), err_tolerance)
+        self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
+                             err_tolerance)
 
     def test_convert_node_xyz_to_lonlat_rad(self):
         [x, y, z] = ux.helpers._normalize_in_place([
