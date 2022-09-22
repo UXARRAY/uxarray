@@ -208,19 +208,19 @@ class Grid:
         """
 
         if grid_type == "ugrid":
-            _write_ugrid(self.ds, outfile, self.ds_var_names)
+            _write_ugrid(self.ds, self.ds_var_names)
 
         elif grid_type == "exodus":
             _write_exodus(self.ds, outfile, self.ds_var_names)
 
         elif grid_type == "scrip":
-            _write_scrip(outfile, self.Mesh2_face_nodes, self.Mesh2_node_x,
+            _write_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
                          self.Mesh2_node_y, self.face_areas)
 
         else:
             raise RuntimeError("Format not supported for writing: ", grid_type)
 
-        if save_as != None:
+        if save_as:
             self.outfile_encoder(outfile, save_as)
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
