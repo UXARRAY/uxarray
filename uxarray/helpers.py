@@ -5,7 +5,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-config.DISABLE_JIT = False
+config.DISABLE_JIT = True
 
 
 def parse_grid_type(filepath, **kw):
@@ -486,11 +486,20 @@ def grid_center_lat_lon(ds):
 @njit
 def _convert_node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
-    Parameters: float list, required
-       the input 2D coordinates[longitude, latitude] in radiance
-    Returns: float list, the 3D coordinates in [x, y, z]
-    Raises:
-        Exception: Runtime Errors
+        Parameters
+    ----------
+    node: float list
+        2D coordinates[longitude, latitude] in radiance
+
+    Returns
+    ----------
+    float list
+        the result array of the unit 3D coordinates [x, y, z] vector where x^2 + y^2 + z^2 = 1
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
     """
     if len(node_coord) != 2:
         raise RuntimeError(
@@ -505,10 +514,20 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
 
-    Parameters: node_coord: float array, [x, y, z],required
-    Returns: float array, [longitude_rad, latitude_rad]
-    Raises:
-       Exception: Runtime Errors
+    Parameters
+    ----------
+    node_coord: float list
+        3D Cartesian Coordinates [x, y, z] of the node
+
+    Returns
+    ----------
+    float list
+        the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
     """
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
@@ -537,17 +556,24 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
 @njit
 def _normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
-    on the unit sphere.
+    on the unit sphere. It uses the `np.linalg.norm` internally to calculate
+    the magnitude.
+
     Parameters
     ----------
-    node: float array [x, y, z]
-    Returns: float array, the result vector [x, y, z]
-        Raises:
-       Exception: Runtime Errors
+    node: float list
+        3D Cartesian Coordinates [x, y, z]
+
+    Returns
+    ----------
+    float list
+        the result unit vector [x, y, z] where x^2 + y^2 + z^2 = 1
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
     """
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-
-    magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] +
-                        node[2] * node[2])
-    return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
+    return node / np.linalg.norm(node, ord=2)
