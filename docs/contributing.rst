@@ -641,7 +641,7 @@ relative from the root directory) are used for UXarray documentation to allow th
 respectively, to be automatically generated.
 
 That being said, the code changes, which might be a new function implementation or some
-modifications to existing ones, must be added to the appropriate `index.rst`
+modifications to existing ones, must be added to the appropriate ``index.rst``
 file so that its documentation page is automatically generated.
 
 .. caution::
