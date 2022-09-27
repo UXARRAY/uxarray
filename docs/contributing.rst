@@ -220,7 +220,6 @@ select an issue to work on:
 1. First, check the existing `UXarray issues
 <https://github.com/UXARRAY/uxarray/issues>`_. These issues might have been
 created from either the
-
 * `UXarray draft API
   <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
   entries,
