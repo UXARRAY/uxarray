@@ -569,7 +569,7 @@ def _normalize_in_place(node):
     Returns
     ----------
     float list
-        the result unit vector [x, y, z] where x^2 + y^2 + z^2 = 1
+        the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
     ----------
