@@ -231,9 +231,10 @@ created from either the
 2. If you are going to work on one of those issues above, self-assign that
 issue before you start working.
 
-3. Or else, if you are going to work on something else, create an issue. The
-title, description, and label of an issue could be very helpful for the team to
-triage the issue and move forward with the work needed.
+3. Or else, if you are going to work on something else, create an issue and
+assign yourself. The title, description, and label of an issue could be very
+helpful for the team to triage the issue and move forward with the work
+needed.
 
 * Title needs to reflect the purpose of the issue. Some examples:
   - Start with "Add ..." if it is a new functionality needed
