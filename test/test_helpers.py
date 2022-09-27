@@ -86,6 +86,9 @@ class TestGridCenter(TestCase):
         np.testing.assert_array_almost_equal(scrip_center_lat, calc_lat)
         np.testing.assert_array_almost_equal(scrip_center_lon, calc_lon)
 
+
+class TestCoordinatesConversion(TestCase):
+
     def test_normalize_in_place(self):
         [x, y, z] = ux.helpers._normalize_in_place(
             [random.random(), random.random(),
