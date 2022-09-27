@@ -16,7 +16,7 @@ you are already or soon-to-be a UXarray contributor, please keep reading!
 
 UXarray is a community-owned, open-development effort that is a result
 of the collaboration between `Project Raijin <https://raijin.ucar.edu/>`_
-and DOE’s `SEATS Project <https://seatstandards.org/>`_ ]. Even though the
+and DOE’s `SEATS Project <https://seatstandards.org/>`_. Even though the
 UXarray team has initiated and been expanding this package, outside
 contributions are welcome and vital for its long-term sustainability.
 Therefore, we invite other community members to become part of this
@@ -44,7 +44,7 @@ example,
 * Develop example notebooks that demonstrate how a particular function
   is used
 * Answer a support question
-* Simply request a feature or report a bug
+* Request a feature or report a bug
 
 All of these activities are signicant contributions to the on-going
 development and maintenance of UXarray.
@@ -186,8 +186,9 @@ To configure your Python environment:
 1. Install either `Anaconda <https://www.anaconda.com/download/>`_ or
 `Miniconda <https://conda.io/miniconda.html/>`_.
 
-   * We recommend Miniconda as it does not install unnecessarily many
-     packages that will not be needed for UXarray development.
+.. tip::
+    We recommend Miniconda as it does not install unnecessarily many
+    packages that will not be needed for UXarray development.
 
 2. Make sure your conda is up to date by running this command from the
 terminal::
@@ -642,7 +643,7 @@ That being said, the code changes, which might be a new function implementation 
 modifications to existing ones, must be added to the appropriate `index.rst`
 file so that its documentation page is automatically generated.
 
-.. attention::
+.. caution::
     Please also ensure that you are changing the `UXarray draft API
     <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
     accordingly if you are proposing changes to the API (e.g. new functions/attributes,
