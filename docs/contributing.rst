@@ -113,7 +113,7 @@ Git. The latter, Git, is an open source, command line tool for collaborative
 software version control, while GitHub is an online, web-accessible service
 that greatly simplifies using the powerful, yet often complex, Git.
 
-.. note::
+.. hint::
     GitHub operates entirely within a web browser. You do not need to
     install anything, but you will need to set up a free GitHub account. Git
     is a command line tool that most likely will need to be installed on
@@ -144,7 +144,7 @@ account, though technically this may not be necessary::
     $ git config --global user.name "Your name here"
     $ git config --global user.email "your_email@example.com"
 
-.. note::
+.. warning::
     Don’t type the $. This simply indicates the command line prompt.
 
 .. note::
@@ -241,14 +241,14 @@ triage the issue and move forward with the work needed.
 * Clearly describe the issue (e.g. what the work should be, which parts of
   UXarray it would need to change, if known, etc.)
 
-.. note::
+.. caution::
     The work that addresses an issue will, most of the time, be eventually
     turned into a "pull request" (or maybe multiple in some cases) that lets you
     tell others about changes you're aiming to make on the project. Once a pull
     request (PR) is opened, it will require others' thorough review and discussion
     before your changes can take place in the project. Hence, a rule of thumb about
     pull requests should be that they should target logically connected, as atomic
-    as possible work.
+    as possible, work.
 
 .. note::
     If you need any clarification/discussion about any requirements, or if you
@@ -293,7 +293,7 @@ Refer to GitHub's `Forking a repository
 <https://docs.github.com/en/get-started/quickstart/fork-a-repo>`_ guide and apply
 instructions regarding the UXarray repository.
 
-.. note::
+.. hint::
     The above GitHub guide about forking a repository will also walk you through
     cloning your forked repository into your local work environment. Please do not
     forget to follow those instructions as well. Or, refer to `GitHub's Cloning a
@@ -320,11 +320,11 @@ Refer to `GitHub's Cloning a repository
 guide and apply those instructions for the actual `UXarray repository
 <https://github.com/UXARRAY/uxarray>`_.
 
-.. note::
+.. hint::
     Regardless of you either fork or clone, there will be a local directory created
     in the name "uxarray" (unless you specified a different name at the step with the
-    :code:`git clone` command). You can type the following command in the terminal/shell to
-    go into your local UXarray repository::
+    :code:`git clone` command). You can type the following command in the terminal/shell
+    to go into your local UXarray repository::
 
         $ cd uxarray
 
@@ -359,7 +359,7 @@ reviewer to focus on the architecture of a change while not wasting time with tr
 style nitpicks. Refer to the `Pre-commit documentation <https://pre-commit.com/#intro>`_
 for further learning.
 
-.. note::
+.. attention::
     We also use pre-commit GitHub Actions workflow to make sure every code contribution
     to our UXarray's GitHub repository (i.e. pull request) aligns with our code standards.
     Therefore, the code changes that are not being checked through local `pre-commit
@@ -413,13 +413,13 @@ The local development process can very basically be itemized as follows:
 
 1. Make change(s) to your local copy of the UXarray repository
 
-   .. note::
-        Please refer to `3.7.3. Common Elements of Most Pull Requests`_ to make sure your local
-        changes have all of the elements they should cover.
+   .. attention::
+        Please refer to `3.7.3. Common Elements of Most Pull Requests`_ to make sure
+        your local changes have all of the elements they should cover.
 
 2. Changes you’ve made locally must be “committed” (merged) to your local repository
-   (the .git subdirectory) using Git, but before the commit, you need to add them to the
-   "staged" changes for commit.
+   (the .git subdirectory) using Git, but before the commit, you need to add them to
+   the "staged" changes for commit.
 
    * You can see any uncommitted changes you’ve made to your local copy of the repository by
      running the following command from anywhere (any directory) within the directory where
@@ -461,7 +461,8 @@ The local development process can very basically be itemized as follows:
 
    if you haven't created a corresponding remote branch for it yet).
 
-.. note:: Remember that we are still not proposing to merge our work into the UXarray
+.. attention::
+    Remember that we are still not proposing to merge our work into the UXarray
     GitHub repository, which will be described in the next subsection, `3.7. Pull
     Requests`_.
 
@@ -486,7 +487,7 @@ reading or discussed with the maintainers and community.
 .. note::
     While pull requests are supposed to be based on changes that are ready to be tested,
     reviewed, and eventually be merged to repositories; there is an exception to this:
-    Draft Pull Requests. We encourage Draft PRs if you just want to just start a
+    Draft Pull Requests. We encourage Draft PRs if you want to just start a
     conversation about your code that isn’t in any state to be judged, and get feedback
     as well as some guidance from others. Please read this GitHub `blog
     <https://github.blog/2019-02-14-introducing-draft-pull-requests/>`_ about draft PRs.
@@ -497,7 +498,7 @@ guide for the instructions. We are especially avoiding to detail these instructi
 here as there are manly referrals to GitHub's graphical user interface, which might be
 changed in the future.
 
-.. note::
+.. attention::
     Below are significant things about pull requests that can be very helpful throughout
     the entire contribution process (i.e. review and merge) process when performed:
 
@@ -587,10 +588,11 @@ need not to be magic values (i.e. they need to be justified and/or documented).
   - Please see previously implemented test cases for reference of the
     recommended testing approach
 
-.. note:: Our test suite that includes all the unit tests is executed automarically
-for PRs with the help of GitHub Actions workflows to ensure new code passes tests.
-Hence, please check `3.7.4.2. GitHub Actions checks`_ to make sure your PR tests are
-all passing before asking others to review your work.
+.. attention::
+    Our test suite that includes all the unit tests is executed automatically
+    for PRs with the help of GitHub Actions workflows to ensure new code passes
+    tests. Hence, please check `3.7.4.2. GitHub Actions checks`_ to make sure your
+    PR tests are all passing before asking others to review your work.
 
 3.7.3.2. Docstrings
 ~~~~~~~~~~~~~~~~~~~
@@ -640,10 +642,10 @@ That being said, the code changes, which might be a new function implementation 
 modifications to existing ones, must be added to the appropriate `index.rst`
 file so that its documentation page is automatically generated.
 
-.. note::
+.. attention::
     Please also ensure that you are changing the `UXarray draft API
     <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-    accordingly if you are proposing chanes to the API (e.g. new functions/attributes,
+    accordingly if you are proposing changes to the API (e.g. new functions/attributes,
     modification(s) to existing functions, etc.)
 
 3.7.3.5. Usage Examples
@@ -672,7 +674,7 @@ assigned, you will hopefully begin to receive reviews soon from them. Please mak
 to address those review comments, change requests, etc to get your PR ready to be
 merged.
 
-.. note::
+.. attention::
     When you addressed all of a reviewer's comments/requests, do not forget to
     re-request their next review!
 
