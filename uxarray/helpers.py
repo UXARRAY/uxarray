@@ -1,9 +1,9 @@
 import numpy as np
 import xarray as xr
 from pathlib import PurePath
-
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
+import math
 
 config.DISABLE_JIT = False
 
@@ -481,3 +481,102 @@ def grid_center_lat_lon(ds):
     center_lon[center_lon < 0] += 360
 
     return center_lat, center_lon
+
+
+@njit
+def _convert_node_lonlat_rad_to_xyz(node_coord):
+    """Helper function to Convert the node coordinate from 2D
+    longitude/latitude to normalized 3D xyz.
+
+    Parameters
+    ----------
+    node: float list
+        2D coordinates[longitude, latitude] in radiance
+
+    Returns
+    ----------
+    float list
+        the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
+    """
+    if len(node_coord) != 2:
+        raise RuntimeError(
+            "Input array should have a length of 2: [longitude, latitude]")
+    lon = node_coord[0]
+    lat = node_coord[1]
+    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+
+
+@njit
+def _convert_node_xyz_to_lonlat_rad(node_coord):
+    """Calculate the latitude and longitude in radiance for a node represented
+    in the [x, y, z] 3D Cartesian coordinates.
+
+    Parameters
+    ----------
+    node_coord: float list
+        3D Cartesian Coordinates [x, y, z] of the node
+
+    Returns
+    ----------
+    float list
+        the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
+    """
+    if len(node_coord) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+    reference_tolerance = 1.0e-12
+    [dx, dy, dz] = _normalize_in_place(node_coord)
+    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
+
+    if np.absolute(dz) < (1.0 - reference_tolerance):
+        d_lon_rad = math.atan2(dy, dx)
+        d_lat_rad = np.arcsin(dz)
+
+        if d_lon_rad < 0.0:
+            d_lon_rad += 2.0 * np.pi
+    elif dz > 0.0:
+        d_lon_rad = 0.0
+        d_lat_rad = 0.5 * np.pi
+    else:
+        d_lon_rad = 0.0
+        d_lat_rad = -0.5 * np.pi
+
+    return [d_lon_rad, d_lat_rad]
+
+
+@njit
+def _normalize_in_place(node):
+    """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
+    on the unit sphere. It uses the `np.linalg.norm` internally to calculate
+    the magnitude.
+
+    Parameters
+    ----------
+    node: float list
+        3D Cartesian Coordinates [x, y, z]
+
+    Returns
+    ----------
+    float list
+        the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
+    """
+    if len(node) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+
+    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
