@@ -5,7 +5,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-config.DISABLE_JIT = True
+config.DISABLE_JIT = False
 
 
 def parse_grid_type(filepath, **kw):
