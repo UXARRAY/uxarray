@@ -205,10 +205,11 @@ the next section.
 
 UXarray uses the `GitHub Flow
 <https://docs.github.com/en/get-started/quickstart/github-flow>`_ model
-for its workflow. UXArray also uses an automated formatter on all commits
-in local development environment in order to ensure code formatting.
-This changes the normal workflow slightly, so in order to avoid any
-confusions, follow these steps:
+for its workflow. UXArray also uses an automated formatter, which is
+described in `3.4. Install and Setup Pre-commit Hooks`_ in detail, on
+all commits in local development environment in order to ensure code
+formatting. This changes the normal workflow slightly, so in order to
+avoid any confusions, follow these steps:
 
 3.1. Select an issue to work on
 -------------------------------
