@@ -486,7 +486,8 @@ def grid_center_lat_lon(ds):
 @njit
 def _convert_node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
-        Parameters
+
+    Parameters
     ----------
     node: float list
         2D coordinates[longitude, latitude] in radiance

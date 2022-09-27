@@ -34,7 +34,6 @@ Grid Helper Modules
    _scrip._read_scrip
    _scrip._write_scrip
    _scrip._to_ugrid
-   helpers._spherical_to_cartesian_unit
    helpers._is_ugrid
    helpers._normalize_in_place
    helpers._convert_node_xyz_to_lonlat_rad
