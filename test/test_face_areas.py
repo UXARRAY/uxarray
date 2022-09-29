@@ -17,11 +17,12 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
 
+
 class TestFaceAreas(TestCase):
 
     def test_calculate_total_face_area_triangle(self):
-        """Create a uxarray grid from vertices and 
-        calculate the area using gaussian and triangular quadrature rules."""
+        """Create a uxarray grid from vertices and calculate the area using
+        gaussian and triangular quadrature rules."""
         verts = np.array([[0.57735027, -5.77350269e-01, -0.57735027],
                           [0.57735027, 5.77350269e-01, -0.57735027],
                           [-0.57735027, 5.77350269e-01, -0.57735027]])
@@ -45,17 +46,28 @@ class TestFaceAreas(TestCase):
         nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
 
     def test_calculate_total_face_area_file(self):
-        """Load a grid from file and calculate the total face area of the mesh."""
+        """Load a grid from file and calculate the total face area of the
+        mesh."""
 
         grid = ux.open_dataset(str(mesh_file30))
         area = grid.calculate_total_face_area()
         nt.assert_almost_equal(area, constants.MESH30_AREA, decimal=3)
-        
+
     def test_compute_face_areas(self):
-        """Load a grid from file and calculate the area of each face of the mesh."""
-        
+        """Load a grid from file and calculate the area of each face of the
+        mesh."""
+
         grid = ux.open_dataset(str(mesh_file30))
+
+        # by default triangular quadrature is used and order is set to 4th.
         area = grid.compute_face_areas()
-        assert(area.size == grid.ds.nMesh2_face.size)
+
+        assert (area.size == grid.ds.nMesh2_face.size)
         # sum the area of all faces with np.sum
+        nt.assert_almost_equal(np.sum(area), constants.MESH30_AREA, decimal=3)
+
+        # compute area again with 3rd order gaussian quadrature
+        area = grid.compute_face_areas(quadrature_rule="gaussian", order=3)
+
+        assert (area.size == grid.ds.nMesh2_face.size)
         nt.assert_almost_equal(np.sum(area), constants.MESH30_AREA, decimal=3)
