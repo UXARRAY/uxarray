@@ -4,6 +4,12 @@ from .grid import *
 from .helpers import parse_grid_type
 
 
+# Integrate def would change:  
+# # def integrate(self, var_key,.. (use datafile or obj instead of varkey)
+# class DataFile:
+#     def __init(self):
+#         pass
+    
 def open_dataset(grid_file, *args, **kw):
     """Creates a UXarray Grid object, given a single grid file with or without
     grid data file(s) with corresponding data. This function merges all those
@@ -65,6 +71,17 @@ def open_dataset(grid_file, *args, **kw):
         # load all the datafiles using mfdataset
         all_data = xr.open_mfdataset(args)
         # merge data with grid ds
-        ux_grid.ds = xr.merge([ux_grid.ds, all_data])
+        # ux_grid.ds = xr.merge([ux_grid.ds, all_data])
+        
+        # TODO:
+        # load these into dataset objects
+        # rename self.ds to self.grid
+
+        # each datafile will have it's own ux.datafile[i] xarray object
+        # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html
+
+        # ux.key would have the object
+        # for i in range(len(args)):
+        #     self.datafile[i]
 
     return ux_grid
