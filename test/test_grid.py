@@ -64,6 +64,12 @@ class TestGrid(TestCase):
         face_filename = current_path / "meshfiles" / "1face.ug"
         vgrid.write(face_filename, "ugrid")
 
+    def test_validate(self):
+        """Test to check the validate function."""
+        path = current_path / "meshfiles" / "outCSne30.ug"
+        grid = ux.open_dataset(path)
+        assert (True == grid.validate())
+
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal
         to using the dict."""

@@ -1,0 +1,13 @@
+Remove source_datasets from Grid object
+
+ux.grid
+
+displays the grid object only
+
+ux.datasets
+
+ux.datasets[0]
+
+change self.ds to self.grid
+
+don't merge data

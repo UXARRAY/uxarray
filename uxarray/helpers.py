@@ -421,7 +421,15 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
 
 
 def _is_ugrid(ds):
-    """Check mesh topology and dimension."""
+    """Check mesh topology and dimension.
+
+    As per documentation: http://ugrid-conventions.github.io/ugrid-conventions/
+    Required topology attributes        Value
+        cf_role                     mesh_topology
+        topology_dimension              2
+        node_coordinates
+        face_node_connectivity
+    """
     standard_name = lambda v: v is not None
     # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
     # return type KeysView

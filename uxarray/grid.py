@@ -10,7 +10,7 @@ from ._exodus import _read_exodus, _write_exodus
 from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _write_scrip
-from .helpers import get_all_face_area_from_coords
+from .helpers import get_all_face_area_from_coords, _is_ugrid
 
 
 class Grid:
@@ -159,6 +159,22 @@ class Grid:
         else:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
+
+    def validate(self):
+        """Validate a grid object as per UGRID conventions.
+
+        Raises
+        ------
+        RuntimeError
+            If unsupported grid type provided
+        """
+        # If the mesh file is loaded correctly, we have the underlying file format as UGRID
+        # Test if the file is a valid ugrid file format or not
+        valid = _is_ugrid(self.ds)
+
+        # TODO: Add more checks
+
+        return valid
 
     def write(self, outfile, grid_type):
         """Writes mesh file as per extension supplied in the outfile string.
