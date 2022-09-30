@@ -52,7 +52,7 @@ class TestGrid(TestCase):
     def test_write_to_file(self):
         """Tests that the writer functions create a correctly formatted file
         when correct arguments are used in writer call."""
-        # Read in ugrid file to be used in writer funcitons
+        # Read in ugrid file to be used in writer functions
         ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
         tgrid1 = ux.open_dataset(str(ug_filename1))
 
@@ -62,7 +62,7 @@ class TestGrid(TestCase):
         ugrid_outfile = current_path / "meshfiles" / "test_ugrid_to_netcdf.nc"
 
         # User writer function with encoder argument
-        tgrid1.write(str(scrip_outfile), "scrip", "netcdf")
+        tgrid1.write(str(scrip_outfile), "scrip", 'netcdf')
         tgrid1.write(str(exodus_outfile), "exodus", "netcdf")
         tgrid1.write(str(ugrid_outfile), "ugrid", "netcdf")
 

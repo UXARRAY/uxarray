@@ -1,4 +1,4 @@
-from uxarray._scrip import _read_scrip, _write_scrip
+from uxarray._scrip import _read_scrip, _encode_scrip
 import uxarray as ux
 import xarray as xr
 from unittest import TestCase
@@ -48,8 +48,8 @@ class TestScrip(TestCase):
 
         # Use uxarray open_dataset to then create SCRIP file from new UGRID file
         make_ux = ux.open_dataset(str(new_path))
-        to_scrip = _write_scrip(make_ux.Mesh2_face_nodes, make_ux.Mesh2_node_x,
-                                make_ux.Mesh2_node_y, make_ux.face_areas)
+        to_scrip = _encode_scrip(make_ux.Mesh2_face_nodes, make_ux.Mesh2_node_x,
+                                 make_ux.Mesh2_node_y, make_ux.face_areas)
 
         # Test newly created SCRIP is same as original SCRIP
         np.testing.assert_array_almost_equal(to_scrip['grid_corner_lat'],
@@ -80,8 +80,8 @@ class TestScrip(TestCase):
         """Tests that returned dataset from writer function has all required
         SCRIP variables."""
         ux_ne30 = ux.open_dataset(ne30)
-        scrip30 = _write_scrip(ux_ne30.Mesh2_face_nodes, ux_ne30.Mesh2_node_x,
-                               ux_ne30.Mesh2_node_y, ux_ne30.face_areas)
+        scrip30 = _encode_scrip(ux_ne30.Mesh2_face_nodes, ux_ne30.Mesh2_node_x,
+                                ux_ne30.Mesh2_node_y, ux_ne30.face_areas)
 
         # List of relevant variable names for a scrip file
         var_list = [

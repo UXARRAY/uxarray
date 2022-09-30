@@ -6,10 +6,10 @@ from warnings import warn
 from pathlib import PurePath
 
 # reader and writer imports
-from ._exodus import _read_exodus, _write_exodus
-from ._ugrid import _read_ugrid, _write_ugrid
+from ._exodus import _read_exodus, _encode_exodus
+from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
-from ._scrip import _read_scrip, _write_scrip
+from ._scrip import _read_scrip, _encode_scrip
 from .helpers import get_all_face_area_from_coords
 
 
@@ -160,28 +160,7 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def outfile_encoder(self, outfile, file_type):
-        """Writes xarray.Dataset to new file in current directory in specified
-        file type.
-
-        Parameters
-        ----------
-        outfile : str, required
-
-        file_type : str, required
-            New file type to be created from write function. Supported options are
-            "netcdf" and "zarr"
-        """
-        if file_type == "netcdf":
-            self.ds.to_netcdf(outfile)
-
-        elif file_type == "zarr":
-            self.ds.to_zarr()
-
-        else:
-            raise RuntimeError("Format not supported for writing: ", file_type)
-
-    def write(self, outfile, grid_type, save_as=None):
+    def write(self, outfile, grid_type, save_as='netcdf'):
         """Writes mesh file as per extension supplied in the outfile string.
 
         Parameters
@@ -197,31 +176,40 @@ class Grid:
             Grid type of output file.
             Currently supported options are "ugrid", "exodus", and "scrip"
 
-        save_as : str, optional
+        save_as : str, default "netcdf"
             The specific file type to save newly created datasets to.
-            Current options are "zarr" and "netcdf"
+            Current options are "netcdf", "zarr", and "None" (no file saved)
 
         Raises
         ------
         RuntimeError
-            If unsupported grid type provided or directory not found
+            If unsupported provided grid type, file type, or outfile directory is not found
         """
 
         if grid_type == "ugrid":
-            _write_ugrid(self.ds, self.ds_var_names)
+            out_ds = _encode_ugrid(self.ds)
 
         elif grid_type == "exodus":
-            _write_exodus(self.ds, outfile, self.ds_var_names)
+            out_ds = _encode_exodus(self.ds, outfile, self.ds_var_names)
 
         elif grid_type == "scrip":
-            _write_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
-                         self.Mesh2_node_y, self.face_areas)
-
+            out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
+                                   self.Mesh2_node_y, self.face_areas)
         else:
             raise RuntimeError("Format not supported for writing: ", grid_type)
 
-        if save_as:
-            self.outfile_encoder(outfile, save_as)
+        if save_as == 'netcdf':
+            out_ds.to_netcdf(outfile)
+
+        elif save_as == 'zarr':
+            out_ds.to_zarr()
+
+        elif save_as == 'None':
+            pass
+
+        else:
+            raise RuntimeError("File format not supported for writing: ",
+                               save_as)
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a

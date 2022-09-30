@@ -141,7 +141,7 @@ def _read_exodus(ext_ds, ds_var_names):
     return ds
 
 
-def _write_exodus(ds, outfile, ds_var_names):
+def _encode_exodus(ds, outfile, ds_var_names):
     """Exodus file writer.
 
     Parameters
