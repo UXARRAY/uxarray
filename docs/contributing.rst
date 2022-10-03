@@ -296,7 +296,7 @@ guide and apply those instructions for the actual `UXarray repository
 .. hint::
     Regardless of you either fork or clone, there will be a local directory created
     in the name "uxarray" (unless you specified a different name at the step with the
-    :code:`git clone` command). You can type the following command in the terminal/shell
+    ``git clone`` command). You can type the following command in the terminal/shell
     to go into your local UXarray repository::
 
         $ cd uxarray
