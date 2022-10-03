@@ -89,7 +89,8 @@ Some important UXarray resources are as follows:
 2. Configuring GitHub and Git, and Setting Up Python Environment
 ================================================================
 
-
+In this section, we will detail what is needed to be done before starting to
+contribute UXarray.
 
 2.1. Getting started with GitHub and Git
 ----------------------------------------
