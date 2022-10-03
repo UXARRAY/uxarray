@@ -527,8 +527,16 @@ Instead, `pytest` should be used only for running test scripts as follows::
 
     $ pytest test/<test_script_name>.py
 
+, or::
+
+    $ python -m pytest test/<test_script_name>.py
+
+, the latter of which will also add the current directory to :code:`sys.path`.
+
 Not using `pytest` for implementation allows the unit tests to be also run
-by using::
+by using (a number of benefits/conveniences coming from using ``pytest`` can be
+seen `here <https://docs.pytest.org/en/7.1.x/how-to/unittest.html#how-to-use-unittest-based-tests-with-pytest>`_
+though)::
 
     $ python -m unittest test/<test_script_name>.py
 
