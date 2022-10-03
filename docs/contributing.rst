@@ -361,7 +361,7 @@ following command::
 3.5. Use Feature Branches
 -------------------------
 
-In your local clone, make a new branch off of the :code:`main` branch (This is way to go
+In your local clone, make a new branch off of the ``main`` branch (This is way to go
 most of the time, but there might be specific cases where, for example, a branch is needed
 to be created off of another feature branch). Naming this branch, whenever applicable,
 like the following is not required but may be much helpful for tracking purposes:
