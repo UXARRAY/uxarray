@@ -156,7 +156,7 @@ To configure your Python environment:
 `Miniconda <https://conda.io/miniconda.html/>`_.
 
 .. tip::
-    We recommend Miniconda as it does not install unnecessarily many
+    We recommend Miniconda as it does not unnecessarily install many
     packages that will not be needed for UXarray development.
 
 2. Make sure your conda is up to date by running this command from the
@@ -380,7 +380,7 @@ branch off of :code:`main`::
 Once you create the new branch, you are good to go with your local changes in the UXarray
 directory!
 
-3.7. Local changes, commits, and pushes
+3.6. Local Changes, Commits, and Pushes
 ---------------------------------------
 
 The local development process can very basically be itemized as follows:
@@ -492,7 +492,7 @@ Before you finalize opening the actual PR, it is a good practice to review the c
 that you’ve made. You should be able to review all of the changes that will go into
 this PR just before you press the `Create pull request` button.
 
-If there is any changes you want to make in the PR, you can delay creating the PR
+If there are any changes you want to make in the PR, you can delay creating the PR
 and push new commits, revert existing changes, etc. You can then create the PR.
 
 3.7.3. Common Elements of Most Pull Requests
@@ -508,9 +508,9 @@ accompany them:
 3.7.3.1. Unit tests
 ~~~~~~~~~~~~~~~~~~~
 
-Virtually all new UXarray code needs to include unit tests of it implemented.
-The UXarray project makes use of diverse technologies for unit testing as
-follows:
+Virtually all new UXarray code needs to include unit tests of the functionality
+implemented. The UXarray project makes use of diverse technologies for unit testing
+as follows:
 
 * All the unit tests of every single Python module (i.e. `.py` file) should be
   implemented as a separate test script under the :code:`\test` folder of the
@@ -630,7 +630,7 @@ file so that its documentation page is automatically generated.
     accordingly if you are proposing changes to the API (e.g. new functions/attributes,
     modification(s) to existing functions, etc.)
 
-3.7.3.5. Usage Examples
+3.7.3.5. Usage examples
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
