@@ -69,7 +69,7 @@ Some important UXarray resources are as follows:
 
 * `UXarray GitHub repository <https://github.com/UXARRAY/uxarray>`_ houses
   the open-source code base along with some significant documentation such
-  as `Readme <https://github.com/UXARRAY/uxarray/blob/main/README.md>`_ and
+  as the `README <https://github.com/UXARRAY/uxarray/blob/main/README.md>`_ and
   `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_.
 
 * `UXarray documentation <https://uxarray.readthedocs.io/>`_
