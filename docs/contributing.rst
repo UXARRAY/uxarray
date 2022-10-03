@@ -11,6 +11,11 @@ Welcome to the Contributor's Guide for UXarray!
 Welcome to the team! If you are reading this document, we hope that
 you are already or soon-to-be a UXarray contributor, please keep reading!
 
+.. note::
+    If you haven't done so yet, you may want to give a quick read through
+    our `README <https://github.com/UXARRAY/uxarray/blob/main/README.md>`_
+    as it provides a lot of significant information about UXarray.
+
 1. Overview
 ===========
 
