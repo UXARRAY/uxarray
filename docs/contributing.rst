@@ -22,17 +22,7 @@ contributions are welcome and vital for its long-term sustainability.
 Therefore, we invite other community members to become part of this
 collaboration at any level of contribution.
 
-1.1. Why the name "UXarray"?
-----------------------------
-
-We have created UXarray based on `Xarray <https://docs.xarray.dev/en/stable/>`_
-(via composition of a Xarray dataset object), a Pangeo ecosystem package
-commonly-used  for structured grids recognition, to support reading and
-recognizing unstructured grid model outputs. We picked the name "UXarray"
-and preferred to capitalize the first two letters to emphasize it is Xarray
-for Unstructured grids.
-
-1.2. Many ways to contribute
+1.1. Many Ways to Contribute
 ----------------------------
 
 There are many different ways to contribute to UXarray. Anyone can, for
@@ -49,7 +39,7 @@ example,
 All of these activities are signicant contributions to the on-going
 development and maintenance of UXarray.
 
-1.3. About this guide
+1.2. About This Guide
 ---------------------
 
 The UXarray content is hosted on GitHub, and through this document,
@@ -62,7 +52,7 @@ not hesitate to reach out to us to consult any such cases.
     `GeoCAT <https://geocat.ucar.edu/pages/contributing.html>`_ project and
     `Project Pythia <https://projectpythia.org/contributing.html>`_.
 
-1.4. Project Specific Resources
+1.3. Project-specific Resources
 -------------------------------
 
 Some important UXarray resources are as follows:
@@ -86,13 +76,13 @@ Some important UXarray resources are as follows:
     `Issue <https://github.com/UXARRAY/uxarray/issues>`_ if you feel any changes
     should be made to this document!
 
-2. Configuring GitHub and Git, and Setting Up Python Environment
-================================================================
+2. Configuring GitHub & Git, and Setting Up Python Environment
+==============================================================
 
 In this section, we will detail what is needed to be done before starting to
 contribute UXarray.
 
-2.1. Getting started with GitHub and Git
+2.1. Getting Started with GitHub and Git
 ----------------------------------------
 
 Contributing to UXarray requires using GitHub, and contributing to a GitHub
@@ -183,7 +173,7 @@ all commits in local development environment in order to ensure code
 formatting. This changes the normal workflow slightly, so in order to
 avoid any confusions, follow these steps:
 
-3.1. Select an issue to work on
+3.1. Select An Issue to Work on
 -------------------------------
 
 Virtually any work should be addressing an issue. There are a few options to
@@ -234,12 +224,12 @@ needed.
     Do not forget, early requirements analysis, specifications, and design
     discussions can avoid redundat code review and modifications later!
 
-3.2. Fork or locally clone the UXarray repository
+3.2. Fork or Locally Clone The UXarray Repository
 -------------------------------------------------
 
 Let us first make a decision of whether to fork or locally clone:
 
-3.2.1. Should you fork?
+3.2.1. Should You Fork?
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 "Fork"ing a repository as described below in this section creates a copy of
@@ -278,7 +268,7 @@ instructions regarding the UXarray repository.
 After these steps, you will have two copies of the forked UXarray repo, one remote
 and one local.
 
-3.2.2. Should you locally clone instead?
+3.2.2. Should You Locally Clone Instead?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In contrast to above cases that might be better suitable for fork, a regular
@@ -341,7 +331,7 @@ for further learning.
     described in `3.7.4.2. GitHub Actions checks`_. If there are any issues with the
     code format, it will lead the pull request to fail the pre-commit checks.
 
-3.4.1. Pre-commit setup
+3.4.1. Pre-commit Setup
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 If you configured your Conda environment via the instructions in `3.3. Configure UXarray
@@ -485,7 +475,7 @@ merged. You can refer to GitHub's `Linking a pull request to an issue
 <https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue>`_
 for this.
 
-3.7.2. Review your changes
+3.7.2. Review Your Changes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Before you finalize opening the actual PR, it is a good practice to review the changes
