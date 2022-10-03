@@ -89,78 +89,46 @@ Some important UXarray resources are as follows:
 2. Configuring GitHub and Git, and Setting Up Python Environment
 ================================================================
 
-In this section, we provide details about how to configure Github and Git
-in order to work with the UXarray GitHub repository. This is because most
-contributions, such as adding a new function or making changes to an
-existing one, writing a usage example, or making some modifications to this
-Contributor's Guide requires operating directly on the GitHub repository.
 
-Contributing to a GitHub repository follows almost the same process by
-any open development Python project maintained on GitHub.
-However, it can still seem complex and somewhat varied from one project to
-another. As such, we will provide an overview of GitHub here and refer the
-reader to other more comprehensive resources for detailed information about
-it (such as GitHub's this
-`Getting Started with Github <https://docs.github.com/en/get-started>`_
-guide), but we will provide significant details about how to configure a
-GitHub development environment for UXarray development and how to contribute.
 
 2.1. Getting started with GitHub and Git
 ----------------------------------------
 
-Contributing to UXarray requires using GitHub, as already mentioned, and
-Git. The latter, Git, is an open source, command line tool for collaborative
-software version control, while GitHub is an online, web-accessible service
-that greatly simplifies using the powerful, yet often complex, Git.
-
-.. hint::
-    GitHub operates entirely within a web browser. You do not need to
-    install anything, but you will need to set up a free GitHub account. Git
-    is a command line tool that most likely will need to be installed on
-    your machine and run from a "terminal" window, AKA a "shell".
-
-Using, and even just configuring, Git and GitHub are often the most
-daunting aspects of contributing to a GitHub hosted project. Here are
-the basic steps for GitHub/Git configuration and Python installation, all
-of which need to be performed **before** contributing to UXarray:
-
-2.1.1. GitHub Setup
-^^^^^^^^^^^^^^^^^^^
-
-Create a free `GitHub <https://github.com/>`_ account. Note GitHub
-offers free personal use and paid enterprise accounts. The free account
-is all that is needed.
-
-2.1.2. Git Setup
-^^^^^^^^^^^^^^^^
-
-If not already installed on your machine, download and install the latest
-version of `Git <https://git-scm.com/downloads>`_. Once Git is installed
-you will need to open a terminal/shell and type the commands below to
-configure Git with a user name and your email. Note, it is recommended
-that you use the same user name/email as you did when setting up your GitHub
-account, though technically this may not be necessary::
-
-    $ git config --global user.name "Your name here"
-    $ git config --global user.email "your_email@example.com"
-
-.. warning::
-    Don’t type the $. This simply indicates the command line prompt.
+Contributing to UXarray requires using GitHub, and contributing to a GitHub
+repository follows almost the same process by any open source Python project
+maintained on GitHub. However, it can still seem complex and somewhat varied from
+one project to another. As such, we will refer the reader to comprehensive
+resources for basic learning and detailed information about GitHub (such as the
+`Getting Started with Github <https://docs.github.com/en/get-started>`_ guide).
 
 .. note::
+    To emphasize the details of how UXarray uses GitHub and how to contribute to
+    it, we will provide significant details in the
+    `3. How UXarray Uses Git/GitHub`_ section.
 
-    Git has lots and lots of commands, each with lots and lots of options. Here we only
-    cover the very basics. Detailed information about Git can be found `here
-    <https://git-scm.com/>`_, but your best friend for figuring out to do things with
-    Git may be Google, and in particular `StackOverflow <https://stackoverflow.com/>`_.
+Git is an open source, command line tool for collaborative software version
+control, while GitHub is an online, web-accessible service that greatly simplifies
+using the powerful, yet often complex, Git. Just like GitHub, we believe that the
+basics of Git is out of scope of this guide, so we will refer the reader to
+Git-specific guides for that purpose (e.g. GitHub's `Set up Git
+<https://docs.github.com/en/get-started/quickstart/set-up-git>`_ guide and `Git's
+homepage <https://git-scm.com/>`_).
+
+.. note::
+    Git has lots and lots of commands, each with lots and lots of options. Even if we
+    can cover some of them throughout this guide, your best friend for figuring out
+    to do things with Git may be Google, and in particular
+    `StackOverflow <https://stackoverflow.com/>`_.
 
 Configure your environment to authenticate with GitHub from Git. This is a
-complicated process, so we suggest that you refer to the details on the `GitHub
-site <https://docs.github.com/en/get-started/quickstart/set-up-git#next-steps-authenticating-with-github-from-git>`_
-to complete this step.
+complicated process, so we suggest that you refer to the details in the
+`Authenticating with GitHub from Git
+<https://docs.github.com/en/get-started/quickstart/set-up-git#authenticating-with-github-from-git>`_
+guide to complete this step.
 
-For further reading see the `Getting Started with Github
-<https://docs.github.com/en/get-started>`_.
+.. attention::
+    The basic steps for GitHub/Git configuration, which can be learned from the
+    linked guides here, need to be performed **before** contributing to UXarray!
 
 2.2. Python Environment Setup
 -----------------------------
@@ -194,6 +162,9 @@ To configure your Python environment:
 terminal::
 
     $ conda update conda
+
+.. warning::
+    Don’t type the $ character. This simply indicates the command line prompt.
 
 At this point, you will have a current version of conda available on your
 system. Before using your Python environment to work on UXarray development,
