@@ -177,7 +177,7 @@ the next section.
 
 UXarray uses the `GitHub Flow
 <https://docs.github.com/en/get-started/quickstart/github-flow>`_ model
-for its workflow. UXArray also uses an automated formatter, which is
+for its workflow. UXarray also uses an automated formatter, which is
 described in `3.4. Install and Setup Pre-commit Hooks`_ in detail, on
 all commits in local development environment in order to ensure code
 formatting. This changes the normal workflow slightly, so in order to
@@ -508,7 +508,7 @@ accompany them:
 3.7.3.1. Unit tests
 ~~~~~~~~~~~~~~~~~~~
 
-Virtually all new Uxarray code needs to include unit tests of it implemented.
+Virtually all new UXarray code needs to include unit tests of it implemented.
 The UXarray project makes use of diverse technologies for unit testing as
 follows:
 
@@ -610,7 +610,7 @@ The docstrings must contain:
 3.7.3.3. Documentation
 ~~~~~~~~~~~~~~~~~~~~~~
 
-As we mentioned a few times throughout this guide, Uxarray has a static `documentation
+As we mentioned a few times throughout this guide, UXarray has a static `documentation
 <https://uxarray.readthedocs.io/>`_ :ref:`index` page that is being generated automatically from the
 repository's code structure. However, there needs to be some manual additions to the
 proper documentation index file(s) for the automation to work.
