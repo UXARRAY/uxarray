@@ -186,10 +186,10 @@ select an issue to work on:
 
 1. First, check the existing `UXarray issues
 <https://github.com/UXARRAY/uxarray/issues>`_. These issues might have been
-created from either the
+created from either the:
+
 * `UXarray draft API
-  <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-  entries,
+  <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_ entries,
 * An entry in a `UXarray Discussion <https://github.com/UXARRAY/uxarray/discussions>`_
 * A feature request, bug report, or any finding of the developers or users
   as a work to-do.
@@ -633,10 +633,10 @@ file so that its documentation page is automatically generated.
     needed. However, it would be a great practice to provide usage examples in the
     same PR, especially for demonstrating the use of complex UXarray functions.
 
-The UXarray documentation houses `examples/<example-name>.ipynb` files (paths relative
-from the root directory) to provide `examples.rst>`_ to be automatically generated. If
-you prefer to provide usage examples for the work you have put together, please be sure
-to put your notebook(s) under this same directory.
+The UXarray documentation houses ``examples/<example-name>.ipynb`` files (paths
+relative from the root directory) to provide `Usage Examples <examples.rst>`_ to be
+automatically generated. If you prefer to provide usage examples for the work you
+have put together, please be sure to put your notebook(s) under this same directory.
 
 3.7.4. After You Open The Pull Request
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
