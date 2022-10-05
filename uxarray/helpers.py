@@ -100,33 +100,6 @@ def parse_grid_type(filepath, **kw):
     return mesh_filetype
 
 
-@njit
-def _spherical_to_cartesian_unit_(node, r=6371):
-    """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
-
-    Final output is cartesian coordinates on a sphere of unit radius
-
-    Parameters
-    ----------
-    node: a list consisting of lat and lon
-
-    Returns: numpy array
-        Cartesian coordinates of length 3
-    """
-    lon = node[0]
-    lat = node[1]
-    lat, lon = np.deg2rad(lat), np.deg2rad(lon)
-    x = r * np.cos(lat) * np.cos(lon)  # x coordinate
-    y = r * np.cos(lat) * np.sin(lon)  # y coordinate
-    z = r * np.sin(lat)  # z coordinate
-
-    coord = np.array([x, y, z])
-    # make it coord on a sphere with unit radius
-    unit_coord = coord / np.linalg.norm(coord)
-
-    return unit_coord
-
-
 # Calculate the area of all faces.
 @njit
 def calculate_face_area(x,
