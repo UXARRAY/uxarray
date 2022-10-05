@@ -536,8 +536,8 @@ Also, all of the test scripts can be run at once with the following command::
     $ pytest test
 
 * Python's unit testing framework, `unittest
-<https://docs.python.org/3/library/unittest.html>`_ is used for implementation of
-the test scripts.
+  <https://docs.python.org/3/library/unittest.html>`_ is used for implementation of
+  the test scripts.
 
 * Reference results (i.e. expected output or ground truth for not all but the most cases)
 should not be magic values (i.e. they need to be justified and/or documented).
