@@ -240,7 +240,7 @@ Let us first make a decision of whether to fork or locally clone:
 3.2.1. Should You Fork?
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-"Fork"ing a repository as described below in this section creates a copy of
+Forking a repository as described below in this section creates a copy of
 the repository under your own account or any GitHub organization of
 which you are a member on GitHub. Forking can be advisable for cases such as:
 
