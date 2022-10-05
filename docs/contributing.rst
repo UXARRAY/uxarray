@@ -343,7 +343,7 @@ for further learning.
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 If you configured your Conda environment via the instructions in `3.3. Configure UXarray
-Conda Environment`_, you will have the :code:`pre-commit` package already installed in your
+Conda Environment`_, you will have the ``pre-commit`` package already installed in your
 environment (Otherwise, you will need to run :code:`conda install -c conda-forge pre_commit`
 to get it installed into your Conda environment for UXarray development). The only thing you
 will have to do additionally in order to set up pre-commit is to run the following command
