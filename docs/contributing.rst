@@ -226,7 +226,7 @@ needed.
     If you need any clarification/discussion about any requirements, or if you
     think the implementation of that issue will require significant changes to
     the code, design, documentation, etc. that issue itself is the right place
-    to manage such discussions with the other UXarray'ers. Don't hesitate to
+    to manage such discussions with the other UXarray-ers. Don't hesitate to
     ask ad-hoc meetings, etc.
 
     Do not forget, early requirements analysis, specifications, and design
@@ -282,7 +282,7 @@ and one local.
 In contrast to above cases that might be better suitable for fork, a regular
 UXarray contributor who is comfortable with working on their local clone
 of the actual UXarray repository and making their changes immediately viewable by
-the other UXarray'ers (i.e. after "push"ing their "commit"s) can choose to locally
+the other UXarray-ers (i.e. after pushing their commits) can choose to locally
 clone the UXarray repository.
 
 **Locally cloning the UXarray repository**
@@ -293,7 +293,7 @@ guide and apply those instructions for the actual `UXarray repository
 <https://github.com/UXARRAY/uxarray>`_.
 
 .. hint::
-    Regardless of you either fork or clone, there will be a local directory created
+    Regardless of whether you fork or clone, there will be a local directory created
     in the name "uxarray" (unless you specified a different name at the step with the
     :code:`git clone` command). You can type the following command in the terminal/shell
     to go into your local UXarray repository::
@@ -360,10 +360,10 @@ following command::
 3.5. Use Feature Branches
 -------------------------
 
-In your local clone, make a new branch off of the ``main`` branch (This is way to go
+In your local clone, make a new branch off of the ``main`` branch (this is the way to go
 most of the time, but there might be specific cases where, for example, a branch is needed
 to be created off of another feature branch). Naming this branch, whenever applicable,
-like the following is not required but may be much helpful for tracking purposes:
+like the following is not required but may be helpful for tracking purposes:
 "issue_XXX" where XXX is the number of the issue or something that is representative of
 the changes you’re making, e.g. "do-this-work", "add-that-function", etc.
 
@@ -458,9 +458,9 @@ reading or discussed with the maintainers and community.
 
 Please refer to Github's `Creating a pull request
 <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request>`_
-guide for the instructions. We are especially avoiding to detail these instructions
-here as there are manly referrals to GitHub's graphical user interface, which might be
-changed in the future.
+guide for the instructions. We are especially avoiding to detail such instructions
+here in this guide as there are many references to GitHub's graphical user interface,
+which might be changed in the future.
 
 .. attention::
     Below are significant things about pull requests that can be very helpful throughout
@@ -570,7 +570,7 @@ should not be magic values (i.e. they need to be justified and/or documented).
 ~~~~~~~~~~~~~~~~~~~
 
 All Python functions must contain a `Google Style Python
-<https://github.com/google/styleguide/blob/gh-pages/pyguide.md>`_ *docstring* (i.e.
+<https://github.com/google/styleguide/blob/gh-pages/pyguide.md>`_ docstring (i.e.
 triple quoted comment blocks). These docstrings are accessed from the Python interpreter
 whenever the user types::
 
