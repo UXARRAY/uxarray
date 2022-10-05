@@ -109,6 +109,7 @@ class TestCoordinatesConversion(TestCase):
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
         self.assertLessEqual(np.absolute(new_z - z), err_tolerance)
 
+
     def test_convert_node_latlon_rad_to_xyz(self):
         [lon, lat] = [
             random.uniform(0, 2 * np.pi),
@@ -119,3 +120,4 @@ class TestCoordinatesConversion(TestCase):
          new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
+

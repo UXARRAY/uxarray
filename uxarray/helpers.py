@@ -100,31 +100,31 @@ def parse_grid_type(filepath, **kw):
     return mesh_filetype
 
 
-@njit
-def _spherical_to_cartesian_unit_(node, r=6371):
-    """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
-
-    Final output is cartesian coordinates on a sphere of unit radius
-
-    Parameters
-    ----------
-    node: a list consisting of lat and lon
-
-    Returns: numpy array
-        Cartesian coordinates of length 3
-    """
-    lon = node[0]
-    lat = node[1]
-    lat, lon = np.deg2rad(lat), np.deg2rad(lon)
-    x = r * np.cos(lat) * np.cos(lon)  # x coordinate
-    y = r * np.cos(lat) * np.sin(lon)  # y coordinate
-    z = r * np.sin(lat)  # z coordinate
-
-    coord = np.array([x, y, z])
-    # make it coord on a sphere with unit radius
-    unit_coord = coord / np.linalg.norm(coord)
-
-    return unit_coord
+# @njit
+# def _spherical_to_cartesian_unit_(node, r=6371):
+#     """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
+#
+#     Final output is cartesian coordinates on a sphere of unit radius
+#
+#     Parameters
+#     ----------
+#     node: a list consisting of lat and lon
+#
+#     Returns: numpy array
+#         Cartesian coordinates of length 3
+#     """
+#     lon = node[0]
+#     lat = node[1]
+#     lat, lon = np.deg2rad(lat), np.deg2rad(lon)
+#     x = r * np.cos(lat) * np.cos(lon)  # x coordinate
+#     y = r * np.cos(lat) * np.sin(lon)  # y coordinate
+#     z = r * np.sin(lat)  # z coordinate
+#
+#     coord = np.array([x, y, z])
+#     # make it coord on a sphere with unit radius
+#     unit_coord = coord / np.linalg.norm(coord)
+#
+#     return unit_coord
 
 
 # Calculate the area of all faces.
@@ -180,13 +180,13 @@ def calculate_face_area(x,
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
     # loop through all sub-triangles of face
     for j in range(0, num_triangles):
-        node1 = np.array([x[0], y[0], z[0]], dtype=np.float64)
-        node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)
-        node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
+        node1 = [x[0], y[0], z[0]]
+        node2 = [x[j + 1], y[j + 1], z[j + 1]]
+        node3 = [x[j + 2], y[j + 2], z[j + 2]]
         if (coords_type == "spherical"):
-            node1 = _spherical_to_cartesian_unit_(node1)
-            node2 = _spherical_to_cartesian_unit_(node2)
-            node3 = _spherical_to_cartesian_unit_(node3)
+            node1 = np.array(_convert_node_lonlat_rad_to_xyz(node1))
+            node2 = np.array(_convert_node_lonlat_rad_to_xyz(node2))
+            node3 = np.array(_convert_node_lonlat_rad_to_xyz(node3))
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
                 for q in range(len(dW)):
@@ -490,12 +490,12 @@ def _convert_node_lonlat_rad_to_xyz(node_coord):
 
     Parameters
     ----------
-    node: float list
+    node_coord: float list/Numpy ndarray
         2D coordinates[longitude, latitude] in radiance
 
     Returns
     ----------
-    float list
+    float list (if node_coord is python list) / float ndarray (if node_coord is ndarray)
         the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
