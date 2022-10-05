@@ -268,7 +268,7 @@ instructions regarding the UXarray repository.
 .. hint::
     The above GitHub guide about forking a repository will also walk you through
     cloning your forked repository into your local work environment. Please do not
-    forget to follow those instructions as well. Or, refer to `GitHub's Cloning a
+    forget to follow those instructions as well. Or, refer to GitHub's `Cloning a
     repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
     guide, and apply those instructions for the UXarray fork that is listed under
     your GitHub account or organization.
