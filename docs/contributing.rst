@@ -386,7 +386,7 @@ The local development process can very basically be itemized as follows:
 1. Make changes to your local copy of the UXarray repository
 
    .. attention::
-        Please refer to `3.7.3. Common Elements of Most Pull Requests`_ to make sure
+        Please refer to `3.7.3. Common Elements of Pull Requests`_ to make sure
         your local changes have all of the elements they should cover.
 
 2. Add your local changes to the "staged" changes for them to be included in the commit.
@@ -399,9 +399,9 @@ The local development process can very basically be itemized as follows:
 
    * So, add changed file(s) into the staged changes to be included in a single commit::
 
-        $ git add PATH_TO_NEW_FILE
+        $ git add PATH/TO/NEW/FILE
 
-     where `PATH_TO_NEW_FILE` is the path name of the newly created file.
+     where ``PATH/TO/NEW/FILE`` is the path name of the newly created file.
 
 3. Now, commit the staged change(s)::
 
@@ -410,7 +410,7 @@ The local development process can very basically be itemized as follows:
    * Limiting the commit to file(s) changed for an atomic task would be very much
      helpful in cases you need to review and maybe revert commits.
 
-   * Do not forget that `pre-commit hooks` will check your code changes at this
+   * Do not forget that ``pre-commit hooks`` will check your code changes at this
      point. If some of those hooks fail, you will need to add those files again
      and attempt to make the same commit again as the hooks will have changed those
      file(s) to make them comply with the code formatting rules.
@@ -425,12 +425,6 @@ The local development process can very basically be itemized as follows:
 
     $ git push
 
-   or::
-
-    $ git push --set-upstream origin <your-branch-name>
-
-   if you haven't created a corresponding remote branch for it yet).
-
 .. attention::
     Remember that we are still not proposing to merge our work into the UXarray
     GitHub repository, which will be described in the next subsection, `3.7. Pull
@@ -439,7 +433,7 @@ The local development process can very basically be itemized as follows:
 3.7. Pull Requests
 ------------------
 
-Pull requests (PR) are GitHub's way for developers to propose and collaborate on changes
+Pull requests are GitHub's way for developers to propose and collaborate on changes
 to a repository. If you are interested in learning the foundations about pull requests,
 please refer to GitHub's `Pull requests <https://docs.github.com/en/pull-requests>`_
 documentation.
@@ -491,7 +485,7 @@ this PR just before you press the `Create pull request` button.
 If there are any changes you want to make in the PR, you can delay creating the PR
 and push new commits, revert existing changes, etc. You can then create the PR.
 
-3.7.3. Common Elements of Most Pull Requests
+3.7.3. Common Elements of Pull Requests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Despite the fact that pull requests can differ regarding their purposes (e.g.
