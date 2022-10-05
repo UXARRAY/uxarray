@@ -389,9 +389,7 @@ The local development process can very basically be itemized as follows:
         Please refer to `3.7.3. Common Elements of Most Pull Requests`_ to make sure
         your local changes have all of the elements they should cover.
 
-2. Changes you’ve made locally must be “committed” (merged) to your local repository
-   (the .git subdirectory) using Git, but before the commit, you need to add them to
-   the "staged" changes for commit.
+2. Add your local changes to the "staged" changes for them to be included in the commit.
 
    * You can see any uncommitted changes you’ve made to your local copy of the repository by
      running the following command from anywhere (any directory) within the directory where
