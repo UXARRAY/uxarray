@@ -383,7 +383,7 @@ directory!
 
 The local development process can very basically be itemized as follows:
 
-1. Make change(s) to your local copy of the UXarray repository
+1. Make changes to your local copy of the UXarray repository
 
    .. attention::
         Please refer to `3.7.3. Common Elements of Most Pull Requests`_ to make sure
