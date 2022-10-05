@@ -309,8 +309,8 @@ development purposes. Use the following commands for this::
     $ conda env create --file ci/environment.yml
     $ conda activate uxarray_build
 
-THe above commands will use the :code:`environment.yml` conda environment definition
-file that is hosted under the :code:`ci` folder and create a conda environment with
+THe above commands will use the ``environment.yml`` conda environment definition
+file that is hosted under the ``ci`` folder and create a conda environment with
 the name "uxarray_build". Once you activate that environment with the help of the
 second command, you will be able to develop UXarray codes in your local configuration.
 
