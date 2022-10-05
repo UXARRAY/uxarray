@@ -287,7 +287,7 @@ clone the UXarray repository.
 
 **Locally cloning the UXarray repository**
 
-Refer to `GitHub's Cloning a repository
+Refer to GitHub's `Cloning a repository
 <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
 guide and apply those instructions for the actual `UXarray repository
 <https://github.com/UXARRAY/uxarray>`_.
