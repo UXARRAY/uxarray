@@ -203,10 +203,13 @@ helpful for the team to triage the issue and move forward with the work
 needed.
 
 * Title needs to reflect the purpose of the issue. Some examples:
+
   - Start with "Add ..." if it is a new functionality needed
   - Start with "Error ...", "Exception ...", or "Bug ..." if that is a bug
+
 * Use issue labels accordingly, e.g. "bug", "support", "enhancement",
   "documentation", etc.
+
 * Clearly describe the issue (e.g. what the work should be, which parts of
   UXarray it would need to change, if known, etc.)
 
