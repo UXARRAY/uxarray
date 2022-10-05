@@ -295,7 +295,7 @@ guide and apply those instructions for the actual `UXarray repository
 .. hint::
     Regardless of you either fork or clone, there will be a local directory created
     in the name "uxarray" (unless you specified a different name at the step with the
-    ``git clone`` command). You can type the following command in the terminal/shell
+    :code:`git clone` command). You can type the following command in the terminal/shell
     to go into your local UXarray repository::
 
         $ cd uxarray
@@ -311,7 +311,7 @@ development purposes. Use the following commands for this::
 
 THe above commands will use the ``environment.yml`` conda environment definition
 file that is hosted under the ``ci`` folder and create a conda environment with
-the name "uxarray_build". Once you activate that environment with the help of the
+the name ``uxarray_build``. Once you activate that environment with the help of the
 second command, you will be able to develop UXarray codes in your local configuration.
 
 3.4. Install and Setup Pre-commit Hooks
@@ -367,9 +367,9 @@ like the following is not required but may be much helpful for tracking purposes
 "issue_XXX" where XXX is the number of the issue or something that is representative of
 the changes you’re making, e.g. "do-this-work", "add-that-function", etc.
 
-Here are example commands that assume, you are checking out the :code:`main` branch first,
+Here are example commands that assume, you are checking out the ``main`` branch first,
 pulling  from the remote server to have everything in your local up-to-date, and creating a new
-branch off of :code:`main`::
+branch off of ``main``::
 
     $ git checkout main
     $ git pull
@@ -452,7 +452,7 @@ you need to submit a PR asking the UXarray maintainers to consider your merge re
 
 The merge will occur between your personal branch that should have all of your commits
 from local in the GitHub repository (either in your fork or in the actual UXarray repo)
-and the :code:`main` branch, if not other, in the UXarray's GitHub repository. There
+and the ``main`` branch, if not other, in the UXarray's GitHub repository. There
 might be some exceptions to this generic case, which can always be learned through
 reading or discussed with the maintainers and community.
 
@@ -511,13 +511,13 @@ implemented. The UXarray project makes use of diverse technologies for unit test
 as follows:
 
 * All the unit tests of every single Python module (i.e. `.py` file) should be
-  implemented as a separate test script under the :code:`\test` folder of the
+  implemented as a separate test script under the ``\test`` folder of the
   repository's root directory.
 
 * The `pytest <https://docs.pytest.org/en/stable/contents.html>`_ testing framework
   is used as `runner` for the tests. If you configured your Conda environment via
   the instructions in `3.3. Configure UXarray Conda Environment`_, you will have
-  the :code:`pytest` package already installed in your environment (Otherwise, you
+  the ``pytest`` package already installed in your environment (Otherwise, you
   will need to run :code:`conda install -c conda-forge pytest` to get it installed
   into your Conda environment for UXarray development).
 
@@ -530,9 +530,9 @@ Instead, `pytest` should be used only for running test scripts as follows::
 
     $ python -m pytest test/<test_script_name>.py
 
-, the latter of which will also add the current directory to :code:`sys.path`.
+, the latter of which will also add the current directory to ``sys.path``.
 
-Not using `pytest` for implementation allows the unit tests to be also run
+Not using ``pytest`` for implementation allows the unit tests to be also run
 by using (a number of benefits/conveniences coming from using ``pytest`` can be
 seen `here <https://docs.pytest.org/en/7.1.x/how-to/unittest.html#how-to-use-unittest-based-tests-with-pytest>`_
 though)::
@@ -674,11 +674,11 @@ to be generated without any issues.
 
 .. note::
     We require PRs to pass all of these checks before getting merged in order to
-    always ensure our :code:`main` branch stability.
+    always ensure our ``main`` branch stability.
 
 These checks can be extremely helpful for contributors to be sure about they are
 changing things in correct directions and their PRs are ready to be reviewed and
-merged. For example, the :code:`docs/readthedocs.org:uxarray` check can show whether
+merged. For example, the ``docs/readthedocs.org:uxarray`` check can show whether
 the UXarray documentation is able to be generated (i.e. pass/fail) and if it passes, it
 also shows, just by clicking to its `Details`, the corresponding documentation being
 generated for the PR.
