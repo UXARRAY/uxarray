@@ -513,8 +513,8 @@ as follows:
   will need to run :code:`conda install -c conda-forge pytest` to get it installed
   into your Conda environment for UXarray development).
 
-* Test scripts themselves are not intended to use `pytest` through implementation.
-Instead, `pytest` should be used only for running test scripts as follows::
+* Test scripts themselves are not intended to use ``pytest`` through implementation.
+Instead, ``pytest`` should be used only for running test scripts as follows::
 
     $ pytest test/<test_script_name>.py
 
@@ -540,7 +540,7 @@ Also, all of the test scripts can be run at once with the following command::
 the test scripts.
 
 * Reference results (i.e. expected output or ground truth for not all but the most cases)
-need not to be magic values (i.e. they need to be justified and/or documented).
+should not be magic values (i.e. they need to be justified and/or documented).
 
 * Recommended, but not mandatory, implementation approach is as follows:
 
@@ -551,8 +551,8 @@ need not to be magic values (i.e. they need to be justified and/or documented).
 
   - Any group of testing functions dedicated to testing a particular
     phenomenon (e.g. a specific edge case, data structure, etc.) is
-    implemented by a class, which inherits `TestCase` from Python's
-    `unittest` and likely the base test class implemented for the purpose
+    implemented by a class, which inherits ``TestCase`` from Python's
+    ``unittest`` and likely the base test class implemented for the purpose
     mentioned above.
 
   - Assertions are used for testing various cases such as array comparison.
