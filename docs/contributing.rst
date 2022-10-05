@@ -605,7 +605,7 @@ As we mentioned a few times throughout this guide, UXarray has a static `documen
 repository's code structure. However, there needs to be some manual additions to the
 proper documentation index file(s) for the automation to work.
 
-The index files `docs/user_api/index.rst` and `docs/internal_api/index.rst` (paths
+The index files ``docs/user_api/index.rst`` and ``docs/internal_api/index.rst`` (paths
 relative from the root directory) are used for UXarray documentation to allow the
 `User API <user_api/index.rst>`_ and `Internal API <internal_api/index.rst>`_,
 respectively, to be automatically generated.
