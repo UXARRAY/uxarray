@@ -175,9 +175,8 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     Returns
     -------
     ds : xarray.Dataset
-        Dataset to be returned by ``_write_scrip``. The function returns both
-        the output dataset in SCRIP format for immediate and saves it as an
-        independent netCDF file.
+        Dataset to be returned by ``_encode_scrip``. The function returns
+        the output dataset in SCRIP format for immediate use.
     """
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()

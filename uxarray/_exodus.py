@@ -148,13 +148,17 @@ def _encode_exodus(ds, outfile, ds_var_names):
     ----------
 
     ds : xarray.Dataset, required
-        Dataset to be written to exodus file.
+        Dataset to be encoded to exodus file.
 
     outfile : string, required
        Name of output file
+
+    Returns
+    -------
+    exo_ds : xarray.Dataset
+        Dataset encoded as exodus file.
     """
     # Note this is 1-based unlike native Mesh2 construct
-    # print("Writing exodus file: ", outfile)
 
     exo_ds = xr.Dataset()
 
@@ -318,10 +322,7 @@ def _encode_exodus(ds, outfile, ds_var_names):
         np.array(cnames, dtype='str')),
                                         dims=["num_dim"])
 
-    # done processing write the file to disk
-    # exo_ds.to_netcdf(outfile)
-    # print("Wrote: ", outfile)
-    return ds
+    return exo_ds
 
 
 def _get_element_type(num_nodes):
