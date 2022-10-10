@@ -55,7 +55,7 @@ def _read_ugrid(xr_ds, var_names_dict):
 
 # Write a uxgrid to a file with specified format.
 def _encode_ugrid(ds):
-    """UGRID file writer.
+    """Encodes UGRID file.
     Parameters
     ----------
     ds : xarray.Dataset

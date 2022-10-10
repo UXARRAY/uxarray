@@ -161,7 +161,7 @@ class Grid:
         dataset.close()
 
     def write(self, outfile, grid_type, save_as='netcdf'):
-        """Writes mesh file as per extension supplied in the outfile string.
+        """Writes mesh file as per extension supplied in the `save_as` string.
 
         Parameters
         ----------
@@ -183,7 +183,7 @@ class Grid:
         Raises
         ------
         RuntimeError
-            If unsupported provided grid type, file type, or outfile directory is not found
+            If provided grid type or file type is unsupported, or provided outfile directory is not found
         """
 
         if grid_type == "ugrid":
@@ -202,7 +202,7 @@ class Grid:
             out_ds.to_netcdf(outfile)
 
         elif save_as == 'zarr':
-            out_ds.to_zarr()
+            out_ds.to_zarr(store=outfile, mode="w")
 
         elif save_as == 'None':
             pass

@@ -140,7 +140,7 @@ def _read_scrip(ext_ds):
 
 def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     """Function to reassign UGRID formatted variables to SCRIP formatted
-    variables and then writing them out to a netCDF file.
+    variables.
 
     Currently, supports creating unstructured SCRIP grid files following traditional
     SCRIP naming practices (grid_corner_lat, grid_center_lat, etc).

@@ -142,7 +142,7 @@ def _read_exodus(ext_ds, ds_var_names):
 
 
 def _encode_exodus(ds, outfile, ds_var_names):
-    """Exodus file writer.
+    """Encodes an Exodus file.
 
     Parameters
     ----------

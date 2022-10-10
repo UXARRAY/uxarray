@@ -49,7 +49,7 @@ class TestGrid(TestCase):
         tgrid2.write(str(ug_outfile2), "scrip")
         tgrid3.write(str(ug_outfile3), "scrip")
 
-    def test_write_to_file(self):
+    def test_write_to_netcdf(self):
         """Tests that the writer functions create a correctly formatted file
         when correct arguments are used in writer call."""
         # Read in ugrid file to be used in writer functions
@@ -65,6 +65,23 @@ class TestGrid(TestCase):
         tgrid1.write(str(scrip_outfile), "scrip", 'netcdf')
         tgrid1.write(str(exodus_outfile), "exodus", "netcdf")
         tgrid1.write(str(ugrid_outfile), "ugrid", "netcdf")
+
+    def test_write_to_zarr(self):
+        """Tests that the writer functions create a correctly formatted file
+        when correct arguments are used in writer call."""
+        # Read in ugrid file to be used in writer functions
+        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+        tgrid1 = ux.open_dataset(str(ug_filename1))
+
+        # Create paths for new scrip and exodus files to be stored
+        scrip_outfile = current_path / "meshfiles" / "test_scrip_to_zarr.zarr"
+        exodus_outfile = current_path / "meshfiles" / "test_exodus_to_zarr.zarr"
+        ugrid_outfile = current_path / "meshfiles" / "test_ugrid_to_zarr.zarr"
+
+        # User writer function with encoder argument
+        tgrid1.write(str(scrip_outfile), "scrip", "zarr")
+        tgrid1.write(str(exodus_outfile), "exodus", "zarr")
+        tgrid1.write(str(ugrid_outfile), "ugrid", "zarr")
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a ugrid file.
