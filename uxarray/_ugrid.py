@@ -59,7 +59,7 @@ def _encode_ugrid(ds):
     Parameters
     ----------
     ds : xarray.Dataset
-        Dataset to be written to file
+        Dataset to be encoded to file
 
     Uses to_netcdf from xarray object.
     """
