@@ -161,7 +161,7 @@ class Grid:
         dataset.close()
 
     def write(self, outfile, grid_type, save_as='netcdf'):
-        """Writes mesh file as per extension supplied in the `save_as` string.
+        """Writes mesh file as per file type supplied in the `save_as` string.
 
         Parameters
         ----------
@@ -178,7 +178,7 @@ class Grid:
 
         save_as : str, default "netcdf"
             The specific file type to save newly created datasets to.
-            Current options are "netcdf", "zarr", and "None" (no file saved)
+            Current options are "netcdf" and "zarr"
 
         Raises
         ------
@@ -190,7 +190,7 @@ class Grid:
             out_ds = _encode_ugrid(self.ds)
 
         elif grid_type == "exodus":
-            out_ds = _encode_exodus(self.ds, outfile, self.ds_var_names)
+            out_ds = _encode_exodus(self.ds, self.ds_var_names, outfile)
 
         elif grid_type == "scrip":
             out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
@@ -203,9 +203,6 @@ class Grid:
 
         elif save_as == 'zarr':
             out_ds.to_zarr(store=outfile, mode="w")
-
-        elif save_as == 'None':
-            pass
 
         else:
             raise RuntimeError("File format not supported for writing: ",
