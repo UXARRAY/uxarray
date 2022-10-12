@@ -172,8 +172,7 @@ class Grid:
         Parameters
         ----------
         outfile : str, required
-            Name of or path to output file. If path is not given,
-            file is saved to current working directory
+            Name of, or path to, output file.
 
             ex: "path/to/new/file/location/new_file.nc" or
                 "new_file.nc"
@@ -184,7 +183,10 @@ class Grid:
 
         save_as : str, optional default "netcdf"
             The specific file type to save newly created datasets to.
-            Current options are "netcdf" and "zarr"
+            Current options are "netcdf" and "zarr". Both options will
+            automatically save to directory defined by `outfile`. There is
+            no need to use "path" kwarg with 'netcdf' or "store" kwarg
+            with 'zarr'.
 
         **kwargs : str, optional
             Keyword arguments to be used in xarray.Dataset.to_netcdf and
@@ -212,7 +214,7 @@ class Grid:
             out_ds.to_netcdf(outfile, **kwargs)
 
         elif save_as == 'zarr':
-            out_ds.to_zarr(**kwargs)
+            out_ds.to_zarr(outfile, **kwargs)
 
         else:
             raise RuntimeError("File format not supported for writing: ",

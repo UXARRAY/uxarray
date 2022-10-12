@@ -80,13 +80,12 @@ class TestGrid(TestCase):
         ugrid_outfile = current_path / "meshfiles" / "test_ugrid_to_zarr.zarr"
 
         # User writer function with encoder argument
-        tgrid1.write(str(scrip_outfile),
-                     "scrip",
-                     "zarr",
-                     store=scrip_outfile,
+        tgrid1.write(str(scrip_outfile), "scrip", "zarr",
                      mode="w")  # test kwargs work
-        tgrid1.write(str(exodus_outfile), "exodus", "zarr")
-        tgrid1.write(str(ugrid_outfile), "ugrid", "zarr")
+        tgrid1.write(str(exodus_outfile), "exodus", "zarr",
+                     mode="w")  # write mode to overwrite any prior versions
+        tgrid1.write(str(ugrid_outfile), "ugrid", "zarr",
+                     mode="w")  # write mode to overwrite any prior versions
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a ugrid file.
