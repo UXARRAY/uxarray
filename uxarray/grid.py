@@ -163,6 +163,12 @@ class Grid:
     def write(self, outfile, grid_type, save_as='netcdf', **kwargs):
         """Writes mesh file as per file type supplied in the `save_as` string.
 
+           Note:
+
+           `netcdf` option will return a new file in specified or working directory.
+
+           `zarr` option wil return a new directory in specified or working directory
+
         Parameters
         ----------
         outfile : str, required
@@ -176,9 +182,13 @@ class Grid:
             Grid type of output file.
             Currently supported options are "ugrid", "exodus", and "scrip"
 
-        save_as : str, default "netcdf"
+        save_as : str, optional default "netcdf"
             The specific file type to save newly created datasets to.
             Current options are "netcdf" and "zarr"
+
+        **kwargs : str, optional
+            Keyword arguments to be used in xarray.Dataset.to_netcdf and
+            xarray.Dataset.to_zarr as defined in the Xarray function documentation
 
         Raises
         ------
