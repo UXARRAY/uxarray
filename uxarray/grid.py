@@ -160,7 +160,7 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, outfile, grid_type, save_as='netcdf'):
+    def write(self, outfile, grid_type, save_as='netcdf', **kwargs):
         """Writes mesh file as per file type supplied in the `save_as` string.
 
         Parameters
@@ -199,10 +199,10 @@ class Grid:
             raise RuntimeError("Format not supported for writing: ", grid_type)
 
         if save_as == 'netcdf':
-            out_ds.to_netcdf(outfile)
+            out_ds.to_netcdf(outfile, **kwargs)
 
         elif save_as == 'zarr':
-            out_ds.to_zarr(store=outfile, mode="w")
+            out_ds.to_zarr(**kwargs)
 
         else:
             raise RuntimeError("File format not supported for writing: ",
