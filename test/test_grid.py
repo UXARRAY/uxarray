@@ -62,14 +62,11 @@ class TestGrid(TestCase):
         ugrid_outfile = current_path / "meshfiles" / "test_ugrid_to_netcdf.nc"
 
         # User writer function with encoder argument
-        scrip = tgrid1.write("scrip")
-        scrip.to_netcdf(str(scrip_outfile))
+        tgrid1.write("scrip").to_netcdf(str(scrip_outfile))
 
-        exodus = tgrid1.write("exodus")
-        exodus.to_netcdf(str(exodus_outfile))
+        tgrid1.write("exodus").to_netcdf(str(exodus_outfile))
 
-        ugrid = tgrid1.write("ugrid")
-        ugrid.to_netcdf(str(ugrid_outfile))
+        tgrid1.write("ugrid").to_netcdf(str(ugrid_outfile))
 
     def test_write_to_zarr(self):
         """Tests that the writer functions create a correctly formatted file
@@ -84,14 +81,11 @@ class TestGrid(TestCase):
         ugrid_outfile = current_path / "meshfiles" / "test_ugrid_to_zarr.zarr"
 
         # User writer function with encoder argument
-        scrip = tgrid1.write("scrip")
-        scrip.to_zarr(str(scrip_outfile), mode='w')
+        tgrid1.write("scrip").to_zarr(str(scrip_outfile), mode='w')
 
-        exodus = tgrid1.write("exodus")
-        exodus.to_zarr(str(exodus_outfile), mode='w')
+        tgrid1.write("exodus").to_zarr(str(exodus_outfile), mode='w')
 
-        ugrid = tgrid1.write("ugrid")
-        ugrid.to_zarr(str(ugrid_outfile), mode='w')
+        tgrid1.write("ugrid").to_zarr(str(ugrid_outfile), mode='w')
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a ugrid file.
