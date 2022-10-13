@@ -18,7 +18,7 @@ class TestExodus(TestCase):
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
         tgrid = ux.open_dataset(str(exo2_filename))
         outfile = current_path / "write_test_outCSne8.g"
-        tgrid.write(str(outfile), "exodus")
+        tgrid.write("exodus").to_netcdf(str(outfile))
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a 1 face exodus
@@ -27,7 +27,7 @@ class TestExodus(TestCase):
         vgrid = ux.Grid(verts)
 
         face_filename = current_path / "meshfiles" / "1face.g"
-        vgrid.write(face_filename, "exodus")
+        vgrid.write("exodus").to_netcdf(str(face_filename))
 
     def test_mixed_exodus(self):
         """Read/write an exodus file with two types of faces (triangle and
@@ -36,6 +36,7 @@ class TestExodus(TestCase):
         exo2_filename = current_path / "meshfiles" / "mixed.exo"
         tgrid = ux.open_dataset(str(exo2_filename))
         outfile = current_path / "write_test_mixed.ug"
-        tgrid.write(str(outfile), "ugrid")
+
+        tgrid.write("ugrid").to_netcdf(str(outfile))
         outfile = current_path / "write_test_mixed.exo"
-        tgrid.write(str(outfile), "exodus")
+        tgrid.write("exodus").to_netcdf(str(outfile))

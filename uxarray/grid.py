@@ -160,37 +160,21 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, outfile, grid_type, save_as='netcdf', **kwargs):
-        """Writes mesh file as per file type supplied in the `save_as` string.
-
-           Note:
-
-           `netcdf` option will return a new file in specified or working directory.
-
-           `zarr` option wil return a new directory in specified or working directory
+    def write(self, grid_type):
+        """Writes mesh file as per file type supplied in the `grid_type`
+        string.
 
         Parameters
         ----------
-        outfile : str, required
-            Name of, or path to, output file.
-
-            ex: "path/to/new/file/location/new_file.nc" or
-                "new_file.nc"
-
         grid_type : str, required
             Grid type of output file.
             Currently supported options are "ugrid", "exodus", and "scrip"
 
-        save_as : str, optional default "netcdf"
-            The specific file type to save newly created datasets to.
-            Current options are "netcdf" and "zarr". Both options will
-            automatically save to directory defined by `outfile`. There is
-            no need to use "path" kwarg with 'netcdf' or "store" kwarg
-            with 'zarr'.
-
-        **kwargs : str, optional
-            Keyword arguments to be used in xarray.Dataset.to_netcdf and
-            xarray.Dataset.to_zarr as defined in the Xarray function documentation
+        Returns
+        -------
+        out_ds : xarray.Dataset
+            xarray.Dataset that can then be turned into a zarr or netcdf file using Xarray
+            functionality `xarray.Dataset.to_zarr` and `xarray.Dataset.to_netcdf`
 
         Raises
         ------
@@ -202,7 +186,7 @@ class Grid:
             out_ds = _encode_ugrid(self.ds)
 
         elif grid_type == "exodus":
-            out_ds = _encode_exodus(self.ds, self.ds_var_names, outfile)
+            out_ds = _encode_exodus(self.ds, self.ds_var_names)
 
         elif grid_type == "scrip":
             out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
@@ -210,15 +194,7 @@ class Grid:
         else:
             raise RuntimeError("Format not supported for writing: ", grid_type)
 
-        if save_as == 'netcdf':
-            out_ds.to_netcdf(outfile, **kwargs)
-
-        elif save_as == 'zarr':
-            out_ds.to_zarr(outfile, **kwargs)
-
-        else:
-            raise RuntimeError("File format not supported for writing: ",
-                               save_as)
+        return out_ds
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a

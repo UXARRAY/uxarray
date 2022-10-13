@@ -27,9 +27,9 @@ class TestGrid(TestCase):
         tgrid2 = ux.open_dataset(str(ug_filename2))
         tgrid3 = ux.open_dataset(str(ug_filename3))
 
-        tgrid1.write(str(ug_outfile1), "exodus")
-        tgrid2.write(str(ug_outfile2), "exodus")
-        tgrid3.write(str(ug_outfile3), "exodus")
+        tgrid1.write("exodus")
+        tgrid2.write("exodus")
+        tgrid3.write("exodus")
 
     def test_read_ugrid_write_scrip(self):
         """Reads in augrid file and writes to a scrip file."""
@@ -45,9 +45,9 @@ class TestGrid(TestCase):
         tgrid2 = ux.open_dataset(str(ug_filename2))
         tgrid3 = ux.open_dataset(str(ug_filename3))
 
-        tgrid1.write(str(ug_outfile1), "scrip")
-        tgrid2.write(str(ug_outfile2), "scrip")
-        tgrid3.write(str(ug_outfile3), "scrip")
+        tgrid1.write("scrip")
+        tgrid2.write("scrip")
+        tgrid3.write("scrip")
 
     def test_write_to_netcdf(self):
         """Tests that the writer functions create a correctly formatted file
@@ -62,10 +62,14 @@ class TestGrid(TestCase):
         ugrid_outfile = current_path / "meshfiles" / "test_ugrid_to_netcdf.nc"
 
         # User writer function with encoder argument
-        tgrid1.write(str(scrip_outfile), "scrip", 'netcdf',
-                     mode='w')  # test kwargs work
-        tgrid1.write(str(exodus_outfile), "exodus", "netcdf")
-        tgrid1.write(str(ugrid_outfile), "ugrid", "netcdf")
+        scrip = tgrid1.write("scrip")
+        scrip.to_netcdf(str(scrip_outfile))
+
+        exodus = tgrid1.write("exodus")
+        exodus.to_netcdf(str(exodus_outfile))
+
+        ugrid = tgrid1.write("ugrid")
+        ugrid.to_netcdf(str(ugrid_outfile))
 
     def test_write_to_zarr(self):
         """Tests that the writer functions create a correctly formatted file
@@ -80,12 +84,14 @@ class TestGrid(TestCase):
         ugrid_outfile = current_path / "meshfiles" / "test_ugrid_to_zarr.zarr"
 
         # User writer function with encoder argument
-        tgrid1.write(str(scrip_outfile), "scrip", "zarr",
-                     mode="w")  # test kwargs work
-        tgrid1.write(str(exodus_outfile), "exodus", "zarr",
-                     mode="w")  # write mode to overwrite any prior versions
-        tgrid1.write(str(ugrid_outfile), "ugrid", "zarr",
-                     mode="w")  # write mode to overwrite any prior versions
+        scrip = tgrid1.write("scrip")
+        scrip.to_zarr(str(scrip_outfile), mode='w')
+
+        exodus = tgrid1.write("exodus")
+        exodus.to_zarr(str(exodus_outfile), mode='w')
+
+        ugrid = tgrid1.write("ugrid")
+        ugrid.to_zarr(str(ugrid_outfile), mode='w')
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a ugrid file.
@@ -100,7 +106,7 @@ class TestGrid(TestCase):
         assert (vgrid.source_datasets is None)
 
         face_filename = current_path / "meshfiles" / "1face.ug"
-        vgrid.write(face_filename, "ugrid")
+        vgrid.write("ugrid")
 
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal

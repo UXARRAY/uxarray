@@ -47,4 +47,4 @@ class TestUgrid(TestCase):
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
         ux_grid = ux.open_dataset(str(exo2_filename))
         outfile = current_path / "write_test_outCSne8.ug"
-        ux_grid.write(str(outfile), "ugrid")
+        ux_grid.write("ugrid").to_netcdf(str(outfile))
