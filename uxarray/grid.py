@@ -324,32 +324,37 @@ class Grid:
             self.compute_face_areas()
         return self._face_areas
 
-    def __init_grid_var_attrs__(self):
-        """Initialize attributes for directly accessing Coordinate and Data
-        variables through ugrid conventions.
+    def __init_grid_var_attrs__(self) -> None:
+        """Initialize attributes for directly accessing UGRID dimensions and
+        variables.
 
         Examples
         ----------
         Assuming the mesh node coordinates for longitude are stored with an input
         name of 'mesh_node_x', we store this variable name in the `ds_var_names`
-        dictionary with the key 'Mesh2_node_x'. In order to access it:
+        dictionary with the key 'Mesh2_node_x'. In order to access it, we do:
 
         >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
 
         With the help of this function, we can directly access it through the
-        use of a standardized name (ugrid convention)
+        use of a standardized name based on the UGRID conventions
 
         >>> x = grid.Mesh2_node_x
         """
 
-        # Set UGRID standardized attributes
+        # Iterate over dict to set access attributes
         for key, value in self.ds_var_names.items():
-            # Present Data Names
+            # Set Attributes for Data Variables
             if self.ds.data_vars is not None:
                 if value in self.ds.data_vars:
                     setattr(self, key, self.ds[value])
 
-            # Present Coordinate Names
+            # Set Attributes for Coordinates
             if self.ds.coords is not None:
                 if value in self.ds.coords:
+                    setattr(self, key, self.ds[value])
+
+            # Set Attributes for Dimensions
+            if self.ds.dims is not None:
+                if value in self.ds.dims:
                     setattr(self, key, self.ds[value])
