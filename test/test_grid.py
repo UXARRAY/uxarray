@@ -108,3 +108,13 @@ class TestGrid(TestCase):
         ux.open_dataset(str(scrip_8))  # tests from scrip
 
         ux.open_dataset(str(ug_30))  # tests from ugrid
+        
+    def test_compute_face_areas(self):
+        """Checks if The GeoFlow Small and FESOM Files can generate a useful face areas output."""
+        geoflow_small_grid = current_path / "meshfiles" / "geoflow-small" / "grid.nc"
+        grid_1 = ux.open_dataset(geoflow_small_grid)
+        grid_1.compute_face_areas()
+
+        fesom_grid_small = current_path / "meshfiles" / "fesom" / "fesom.mesh.diag.nc"
+        grid_2 = ux.open_dataset(fesom_grid_small)
+        grid_2.compute_face_areas()
