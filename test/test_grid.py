@@ -64,21 +64,25 @@ class TestGrid(TestCase):
         to using the dict."""
 
         # Dataset with standard UGRID variable names
-
         # Coordinates
-        xr.testing.assert_equal(self.tgrid1.Mesh2_node_x,
-                                self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(self.tgrid1.Mesh2_node_y,
-                                self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_y"]])
+        xr.testing.assert_equal(
+            self.tgrid1.Mesh2_node_x,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(
+            self.tgrid1.Mesh2_node_y,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_y"]])
         # Variables
-        xr.testing.assert_equal(self.tgrid1.Mesh2_face_nodes,
-                                self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_face_nodes"]])
+        xr.testing.assert_equal(
+            self.tgrid1.Mesh2_face_nodes,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_face_nodes"]])
 
         # Dimensions
-        xr.testing.assert_equal(self.tgrid1.nMesh2_node,
-                                self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
-        xr.testing.assert_equal(self.tgrid1.nMesh2_face,
-                                self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
+        xr.testing.assert_equal(
+            self.tgrid1.nMesh2_node,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
+        xr.testing.assert_equal(
+            self.tgrid1.nMesh2_face,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
 
         # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "mesh.nc"
