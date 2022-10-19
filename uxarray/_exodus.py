@@ -151,7 +151,8 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
         Dataset to be encoded to exodus file.
 
     outfile : string, required
-       Name of output file
+       Name of output file to be added as metadata into the output
+       dataset
 
     Returns
     -------
