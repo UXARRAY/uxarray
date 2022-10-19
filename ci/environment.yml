@@ -13,4 +13,3 @@ dependencies:
   - pytest-cov
   - scipy
   - xarray
-  - zarr
