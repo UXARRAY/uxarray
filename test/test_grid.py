@@ -12,42 +12,38 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 class TestGrid(TestCase):
 
-    def test_read_ugrid_write_exodus(self):
-        """Reads a ugrid file and writes and exodus file."""
+    ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
+    ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
+    ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
 
-        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
-        ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
+    tgrid1 = ux.open_dataset(str(ug_filename1))
+    tgrid2 = ux.open_dataset(str(ug_filename2))
+    tgrid3 = ux.open_dataset(str(ug_filename3))
 
-        ug_outfile1 = current_path / "meshfiles" / "outCSne30.exo"
-        ug_outfile2 = current_path / "meshfiles" / "outRLL1deg.g"
-        ug_outfile3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.g"
+    def test_encode_as(self):
+        """Reads a ugrid file and encodes it as `xarray.Dataset` in various
+        types."""
 
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        tgrid2 = ux.open_dataset(str(ug_filename2))
-        tgrid3 = ux.open_dataset(str(ug_filename3))
+        self.tgrid1.encode_as("ugrid")
+        self.tgrid2.encode_as("ugrid")
+        self.tgrid3.encode_as("ugrid")
 
-        tgrid1.write(str(ug_outfile1), "exodus")
-        tgrid2.write(str(ug_outfile2), "exodus")
-        tgrid3.write(str(ug_outfile3), "exodus")
+        self.tgrid1.encode_as("exodus")
+        self.tgrid2.encode_as("exodus")
+        self.tgrid3.encode_as("exodus")
 
-    def test_read_ugrid_write_scrip(self):
-        """Reads in augrid file and writes to a scrip file."""
-        ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-        ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
-        ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
+        self.tgrid1.encode_as("scrip")
+        self.tgrid2.encode_as("scrip")
+        self.tgrid3.encode_as("scrip")
 
-        ug_outfile1 = current_path / "meshfiles" / "outCSne30.nc"
-        ug_outfile2 = current_path / "meshfiles" / "outRLL1deg.nc"
-        ug_outfile3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.nc"
+    def test_open_non_mesh2_write_exodus(self):
+        """Loads grid files of different formats using uxarray's open_dataset
+        call."""
 
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        tgrid2 = ux.open_dataset(str(ug_filename2))
-        tgrid3 = ux.open_dataset(str(ug_filename3))
+        path = current_path / "meshfiles" / "mesh.nc"
+        grid = ux.open_dataset(path)
 
-        tgrid1.write(str(ug_outfile1), "scrip")
-        tgrid2.write(str(ug_outfile2), "scrip")
-        tgrid3.write(str(ug_outfile3), "scrip")
+        grid.encode_as("exodus")
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a ugrid file.
@@ -61,30 +57,32 @@ class TestGrid(TestCase):
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.source_datasets is None)
 
-        face_filename = current_path / "meshfiles" / "1face.ug"
-        vgrid.write(face_filename, "ugrid")
+        vgrid.encode_as("ugrid")
 
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal
         to using the dict."""
-        # Dataset with standard UGRID variable names
-        path = current_path / "meshfiles" / "outCSne30.ug"
-        grid = ux.open_dataset(path)
 
+        # Dataset with standard UGRID variable names
         # Coordinates
-        xr.testing.assert_equal(grid.Mesh2_node_x,
-                                grid.ds[grid.ds_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(grid.Mesh2_node_y,
-                                grid.ds[grid.ds_var_names["Mesh2_node_y"]])
+        xr.testing.assert_equal(
+            self.tgrid1.Mesh2_node_x,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(
+            self.tgrid1.Mesh2_node_y,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_y"]])
         # Variables
-        xr.testing.assert_equal(grid.Mesh2_face_nodes,
-                                grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
+        xr.testing.assert_equal(
+            self.tgrid1.Mesh2_face_nodes,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_face_nodes"]])
 
         # Dimensions
-        xr.testing.assert_equal(grid.nMesh2_node,
-                                grid.ds[grid.ds_var_names["nMesh2_node"]])
-        xr.testing.assert_equal(grid.nMesh2_face,
-                                grid.ds[grid.ds_var_names["nMesh2_face"]])
+        xr.testing.assert_equal(
+            self.tgrid1.nMesh2_node,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
+        xr.testing.assert_equal(
+            self.tgrid1.nMesh2_face,
+            self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
 
         # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "mesh.nc"
@@ -115,7 +113,7 @@ class TestGrid(TestCase):
             tgrid = ux.open_dataset(str(shp_filename))
 
     def test_read_scrip(self):
-        """Reads a scrip file and write ugrid file."""
+        """Reads a scrip file."""
 
         scrip_8 = current_path / "meshfiles" / "outCSne8.nc"
         ug_30 = current_path / "meshfiles" / "outCSne30.ug"

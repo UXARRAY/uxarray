@@ -6,10 +6,10 @@ from warnings import warn
 from pathlib import PurePath
 
 # reader and writer imports
-from ._exodus import _read_exodus, _write_exodus
-from ._ugrid import _read_ugrid, _write_ugrid
+from ._exodus import _read_exodus, _encode_exodus
+from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
-from ._scrip import _read_scrip, _write_scrip
+from ._scrip import _read_scrip, _encode_scrip
 from .helpers import get_all_face_area_from_coords
 
 
@@ -23,9 +23,9 @@ class Grid:
 
     >>> mesh = ux.Grid("filename.g")
 
-    Save as ugrid file
+    Encode as a `xarray.Dataset` in the UGRID format
 
-    >>> mesh.write("outfile.ug")
+    >>> mesh.encode_as("ugrid")
     """
 
     def __init__(self, dataset, **kwargs):
@@ -160,32 +160,40 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, outfile, grid_type):
-        """Writes mesh file as per extension supplied in the outfile string.
+    def encode_as(self, grid_type):
+        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
+        in the `grid_type` argument.
 
         Parameters
         ----------
-        outfile : str, required
-            Path to output file
         grid_type : str, required
-            Grid type of output file.
+            Grid type of output dataset.
             Currently supported options are "ugrid", "exodus", and "scrip"
+
+        Returns
+        -------
+        out_ds : xarray.Dataset
+            The output `xarray.Dataset` that is encoded from the this grid.
 
         Raises
         ------
         RuntimeError
-            If unsupported grid type provided or directory not found
+            If provided grid type or file type is unsupported.
         """
 
         if grid_type == "ugrid":
-            _write_ugrid(self.ds, outfile, self.ds_var_names)
+            out_ds = _encode_ugrid(self.ds)
+
         elif grid_type == "exodus":
-            _write_exodus(self.ds, outfile, self.ds_var_names)
+            out_ds = _encode_exodus(self.ds, self.ds_var_names)
+
         elif grid_type == "scrip":
-            _write_scrip(outfile, self.Mesh2_face_nodes, self.Mesh2_node_x,
-                         self.Mesh2_node_y, self.face_areas)
+            out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
+                                   self.Mesh2_node_y, self.face_areas)
         else:
-            raise RuntimeError("Format not supported for writing: ", grid_type)
+            raise RuntimeError("The grid type not supported: ", grid_type)
+
+        return out_ds
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
