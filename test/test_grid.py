@@ -63,26 +63,39 @@ class TestGrid(TestCase):
         """Tests to see if accessing variables through set attributes is equal
         to using the dict."""
 
-        # Dataset with Variables in UGRID convention
-        xr.testing.assert_equal(
-            self.tgrid1.Mesh2_node_x,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(
-            self.tgrid1.Mesh2_node_y,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_y"]])
-        xr.testing.assert_equal(
-            self.tgrid1.Mesh2_face_nodes,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_face_nodes"]])
+        # Dataset with standard UGRID variable names
 
-        # Dataset with Variables NOT in UGRID convention
+        # Coordinates
+        xr.testing.assert_equal(self.tgrid1.Mesh2_node_x,
+                                self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(self.tgrid1.Mesh2_node_y,
+                                self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_y"]])
+        # Variables
+        xr.testing.assert_equal(self.tgrid1.Mesh2_face_nodes,
+                                self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_face_nodes"]])
+
+        # Dimensions
+        xr.testing.assert_equal(self.tgrid1.nMesh2_node,
+                                self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
+        xr.testing.assert_equal(self.tgrid1.nMesh2_face,
+                                self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
+
+        # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "mesh.nc"
         grid = ux.open_dataset(path)
+        # Coordinates
         xr.testing.assert_equal(grid.Mesh2_node_x,
                                 grid.ds[grid.ds_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(grid.Mesh2_node_y,
                                 grid.ds[grid.ds_var_names["Mesh2_node_y"]])
+        # Variables
         xr.testing.assert_equal(grid.Mesh2_face_nodes,
                                 grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
+        # Dimensions
+        xr.testing.assert_equal(grid.nMesh2_node,
+                                grid.ds[grid.ds_var_names["nMesh2_node"]])
+        xr.testing.assert_equal(grid.nMesh2_face,
+                                grid.ds[grid.ds_var_names["nMesh2_face"]])
 
 
 # TODO: Move to test_shpfile/scrip when implemented
