@@ -53,7 +53,6 @@ def _read_ugrid(xr_ds, var_names_dict):
     return xr_ds, var_names_dict
 
 
-# Write a uxgrid to a file with specified format.
 def _encode_ugrid(ds):
     """Encodes UGRID file.
     Parameters

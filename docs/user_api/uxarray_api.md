@@ -131,9 +131,9 @@ document, but they could be different.
 - uxarray.Grid.__init__(self, np.float64.list vertices) \
   Create a grid with one face with vertices specified by the given argument.
 
-- uxarray.Grid.write(self, string file, string format) \
-  Write a uxgrid to a file with specified format (UGRID, SCRIP, Exodus,
-  or SHP).
+- uxarray.Grid.encode_as(self, string grid_type) \
+  Encode a `uxarray.Grid` as a `xarray.Dataset`in the specified grid type
+  (UGRID, SCRIP, Exodus, or SHP).
 
 - uxarray.Grid.calculatefaceareas(self) \
   Calculate the area of all faces.

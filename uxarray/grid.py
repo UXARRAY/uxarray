@@ -23,9 +23,9 @@ class Grid:
 
     >>> mesh = ux.Grid("filename.g")
 
-    Save as ugrid file
+    Encode as a `xarray.Dataset` in the UGRID format
 
-    >>> mesh.write("outfile.ug")
+    >>> mesh.encode_as("ugrid")
     """
 
     def __init__(self, dataset, **kwargs):
@@ -160,26 +160,25 @@ class Grid:
             raise RuntimeError("unknown file format: " + self.mesh_filetype)
         dataset.close()
 
-    def write(self, grid_type):
-        """Writes mesh file as per file type supplied in the `grid_type`
-        string.
+    def encode_as(self, grid_type):
+        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
+        in the `grid_type` argument.
 
         Parameters
         ----------
         grid_type : str, required
-            Grid type of output file.
+            Grid type of output dataset.
             Currently supported options are "ugrid", "exodus", and "scrip"
 
         Returns
         -------
         out_ds : xarray.Dataset
-            xarray.Dataset that can then be turned into a zarr or netcdf file using Xarray
-            functionality `xarray.Dataset.to_zarr` and `xarray.Dataset.to_netcdf`
+            The output `xarray.Dataset` that is encoded from the this grid.
 
         Raises
         ------
         RuntimeError
-            If provided grid type or file type is unsupported, or provided outfile directory is not found
+            If provided grid type or file type is unsupported.
         """
 
         if grid_type == "ugrid":
@@ -192,7 +191,7 @@ class Grid:
             out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
                                    self.Mesh2_node_y, self.face_areas)
         else:
-            raise RuntimeError("Format not supported for writing: ", grid_type)
+            raise RuntimeError("The grid type not supported: ", grid_type)
 
         return out_ds
 

@@ -37,44 +37,49 @@ class TestScrip(TestCase):
         with self.assertRaises(KeyError):
             new_ds['grid_corner_lat']
 
-    def test_scrip_writer(self):
-        """Tests that input UGRID file has been successfully translated to a
-        SCRIP file by looking for specific variable names in the input and
-        returned datasets."""
+    def test_encode_scrip(self):
+        """Read a UGRID dataset and encode that as a SCRIP format.
+
+        Look for specific variable names in the returned dataset to
+        determine encoding was successful.
+        """
+
         # Create UGRID from SCRIP file
-        to_ugrid = _read_scrip(ds_ne8)
+        scrip_in_ds = _read_scrip(ds_ne8)
         new_path = current_path / "meshfiles" / "scrip_to_ugrid.ug"
-        to_ugrid.to_netcdf(str(new_path))  # Save as new file
+        scrip_in_ds.to_netcdf(str(new_path))  # Save as new file
 
         # Use uxarray open_dataset to then create SCRIP file from new UGRID file
-        make_ux = ux.open_dataset(str(new_path))
-        to_scrip = _encode_scrip(make_ux.Mesh2_face_nodes, make_ux.Mesh2_node_x,
-                                 make_ux.Mesh2_node_y, make_ux.face_areas)
+        ugrid_out = ux.open_dataset(str(new_path))
+        scrip_encode_ds = _encode_scrip(ugrid_out.Mesh2_face_nodes,
+                                        ugrid_out.Mesh2_node_x,
+                                        ugrid_out.Mesh2_node_y,
+                                        ugrid_out.face_areas)
 
         # Test newly created SCRIP is same as original SCRIP
-        np.testing.assert_array_almost_equal(to_scrip['grid_corner_lat'],
+        np.testing.assert_array_almost_equal(scrip_encode_ds['grid_corner_lat'],
                                              ds_ne8['grid_corner_lat'])
-        np.testing.assert_array_almost_equal(to_scrip['grid_corner_lon'],
+        np.testing.assert_array_almost_equal(scrip_encode_ds['grid_corner_lon'],
                                              ds_ne8['grid_corner_lon'])
 
         # Tests that calculated center lat/lon values are equivalent to original
-        np.testing.assert_array_almost_equal(to_scrip['grid_center_lon'],
+        np.testing.assert_array_almost_equal(scrip_encode_ds['grid_center_lon'],
                                              ds_ne8['grid_center_lon'])
-        np.testing.assert_array_almost_equal(to_scrip['grid_center_lat'],
+        np.testing.assert_array_almost_equal(scrip_encode_ds['grid_center_lat'],
                                              ds_ne8['grid_center_lat'])
 
         # Tests that calculated face area values are equivalent to original
-        np.testing.assert_array_almost_equal(to_scrip['grid_area'],
+        np.testing.assert_array_almost_equal(scrip_encode_ds['grid_area'],
                                              ds_ne8['grid_area'])
 
         # Tests that calculated grid imask values are equivalent to original
-        np.testing.assert_array_almost_equal(to_scrip['grid_imask'],
+        np.testing.assert_array_almost_equal(scrip_encode_ds['grid_imask'],
                                              ds_ne8['grid_imask'])
 
         # Test that "mesh" variables are not in new file
         with self.assertRaises(KeyError):
-            assert to_scrip['Mesh2_node_x']
-            assert to_scrip['Mesh2_node_y']
+            assert scrip_encode_ds['Mesh2_node_x']
+            assert scrip_encode_ds['Mesh2_node_y']
 
     def test_scrip_variable_names(self):
         """Tests that returned dataset from writer function has all required

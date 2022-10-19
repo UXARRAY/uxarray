@@ -65,9 +65,3 @@ class TestDataset(TestCase):
         assert (len(uds3.source_datasets) == 2)
         assert (uds3.source_datasets[0] == uds3_data_name1)
         assert (uds3.source_datasets[1] == uds3_data_name2)
-
-    def test_open_non_mesh2_write_exodus(self):
-        """Loads grid files of different formats using uxarray's open_dataset
-        call."""
-        grid = ux.open_dataset(mesh_name)
-        grid.write("exodus")
