@@ -635,6 +635,7 @@ class Grid:
             self.__populate_cartesian_xyz_coord()
 
         for face in self.ds["Mesh2_face_nodes"].values:
+            pass
 
 
 

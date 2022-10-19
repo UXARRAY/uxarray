@@ -542,9 +542,8 @@ def _get_radius_of_latitude_rad(latitude):
     return radius
 
 
-
-def _get_intersection_point_gcr_constlat(gcr, const_lat_rad):
-    """Helper function to get the cartesian coordinates intersections of a great circle arc and line of constant latitude
+def _get_approx_intersection_point_gcr_constlat(gcr, const_lat_rad):
+    """Helper function to get the approximate cartesian coordinates intersections of a great circle arc and line of constant latitude
     Details explained in the paper chapt.2.2
     """
     [n1, n2] = gcr
@@ -593,6 +592,173 @@ def _get_intersection_point_gcr_constlat(gcr, const_lat_rad):
     return res
 
 
+def _get_exact_intersection_point_gcr_constlat(gcr_rad, const_lat_rad):
+    initial_pts_carts = _get_approx_intersection_point_gcr_constlat(convert_node_lonlat_rad_to_xyz(gcr_rad),
+                                                                    const_lat_rad)
+    intersec_pts_rad = [[0.0, 0.0], [0.0, 0.0]]
+
+    # Return result will be longitude and latitude here
+    res = []
+    # TODO: Consider when the approx shows the constLat doesn't go across the arc and in reality, it does
+    if initial_pts_carts[0] == [-1, -1, -1] and initial_pts_carts[1] == [-1, -1, -1]:
+        # The constant latitude didn't cross this edge
+        return [[-1, -1, -1], [-1, -1, -1]]
+    if initial_pts_carts[0] != [-1, -1, -1]:
+        intersec_pts_rad[0] = convert_node_xyz_to_lonlat_rad(initial_pts_carts[0])
+    if initial_pts_carts[1] != [-1, -1, -1]:
+        intersec_pts_rad[1] = convert_node_xyz_to_lonlat_rad(initial_pts_carts[1])
+
+    ranged_gcr_lonlat = gcr_rad
+    ranged_gcr_lonlat = _search_recursively_in_gcr(intersec_pts_rad[0], ranged_gcr_lonlat)
+
+    while (ranged_gcr_lonlat[0][1] != const_lat_rad) and (ranged_gcr_lonlat[1][1] != const_lat_rad):
+        ranged_gcr_lonlat = _search_recursively_in_gcr(const_lat_rad, gcr_rad, mode='const_lat_search')
+
+
+def _search_recursively_in_gcr(seach_target, gcr_end_pts_lonlat, approx_thred=1.0e-12, iter=1000, mode='point_search'):
+    """Helper function to search recursively in a great circle arc with the given point or a constant latitude.
+
+    This function can be used under two modes: 'point_search' (default) and 'const_lat_search'.
+
+    'point_search' mode:
+    The search target must be a point in lonlat coordinates:[lon, lat], this point is not necessarily on the great
+    circle arc. The function will return an interval of the great circle arc that bounds the given point (Each end point
+    of the interval is within the 'approx_thred' in radiance distance to the given input point)
+
+    'const_lat_search' mode:
+    The search target must be a single latitude (radiance) value in an array of len() == 1 ([const_lat]). The function
+    will return a point on the great circle arc that has the exact same latitude as the given constant latitude.
+    To be noticed, under this mode, the input parameters: approx_thred will not be used.
+
+    Parameters
+    ----------
+    search_target : list, decimal.
+        'point_search' mode: a point in lonlat coordinates:[lon, lat], this point is not necessarily on the great
+        circle arc.
+        'const_lat_search' mode: a single latitude (radiance) value in an array of len() == 1 ([const_lat])
+    gcr_end_pts_lonlat: list, decimal
+        The two end points of the great circle arc in longitude latitude coordinates: [[lon1, lat1],[lon2, lat2]]
+    approx_thred: float, optional
+        [Only valid in the point_search' mode] The approximation thredhold for point searching on the great circle arc.
+        Default to be 1.0e-12. When the function return an interval of the great circle arc that bounds the given point, each end point
+        of the interval is within the 'approx_thred' in radiance distance to the given input point.
+    iter: int, optional
+        The iteration threshold, default to be 1000. When the threshold is reached, the function will stop and return the current search result,
+        whether the great circle arc ends points satisfied the approx_thred (under the 'point_search' mode), or the point
+        founded on the great circle arc has the exact latitude match of the given constant latitude (under the 'const_lat_search' mode)
+
+    mode: string, optional
+        Two modes are available: 'point_search' (default) and 'const_lat_search'.
+
+        'point_search' mode:
+        The search target must be a point in lonlat coordinates:[lon, lat], this point is not necessarily on the great
+        circle arc. The function will return an interval of the great circle arc that bounds the given point (Each end point
+        of the interval is within the 'approx_thred' in radiance distance to the given input point)
+
+        'const_lat_search' mode:
+        The search target must be a single latitude (radiance) value in an array of len() == 1 ([const_lat]). The function
+        will return a point on the great circle arc that has the exact same latitude as the given constant latitude.
+        To be noticed, under this mode, the input parameters: approx_thred will not be used.
+
+    Returns
+    -------
+    list
+        'point_search' mode:
+        An interval of the given great circle arc '[[lon1, lat1],[lon2, lat2]]'. Each end point
+        of the interval is within the 'approx_thred' in radiance distance to the given input point
+
+        'const_lat_search' mode:
+        A single point in the form of [[lon, lat],[-1, -1]], the [-1, -1] at the second index is just for filling purpose.
+        To read the result point, just simply read it as result[0].
+
+
+    Raises
+    ------
+    ValueError
+        If under 'point_search' mode is not an array of length 2
+        If under 'const_lat_search' mode is not an array of length 1
+        If the mode is not 'point_search' nor 'const_lat_search'
+
+
+    """
+    cur_iter = 0
+    if mode == 'point_search':
+        if len(seach_target) != 2:
+            raise ValueError(
+                "The search_target must be a point under the 'point_search' mode: an array of length 2 in the form of "
+                "[lon, lat] "
+            )
+        pt_lonlat = seach_target
+    elif mode == 'const_lat_search':
+        if len(seach_target) != 1:
+            raise ValueError(
+                "The search_target must be a single latitude value under the 'const_lat_search' mode: an array of "
+                "length 1 in the form of [const_lat] "
+            )
+        pt_lonlat = [-1, seach_target[0]]
+    else:
+        raise ValueError(
+            "Only two modes are supported: 'point_search' or 'const_lat_search' "
+        )
+
+    while (mode == 'point_search' and (np.absolute(pt_lonlat[1] - gcr_end_pts_lonlat[1]) >= approx_thred) and (
+            np.absolute(pt_lonlat[1] - gcr_end_pts_lonlat[0]) >= approx_thred)) \
+            or (mode == 'const_lat_search' and (gcr_end_pts_lonlat[1] != pt_lonlat[1]) and (
+            gcr_end_pts_lonlat[0] != pt_lonlat[1])):
+        # Divide the GCR into 10 ranges:
+        # Divide the angle of v1/v2 into 10 subsections, the leftover will be put in the last one
+        # Update v0 based on max_section[0], since the angle is always from max_section[0] to v0
+        v1_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(gcr_end_pts_lonlat[0]))
+        v2_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(gcr_end_pts_lonlat[1]))
+        v_temp = np.cross(v1_cart, v2_cart)
+
+        angle_v1_v2_rad = _angle_of_2_vectors(v1_cart, v2_cart)
+        v0 = np.cross(v_temp, v1_cart)
+        v0 = normalize_in_place(v0)
+        avg_angle_rad = angle_v1_v2_rad / 10
+
+        for i in range(0, 10):
+            angle_rad_prev = avg_angle_rad * i
+            if i >= 9:
+                angle_rad_next = angle_v1_v2_rad
+            else:
+                angle_rad_next = angle_rad_prev + avg_angle_rad
+
+            # Get the two vectors of this section
+            w1_new = [np.cos(angle_rad_prev) * v1_cart[i] + np.sin(
+                angle_rad_prev) * v0[i] for i in range(0, len(v1_cart))]
+            w2_new = [np.cos(angle_rad_next) * v1_cart[i] + np.sin(
+                angle_rad_next) * v0[i] for i in range(0, len(v1_cart))]
+
+            # convert the 3D [x, y, z] vector into 2D lat/lon vector
+            w1_lonlat = convert_node_xyz_to_lonlat_rad(w1_new)
+            w2_lonlat = convert_node_xyz_to_lonlat_rad(w2_new)
+
+            # Manually set the left and right boundaries to avoid error accumulation
+            if i == 0:
+                w1_lonlat[1] = gcr_end_pts_lonlat[0]
+            elif i >= 9:
+                w2_lonlat[1] = gcr_end_pts_lonlat[1]
+
+            # Only use the latitude to determine whether its in range to avoid longitude wrap around
+            if mode == 'point_search':
+                if _within(w1_lonlat[1], pt_lonlat[0][1], w2_lonlat[1]):
+                    gcr_end_pts_lonlat = [w1_lonlat, w2_lonlat]
+
+
+                if cur_iter >= iter:
+                    gcr_end_pts_lonlat
+            else:
+                if w1_lonlat[1] == pt_lonlat[0][1]:
+                    return [w1_lonlat, [-1, -1, -1]]
+                elif w2_lonlat[1] == pt_lonlat[0][1]:
+                    return [w2_lonlat, [-1, -1, -1]]
+
+            cur_iter += 1
+
+    return gcr_end_pts_lonlat
+
+
 def _sort_intersection_pts_with_lon(pts_lonlat_rad_list, longitude_bound_rad):
     res = []
     if longitude_bound_rad[0] <= longitude_bound_rad[1]:
@@ -618,6 +784,3 @@ def _get_cart_vector_magnitude(start, end):
     x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
     x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
     return x1_x2_mag
-
-
-
