@@ -5,6 +5,7 @@ import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
+import xarray as xr
 import uxarray as ux
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -23,9 +24,12 @@ class TestGrid(TestCase):
         ug_outfile2 = current_path / "meshfiles" / "outRLL1deg.g"
         ug_outfile3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.g"
 
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        tgrid2 = ux.open_dataset(str(ug_filename2))
-        tgrid3 = ux.open_dataset(str(ug_filename3))
+        xr_ds1 = xr.open_dataset(ug_filename1)
+        xr_ds2 = xr.open_dataset(ug_filename2)
+        xr_ds3 = xr.open_dataset(ug_filename3)
+        tgrid1 = ux.Grid(xr_ds1)
+        tgrid2 = ux.Grid(xr_ds2)
+        tgrid3 = ux.Grid(xr_ds3)
 
         tgrid1.write(str(ug_outfile1), "exodus")
         tgrid2.write(str(ug_outfile2), "exodus")
@@ -41,9 +45,12 @@ class TestGrid(TestCase):
         ug_outfile2 = current_path / "meshfiles" / "outRLL1deg.nc"
         ug_outfile3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.nc"
 
-        tgrid1 = ux.open_dataset(str(ug_filename1))
-        tgrid2 = ux.open_dataset(str(ug_filename2))
-        tgrid3 = ux.open_dataset(str(ug_filename3))
+        xr_ds1 = xr.open_dataset(ug_filename1)
+        xr_ds2 = xr.open_dataset(ug_filename2)
+        xr_ds3 = xr.open_dataset(ug_filename3)
+        tgrid1 = ux.Grid(xr_ds1)
+        tgrid2 = ux.Grid(xr_ds2)
+        tgrid3 = ux.Grid(xr_ds3)
 
         tgrid1.write(str(ug_outfile1), "scrip")
         tgrid2.write(str(ug_outfile2), "scrip")
@@ -69,7 +76,8 @@ class TestGrid(TestCase):
         to using the dict."""
         # Dataset with Variables in UGRID convention
         path = current_path / "meshfiles" / "outCSne30.ug"
-        grid = ux.open_dataset(path)
+        xr_grid = xr.open_dataset(path)
+        grid = ux.Grid(xr_grid)
         xr.testing.assert_equal(grid.Mesh2_node_x,
                                 grid.ds[grid.ds_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(grid.Mesh2_node_y,
@@ -79,7 +87,8 @@ class TestGrid(TestCase):
 
         # Dataset with Variables NOT in UGRID convention
         path = current_path / "meshfiles" / "mesh.nc"
-        grid = ux.open_dataset(path)
+        xr_grid = xr.open_dataset(path)
+        grid = ux.Grid(xr_grid)
         xr.testing.assert_equal(grid.Mesh2_node_x,
                                 grid.ds[grid.ds_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(grid.Mesh2_node_y,
@@ -96,7 +105,7 @@ class TestGrid(TestCase):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
             shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-            tgrid = ux.open_dataset(str(shp_filename))
+            tgrid = ux.Grid(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file and write ugrid file."""
@@ -105,6 +114,8 @@ class TestGrid(TestCase):
         ug_30 = current_path / "meshfiles" / "outCSne30.ug"
 
         # Test read from scrip and from ugrid for grid class
-        ux.open_dataset(str(scrip_8))  # tests from scrip
+        xr_grid_s8 = xr.open_dataset(scrip_8)
+        ux_grid_s8 = ux.Grid(xr_grid_s8)  # tests from scrip
 
-        ux.open_dataset(str(ug_30))  # tests from ugrid
+        xr_grid_u30 = xr.open_dataset(ug_30)
+        ux_grid_u30 = ux.Grid(xr_grid_u30)  # tests from ugrid

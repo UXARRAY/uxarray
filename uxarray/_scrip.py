@@ -184,7 +184,7 @@ def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
     ds = xr.Dataset()
 
     # Make grid corner lat/lon
-    f_nodes = mesh2_face_nodes.values.ravel()
+    f_nodes = mesh2_face_nodes.values.astype(int).ravel()
 
     # Create arrays to hold lat/lon data
     lat_nodes = mesh2_node_y[f_nodes].values

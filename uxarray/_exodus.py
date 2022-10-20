@@ -212,7 +212,7 @@ def _write_exodus(ds, outfile, ds_var_names):
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds[ds_var_names["Mesh2_face_nodes"]].data:
+    for row in ds[ds_var_names["Mesh2_face_nodes"]].astype(int).data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)

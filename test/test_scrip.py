@@ -47,7 +47,8 @@ class TestScrip(TestCase):
         to_ugrid.to_netcdf(str(new_path))  # Save as new file
 
         # Use uxarray open_dataset to then create SCRIP file from new UGRID file
-        make_ux = ux.open_dataset(str(new_path))
+        xr_obj = xr.open_dataset(str(new_path))
+        make_ux = ux.Grid(xr_obj)
         to_scrip = _write_scrip("test_scrip_outfile.nc",
                                 make_ux.Mesh2_face_nodes, make_ux.Mesh2_node_x,
                                 make_ux.Mesh2_node_y, make_ux.face_areas)
@@ -80,7 +81,8 @@ class TestScrip(TestCase):
     def test_scrip_variable_names(self):
         """Tests that returned dataset from writer function has all required
         SCRIP variables."""
-        ux_ne30 = ux.open_dataset(ne30)
+        xr_ne30 = xr.open_dataset(ne30)
+        ux_ne30 = ux.Grid(xr_ne30)
         scrip30 = _write_scrip("write_to_scrip.nc", ux_ne30.Mesh2_face_nodes,
                                ux_ne30.Mesh2_node_x, ux_ne30.Mesh2_node_y,
                                ux_ne30.face_areas)

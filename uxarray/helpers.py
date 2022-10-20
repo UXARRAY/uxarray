@@ -8,14 +8,14 @@ import math
 config.DISABLE_JIT = False
 
 
-def parse_grid_type(filepath, **kw):
+def parse_grid_type(dataset, **kw):
     """Checks input and contents to determine grid type. Supports detection of
     UGrid, SCRIP, Exodus and shape file.
 
     Parameters
     ----------
-    filepath : str
-       Filepath of the file for which the filetype is to be determined.
+    dataset : Xarray dataset
+       Xarray dataset of the file input
 
     Returns
     -------
@@ -29,15 +29,6 @@ def parse_grid_type(filepath, **kw):
     ValueError
         If file is not in UGRID format
     """
-    # extract the file name and extension
-    path = PurePath(filepath)
-    file_extension = path.suffix
-    # short-circuit for shapefiles
-    if file_extension == ".shp":
-        mesh_filetype, dataset = "shp", None
-        return mesh_filetype, dataset
-
-    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
     # exodus with coord or coordx
     if "coord" in dataset:
         mesh_filetype = "exo"
@@ -50,8 +41,8 @@ def parse_grid_type(filepath, **kw):
     elif _is_ugrid(dataset):
         mesh_filetype = "ugrid"
     else:
-        raise RuntimeError(f"Could not recognize {filepath} format.")
-    return mesh_filetype, dataset
+        raise RuntimeError(f"Could not recognize dataset format.")
+    return mesh_filetype
 
     # check mesh topology and dimension
     try:
@@ -250,16 +241,15 @@ def get_all_face_area_from_coords(x,
     """
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
-
     for i in range(num_faces):
-
+        # print(i, face_nodes[i])
         face_z = np.zeros(len(face_nodes[i]))
 
-        face_x = x[face_nodes[i]]
-        face_y = y[face_nodes[i]]
+        face_x = x[face_nodes[i].astype(np.int64)]
+        face_y = y[face_nodes[i].astype(np.int64)]
         # check if z dimension
         if dim > 2:
-            face_z = z[face_nodes[i]]
+            face_z = z[face_nodes[i].astype(np.int64)]
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,

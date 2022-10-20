@@ -30,7 +30,7 @@ class TestIntegrate(TestCase):
         x = np.array([0.57735027, 0.57735027, -0.57735027])
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
-        face_nodes = np.array([[0, 1, 2]])
+        face_nodes = np.array([[0, 1, 2]]).astype(int)
         area = ux.get_all_face_area_from_coords(x,
                                                 y,
                                                 z,

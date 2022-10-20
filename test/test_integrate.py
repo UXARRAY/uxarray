@@ -5,6 +5,7 @@ import numpy.testing as nt
 from unittest import TestCase
 from pathlib import Path
 
+import xarray as xr
 import uxarray as ux
 
 try:
@@ -49,17 +50,22 @@ class TestIntegrate(TestCase):
     def test_calculate_total_face_area_file(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
 
-        grid = ux.open_dataset(str(mesh_file30))
+        xr_grid = xr.open_dataset(str(mesh_file30))
+        grid = ux.Grid(xr_grid)
 
         area = grid.calculate_total_face_area()
 
         nt.assert_almost_equal(area, constants.MESH30_AREA, decimal=3)
 
     def test_integrate(self):
-        uds = ux.open_dataset(mesh_file30, data_file30, data_file30_v2)
+        xr_grid = xr.open_dataset(mesh_file30)
+        xr_psi = xr.open_dataset(data_file30)
+        xr_v2 = xr.open_dataset(data_file30_v2)
 
-        integral_psi = uds.integrate("psi")
-        integral_var2 = uds.integrate("var2")
+        u_grid = ux.Grid(xr_grid)
+
+        integral_psi = u_grid.integrate(xr_psi)
+        integral_var2 = u_grid.integrate(xr_v2)
 
         nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
         nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
