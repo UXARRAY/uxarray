@@ -21,9 +21,9 @@ class Grid:
     >>> xarray_obj = xr.open_dataset("filename.g")
     >>> mesh = ux.Grid(xarray_obj)
 
-    Save as ugrid file
+    Encode as a `xarray.Dataset` in the UGRID format
 
-    >>> mesh.write("outfile.ug")
+    >>> mesh.encode_as("ugrid")
     """
 
     def __init__(self, dataset, **kwargs):
@@ -208,6 +208,8 @@ class Grid:
             self.ds = _read_scrip(dataset)
         elif self.mesh_filetype == "ugrid":
             self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
+        elif self.mesh_filetype == "shp":
+            self.ds = _read_shpfile(dataset)
         else:
             raise RuntimeError("unknown file format: ")
 
@@ -245,6 +247,8 @@ class Grid:
                                    self.Mesh2_node_y, self.face_areas)
         else:
             raise RuntimeError("The grid type not supported: ", grid_type)
+        
+        return out_ds
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
@@ -333,8 +337,8 @@ class Grid:
 
         Parameters
         ----------
-        var_key : str, required
-            Name of dataset variable for integration
+        var_ds : Xarray dataset, required
+            Xarray dataset containing values to integrate on this grid
         quadrature_rule : str, optional
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
@@ -350,10 +354,10 @@ class Grid:
 
         >>> xr_grid = xr.open_dataset("grid.ug")
         >>> grid = ux.Grid.(xr_grid)
-        >>> ds_var = xr.open_dataset("centroid_pressure_data_ug")
+        >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
 
         # Compute the integral
-        >>> integral_psi = grid.integrate(ds_var)
+        >>> integral_psi = grid.integrate(var_ds)
         """
         integral = 0.0
 
