@@ -23,8 +23,8 @@ Grid Methods
 
    grid.Grid.calculate_total_face_area
    grid.Grid.compute_face_areas
+   grid.Grid.encode_as
    grid.Grid.integrate
-   grid.Grid.write
 
 Reading Data
 ------------

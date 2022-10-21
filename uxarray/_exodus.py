@@ -141,40 +141,54 @@ def _read_exodus(ext_ds, ds_var_names):
     return ds
 
 
-def _write_exodus(ds, outfile, ds_var_names):
-    """Exodus file writer.
+def _encode_exodus(ds, ds_var_names, outfile=None):
+    """Encodes an Exodus file.
 
     Parameters
     ----------
 
     ds : xarray.Dataset, required
-        Dataset to be written to exodus file.
+        Dataset to be encoded to exodus file.
+
     outfile : string, required
-       Name of output file
+       Name of output file to be added as metadata into the output
+       dataset
+
+    Returns
+    -------
+    exo_ds : xarray.Dataset
+        Dataset encoded as exodus file.
     """
     # Note this is 1-based unlike native Mesh2 construct
-    print("Writing exodus file: ", outfile)
 
     exo_ds = xr.Dataset()
-
-    path = PurePath(outfile)
-    out_filename = path.name
 
     now = datetime.now()
     date = now.strftime("%Y:%m:%d")
     time = now.strftime("%H:%M:%S")
-
-    title = f"uxarray(" + str(out_filename) + ")" + date + ": " + time
     fp_word = np.int32(8)
     exo_version = np.float32(5.0)
     api_version = np.float32(5.0)
+
     exo_ds.attrs = {
         "api_version": api_version,
         "version": exo_version,
         "floating_point_word_size": fp_word,
-        "file_size": 0,
-        "title": title
+        "file_size": 0
     }
+
+    if outfile:
+        path = PurePath(outfile)
+        out_filename = path.name
+        title = f"uxarray(" + str(out_filename) + ")" + date + ": " + time
+
+        exo_ds.attrs = {
+            "api_version": api_version,
+            "version": exo_version,
+            "floating_point_word_size": fp_word,
+            "file_size": 0,
+            "title": title
+        }
 
     exo_ds["time_whole"] = xr.DataArray(data=[], dims=["time_step"])
 
@@ -317,9 +331,7 @@ def _write_exodus(ds, outfile, ds_var_names):
         np.array(cnames, dtype='str')),
                                         dims=["num_dim"])
 
-    # done processing write the file to disk
-    exo_ds.to_netcdf(outfile)
-    print("Wrote: ", outfile)
+    return exo_ds
 
 
 def _get_element_type(num_nodes):
