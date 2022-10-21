@@ -247,7 +247,7 @@ class Grid:
                                    self.Mesh2_node_y, self.face_areas)
         else:
             raise RuntimeError("The grid type not supported: ", grid_type)
-        
+
         return out_ds
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
