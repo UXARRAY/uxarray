@@ -1,2 +1,2 @@
 xarray
-numpy>=1.2,<=1.22
+numpy
