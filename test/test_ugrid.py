@@ -41,10 +41,9 @@ class TestUgrid(TestCase):
         assert isinstance(getattr(ugrid, "Mesh2_node_y"), xr.DataArray)
         assert isinstance(getattr(ugrid, "Mesh2_face_nodes"), xr.DataArray)
 
-    def test_write_ugrid(self):
-        """Read an exodus file and writes a ugrid file."""
+    def test_encode_ugrid(self):
+        """Read an Exodus dataset and encode that as a UGRID format."""
 
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
         ux_grid = ux.open_dataset(str(exo2_filename))
-        outfile = current_path / "write_test_outCSne8.ug"
-        ux_grid.write(str(outfile), "ugrid")
+        ux_grid.encode_as("ugrid")
