@@ -15,7 +15,7 @@ def parse_grid_type(dataset, **kw):
     Parameters
     ----------
     dataset : Xarray dataset
-       Xarray dataset of the file input
+       Xarray dataset of the grid
 
     Returns
     -------
@@ -241,15 +241,17 @@ def get_all_face_area_from_coords(x,
     """
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
+
+    face_nodes = face_nodes[:].astype(np.int64)
+
     for i in range(num_faces):
-        # print(i, face_nodes[i])
         face_z = np.zeros(len(face_nodes[i]))
 
-        face_x = x[face_nodes[i].astype(np.int64)]
-        face_y = y[face_nodes[i].astype(np.int64)]
+        face_x = x[face_nodes[i]]
+        face_y = y[face_nodes[i]]
         # check if z dimension
         if dim > 2:
-            face_z = z[face_nodes[i].astype(np.int64)]
+            face_z = z[face_nodes[i]]
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
