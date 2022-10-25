@@ -72,7 +72,6 @@ class Grid:
             self.vertices = dataset
             self.__from_vert__()
             self.source_grid = "From vertices"
-            self.source_datasets = None
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):

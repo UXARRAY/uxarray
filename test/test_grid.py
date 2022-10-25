@@ -62,7 +62,6 @@ class TestGrid(TestCase):
         vgrid = ux.Grid(verts, vertices=True, islatlon=True, concave=False)
 
         assert (vgrid.source_grid == "From vertices")
-        assert (vgrid.source_datasets is None)
 
         vgrid.encode_as("ugrid")
 
