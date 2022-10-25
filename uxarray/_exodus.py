@@ -221,7 +221,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
     # process face nodes, this array holds num faces at corresponding location
     # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
     num_el_all_blks = np.zeros(ds[ds_var_names["nMaxMesh2_face_nodes"]].size,
-                               "i4")
+                               "i8")
     # this list stores connectivity without filling
     conn_nofill = []
 
@@ -281,14 +281,14 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
         # assign Data variables
         # convert list to np.array, sorted list guarantees we have the correct info
         conn_blk = conn_nofill[start:start + num_faces]
-        conn_np = np.array([np.array(xi, dtype="i4") for xi in conn_blk])
+        conn_np = np.array([np.array(xi, dtype="i8") for xi in conn_blk])
         exo_ds[str_connect] = xr.DataArray(data=xr.DataArray((conn_np[:] + 1)),
                                            dims=[str_el_in_blk, str_nod_per_el],
                                            attrs={"elem_type": element_type})
 
         # edge type
         exo_ds[str_edge_type] = xr.DataArray(
-            data=xr.DataArray(np.zeros((num_faces, num_nodes), "i4")),
+            data=xr.DataArray(np.zeros((num_faces, num_nodes), "i8")),
             dims=[str_el_in_blk, str_nod_per_el])
 
         # global id
@@ -313,7 +313,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
                                       attrs={"name": "ID"})
     # eb_status
     exo_ds["eb_status"] = xr.DataArray(data=xr.DataArray(
-        np.ones([num_blks], dtype="i4")),
+        np.ones([num_blks], dtype="i8")),
                                        dims=["num_el_blk"])
 
     # eb_names
