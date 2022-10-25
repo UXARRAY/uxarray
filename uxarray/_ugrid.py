@@ -53,18 +53,13 @@ def _read_ugrid(xr_ds, var_names_dict):
     return xr_ds, var_names_dict
 
 
-# Write a uxgrid to a file with specified format.
-def _write_ugrid(ds, outfile, ugrid_vars):
-    """UGRID file writer.
+def _encode_ugrid(ds):
+    """Encodes UGRID file.
     Parameters
     ----------
     ds : xarray.Dataset
-        Dataset to be written to file
-    outfile : string, required
-        Name of output file
+        Dataset to be encoded to file
 
     Uses to_netcdf from xarray object.
     """
-
-    print("Writing ugrid file: ", outfile)
-    ds.to_netcdf(outfile)
+    return ds
