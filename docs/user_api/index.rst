@@ -26,13 +26,6 @@ Grid Methods
    grid.Grid.encode_as
    grid.Grid.integrate
 
-Reading Data
-------------
-.. autosummary::
-   :toctree: _autosummary
-
-   uxarray.open_dataset
-
 
 Helper Functions
 ----------------

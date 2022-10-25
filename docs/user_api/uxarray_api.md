@@ -120,8 +120,8 @@ document, but they could be different.
 
 ## uxarray.Grid  Functions
 
-- uxarray.Grid.__init__(self, string file) \
-  Load the grid file specified by file.  The routine will automatically
+- uxarray.Grid.__init__(self, xarray dataset) \
+  Populate Grid object with Xarray dataset.  The routine will automatically
   detect if it is a UGrid, SCRIP, Exodus, or shape file.
 
 - (*) uxarray.Grid.__init__(self, string gridspec) \

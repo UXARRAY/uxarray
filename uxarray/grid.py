@@ -43,7 +43,7 @@ class Grid:
             Specify if this grid has concave elements (internal checks for this are possible)
         gridspec: bool, optional
             Specifies gridspec
-        mesh_filetype: str, optional
+        mesh_type: str, optional
             Specify the mesh file type, eg. exo, ugrid, shp, etc
 
         Raises
@@ -62,14 +62,10 @@ class Grid:
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'concave', 'mesh_filetype',
-            'source_grid', 'source_datasets'
+            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid'
         ]
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
-
-        # initialize face_area variable
-        self._face_areas = None
 
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
@@ -80,8 +76,7 @@ class Grid:
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
-            self.ds = dataset
-            self.mesh_filetype = parse_grid_type(dataset, **kwargs)
+            self.mesh_type = parse_grid_type(dataset)
             self.__from_ds__(dataset=dataset)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
@@ -201,17 +196,17 @@ class Grid:
     # load mesh from a file
     def __from_ds__(self, dataset):
         """Loads a mesh dataset."""
-        # call reader as per mesh_filetype
-        if self.mesh_filetype == "exo":
+        # call reader as per mesh_type
+        if self.mesh_type == "exo":
             self.ds = _read_exodus(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "scrip":
+        elif self.mesh_type == "scrip":
             self.ds = _read_scrip(dataset)
-        elif self.mesh_filetype == "ugrid":
+        elif self.mesh_type == "ugrid":
             self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "shp":
+        elif self.mesh_type == "shp":
             self.ds = _read_shpfile(dataset)
         else:
-            raise RuntimeError("unknown file format: ")
+            raise RuntimeError("unknown mesh type")
 
         dataset.close()
 
