@@ -226,7 +226,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds[ds_var_names["Mesh2_face_nodes"]].astype(int).data:
+    for row in ds[ds_var_names["Mesh2_face_nodes"]].astype(np.int64).data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
