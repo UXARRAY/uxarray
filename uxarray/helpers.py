@@ -6,7 +6,7 @@ from numba import njit, config
 import math
 
 config.DISABLE_JIT = False
-
+int_dtype=np.uint32
 
 def parse_grid_type(dataset):
     """Checks input and contents to determine grid type. Supports detection of
@@ -242,7 +242,7 @@ def get_all_face_area_from_coords(x,
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
 
-    face_nodes = face_nodes[:].astype(np.int64)
+    face_nodes = face_nodes[:].astype(int_dtype)
 
     for i in range(num_faces):
         face_z = np.zeros(len(face_nodes[i]))
