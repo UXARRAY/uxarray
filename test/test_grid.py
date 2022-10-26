@@ -5,7 +5,14 @@ import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
+import xarray as xr
 import uxarray as ux
+import numpy.testing as nt
+
+try:
+    import constants
+except ImportError:
+    from . import constants
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -16,9 +23,12 @@ class TestGrid(TestCase):
     ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
     ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
 
-    tgrid1 = ux.open_dataset(str(ug_filename1))
-    tgrid2 = ux.open_dataset(str(ug_filename2))
-    tgrid3 = ux.open_dataset(str(ug_filename3))
+    xr_ds1 = xr.open_dataset(ug_filename1)
+    xr_ds2 = xr.open_dataset(ug_filename2)
+    xr_ds3 = xr.open_dataset(ug_filename3)
+    tgrid1 = ux.Grid(xr_ds1)
+    tgrid2 = ux.Grid(xr_ds2)
+    tgrid3 = ux.Grid(xr_ds3)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
@@ -32,16 +42,13 @@ class TestGrid(TestCase):
         self.tgrid2.encode_as("exodus")
         self.tgrid3.encode_as("exodus")
 
-        self.tgrid1.encode_as("scrip")
-        self.tgrid2.encode_as("scrip")
-        self.tgrid3.encode_as("scrip")
-
     def test_open_non_mesh2_write_exodus(self):
         """Loads grid files of different formats using uxarray's open_dataset
         call."""
 
         path = current_path / "meshfiles" / "mesh.nc"
-        grid = ux.open_dataset(path)
+        xr_grid = xr.open_dataset(path)
+        grid = ux.Grid(xr_grid)
 
         grid.encode_as("exodus")
 
@@ -55,7 +62,6 @@ class TestGrid(TestCase):
         vgrid = ux.Grid(verts, vertices=True, islatlon=True, concave=False)
 
         assert (vgrid.source_grid == "From vertices")
-        assert (vgrid.source_datasets is None)
 
         vgrid.encode_as("ugrid")
 
@@ -86,8 +92,8 @@ class TestGrid(TestCase):
 
         # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "mesh.nc"
-        grid = ux.open_dataset(path)
-        # Coordinates
+        xr_grid = xr.open_dataset(path)
+        grid = ux.Grid(xr_grid)
         xr.testing.assert_equal(grid.Mesh2_node_x,
                                 grid.ds[grid.ds_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(grid.Mesh2_node_y,
@@ -110,7 +116,7 @@ class TestGrid(TestCase):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
             shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-            tgrid = ux.open_dataset(str(shp_filename))
+            tgrid = ux.Grid(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file."""
@@ -119,6 +125,62 @@ class TestGrid(TestCase):
         ug_30 = current_path / "meshfiles" / "outCSne30.ug"
 
         # Test read from scrip and from ugrid for grid class
-        ux.open_dataset(str(scrip_8))  # tests from scrip
+        xr_grid_s8 = xr.open_dataset(scrip_8)
+        ux_grid_s8 = ux.Grid(xr_grid_s8)  # tests from scrip
 
-        ux.open_dataset(str(ug_30))  # tests from ugrid
+        xr_grid_u30 = xr.open_dataset(ug_30)
+        ux_grid_u30 = ux.Grid(xr_grid_u30)  # tests from ugrid
+
+
+class TestIntegrate(TestCase):
+
+    mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
+    data_file30 = current_path / "meshfiles" / "outCSne30_vortex.nc"
+    data_file30_v2 = current_path / "meshfiles" / "outCSne30_var2.ug"
+
+    def test_calculate_total_face_area_triangle(self):
+        """Create a uxarray grid from vertices and saves an exodus file."""
+        verts = np.array([[0.57735027, -5.77350269e-01, -0.57735027],
+                          [0.57735027, 5.77350269e-01, -0.57735027],
+                          [-0.57735027, 5.77350269e-01, -0.57735027]])
+        vgrid = ux.Grid(verts)
+
+        # get node names for each grid object
+        x_var = vgrid.ds_var_names["Mesh2_node_x"]
+        y_var = vgrid.ds_var_names["Mesh2_node_y"]
+        z_var = vgrid.ds_var_names["Mesh2_node_z"]
+
+        vgrid.ds[x_var].attrs["units"] = "m"
+        vgrid.ds[y_var].attrs["units"] = "m"
+        vgrid.ds[z_var].attrs["units"] = "m"
+
+        area_gaussian = vgrid.calculate_total_face_area(
+            quadrature_rule="gaussian", order=5)
+        nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
+
+        area_triangular = vgrid.calculate_total_face_area(
+            quadrature_rule="triangular", order=4)
+        nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
+
+    def test_calculate_total_face_area_file(self):
+        """Create a uxarray grid from vertices and saves an exodus file."""
+
+        xr_grid = xr.open_dataset(str(self.mesh_file30))
+        grid = ux.Grid(xr_grid)
+
+        area = grid.calculate_total_face_area()
+
+        nt.assert_almost_equal(area, constants.MESH30_AREA, decimal=3)
+
+    def test_integrate(self):
+        xr_grid = xr.open_dataset(self.mesh_file30)
+        xr_psi = xr.open_dataset(self.data_file30)
+        xr_v2 = xr.open_dataset(self.data_file30_v2)
+
+        u_grid = ux.Grid(xr_grid)
+
+        integral_psi = u_grid.integrate(xr_psi)
+        integral_var2 = u_grid.integrate(xr_v2)
+
+        nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
+        nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)

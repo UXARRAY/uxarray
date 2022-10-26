@@ -49,7 +49,6 @@ def _read_ugrid(xr_ds, var_names_dict):
             var_names_dict["Mesh2_node_x"], var_names_dict["Mesh2_node_y"],
             var_names_dict["Mesh2_node_z"]
         ])
-
     return xr_ds, var_names_dict
 
 

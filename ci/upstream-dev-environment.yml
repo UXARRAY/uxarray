@@ -5,7 +5,7 @@ dependencies:
   - netcdf4
   - numba
   # pinning the numpy version for numba compatibility
-  - numpy>=1.2, <1.22
+  - numpy
   - pathlib
   - python
   - pytest
