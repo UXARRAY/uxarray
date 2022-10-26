@@ -3,7 +3,8 @@ import numpy as np
 from pathlib import PurePath
 from datetime import datetime
 
-int_dtype=np.uint32
+int_dtype = np.uint32
+
 
 # Exodus Number is one-based.
 def _read_exodus(ext_ds, ds_var_names):

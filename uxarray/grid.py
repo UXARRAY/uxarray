@@ -10,7 +10,8 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from .helpers import get_all_face_area_from_coords, parse_grid_type
 
-int_dtype=np.uint32
+int_dtype = np.uint32
+
 
 class Grid:
     """

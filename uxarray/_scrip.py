@@ -3,7 +3,8 @@ import numpy as np
 
 from .helpers import grid_center_lat_lon
 
-int_dtype=np.uint32
+int_dtype = np.uint32
+
 
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,

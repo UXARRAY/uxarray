@@ -6,7 +6,8 @@ from numba import njit, config
 import math
 
 config.DISABLE_JIT = False
-int_dtype=np.uint32
+int_dtype = np.uint32
+
 
 def parse_grid_type(dataset):
     """Checks input and contents to determine grid type. Supports detection of
