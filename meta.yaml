@@ -21,25 +21,24 @@ requirements:
     - python
     - pip
     - setuptools
-  run: # - Libraries needed during runtime
-    - python>=3 
-    - dask
-    - netcdf4
-    - pytest
-    - numba
-    - numpy>=1.2, <1.22
-    - scipy>=0.16 
+  run:
+    - python
     - xarray
 
 test:
   source_files:
     - test
-  requires: # - Usually just the unit-test framework
+  requires:
+    - dask
+    - netcdf4
     - pytest
-  imports: # - Usually just the package
+    - numba
+    - numpy
+    - scipy>=0.16
+    - xarray
+  imports:
     - uxarray
-  commands: # - Commands tested.
-    - pip check
+  commands:
     - conda info
     - conda list
     - python -m pytest
