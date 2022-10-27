@@ -1,7 +1,7 @@
-- title: Reading Data
-  path: examples/001-reading-data.ipynb
+- title: Reading Grid Data
+  path: examples/001-read-grid-data.ipynb
   thumbnail: _static/thumbnails/default.svg
 
-- title: Accessing Data
-  path: examples/002-data-access.ipynb
+- title: Accessing Grid Information
+  path: examples/002-access-grid-info.ipynb
   thumbnail: _static/thumbnails/default.svg
