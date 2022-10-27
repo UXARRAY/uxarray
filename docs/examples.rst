@@ -15,5 +15,5 @@ see the :doc:`contributing`.
    :maxdepth: 1
    :hidden:
 
-   examples/reading-data.ipynb
-   examples/template.ipynb
+   examples/001-reading-data.ipynb
+   examples/002-data-access.ipynb
