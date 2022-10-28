@@ -83,12 +83,19 @@ class TestGrid(TestCase):
             self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_face_nodes"]])
 
         # Dimensions
-        xr.testing.assert_equal(
-            self.tgrid1.nMesh2_node,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
-        xr.testing.assert_equal(
-            self.tgrid1.nMesh2_face,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
+        n_nodes = self.tgrid1.Mesh2_node_x.shape[0]
+        n_faces, n_face_nodes = self.tgrid1.Mesh2_face_nodes.shape
+
+        self.assertEqual(n_nodes, self.tgrid1.nMesh2_node)
+        self.assertEqual(n_faces, self.tgrid1.nMesh2_face)
+        self.assertEqual(n_face_nodes, self.tgrid1.nMaxMesh2_face_nodes)
+
+        # xr.testing.assert_equal(
+        #     self.tgrid1.nMesh2_node,
+        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
+        # xr.testing.assert_equal(
+        #     self.tgrid1.nMesh2_face,
+        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
 
         # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "mesh.nc"
@@ -102,10 +109,14 @@ class TestGrid(TestCase):
         xr.testing.assert_equal(grid.Mesh2_face_nodes,
                                 grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
         # Dimensions
-        xr.testing.assert_equal(grid.nMesh2_node,
-                                grid.ds[grid.ds_var_names["nMesh2_node"]])
-        xr.testing.assert_equal(grid.nMesh2_face,
-                                grid.ds[grid.ds_var_names["nMesh2_face"]])
+        n_nodes = grid.Mesh2_node_x.shape[0]
+        n_faces, n_face_nodes = grid.Mesh2_face_nodes.shape
+
+        self.assertEqual(n_nodes, grid.nMesh2_node)
+        self.assertEqual(n_faces, grid.nMesh2_face)
+        self.assertEqual(n_face_nodes, grid.nMaxMesh2_face_nodes)
+
+    # def test_init_dimension_attrs(self):
 
 
 # TODO: Move to test_shpfile/scrip when implemented
