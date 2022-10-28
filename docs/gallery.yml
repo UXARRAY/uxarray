@@ -8,4 +8,4 @@
 
 - title: Visualization Unstructured Grids as Polygon Meshes
   path: examples/003-polygon-visualization.ipynb
-  thumbnail: _static/thumbnails/viz-thumbnail.svg
+  thumbnail: _static/thumbnails/viz-thumbnail.png
