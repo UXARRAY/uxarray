@@ -17,3 +17,4 @@ see the :doc:`contributing`.
 
    examples/001-read-grid-data.ipynb
    examples/002-access-grid-info.ipynb
+   examples/003-polygon-visualization.ipynb
