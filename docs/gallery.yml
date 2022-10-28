@@ -6,6 +6,6 @@
   path: examples/002-access-grid-info.ipynb
   thumbnail: _static/thumbnails/default.svg
 
-  - title: Visualizing Unstructured Grids with hvPlot and GeoViews
+- title: Visualizing Unstructured Grids with hvPlot and GeoViews
   path: examples/003-polygon-visualization.ipynb
   thumbnail: _static/thumbnails/default.svg
