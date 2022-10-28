@@ -137,7 +137,7 @@ class Grid:
             # Set Attributes for Dimensions
             if self.ds.dims is not None:
                 if value in self.ds.dims:
-                    setattr(self, key, self.ds[value])
+                    setattr(self, key, len(self.ds[value]))
 
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
