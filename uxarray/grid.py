@@ -304,7 +304,7 @@ class Grid:
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z
-            z = np.zeros((self.ds.nMesh2_node.size))
+            z = np.zeros((self.nMesh2_node))
 
             # call func to cal face area of all nodes
             x = self.Mesh2_node_x.data
