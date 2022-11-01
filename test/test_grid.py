@@ -202,7 +202,8 @@ class TestFaceAreas(TestCase):
     def test_compute_face_areas_geoflow_small(self):
         """Checks if the GeoFlow Small can generate a face areas output."""
         geoflow_small_grid = current_path / "meshfiles" / "geoflow-small" / "grid.nc"
-        grid_1 = xr.open_dataset(geoflow_small_grid)
+        grid_1_ds = xr.open_dataset(geoflow_small_grid)
+        grid_1 = ux.Grid(grid_1_ds)
         grid_1.compute_face_areas()
 
     def test_compute_face_areas_fesom(self):
@@ -210,5 +211,6 @@ class TestFaceAreas(TestCase):
         output."""
 
         fesom_grid_small = current_path / "meshfiles" / "fesom" / "fesom.mesh.diag.nc"
-        grid_2 = xr.open_dataset(fesom_grid_small)
+        grid_2_ds = xr.open_dataset(fesom_grid_small)
+        grid_2 = ux.Grid(grid_2_ds)
         grid_2.compute_face_areas()
