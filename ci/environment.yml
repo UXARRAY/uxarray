@@ -13,6 +13,3 @@ dependencies:
   - pytest-cov
   - scipy
   - xarray
-  # Tools run by pre-commit so they can be in the same conda environment
-  - yapf
-  - docformatter
