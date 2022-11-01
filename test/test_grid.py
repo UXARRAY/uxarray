@@ -195,3 +195,20 @@ class TestIntegrate(TestCase):
 
         nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
         nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
+
+
+class TestFaceAreas(TestCase):
+
+    def test_compute_face_areas_geoflow_small(self):
+        """Checks if the GeoFlow Small can generate a face areas output."""
+        geoflow_small_grid = current_path / "meshfiles" / "geoflow-small" / "grid.nc"
+        grid_1 = xr.open_dataset(geoflow_small_grid)
+        grid_1.compute_face_areas()
+
+    def test_compute_face_areas_fesom(self):
+        """Checks if the FESOM PI-Grid Output can generate a face areas
+        output."""
+
+        fesom_grid_small = current_path / "meshfiles" / "fesom" / "fesom.mesh.diag.nc"
+        grid_2 = xr.open_dataset(fesom_grid_small)
+        grid_2.compute_face_areas()
