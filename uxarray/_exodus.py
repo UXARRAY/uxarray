@@ -3,6 +3,8 @@ import numpy as np
 from pathlib import PurePath
 from datetime import datetime
 
+int_dtype = np.uint32
+
 
 # Exodus Number is one-based.
 def _read_exodus(ext_ds, ds_var_names):
@@ -45,7 +47,7 @@ def _read_exodus(ext_ds, ds_var_names):
             # TODO: Use the data here for Mesh2 construct, if required.
             pass
         elif key == "coord":
-            ds.Mesh2.attrs['topology_dimension'] = np.int32(
+            ds.Mesh2.attrs['topology_dimension'] = int_dtype(
                 ext_ds.dims['num_dim'])
             ds["Mesh2_node_x"] = xr.DataArray(
                 data=ext_ds.coord[0],
@@ -127,7 +129,7 @@ def _read_exodus(ext_ds, ds_var_names):
             "_FillValue":
                 -1,
             "start_index":
-                np.int32(
+                int_dtype(
                     0)  # NOTE: This might cause an error if numbering has holes
         })
     print("Finished reading exodus file.")
@@ -166,7 +168,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
     now = datetime.now()
     date = now.strftime("%Y:%m:%d")
     time = now.strftime("%H:%M:%S")
-    fp_word = np.int32(8)
+    fp_word = int_dtype(8)
     exo_version = np.float32(5.0)
     api_version = np.float32(5.0)
 
@@ -221,12 +223,12 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
     # process face nodes, this array holds num faces at corresponding location
     # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
     num_el_all_blks = np.zeros(ds[ds_var_names["nMaxMesh2_face_nodes"]].size,
-                               "i4")
+                               "i8")
     # this list stores connectivity without filling
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds[ds_var_names["Mesh2_face_nodes"]].data:
+    for row in ds[ds_var_names["Mesh2_face_nodes"]].astype(int_dtype).data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
@@ -281,14 +283,14 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
         # assign Data variables
         # convert list to np.array, sorted list guarantees we have the correct info
         conn_blk = conn_nofill[start:start + num_faces]
-        conn_np = np.array([np.array(xi, dtype="i4") for xi in conn_blk])
+        conn_np = np.array([np.array(xi, dtype="i8") for xi in conn_blk])
         exo_ds[str_connect] = xr.DataArray(data=xr.DataArray((conn_np[:] + 1)),
                                            dims=[str_el_in_blk, str_nod_per_el],
                                            attrs={"elem_type": element_type})
 
         # edge type
         exo_ds[str_edge_type] = xr.DataArray(
-            data=xr.DataArray(np.zeros((num_faces, num_nodes), "i4")),
+            data=xr.DataArray(np.zeros((num_faces, num_nodes), "i8")),
             dims=[str_el_in_blk, str_nod_per_el])
 
         # global id
@@ -313,7 +315,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
                                       attrs={"name": "ID"})
     # eb_status
     exo_ds["eb_status"] = xr.DataArray(data=xr.DataArray(
-        np.ones([num_blks], dtype="i4")),
+        np.ones([num_blks], dtype="i8")),
                                        dims=["num_el_blk"])
 
     # eb_names

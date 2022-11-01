@@ -6,20 +6,21 @@ from numba import njit, config
 import math
 
 config.DISABLE_JIT = False
+int_dtype = np.uint32
 
 
-def parse_grid_type(filepath, **kw):
+def parse_grid_type(dataset):
     """Checks input and contents to determine grid type. Supports detection of
     UGrid, SCRIP, Exodus and shape file.
 
     Parameters
     ----------
-    filepath : str
-       Filepath of the file for which the filetype is to be determined.
+    dataset : Xarray dataset
+       Xarray dataset of the grid
 
     Returns
     -------
-    mesh_filetype : str
+    mesh_type : str
         File type of the file, ug, exo, scrip or shp
 
     Raises
@@ -29,29 +30,20 @@ def parse_grid_type(filepath, **kw):
     ValueError
         If file is not in UGRID format
     """
-    # extract the file name and extension
-    path = PurePath(filepath)
-    file_extension = path.suffix
-    # short-circuit for shapefiles
-    if file_extension == ".shp":
-        mesh_filetype, dataset = "shp", None
-        return mesh_filetype, dataset
-
-    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
     # exodus with coord or coordx
     if "coord" in dataset:
-        mesh_filetype = "exo"
+        mesh_type = "exo"
     elif "coordx" in dataset:
-        mesh_filetype = "exo"
+        mesh_type = "exo"
     # scrip with grid_center_lon
     elif "grid_center_lon" in dataset:
-        mesh_filetype = "scrip"
+        mesh_type = "scrip"
     # ugrid topology
     elif _is_ugrid(dataset):
-        mesh_filetype = "ugrid"
+        mesh_type = "ugrid"
     else:
-        raise RuntimeError(f"Could not recognize {filepath} format.")
-    return mesh_filetype, dataset
+        raise RuntimeError(f"Could not recognize dataset format.")
+    return mesh_type
 
     # check mesh topology and dimension
     try:
@@ -68,7 +60,7 @@ def parse_grid_type(filepath, **kw):
         mesh_topo_dv = ext_ds.filter_by_attrs(cf_role="mesh_topology").keys()
         if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[0] != "" and list(
                 face_conn_dv)[0] != "" and list(node_coords_dv)[0] != "":
-            mesh_filetype = "ugrid"
+            mesh_type = "ugrid"
         else:
             raise ValueError(
                 "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
@@ -81,14 +73,14 @@ def parse_grid_type(filepath, **kw):
         # check if this is a shp file
         # we won't use xarray to load that file
         if file_extension == ".shp":
-            mesh_filetype = "shp"
+            mesh_type = "shp"
         else:
             msg = str(e) + ': {}'.format(filepath)
     except ValueError as e:
         # check if this is a shp file
         # we won't use xarray to load that file
         if file_extension == ".shp":
-            mesh_filetype = "shp"
+            mesh_type = "shp"
         else:
             msg = str(e) + ': {}'.format(filepath)
     finally:
@@ -97,7 +89,7 @@ def parse_grid_type(filepath, **kw):
                 filepath)
             raise ValueError(msg)
 
-    return mesh_filetype
+    return mesh_type
 
 
 @njit
@@ -251,8 +243,9 @@ def get_all_face_area_from_coords(x,
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
 
-    for i in range(num_faces):
+    face_nodes = face_nodes[:].astype(int_dtype)
 
+    for i in range(num_faces):
         face_z = np.zeros(len(face_nodes[i]))
 
         face_x = x[face_nodes[i]]

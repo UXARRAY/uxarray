@@ -3,6 +3,8 @@ import numpy as np
 
 from .helpers import grid_center_lat_lon
 
+int_dtype = np.uint32
+
 
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
@@ -78,7 +80,7 @@ def _to_ugrid(in_ds, out_ds):
                 "_FillValue":
                     -1,
                 "start_index":
-                    np.int32(
+                    int_dtype(
                         0
                     )  # NOTE: This might cause an error if numbering has holes
             })
@@ -182,7 +184,7 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     ds = xr.Dataset()
 
     # Make grid corner lat/lon
-    f_nodes = mesh2_face_nodes.values.ravel()
+    f_nodes = mesh2_face_nodes.values.astype(int_dtype).ravel()
 
     # Create arrays to hold lat/lon data
     lat_nodes = mesh2_node_y[f_nodes].values
