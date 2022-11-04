@@ -95,3 +95,6 @@ class TestIntegrate(TestCase):
             [new_lon, new_lat] = ux.convert_node_xyz_to_lonlat_rad([x, y, z])
             self.assertLessEqual(np.absolute(new_lon - lon), 1.0e-12)
             self.assertLessEqual(np.absolute(new_lat - lat), 1.0e-12)
+
+
+    def test_get_intersection_pt(self):

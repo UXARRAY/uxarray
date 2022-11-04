@@ -13,7 +13,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_point_gcr_constlat, _sort_intersection_pts_with_lon, _get_cart_vector_magnitude
+    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_pt, _sort_intersection_pts_with_lon, _get_cart_vector_magnitude
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 
 
@@ -595,7 +595,7 @@ class Grid:
                 n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
                       self.ds["Mesh2_node_cart_y"].values[edge[1]],
                       self.ds["Mesh2_node_cart_z"].values[edge[1]]]
-                intersections = _get_intersection_point_gcr_constlat([n1, n2], latitude_rad)
+                intersections = _get_intersection_pt([n1, n2], latitude_rad)
                 if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
                     # The constant latitude didn't cross this edge
                     continue

@@ -227,6 +227,12 @@ class TestGrid(TestCase):
             tgrid1 = ux.open_dataset(str(ug_filename1))
             tgrid1.get_nc_zonal_avg("temperatrue", 1)
 
+    def test_get_intersection_pt(self):
+        ug_filename_list = ["outCSne30.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+
+
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?
     # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
