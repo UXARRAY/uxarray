@@ -98,3 +98,9 @@ class TestIntegrate(TestCase):
 
 
     def test_get_intersection_pt(self):
+        gcr = [[0, np.deg2rad(90)], [0, np.deg2rad(-90)]]
+        const_lat = 0
+        res = ux._get_intersection_pt(gcr, const_lat)
+        self.assertLessEqual(res[0] ** 2 + res[1] ** 2 + const_lat ** 2, 1)
+
+
