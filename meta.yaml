@@ -1,4 +1,4 @@
-{% set version = "2022.09.0" %}
+{% set version = "2022.11.0" %}
 
 package:
   name: 'uxarray'
@@ -33,7 +33,7 @@ test:
     - netcdf4
     - pytest
     - numba
-    - numpy>=1.2,<1.22
+    - numpy
     - scipy>=0.16
     - xarray
   imports:

@@ -23,9 +23,13 @@ class TestUgrid(TestCase):
         ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
         ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
 
-        ux_grid1 = ux.open_dataset(str(ug_filename1))
-        ux_grid2 = ux.open_dataset(str(ug_filename2))
-        ux_grid3 = ux.open_dataset(str(ug_filename3))
+        xr_grid1 = xr.open_dataset(str(ug_filename1))
+        xr_grid2 = xr.open_dataset(str(ug_filename2))
+        xr_grid3 = xr.open_dataset(str(ug_filename3))
+
+        ux_grid1 = ux.Grid(xr_grid1)
+        ux_grid2 = ux.Grid(xr_grid2)
+        ux_grid3 = ux.Grid(xr_grid3)
 
         assert (ux_grid1.Mesh2_node_x.size == constants.NNODES_outCSne30)
         assert (ux_grid2.Mesh2_node_x.size == constants.NNODES_outRLL1deg)
@@ -36,15 +40,16 @@ class TestUgrid(TestCase):
         """Read an ugrid model from an OPeNDAP URL."""
 
         url = "http://www.smast.umassd.edu:8080/thredds/dodsC/FVCOM/NECOFS/Forecasts/NECOFS_GOM3_FORECAST.nc"
-        ugrid = ux.open_dataset(url, drop_variables="siglay")
+        xr_grid = xr.open_dataset(url, drop_variables="siglay")
+        ugrid = ux.Grid(xr_grid)
         assert isinstance(getattr(ugrid, "Mesh2_node_x"), xr.DataArray)
         assert isinstance(getattr(ugrid, "Mesh2_node_y"), xr.DataArray)
         assert isinstance(getattr(ugrid, "Mesh2_face_nodes"), xr.DataArray)
 
-    def test_write_ugrid(self):
-        """Read an exodus file and writes a ugrid file."""
+    def test_encode_ugrid(self):
+        """Read an Exodus dataset and encode that as a UGRID format."""
 
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
-        ux_grid = ux.open_dataset(str(exo2_filename))
-        outfile = current_path / "write_test_outCSne8.ug"
-        ux_grid.write(str(outfile), "ugrid")
+        xr_grid = xr.open_dataset(str(exo2_filename))
+        ux_grid = ux.Grid(xr_grid)
+        ux_grid.encode_as("ugrid")

@@ -27,12 +27,12 @@ Grid Helper Modules
    :toctree: ./generated/
 
    _exodus._read_exodus
-   _exodus._write_exodus
+   _exodus._encode_exodus
    _exodus._get_element_type
-   _ugrid._write_ugrid
+   _ugrid._encode_ugrid
    _ugrid._read_ugrid
    _scrip._read_scrip
-   _scrip._write_scrip
+   _scrip._encode_scrip
    _scrip._to_ugrid
    helpers._is_ugrid
    helpers._convert_node_xyz_to_lonlat_rad

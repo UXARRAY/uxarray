@@ -3,6 +3,8 @@ import numpy as np
 
 from .helpers import grid_center_lat_lon
 
+int_dtype = np.uint32
+
 
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
@@ -78,7 +80,7 @@ def _to_ugrid(in_ds, out_ds):
                 "_FillValue":
                     -1,
                 "start_index":
-                    np.int32(
+                    int_dtype(
                         0
                     )  # NOTE: This might cause an error if numbering has holes
             })
@@ -138,10 +140,9 @@ def _read_scrip(ext_ds):
     return ds
 
 
-def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
-                 face_areas):
+def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     """Function to reassign UGRID formatted variables to SCRIP formatted
-    variables and then writing them out to a netCDF file.
+    variables.
 
     Currently, supports creating unstructured SCRIP grid files following traditional
     SCRIP naming practices (grid_corner_lat, grid_center_lat, etc).
@@ -176,15 +177,14 @@ def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
     Returns
     -------
     ds : xarray.Dataset
-        Dataset to be returned by ``_write_scrip``. The function returns both
-        the output dataset in SCRIP format for immediate and saves it as an
-        independent netCDF file.
+        Dataset to be returned by ``_encode_scrip``. The function returns
+        the output dataset in SCRIP format for immediate use.
     """
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()
 
     # Make grid corner lat/lon
-    f_nodes = mesh2_face_nodes.values.ravel()
+    f_nodes = mesh2_face_nodes.values.astype(int_dtype).ravel()
 
     # Create arrays to hold lat/lon data
     lat_nodes = mesh2_node_y[f_nodes].values
@@ -221,8 +221,5 @@ def _write_scrip(outfile, mesh2_face_nodes, mesh2_node_x, mesh2_node_y,
     ds['grid_center_lon'] = xr.DataArray(data=center_lon, dims=["grid_size"])
 
     ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
-
-    # Create and save new scrip file
-    ds.to_netcdf(outfile)
 
     return ds
