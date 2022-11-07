@@ -149,12 +149,12 @@ def calculate_face_area(x,
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
         if (coords_type == "spherical"):
-            node1 = np.array(_convert_node_lonlat_rad_to_xyz([x[0], y[0],
+            node1 = np.array(_convert_node_xyz_to_lonlat_rad([x[0], y[0],
                                                               z[0]]))
             node2 = np.array(
-                _convert_node_lonlat_rad_to_xyz([x[j + 1], y[j + 1], z[j + 1]]))
+                _convert_node_xyz_to_lonlat_rad([x[j + 1], y[j + 1], z[j + 1]]))
             node3 = np.array(
-                _convert_node_lonlat_rad_to_xyz([x[j + 2], y[j + 2], z[j + 2]]))
+                _convert_node_xyz_to_lonlat_rad([x[j + 2], y[j + 2], z[j + 2]]))
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
                 for q in range(len(dW)):
