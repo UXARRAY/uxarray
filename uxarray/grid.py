@@ -8,7 +8,7 @@ from ._exodus import _read_exodus, _encode_exodus
 from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
-from .helpers import get_all_face_area_from_coords, parse_grid_type
+from .helpers import get_all_face_area_from_coords, parse_grid_type, _is_ugrid
 
 int_dtype = np.uint32
 
@@ -210,6 +210,21 @@ class Grid:
             raise RuntimeError("unknown mesh type")
 
         dataset.close()
+
+    def validate(self):
+        """Validate a grid object as per UGRID conventions.
+        Raises
+        ------
+        RuntimeError
+            If unsupported grid type provided
+        """
+        # If the mesh file is loaded correctly, we have the underlying file format as UGRID
+        # Test if the file is a valid ugrid file format or not
+        valid = _is_ugrid(self.ds)
+
+        # TODO: Add more checks
+
+        return valid
 
     def encode_as(self, grid_type):
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
