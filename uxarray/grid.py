@@ -371,3 +371,33 @@ class Grid:
         integral = np.dot(face_areas, face_vals)
 
         return integral
+
+    def antimeridian_faces(self):
+        """Locates any faces that cross the antimeridian.
+
+        Returns
+        -------
+        crossed_indicies : tuple
+            Indicies into Mesh2_face_nodes corresponding to any face that
+            crossed the antimeridian
+        """
+        # longitude values of
+        polygon_lon = self.Mesh2_node_x.values[self.Mesh2_face_nodes.astype(
+            int).values]
+
+        crossed_indicies = []
+        # enumerate to keep track of which face node we're at
+        for face_node_index, lon in enumerate(polygon_lon):
+            # cycle over every polygon ring
+            for i in range(self.nMaxMesh2_face_nodes + 1):
+                # get polygon ring longitude values
+                x1 = lon[(0 + i) % self.nMaxMesh2_face_nodes]
+                x2 = lon[(1 + i) % self.nMaxMesh2_face_nodes]
+
+                # distance between two points > 180
+                if abs(x2 - x1) > 180:
+                    crossed_indicies.append(face_node_index)
+                    # break to avoid double counting
+                    break
+
+        return tuple(crossed_indicies)

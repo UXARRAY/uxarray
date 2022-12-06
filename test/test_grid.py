@@ -214,3 +214,22 @@ class TestFaceAreas(TestCase):
         grid_2_ds = xr.open_dataset(fesom_grid_small)
         grid_2 = ux.Grid(grid_2_ds)
         grid_2.compute_face_areas()
+
+
+class TestPolygon(TestCase):
+    ug_filename1 = current_path / "meshfiles" / "geoflow-small" / "grid.nc"
+    ug_filename2 = current_path / "meshfiles" / "ugrid_demo.nc"
+    grid_1_ds = xr.open_dataset(ug_filename1)
+    grid_2_ds = xr.open_dataset(ug_filename2)
+    grid_1 = ux.Grid(grid_1_ds)
+    grid_2 = ux.Grid(grid_2_ds)
+
+    def test_antimeridian_faces(self):
+
+        # global grid with faces crossing antimeridian
+        crossed_indicies_1 = self.grid_1.antimeridian_faces()
+        assert len(crossed_indicies_1) > 0
+
+        # regional grid without faces crossing antimeridian
+        crossed_indicies_2 = self.grid_2.antimeridian_faces()
+        assert len(crossed_indicies_2) == 0
