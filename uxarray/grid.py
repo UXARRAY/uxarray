@@ -19,7 +19,7 @@ class GridAccessor:
     Examples
     ----------
 
-    Open an exodus file with Uxarray Grid object
+    Open an exodus file with Uxarray GridAccessor object
 
     >>> xarray_obj = xr.open_dataset("filename.g")
     >>> mesh = ux.GridAccessor(xarray_obj)
