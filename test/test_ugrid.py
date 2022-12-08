@@ -27,9 +27,9 @@ class TestUgrid(TestCase):
         xr_grid2 = xr.open_dataset(str(ug_filename2))
         xr_grid3 = xr.open_dataset(str(ug_filename3))
 
-        ux_grid1 = ux.Grid(xr_grid1)
-        ux_grid2 = ux.Grid(xr_grid2)
-        ux_grid3 = ux.Grid(xr_grid3)
+        ux_grid1 = ux.GridAccessor(xr_grid1)
+        ux_grid2 = ux.GridAccessor(xr_grid2)
+        ux_grid3 = ux.GridAccessor(xr_grid3)
 
         assert (ux_grid1.Mesh2_node_x.size == constants.NNODES_outCSne30)
         assert (ux_grid2.Mesh2_node_x.size == constants.NNODES_outRLL1deg)
@@ -41,7 +41,7 @@ class TestUgrid(TestCase):
 
         url = "http://www.smast.umassd.edu:8080/thredds/dodsC/FVCOM/NECOFS/Forecasts/NECOFS_GOM3_FORECAST.nc"
         xr_grid = xr.open_dataset(url, drop_variables="siglay")
-        ugrid = ux.Grid(xr_grid)
+        ugrid = ux.GridAccessor(xr_grid)
         assert isinstance(getattr(ugrid, "Mesh2_node_x"), xr.DataArray)
         assert isinstance(getattr(ugrid, "Mesh2_node_y"), xr.DataArray)
         assert isinstance(getattr(ugrid, "Mesh2_face_nodes"), xr.DataArray)
@@ -51,5 +51,5 @@ class TestUgrid(TestCase):
 
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
         xr_grid = xr.open_dataset(str(exo2_filename))
-        ux_grid = ux.Grid(xr_grid)
+        ux_grid = ux.GridAccessor(xr_grid)
         ux_grid.encode_as("ugrid")

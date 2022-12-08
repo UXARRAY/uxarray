@@ -17,13 +17,13 @@ class TestExodus(TestCase):
 
         exo2_filename = current_path / "meshfiles" / "outCSne8.g"
         xr_exo_ds = xr.open_dataset(exo2_filename)
-        tgrid = ux.Grid(xr_exo_ds)
+        tgrid = ux.GridAccessor(xr_exo_ds)
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a 1 face exodus
         file."""
         verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
-        vgrid = ux.Grid(verts)
+        vgrid = ux.GridAccessor(verts)
 
     def test_encode_exodus(self):
         """Read a UGRID dataset and encode that as an Exodus format."""
@@ -34,7 +34,7 @@ class TestExodus(TestCase):
 
         exo2_filename = current_path / "meshfiles" / "mixed.exo"
         xr_exo_ds = xr.open_dataset(exo2_filename)
-        tgrid = ux.Grid(xr_exo_ds)
+        tgrid = ux.GridAccessor(xr_exo_ds)
         outfile = current_path / "write_test_mixed.ug"
         tgrid.encode_as("ugrid")
         outfile = current_path / "write_test_mixed.exo"

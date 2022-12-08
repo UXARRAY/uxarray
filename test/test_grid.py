@@ -26,9 +26,9 @@ class TestGrid(TestCase):
     xr_ds1 = xr.open_dataset(ug_filename1)
     xr_ds2 = xr.open_dataset(ug_filename2)
     xr_ds3 = xr.open_dataset(ug_filename3)
-    tgrid1 = ux.Grid(xr_ds1)
-    tgrid2 = ux.Grid(xr_ds2)
-    tgrid3 = ux.Grid(xr_ds3)
+    tgrid1 = ux.GridAccessor(xr_ds1)
+    tgrid2 = ux.GridAccessor(xr_ds2)
+    tgrid3 = ux.GridAccessor(xr_ds3)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
@@ -48,7 +48,7 @@ class TestGrid(TestCase):
 
         path = current_path / "meshfiles" / "mesh.nc"
         xr_grid = xr.open_dataset(path)
-        grid = ux.Grid(xr_grid)
+        grid = ux.GridAccessor(xr_grid)
 
         grid.encode_as("exodus")
 
@@ -59,7 +59,7 @@ class TestGrid(TestCase):
         """
 
         verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
-        vgrid = ux.Grid(verts, vertices=True, islatlon=True, concave=False)
+        vgrid = ux.GridAccessor(verts, vertices=True, islatlon=True, isconcave=False)
 
         assert (vgrid.source_grid == "From vertices")
 
@@ -100,7 +100,7 @@ class TestGrid(TestCase):
         # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "mesh.nc"
         xr_grid = xr.open_dataset(path)
-        grid = ux.Grid(xr_grid)
+        grid = ux.GridAccessor(xr_grid)
         xr.testing.assert_equal(grid.Mesh2_node_x,
                                 grid.ds[grid.ds_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(grid.Mesh2_node_y,
@@ -127,7 +127,7 @@ class TestGrid(TestCase):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
             shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-            tgrid = ux.Grid(str(shp_filename))
+            tgrid = ux.GridAccessor(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file."""
@@ -137,10 +137,10 @@ class TestGrid(TestCase):
 
         # Test read from scrip and from ugrid for grid class
         xr_grid_s8 = xr.open_dataset(scrip_8)
-        ux_grid_s8 = ux.Grid(xr_grid_s8)  # tests from scrip
+        ux_grid_s8 = ux.GridAccessor(xr_grid_s8)  # tests from scrip
 
         xr_grid_u30 = xr.open_dataset(ug_30)
-        ux_grid_u30 = ux.Grid(xr_grid_u30)  # tests from ugrid
+        ux_grid_u30 = ux.GridAccessor(xr_grid_u30)  # tests from ugrid
 
 
 class TestIntegrate(TestCase):
@@ -154,7 +154,7 @@ class TestIntegrate(TestCase):
         verts = np.array([[0.57735027, -5.77350269e-01, -0.57735027],
                           [0.57735027, 5.77350269e-01, -0.57735027],
                           [-0.57735027, 5.77350269e-01, -0.57735027]])
-        vgrid = ux.Grid(verts)
+        vgrid = ux.GridAccessor(verts)
 
         # get node names for each grid object
         x_var = vgrid.ds_var_names["Mesh2_node_x"]
@@ -177,7 +177,7 @@ class TestIntegrate(TestCase):
         """Create a uxarray grid from vertices and saves an exodus file."""
 
         xr_grid = xr.open_dataset(str(self.mesh_file30))
-        grid = ux.Grid(xr_grid)
+        grid = ux.GridAccessor(xr_grid)
 
         area = grid.calculate_total_face_area()
 
@@ -188,7 +188,7 @@ class TestIntegrate(TestCase):
         xr_psi = xr.open_dataset(self.data_file30)
         xr_v2 = xr.open_dataset(self.data_file30_v2)
 
-        u_grid = ux.Grid(xr_grid)
+        u_grid = ux.GridAccessor(xr_grid)
 
         integral_psi = u_grid.integrate(xr_psi)
         integral_var2 = u_grid.integrate(xr_v2)
@@ -203,7 +203,7 @@ class TestFaceAreas(TestCase):
         """Checks if the GeoFlow Small can generate a face areas output."""
         geoflow_small_grid = current_path / "meshfiles" / "geoflow-small" / "grid.nc"
         grid_1_ds = xr.open_dataset(geoflow_small_grid)
-        grid_1 = ux.Grid(grid_1_ds)
+        grid_1 = ux.GridAccessor(grid_1_ds)
         grid_1.compute_face_areas()
 
     def test_compute_face_areas_fesom(self):
@@ -212,5 +212,5 @@ class TestFaceAreas(TestCase):
 
         fesom_grid_small = current_path / "meshfiles" / "fesom" / "fesom.mesh.diag.nc"
         grid_2_ds = xr.open_dataset(fesom_grid_small)
-        grid_2 = ux.Grid(grid_2_ds)
+        grid_2 = ux.GridAccessor(grid_2_ds)
         grid_2.compute_face_areas()

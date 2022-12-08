@@ -13,7 +13,8 @@ from .helpers import get_all_face_area_from_coords, parse_grid_type
 int_dtype = np.uint32
 
 
-class Grid:
+@xr.register_dataset_accessor("ugrid")
+class GridAccessor:
     """
     Examples
     ----------
@@ -21,38 +22,29 @@ class Grid:
     Open an exodus file with Uxarray Grid object
 
     >>> xarray_obj = xr.open_dataset("filename.g")
-    >>> mesh = ux.Grid(xarray_obj)
+    >>> mesh = ux.GridAccessor(xarray_obj)
 
     Encode as a `xarray.Dataset` in the UGRID format
 
     >>> mesh.encode_as("ugrid")
     """
 
-    def __init__(self, dataset, **kwargs):
+    def __init__(self, xarray_obj):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec.
 
         Parameters
         ----------
-        dataset : xarray.Dataset, ndarray, list, tuple, required
+        xarray_obj : xarray.Dataset, ndarray, list, tuple, required
             Input xarray.Dataset or vertex coordinates that form one face.
-
-        Other Parameters
-        ----------------
-        islatlon : bool, optional
-            Specify if the grid is lat/lon based
-        concave: bool, optional
-            Specify if this grid has concave elements (internal checks for this are possible)
-        gridspec: bool, optional
-            Specifies gridspec
-        mesh_type: str, optional
-            Specify the mesh file type, eg. exo, ugrid, shp, etc
 
         Raises
         ------
             RuntimeError
                 If specified file not found
         """
+        self._obj = xarray_obj
+
         # initialize internal variable names
         self.__init_ds_var_names__()
 
@@ -61,24 +53,16 @@ class Grid:
 
         # TODO: fix when adding/exercising gridspec
 
-        # unpack kwargs
-        # sets default values for all kwargs to None
-        kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid'
-        ]
-        for key in kwargs_list:
-            setattr(self, key, kwargs.get(key, None))
-
         # check if initializing from verts:
-        if isinstance(dataset, (list, tuple, np.ndarray)):
-            self.vertices = dataset
+        if isinstance(xarray_obj, (list, tuple, np.ndarray)):
+            self.vertices = xarray_obj
             self.__from_vert__()
             self.source_grid = "From vertices"
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
-        elif isinstance(dataset, xr.Dataset):
-            self.mesh_type = parse_grid_type(dataset)
-            self.__from_ds__(dataset=dataset)
+        elif isinstance(xarray_obj, xr.Dataset):
+            self.mesh_type = parse_grid_type(xarray_obj)
+            self.__from_ds__(dataset=xarray_obj)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
 
@@ -349,7 +333,7 @@ class Grid:
         Open grid file only
 
         >>> xr_grid = xr.open_dataset("grid.ug")
-        >>> grid = ux.Grid.(xr_grid)
+        >>> grid = ux.GridAccessor.(xr_grid)
         >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
 
         # Compute the integral

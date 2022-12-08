@@ -2,24 +2,26 @@ Core (tier 1) functionality is indicated using regular text/list
 item style. \
 Secondary (tier 2) functionality is indicated using (*) in front.
 
-# class uxarray.Grid
+# class uxarray.GridAccessor
 
-Describes an unstructured grid.
+Describes an unstructured grid via [Dataset 
+Accessor](https://docs.xarray.dev/en/stable/internals/extending-xarray.html) 
+to a ``xarray.Dataset`` object.
 
-## uxarray.Grid Attributes
+## uxarray.GridAccessor Attributes
 
-- uxarray.Grid.ds: DataSet\
-  DataSet containing uxarray.Grid properties
+- uxarray.GridAccessor.ds: DataSet\
+  DataSet containing uxarray.GridAccessor properties
   `dims={nMesh2_node (total number of nodes),
   nMesh2_face (number of faces),
   MaxNumNodesPerFace (maximum number of nodes per face)}` \
   `optional_dims={nMesh2_edge (number of edges, optional),
   MaxNumFacesPerNode (max number of faces per node),Two, Three, Four}`
 
-- (*) uxarray.Grid.islatlon: boolean \
+- (*) uxarray.GridAccessor.islatlon: boolean \
   A flag indicating the grid is a latitude longitude grid.
 
-- (*) uxarray.Grid.isconcave: boolean \
+- (*) uxarray.GridAccessor.isconcave: boolean \
   A flag indicating the grid contains concave faces.  If
   this flag is set then alternative algorithms may be needed
   for some of the operations below.

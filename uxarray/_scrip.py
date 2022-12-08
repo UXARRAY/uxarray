@@ -159,19 +159,19 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
         specified location if full path to new file is provided.
 
     mesh2_face_nodes : xarray.DataArray
-        Face-node connectivity. This variable should come from the ``Grid``
+        Face-node connectivity. This variable should come from the ``GridAccessor``
         object that calls this function
 
     mesh2_node_x : xarray.DataArray
-        Nodes' x values. This variable should come from the ``Grid`` object
+        Nodes' x values. This variable should come from the ``GridAccessor`` object
         that calls this function
 
     mesh2_node_y : xarray.DataArray
-        Nodes' y values. This variable should come from the ``Grid`` object
+        Nodes' y values. This variable should come from the ``GridAccessor`` object
         that calls this function
 
     face_areas : numpy.ndarray
-        Face areas. This variable should come from the ``Grid`` object
+        Face areas. This variable should come from the ``GridAccessor`` object
         that calls this function
 
     Returns

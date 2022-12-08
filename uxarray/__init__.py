@@ -1,2 +1,4 @@
-from .grid import *
+# from .grid import *
 from .helpers import *
+
+from .grid import GridAccessor

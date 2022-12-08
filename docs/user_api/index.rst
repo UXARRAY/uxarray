@@ -8,12 +8,12 @@ check the draft `Uxarray API
 <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
 documentation to see the tentative whole API and let us know if you have any feedback!
 
-Grid Class
-----------
+GridAccessor Class
+------------------
 .. autosummary::
    :toctree: _autosummary
 
-   grid.Grid
+   grid.GridAccessor
 
 
 Grid Methods
@@ -21,10 +21,10 @@ Grid Methods
 .. autosummary::
    :toctree: _autosummary
 
-   grid.Grid.calculate_total_face_area
-   grid.Grid.compute_face_areas
-   grid.Grid.encode_as
-   grid.Grid.integrate
+   grid.GridAccessor.calculate_total_face_area
+   grid.GridAccessor.compute_face_areas
+   grid.GridAccessor.encode_as
+   grid.GridAccessor.integrate
 
 
 Helper Functions
