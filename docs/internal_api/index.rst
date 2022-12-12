@@ -19,6 +19,9 @@ Grid Methods
    grid.Grid.__from_ds__
    grid.Grid.__from_vert__
    grid.Grid.__init_grid_var_attrs__
+   grid.Grid.__populate_lonlat_coord
+   grid.Grid.__populate_cartesian_xyz_coord
+
 
 Grid Helper Modules
 --------------------
