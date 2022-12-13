@@ -119,7 +119,7 @@ class TestGrid(TestCase):
 
     def test_build_edge_face_connectivity(self):
         """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
-        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]#["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
         for ug_file_name in ug_filename_list:
             ug_filename1 = current_path / "meshfiles" / ug_file_name
             xr_tgrid1 = xr.open_dataset(str(ug_filename1))

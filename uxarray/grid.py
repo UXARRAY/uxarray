@@ -374,7 +374,9 @@ class Grid:
 
     # Build the edge-face connectivity array.
     def build_edge_face_connectivity(self):
-        mesh2_edge_nodes_set = set()  # Use the set data structure to store Edge object (undirected)
+        """Not implemented."""
+        mesh2_edge_nodes_set = set(
+        )  # Use the set data structure to store Edge object (undirected)
 
         # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
         mesh2_face_edges = []
@@ -407,13 +409,14 @@ class Grid:
             cur_face_edge.append([face[last_node], face[start_node]])
             mesh2_face_edges.append(cur_face_edge)
 
-        # Convert the Edge object set into list
         mesh2_edge_nodes = []
         for edge in mesh2_edge_nodes_set:
             mesh2_edge_nodes.append(list(edge))
 
+
         self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
                                                    dims=["nMesh2_edge", "Two"])
+
         for i in range(0, len(mesh2_face_edges)):
             while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
                 # Append dummy edges
