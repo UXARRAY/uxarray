@@ -371,3 +371,64 @@ class Grid:
         integral = np.dot(face_areas, face_vals)
 
         return integral
+
+    def build_face_edges_connectivity(self):
+        """A DataArray of indices indicating edges that are neighboring each
+        face.
+
+        Notes
+        -----
+        This function will add `Grid.ds.Mesh2_face_edges` to the `Grid` class, which is an integer
+        DataArray of size (nMesh2_face, MaxNumNodesPerFace)
+        """
+        mesh2_edge_nodes_set = set(
+        )  # Use the set data structure to store Edge object (undirected)
+
+        # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
+        mesh2_face_edges = []
+        mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
+
+        # Loop over each face
+        for face in mesh2_face_nodes:
+            cur_face_edge = []
+            # Loop over nodes in a face
+            for i in range(0, face.size - 1):
+                # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
+                if (face[i] == -1 or face[i + 1] == -1) or (np.isnan(
+                        face[i]) or np.isnan(face[i + 1])):
+                    continue
+                # Two nodes are connected to one another if they’re adjacent in the array
+                mesh2_edge_nodes_set.add(frozenset({face[i], face[i + 1]}))
+                cur_face_edge.append([face[i], face[i + 1]])
+            # Two nodes are connected if one is the first element of the array and the other is the last
+            # First make sure to skip the dummy _FillValue=-1 node
+            last_node = face.size - 1
+            start_node = 0
+            while (face[last_node] == -1 or
+                   np.isnan(face[last_node])) and last_node > 0:
+                last_node -= 1
+            while (face[start_node] == -1 or
+                   np.isnan(face[start_node])) and start_node > 0:
+                start_node += 1
+            if face[last_node] < 0 or face[last_node] < 0:
+                raise Exception('Invalid node index')
+            mesh2_edge_nodes_set.add(
+                frozenset({face[last_node], face[start_node]}))
+            cur_face_edge.append([face[last_node], face[start_node]])
+            mesh2_face_edges.append(cur_face_edge)
+
+        mesh2_edge_nodes = []
+        for edge in mesh2_edge_nodes_set:
+            mesh2_edge_nodes.append(list(edge))
+
+        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
+                                                   dims=["nMesh2_edge", "Two"])
+
+        for i in range(0, len(mesh2_face_edges)):
+            while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
+                # Append dummy edges
+                mesh2_face_edges[i].append([-1, -1])
+
+        self.ds["Mesh2_face_edges"] = xr.DataArray(
+            data=mesh2_face_edges,
+            dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
