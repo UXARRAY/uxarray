@@ -5,7 +5,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-from _zonal_avg_utilities import _newton_raphson_solver
+from uxarray._zonal_avg_utilities import _newton_raphson_solver
 
 config.DISABLE_JIT = True
 

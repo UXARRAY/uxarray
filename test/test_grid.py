@@ -93,6 +93,7 @@ class TestGrid(TestCase):
             # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
             num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds[
                 "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+            size = mesh2_edge_nodes.sizes["nMesh2_edge"]
             self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
     def test_generate_Latlon_bounds_latitude_max(self):
