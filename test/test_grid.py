@@ -116,16 +116,18 @@ class TestGrid(TestCase):
         self.assertEqual(n_face_nodes, grid.nMaxMesh2_face_nodes)
 
     # def test_init_dimension_attrs(self):
-
-    def test_build_edge_face_connectivity(self):
-        """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
-        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]#["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+    def test_build_face_edges_connectivity(self):
+        """Tests to see if the generated face_edges_connectivity number match
+        the calculated results from Euler formular."""
+        ug_filename_list = [
+            "outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"
+        ]  #["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
         for ug_file_name in ug_filename_list:
             ug_filename1 = current_path / "meshfiles" / ug_file_name
             xr_tgrid1 = xr.open_dataset(str(ug_filename1))
             tgrid1 = ux.Grid(xr_tgrid1)
             mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
-            tgrid1.build_edge_face_connectivity()
+            tgrid1.build_face_edges_connectivity()
             mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
             mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
 

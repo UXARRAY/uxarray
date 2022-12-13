@@ -23,6 +23,7 @@ Grid Methods
 
    grid.Grid.calculate_total_face_area
    grid.Grid.compute_face_areas
+   grid.Grid.build_face_edges_connectivity
    grid.Grid.encode_as
    grid.Grid.integrate
 

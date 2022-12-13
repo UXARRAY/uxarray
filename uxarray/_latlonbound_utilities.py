@@ -3,10 +3,12 @@ import copy
 
 from .helpers import _angle_of_2_vectors, _within, normalize_in_place, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz
 
+
 # helper function to insert a new point into the latlon box
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     """Compare the new point's latitude and longitude with the target the
     latlonbox.
+
     Parameters: old_box: float array, the original lat lon box [[lat_0, lat_1],[lon_0, lon_1]],required
                 new_pt: float array, the new lat lon point [lon, lat], required
                 is_lon_periodic: Flag indicating the latlonbox is a regional (default to be True).
@@ -29,7 +31,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     # Deal with the pole point
     if new_pt[1] == 404.0 and (
-            (np.absolute(new_pt[0] - 0.5 * np.pi) < 1.0e-12) or (np.absolute(new_pt[0] - (-0.5 * np.pi)) < 1.0e-12)):
+        (np.absolute(new_pt[0] - 0.5 * np.pi) < 1.0e-12) or
+        (np.absolute(new_pt[0] - (-0.5 * np.pi)) < 1.0e-12)):
         latlon_box = old_box
         if np.absolute(new_pt[0] - 0.5 * np.pi) < 1.0e-12:
             latlon_box[0][1] = 0.5 * np.pi
@@ -135,12 +138,13 @@ def max_latitude_rad(v1, v2):
     v0 = np.cross(v_temp, v1_cart)
     v0 = normalize_in_place(v0)
 
-    max_section = [v1_cart,
-                   v2_cart]  # record the subsection that has the maximum latitude
+    max_section = [v1_cart, v2_cart
+                  ]  # record the subsection that has the maximum latitude
 
     # Only stop the iteration when two endpoints are extremely closed
-    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance or np.absolute(
-            b_lonlat[0] - c_lonlat[0]) >= err_tolerance:
+    while np.absolute(b_lonlat[1] -
+                      c_lonlat[1]) >= err_tolerance or np.absolute(
+                          b_lonlat[0] - c_lonlat[0]) >= err_tolerance:
         max_lat = -np.pi  # reset the max_latitude for each while loop
         v_b = max_section[0]
         v_c = max_section[1]
@@ -160,10 +164,14 @@ def max_latitude_rad(v1, v2):
                 angle_rad_next = angle_rad_prev + avg_angle_rad
 
             # Get the two vectors of this section
-            w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
-                angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
-            w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
-                angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+            w1_new = [
+                np.cos(angle_rad_prev) * v_b[i] + np.sin(angle_rad_prev) * v0[i]
+                for i in range(0, len(v_b))
+            ]
+            w2_new = [
+                np.cos(angle_rad_next) * v_b[i] + np.sin(angle_rad_next) * v0[i]
+                for i in range(0, len(v_b))
+            ]
 
             # convert the 3D [x, y, z] vector into 2D lat/lon vector
             w1_lonlat = convert_node_xyz_to_lonlat_rad(w1_new)
@@ -179,7 +187,7 @@ def max_latitude_rad(v1, v2):
 
             if np.absolute(w2_lonlat[1] -
                            w1_lonlat[1]) <= err_tolerance or w1_lonlat[
-                1] == max_lat == w2_lonlat[1]:
+                               1] == max_lat == w2_lonlat[1]:
                 max_section = [w1_new, w2_new]
                 break
 
@@ -188,10 +196,16 @@ def max_latitude_rad(v1, v2):
             if np.absolute(max_lat - w1_lonlat[1]) <= err_tolerance:
                 if i != 0:
                     angle_rad_prev -= avg_angle_rad
-                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
-                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
-                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
-                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+                    w1_new = [
+                        np.cos(angle_rad_prev) * v_b[i] +
+                        np.sin(angle_rad_prev) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
+                    w2_new = [
+                        np.cos(angle_rad_next) * v_b[i] +
+                        np.sin(angle_rad_next) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
                     max_section = [w1_new, w2_new]
                 else:
                     max_section = [v_b, w2_new]
@@ -199,10 +213,16 @@ def max_latitude_rad(v1, v2):
             elif np.absolute(max_lat - w2_lonlat[1]) <= err_tolerance:
                 if i != 9:
                     angle_rad_next += avg_angle_rad
-                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
-                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
-                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
-                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+                    w1_new = [
+                        np.cos(angle_rad_prev) * v_b[i] +
+                        np.sin(angle_rad_prev) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
+                    w2_new = [
+                        np.cos(angle_rad_next) * v_b[i] +
+                        np.sin(angle_rad_next) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
                     max_section = [w1_new, w2_new]
                 else:
                     max_section = [w1_new, v_c]
@@ -233,12 +253,13 @@ def min_latitude_rad(v1, v2):
     v0 = np.cross(v_temp, v1_cart)
     v0 = normalize_in_place(v0)
 
-    min_section = [v1_cart,
-                   v2_cart]  # record the subsection that has the maximum latitude
+    min_section = [v1_cart, v2_cart
+                  ]  # record the subsection that has the maximum latitude
 
     # Only stop the iteration when two endpoints are extremely closed
-    while np.absolute(b_lonlat[1] - c_lonlat[1]) >= err_tolerance or np.absolute(
-            b_lonlat[0] - c_lonlat[0]) >= err_tolerance:
+    while np.absolute(b_lonlat[1] -
+                      c_lonlat[1]) >= err_tolerance or np.absolute(
+                          b_lonlat[0] - c_lonlat[0]) >= err_tolerance:
         min_lat = np.pi  # reset the max_latitude for each while loop
         v_b = min_section[0]
         v_c = min_section[1]
@@ -258,10 +279,14 @@ def min_latitude_rad(v1, v2):
                 angle_rad_next = angle_rad_prev + avg_angle_rad
 
             # Get the two vectors of this section
-            w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
-                angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
-            w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
-                angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+            w1_new = [
+                np.cos(angle_rad_prev) * v_b[i] + np.sin(angle_rad_prev) * v0[i]
+                for i in range(0, len(v_b))
+            ]
+            w2_new = [
+                np.cos(angle_rad_next) * v_b[i] + np.sin(angle_rad_next) * v0[i]
+                for i in range(0, len(v_b))
+            ]
 
             # convert the 3D [x, y, z] vector into 2D lat/lon vector
             w1_lonlat = convert_node_xyz_to_lonlat_rad(w1_new)
@@ -277,7 +302,7 @@ def min_latitude_rad(v1, v2):
 
             if np.absolute(w2_lonlat[1] -
                            w1_lonlat[1]) <= err_tolerance or w1_lonlat[
-                1] == min_lat == w2_lonlat[1]:
+                               1] == min_lat == w2_lonlat[1]:
                 min_section = [w1_new, w2_new]
                 break
 
@@ -286,10 +311,16 @@ def min_latitude_rad(v1, v2):
             if np.absolute(min_lat - w1_lonlat[1]) <= err_tolerance:
                 if i != 0:
                     angle_rad_prev -= avg_angle_rad
-                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
-                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
-                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
-                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+                    w1_new = [
+                        np.cos(angle_rad_prev) * v_b[i] +
+                        np.sin(angle_rad_prev) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
+                    w2_new = [
+                        np.cos(angle_rad_next) * v_b[i] +
+                        np.sin(angle_rad_next) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
                     min_section = [w1_new, w2_new]
                 else:
                     min_section = [v_b, w2_new]
@@ -297,10 +328,16 @@ def min_latitude_rad(v1, v2):
             elif np.absolute(min_lat - w2_lonlat[1]) <= err_tolerance:
                 if i != 9:
                     angle_rad_next += avg_angle_rad
-                    w1_new = [np.cos(angle_rad_prev) * v_b[i] + np.sin(
-                        angle_rad_prev) * v0[i] for i in range(0, len(v_b))]
-                    w2_new = [np.cos(angle_rad_next) * v_b[i] + np.sin(
-                        angle_rad_next) * v0[i] for i in range(0, len(v_b))]
+                    w1_new = [
+                        np.cos(angle_rad_prev) * v_b[i] +
+                        np.sin(angle_rad_prev) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
+                    w2_new = [
+                        np.cos(angle_rad_next) * v_b[i] +
+                        np.sin(angle_rad_next) * v0[i]
+                        for i in range(0, len(v_b))
+                    ]
                     min_section = [w1_new, w2_new]
                 else:
                     min_section = [w1_new, v_c]
@@ -313,8 +350,10 @@ def min_latitude_rad(v1, v2):
 
 # Quantitative method to find the minimum and maximum Longitude between in a great circle
 def minmax_Longitude_rad(v1, v2):
-    """Quantitative method to find the minimum Longitude between in a great circle arc.
-      And it assumes that an edge's longitude span cannot be larger than 180 degree.
+    """Quantitative method to find the minimum Longitude between in a great
+    circle arc.
+
+    And it assumes that an edge's longitude span cannot be larger than 180 degree.
     Parameters:
         v1: float array [lon, lat] in degree east
         v2: float array [lon, lat] in degree east
@@ -356,9 +395,11 @@ def get_intersection_point_gcr_gcr(w0, w1, v0, v1):
 
     # Find out whether X1 or X2 is within the interval [wo, w1]
 
-    if _within(w0[0], x1[0], w1[0]) and _within(w0[1], x1[1], w1[1]) and _within(w0[2], x1[2], w1[2]):
+    if _within(w0[0], x1[0], w1[0]) and _within(
+            w0[1], x1[1], w1[1]) and _within(w0[2], x1[2], w1[2]):
         return x1
-    elif _within(w0[0], x2[0], w1[0]) and _within(w0[1], x2[1], w1[1]) and _within(w0[2], x2[2], w1[2]):
+    elif _within(w0[0], x2[0], w1[0]) and _within(
+            w0[1], x2[1], w1[1]) and _within(w0[2], x2[2], w1[2]):
         return x2
     elif x1[0] == 0 and x1[1] == 0 and x1[2] == 0:
         return [0, 0, 0]  # two vectors are parallel to each other
@@ -367,7 +408,8 @@ def get_intersection_point_gcr_gcr(w0, w1, v0, v1):
 
 
 # Helper function for the test_generate_Latlon_bounds_longitude_minmax
-def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
+def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge,
+                         minmax_lon_rad_face):
     """Helper function top expand the longitude boundary of a face
     Parameters
     ----------
@@ -379,70 +421,107 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
     # Longitude range expansion: Compare between [min_lon_rad_edge, max_lon_rad_edge] and minmax_lon_rad_face
     if minmax_lon_rad_face[0] <= minmax_lon_rad_face[1]:
         if min_lon_rad_edge <= max_lon_rad_edge:
-            if min_lon_rad_edge < minmax_lon_rad_face[0] and max_lon_rad_edge < minmax_lon_rad_face[1]:
+            if min_lon_rad_edge < minmax_lon_rad_face[
+                    0] and max_lon_rad_edge < minmax_lon_rad_face[1]:
                 # First try to add from the left:
                 left_width = minmax_lon_rad_face[1] - min_lon_rad_edge
                 if left_width <= np.pi:
-                    minmax_lon_rad_face = [min_lon_rad_edge, minmax_lon_rad_face[1]]
+                    minmax_lon_rad_face = [
+                        min_lon_rad_edge, minmax_lon_rad_face[1]
+                    ]
                 else:
                     # add from the right:
-                    minmax_lon_rad_face = [minmax_lon_rad_face[0], min_lon_rad_edge]
+                    minmax_lon_rad_face = [
+                        minmax_lon_rad_face[0], min_lon_rad_edge
+                    ]
 
-            elif min_lon_rad_edge > minmax_lon_rad_face[0] and max_lon_rad_edge > minmax_lon_rad_face[1]:
+            elif min_lon_rad_edge > minmax_lon_rad_face[
+                    0] and max_lon_rad_edge > minmax_lon_rad_face[1]:
                 # First try to add from the right
                 right_width = max_lon_rad_edge - minmax_lon_rad_face[0]
                 if right_width <= np.pi:
-                    minmax_lon_rad_face = [minmax_lon_rad_face[0], max_lon_rad_edge]
+                    minmax_lon_rad_face = [
+                        minmax_lon_rad_face[0], max_lon_rad_edge
+                    ]
                 else:
                     # then add from the left
-                    minmax_lon_rad_face = [max_lon_rad_edge, minmax_lon_rad_face[1]]
+                    minmax_lon_rad_face = [
+                        max_lon_rad_edge, minmax_lon_rad_face[1]
+                    ]
 
             else:
-                minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]),
-                                       max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+                minmax_lon_rad_face = [
+                    min(min_lon_rad_edge, minmax_lon_rad_face[0]),
+                    max(max_lon_rad_edge, minmax_lon_rad_face[1])
+                ]
 
         else:
             # The min_lon_rad_edge is on the left side of minmax_lon_rad_face range
             if minmax_lon_rad_face[1] <= np.pi:
-                minmax_lon_rad_face = [min_lon_rad_edge, max(max_lon_rad_edge, minmax_lon_rad_face[1])]
+                minmax_lon_rad_face = [
+                    min_lon_rad_edge,
+                    max(max_lon_rad_edge, minmax_lon_rad_face[1])
+                ]
             else:
                 # if it's on the right side of the minmax_lon_rad_face range
-                minmax_lon_rad_face = [min(min_lon_rad_edge, minmax_lon_rad_face[0]), max_lon_rad_edge]
+                minmax_lon_rad_face = [
+                    min(min_lon_rad_edge, minmax_lon_rad_face[0]),
+                    max_lon_rad_edge
+                ]
 
     else:
         if min_lon_rad_edge <= max_lon_rad_edge:
-            if __on_left(minmax_lon_rad_face, [min_lon_rad_edge, max_lon_rad_edge], safe_call=True):
+            if __on_left(minmax_lon_rad_face,
+                         [min_lon_rad_edge, max_lon_rad_edge],
+                         safe_call=True):
                 # First try adding from the left:
-                left_width = (2 * np.pi - min_lon_rad_edge) + minmax_lon_rad_face[1]
+                left_width = (2 * np.pi -
+                              min_lon_rad_edge) + minmax_lon_rad_face[1]
                 if left_width <= np.pi:
-                    minmax_lon_rad_face = [min_lon_rad_edge, minmax_lon_rad_face[1]]
+                    minmax_lon_rad_face = [
+                        min_lon_rad_edge, minmax_lon_rad_face[1]
+                    ]
                 else:
                     # Then add from the right
-                    minmax_lon_rad_face = [minmax_lon_rad_face[0], min_lon_rad_edge]
+                    minmax_lon_rad_face = [
+                        minmax_lon_rad_face[0], min_lon_rad_edge
+                    ]
 
-            elif __on_right(minmax_lon_rad_face, [min_lon_rad_edge, max_lon_rad_edge], safe_call=True):
+            elif __on_right(minmax_lon_rad_face,
+                            [min_lon_rad_edge, max_lon_rad_edge],
+                            safe_call=True):
                 # First try adding from the right
-                right_width = (2 * np.pi - minmax_lon_rad_face[0]) + max_lon_rad_edge
+                right_width = (2 * np.pi -
+                               minmax_lon_rad_face[0]) + max_lon_rad_edge
                 if right_width <= np.pi:
-                    minmax_lon_rad_face = [minmax_lon_rad_face[0], max_lon_rad_edge]
+                    minmax_lon_rad_face = [
+                        minmax_lon_rad_face[0], max_lon_rad_edge
+                    ]
                 else:
                     # Then try adding from the left
-                    minmax_lon_rad_face = [max_lon_rad_edge, minmax_lon_rad_face[1]]
+                    minmax_lon_rad_face = [
+                        max_lon_rad_edge, minmax_lon_rad_face[1]
+                    ]
 
             else:
-                if _within(minmax_lon_rad_face[1], min_lon_rad_edge, minmax_lon_rad_face[0]):
+                if _within(minmax_lon_rad_face[1], min_lon_rad_edge,
+                           minmax_lon_rad_face[0]):
                     minmax_lon_rad_face[0] = min_lon_rad_edge
                 else:
                     minmax_lon_rad_face[0] = minmax_lon_rad_face[0]
 
-                if 2 * np.pi > max_lon_rad_edge >= minmax_lon_rad_face[0] or max_lon_rad_edge < minmax_lon_rad_face[1]:
+                if 2 * np.pi > max_lon_rad_edge >= minmax_lon_rad_face[
+                        0] or max_lon_rad_edge < minmax_lon_rad_face[1]:
                     minmax_lon_rad_face[1] = minmax_lon_rad_face[1]
                 else:
-                    minmax_lon_rad_face[1] = max(minmax_lon_rad_face[1], max_lon_rad_edge)
+                    minmax_lon_rad_face[1] = max(minmax_lon_rad_face[1],
+                                                 max_lon_rad_edge)
 
         else:
-            minmax_lon_rad_face[0] = min(min_lon_rad_edge, minmax_lon_rad_face[0])
-            minmax_lon_rad_face[1] = max(max_lon_rad_edge, minmax_lon_rad_face[1])
+            minmax_lon_rad_face[0] = min(min_lon_rad_edge,
+                                         minmax_lon_rad_face[0])
+            minmax_lon_rad_face[1] = max(max_lon_rad_edge,
+                                         minmax_lon_rad_face[1])
 
     return minmax_lon_rad_face
 
@@ -462,7 +541,9 @@ def __on_left(ref_edge, insert_edge, safe_call=False):
     False: It's not on the left side of the ref_edge. Cannot guarantee it's on the right side
     """
     if ref_edge[0] <= ref_edge[1]:
-        raise Exception('This function can only be applied to the edge that goes across the 0 longitude line')
+        raise Exception(
+            'This function can only be applied to the edge that goes across the 0 longitude line'
+        )
     if not safe_call:
         raise Exception('Calling this function here is not safe')
     left_flag = False
@@ -491,7 +572,9 @@ def __on_right(ref_edge, insert_edge, safe_call=False):
     False: It's not on the right side of the ref_edge. Cannot guarantee it's on the left side
     """
     if ref_edge[0] <= ref_edge[1]:
-        raise Exception('This function can only be applied to the edge that goes across the 0 longitude line')
+        raise Exception(
+            'This function can only be applied to the edge that goes across the 0 longitude line'
+        )
     if not safe_call:
         raise Exception('Calling this function here is not safe')
     right_flag = False
