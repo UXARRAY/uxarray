@@ -18,7 +18,6 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class TestGrid(TestCase):
-
     ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
     ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
     ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
@@ -118,10 +117,34 @@ class TestGrid(TestCase):
 
     # def test_init_dimension_attrs(self):
 
+    def test_build_edge_face_connectivity(self):
+        """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
+        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+            xr_tgrid1 = xr.open_dataset(str(ug_filename1))
+            tgrid1 = ux.Grid(xr_tgrid1)
+            mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
+            tgrid1.build_edge_face_connectivity()
+            mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
+            mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
 
-# TODO: Move to test_shpfile/scrip when implemented
-# use external package to read?
-# https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
+            # Assert if the mesh2_face_edges sizes are correct.
+            self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
+                             mesh2_face_nodes.sizes["nMesh2_face"])
+            self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
+                             mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+            self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
+
+            # Assert if the mesh2_edge_nodes sizes are correct.
+            # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds[
+                "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+            self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+
+    # TODO: Move to test_shpfile/scrip when implemented
+    # use external package to read?
+    # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
@@ -144,7 +167,6 @@ class TestGrid(TestCase):
 
 
 class TestIntegrate(TestCase):
-
     mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
     data_file30 = current_path / "meshfiles" / "outCSne30_vortex.nc"
     data_file30_v2 = current_path / "meshfiles" / "outCSne30_var2.ug"
