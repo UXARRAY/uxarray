@@ -18,7 +18,6 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class TestGrid(TestCase):
-
     ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
     ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
     ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
@@ -118,10 +117,9 @@ class TestGrid(TestCase):
 
     # def test_init_dimension_attrs(self):
 
-
-# TODO: Move to test_shpfile/scrip when implemented
-# use external package to read?
-# https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
+    # TODO: Move to test_shpfile/scrip when implemented
+    # use external package to read?
+    # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
@@ -144,7 +142,6 @@ class TestGrid(TestCase):
 
 
 class TestIntegrate(TestCase):
-
     mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
     data_file30 = current_path / "meshfiles" / "outCSne30_vortex.nc"
     data_file30_v2 = current_path / "meshfiles" / "outCSne30_var2.ug"
@@ -214,3 +211,42 @@ class TestFaceAreas(TestCase):
         grid_2_ds = xr.open_dataset(fesom_grid_small)
         grid_2 = ux.Grid(grid_2_ds)
         grid_2.compute_face_areas()
+
+
+class TestPopulateCoordinates(TestCase):
+
+    def test_populate_cartesian_xyz_coord(self):
+        verts_lonlat = np.array([[0, -80], [95, 10], [290, 77]])
+        vgrid = ux.Grid(verts_lonlat)
+        vgrid._populate_cartesian_xyz_coord()
+        num_nodes = vgrid.ds.Mesh2_node_x.size
+        for i in range(0, num_nodes):
+            [x, y, z] = [
+                vgrid.ds["Mesh2_node_cart_x"].values[i],
+                vgrid.ds["Mesh2_node_cart_y"].values[i],
+                vgrid.ds["Mesh2_node_cart_z"].values[i]
+            ]
+            [x_cal, y_cal, z_cal] = ux.helpers._convert_node_lonlat_rad_to_xyz(
+                np.deg2rad(verts_lonlat[i].tolist()))
+            nt.assert_almost_equal(x, x_cal, decimal=12)
+            nt.assert_almost_equal(y, y_cal, decimal=12)
+            nt.assert_almost_equal(z, z_cal, decimal=12)
+
+    def test_populate_lonlat_coord(self):
+        """Create a uxarray grid from vertices ."""
+        verts = np.array([[0.57735027, -5.77350269e-01, -0.57735027],
+                          [0.57735027, 5.77350269e-01, -0.57735027],
+                          [-0.57735027, 5.77350269e-01, -0.57735027]])
+        vgrid = ux.Grid(verts)
+        vgrid.ds.Mesh2_node_x.attrs["units"] = "meters"
+        vgrid.ds.Mesh2_node_y.attrs["units"] = "meters"
+        vgrid._populate_lonlat_coord()
+        num_nodes = vgrid.ds.Mesh2_node_x.size
+        for i in range(0, num_nodes):
+            lon = vgrid.ds["Mesh2_node_x"].values[i]
+            lat = vgrid.ds["Mesh2_node_y"].values[i]
+            nodes = list(verts[i])
+            [lon_cal,
+             lat_cal] = ux.helpers._convert_node_xyz_to_lonlat_rad(nodes)
+            nt.assert_almost_equal(np.deg2rad(lon), lon_cal, decimal=12)
+            nt.assert_almost_equal(np.deg2rad(lat), lat_cal, decimal=12)

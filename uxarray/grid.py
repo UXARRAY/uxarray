@@ -373,16 +373,17 @@ class Grid:
 
         return integral
 
-    def __populate_cartesian_xyz_coord(self):
-        """
-        A helper function that populates the xyz attribute in Mesh.ds
-
-        Use-case
-        ----------
-        If the grid file's Mesh2_node_x 's unit is in degree
+    def _populate_cartesian_xyz_coord(self):
+        """A helper function that populates the xyz attribute in UXarray.ds.
+        This function is called when we need to use the cartesian coordinates
+        for each node to do the calculation but the input data only has the
+        "Mesh2_node_x" and "Mesh2_node_y" in degree.
 
         Note
         ----
+        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
+        corresponding units as stated below:
+
         Mesh2_node_x
          unit:  "lon" degree
         Mesh2_node_y
@@ -408,8 +409,10 @@ class Grid:
         node_cart_list_z = [0.0] * num_nodes
         for i in range(num_nodes):
             if "degree" in self.ds.Mesh2_node_x.units:
-                node = [np.deg2rad(self.ds["Mesh2_node_x"].values[i]),
-                        np.deg2rad(self.ds["Mesh2_node_y"].values[i])]  # [lon, lat]
+                node = [
+                    np.deg2rad(self.ds["Mesh2_node_x"].values[i]),
+                    np.deg2rad(self.ds["Mesh2_node_y"].values[i])
+                ]  # [lon, lat]
                 node_cart = _convert_node_lonlat_rad_to_xyz(node)  # [x, y, z]
                 node_cart_list_x[i] = node_cart[0]
                 node_cart_list_y[i] = node_cart[1]
@@ -419,20 +422,22 @@ class Grid:
         self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
         self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
 
-    def __populate_lonlat_coord(self):
-        """
-        Helper function that populates the longitude and latitude and store it into the Mesh2_node_x and Mesh2_node_y
-
-        Use-case
-        ----------
-        If the grid file's Mesh2_node_x 's unit is in meter
+    def _populate_lonlat_coord(self):
+        """Helper function that populates the longitude and latitude and store
+        it into the Mesh2_node_x and Mesh2_node_y. This is called when the
+        input data has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in
+        meters. Since we want "Mesh2_node_x" and "Mesh2_node_y" always have the
+        "degree" units. For more details, please read the following.
 
         Note
         ----
+        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
+        corresponding units as stated below:
+
         Mesh2_node_x
-         unit:  "lon" degree
+         unit:  "degree_east"
         Mesh2_node_y
-         unit:  "lat" degree
+         unit:  "degrees_north"
         Mesh2_node_z
          unit:  "m"
         Mesh2_node_cart_x
@@ -453,10 +458,13 @@ class Grid:
         node_cart_list_z = [0.0] * num_nodes
         for i in range(num_nodes):
             if "m" in self.ds.Mesh2_node_x.units:
-                node = [self.ds["Mesh2_node_x"][i],
-                        self.ds["Mesh2_node_y"][i],
-                        self.ds["Mesh2_node_z"][i]]  # [x, y, z]
-                node_lonlat = _convert_node_xyz_to_lonlat_rad(node)  # [lon, lat]
+                node = [
+                    self.ds["Mesh2_node_x"].values[i],
+                    self.ds["Mesh2_node_y"].values[i],
+                    self.ds["Mesh2_node_z"].values[i]
+                ]  # [x, y, z]
+                node_lonlat = _convert_node_xyz_to_lonlat_rad(
+                    node)  # [lon, lat]
                 node_cart_list_x[i] = self.ds["Mesh2_node_x"].values[i]
                 node_cart_list_y[i] = self.ds["Mesh2_node_y"].values[i]
                 node_cart_list_z[i] = self.ds["Mesh2_node_z"].values[i]
@@ -467,7 +475,8 @@ class Grid:
 
         self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
         self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
-
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
         self.ds["Mesh2_node_x"].values = node_latlon_list_lon
         self.ds["Mesh2_node_y"].values = node_latlon_list_lat
-        self.ds.Mesh2_node_x.units = "degree_east"
+        self.ds.Mesh2_node_x.attrs["units"] = "degree_east"
+        self.ds.Mesh2_node_y.attrs["units"] = "degrees_north"
