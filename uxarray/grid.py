@@ -385,9 +385,9 @@ class Grid:
         corresponding units as stated below:
 
         Mesh2_node_x
-         unit:  "lon" degree
+         unit:  "degree_east" for longitude
         Mesh2_node_y
-         unit:  "lat" degree
+         unit:  "degrees_north" for latitude
         Mesh2_node_z
          unit:  "m"
         Mesh2_node_cart_x
@@ -435,9 +435,9 @@ class Grid:
         corresponding units as stated below:
 
         Mesh2_node_x
-         unit:  "degree_east"
+         unit:  "degree_east" for longitude
         Mesh2_node_y
-         unit:  "degrees_north"
+         unit:  "degrees_north" for latitude
         Mesh2_node_z
          unit:  "m"
         Mesh2_node_cart_x
