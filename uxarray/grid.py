@@ -2,35 +2,30 @@
 import os
 import xarray as xr
 import numpy as np
-import copy
-from warnings import warn
-from pathlib import PurePath
-from intervaltree import Interval, IntervalTree
 
 # reader and writer imports
-from ._exodus import _read_exodus, _write_exodus
-from ._ugrid import _read_ugrid, _write_ugrid
+from ._exodus import _read_exodus, _encode_exodus
+from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
-from ._scrip import _read_scrip
-from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_pt, _sort_intersection_pts_with_lon, _get_cart_vector_magnitude
-from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
+from ._scrip import _read_scrip, _encode_scrip
+from .helpers import get_all_face_area_from_coords, parse_grid_type
 
+int_dtype = np.uint32
 
 
 class Grid:
-    """The Uxarray Grid object class that describes an unstructured grid.
-
+    """
     Examples
     ----------
 
     Open an exodus file with Uxarray Grid object
 
-    >>> mesh = ux.Grid("filename.g")
+    >>> xarray_obj = xr.open_dataset("filename.g")
+    >>> mesh = ux.Grid(xarray_obj)
 
-    Save as ugrid file
+    Encode as a `xarray.Dataset` in the UGRID format
 
-    >>> mesh.write("outfile.ug")
+    >>> mesh.encode_as("ugrid")
     """
 
     def __init__(self, dataset, **kwargs):
@@ -50,7 +45,7 @@ class Grid:
             Specify if this grid has concave elements (internal checks for this are possible)
         gridspec: bool, optional
             Specifies gridspec
-        mesh_filetype: str, optional
+        mesh_type: str, optional
             Specify the mesh file type, eg. exo, ugrid, shp, etc
 
         Raises
@@ -59,7 +54,6 @@ class Grid:
                 If specified file not found
         """
         # initialize internal variable names
-        self._latlonbound_tree = None
         self.__init_ds_var_names__()
 
         # initialize face_area variable
@@ -70,31 +64,80 @@ class Grid:
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'concave', 'mesh_filetype',
-            'source_grid', 'source_datasets'
+            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid'
         ]
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
-
-        # internal uxarray representation of mesh stored in internal object ds
-        self.ds = xr.Dataset()
 
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             self.vertices = dataset
             self.__from_vert__()
             self.source_grid = "From vertices"
-            self.source_datasets = None
-
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
+            self.mesh_type = parse_grid_type(dataset)
             self.__from_ds__(dataset=dataset)
         else:
-            raise RuntimeError(f"{dataset} is not a valid input type.")
+            raise RuntimeError("Dataset is not a valid input type.")
 
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
+
+    def __init_ds_var_names__(self):
+        """Populates a dictionary for storing uxarray's internal representation
+        of xarray object.
+
+        Note ugrid conventions are flexible with names of variables, see:
+        http://ugrid-conventions.github.io/ugrid-conventions/
+        """
+        self.ds_var_names = {
+            "Mesh2": "Mesh2",
+            "Mesh2_node_x": "Mesh2_node_x",
+            "Mesh2_node_y": "Mesh2_node_y",
+            "Mesh2_node_z": "Mesh2_node_z",
+            "Mesh2_face_nodes": "Mesh2_face_nodes",
+            # initialize dims
+            "nMesh2_node": "nMesh2_node",
+            "nMesh2_face": "nMesh2_face",
+            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
+        }
+
+    def __init_grid_var_attrs__(self) -> None:
+        """Initialize attributes for directly accessing UGRID dimensions and
+        variables.
+
+        Examples
+        ----------
+        Assuming the mesh node coordinates for longitude are stored with an input
+        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
+        dictionary with the key 'Mesh2_node_x'. In order to access it, we do:
+
+        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
+
+        With the help of this function, we can directly access it through the
+        use of a standardized name based on the UGRID conventions
+
+        >>> x = grid.Mesh2_node_x
+        """
+
+        # Iterate over dict to set access attributes
+        for key, value in self.ds_var_names.items():
+            # Set Attributes for Data Variables
+            if self.ds.data_vars is not None:
+                if value in self.ds.data_vars:
+                    setattr(self, key, self.ds[value])
+
+            # Set Attributes for Coordinates
+            if self.ds.coords is not None:
+                if value in self.ds.coords:
+                    setattr(self, key, self.ds[value])
+
+            # Set Attributes for Dimensions
+            if self.ds.dims is not None:
+                if value in self.ds.dims:
+                    setattr(self, key, len(self.ds[value]))
 
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
@@ -102,6 +145,7 @@ class Grid:
 
         Called by :func:`__init__`.
         """
+        self.ds = xr.Dataset()
         self.ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
@@ -153,47 +197,54 @@ class Grid:
     # load mesh from a file
     def __from_ds__(self, dataset):
         """Loads a mesh dataset."""
-        # call reader as per mesh_filetype
-        if self.mesh_filetype == "exo":
+        # call reader as per mesh_type
+        if self.mesh_type == "exo":
             self.ds = _read_exodus(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "scrip":
+        elif self.mesh_type == "scrip":
             self.ds = _read_scrip(dataset)
-        elif self.mesh_filetype == "ugrid":
+        elif self.mesh_type == "ugrid":
             self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "shp":
-            self.ds = _read_shpfile(self.filepath)
+        elif self.mesh_type == "shp":
+            self.ds = _read_shpfile(dataset)
         else:
-            raise RuntimeError("unknown file format: " + self.mesh_filetype)
+            raise RuntimeError("unknown mesh type")
+
         dataset.close()
 
-    def write(self, outfile, extension=""):
-        """Writes mesh file as per extension supplied in the outfile string.
+    def encode_as(self, grid_type):
+        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
+        in the `grid_type` argument.
 
         Parameters
         ----------
-        outfile : str, required
-            Path to output file
-        extension : str, optional
-            Extension of output file. Defaults to empty string.
-            Currently supported options are ".ugrid", ".ug", ".g", ".exo", and ""
+        grid_type : str, required
+            Grid type of output dataset.
+            Currently supported options are "ugrid", "exodus", and "scrip"
+
+        Returns
+        -------
+        out_ds : xarray.Dataset
+            The output `xarray.Dataset` that is encoded from the this grid.
 
         Raises
         ------
         RuntimeError
-            If unsupported extension provided or directory not found
+            If provided grid type or file type is unsupported.
         """
-        if extension == "":
-            outfile_path = PurePath(outfile)
-            extension = outfile_path.suffix
-            if not os.path.isdir(outfile_path.parent):
-                raise RuntimeError("File directory not found: " + outfile)
 
-        if extension == ".ugrid" or extension == ".ug":
-            _write_ugrid(self.ds, outfile, self.ds_var_names)
-        elif extension == ".g" or extension == ".exo":
-            _write_exodus(self.ds, outfile, self.ds_var_names)
+        if grid_type == "ugrid":
+            out_ds = _encode_ugrid(self.ds)
+
+        elif grid_type == "exodus":
+            out_ds = _encode_exodus(self.ds, self.ds_var_names)
+
+        elif grid_type == "scrip":
+            out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
+                                   self.Mesh2_node_y, self.face_areas)
         else:
-            raise RuntimeError("Format not supported for writing: ", extension)
+            raise RuntimeError("The grid type not supported: ", grid_type)
+
+        return out_ds
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
@@ -215,497 +266,6 @@ class Grid:
         face_areas = self.compute_face_areas(quadrature_rule, order)
 
         return np.sum(face_areas)
-
-    # Build the node-face connectivity array.
-    def build_node_face_connectivity(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    # Build the edge-face connectivity array.
-    def build_edge_face_connectivity(self):
-        mesh2_edge_nodes_set = set(
-        )  # Use the set data structure to store Edge object (undirected)
-
-        # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
-        mesh2_face_edges = []
-
-        mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
-
-        # Loop over each face
-        for face in mesh2_face_nodes:
-            cur_face_edge = []
-            # Loop over nodes in a face
-            for i in range(0, face.size - 1):
-                # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
-                if face[i] == -1 or face[i + 1] == -1:
-                    continue
-                # Two nodes are connected to one another if they’re adjacent in the array
-                mesh2_edge_nodes_set.add(frozenset({face[i], face[i + 1]}))
-                cur_face_edge.append([face[i], face[i + 1]])
-            # Two nodes are connected if one is the first element of the array and the other is the last
-
-            # First make sure to skip the dummy _FillValue=-1 node
-            last_node = face.size - 1
-            start_node = 0
-            while face[last_node] == -1 and last_node > 0:
-                last_node -= 1
-            while face[start_node] == -1 and start_node > 0:
-                start_node += 1
-            if face[last_node] < 0 or face[last_node] < 0:
-                raise Exception('Invalid node index')
-            mesh2_edge_nodes_set.add(frozenset({face[last_node], face[start_node]}))
-            cur_face_edge.append([face[last_node], face[start_node]])
-            mesh2_face_edges.append(cur_face_edge)
-
-        # Convert the Edge object set into list
-        mesh2_edge_nodes = []
-        for edge in mesh2_edge_nodes_set:
-            mesh2_edge_nodes.append(list(edge))
-
-        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
-                                                   dims=["nMesh2_edge", "Two"])
-        for i in range(0, len(mesh2_face_edges)):
-            while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
-                # Append dummy edges
-                mesh2_face_edges[i].append([-1, -1])
-
-        self.ds["Mesh2_face_edges"] = xr.DataArray(
-            data=mesh2_face_edges,
-            dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
-
-        # Build the array of latitude-longitude bounding boxes.
-
-    def buildlatlon_bounds(self):
-
-        # First make sure the Grid object has the Mesh2_face_edges
-
-        if "Mesh2_face_edges" not in self.ds.keys():
-            self.build_edge_face_connectivity()
-
-        if "Mesh2_node_cart_x" not in self.ds.keys():
-            self.__populate_cartesian_xyz_coord()
-
-        # All value are inialized as 404.0 to indicate that they're null
-        temp_latlon_array = [[[404.0, 404.0], [404.0, 404.0]]
-                             ] * self.ds["Mesh2_face_edges"].sizes["nMesh2_face"]
-
-        reference_tolerance = 1.0e-12
-
-        # Build an Interval tree based on the Latitude interval to store latitude-longitude boundaries
-        self._latlonbound_tree = IntervalTree()
-
-
-        for i in range(0, len(self.ds["Mesh2_face_edges"])):
-            face = self.ds["Mesh2_face_edges"][i]
-            # Check if face contains pole points
-            _lambda = 0
-            v1 = [0, 0, 1]
-            v2 = [np.cos(_lambda), np.sin(_lambda), -1]
-
-            num_intersects = self.__count_face_edge_intersection(face, [v1, v2])
-            if num_intersects == -1:
-                # if one edge of the grid cell is parallel to the arc (v1 , v2 ) then vary the choice of v2 .
-                sorted_edges_avg_lon = self.__avg_edges_longitude(face)
-                # only need to iterate the first two keys to average the longitude:
-                sum_lon = sorted_edges_avg_lon[0] + sorted_edges_avg_lon[1]
-
-                v2 = [np.cos(sum_lon / 2), np.sin(sum_lon / 2), 0]
-                num_intersects = self.__count_face_edge_intersection(
-                    face, [v1, v2])
-
-            if num_intersects % 2 != 0:
-                # if the face contains the pole point
-                for j in range(0, len(face)):
-                    edge = face[j]
-                    # Skip the dummy edges
-                    if edge[0] == -1 or edge[1] == -1:
-                        continue
-                    # All the following calculation is based on the 3D XYZ coord
-                    # And assume the self.ds["Mesh2_node_x"] always store the lon info
-
-                    # Get the edge end points in 3D [x, y, z] coordinates
-                    n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
-                          self.ds["Mesh2_node_cart_y"].values[edge[0]],
-                          self.ds["Mesh2_node_cart_z"].values[edge[0]]]
-                    n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
-                          self.ds["Mesh2_node_cart_y"].values[edge[1]],
-                          self.ds["Mesh2_node_cart_z"].values[edge[1]]]
-
-                    # Set the latitude extent
-                    d_lat_extent_rad = 0.0
-                    if j == 0:
-                        if n1[2] < 0.0:
-                            d_lat_extent_rad = -0.5 * np.pi
-                        else:
-                            d_lat_extent_rad = 0.5 * np.pi
-
-                    # insert edge endpoint into box
-                    if np.absolute(self.ds["Mesh2_node_y"].values[
-                                       edge[0]]) < d_lat_extent_rad:
-                        d_lat_extent_rad = self.ds["Mesh2_node_y"].values[
-                            edge[0]]
-
-                    # Determine if latitude is maximized between endpoints
-                    dot_n1_n2 = np.dot(n1, n2)
-                    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
-                    if np.absolute(d_de_nom) < reference_tolerance:
-                        continue
-
-                    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / d_de_nom
-                    if (d_a_max > 0.0) and (d_a_max < 1.0):
-                        node3 = [0.0, 0.0, 0.0]
-                        node3[0] = n1[0] * (1 - d_a_max) + n2[0] * d_a_max
-                        node3[1] = n1[1] * (1 - d_a_max) + n2[1] * d_a_max
-                        node3[2] = n1[2] * (1 - d_a_max) + n2[2] * d_a_max
-                        node3 = normalize_in_place(node3)
-
-                        d_lat_rad = node3[2]
-
-                        if d_lat_rad > 1.0:
-                            d_lat_rad = 0.5 * np.pi
-                        elif d_lat_rad < -1.0:
-                            d_lat_rad = -0.5 * np.pi
-                        else:
-                            d_lat_rad = np.arcsin(d_lat_rad)
-
-                        if np.absolute(d_lat_rad) < np.absolute(
-                                d_lat_extent_rad):
-                            d_lat_extent_rad = d_lat_rad
-
-                    if d_lat_extent_rad < 0.0:
-                        lon_list = [0.0, 2.0 * np.pi]
-                        lat_list = [-0.5 * np.pi, d_lat_extent_rad]
-                    else:
-                        lon_list = [0.0, 2.0 * np.pi]
-                        lat_list = [d_lat_extent_rad, 0.5 * np.pi]
-
-                    temp_latlon_array[i] = [lat_list, lon_list]
-            else:
-                # normal face
-                for j in range(0, len(face)):
-                    edge = face[j]
-                    # Skip the dummy edges
-                    if edge[0] == -1 or edge[1] == -1:
-                        continue
-
-                    # For each edge, we only need to consider the first end point in each loop
-                    # Check if the end point is the pole point
-                    n1 = [self.ds["Mesh2_node_x"].values[edge[0]],
-                          self.ds["Mesh2_node_y"].values[edge[0]]]
-
-                    # North Pole:
-                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(
-                            n1[1] - 90) < reference_tolerance) or (
-                            np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(
-                        n1[1] - 90) < reference_tolerance):
-                        # insert edge endpoint into box
-                        d_lat_rad = np.deg2rad(
-                            self.ds["Mesh2_node_y"].values[edge[0]])
-                        d_lon_rad = 404.0
-                        temp_latlon_array[i] = insert_pt_in_latlonbox(
-                            copy.deepcopy(temp_latlon_array[i]),
-                            [d_lat_rad, d_lon_rad])
-                        continue
-
-                    # South Pole:
-                    if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(
-                            n1[1] - (-90)) < reference_tolerance) or (
-                            np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(
-                        n1[1] - (-90)) < reference_tolerance):
-                        d_lat_rad = np.deg2rad(
-                            self.ds["Mesh2_node_y"].values[edge[0]])
-                        d_lon_rad = 404.0
-                        temp_latlon_array[i] = insert_pt_in_latlonbox(
-                            copy.deepcopy(temp_latlon_array[i]),
-                            [d_lat_rad, d_lon_rad])
-                        continue
-
-                    # Only consider the great circles arcs
-                    # All the following calculation is based on the 3D XYZ coord
-                    # And assume the self.ds["Mesh2_node_x"] always store the lon info
-
-                    # Get the edge end points in 3D [x, y, z] coordinates
-                    n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
-                          self.ds["Mesh2_node_cart_y"].values[edge[0]],
-                          self.ds["Mesh2_node_cart_z"].values[edge[0]]]
-                    n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
-                          self.ds["Mesh2_node_cart_y"].values[edge[1]],
-                          self.ds["Mesh2_node_cart_z"].values[edge[1]]]
-
-                    # Determine if latitude is maximized between endpoints
-                    dot_n1_n2 = np.dot(n1, n2)
-                    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
-
-                    # insert edge endpoint into box
-                    d_lat_rad = np.deg2rad(
-                        self.ds["Mesh2_node_y"].values[edge[0]])
-                    d_lon_rad = np.deg2rad(
-                        self.ds["Mesh2_node_x"].values[edge[0]])
-                    temp_latlon_array[i] = insert_pt_in_latlonbox(
-                        copy.deepcopy(temp_latlon_array[i]),
-                        [d_lat_rad, d_lon_rad])
-
-                    if np.absolute(d_de_nom) < reference_tolerance:
-                        continue
-
-                    # Maximum latitude occurs between endpoints of edge
-                    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / d_de_nom
-                    if 0.0 < d_a_max < 1.0:
-                        node3 = [0.0, 0.0, 0.0]
-                        node3[0] = n1[0] * (1 - d_a_max) + n2[0] * d_a_max
-                        node3[1] = n1[1] * (1 - d_a_max) + n2[1] * d_a_max
-                        node3[2] = n1[2] * (1 - d_a_max) + n2[2] * d_a_max
-                        node3 = normalize_in_place(node3)
-
-                        d_lat_rad = node3[2]
-
-                        if d_lat_rad > 1.0:
-                            d_lat_rad = 0.5 * np.pi
-                        elif d_lat_rad < -1.0:
-                            d_lat_rad = -0.5 * np.pi
-                        else:
-                            d_lat_rad = np.arcsin(d_lat_rad)
-
-                        temp_latlon_array[i] = insert_pt_in_latlonbox(
-                            copy.deepcopy(temp_latlon_array[i]),
-                            [d_lat_rad, d_lon_rad])
-
-            assert temp_latlon_array[i][0][0] != temp_latlon_array[i][0][1]
-            assert temp_latlon_array[i][1][0] != temp_latlon_array[i][1][1]
-            lat_list = temp_latlon_array[i][0]
-            lon_list = temp_latlon_array[i][1]
-            self._latlonbound_tree[lat_list[0]:lat_list[1]] = i
-
-        self.ds["Mesh2_latlon_bounds"] = xr.DataArray(
-            data=temp_latlon_array, dims=["nMesh2_face", "Latlon", "Two"])
-
-        # Helper function to get the average longitude of each edge in sorted order (ascending0
-
-    def __avg_edges_longitude(self, face):
-        """Helper function to get the average longitude of each edge in sorted order (ascending0
-        Parameters
-        ----------
-        edge_list: 2D float array:
-        [[lon, lat],
-         [lon, lat]
-         ...
-         [lon, lat]
-        ]
-        Returns: 1D float array, record the average longitude of each edge
-        """
-        edge_list = []
-        for edge in face.values:
-            # Skip the dump edges
-            if edge[0] == -1 or edge[1] == -1:
-                continue
-            n1 = [
-                self.ds["Mesh2_node_x"].values[edge[0]],
-                self.ds["Mesh2_node_y"].values[edge[0]]
-            ]
-            n2 = [
-                self.ds["Mesh2_node_x"].values[edge[1]],
-                self.ds["Mesh2_node_y"].values[edge[1]]
-            ]
-
-            # Since we only want to sort the Edge based on their longitude,
-            # We can utilize the Edge class < operator here by creating the Edge only using the longitude
-            edge_list.append((n1[0] + n2[0]) / 2)
-
-        edge_list.sort()
-
-        return edge_list
-
-        # Count the number of total intersections of an edge and face (Algo. 2.4 Determining if a grid cell contains a
-        # given point)
-
-    def __count_face_edge_intersection(self, face, ref_edge):
-        """Helper function to count the total number of intersections points
-        between the reference edge and a face.
-        Parameters
-        ----------
-        face: xarray.DataArray, list, required
-        ref_edge: 2D list, the reference edge that intersect with the face (stored in 3D xyz coordinates) [[x1, y1, z1], [x2, y2, z2]]
-        Returns:
-        num_intersection: number of intersections
-        -1: the ref_edge is parallel to one of the edge of the face and need to vary the ref_edge
-        """
-        v1 = ref_edge[0]
-        v2 = ref_edge[1]
-        num_intersection = 0
-        for edge in face:
-            # Skip the dump edges
-            if edge[0] == -1 or edge[1] == -1:
-                continue
-            # All the following calculation is based on the 3D XYZ coord
-            w1 = []
-            w2 = []
-
-            # Convert the 2D [lon, lat] to 3D [x, y, z]
-            w1 = convert_node_lonlat_rad_to_xyz([
-                np.deg2rad(self.ds["Mesh2_node_x"].values[edge[0]]),
-                np.deg2rad(self.ds["Mesh2_node_y"].values[edge[0]])
-            ])
-            w2 = convert_node_lonlat_rad_to_xyz([
-                np.deg2rad(self.ds["Mesh2_node_x"].values[edge[1]]),
-                np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
-            ])
-
-            res = get_intersection_point_gcr_gcr(w1, w2, v1, v2)
-
-            # two vectors are intersected within range and not parralel
-            if (res != [0, 0, 0]) and (res != [-1, -1, -1]):
-                num_intersection += 1
-            elif res[0] == 0 and res[1] == 0 and res[2] == 0:
-                # if two vectors are parallel
-                return -1
-
-        return num_intersection
-
-    # Get the non-conservative zonal average of the input variable
-    def get_nc_zonal_avg(self, var_key, latitude_rad):
-
-        # First build the latitude and longitude boundary
-        if "Mesh2_latlon_bounds" not in self.ds.keys() or "Mesh2_latlon_bounds" is None:
-            self.buildlatlon_bounds()
-
-        #  First Get the list of faces that falls into this latitude range
-        candidate_faces_index_list = []
-
-        # Search through the interval tree for all the candidates face
-        candidate_face_set = self._latlonbound_tree.at(latitude_rad)
-        for interval in candidate_face_set:
-            candidate_faces_index_list.append(interval.data)
-
-
-        # Then calculate the weight of each face
-        # First calculate the perimeter this constant latitude circle
-        lat_radius = _get_radius_of_latitude_rad(latitude_rad)
-        perimeter = 2 * np.pi * lat_radius
-        candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
-        for i in candidate_faces_index_list:
-            face_latlon_bounds = self.ds["Mesh2_latlon_bounds"].values[i]
-            face = self.ds["Mesh2_face_edges"].values[i]
-            intersections_pts_list_lonlat = []
-            for j in range(0, len(face)):
-                edge = face[j]
-                # Get the edge end points in 3D [x, y, z] coordinates
-                n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
-                      self.ds["Mesh2_node_cart_y"].values[edge[0]],
-                      self.ds["Mesh2_node_cart_z"].values[edge[0]]]
-                n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
-                      self.ds["Mesh2_node_cart_y"].values[edge[1]],
-                      self.ds["Mesh2_node_cart_z"].values[edge[1]]]
-                intersections = _get_intersection_pt([n1, n2], latitude_rad)
-                if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
-                    # The constant latitude didn't cross this edge
-                    continue
-                elif intersections[0] != [-1, -1, -1] and intersections[1] != [-1, -1, -1]:
-                    # The constant latitude goes across this edge ( 1 in and 1 out):
-                    intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
-                    intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
-                else:
-                    if intersections[0] != [-1, -1, -1]:
-                        intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
-                    else:
-                        intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
-
-            sorted_in_lon_intersections_pts_list = _sort_intersection_pts_with_lon(intersections_pts_list_lonlat, face_latlon_bounds[1])
-
-            # Calculate the magitude of each intersecting line for each face
-            k = 0
-            cur_face_mag = 0
-            while k < len(sorted_in_lon_intersections_pts_list - 1):
-                cur_mag = _get_cart_vector_magnitude(sorted_in_lon_intersections_pts_list[k], sorted_in_lon_intersections_pts_list[k+1])
-                cur_face_mag += cur_mag
-                k += 2
-
-            # Calculate the weight from each face by |intersection line length| / total perimeter
-            candidate_faces_weight_list[i] = cur_face_mag / perimeter
-            del k
-
-        face_vals = self.ds.get(var_key).to_numpy()
-        zonal_average = np.dot(candidate_faces_weight_list, face_vals)
-        return zonal_average
-
-    def get_dual_mesh(self):
-        """
-        Compute the dual mesh (the set of spherical polygons connecting centroids of each mesh centroid).
-        """
-        if "Mesh2_node_cart_x" not in self.ds.keys():
-            self.__populate_cartesian_xyz_coord()
-
-        for face in self.ds["Mesh2_face_nodes"].values:
-            pass
-
-
-
-
-
-
-
-
-
-
-
-    # Validate that the grid conforms to the UXGrid standards.
-    def validate(self):
-        """Not implemented."""
-        warn("Function placeholder, implementation coming soon.")
-
-    def __init_ds_var_names__(self):
-        """Populates a dictionary for storing uxarray's internal representation
-        of xarray object.
-
-        Note ugrid conventions are flexible with names of variables, see:
-        http://ugrid-conventions.github.io/ugrid-conventions/
-        """
-        self.ds_var_names = {
-            "Mesh2": "Mesh2",
-            "Mesh2_node_x": "Mesh2_node_x",
-            "Mesh2_node_y": "Mesh2_node_y",
-            "Mesh2_node_z": "Mesh2_node_z",
-            "Mesh2_face_nodes": "Mesh2_face_nodes",
-            # initialize dims
-            "nMesh2_node": "nMesh2_node",
-            "nMesh2_face": "nMesh2_face",
-            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
-        }
-
-    def integrate(self, var_key, quadrature_rule="triangular", order=4):
-        """Integrates over all the faces of the given mesh.
-
-        Parameters
-        ----------
-        var_key : str, required
-            Name of dataset variable for integration
-        quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
-        order : int, optional
-            Order of quadrature rule. Defaults to 4.
-
-        Returns
-        -------
-        Calculated integral : float
-
-        Examples
-        --------
-        Open grid file only
-
-        >>> grid = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-
-        Open grid file along with data
-
-        >>> integral_psi = grid.integrate("psi")
-        """
-        integral = 0.0
-
-        # call function to get area of all the faces as a np array
-        face_areas = self.compute_face_areas(quadrature_rule, order)
-
-        face_vals = self.ds.get(var_key).to_numpy()
-        integral = np.dot(face_areas, face_vals)
-
-        return integral
 
     def compute_face_areas(self, quadrature_rule="triangular", order=4):
         """Face areas calculation function for grid class, calculates area of
@@ -740,11 +300,11 @@ class Grid:
             if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.data
+            face_nodes = self.Mesh2_face_nodes.data.astype(int_dtype)
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z
-            z = np.zeros((self.ds.nMesh2_node.size))
+            z = np.zeros((self.nMesh2_node))
 
             # call func to cal face area of all nodes
             x = self.Mesh2_node_x.data
@@ -768,108 +328,46 @@ class Grid:
             self.compute_face_areas()
         return self._face_areas
 
-    def __init_grid_var_attrs__(self):
-        """Initialize attributes for directly accessing Coordinate and Data
-        variables through ugrid conventions.
+    def integrate(self, var_ds, quadrature_rule="triangular", order=4):
+        """Integrates over all the faces of the given mesh.
+
+        Parameters
+        ----------
+        var_ds : Xarray dataset, required
+            Xarray dataset containing values to integrate on this grid
+        quadrature_rule : str, optional
+            Quadrature rule to use. Defaults to "triangular".
+        order : int, optional
+            Order of quadrature rule. Defaults to 4.
+
+        Returns
+        -------
+        Calculated integral : float
 
         Examples
-        ----------
-        Assuming the mesh node coordinates for longitude are stored with an input
-        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
-        dictionary with the key 'Mesh2_node_x'. In order to access it:
+        --------
+        Open grid file only
 
-        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
+        >>> xr_grid = xr.open_dataset("grid.ug")
+        >>> grid = ux.Grid.(xr_grid)
+        >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
 
-        With the help of this function, we can directly access it through the
-        use of a standardized name (ugrid convention)
-
-        >>> x = grid.Mesh2_node_x
+        # Compute the integral
+        >>> integral_psi = grid.integrate(var_ds)
         """
+        integral = 0.0
 
-        # Set UGRID standardized attributes
-        for key, value in self.ds_var_names.items():
-            # Present Data Names
-            if self.ds.data_vars is not None:
-                if value in self.ds.data_vars:
-                    setattr(self, key, self.ds[value])
+        # call function to get area of all the faces as a np array
+        face_areas = self.compute_face_areas(quadrature_rule, order)
 
-            # Present Coordinate Names
-            if self.ds.coords is not None:
-                if value in self.ds.coords:
-                    setattr(self, key, self.ds[value])
+        var_key = list(var_ds.keys())
+        if len(var_key) > 1:
+            # warning: print message
+            print(
+                "WARNING: The xarray dataset file has more than one variable, using the first variable for integration"
+            )
+        var_key = var_key[0]
+        face_vals = var_ds[var_key].to_numpy()
+        integral = np.dot(face_areas, face_vals)
 
-    def __populate_cartesian_xyz_coord(self):
-        """
-        A helper function that populates the xyz attribute in Mesh.ds
-        use case: If the grid file's Mesh2_node_x 's unit is in degree
-        """
-        #   Mesh2_node_x
-        #      unit x = "lon" degree
-        #   Mesh2_node_y
-        #      unit x = "lat" degree
-        #   Mesh2_node_z
-        #      unit x = "m"
-        #   Mesh2_node_cart_x
-        #      unit m
-        #   Mesh2_node_cart_y
-        #      unit m
-        #   Mesh2_node_cart_z
-        #      unit m
-
-        # Check if the cartesian coordinates are already populated
-        if "Mesh2_node_cart_x" in self.ds.keys():
-            return
-
-        # check for units and create Mesh2_node_cart_x/y/z set to self.ds
-        num_nodes = self.ds.Mesh2_node_x.size
-        node_cart_list_x = [0.0] * num_nodes
-        node_cart_list_y = [0.0] * num_nodes
-        node_cart_list_z = [0.0] * num_nodes
-        for i in range(num_nodes):
-            if "degree" in self.ds.Mesh2_node_x.units:
-                node = [np.deg2rad(self.ds["Mesh2_node_x"].values[i]),
-                        np.deg2rad(self.ds["Mesh2_node_y"].values[i])]  # [lon, lat]
-                node_cart = convert_node_lonlat_rad_to_xyz(node)  # [x, y, z]
-                node_cart_list_x[i] = node_cart[0]
-                node_cart_list_y[i] = node_cart[1]
-                node_cart_list_z[i] = node_cart[2]
-
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
-        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
-
-    def __populate_lonlat_coord(self):
-        """
-         Helper function that populates the longitude and latitude and store it into the Mesh2_node_x and Mesh2_node_y
-          use case: If the grid file's Mesh2_node_x 's unit is in meter
-        """
-
-        # Check if the "Mesh2_node_x" is already in longitude
-        if "degree" in self.ds.Mesh2_node_x.units:
-            return
-        num_nodes = self.ds.Mesh2_node_x.size
-        node_latlon_list_lat = [0.0] * num_nodes
-        node_latlon_list_lon = [0.0] * num_nodes
-        node_cart_list_x = [0.0] * num_nodes
-        node_cart_list_y = [0.0] * num_nodes
-        node_cart_list_z = [0.0] * num_nodes
-        for i in range(num_nodes):
-            if "m" in self.ds.Mesh2_node_x.units:
-                node = [self.ds["Mesh2_node_x"][i],
-                        self.ds["Mesh2_node_y"][i],
-                        self.ds["Mesh2_node_z"][i]]  # [x, y, z]
-                node_lonlat = convert_node_xyz_to_lonlat_rad(node)  # [lon, lat]
-                node_cart_list_x[i] = self.ds["Mesh2_node_x"].values[i]
-                node_cart_list_y[i] = self.ds["Mesh2_node_y"].values[i]
-                node_cart_list_z[i] = self.ds["Mesh2_node_z"].values[i]
-                node_lonlat[0] = np.rad2deg(node_lonlat[0])
-                node_lonlat[1] = np.rad2deg(node_lonlat[1])
-                node_latlon_list_lon[i] = node_lonlat[0]
-                node_latlon_list_lat[i] = node_lonlat[1]
-
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
-
-        self.ds["Mesh2_node_x"].values = node_latlon_list_lon
-        self.ds["Mesh2_node_y"].values = node_latlon_list_lat
-        self.ds.Mesh2_node_x.units = "degree_east"
+        return integral

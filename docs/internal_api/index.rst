@@ -15,7 +15,6 @@ Grid Methods
    :nosignatures:
    :toctree: ./generated/
 
-   grid.Grid.__init__
    grid.Grid.__init_ds_var_names__
    grid.Grid.__from_ds__
    grid.Grid.__from_vert__
@@ -28,14 +27,14 @@ Grid Helper Modules
    :toctree: ./generated/
 
    _exodus._read_exodus
-   _exodus._write_exodus
+   _exodus._encode_exodus
    _exodus._get_element_type
-   _ugrid._write_ugrid
+   _ugrid._encode_ugrid
    _ugrid._read_ugrid
    _scrip._read_scrip
+   _scrip._encode_scrip
    _scrip._to_ugrid
-   helpers._spherical_to_cartesian_unit_
    helpers._is_ugrid
-   helpers.normalize_in_place
-   helpers.convert_node_xyz_to_lonlat_rad
-   helpers.convert_node_lonlat_rad_to_xyz
+   helpers._convert_node_xyz_to_lonlat_rad
+   helpers._convert_node_lonlat_rad_to_xyz
+   helpers._normalize_in_place

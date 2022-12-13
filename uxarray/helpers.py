@@ -5,23 +5,22 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-from _zonal_avg_utilities import _newton_raphson_solver
+config.DISABLE_JIT = False
+int_dtype = np.uint32
 
-config.DISABLE_JIT = True
 
-
-def parse_grid_type(filepath, **kw):
+def parse_grid_type(dataset):
     """Checks input and contents to determine grid type. Supports detection of
     UGrid, SCRIP, Exodus and shape file.
 
     Parameters
     ----------
-    filepath : str
-       Filepath of the file for which the filetype is to be determined.
+    dataset : Xarray dataset
+       Xarray dataset of the grid
 
     Returns
     -------
-    mesh_filetype : str
+    mesh_type : str
         File type of the file, ug, exo, scrip or shp
 
     Raises
@@ -31,29 +30,20 @@ def parse_grid_type(filepath, **kw):
     ValueError
         If file is not in UGRID format
     """
-    # extract the file name and extension
-    path = PurePath(filepath)
-    file_extension = path.suffix
-    # short-circuit for shapefiles
-    if file_extension == ".shp":
-        mesh_filetype, dataset = "shp", None
-        return mesh_filetype, dataset
-
-    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
     # exodus with coord or coordx
     if "coord" in dataset:
-        mesh_filetype = "exo"
+        mesh_type = "exo"
     elif "coordx" in dataset:
-        mesh_filetype = "exo"
+        mesh_type = "exo"
     # scrip with grid_center_lon
     elif "grid_center_lon" in dataset:
-        mesh_filetype = "scrip"
+        mesh_type = "scrip"
     # ugrid topology
     elif _is_ugrid(dataset):
-        mesh_filetype = "ugrid"
+        mesh_type = "ugrid"
     else:
-        raise RuntimeError(f"Could not recognize {filepath} format.")
-    return mesh_filetype, dataset
+        raise RuntimeError(f"Could not recognize dataset format.")
+    return mesh_type
 
     # check mesh topology and dimension
     try:
@@ -70,7 +60,7 @@ def parse_grid_type(filepath, **kw):
         mesh_topo_dv = ext_ds.filter_by_attrs(cf_role="mesh_topology").keys()
         if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[0] != "" and list(
                 face_conn_dv)[0] != "" and list(node_coords_dv)[0] != "":
-            mesh_filetype = "ugrid"
+            mesh_type = "ugrid"
         else:
             raise ValueError(
                 "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
@@ -83,14 +73,14 @@ def parse_grid_type(filepath, **kw):
         # check if this is a shp file
         # we won't use xarray to load that file
         if file_extension == ".shp":
-            mesh_filetype = "shp"
+            mesh_type = "shp"
         else:
             msg = str(e) + ': {}'.format(filepath)
     except ValueError as e:
         # check if this is a shp file
         # we won't use xarray to load that file
         if file_extension == ".shp":
-            mesh_filetype = "shp"
+            mesh_type = "shp"
         else:
             msg = str(e) + ': {}'.format(filepath)
     finally:
@@ -99,34 +89,7 @@ def parse_grid_type(filepath, **kw):
                 filepath)
             raise ValueError(msg)
 
-    return mesh_filetype
-
-
-@njit
-def _spherical_to_cartesian_unit_(node, r=6371):
-    """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
-
-    Final output is cartesian coordinates on a sphere of unit radius
-
-    Parameters
-    ----------
-    node: a list consisting of lat and lon
-
-    Returns: numpy array
-        Cartesian coordinates of length 3
-    """
-    lon = node[0]
-    lat = node[1]
-    lat, lon = np.deg2rad(lat), np.deg2rad(lon)
-    x = r * np.cos(lat) * np.cos(lon)  # x coordinate
-    y = r * np.cos(lat) * np.sin(lon)  # y coordinate
-    z = r * np.sin(lat)  # z coordinate
-
-    coord = np.array([x, y, z])
-    # make it coord on a sphere with unit radius
-    unit_coord = coord / np.linalg.norm(coord)
-
-    return unit_coord
+    return mesh_type
 
 
 # Calculate the area of all faces.
@@ -185,10 +148,20 @@ def calculate_face_area(x,
         node1 = np.array([x[0], y[0], z[0]], dtype=np.float64)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
+
         if (coords_type == "spherical"):
-            node1 = _spherical_to_cartesian_unit_(node1)
-            node2 = _spherical_to_cartesian_unit_(node2)
-            node3 = _spherical_to_cartesian_unit_(node3)
+            node1 = np.array(
+                _convert_node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[0]), np.deg2rad(y[0])]))
+            node2 = np.array(
+                _convert_node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[j + 1]),
+                     np.deg2rad(y[j + 1])]))
+            node3 = np.array(
+                _convert_node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[j + 2]),
+                     np.deg2rad(y[j + 2])]))
+
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
                 for q in range(len(dW)):
@@ -253,8 +226,9 @@ def get_all_face_area_from_coords(x,
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
 
-    for i in range(num_faces):
+    face_nodes = face_nodes[:].astype(int_dtype)
 
+    for i in range(num_faces):
         face_z = np.zeros(len(face_nodes[i]))
 
         face_x = x[face_nodes[i]]
@@ -438,41 +412,108 @@ def _is_ugrid(ds):
         return False
 
 
-# Convert the node coordinate from 2D longitude/latitude to normalized 3D xyz
-def convert_node_lonlat_rad_to_xyz(node_coord):
+def grid_center_lat_lon(ds):
+    """Using scrip file variables ``grid_corner_lat`` and ``grid_corner_lon``,
+    calculates the ``grid_center_lat`` and ``grid_center_lon``.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset that contains ``grid_corner_lat`` and ``grid_corner_lon``
+        data variables
+
+    Returns
+    -------
+    center_lon : :class:`numpy.ndarray`
+        The calculated center longitudes of the grid box based on the corner
+        points
+    center_lat : :class:`numpy.ndarray`
+        The calculated center latitudes of the grid box based on the corner
+        points
     """
-    Parameters: float list, required
-       the input 2D coordinates[longitude, latitude] in radiance
-    Returns: float list, the 3D coordinates in [x, y, z]
+
+    # Calculate and create grid center lat/lon
+    scrip_corner_lon = ds['grid_corner_lon']
+    scrip_corner_lat = ds['grid_corner_lat']
+
+    # convert to radians
+    rad_corner_lon = np.deg2rad(scrip_corner_lon)
+    rad_corner_lat = np.deg2rad(scrip_corner_lat)
+
+    # get nodes per face
+    nodes_per_face = rad_corner_lat.shape[1]
+
+    # geographic center of each cell
+    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon),
+               axis=1) / nodes_per_face
+    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon),
+               axis=1) / nodes_per_face
+    z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
+
+    center_lon = np.rad2deg(np.arctan2(y, x))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+
+    # Make negative lons positive
+    center_lon[center_lon < 0] += 360
+
+    return center_lat, center_lon
+
+
+@njit
+def _convert_node_lonlat_rad_to_xyz(node_coord):
+    """Helper function to Convert the node coordinate from 2D
+    longitude/latitude to normalized 3D xyz.
+
+    Parameters
+    ----------
+    node: float list
+        2D coordinates[longitude, latitude] in radiance
+
+    Returns
+    ----------
+    float list
+        the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
     """
+    if len(node_coord) != 2:
+        raise RuntimeError(
+            "Input array should have a length of 2: [longitude, latitude]")
     lon = node_coord[0]
     lat = node_coord[1]
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
 
-# helper function to calculate latitude and longitude from a node's normalized 3D Cartesian
-# coordinates, in radians.
-def convert_node_xyz_to_lonlat_rad(node_coord):
+@njit
+def _convert_node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
 
-    Parameters: node_coord: float array, [x, y, z],required
-    Returns: float array, [longitude_rad, latitude_rad]
-    Raises:
-       Exception: Logic Errors
+    Parameters
+    ----------
+    node_coord: float list
+        3D Cartesian Coordinates [x, y, z] of the node
+
+    Returns
+    ----------
+    float list
+        the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
     """
+    if len(node_coord) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     reference_tolerance = 1.0e-12
-    [dx, dy, dz] = normalize_in_place(node_coord)
-
-    d_mag_2 = dx * dx + dy * dy + dz * dz
-
-    d_mag = np.absolute(d_mag_2)
-    dx /= d_mag
-    dy /= d_mag
-    dz /= d_mag
-
-    d_lon_rad = 0.0
-    d_lat_rad = 0.0
+    [dx, dy, dz] = _normalize_in_place(node_coord)
+    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
 
     if np.absolute(dz) < (1.0 - reference_tolerance):
         d_lon_rad = math.atan2(dy, dx)
@@ -490,316 +531,28 @@ def convert_node_xyz_to_lonlat_rad(node_coord):
     return [d_lon_rad, d_lat_rad]
 
 
-# helper function to project node on the unit sphere
-def normalize_in_place(node):
+@njit
+def _normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
-    on the unit sphere.
+    on the unit sphere. It uses the `np.linalg.norm` internally to calculate
+    the magnitude.
+
     Parameters
     ----------
-    node: float array [x, y, z]
-    Returns: float array, the result vector [x, y, z]
-    """
-    magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] +
-                        node[2] * node[2])
-    return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
+    node: float list
+        3D Cartesian Coordinates [x, y, z]
 
-
-# helper function to calculate the angle of 3D vectors u,v in radian
-def _angle_of_2_vectors(u, v):
-    # 𝜃=2 𝑎𝑡𝑎𝑛2(|| ||𝑣||𝑢−||𝑢||𝑣 ||, || ||𝑣||𝑢+||𝑢||𝑣 ||)
-    # this formula comes from W. Kahan's advice in his paper "How Futile are Mindless Assessments of Roundoff in
-    # Floating-Point Computation?" (https://www.cs.berkeley.edu/~wkahan/Mindless.pdf), section 12 "Mangled Angles."
-    v_norm_times_u = [np.linalg.norm(v) * u[i] for i in range(0, len(u))]
-    u_norm_times_v = [np.linalg.norm(u) * v[i] for i in range(0, len(v))]
-    vec_minus = [
-        v_norm_times_u[i] - u_norm_times_v[i]
-        for i in range(0, len(u_norm_times_v))
-    ]
-    vec_sum = [
-        v_norm_times_u[i] + u_norm_times_v[i]
-        for i in range(0, len(u_norm_times_v))
-    ]
-    angle_u_v_rad = 2 * math.atan2(np.linalg.norm(vec_minus),
-                                   np.linalg.norm(vec_sum))
-    return angle_u_v_rad
-
-
-# helper function for get_intersection_point to determine whether one point is between the other two points
-def _within(p, q, r):
-    """Helper function for get_intersection_point to determine whether the
-    number q is between p and r.
-    Parameters
+    Returns
     ----------
-    p, q, r: float
-    Returns: boolean
+    float list
+        the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
     """
-    return p <= q <= r or r <= q <= p
+    if len(node) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-
-# Helper function to get the radius of a constant latitude arc
-def _get_radius_of_latitude_rad(latitude):
-    longitude = 0.0
-    [x, y, z] = convert_node_lonlat_rad_to_xyz([longitude, latitude])
-    radius = np.sqrt(x * x + y * y)
-    return radius
-
-
-def _get_approx_intersection_point_gcr_constlat(gcr, const_lat_rad):
-    """Helper function to get the approximate cartesian coordinates intersections of a great circle arc and line of constant latitude
-    Details explained in the paper chapt.2.2
-    """
-    [n1, n2] = gcr
-
-    #  Determine if latitude is maximized between endpoints
-
-    dot_n1_n2 = np.dot(n1, n2)
-    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
-    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / d_de_nom
-    res = [[-1, -1, -1], [-1, -1, -1]]
-    # Verify that the great circle arc reaches the expected latitude on the interval a ∈ [0, 1].
-    if not _within(0, d_a_max, 1):
-        return res
-    # If z1 = z2 = 0 then the great circle arc corresponds to the equator.
-    if n1[2] == n2[2] == 0 and const_lat_rad != 0:
-        return res
-
-    # To maximize conditioning, one should choose x1 to satisfy |z1| ≥ |z2|. If this inequality does not hold,
-    # x1 and x2 should be swapped first
-    if n1[2] < n2[2]:
-        temp = n1
-        n1 = n2
-        n2 = temp
-
-    z_0 = np.sin(const_lat_rad)
-    n_x = n1[1] * n2[2] - n2[1] * n1[2]
-    n_y = -n1[0] * n2[2] + n2[0] * n1[2]
-    a = n_x * n_x + n_y * n_y
-    b = 2 * z_0 * np.dot(n1, n2) - 2 * z_0 * n2[2] * (1 / n1[2])
-    c = (z_0 ** 2) * (n1[2] ** (-2))
-    if b * b - 4 * a * c < 0:
-        return res
-
-    [t1, t2] = np.roots([a, b, c])
-    x1 = [z_0 * n1[0] * (1 / n1[2]) + t1 * n_y, z_0 * n1[1] * (1 / n1[2]) - t1 * n_x, z_0]
-    x2 = [z_0 * n1[0] * (1 / n1[2]) + t2 * n_y, z_0 * n1[1] * (1 / n1[2]) - t2 * n_x, z_0]
-
-    # Once the point of intersection x is found, one should test if either or both of these points lies on the
-    # interval between x1 and x2
-
-    if _within(n1[0], x1[0], n2[0]) and _within(n1[1], x1[1], n2[1]) and _within(n1[2], x1[2], n2[2]):
-        res[0] = x1
-    if _within(n1[0], x2[0], n2[0]) and _within(n1[1], x2[1], n2[1]) and _within(n1[2], x2[2], n2[2]):
-        res[1] = x2
-
-    return res
-
-
-def _get_intersection_pt(gcr, const_lat_rad):
-    [temp_x, temp_y, const_lat_z] = convert_node_lonlat_rad_to_xyz(const_lat_rad)
-    initial_guess = _get_approx_intersection_point_gcr_constlat(gcr, const_lat_z)
-    intersection_pt = [[-1, -1, -1], [-1, -1, -1]]
-
-    if initial_guess[0] != [-1, -1, -1]:
-        newton_input = [initial_guess[0][0], initial_guess[0][1], const_lat_z]
-        res = _newton_raphson_solver(newton_input, gcr[0], gcr[1])
-        intersection_pt[0] = [res[0], res[1], const_lat_z]
-    elif initial_guess[1] != [-1, -1, -1]:
-        newton_input = [initial_guess[1][0], initial_guess[1][1], const_lat_z]
-        res = _newton_raphson_solver(newton_input, gcr[0], gcr[1])
-        intersection_pt[0] = [res[0], res[1], const_lat_z]
-
-    return intersection_pt
-
-
-# def _get_exact_intersection_point_gcr_constlat(gcr_rad, const_lat_rad):
-#     initial_pts_carts = _get_approx_intersection_point_gcr_constlat(convert_node_lonlat_rad_to_xyz(gcr_rad),
-#                                                                     const_lat_rad)
-#     intersec_pts_rad = [[0.0, 0.0], [0.0, 0.0]]
-#
-#     # Return result will be longitude and latitude here
-#     res = []
-#     # TODO: Consider when the approx shows the constLat doesn't go across the arc and in reality, it does
-#     if initial_pts_carts[0] == [-1, -1, -1] and initial_pts_carts[1] == [-1, -1, -1]:
-#         # The constant latitude didn't cross this edge
-#         return [[-1, -1, -1], [-1, -1, -1]]
-#     if initial_pts_carts[0] != [-1, -1, -1]:
-#         intersec_pts_rad[0] = convert_node_xyz_to_lonlat_rad(initial_pts_carts[0])
-#     if initial_pts_carts[1] != [-1, -1, -1]:
-#         intersec_pts_rad[1] = convert_node_xyz_to_lonlat_rad(initial_pts_carts[1])
-#
-#     ranged_gcr_lonlat = gcr_rad
-#     ranged_gcr_lonlat = _search_recursively_in_gcr(intersec_pts_rad[0], ranged_gcr_lonlat)
-#
-#     while (ranged_gcr_lonlat[0][1] != const_lat_rad) and (ranged_gcr_lonlat[1][1] != const_lat_rad):
-#         ranged_gcr_lonlat = _search_recursively_in_gcr(const_lat_rad, gcr_rad, mode='const_lat_search')
-#
-#
-# def _search_recursively_in_gcr(seach_target, gcr_end_pts_lonlat, approx_thred=1.0e-12, iter=1000, mode='point_search'):
-#     """Helper function to search recursively in a great circle arc with the given point or a constant latitude.
-#
-#     This function can be used under two modes: 'point_search' (default) and 'const_lat_search'.
-#
-#     'point_search' mode:
-#     The search target must be a point in lonlat coordinates:[lon, lat], this point is not necessarily on the great
-#     circle arc. The function will return an interval of the great circle arc that bounds the given point (Each end point
-#     of the interval is within the 'approx_thred' in radiance distance to the given input point)
-#
-#     'const_lat_search' mode:
-#     The search target must be a single latitude (radiance) value in an array of len() == 1 ([const_lat]). The function
-#     will return a point on the great circle arc that has the exact same latitude as the given constant latitude.
-#     To be noticed, under this mode, the input parameters: approx_thred will not be used.
-#
-#     Parameters
-#     ----------
-#     search_target : list, decimal.
-#         'point_search' mode: a point in lonlat coordinates:[lon, lat], this point is not necessarily on the great
-#         circle arc.
-#         'const_lat_search' mode: a single latitude (radiance) value in an array of len() == 1 ([const_lat])
-#     gcr_end_pts_lonlat: list, decimal
-#         The two end points of the great circle arc in longitude latitude coordinates: [[lon1, lat1],[lon2, lat2]]
-#     approx_thred: float, optional
-#         [Only valid in the point_search' mode] The approximation thredhold for point searching on the great circle arc.
-#         Default to be 1.0e-12. When the function return an interval of the great circle arc that bounds the given point, each end point
-#         of the interval is within the 'approx_thred' in radiance distance to the given input point.
-#     iter: int, optional
-#         The iteration threshold, default to be 1000. When the threshold is reached, the function will stop and return the current search result,
-#         whether the great circle arc ends points satisfied the approx_thred (under the 'point_search' mode), or the point
-#         founded on the great circle arc has the exact latitude match of the given constant latitude (under the 'const_lat_search' mode)
-#
-#     mode: string, optional
-#         Two modes are available: 'point_search' (default) and 'const_lat_search'.
-#
-#         'point_search' mode:
-#         The search target must be a point in lonlat coordinates:[lon, lat], this point is not necessarily on the great
-#         circle arc. The function will return an interval of the great circle arc that bounds the given point (Each end point
-#         of the interval is within the 'approx_thred' in radiance distance to the given input point)
-#
-#         'const_lat_search' mode:
-#         The search target must be a single latitude (radiance) value in an array of len() == 1 ([const_lat]). The function
-#         will return a point on the great circle arc that has the exact same latitude as the given constant latitude.
-#         To be noticed, under this mode, the input parameters: approx_thred will not be used.
-#
-#     Returns
-#     -------
-#     list
-#         'point_search' mode:
-#         An interval of the given great circle arc '[[lon1, lat1],[lon2, lat2]]'. Each end point
-#         of the interval is within the 'approx_thred' in radiance distance to the given input point
-#
-#         'const_lat_search' mode:
-#         A single point in the form of [[lon, lat],[-1, -1]], the [-1, -1] at the second index is just for filling purpose.
-#         To read the result point, just simply read it as result[0].
-#
-#
-#     Raises
-#     ------
-#     ValueError
-#         If under 'point_search' mode is not an array of length 2
-#         If under 'const_lat_search' mode is not an array of length 1
-#         If the mode is not 'point_search' nor 'const_lat_search'
-#
-#
-#     """
-#     cur_iter = 0
-#     if mode == 'point_search':
-#         if len(seach_target) != 2:
-#             raise ValueError(
-#                 "The search_target must be a point under the 'point_search' mode: an array of length 2 in the form of "
-#                 "[lon, lat] "
-#             )
-#         pt_lonlat = seach_target
-#     elif mode == 'const_lat_search':
-#         if len(seach_target) != 1:
-#             raise ValueError(
-#                 "The search_target must be a single latitude value under the 'const_lat_search' mode: an array of "
-#                 "length 1 in the form of [const_lat] "
-#             )
-#         pt_lonlat = [-1, seach_target[0]]
-#     else:
-#         raise ValueError(
-#             "Only two modes are supported: 'point_search' or 'const_lat_search' "
-#         )
-#
-#     while (mode == 'point_search' and (np.absolute(pt_lonlat[1] - gcr_end_pts_lonlat[1]) >= approx_thred) and (
-#             np.absolute(pt_lonlat[1] - gcr_end_pts_lonlat[0]) >= approx_thred)) \
-#             or (mode == 'const_lat_search' and (gcr_end_pts_lonlat[1] != pt_lonlat[1]) and (
-#             gcr_end_pts_lonlat[0] != pt_lonlat[1])):
-#         # Divide the GCR into 10 ranges:
-#         # Divide the angle of v1/v2 into 10 subsections, the leftover will be put in the last one
-#         # Update v0 based on max_section[0], since the angle is always from max_section[0] to v0
-#         v1_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(gcr_end_pts_lonlat[0]))
-#         v2_cart = convert_node_lonlat_rad_to_xyz(np.deg2rad(gcr_end_pts_lonlat[1]))
-#         v_temp = np.cross(v1_cart, v2_cart)
-#
-#         angle_v1_v2_rad = _angle_of_2_vectors(v1_cart, v2_cart)
-#         v0 = np.cross(v_temp, v1_cart)
-#         v0 = normalize_in_place(v0)
-#         avg_angle_rad = angle_v1_v2_rad / 10
-#
-#         for i in range(0, 10):
-#             angle_rad_prev = avg_angle_rad * i
-#             if i >= 9:
-#                 angle_rad_next = angle_v1_v2_rad
-#             else:
-#                 angle_rad_next = angle_rad_prev + avg_angle_rad
-#
-#             # Get the two vectors of this section
-#             w1_new = [np.cos(angle_rad_prev) * v1_cart[i] + np.sin(
-#                 angle_rad_prev) * v0[i] for i in range(0, len(v1_cart))]
-#             w2_new = [np.cos(angle_rad_next) * v1_cart[i] + np.sin(
-#                 angle_rad_next) * v0[i] for i in range(0, len(v1_cart))]
-#
-#             # convert the 3D [x, y, z] vector into 2D lat/lon vector
-#             w1_lonlat = convert_node_xyz_to_lonlat_rad(w1_new)
-#             w2_lonlat = convert_node_xyz_to_lonlat_rad(w2_new)
-#
-#             # Manually set the left and right boundaries to avoid error accumulation
-#             if i == 0:
-#                 w1_lonlat[1] = gcr_end_pts_lonlat[0]
-#             elif i >= 9:
-#                 w2_lonlat[1] = gcr_end_pts_lonlat[1]
-#
-#             # Only use the latitude to determine whether its in range to avoid longitude wrap around
-#             if mode == 'point_search':
-#                 if _within(w1_lonlat[1], pt_lonlat[0][1], w2_lonlat[1]):
-#                     gcr_end_pts_lonlat = [w1_lonlat, w2_lonlat]
-#
-#
-#                 if cur_iter >= iter:
-#                     gcr_end_pts_lonlat
-#             else:
-#                 if w1_lonlat[1] == pt_lonlat[0][1]:
-#                     return [w1_lonlat, [-1, -1, -1]]
-#                 elif w2_lonlat[1] == pt_lonlat[0][1]:
-#                     return [w2_lonlat, [-1, -1, -1]]
-#
-#             cur_iter += 1
-#
-#     return gcr_end_pts_lonlat
-
-
-def _sort_intersection_pts_with_lon(pts_lonlat_rad_list, longitude_bound_rad):
-    res = []
-    if longitude_bound_rad[0] <= longitude_bound_rad[1]:
-        # Normal case,
-        for pt in pts_lonlat_rad_list:
-            res.append(pt[0] - longitude_bound_rad[0])
-
-    else:
-        # The face that go across the 0 longitude
-        for pt in pts_lonlat_rad_list:
-            if _within(np.pi, pt[0], 2 * np.pi):
-                res.append(pt[0] - longitude_bound_rad[0])
-            else:
-                res.append(pt[0] + (2 * np.pi - longitude_bound_rad[0]))
-
-    res.sort()
-    return res
-
-
-def _get_cart_vector_magnitude(start, end):
-    x1 = start
-    x2 = end
-    x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
-    x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
-    return x1_x2_mag
+    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
