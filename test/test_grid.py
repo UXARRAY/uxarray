@@ -238,8 +238,9 @@ class TestPopulateCoordinates(TestCase):
                           [0.57735027, 5.77350269e-01, -0.57735027],
                           [-0.57735027, 5.77350269e-01, -0.57735027]])
         vgrid = ux.Grid(verts)
-        vgrid.ds.Mesh2_node_x.attrs["units"] = "meters"
-        vgrid.ds.Mesh2_node_y.attrs["units"] = "meters"
+        vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
         vgrid._populate_lonlat_coord()
         num_nodes = vgrid.ds.Mesh2_node_x.size
         for i in range(0, num_nodes):

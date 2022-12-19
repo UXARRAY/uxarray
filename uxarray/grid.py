@@ -403,48 +403,29 @@ class Grid:
             return
 
         # check for units and create Mesh2_node_cart_x/y/z set to self.ds
-        num_nodes = self.nMesh2_node
-
         nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
         nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
         nodes_cart = list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad)))
-        data_x = list(list(zip(*nodes_cart))[0])
 
         self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=[val[0] for val in nodes_cart],
-                                        dims = ["nMesh2_node"],
-                                        attrs = {
-                                            "standard_name": "cartesian x",
-                                            "units": "m",
-                                        })
+                                                    dims=["nMesh2_node"],
+                                                    attrs={
+                                                        "standard_name": "cartesian x",
+                                                        "units": "m",
+                                                    })
         self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=[val[1] for val in nodes_cart],
-                                        dims = ["nMesh2_node"],
-                                        attrs = {
-                                            "standard_name": "cartesian y",
-                                            "units": "m",
-                                        })
+                                                    dims=["nMesh2_node"],
+                                                    attrs={
+                                                        "standard_name": "cartesian y",
+                                                        "units": "m",
+                                                    })
         self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=[val[2] for val in nodes_cart],
-                                       dims = ["nMesh2_node"],
-                                        attrs = {
-                                        "standard_name": "cartesian z",
-                                        "units": "m",
-                                        })
-
-        # node_cart_list_x = [0.0] * num_nodes
-        # node_cart_list_y = [0.0] * num_nodes
-        # node_cart_list_z = [0.0] * num_nodes
-        # for i in range(num_nodes):
-        #     if "degree" in self.ds.Mesh2_node_x.units:
-        #         node = [
-        #             np.deg2rad(self.ds["Mesh2_node_x"].values[i]),
-        #             np.deg2rad(self.ds["Mesh2_node_y"].values[i])
-        #         ]  # [lon, lat]
-        #         node_cart = _convert_node_lonlat_rad_to_xyz(node)  # [x, y, z]
-        #         node_cart_list_x[i] = node_cart[0]
-        #         node_cart_list_y[i] = node_cart[1]
-        #         node_cart_list_z[i] = node_cart[2]
-        #
-
+                                                    dims=["nMesh2_node"],
+                                                    attrs={
+                                                        "standard_name": "cartesian z",
+                                                        "units": "m",
+                                                    })
 
     def _populate_lonlat_coord(self):
         """Helper function that populates the longitude and latitude and store
@@ -474,33 +455,36 @@ class Grid:
         # Check if the "Mesh2_node_x" is already in longitude
         if "degree" in self.ds.Mesh2_node_x.units:
             return
-        num_nodes = self.ds.Mesh2_node_x.size
-        node_latlon_list_lat = [0.0] * num_nodes
-        node_latlon_list_lon = [0.0] * num_nodes
-        node_cart_list_x = [0.0] * num_nodes
-        node_cart_list_y = [0.0] * num_nodes
-        node_cart_list_z = [0.0] * num_nodes
-        for i in range(num_nodes):
-            if "m" in self.ds.Mesh2_node_x.units:
-                node = [
-                    self.ds["Mesh2_node_x"].values[i],
-                    self.ds["Mesh2_node_y"].values[i],
-                    self.ds["Mesh2_node_z"].values[i]
-                ]  # [x, y, z]
-                node_lonlat = _convert_node_xyz_to_lonlat_rad(
-                    node)  # [lon, lat]
-                node_cart_list_x[i] = self.ds["Mesh2_node_x"].values[i]
-                node_cart_list_y[i] = self.ds["Mesh2_node_y"].values[i]
-                node_cart_list_z[i] = self.ds["Mesh2_node_z"].values[i]
-                node_lonlat[0] = np.rad2deg(node_lonlat[0])
-                node_lonlat[1] = np.rad2deg(node_lonlat[1])
-                node_latlon_list_lon[i] = node_lonlat[0]
-                node_latlon_list_lat[i] = node_lonlat[1]
 
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
-        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
-        self.ds["Mesh2_node_x"].values = node_latlon_list_lon
-        self.ds["Mesh2_node_y"].values = node_latlon_list_lat
-        self.ds.Mesh2_node_x.attrs["units"] = "degree_east"
-        self.ds.Mesh2_node_y.attrs["units"] = "degrees_north"
+        # Check if the input Mesh2_node_xyz" are represented in the cartesian format with the unit "m"
+        if ("m" not in self.ds.Mesh2_node_x.units) or ("m" not in self.ds.Mesh2_node_y.units) \
+                or ("m" not in self.ds.Mesh2_node_z.units):
+            raise RuntimeError("Expected: Mesh2_node_x/y/z should be represented in the cartesian format with the "
+                               "unit 'm' when calling this function")
+
+        # Put the cartesian coordinates inside the proper data structure
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=self.ds["Mesh2_node_x"].values)
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=self.ds["Mesh2_node_y"].values)
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=self.ds["Mesh2_node_z"].values)
+
+        # convert the input cartesian values into the longitude latitude degree
+        nodes_cart= np.stack((self.ds["Mesh2_node_x"].values, self.ds["Mesh2_node_y"].values, self.ds["Mesh2_node_z"].values)
+                             , axis=1).tolist()
+        nodes_rad = list(map(_convert_node_xyz_to_lonlat_rad, nodes_cart))
+        nodes_degree = np.rad2deg(nodes_rad)
+        self.ds["Mesh2_node_x"] = xr.DataArray(
+            data=[val[0] for val in nodes_degree],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "longitude",
+                "long_name": "longitude of mesh nodes",
+                "units": "degrees_east",
+            })
+        self.ds["Mesh2_node_y"] = xr.DataArray(
+            data=[val[1] for val in nodes_degree],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "lattitude",
+                "long_name": "latitude of mesh nodes",
+                "units": "degrees_north",
+            })
