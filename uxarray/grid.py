@@ -437,11 +437,6 @@ class Grid:
         meters. Since we want "Mesh2_node_x" and "Mesh2_node_y" always have the
         "degree" units. For more details, please read the following.
 
-        Raises
-        ------
-        RuntimeError
-            if the input Mesh2_node_x/y/z are not represented in the cartesian format with the unit 'm' when calling this function
-
         Note
         ----
         In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
@@ -459,7 +454,6 @@ class Grid:
          unit:  "m"
         Mesh2_node_cart_z
          unit:  "m"
-
 
         Raises
         ------
