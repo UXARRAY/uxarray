@@ -215,6 +215,7 @@ class TestFaceAreas(TestCase):
         grid_2 = ux.Grid(grid_2_ds)
         grid_2.compute_face_areas()
 
+
 class TestPopulateCoordinates(TestCase):
 
     def test_populate_cartesian_xyz_coord(self):

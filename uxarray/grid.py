@@ -372,11 +372,12 @@ class Grid:
 
         return integral
 
+
 def _populate_cartesian_xyz_coord(self):
-    """A helper function that populates the xyz attribute in UXarray.ds.
-    This function is called when we need to use the cartesian coordinates
-    for each node to do the calculation but the input data only has the
-    "Mesh2_node_x" and "Mesh2_node_y" in degree.
+    """A helper function that populates the xyz attribute in UXarray.ds. This
+    function is called when we need to use the cartesian coordinates for each
+    node to do the calculation but the input data only has the "Mesh2_node_x"
+    and "Mesh2_node_y" in degree.
 
     Note
     ----
@@ -431,11 +432,11 @@ def _populate_cartesian_xyz_coord(self):
 
 
 def _populate_lonlat_coord(self):
-    """Helper function that populates the longitude and latitude and store
-    it into the Mesh2_node_x and Mesh2_node_y. This is called when the
-    input data has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in
-    meters. Since we want "Mesh2_node_x" and "Mesh2_node_y" always have the
-    "degree" units. For more details, please read the following.
+    """Helper function that populates the longitude and latitude and store it
+    into the Mesh2_node_x and Mesh2_node_y. This is called when the input data
+    has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in meters. Since we want
+    "Mesh2_node_x" and "Mesh2_node_y" always have the "degree" units. For more
+    details, please read the following.
 
     Note
     ----
