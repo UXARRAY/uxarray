@@ -214,3 +214,90 @@ class TestFaceAreas(TestCase):
         grid_2_ds = xr.open_dataset(fesom_grid_small)
         grid_2 = ux.Grid(grid_2_ds)
         grid_2.compute_face_areas()
+
+class TestPopulateCoordinates(TestCase):
+
+    def test_populate_cartesian_xyz_coord(self):
+        # The following testcases are generated through the matlab cart2sph/sph2cart functions
+        # These points correspond to the eight vertices of a cube.
+        lon_deg = [
+            45.0001052295749, 45.0001052295749, -45.0001052295749,
+            -45.0001052295749, 135.000315688725, 135.000315688725,
+            -135.000315688725, -135.000315688725
+        ]
+        lat_deg = [
+            35.2655522903022, -35.2655522903022, 35.2655522903022,
+            -35.2655522903022, 35.2655522903022, -35.2655522903022,
+            35.2655522903022, -35.2655522903022
+        ]
+        cart_x = [
+            0.577340924821405, 0.577340924821405, 0.577340924821405,
+            0.577340924821405, -0.577345166204668, -0.577345166204668,
+            -0.577345166204668, -0.577345166204668
+        ]
+        cart_y = [
+            0.577343045516932, 0.577343045516932, -0.577343045516932,
+            -0.577343045516932, 0.577338804118089, 0.577338804118089,
+            -0.577338804118089, -0.577338804118089
+        ]
+        cart_z = [
+            0.577366836872017, -0.577366836872017, 0.577366836872017,
+            -0.577366836872017, 0.577366836872017, -0.577366836872017,
+            0.577366836872017, -0.577366836872017
+        ]
+        verts_degree = np.stack((lon_deg, lat_deg), axis=1)
+        vgrid = ux.Grid(verts_degree)
+        vgrid._populate_cartesian_xyz_coord()
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
+                                   cart_x[i],
+                                   decimal=12)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_y"].values[i],
+                                   cart_y[i],
+                                   decimal=12)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
+                                   cart_z[i],
+                                   decimal=12)
+
+    def test_populate_lonlat_coord(self):
+        # The following testcases are generated through the matlab cart2sph/sph2cart functions
+        # These points correspond to the eight vertices of a cube.
+        lon_deg = [
+            45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
+            360 - 45.0001052295749, 135.000315688725, 135.000315688725,
+            360 - 135.000315688725, 360 - 135.000315688725
+        ]
+        lat_deg = [
+            35.2655522903022, -35.2655522903022, 35.2655522903022,
+            -35.2655522903022, 35.2655522903022, -35.2655522903022,
+            35.2655522903022, -35.2655522903022
+        ]
+        cart_x = [
+            0.577340924821405, 0.577340924821405, 0.577340924821405,
+            0.577340924821405, -0.577345166204668, -0.577345166204668,
+            -0.577345166204668, -0.577345166204668
+        ]
+        cart_y = [
+            0.577343045516932, 0.577343045516932, -0.577343045516932,
+            -0.577343045516932, 0.577338804118089, 0.577338804118089,
+            -0.577338804118089, -0.577338804118089
+        ]
+        cart_z = [
+            0.577366836872017, -0.577366836872017, 0.577366836872017,
+            -0.577366836872017, 0.577366836872017, -0.577366836872017,
+            0.577366836872017, -0.577366836872017
+        ]
+
+        verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
+        vgrid = ux.Grid(verts_cart)
+        vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
+        vgrid._populate_lonlat_coord()
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
+                                   lon_deg[i],
+                                   decimal=12)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
+                                   lat_deg[i],
+                                   decimal=12)
