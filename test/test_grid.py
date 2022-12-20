@@ -285,6 +285,7 @@ class TestPopulateCoordinates(TestCase):
             -0.577366836872017, 0.577366836872017, -0.577366836872017,
             0.577366836872017, -0.577366836872017
         ]
+
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
         vgrid = ux.Grid(verts_cart)
         vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
