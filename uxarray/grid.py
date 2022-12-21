@@ -59,6 +59,9 @@ class Grid:
         # initialize face_area variable
         self._face_areas = None
 
+        # initialize indices for antimeridian faces
+        self._antimeridian_faces = None
+
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -372,8 +375,9 @@ class Grid:
 
         return integral
 
-    def antimeridian_faces(self):
-        """Locates any faces that cross the antimeridian.
+
+    def compute_antimeridian_faces(self):
+        """Locates any face that crosses the antimeridian
 
         Returns
         -------
@@ -381,23 +385,53 @@ class Grid:
             Indicies into Mesh2_face_nodes corresponding to any face that
             crossed the antimeridian
         """
-        # longitude values of
-        polygon_lon = self.Mesh2_node_x.values[self.Mesh2_face_nodes.astype(
+        # longitude (x) values of each face
+        face_lon = self.Mesh2_node_x.values[self.Mesh2_face_nodes.astype(
             int).values]
 
         crossed_indicies = []
         # enumerate to keep track of which face node we're at
-        for face_node_index, lon in enumerate(polygon_lon):
-            # cycle over every polygon ring
+        for face_node_index, lon in enumerate(face_lon):
+            # cycle over every side in our face
             for i in range(self.nMaxMesh2_face_nodes + 1):
-                # get polygon ring longitude values
+                # get (x1) and (x2) values from a single side
                 x1 = lon[(0 + i) % self.nMaxMesh2_face_nodes]
                 x2 = lon[(1 + i) % self.nMaxMesh2_face_nodes]
 
-                # distance between two points > 180
+                # magnitudde > 180 if side crosses antimeridian
                 if abs(x2 - x1) > 180:
                     crossed_indicies.append(face_node_index)
                     # break to avoid double counting
                     break
 
         return tuple(crossed_indicies)
+
+    def split_antimeridian_faces(self):
+
+        # antimeridian faces not yet calculated
+        if self._antimeridian_faces is None:
+            self._antimeridian_faces = self.compute_antimeridian_faces()
+
+        # no faces to split
+        if len(self._antimeridian_faces) == 0:
+            return None, None, None
+
+        n = len(self._antimeridian_faces)
+        m = self.nMaxMesh2_face_nodes
+        k = 2                                   #topology_dimension?
+        faces_to_split = np.zeros((n, m, k))
+
+        faces_to_split[:, :, 0] = self.Mesh2_node_x.values[self._antimeridian_faces]
+        faces_to_split[:, :, 1] = self.Mesh2_node_y.values[self._antimeridian_faces]
+
+
+
+
+
+
+
+
+
+
+
+        pass
