@@ -227,9 +227,9 @@ class TestPolygon(TestCase):
     def test_antimeridian_faces(self):
 
         # global grid with faces crossing antimeridian
-        crossed_indicies_1 = self.grid_1.antimeridian_faces()
-        assert len(crossed_indicies_1) > 0
+        crossed_faces_1 = self.grid_1.compute_antimeridian_faces()
+        assert len(crossed_faces_1) > 0
 
         # regional grid without faces crossing antimeridian
-        crossed_indicies_2 = self.grid_2.antimeridian_faces()
-        assert len(crossed_indicies_2) == 0
+        crossed_faces_2 = self.grid_2.compute_antimeridian_faces()
+        assert len(crossed_faces_2) == 0

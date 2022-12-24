@@ -375,38 +375,66 @@ class Grid:
 
         return integral
 
-
-    def compute_antimeridian_faces(self):
-        """Locates any face that crosses the antimeridian
+    def compute_antimeridian_faces(self, threshold=180.0):
+        """Locates any face that crosses the antimeridian'.
 
         Returns
         -------
-        crossed_indicies : tuple
-            Indicies into Mesh2_face_nodes corresponding to any face that
+        crossed_indices : tuple
+            Indices into Mesh2_face_nodes corresponding to any face that
             crossed the antimeridian
+
+        Example
+        -------
+        Given a face with (x) values
+            [a, b, c, d]
+
+        A face can be constructed with sides
+            ab, bc, cd, da
+
+        Pad each face
+            [a, b, c, d, a]
+
+        Magnitude of each side
+            abs([a-b, b-c, c-d, d-a])
+
+        Any value > threshold crosses the antimeridian
         """
+
         # longitude (x) values of each face
-        face_lon = self.Mesh2_node_x.values[self.Mesh2_face_nodes.astype(
-            int).values]
+        face_nodes = self.Mesh2_face_nodes.astype(np.int32).values
+        face_lon = self.Mesh2_node_x.values[face_nodes]
 
-        crossed_indicies = []
-        # enumerate to keep track of which face node we're at
-        for face_node_index, lon in enumerate(face_lon):
-            # cycle over every side in our face
-            for i in range(self.nMaxMesh2_face_nodes + 1):
-                # get (x1) and (x2) values from a single side
-                x1 = lon[(0 + i) % self.nMaxMesh2_face_nodes]
-                x2 = lon[(1 + i) % self.nMaxMesh2_face_nodes]
+        # pad last value to properly represent each side
+        face_lon_pad = np.pad(face_lon, (0, 1), 'wrap')[:-1]
 
-                # magnitudde > 180 if side crosses antimeridian
-                if abs(x2 - x1) > 180:
-                    crossed_indicies.append(face_node_index)
-                    # break to avoid double counting
-                    break
+        # magnitude of each side
+        side_diff = np.abs(np.diff(face_lon_pad))
 
-        return tuple(crossed_indicies)
+        # any row with a single side > 180 set to true
+        crossed_mask = np.any(side_diff > threshold, axis=1)
+
+        # indices of faces that cross antimeridian
+        crossed_indices = np.argwhere(crossed_mask)
+
+        return tuple(crossed_indices)
 
     def split_antimeridian_faces(self):
+        """Split any face that crosses the antimeridian into two new faces
+        clipped by +/- 180 longitude.
+
+        Returns
+        -------
+        n_split_faces : int
+            to-do
+        left_faces : type
+            to-do
+        right_faces : type
+
+        crossed_indices : tuple
+            Indices into Mesh2_face_nodes corresponding to any face that
+            crossed the antimeridian
+        """
 
         # antimeridian faces not yet calculated
         if self._antimeridian_faces is None:
@@ -418,20 +446,20 @@ class Grid:
 
         n = len(self._antimeridian_faces)
         m = self.nMaxMesh2_face_nodes
-        k = 2                                   #topology_dimension?
+        k = 2
         faces_to_split = np.zeros((n, m, k))
 
-        faces_to_split[:, :, 0] = self.Mesh2_node_x.values[self._antimeridian_faces]
-        faces_to_split[:, :, 1] = self.Mesh2_node_y.values[self._antimeridian_faces]
+        # fill in lon (x) and lat (y) values for the nodes of each face/polygon
+        faces_to_split[:, :,
+                       0] = self.Mesh2_node_x.values[self._antimeridian_faces]
+        faces_to_split[:, :,
+                       1] = self.Mesh2_node_y.values[self._antimeridian_faces]
 
+        left_faces = []
+        right_faces = []
 
-
-
-
-
-
-
-
-
+        for face in faces_to_split:
+            left_face = face.copy()
+            right_face = face.copy()
 
         pass
