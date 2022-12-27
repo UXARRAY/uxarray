@@ -405,7 +405,8 @@ class Grid:
         nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
         nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
-        nodes_cart = np.asarray(list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
+        nodes_cart = np.asarray(
+            list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
 
         self.ds["Mesh2_node_cart_x"] = xr.DataArray(
             data=nodes_cart[:, 0],
@@ -487,7 +488,7 @@ class Grid:
         nodes_rad = list(map(_convert_node_xyz_to_lonlat_rad, nodes_cart))
         nodes_degree = np.rad2deg(nodes_rad)
         self.ds["Mesh2_node_x"] = xr.DataArray(
-            data=nodes_degree[:,0],
+            data=nodes_degree[:, 0],
             dims=["nMesh2_node"],
             attrs={
                 "standard_name": "longitude",
@@ -495,7 +496,7 @@ class Grid:
                 "units": "degrees_east",
             })
         self.ds["Mesh2_node_y"] = xr.DataArray(
-            data=nodes_degree[:,1],
+            data=nodes_degree[:, 1],
             dims=["nMesh2_node"],
             attrs={
                 "standard_name": "lattitude",
