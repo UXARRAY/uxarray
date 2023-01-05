@@ -224,12 +224,15 @@ class TestPolygon(TestCase):
     grid_1 = ux.Grid(grid_1_ds)
     grid_2 = ux.Grid(grid_2_ds)
 
-    def test_antimeridian_faces(self):
+    def test_compute_antimeridian_faces(self):
 
         # global grid with faces crossing antimeridian
-        crossed_faces_1 = self.grid_1.compute_antimeridian_faces()
+        crossed_faces_1, mask_2d_1 = self.grid_1.compute_antimeridian_faces()
         assert len(crossed_faces_1) > 0
 
         # regional grid without faces crossing antimeridian
-        crossed_faces_2 = self.grid_2.compute_antimeridian_faces()
+        crossed_faces_2, mask_2d_2 = self.grid_2.compute_antimeridian_faces()
         assert len(crossed_faces_2) == 0
+
+    def test_split_antimeridian_faces(self):
+        self.grid_1.split_antimeridian_faces()

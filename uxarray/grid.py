@@ -60,7 +60,7 @@ class Grid:
         self._face_areas = None
 
         # initialize indices for antimeridian faces
-        self._antimeridian_faces = None
+        #self._antimeridian_faces = None
 
         # TODO: fix when adding/exercising gridspec
 
@@ -401,6 +401,8 @@ class Grid:
         Any value > threshold crosses the antimeridian
         """
 
+        fill_value = self.Mesh2_face_nodes.attrs
+
         # longitude (x) values of each face
         face_nodes = self.Mesh2_face_nodes.astype(np.int32).values
         face_lon = self.Mesh2_node_x.values[face_nodes]
@@ -411,13 +413,19 @@ class Grid:
         # magnitude of each side
         side_diff = np.abs(np.diff(face_lon_pad))
 
-        # any row with a single side > 180 set to true
-        crossed_mask = np.any(side_diff > threshold, axis=1)
+        # true for any node that is part of an edge that crosses antimeridian
+        crossed_mask_2d = side_diff > threshold
+
+        # true for any face that contains a node that crosses antimeridian
+        crossed_mask_1d = np.any(crossed_mask_2d, axis=1)
 
         # indices of faces that cross antimeridian
-        crossed_indices = np.argwhere(crossed_mask)
+        crossed_indices = tuple(np.argwhere(crossed_mask_1d).squeeze())
 
-        return tuple(crossed_indices)
+        # include only faces that cross antimeridian
+        crossed_mask_2d = crossed_mask_2d[crossed_indices, :].squeeze()
+
+        return crossed_indices, crossed_mask_2d
 
     def split_antimeridian_faces(self):
         """Split any face that crosses the antimeridian into two new faces
@@ -436,30 +444,21 @@ class Grid:
             crossed the antimeridian
         """
 
-        # antimeridian faces not yet calculated
-        if self._antimeridian_faces is None:
-            self._antimeridian_faces = self.compute_antimeridian_faces()
+        antimeridian_faces, mask_2d = self.compute_antimeridian_faces()
 
         # no faces to split
-        if len(self._antimeridian_faces) == 0:
+        if len(antimeridian_faces) == 0:
             return None, None, None
 
-        n = len(self._antimeridian_faces)
-        m = self.nMaxMesh2_face_nodes
-        k = 2
-        faces_to_split = np.zeros((n, m, k))
+        # fill in lon (x) and lat (y) values for the nodes of each face
 
-        # fill in lon (x) and lat (y) values for the nodes of each face/polygon
-        faces_to_split[:, :,
-                       0] = self.Mesh2_node_x.values[self._antimeridian_faces]
-        faces_to_split[:, :,
-                       1] = self.Mesh2_node_y.values[self._antimeridian_faces]
+        antimeridian_indices = self.Mesh2_face_nodes.values[
+            antimeridian_faces, :].astype(int)
+        face_x = self.Mesh2_node_x.values[antimeridian_indices]
+        face_y = self.Mesh2_node_y.values[antimeridian_indices]
 
-        left_faces = []
-        right_faces = []
-
-        for face in faces_to_split:
-            left_face = face.copy()
-            right_face = face.copy()
+        # not finished yet
+        for x, mask in zip(face_x, mask_2d):
+            x_safe = x[~mask]
 
         pass
