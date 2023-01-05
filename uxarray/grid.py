@@ -451,14 +451,22 @@ class Grid:
             return None, None, None
 
         # fill in lon (x) and lat (y) values for the nodes of each face
-
         antimeridian_indices = self.Mesh2_face_nodes.values[
             antimeridian_faces, :].astype(int)
+
         face_x = self.Mesh2_node_x.values[antimeridian_indices]
         face_y = self.Mesh2_node_y.values[antimeridian_indices]
 
-        # not finished yet
-        for x, mask in zip(face_x, mask_2d):
-            x_safe = x[~mask]
+        # split faces into left and right faces
+        left_x = np.where(face_x > 0, face_x - 360, face_x)
+        right_x = np.where(face_x < 0, face_x + 360, face_x)
+
+        # ensure new faces are within [-180, 180]
+        left_x = np.clip(left_x, -180, 180)
+        right_x = np.clip(right_x, -180, 180)
+
+        # mask for faces that reduce down to a point
+        left_exclude = np.all(left_x == -180, axis=1)
+        right_exclude = np.all(right_x == 180, axis=1)
 
         pass
