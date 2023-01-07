@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from .helpers import _angle_of_2_vectors, _within, normalize_in_place, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz
+from .helpers import _angle_of_2_vectors, _within, normalize_in_place, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz, _pt_within_gcr
 
 # helper function to insert a new point into the latlon box
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
@@ -331,9 +331,40 @@ def minmax_Longitude_rad(v1, v2):
         end_lon = temp_lon
     return [np.deg2rad(start_lon), np.deg2rad(end_lon)]
 
+import plotly.graph_objs as go
+
+
+def vector_plot(tvects, is_vect=True, orig=[0, 0, 0]):
+    """Plot vectors using plotly."""
+
+    if is_vect:
+        if not hasattr(orig[0], "__iter__"):
+            coords = [[orig, np.sum([orig, v], axis=0)] for v in tvects]
+        else:
+            coords = [[o, np.sum([o, v], axis=0)] for o, v in zip(orig, tvects)]
+    else:
+        coords = tvects
+
+    data = []
+    for i, c in enumerate(coords):
+        X1, Y1, Z1 = zip(c[0])
+        X2, Y2, Z2 = zip(c[1])
+        vector = go.Scatter3d(x=[X1[0], X2[0]],
+                              y=[Y1[0], Y2[0]],
+                              z=[Z1[0], Z2[0]],
+                              marker=dict(size=[0, 5],
+                                          color=['blue'],
+                                          line=dict(width=5,
+                                                    color='DarkSlateGrey')),
+                              name='Vector' + str(i + 1))
+        data.append(vector)
+
+    layout = go.Layout(margin=dict(l=4, r=4, b=4, t=4))
+    fig = go.Figure(data=data, layout=layout)
+    fig.show()
 
 # helper function to calculate the point position of the intersection of two great circle arcs
-def get_intersection_point_gcr_gcr(w0, w1, v0, v1):
+def get_intersection_point_gcr_gcr(w0, w1, v0, v1, i=-1):
     """Helper function to calculate the intersection point of two great circle
     arcs in 3D coordinates.
     Parameters
@@ -351,19 +382,46 @@ def get_intersection_point_gcr_gcr(w0, w1, v0, v1):
     w1 = normalize_in_place(w1)
     v0 = normalize_in_place(v0)
     v1 = normalize_in_place(v1)
-    x1 = np.cross(np.cross(w0, w1), np.cross(v0, v1)).tolist()
+    norm_w0w1 = normalize_in_place(np.cross(w0, w1))
+    # the cross product of [0,0,1] and [0,0,-1] by np.cross will be [0,0,0]
+    if v0 == [0,0,1] and v1 == [0,0,-1]:
+        norm_v0v1 = [1,0,0]
+    else:
+        norm_v0v1 = normalize_in_place(np.cross(v0, v1))
+
+    if normalize_in_place(np.cross(norm_w0w1, norm_v0v1).tolist()) == [0,0,0]:
+        return [0, 0, 0]
+    x1 = normalize_in_place(np.cross(norm_w0w1, norm_v0v1).tolist())
     x2 = [-x1[0], -x1[1], -x1[2]]
+    w0_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(w0))
+    w1_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(w1))
+    v0_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(v0))
+    v1_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(v1))
+    x1_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(x1))
+    x2_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(x2))
 
-    # Find out whether X1 or X2 is within the interval [wo, w1]
+    # if x1_deg[0] == 180. and np.absolute(x1_deg[1] - (-45)) <= 0.00001 :
+    #     vector_plot([w0,w1,v0,v1, x1])
 
-    if _within(w0[0], x1[0], w1[0]) and _within(w0[1], x1[1], w1[1]) and _within(w0[2], x1[2], w1[2]):
+    # Find out whether X1 or X2 is within the interval [w0, w1]
+    if _pt_within_gcr(x1, [w0, w1]) and _pt_within_gcr(x1, [v0, v1]):
         return x1
-    elif _within(w0[0], x2[0], w1[0]) and _within(w0[1], x2[1], w1[1]) and _within(w0[2], x2[2], w1[2]):
+    elif _pt_within_gcr(x2, [w0, w1]) and _pt_within_gcr(x2, [v0, v1]):
         return x2
     elif x1[0] == 0 and x1[1] == 0 and x1[2] == 0:
         return [0, 0, 0]  # two vectors are parallel to each other
     else:
         return [-1, -1, -1]  # Intersection out of the interval or
+
+
+    # if _within(w0[0], x1[0], w1[0]) and _within(w0[1], x1[1], w1[1]) and _within(w0[2], x1[2], w1[2]):
+    #     return x1
+    # elif _within(w0[0], x2[0], w1[0]) and _within(w0[1], x2[1], w1[1]) and _within(w0[2], x2[2], w1[2]):
+    #     return x2
+    # elif x1[0] == 0 and x1[1] == 0 and x1[2] == 0:
+    #     return [0, 0, 0]  # two vectors are parallel to each other
+    # else:
+    #     return [-1, -1, -1]  # Intersection out of the interval or
 
 
 # Helper function for the test_generate_Latlon_bounds_longitude_minmax

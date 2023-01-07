@@ -98,7 +98,7 @@ class TestGrid(TestCase):
 
     def test_generate_Latlon_bounds_latitude_max(self):
         """Generates a latlon_bounds Xarray from grid file."""
-        ug_filename_list = [ "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        ug_filename_list = ["outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
         for ug_file_name in ug_filename_list:
             ug_filename1 = current_path / "meshfiles" / ug_file_name
             tgrid1 = ux.open_dataset(str(ug_filename1))
@@ -164,9 +164,13 @@ class TestGrid(TestCase):
             tgrid1.buildlatlon_bounds()
             minmax_lon_rad_list = [[404.0, 404.0]] * len(tgrid1.ds["Mesh2_face_edges"])
             for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
+                if i == 14:
+                    pass
                 face = tgrid1.ds["Mesh2_face_edges"].values[i]
                 minmax_lon_rad_face = [404.0, 404.0]
                 for j in range(0, len(face)):
+                    if j >= len(face):
+                        pass
                     edge = face[j]
                     # Skip the dumb edge
                     if edge[0] == -1 or edge[1] == -1:
@@ -207,32 +211,22 @@ class TestGrid(TestCase):
                     if minmax_lon_rad_face[0] == minmax_lon_rad_face[1] == 404.0:
                         minmax_lon_rad_face = [min_lon_rad_edge, max_lon_rad_edge]
                         continue
-                    minmax_lon_rad_face = _latlonbound_utilities.expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge,
-                                                                       minmax_lon_rad_face)
+                    minmax_lon_rad_face = _latlonbound_utilities.expand_longitude_rad(min_lon_rad_edge,
+                                                                                      max_lon_rad_edge,
+                                                                                      minmax_lon_rad_face)
 
                 minmax_lon_rad_list[i] = minmax_lon_rad_face
 
             for i in range(0, len(tgrid1.ds["Mesh2_face_edges"])):
                 lon_min_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][0]
                 lon_min_quant = minmax_lon_rad_list[i][0]
+                if np.absolute(lon_min_algo - lon_min_quant) == 6.166014678906628:
+                    pass
                 self.assertLessEqual(np.absolute(lon_min_algo - lon_min_quant), 1.0e-12)
 
                 lon_max_algo = tgrid1.ds["Mesh2_latlon_bounds"].values[i][1][1]
                 lon_max_quant = minmax_lon_rad_list[i][1]
                 self.assertLessEqual(np.absolute(lon_max_algo - lon_max_quant), 1.0e-12)
-
-    def test_nc_zonal_average(self):
-        ug_filename_list = ["outCSne30.ug"]
-        for ug_file_name in ug_filename_list:
-            ug_filename1 = current_path / "meshfiles" / ug_file_name
-            tgrid1 = ux.open_dataset(str(ug_filename1))
-            tgrid1.get_nc_zonal_avg("temperatrue", 1)
-
-    def test_get_intersection_pt(self):
-        ug_filename_list = ["outCSne30.ug"]
-        for ug_file_name in ug_filename_list:
-            ug_filename1 = current_path / "meshfiles" / ug_file_name
-
 
     # TODO: Move to test_shpfile/scrip when implemented
     # use external package to read?
@@ -254,3 +248,12 @@ class TestGrid(TestCase):
         ux.open_dataset(str(scrip_8))  # tests from scrip
 
         ux.open_dataset(str(ug_30))  # tests from ugrid
+
+
+class TestZonalAverage(TestCase):
+    def test_nc_zonal_average(self):
+        ug_filename_list = ["outCSne30.ug"]
+        for ug_file_name in ug_filename_list:
+            ug_filename1 = current_path / "meshfiles" / ug_file_name
+            tgrid1 = ux.open_dataset(str(ug_filename1))
+            tgrid1.get_nc_zonal_avg("temperatrue", 1)

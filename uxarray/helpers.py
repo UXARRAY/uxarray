@@ -5,7 +5,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-from uxarray._zonal_avg_utilities import _newton_raphson_solver
+from uxarray._zonal_avg_utilities import _newton_raphson_solver_for_intersection_pts
 
 config.DISABLE_JIT = True
 
@@ -501,6 +501,9 @@ def normalize_in_place(node):
     """
     magnitude = np.sqrt(node[0] * node[0] + node[1] * node[1] +
                         node[2] * node[2])
+    if magnitude == 0:
+        return [0,0,0]
+
     return [node[0] / magnitude, node[1] / magnitude, node[2] / magnitude]
 
 
@@ -544,20 +547,16 @@ def _get_radius_of_latitude_rad(latitude):
     return radius
 
 
-def _get_approx_intersection_point_gcr_constlat(gcr, const_lat_rad):
+def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
     """Helper function to get the approximate cartesian coordinates intersections of a great circle arc and line of constant latitude
     Details explained in the paper chapt.2.2
     """
-    [n1, n2] = gcr
+    [n1, n2] = gcr_cart
+    gcr_rad = [convert_node_xyz_to_lonlat_rad(n1),convert_node_xyz_to_lonlat_rad(n2)]
+    res = [[-1,-1,-1], [-1,-1,-1]]
 
-    #  Determine if latitude is maximized between endpoints
-
-    dot_n1_n2 = np.dot(n1, n2)
-    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
-    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / d_de_nom
-    res = [[-1, -1, -1], [-1, -1, -1]]
-    # Verify that the great circle arc reaches the expected latitude on the interval a ∈ [0, 1].
-    if not _within(0, d_a_max, 1):
+    #  Determine if latitude is maximized between endpointscted latitude on the interval a ∈ [0, 1].
+    if not _within(gcr_rad[0][1], const_lat_rad, gcr_rad[1][1]):
         return res
     # If z1 = z2 = 0 then the great circle arc corresponds to the equator.
     if n1[2] == n2[2] == 0 and const_lat_rad != 0:
@@ -575,10 +574,12 @@ def _get_approx_intersection_point_gcr_constlat(gcr, const_lat_rad):
     n_y = -n1[0] * n2[2] + n2[0] * n1[2]
     a = n_x * n_x + n_y * n_y
     b = 2 * z_0 * np.dot(n1, n2) - 2 * z_0 * n2[2] * (1 / n1[2])
-    c = (z_0 ** 2) * (n1[2] ** (-2))
+    c = (z_0 ** 2) * (n1[2] ** (-2)) - 1
     if b * b - 4 * a * c < 0:
         return res
 
+    if a == b == c == 0:
+        return [[0,0,0], [-1,-1,-1]]
     [t1, t2] = np.roots([a, b, c])
     x1 = [z_0 * n1[0] * (1 / n1[2]) + t1 * n_y, z_0 * n1[1] * (1 / n1[2]) - t1 * n_x, z_0]
     x2 = [z_0 * n1[0] * (1 / n1[2]) + t2 * n_y, z_0 * n1[1] * (1 / n1[2]) - t2 * n_x, z_0]
@@ -586,29 +587,65 @@ def _get_approx_intersection_point_gcr_constlat(gcr, const_lat_rad):
     # Once the point of intersection x is found, one should test if either or both of these points lies on the
     # interval between x1 and x2
 
-    if _within(n1[0], x1[0], n2[0]) and _within(n1[1], x1[1], n2[1]) and _within(n1[2], x1[2], n2[2]):
+    if _within(n1[0], x1[0], n2[0]) or _within(n1[1], x1[1], n2[1]) or _within(n1[2], x1[2], n2[2]):
         res[0] = x1
-    if _within(n1[0], x2[0], n2[0]) and _within(n1[1], x2[1], n2[1]) and _within(n1[2], x2[2], n2[2]):
+    if _within(n1[0], x2[0], n2[0]) or _within(n1[1], x2[1], n2[1]) or _within(n1[2], x2[2], n2[2]):
         res[1] = x2
 
     return res
 
 
-def _get_intersection_pt(gcr, const_lat_rad):
-    [temp_x, temp_y, const_lat_z] = convert_node_lonlat_rad_to_xyz(const_lat_rad)
-    initial_guess = _get_approx_intersection_point_gcr_constlat(gcr, const_lat_z)
+def get_intersection_pt(gcr_cart, const_lat_rad):
+    const_lat_z = np.sin(const_lat_rad)
+    initial_guess = _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_z)
     intersection_pt = [[-1, -1, -1], [-1, -1, -1]]
 
     if initial_guess[0] != [-1, -1, -1]:
         newton_input = [initial_guess[0][0], initial_guess[0][1], const_lat_z]
-        res = _newton_raphson_solver(newton_input, gcr[0], gcr[1])
+        res = _newton_raphson_solver_for_intersection_pts(newton_input, gcr_cart[0], gcr_cart[1])
         intersection_pt[0] = [res[0], res[1], const_lat_z]
     elif initial_guess[1] != [-1, -1, -1]:
         newton_input = [initial_guess[1][0], initial_guess[1][1], const_lat_z]
-        res = _newton_raphson_solver(newton_input, gcr[0], gcr[1])
+        res = _newton_raphson_solver_for_intersection_pts(newton_input, gcr_cart[0], gcr_cart[1])
         intersection_pt[0] = [res[0], res[1], const_lat_z]
 
     return intersection_pt
+
+def _pt_within_gcr(pt_cart, gcr_cart):
+    # Helper function to determine if a point lies within the interval of the gcr
+
+    # First determine if the pt lies on the plane defined by the gcr
+    if np.absolute(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt_cart) - 0) > 1.0e-12:
+        return False
+
+    # If we have determined the point lies on the gcr plane, we only need to check if the pt's longitude lie within
+    # the gcr
+    pt_lonlat_rad = convert_node_xyz_to_lonlat_rad(pt_cart)
+    gcr_lonlat_rad = [convert_node_xyz_to_lonlat_rad(pt) for pt in gcr_cart]
+
+    # Special case: when the gcr and the point are all on the same longitude line:
+    if gcr_lonlat_rad[0][0] == gcr_lonlat_rad[1][0] == pt_lonlat_rad[0]:
+        # Now use the latitude to determine if the pt falls between the interval
+        return _within(gcr_lonlat_rad[0][1], pt_lonlat_rad[1], gcr_lonlat_rad[1][1])
+
+
+    # First we need to deal with the longitude wrap-around case
+    # x0--> 0 lon --> x1
+    if np.absolute(gcr_lonlat_rad[1][0] -  gcr_lonlat_rad[0][0]) >= np.deg2rad(180):
+        if _within(np.deg2rad(180), gcr_lonlat_rad[0][0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad[1][0], np.deg2rad(180)):
+            return _within(gcr_lonlat_rad[0][0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(0, pt_lonlat_rad[0],gcr_lonlat_rad[1][0])
+        elif _within(np.deg2rad(180), gcr_lonlat_rad[1][0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad[0][0], np.deg2rad(180)):
+            # x1 <-- 0 lon <-- x0
+            return _within(gcr_lonlat_rad[1][0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(
+            0, pt_lonlat_rad[0], gcr_lonlat_rad[0][0])
+    else:
+        return _within(gcr_lonlat_rad[0][0], pt_lonlat_rad[0], gcr_lonlat_rad[1][0])
+
+
+
+
+
+
 
 
 # def _get_exact_intersection_point_gcr_constlat(gcr_rad, const_lat_rad):
@@ -779,6 +816,7 @@ def _get_intersection_pt(gcr, const_lat_rad):
 
 
 def _sort_intersection_pts_with_lon(pts_lonlat_rad_list, longitude_bound_rad):
+    # This function will sort the intersection points while considering the longitude wrap-around problem.
     res = []
     if longitude_bound_rad[0] <= longitude_bound_rad[1]:
         # Normal case,

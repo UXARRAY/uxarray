@@ -13,7 +13,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, _within, _get_radius_of_latitude_rad, _get_intersection_pt, _sort_intersection_pts_with_lon, _get_cart_vector_magnitude
+    normalize_in_place, _within, _get_radius_of_latitude_rad, get_intersection_pt, _sort_intersection_pts_with_lon, _get_cart_vector_magnitude
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 
 
@@ -297,12 +297,14 @@ class Grid:
 
         for i in range(0, len(self.ds["Mesh2_face_edges"])):
             face = self.ds["Mesh2_face_edges"][i]
+            if i == 4694:
+                pass
             # Check if face contains pole points
             _lambda = 0
             v1 = [0, 0, 1]
-            v2 = [np.cos(_lambda), np.sin(_lambda), -1]
+            v2 = normalize_in_place([np.cos(_lambda), np.sin(_lambda), -1])
 
-            num_intersects = self.__count_face_edge_intersection(face, [v1, v2])
+            num_intersects = self.__count_face_edge_intersection(face, [v1, v2],i)
             if num_intersects == -1:
                 # if one edge of the grid cell is parallel to the arc (v1 , v2 ) then vary the choice of v2 .
                 sorted_edges_avg_lon = self.__avg_edges_longitude(face)
@@ -518,7 +520,7 @@ class Grid:
         # Count the number of total intersections of an edge and face (Algo. 2.4 Determining if a grid cell contains a
         # given point)
 
-    def __count_face_edge_intersection(self, face, ref_edge):
+    def __count_face_edge_intersection(self, face, ref_edge,i=-1):
         """Helper function to count the total number of intersections points
         between the reference edge and a face.
         Parameters
@@ -531,12 +533,24 @@ class Grid:
         """
         v1 = ref_edge[0]
         v2 = ref_edge[1]
+        intersection_set = set()
         num_intersection = 0
         for edge in face:
             # Skip the dump edges
             if edge[0] == -1 or edge[1] == -1:
                 continue
             # All the following calculation is based on the 3D XYZ coord
+
+            # [Test]
+            w1_rad = [
+                self.ds["Mesh2_node_x"].values[edge[0]],
+                self.ds["Mesh2_node_y"].values[edge[0]]
+            ]
+
+            w2_rad = [
+                self.ds["Mesh2_node_x"].values[edge[1]],
+                self.ds["Mesh2_node_y"].values[edge[1]]
+            ]
             w1 = []
             w2 = []
 
@@ -550,16 +564,38 @@ class Grid:
                 np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
             ])
 
-            res = get_intersection_point_gcr_gcr(w1, w2, v1, v2)
+
+            res = get_intersection_point_gcr_gcr(w1, w2, v1, v2,i)
 
             # two vectors are intersected within range and not parralel
             if (res != [0, 0, 0]) and (res != [-1, -1, -1]):
+                intersection_set.add(frozenset(np.round(res,decimals=12).tolist()))
                 num_intersection += 1
             elif res[0] == 0 and res[1] == 0 and res[2] == 0:
                 # if two vectors are parallel
                 return -1
 
-        return num_intersection
+        # If the intersection point number is 1, make sure the gcr is not going through a vertex of the face
+        # In this situation, the intersection number will be 0 because the gcr doesn't go across the face technically
+        if len(intersection_set) == 1:
+            intersection_pt = intersection_set.pop()
+            for edge in face:
+                if edge[0] == -1 or edge[1] == -1:
+                    continue
+                w1 = convert_node_lonlat_rad_to_xyz([
+                    np.deg2rad(self.ds["Mesh2_node_x"].values[edge[0]]),
+                    np.deg2rad(self.ds["Mesh2_node_y"].values[edge[0]])
+                ])
+                w2 = convert_node_lonlat_rad_to_xyz([
+                    np.deg2rad(self.ds["Mesh2_node_x"].values[edge[1]]),
+                    np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
+                ])
+
+                if list(intersection_pt) == w1 or list(intersection_pt) == w2:
+                    return 0
+
+
+        return len(intersection_set)
 
     # Get the non-conservative zonal average of the input variable
     def get_nc_zonal_avg(self, var_key, latitude_rad):
@@ -595,7 +631,7 @@ class Grid:
                 n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
                       self.ds["Mesh2_node_cart_y"].values[edge[1]],
                       self.ds["Mesh2_node_cart_z"].values[edge[1]]]
-                intersections = _get_intersection_pt([n1, n2], latitude_rad)
+                intersections = get_intersection_pt([n1, n2], latitude_rad)
                 if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
                     # The constant latitude didn't cross this edge
                     continue

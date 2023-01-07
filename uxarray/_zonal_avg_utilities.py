@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def __f1(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old, z_lat):
+def __parallel_to_plane_eqn(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old, z_lat):
     # X0 x X1 dot Xi=0
     return (y0 * z1 - z0 * y1) * x_i_old + (-x0 * z1 + z0 * x1) * y_i_old + (x0 * y1 - y0 * x1) * z_lat
 
 
-def __f2(x_i_old, y_i_old, z_lat):
+def __sphere_eqn(x_i_old, y_i_old, z_lat):
     # xi^2+yi^2+zi^2=1
     return x_i_old * x_i_old + y_i_old * y_i_old + z_lat * z_lat - 1
 
@@ -24,7 +24,7 @@ def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     return J
 
 
-def _newton_raphson_solver(init_cart, w0_cart, w1_cart, max_iter=1000):
+def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max_iter=1000):
     tolerance = 1.0e-17
     error = 9e9
     alpha = 1
@@ -37,18 +37,18 @@ def _newton_raphson_solver(init_cart, w0_cart, w1_cart, max_iter=1000):
     # numpy column matrix for the F
     F = np.copy(y_guess)
 
-    iter = 0;
+    _iter = 0
 
-    while error > tolerance and iter < max_iter:
-        F[0] = __f1(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2], y_guess[0], y_guess[1],
-                    y_guess[2])
-        F[1] = __f2(y_guess[0], y_guess[1], y_guess[2])
+    while error > tolerance and _iter < max_iter:
+        F[0] = __parallel_to_plane_eqn(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2],
+                                       y_guess[0], y_guess[1], y_guess[2])
+        F[1] = __sphere_eqn(y_guess[0], y_guess[1], y_guess[2])
 
         J_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2], y_guess[0],
                                y_guess[1])
         y_new = y_guess - alpha * np.matmul(J_inv, F)
         error = np.max(np.abs(y_guess - y_new))
         y_guess = y_new
-        iter += 1
+        _iter += 1
 
     return y_new
