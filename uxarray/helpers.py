@@ -451,7 +451,7 @@ def grid_center_lat_lon(ds):
     z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
 
     center_lon = np.rad2deg(np.arctan2(y, x))
-    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x ** 2 + y ** 2)))
 
     # Make negative lons positive
     center_lon[center_lon < 0] += 360
@@ -556,3 +556,70 @@ def _normalize_in_place(node):
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
     return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
+
+
+@njit
+def _pt_within_gcr(pt_cart, gcr_cart):
+    """Helper function to determine if a point lies within the interval of the great circle arc, the accuracy is within 1.0e-12
+
+    Parameters
+    ----------
+    pt_cart : float list
+        3D Cartesian Coordinates [x, y, z] for the input point
+    gcr_cart : float list
+        3D Cartesian Coordinates list [[x1, y1, z1], [x2, y2, z2]] of two end points of the great circle arc
+
+    Returns
+    -------
+    bool
+        True if the point lies within the interval of the gcr, False otherwise.
+
+    """
+    # First determine if the pt lies on the plane defined by the gcr
+    if np.absolute(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt_cart) - 0) > 1.0e-12:
+        return False
+
+    # If we have determined the point lies on the great circle arc plane,
+    # we only need to check if the point's longitude lie within
+    # the great circle arc (if they don't have the same longitude)
+    pt_lonlat_rad = _convert_node_xyz_to_lonlat_rad(pt_cart)
+    gcr_lonlat_rad = [_convert_node_xyz_to_lonlat_rad(pt) for pt in gcr_cart]
+
+    # Special case: when the gcr and the point are all on the same longitude line:
+    if gcr_lonlat_rad[0][0] == gcr_lonlat_rad[1][0] == pt_lonlat_rad[0]:
+        # Now use the latitude to determine if the pt falls between the interval
+        return _within(gcr_lonlat_rad[0][1], pt_lonlat_rad[1], gcr_lonlat_rad[1][1])
+
+    # First we need to deal with the longitude wrap-around case
+    if np.absolute(gcr_lonlat_rad[1][0] -  gcr_lonlat_rad[0][0]) >= np.deg2rad(180):
+        # x0--> 0 lon --> x1
+        if _within(np.deg2rad(180), gcr_lonlat_rad[0][0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad[1][0], np.deg2rad(180)):
+            return _within(gcr_lonlat_rad[0][0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(0, pt_lonlat_rad[0],gcr_lonlat_rad[1][0])
+        elif _within(np.deg2rad(180), gcr_lonlat_rad[1][0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad[0][0], np.deg2rad(180)):
+            # x1 <-- 0 lon <-- x0
+            return _within(gcr_lonlat_rad[1][0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(
+            0, pt_lonlat_rad[0], gcr_lonlat_rad[0][0])
+    else:
+        return _within(gcr_lonlat_rad[0][0], pt_lonlat_rad[0], gcr_lonlat_rad[1][0])
+
+@njit
+def _within(val_bound_1, value, val_bound_2):
+    """Helper function to determine if a value lies within the interval of the other two values
+    it returns whether val_bound_1 <= value <= val_bound_2 or val_bound_2 <= value <= val_bound_1
+
+    Parameters
+    ----------
+    val_bound_1 : float
+        The first boundary (inclusive)
+    value : float
+        the value that need to be determined
+    val_bound_2 : float
+        The second boundary (inclusive)
+
+    Returns
+    -------
+    bool
+        True if the value lies within the interval, False otherwise.
+
+    """
+    return val_bound_1 <= value <= val_bound_2 or val_bound_2 <= value <= val_bound_1

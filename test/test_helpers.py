@@ -119,3 +119,9 @@ class TestCoordinatesConversion(TestCase):
          new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
+
+# class TestPointGCRIntersection(TestCase):
+#
+#     def test_pt_within_gcr(self):
+#         #longnitude wrap-around cases:
+#         gcr_cart_1 = [ux.helpers._convert_node_lonlat_rad_to_xyz([np.deg2rad(356), lat]), ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])]
