@@ -120,8 +120,25 @@ class TestCoordinatesConversion(TestCase):
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
 
-# class TestPointGCRIntersection(TestCase):
-#
-#     def test_pt_within_gcr(self):
-#         #longnitude wrap-around cases:
-#         gcr_cart_1 = [ux.helpers._convert_node_lonlat_rad_to_xyz([np.deg2rad(356), lat]), ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])]
+class TestPointGCRIntersection(TestCase):
+
+    def test_within(self):
+        self.assertFalse(ux.helpers._within(2, 1, 3))
+        self.assertTrue(ux.helpers._within(3, 2, 1))
+        self.assertFalse(ux.helpers._within(-1, -2, 0))
+
+    def test_pt_within_gcr(self):
+        #longnitude wrap-around cases:
+        gcr_cart_1 = np.array([[0.45349634776944936, -0.04664484673562211, 0.8900366963405391], [0.45399049973954664, 0.0, 0.891006524188368]])
+        point_cart_1 = np.array([0.45399049973954664, 0.0, 0.891006524188368])
+        self.assertTrue(ux.helpers._pt_within_gcr(point_cart_1, gcr_cart_1[0], gcr_cart_1[1]))
+
+        gcr_cart_2 = np.array([[0.4067366430758, 1.5037540761339097e-16, 0.913545457642601],  [0.40627128279680874, -0.047822111244019236, 0.9125002413428723]])
+        point_cart_2 =  np.array([0.40673664307580004, 0.0, 0.913545457642601])
+        self.assertTrue(ux.helpers._pt_within_gcr(point_cart_2, gcr_cart_2[0], gcr_cart_2[1]))
+
+        # The point has the exact same longitude as the gcr both end points
+        gcr_cart_3 = np.array([ux.helpers._convert_node_lonlat_rad_to_xyz([270, 60]),  ux.helpers._convert_node_lonlat_rad_to_xyz([270, -30])])
+        point_cart_3 = np.array(ux.helpers._convert_node_lonlat_rad_to_xyz([270, 30]))
+        self.assertTrue(ux.helpers._pt_within_gcr(point_cart_3, gcr_cart_3[0], gcr_cart_3[1]))
+

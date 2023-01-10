@@ -559,15 +559,19 @@ def _normalize_in_place(node):
 
 
 @njit
-def _pt_within_gcr(pt_cart, gcr_cart):
-    """Helper function to determine if a point lies within the interval of the great circle arc, the accuracy is within 1.0e-12
+def _pt_within_gcr(pt_cart, gcr_end_pt_cart_1, gcr_end_pt_cart_2):
+    """Helper function to determine if a point lies within the interval of the great circle arc, the accuracy is
+    within 1.0e-12 The great circle arc will be represented as two ndarrays: gcr_end_pt_cart_1 and gcr_end_pt_cart_2
+    since numba lacks support for the nested array
 
     Parameters
     ----------
-    pt_cart : float list
+    pt_cart : float ndArray
         3D Cartesian Coordinates [x, y, z] for the input point
-    gcr_cart : float list
-        3D Cartesian Coordinates list [[x1, y1, z1], [x2, y2, z2]] of two end points of the great circle arc
+    gcr_end_pt_cart_1 : float ndArray
+        3D Cartesian Coordinates list [x1, y1, z1], one of the end points of the great circle arc
+    gcr_end_pt_cart_2 : float ndArray
+    3D Cartesian Coordinates list [x2, y2, z2], another end points of the great circle arc
 
     Returns
     -------
@@ -575,32 +579,37 @@ def _pt_within_gcr(pt_cart, gcr_cart):
         True if the point lies within the interval of the gcr, False otherwise.
 
     """
-    # First determine if the pt lies on the plane defined by the gcr
-    if np.absolute(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt_cart) - 0) > 1.0e-12:
+    cross = np.cross(gcr_end_pt_cart_1, gcr_end_pt_cart_2)
+    dot = cross[0] * pt_cart[0] + cross[1] * pt_cart[1] + cross[2] * pt_cart[2]
+    if np.absolute(dot - 0) > 1.0e-12:
         return False
 
-    # If we have determined the point lies on the great circle arc plane,
-    # we only need to check if the point's longitude lie within
-    # the great circle arc (if they don't have the same longitude)
-    pt_lonlat_rad = _convert_node_xyz_to_lonlat_rad(pt_cart)
-    gcr_lonlat_rad = [_convert_node_xyz_to_lonlat_rad(pt) for pt in gcr_cart]
+    # If we have determined the point lies on the gcr plane, we only need to check if the pt's longitude lie within
+    # the gcr
+    pt_lonlat_rad = _convert_node_xyz_to_lonlat_rad(list(pt_cart))
+    gcr_lonlat_rad_1 = _convert_node_xyz_to_lonlat_rad(list(gcr_end_pt_cart_1))
+    gcr_lonlat_rad_2 = _convert_node_xyz_to_lonlat_rad(list(gcr_end_pt_cart_2))
 
     # Special case: when the gcr and the point are all on the same longitude line:
-    if gcr_lonlat_rad[0][0] == gcr_lonlat_rad[1][0] == pt_lonlat_rad[0]:
+    if gcr_lonlat_rad_1[0] == gcr_lonlat_rad_2[0] == pt_lonlat_rad[0]:
         # Now use the latitude to determine if the pt falls between the interval
-        return _within(gcr_lonlat_rad[0][1], pt_lonlat_rad[1], gcr_lonlat_rad[1][1])
+        return _within(gcr_lonlat_rad_1[1], pt_lonlat_rad[1], gcr_lonlat_rad_2[1])
 
     # First we need to deal with the longitude wrap-around case
-    if np.absolute(gcr_lonlat_rad[1][0] -  gcr_lonlat_rad[0][0]) >= np.deg2rad(180):
-        # x0--> 0 lon --> x1
-        if _within(np.deg2rad(180), gcr_lonlat_rad[0][0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad[1][0], np.deg2rad(180)):
-            return _within(gcr_lonlat_rad[0][0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(0, pt_lonlat_rad[0],gcr_lonlat_rad[1][0])
-        elif _within(np.deg2rad(180), gcr_lonlat_rad[1][0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad[0][0], np.deg2rad(180)):
+    # x0--> 0 lon --> x1
+    if np.absolute(gcr_lonlat_rad_2[0] - gcr_lonlat_rad_1[0]) >= np.deg2rad(180):
+        if _within(np.deg2rad(180), gcr_lonlat_rad_1[0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad_2[0],
+                                                                                      np.deg2rad(180)):
+            return _within(gcr_lonlat_rad_1[0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(0, pt_lonlat_rad[0],
+                                                                                              gcr_lonlat_rad_2[0])
+        elif _within(np.deg2rad(180), gcr_lonlat_rad_2[0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad_1[0],
+                                                                                        np.deg2rad(180)):
             # x1 <-- 0 lon <-- x0
-            return _within(gcr_lonlat_rad[1][0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(
-            0, pt_lonlat_rad[0], gcr_lonlat_rad[0][0])
+            return _within(gcr_lonlat_rad_2[0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(
+                0, pt_lonlat_rad[0], gcr_lonlat_rad_1[0])
     else:
-        return _within(gcr_lonlat_rad[0][0], pt_lonlat_rad[0], gcr_lonlat_rad[1][0])
+        return _within(gcr_lonlat_rad_1[0], pt_lonlat_rad[0], gcr_lonlat_rad_2[0])
+
 
 @njit
 def _within(val_bound_1, value, val_bound_2):
