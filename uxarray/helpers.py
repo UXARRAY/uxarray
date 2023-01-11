@@ -632,3 +632,34 @@ def _within(val_bound_1, value, val_bound_2):
 
     """
     return val_bound_1 <= value <= val_bound_2 or val_bound_2 <= value <= val_bound_1
+
+@njit
+def angle_of_2_vectors(u, v):
+    """helper function to calculate the angle of two 3D vectors u,v (in 3D Cartesian Coordinates) and then return
+    the angle in radiance using 𝜃=2 𝑎𝑡𝑎𝑛2(|| ||𝑣||𝑢−||𝑢||𝑣 ||, || ||𝑣||𝑢+||𝑢||𝑣 ||).
+    Reference: W. Kahan's advice in his paper "How Futile are Mindless Assessments
+    of Roundoff in Floating-Point Computation?" (https://www.cs.berkeley.edu/~wkahan/Mindless.pdf),
+    section 12 "Mangled Angles."
+
+    Parameters
+    ----------
+    u : float list
+        Vector in 3D Cartesian Coordinates [x, y, z]
+    u : float list
+        Vector in 3D Cartesian Coordinates [x, y, z]
+
+    Returns
+    -------
+    float
+        The angle between two vectors in radian
+
+    """
+    u = np.array(u)
+    v = np.array(v)
+    v_norm_times_u = np.linalg.norm(v) * u
+    u_norm_times_v = np.linalg.norm(u) * v
+    vec_minus = v_norm_times_u - u_norm_times_v
+    vec_sum = v_norm_times_u + u_norm_times_v
+    angle_u_v_rad = 2 * math.atan2(np.linalg.norm(vec_minus),
+                                   np.linalg.norm(vec_sum))
+    return angle_u_v_rad

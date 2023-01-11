@@ -120,6 +120,7 @@ class TestCoordinatesConversion(TestCase):
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
 
+
 class TestPointGCRIntersection(TestCase):
 
     def test_within(self):
@@ -128,17 +129,32 @@ class TestPointGCRIntersection(TestCase):
         self.assertFalse(ux.helpers._within(-1, -2, 0))
 
     def test_pt_within_gcr(self):
-        #longnitude wrap-around cases:
-        gcr_cart_1 = np.array([[0.45349634776944936, -0.04664484673562211, 0.8900366963405391], [0.45399049973954664, 0.0, 0.891006524188368]])
+        # longnitude wrap-around cases:
+        gcr_cart_1 = np.array([[0.45349634776944936, -0.04664484673562211, 0.8900366963405391],
+                               [0.45399049973954664, 0.0, 0.891006524188368]])
         point_cart_1 = np.array([0.45399049973954664, 0.0, 0.891006524188368])
         self.assertTrue(ux.helpers._pt_within_gcr(point_cart_1, gcr_cart_1[0], gcr_cart_1[1]))
 
-        gcr_cart_2 = np.array([[0.4067366430758, 1.5037540761339097e-16, 0.913545457642601],  [0.40627128279680874, -0.047822111244019236, 0.9125002413428723]])
-        point_cart_2 =  np.array([0.40673664307580004, 0.0, 0.913545457642601])
+        gcr_cart_2 = np.array([[0.4067366430758, 1.5037540761339097e-16, 0.913545457642601],
+                               [0.40627128279680874, -0.047822111244019236, 0.9125002413428723]])
+        point_cart_2 = np.array([0.40673664307580004, 0.0, 0.913545457642601])
         self.assertTrue(ux.helpers._pt_within_gcr(point_cart_2, gcr_cart_2[0], gcr_cart_2[1]))
 
         # The point has the exact same longitude as the gcr both end points
-        gcr_cart_3 = np.array([ux.helpers._convert_node_lonlat_rad_to_xyz([270, 60]),  ux.helpers._convert_node_lonlat_rad_to_xyz([270, -30])])
+        gcr_cart_3 = np.array([ux.helpers._convert_node_lonlat_rad_to_xyz([270, 60]),
+                               ux.helpers._convert_node_lonlat_rad_to_xyz([270, -30])])
         point_cart_3 = np.array(ux.helpers._convert_node_lonlat_rad_to_xyz([270, 30]))
         self.assertTrue(ux.helpers._pt_within_gcr(point_cart_3, gcr_cart_3[0], gcr_cart_3[1]))
 
+class TestVectorCalculation(TestCase):
+
+    def test_angle_of_2_vectors(self):
+        vec1 = [1.0, 0.0, 0.0]
+        vec2 = [0.0, 0.0, 1.0]
+        self.assertAlmostEqual(ux.helpers.angle_of_2_vectors(vec1, vec2), np.deg2rad(90), 1.0e-12)
+
+        # Now we test its performance on a tiny angle
+        vec1 = ux.helpers._normalize_in_place([1.0, 0.0, 0.0])
+        vec2 = ux.helpers._normalize_in_place([1.0, 0.0, 1.0e-11])
+        ans = ux.helpers.angle_of_2_vectors(vec1, vec2)
+        self.assertAlmostEqual(ux.helpers.angle_of_2_vectors(vec1, vec2), 1e-11, 1.0e-12)
