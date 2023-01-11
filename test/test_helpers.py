@@ -124,9 +124,9 @@ class TestCoordinatesConversion(TestCase):
 class TestPointGCRIntersection(TestCase):
 
     def test_within(self):
-        self.assertFalse(ux.helpers._within(2, 1, 3))
-        self.assertTrue(ux.helpers._within(3, 2, 1))
-        self.assertFalse(ux.helpers._within(-1, -2, 0))
+        self.assertFalse(ux.helpers.within(2, 1, 3))
+        self.assertTrue(ux.helpers.within(3, 2, 1))
+        self.assertFalse(ux.helpers.within(-1, -2, 0))
 
     def test_pt_within_gcr(self):
         # longnitude wrap-around cases:

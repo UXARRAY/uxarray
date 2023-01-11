@@ -593,26 +593,26 @@ def _pt_within_gcr(pt_cart, gcr_end_pt_cart_1, gcr_end_pt_cart_2):
     # Special case: when the gcr and the point are all on the same longitude line:
     if gcr_lonlat_rad_1[0] == gcr_lonlat_rad_2[0] == pt_lonlat_rad[0]:
         # Now use the latitude to determine if the pt falls between the interval
-        return _within(gcr_lonlat_rad_1[1], pt_lonlat_rad[1], gcr_lonlat_rad_2[1])
+        return within(gcr_lonlat_rad_1[1], pt_lonlat_rad[1], gcr_lonlat_rad_2[1])
 
     # First we need to deal with the longitude wrap-around case
     # x0--> 0 lon --> x1
     if np.absolute(gcr_lonlat_rad_2[0] - gcr_lonlat_rad_1[0]) >= np.deg2rad(180):
-        if _within(np.deg2rad(180), gcr_lonlat_rad_1[0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad_2[0],
+        if within(np.deg2rad(180), gcr_lonlat_rad_1[0], np.deg2rad(360)) and within(0, gcr_lonlat_rad_2[0],
+                                                                                    np.deg2rad(180)):
+            return within(gcr_lonlat_rad_1[0], pt_lonlat_rad[0], np.deg2rad(360)) or within(0, pt_lonlat_rad[0],
+                                                                                            gcr_lonlat_rad_2[0])
+        elif within(np.deg2rad(180), gcr_lonlat_rad_2[0], np.deg2rad(360)) and within(0, gcr_lonlat_rad_1[0],
                                                                                       np.deg2rad(180)):
-            return _within(gcr_lonlat_rad_1[0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(0, pt_lonlat_rad[0],
-                                                                                              gcr_lonlat_rad_2[0])
-        elif _within(np.deg2rad(180), gcr_lonlat_rad_2[0], np.deg2rad(360)) and _within(0, gcr_lonlat_rad_1[0],
-                                                                                        np.deg2rad(180)):
             # x1 <-- 0 lon <-- x0
-            return _within(gcr_lonlat_rad_2[0], pt_lonlat_rad[0], np.deg2rad(360)) or _within(
-                0, pt_lonlat_rad[0], gcr_lonlat_rad_1[0])
+            return within(gcr_lonlat_rad_2[0], pt_lonlat_rad[0], np.deg2rad(360)) or within(0, pt_lonlat_rad[0],
+                                                                                            gcr_lonlat_rad_1[0])
     else:
-        return _within(gcr_lonlat_rad_1[0], pt_lonlat_rad[0], gcr_lonlat_rad_2[0])
+        return within(gcr_lonlat_rad_1[0], pt_lonlat_rad[0], gcr_lonlat_rad_2[0])
 
 
 @njit
-def _within(val_bound_1, value, val_bound_2):
+def within(val_bound_1, value, val_bound_2):
     """Helper function to determine if a value lies within the interval of the other two values
     it returns whether val_bound_1 <= value <= val_bound_2 or val_bound_2 <= value <= val_bound_1
 
@@ -663,3 +663,4 @@ def angle_of_2_vectors(u, v):
     angle_u_v_rad = 2 * math.atan2(np.linalg.norm(vec_minus),
                                    np.linalg.norm(vec_sum))
     return angle_u_v_rad
+
