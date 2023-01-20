@@ -90,7 +90,7 @@ def max_latitude_rad(v1, v2):
             elif np.absolute(max_lat - w2_lonlat[1]) <= err_tolerance:
                 if i != 9:
                     angle_rad_next += avg_angle_rad
-                    w1_new = np.cos(angle_rad_prev) * v_b+ np.sin(angle_rad_prev) * v0
+                    w1_new = np.cos(angle_rad_prev) * v_b + np.sin(angle_rad_prev) * v0
                     w2_new = np.cos(angle_rad_next) * v_b + np.sin(angle_rad_next) * v0
                     max_section = [w1_new, w2_new]
                 else:
@@ -233,6 +233,7 @@ def minmax_Longitude_rad(v1, v2):
         end_lon = temp_lon
     return [np.deg2rad(start_lon), np.deg2rad(end_lon)]
 
+
 # Helper function for the test_generate_Latlon_bounds_longitude_minmax
 def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face):
     """Helper function top expand the longitude boundary of a face
@@ -297,7 +298,7 @@ def expand_longitude_rad(min_lon_rad_edge, max_lon_rad_edge, minmax_lon_rad_face
                     minmax_lon_rad_face = [max_lon_rad_edge, minmax_lon_rad_face[1]]
 
             else:
-                if within(minmax_lon_rad_face[1], min_lon_rad_edge, minmax_lon_rad_face[0]):
+                if __within(minmax_lon_rad_face[1], min_lon_rad_edge, minmax_lon_rad_face[0]):
                     minmax_lon_rad_face[0] = min_lon_rad_edge
                 else:
                     minmax_lon_rad_face[0] = minmax_lon_rad_face[0]
@@ -334,10 +335,10 @@ def __on_left(ref_edge, insert_edge, safe_call=False):
         raise Exception('Calling this function here is not safe')
     left_flag = False
     if insert_edge[1] >= ref_edge[1] and insert_edge[1] >= ref_edge[0]:
-        if _within(ref_edge[1], insert_edge[0], ref_edge[0]):
+        if __within(ref_edge[1], insert_edge[0], ref_edge[0]):
             left_flag = True
     elif insert_edge[1] <= ref_edge[1] and insert_edge[1] <= ref_edge[0]:
-        if _within(ref_edge[1], insert_edge[0], ref_edge[0]):
+        if __within(ref_edge[1], insert_edge[0], ref_edge[0]):
             left_flag = True
     return left_flag
 
@@ -363,10 +364,23 @@ def __on_right(ref_edge, insert_edge, safe_call=False):
         raise Exception('Calling this function here is not safe')
     right_flag = False
     if insert_edge[0] >= ref_edge[0] and insert_edge[0] >= ref_edge[1]:
-        if _within(ref_edge[1], insert_edge[1], ref_edge[0]):
+        if __within(ref_edge[1], insert_edge[1], ref_edge[0]):
             right_flag = True
     elif insert_edge[0] <= ref_edge[0] and insert_edge[0] <= ref_edge[1]:
-        if _within(ref_edge[1], insert_edge[1], ref_edge[0]):
+        if __within(ref_edge[1], insert_edge[1], ref_edge[0]):
             right_flag = True
 
     return right_flag
+
+
+# TODO: Remove this repeated function when the `latlon_box utilities` PR is merged
+# helper function for get_intersection_point to determine whether one point is between the other two points
+def __within(p, q, r):
+    """Helper function for get_intersection_point to determine whether the
+    number q is between p and r.
+    Parameters
+    ----------
+    p, q, r: float
+    Returns: boolean
+    """
+    return p <= q <= r or r <= q <= p
