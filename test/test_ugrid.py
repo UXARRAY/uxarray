@@ -39,7 +39,7 @@ class TestUgrid(TestCase):
     def test_read_ugrid_opendap(self):
         """Read an ugrid model from an OPeNDAP URL."""
 
-        url = "http://www.smast.umassd.edu:8080/thredds/dodsC/FVCOM/NECOFS/Forecasts/NECOFS_GOM3_FORECAST.nc"
+        url = "http://test.opendap.org:8080/opendap/ugrid/NECOFS_GOM3_FORECAST.nc"
         xr_grid = xr.open_dataset(url, drop_variables="siglay")
         ugrid = ux.Grid(xr_grid)
         assert isinstance(getattr(ugrid, "Mesh2_node_x"), xr.DataArray)
