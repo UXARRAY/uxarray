@@ -8,7 +8,7 @@ jobs:
   upstream-dev:
     if: |
       github.repository == 'UXARRAY/uxarray'
-    name:  upstream-dev-py38
+    name:  upstream-dev-py310
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,20 +25,23 @@ jobs:
         with:
           token: ${{ github.token }}
 
+      - name: conda_setup
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: uxarray_upstream_build
+          channel-priority: strict
+          miniconda-version: "latest"
+          python-version: 3.10
+          channels: conda-forge
+
       - name: Install select upstream dependencies
         run: |
           pip install https://github.com/pydata/xarray/archive/main.zip
           pip install https://github.com/dask/dask/archive/main.zip
 
-      - name: conda_setup
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          activate-environment: uxarray_build
-          channel-priority: strict
-          mamba-version: '*'
-          python-version: 3.10
-          channels: conda-forge
-          environment-file: ci/upstream-dev-environment.yml
+      - name: Install conda dependencies
+        run: |
+          conda install -c conda-forge -f ci/upstream-dev-environment.yml
 
       - name: Install uxarray
         run: |
