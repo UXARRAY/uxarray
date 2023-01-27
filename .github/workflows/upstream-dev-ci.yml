@@ -38,6 +38,7 @@ jobs:
         run: |
           pip install https://github.com/pydata/xarray/archive/main.zip
           pip install https://github.com/dask/dask/archive/main.zip
+          conda list
 
       - name: Install conda dependencies
         run: |
