@@ -30,7 +30,7 @@ jobs:
         with:
           activate-environment: uxarray_upstream_build
           channel-priority: strict
-          miniconda-version: "latest"
+          mamba-version: "*"
           python-version: "3.10"
           channels: conda-forge
 
@@ -41,7 +41,7 @@ jobs:
 
       - name: Install conda dependencies
         run: |
-          conda env update --file ci/upstream-dev-environment.yml
+          mamba env update --file ci/upstream-dev-environment.yml
 
       - name: Install uxarray
         run: |
