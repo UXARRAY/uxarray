@@ -4,7 +4,7 @@ channels:
 dependencies:
   - netcdf4
   - numba
-  - numpy
+  - numpy>=1.2, <1.25
   - pathlib
   - python
   - pytest
