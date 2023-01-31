@@ -1,7 +1,7 @@
 """UXarray dataset module."""
 
-# from .grid import *
-from .helpers import parse_grid_type
+from uxarray.grid import Grid
+from uxarray.helpers import parse_grid_type
 
 from typing import Any, Dict, Optional
 
@@ -9,8 +9,8 @@ import numpy as np
 import xarray as xr
 
 
-def open_dataset(grid_filename_or_obj: str,
-                 filename_or_obj: str,
+def open_dataset(filename_or_obj: str,
+                 grid_filename_or_obj: str,
                  gridspec: Optional[str] = None,
                  vertices: Optional[list] = None,
                  islatlon: Optional[bool] = False,
@@ -23,16 +23,15 @@ def open_dataset(grid_filename_or_obj: str,
     Parameters
     ----------
 
-    grid_filename_or_obj : string, required
-        Grid file is the first argument, which should be the file that
-        houses the unstructured grid definition. It should be compatible to
-        be opened with xarray.open_dataset (e.g. path to a file in the local
-        storage, OpenDAP URL, etc).
-
     filename_or_obj : string, required
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set. It is the same ``filename_or_obj`` in
         ``xarray.open_dataset``.
+
+    grid_filename_or_obj : string, required
+        String or Path object as a path to a netCDF file or an OpenDAP URL that
+        stores the unstructured grid definition that the dataset belongs to. It
+        is read similar to ``filename_or_obj`` in ``xarray.open_dataset``.
 
     islatlon : bool, optional
             Specify if the grid is lat/lon based
@@ -90,23 +89,19 @@ def open_dataset(grid_filename_or_obj: str,
     grid_ds = xr.open_dataset(grid_filename_or_obj, decode_times=False, **kwargs)  # type: ignore
     ds = xr.open_dataset(filename_or_obj, decode_times=False, **kwargs)  # type: ignore
 
-    mesh_filetype, dataset = parse_grid_type(grid_filename_or_obj, **kwargs)
+    ## Grid definition
+    uxgrid = Grid(grid_ds)
 
-    # Determine the source data sets regarding args
-    source_datasets = np.array(args) if len(args) > 0 else None
+    # todo: Figure how to handle optional arguments
+    # # Construct the Grid object
+    # ux_grid = Grid(dataset=dataset,
+    #                mesh_filetype=mesh_filetype,
+    #                source_grid=grid_filename_or_obj,
+    #                source_datasets=source_datasets)
 
-    # Construct the GridAccessor object
-    ux_grid = GridAccessor(dataset=dataset,
-                   mesh_filetype=mesh_filetype,
-                   source_grid=grid_filename_or_obj,
-                   source_datasets=source_datasets)
+    ## UxDataset
+    from uxarray.core.dataset import UxDataset
 
-    # If there are additional data file(s) corresponding to this grid, merge them
-    # into the dataset
-    if len(args) > 0:
-        # load all the datafiles using mfdataset
-        all_data = xr.open_mfdataset(args)
-        # merge data with grid ds
-        ux_grid.ds = xr.merge([ux_grid.ds, all_data])
+    uxds = UxDataset(uxgrid, ds)
 
-    return ux_grid
+    return uxds

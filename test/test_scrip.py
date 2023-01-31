@@ -51,7 +51,7 @@ class TestScrip(TestCase):
 
         # Use xarray open_dataset, create a uxarray grid object to then create SCRIP file from new UGRID file
         xr_obj = xr.open_dataset(str(new_path))
-        ugrid_out = ux.GridAccessor(xr_obj)
+        ugrid_out = ux.Grid(xr_obj)
 
         scrip_encode_ds = _encode_scrip(ugrid_out.Mesh2_face_nodes,
                                         ugrid_out.Mesh2_node_x,
@@ -87,7 +87,7 @@ class TestScrip(TestCase):
         """Tests that returned dataset from writer function has all required
         SCRIP variables."""
         xr_ne30 = xr.open_dataset(ne30)
-        ux_ne30 = ux.GridAccessor(xr_ne30)
+        ux_ne30 = ux.Grid(xr_ne30)
         scrip30 = _encode_scrip(ux_ne30.Mesh2_face_nodes, ux_ne30.Mesh2_node_x,
                                 ux_ne30.Mesh2_node_y, ux_ne30.face_areas)
 

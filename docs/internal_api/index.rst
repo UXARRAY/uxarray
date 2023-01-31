@@ -8,17 +8,17 @@ check the draft `Uxarray API
 <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
 documentation to see the tentative whole API and let us know if you have any feedback!
 
-GridAccessor Methods
+Grid Methods
 --------------------
 
 .. autosummary::
    :nosignatures:
    :toctree: ./generated/
 
-   grid.GridAccessor.__init_ds_var_names__
-   grid.GridAccessor.__from_ds__
-   grid.GridAccessor.__from_vert__
-   grid.GridAccessor.__init_grid_var_attrs__
+   grid.Grid.__init_grid_var_names__
+   grid.Grid.__from_ds__
+   grid.Grid.__from_vert__
+   grid.Grid.__init_grid_var_attrs__
 
 Grid Helper Modules
 --------------------

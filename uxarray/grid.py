@@ -13,16 +13,26 @@ from .helpers import get_all_face_area_from_coords, parse_grid_type
 int_dtype = np.uint32
 
 
-@xr.register_dataset_accessor("ugrid")
-class GridAccessor:
+# @xr.register_dataset_accessor("uxgrid")
+# class GridAccessor:
+#     def __new__(cls, xarray_obj):
+#         # return Grid(xarray_obj)
+#         if not hasattr(cls, 'instance'):
+#             cls.instance = Grid(xarray_obj)
+#             # cls.instance._init(xarray_obj)
+#         # elif not cls.instance.equals(Grid(xarray_obj)):
+#         #         cls.instance = Grid(xarray_obj)
+#         return cls.instance
+
+class Grid:
     """
     Examples
     ----------
 
-    Open an exodus file with Uxarray GridAccessor object
+    Open an exodus file with Uxarray Grid object
 
     >>> xarray_obj = xr.open_dataset("filename.g")
-    >>> mesh = ux.GridAccessor(xarray_obj)
+    >>> mesh = ux.Grid(xarray_obj)
 
     Encode as a `xarray.Dataset` in the UGRID format
 
@@ -46,7 +56,7 @@ class GridAccessor:
         self._obj = xarray_obj
 
         # initialize internal variable names
-        self.__init_ds_var_names__()
+        self.__init_grid_var_names__()
 
         # initialize face_area variable
         self._face_areas = None
@@ -69,14 +79,14 @@ class GridAccessor:
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
 
-    def __init_ds_var_names__(self):
+    def __init_grid_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
         of xarray object.
 
         Note ugrid conventions are flexible with names of variables, see:
         http://ugrid-conventions.github.io/ugrid-conventions/
         """
-        self.ds_var_names = {
+        self.grid_var_names = {
             "Mesh2": "Mesh2",
             "Mesh2_node_x": "Mesh2_node_x",
             "Mesh2_node_y": "Mesh2_node_y",
@@ -95,10 +105,10 @@ class GridAccessor:
         Examples
         ----------
         Assuming the mesh node coordinates for longitude are stored with an input
-        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
+        name of 'mesh_node_x', we store this variable name in the `grid_var_names`
         dictionary with the key 'Mesh2_node_x'. In order to access it, we do:
 
-        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
+        >>> x = grid.ds[grid.grid_var_names["Mesh2_node_x"]]
 
         With the help of this function, we can directly access it through the
         use of a standardized name based on the UGRID conventions
@@ -107,7 +117,7 @@ class GridAccessor:
         """
 
         # Iterate over dict to set access attributes
-        for key, value in self.ds_var_names.items():
+        for key, value in self.grid_var_names.items():
             # Set Attributes for Data Variables
             if self.ds.data_vars is not None:
                 if value in self.ds.data_vars:
@@ -183,11 +193,11 @@ class GridAccessor:
         """Loads a mesh dataset."""
         # call reader as per mesh_type
         if self.mesh_type == "exo":
-            self.ds = _read_exodus(dataset, self.ds_var_names)
+            self.ds = _read_exodus(dataset, self.grid_var_names)
         elif self.mesh_type == "scrip":
             self.ds = _read_scrip(dataset)
         elif self.mesh_type == "ugrid":
-            self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
+            self.ds, self.grid_var_names = _read_ugrid(dataset, self.grid_var_names)
         elif self.mesh_type == "shp":
             self.ds = _read_shpfile(dataset)
         else:
@@ -220,7 +230,7 @@ class GridAccessor:
             out_ds = _encode_ugrid(self.ds)
 
         elif grid_type == "exodus":
-            out_ds = _encode_exodus(self.ds, self.ds_var_names)
+            out_ds = _encode_exodus(self.ds, self.grid_var_names)
 
         elif grid_type == "scrip":
             out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
@@ -303,6 +313,29 @@ class GridAccessor:
 
         return self._face_areas
 
+    def equals(self, other):
+        """ Two grids are equal if they have matching grid topology variables,
+        coordinates, and dims all of which are equal.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are equal : bool
+        """
+
+        # Iterate over dict to set access attributes
+        for key, value in self.grid_var_names.items():
+            # Check if all grid variables are equal
+            if self.ds.data_vars is not None:
+                if not self.ds[value].equals(other.ds[other.grid_var_names[key]]):
+                    return False
+
+        return True
+
     # use the property keyword for declaration on face_areas property
     @property
     def face_areas(self):
@@ -333,7 +366,7 @@ class GridAccessor:
         Open grid file only
 
         >>> xr_grid = xr.open_dataset("grid.ug")
-        >>> grid = ux.GridAccessor.(xr_grid)
+        >>> grid = ux.Grid.(xr_grid)
         >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
 
         # Compute the integral

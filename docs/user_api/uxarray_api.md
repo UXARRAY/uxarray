@@ -2,42 +2,42 @@ Core (tier 1) functionality is indicated using regular text/list
 item style. \
 Secondary (tier 2) functionality is indicated using (*) in front.
 
-# class uxarray.GridAccessor
+# class uxarray.Grid
 
 Describes an unstructured grid via [Dataset 
 Accessor](https://docs.xarray.dev/en/stable/internals/extending-xarray.html) 
 to a ``xarray.Dataset`` object.
 
-## uxarray.GridAccessor Attributes
+## uxarray.Grid Attributes
 
-- uxarray.GridAccessor.ds: DataSet\
-  DataSet containing uxarray.GridAccessor properties
+- uxarray.Grid.ds: DataSet\
+  DataSet containing uxarray.Grid properties
   `dims={nMesh2_node (total number of nodes),
   nMesh2_face (number of faces),
   MaxNumNodesPerFace (maximum number of nodes per face)}` \
   `optional_dims={nMesh2_edge (number of edges, optional),
   MaxNumFacesPerNode (max number of faces per node),Two, Three, Four}`
 
-- (*) uxarray.GridAccessor.islatlon: boolean \
+- (*) uxarray.Grid.islatlon: boolean \
   A flag indicating the grid is a latitude longitude grid.
 
-- (*) uxarray.GridAccessor.isconcave: boolean \
+- (*) uxarray.Grid.isconcave: boolean \
   A flag indicating the grid contains concave faces.  If
   this flag is set then alternative algorithms may be needed
   for some of the operations below.
 
-- (*) uxarray.GridAccessor.edgedual: uxarray.GridAccessor \
+- (*) uxarray.Grid.edgedual: uxarray.Grid \
   The edge dual grid.
 
-- uxarray.GridAccessor.source_grid: string \
-  The source file for this uxarray.GridAccessor's definition (For
+- uxarray.Grid.source_grid: string \
+  The source file for this uxarray.Grid's definition (For
   diagnostics and reporting purposes).
 
-- uxarray.GridAccessor.source_datasets: string \
-  The source file(s) for this uxarray.GridAccessor's corresponding
+- uxarray.Grid.source_datasets: string \
+  The source file(s) for this uxarray.Grid's corresponding
   data (For diagnostics and reporting purposes).
 
-- (*) uxarray.GridAccessor.vertexdual: uxarray.GridAccessor \
+- (*) uxarray.Grid.vertexdual: uxarray.Grid \
   The vertex dual grid.
 
 According to the UGRID specification, the UGRID file should
@@ -51,110 +51,110 @@ for the dummy variable, but this could be different. The
 other names below are the ones used in the UGRID standards
 document, but they could be different.
 
-- uxarray.GridAccessor.Mesh2_node_x: np.float64 DataArray of size (nMesh2_node) \
+- uxarray.Grid.Mesh2_node_x: np.float64 DataArray of size (nMesh2_node) \
   2D longitude coordinate or 3D x coordinates for nodes on the sphere.
 
-- uxarray.GridAccessor.Mesh2_node_y: np.float64 DataArray of size (nMesh2_node) \
+- uxarray.Grid.Mesh2_node_y: np.float64 DataArray of size (nMesh2_node) \
   2D latitude coordinate or 3D y coordinates for nodes on the sphere.
 
-- uxarray.GridAccessor.Mesh2_node_z: np.float64 DataArray of size (nMesh2_node) \
+- uxarray.Grid.Mesh2_node_z: np.float64 DataArray of size (nMesh2_node) \
   (optional)
   3D z coordinates for nodes on the sphere.
 
-- (*) uxarray.GridAccessor.Mesh2_node_coordinates: np.float64 DataArray of size
+- (*) uxarray.Grid.Mesh2_node_coordinates: np.float64 DataArray of size
   (nMesh2_node, Two or Three) \
   Alternative storage mechanism for node information.
 
-- uxarray.GridAccessor.Mesh2_face_nodes: integer DataArray of size
+- uxarray.Grid.Mesh2_face_nodes: integer DataArray of size
   (nMesh2_face, MaxNumNodesPerFace) \
   A DataArray of indices for each face node, corresponding to coordinates
-  in uxarray.GridAccessor.node_*.  Faces can have arbitrary length, with
+  in uxarray.Grid.node_*.  Faces can have arbitrary length, with
   _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
   Nodes are in counter-clockwise order.
 
-- uxarray.GridAccessor.Mesh2_edge_nodes: integer DataArray of size (nMesh2_edge, Two)
+- uxarray.Grid.Mesh2_edge_nodes: integer DataArray of size (nMesh2_edge, Two)
   (optional) \
   A DataArray of indices for each edge.  Nodes are in arbitrary order.
 
-- (*) uxarray.GridAccessor.Mesh2_edge_types: integer DataArray of size (nMesh2_edge)
+- (*) uxarray.Grid.Mesh2_edge_types: integer DataArray of size (nMesh2_edge)
   (optional; not in UGRID standard) \
   A DataArray indicating the type of edge (0 = great circle arc, 1 = line of
   constant latitude)
 
-- uxarray.GridAccessor.Mesh2_face_areas: np.float64 DataArray of size (nMesh2_face)
+- uxarray.Grid.Mesh2_face_areas: np.float64 DataArray of size (nMesh2_face)
   (optional; not in UGRID standard) \
   A DataArray providing face areas for each face.
 
-- (*) uxarray.GridAccessor.Mesh2_imask: integer DataArray of size (nMesh2_face)
+- (*) uxarray.Grid.Mesh2_imask: integer DataArray of size (nMesh2_face)
   (optional; not in UGRID standard) \
   The integer mask for this grid (1 = face is active; 0 = face is inactive)
 
-- uxarray.GridAccessor.Mesh2_face_edges: integer DataArray of size (nMesh2_face,
+- uxarray.Grid.Mesh2_face_edges: integer DataArray of size (nMesh2_face,
   MaxNumNodesPerFace) (optional) \
   A DataArray of indices indicating edges that are neighboring each face.
 
-- uxarray.GridAccessor.Mesh2_face_links: integer DataArray of size (nMesh2_face,
+- uxarray.Grid.Mesh2_face_links: integer DataArray of size (nMesh2_face,
   MaxNumNodesPerFace) (optional) \
   A DataArray of indices indicating faces that are neighboring each face.
 
-- uxarray.GridAccessor.Mesh2_edge_faces: integer DataArray of size (nMesh2_edge,
+- uxarray.Grid.Mesh2_edge_faces: integer DataArray of size (nMesh2_edge,
   Two) (optional) \
   A DataArray of indices indicating faces that are neighboring each edge.
 
-- uxarray.GridAccessor.Mesh2_node_faces: integer DataArray of size (nMesh2_node,
+- uxarray.Grid.Mesh2_node_faces: integer DataArray of size (nMesh2_node,
   MaxNumFacesPerNode) (optional) \
   A DataArray of indices indicating faces that are neighboring each node.
 
-- (*) uxarray.GridAccessor.Mesh2_latlon_bounds: np.float64 DataArray of size
+- (*) uxarray.Grid.Mesh2_latlon_bounds: np.float64 DataArray of size
   (nMesh2_face, Four) (optional; not in UGRID standard) \
   A DataArray of values indicating the latitude-longitude boundaries of
   each face.
 
-- (*) uxarray.GridAccessor.Mesh2_overlapfaces_a: integer DataArray of size
+- (*) uxarray.Grid.Mesh2_overlapfaces_a: integer DataArray of size
   (nMesh2_face) (optional; not in UGRID standard) \
   A DataArray of indices storing the indices of the parent face from
   grid A, available when this Grid is a supermesh.
 
-- (*) uxarray.GridAccessor.Mesh2_overlapfaces_b: integer DataArray of size
+- (*) uxarray.Grid.Mesh2_overlapfaces_b: integer DataArray of size
   (nMesh2_face) (optional; not in UGRID standard) \
   A DataArray of indices storing the indices of the parent face from
   grid B, available when this Grid is a supermesh.
 
-## uxarray.GridAccessor  Functions
+## uxarray.Grid  Functions
 
-- uxarray.GridAccessor.__init__(self, xarray dataset) \
-  Populate GridAccessor object with Xarray dataset.  The routine will automatically
+- uxarray.Grid.__init__(self, xarray dataset) \
+  Populate Grid object with Xarray dataset.  The routine will automatically
   detect if it is a UGrid, SCRIP, Exodus, or shape file.
 
-- (*) uxarray.GridAccessor.__init__(self, string gridspec) \
+- (*) uxarray.Grid.__init__(self, string gridspec) \
   Define a grid specified by gridspec string (analogous to the gridspec
   used in ncremap for grid generation).
 
-- uxarray.GridAccessor.__init__(self, np.float64.list vertices) \
+- uxarray.Grid.__init__(self, np.float64.list vertices) \
   Create a grid with one face with vertices specified by the given argument.
 
-- uxarray.GridAccessor.encode_as(self, string grid_type) \
-  Encode a `uxarray.GridAccessor` as a `xarray.Dataset`in the specified grid type
+- uxarray.Grid.encode_as(self, string grid_type) \
+  Encode a `uxarray.Grid` as a `xarray.Dataset`in the specified grid type
   (UGRID, SCRIP, Exodus, or SHP).
 
-- uxarray.GridAccessor.calculatefaceareas(self) \
+- uxarray.Grid.calculatefaceareas(self) \
   Calculate the area of all faces.
 
-- uxarray.GridAccessor.build_node_face_connectivity(self) \
+- uxarray.Grid.build_node_face_connectivity(self) \
   Build the node-face connectivity array.
 
-- uxarray.GridAccessor.build_edge_face_connectivity(self) \
+- uxarray.Grid.build_edge_face_connectivity(self) \
   Build the edge-face connectivity array.
 
-- uxarray.GridAccessor.buildlatlon_bounds(self) \
+- uxarray.Grid.buildlatlon_bounds(self) \
   Build the array of latitude-longitude bounding boxes.
 
-- uxarray.GridAccessor.validate(self) \
+- uxarray.Grid.validate(self) \
   Validate that the grid conforms to the UGRID standards.
 
 ## Additional xarray.DataArray Attributes
 
-- xarray.DataArray.grid: uxarray.GridAccessor \
+- xarray.DataArray.grid: uxarray.Grid \
   The grid associated with this xarray.DataArray.
 
 - xarray.type: enumeration {“vertexcentered”, “facecentered”,
@@ -168,7 +168,7 @@ document, but they could be different.
 ## Helper Functions
 
 - np.float64 uxarray.integrate(self, xarray.DataArray q,
-  uxarray.GridAccessor region (optional)) \
+  uxarray.Grid region (optional)) \
   Integrate the DataArray globally or over a specified region
   (if specified).
 
@@ -177,7 +177,7 @@ document, but they could be different.
   Compute global zonal means over bincount latitudinal bands.
 
 - xarray.DataSet uxarray.regrid(self, xarray.DataArray q,
-  uxarray.GridAccessor targetgrid, opts) \
+  uxarray.Grid targetgrid, opts) \
   Regrid the data to the target grid (by default via 1st order FV).
 
 - xarray.DataArray uxarray.divergence(xarray.DataArray u,
@@ -198,7 +198,7 @@ document, but they could be different.
   xarray.DataArray v, xarray.DataArray q) \
   Compute the dot product between a vector field (u,v) and the gradient of a scalar field q.
 
-- (*) xarray.GridAccessor uxarray.supermesh(uxarray.GridAccessor a, uxarray.GridAccessor b) \
+- (*) xarray.Grid uxarray.supermesh(uxarray.Grid a, uxarray.Grid b) \
   Construct the supermesh, consisting of all face edges from Grids a and b.
 
 - (*) xarray.DataSet xarray.DataSet.snapshot(self, nodes) \
