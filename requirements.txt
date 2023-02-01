@@ -1,2 +1,2 @@
 xarray
-numpy
+numpy<1.24

@@ -111,7 +111,7 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 
 
-[github-ci-badge]: https://img.shields.io/github/workflow/status/UXARRAY/uxarray/CI?label=CI&logo=github&style=for-the-badge
+[github-ci-badge]: https://img.shields.io/github/actions/workflow/status/UXARRAY/uxarray/ci.yml?branch=main&label=CI&logo=github&style=for-the-badge
 [github-ci-link]: https://github.com/UXARRAY/uxarray/actions?query=workflow%3ACI
 [codecov-badge]: https://img.shields.io/codecov/c/github/UXARRAY/uxarray.svg?logo=codecov&style=for-the-badge
 [codecov-link]: https://codecov.io/gh/UXARRAY/uxarray
