@@ -11,6 +11,9 @@ from ._scrip import _read_scrip, _encode_scrip
 from .helpers import get_all_face_area_from_coords, parse_grid_type
 
 int_dtype = np.uint32
+_FillValue_ = float("nan")
+
+
 
 
 class Grid:
@@ -381,54 +384,110 @@ class Grid:
         This function will add `Grid.ds.Mesh2_face_edges` to the `Grid` class, which is an integer
         DataArray of size (nMesh2_face, MaxNumNodesPerFace)
         """
-        mesh2_edge_nodes_set = set(
-        )  # Use the set data structure to store Edge object (undirected)
-
-        # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
-        mesh2_face_edges = []
         mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
+        n, m = mesh2_face_nodes.shape
 
-        # Loop over each face
-        for face in mesh2_face_nodes:
-            cur_face_edge = []
-            # Loop over nodes in a face
-            for i in range(0, face.size - 1):
-                # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
-                if (face[i] == -1 or face[i + 1] == -1) or (np.isnan(
-                        face[i]) or np.isnan(face[i + 1])):
-                    continue
-                # Two nodes are connected to one another if they’re adjacent in the array
-                mesh2_edge_nodes_set.add(frozenset({face[i], face[i + 1]}))
-                cur_face_edge.append([face[i], face[i + 1]])
-            # Two nodes are connected if one is the first element of the array and the other is the last
-            # First make sure to skip the dummy _FillValue=-1 node
-            last_node = face.size - 1
-            start_node = 0
-            while (face[last_node] == -1 or
-                   np.isnan(face[last_node])) and last_node > 0:
-                last_node -= 1
-            while (face[start_node] == -1 or
-                   np.isnan(face[start_node])) and start_node > 0:
-                start_node += 1
-            if face[last_node] < 0 or face[last_node] < 0:
-                raise Exception('Invalid node index')
-            mesh2_edge_nodes_set.add(
-                frozenset({face[last_node], face[start_node]}))
-            cur_face_edge.append([face[last_node], face[start_node]])
-            mesh2_face_edges.append(cur_face_edge)
+        # First identify the _FillValue in the mesh2_face_nodes
+        # We will unify the _FillValue used in this function as -1:
+        if np.isnan(_FillValue_):
+            mesh2_face_nodes = np.nan_to_num(mesh2_face_nodes, nan=-1)
+        elif _FillValue_ is not -1:
+            mesh2_face_nodes[mesh2_face_nodes == _FillValue_] = -1
 
-        mesh2_edge_nodes = []
-        for edge in mesh2_edge_nodes_set:
-            mesh2_edge_nodes.append(list(edge))
+        # Then do the paddind for each face to close the polygon
+        closed = np.full((n, m + 1), -1, dtype=np.intp)
+        closed[:, :-1] = np.array(mesh2_face_nodes, dtype=np.intp)
+        fill_value_index = np.array(list(zip(*np.where(closed == -1))))
+        first_node = mesh2_face_nodes[:, 0]
 
-        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
-                                                   dims=["nMesh2_edge", "Two"])
-
-        for i in range(0, len(mesh2_face_edges)):
-            while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
-                # Append dummy edges
-                mesh2_face_edges[i].append([-1, -1])
-
+        # Now replace the first -1 at each row to be the first node
+        def replace_fill_val(row, index, rep_val):
+            row[index] = rep_val
+            return row
+        pad_results = np.array(list(map(replace_fill_val, closed, fill_value_index[:, 1], first_node)))
+        # Now create the edge_node_connectivity
+        mesh2_edge_nodes = np.empty((n * m, 2), dtype=np.intp)
+        mesh2_edge_nodes[:, 0] = pad_results[:, :-1].ravel()
+        mesh2_edge_nodes[:, 1] = pad_results[:, 1:].ravel()
+        # Clean up the invalid node
+        mesh2_edge_nodes = mesh2_edge_nodes[
+            mesh2_edge_nodes[:, 0] != mesh2_edge_nodes[:, 1]
+            ]
+        # Find the unique edge
+        mesh2_edge_nodes.sort(axis=1)
+        mesh2_edge_node_copy, inverse_indices = np.unique(
+            ar=mesh2_edge_nodes, return_inverse=True, axis=0
+        )
+        # In mesh2_edge_nodes, we want to remove all dummy edges (edge that has "-1" node index)
+        # But we want to preserve that in our mesh2_face_edges so make the datarray has the same dimensions
+        cumprod = (mesh2_edge_node_copy[:,0] + 1) * (mesh2_edge_node_copy[:,1] + 1) # In this case, all the 0 nodes will be positive while the -1 will be 0
+        has_fill_value = np.ma.masked_where(cumprod == 0, cumprod).mask
+        mesh2_edge_nodes = mesh2_edge_node_copy[~has_fill_value] if has_fill_value else mesh2_edge_node_copy
+        mesh2_face_edges = np.full((n, m), -1, dtype=np.intp)
+        inverse_indices = inverse_indices.reshape(n,m)
+        mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
             dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
+        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
+                                                   dims=["nMesh2_edge", "Two"])
+
+
+
+
+
+
+
+
+
+        # mesh2_edge_nodes_set = set(
+        # )  # Use the set data structure to store Edge object (undirected)
+        #
+        # # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
+        # mesh2_face_edges = []
+        # mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
+        #
+        # # Loop over each face
+        # for face in mesh2_face_nodes:
+        #     cur_face_edge = []
+        #     # Loop over nodes in a face
+        #     for i in range(0, face.size - 1):
+        #         # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
+        #         if (face[i] == -1 or face[i + 1] == -1) or (np.isnan(
+        #                 face[i]) or np.isnan(face[i + 1])):
+        #             continue
+        #         # Two nodes are connected to one another if they’re adjacent in the array
+        #         mesh2_edge_nodes_set.add(frozenset({face[i], face[i + 1]}))
+        #         cur_face_edge.append([face[i], face[i + 1]])
+        #     # Two nodes are connected if one is the first element of the array and the other is the last
+        #     # First make sure to skip the dummy _FillValue=-1 node
+        #     last_node = face.size - 1
+        #     start_node = 0
+        #     while (face[last_node] == -1 or
+        #            np.isnan(face[last_node])) and last_node > 0:
+        #         last_node -= 1
+        #     while (face[start_node] == -1 or
+        #            np.isnan(face[start_node])) and start_node > 0:
+        #         start_node += 1
+        #     if face[last_node] < 0 or face[last_node] < 0:
+        #         raise Exception('Invalid node index')
+        #     mesh2_edge_nodes_set.add(
+        #         frozenset({face[last_node], face[start_node]}))
+        #     cur_face_edge.append([face[last_node], face[start_node]])
+        #     mesh2_face_edges.append(cur_face_edge)
+        #
+        # mesh2_edge_nodes = []
+        # for edge in mesh2_edge_nodes_set:
+        #     mesh2_edge_nodes.append(list(edge))
+        #
+        # self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
+        #                                            dims=["nMesh2_edge", "Two"])
+        #
+        # for i in range(0, len(mesh2_face_edges)):
+        #     while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
+        #         # Append dummy edges
+        #         mesh2_face_edges[i].append([-1, -1])
+        #
+        # self.ds["Mesh2_face_edges"] = xr.DataArray(
+        #     data=mesh2_face_edges,
+        #     dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])

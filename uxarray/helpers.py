@@ -556,3 +556,7 @@ def _normalize_in_place(node):
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
     return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
+
+
+
+
