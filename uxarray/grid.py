@@ -286,7 +286,7 @@ class Grid:
         --------
         Open a uxarray grid file
 
-        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/outCSne30.ug")
+        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30.ug")
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
