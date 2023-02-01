@@ -3,6 +3,7 @@ import xarray as xr
 
 from unittest import TestCase
 from pathlib import Path
+import warnings
 
 import uxarray as ux
 
@@ -39,12 +40,21 @@ class TestUgrid(TestCase):
     def test_read_ugrid_opendap(self):
         """Read an ugrid model from an OPeNDAP URL."""
 
-        url = "http://www.smast.umassd.edu:8080/thredds/dodsC/FVCOM/NECOFS/Forecasts/NECOFS_GOM3_FORECAST.nc"
-        xr_grid = xr.open_dataset(url, drop_variables="siglay")
-        ugrid = ux.Grid(xr_grid)
-        assert isinstance(getattr(ugrid, "Mesh2_node_x"), xr.DataArray)
-        assert isinstance(getattr(ugrid, "Mesh2_node_y"), xr.DataArray)
-        assert isinstance(getattr(ugrid, "Mesh2_face_nodes"), xr.DataArray)
+        try:
+            # make sure we can read the ugrid file from the OPeNDAP URL
+            url = "http://test.opendap.org:8080/opendap/ugrid/NECOFS_GOM3_FORECAST.nc"
+            xr_grid = xr.open_dataset(url, drop_variables="siglay")
+
+        except OSError:
+            # print warning and pass if we can't connect to the OPeNDAP server
+            warnings.warn(f'Could not connect to OPeNDAP server: {url}')
+            pass
+
+        else:
+            ugrid = ux.Grid(xr_grid)
+            assert isinstance(getattr(ugrid, "Mesh2_node_x"), xr.DataArray)
+            assert isinstance(getattr(ugrid, "Mesh2_node_y"), xr.DataArray)
+            assert isinstance(getattr(ugrid, "Mesh2_face_nodes"), xr.DataArray)
 
     def test_encode_ugrid(self):
         """Read an Exodus dataset and encode that as a UGRID format."""
