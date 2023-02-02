@@ -52,7 +52,7 @@ class UxDataset(xr.Dataset):
         Open a Uxarray dataset
 
         >>> import uxarray as ux
-        >>> uxds = ux.open_dataset("centroid_pressure_data_ug", "grid.ug")
+        >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
 
         # Compute the integral
         >>> integral = uxds.integrate()
@@ -62,6 +62,8 @@ class UxDataset(xr.Dataset):
         # call function to get area of all the faces as a np array
         face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
 
+        # TODO: Fix this requirement. It should be applicable to
+        # TODO: either all variables of dataset or a dataarray instead.
         var_key = list(self.keys())
         if len(var_key) > 1:
             # warning: print message

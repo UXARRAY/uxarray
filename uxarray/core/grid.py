@@ -338,9 +338,10 @@ class Grid:
         for key, value in self.grid_var_names.items():
             # Check if all grid variables are equal
             if self._ds.data_vars is not None:
-                if not self._ds[value].equals(
-                        other._ds[other.grid_var_names[key]]):
-                    return False
+                if value in self._ds.data_vars:
+                    if not self._ds[value].equals(
+                            other._ds[other.grid_var_names[key]]):
+                        return False
 
         return True
 
