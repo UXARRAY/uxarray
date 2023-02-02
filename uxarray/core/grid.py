@@ -1,28 +1,16 @@
 """uxarray grid module."""
-import os
 import xarray as xr
 import numpy as np
 
 # reader and writer imports
-from ._exodus import _read_exodus, _encode_exodus
-from ._ugrid import _read_ugrid, _encode_ugrid
-from ._shapefile import _read_shpfile
-from ._scrip import _read_scrip, _encode_scrip
-from .helpers import get_all_face_area_from_coords, parse_grid_type
+from uxarray._exodus import _read_exodus, _encode_exodus
+from uxarray._ugrid import _read_ugrid, _encode_ugrid
+from uxarray._shapefile import _read_shpfile
+from uxarray._scrip import _read_scrip, _encode_scrip
+from uxarray.helpers import get_all_face_area_from_coords, parse_grid_type
 
 int_dtype = np.uint32
 
-
-# @xr.register_dataset_accessor("uxgrid")
-# class GridAccessor:
-#     def __new__(cls, xarray_obj):
-#         # return Grid(xarray_obj)
-#         if not hasattr(cls, 'instance'):
-#             cls.instance = Grid(xarray_obj)
-#             # cls.instance._init(xarray_obj)
-#         # elif not cls.instance.equals(Grid(xarray_obj)):
-#         #         cls.instance = Grid(xarray_obj)
-#         return cls.instance
 
 class Grid:
     """
@@ -34,26 +22,34 @@ class Grid:
     >>> xarray_obj = xr.open_dataset("filename.g")
     >>> mesh = ux.Grid(xarray_obj)
 
-    Encode as a `xarray.Dataset` in the UGRID format
+    Encode as the UGRID format
 
     >>> mesh.encode_as("ugrid")
     """
 
-    def __init__(self, xarray_obj):
+    def __init__(self, input_obj, **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec.
 
         Parameters
         ----------
-        xarray_obj : xarray.Dataset, ndarray, list, tuple, required
-            Input xarray.Dataset or vertex coordinates that form one face.
+        input_obj : xarray.Dataset, ndarray, list, tuple, required
+            Input xarray.Dataset or vertex coordinates that form faces.
+
+        Other Parameters
+        ----------------
+        gridspec: bool, optional
+            Specifies gridspec
+        islatlon : bool, optional
+            Specify if the grid is lat/lon based
+        isconcave: bool, optional
+            Specify if this grid has concave elements (internal checks for this are possible)
 
         Raises
         ------
             RuntimeError
-                If specified file not found
+                If specified file not found or recognized
         """
-        self._obj = xarray_obj
 
         # initialize internal variable names
         self.__init_grid_var_names__()
@@ -63,16 +59,24 @@ class Grid:
 
         # TODO: fix when adding/exercising gridspec
 
+        # unpack kwargs
+        # sets default values for all kwargs to None
+        kwargs_list = [
+            'gridspec', 'vertices', 'islatlon', 'isconcave', 'source_grid'
+        ]
+        for key in kwargs_list:
+            setattr(self, key, kwargs.get(key, None))
+
         # check if initializing from verts:
-        if isinstance(xarray_obj, (list, tuple, np.ndarray)):
-            self.vertices = xarray_obj
+        if isinstance(input_obj, (list, tuple, np.ndarray)):
+            self.vertices = input_obj
             self.__from_vert__()
             self.source_grid = "From vertices"
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
-        elif isinstance(xarray_obj, xr.Dataset):
-            self.mesh_type = parse_grid_type(xarray_obj)
-            self.__from_ds__(dataset=xarray_obj)
+        elif isinstance(input_obj, xr.Dataset):
+            self.mesh_type = parse_grid_type(input_obj)
+            self.__from_ds__(dataset=input_obj)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
 
@@ -108,7 +112,7 @@ class Grid:
         name of 'mesh_node_x', we store this variable name in the `grid_var_names`
         dictionary with the key 'Mesh2_node_x'. In order to access it, we do:
 
-        >>> x = grid.ds[grid.grid_var_names["Mesh2_node_x"]]
+        >>> x = grid._ds[grid.grid_var_names["Mesh2_node_x"]]
 
         With the help of this function, we can directly access it through the
         use of a standardized name based on the UGRID conventions
@@ -119,19 +123,19 @@ class Grid:
         # Iterate over dict to set access attributes
         for key, value in self.grid_var_names.items():
             # Set Attributes for Data Variables
-            if self.ds.data_vars is not None:
-                if value in self.ds.data_vars:
-                    setattr(self, key, self.ds[value])
+            if self._ds.data_vars is not None:
+                if value in self._ds.data_vars:
+                    setattr(self, key, self._ds[value])
 
             # Set Attributes for Coordinates
-            if self.ds.coords is not None:
-                if value in self.ds.coords:
-                    setattr(self, key, self.ds[value])
+            if self._ds.coords is not None:
+                if value in self._ds.coords:
+                    setattr(self, key, self._ds[value])
 
             # Set Attributes for Dimensions
-            if self.ds.dims is not None:
-                if value in self.ds.dims:
-                    setattr(self, key, len(self.ds[value]))
+            if self._ds.dims is not None:
+                if value in self._ds.dims:
+                    setattr(self, key, len(self._ds[value]))
 
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
@@ -139,8 +143,8 @@ class Grid:
 
         Called by :func:`__init__`.
         """
-        self.ds = xr.Dataset()
-        self.ds["Mesh2"] = xr.DataArray(
+        self._ds = xr.Dataset()
+        self._ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
                 "long_name": "Topology data of unstructured mesh",
@@ -150,7 +154,7 @@ class Grid:
                 "face_node_connectivity": "Mesh2_face_nodes",
                 "face_dimension": "nMesh2_face"
             })
-        self.ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
+        self._ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
 
         # set default coordinate units to spherical coordinates
         # users can change to cartesian if using cartesian for initialization
@@ -168,18 +172,18 @@ class Grid:
         num_nodes = x_coord.size
         connectivity = [list(range(0, num_nodes))]
 
-        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
+        self._ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
                                                dims=["nMesh2_node"],
                                                attrs={"units": x_units})
-        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
+        self._ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
                                                dims=["nMesh2_node"],
                                                attrs={"units": y_units})
         if self.vertices[0].size > 2:
-            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
+            self._ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
-        self.ds["Mesh2_face_nodes"] = xr.DataArray(
+        self._ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(connectivity),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
@@ -193,13 +197,13 @@ class Grid:
         """Loads a mesh dataset."""
         # call reader as per mesh_type
         if self.mesh_type == "exo":
-            self.ds = _read_exodus(dataset, self.grid_var_names)
+            self._ds = _read_exodus(dataset, self.grid_var_names)
         elif self.mesh_type == "scrip":
-            self.ds = _read_scrip(dataset)
+            self._ds = _read_scrip(dataset)
         elif self.mesh_type == "ugrid":
-            self.ds, self.grid_var_names = _read_ugrid(dataset, self.grid_var_names)
+            self._ds, self.grid_var_names = _read_ugrid(dataset, self.grid_var_names)
         elif self.mesh_type == "shp":
-            self.ds = _read_shpfile(dataset)
+            self._ds = _read_shpfile(dataset)
         else:
             raise RuntimeError("unknown mesh type")
 
@@ -227,10 +231,10 @@ class Grid:
         """
 
         if grid_type == "ugrid":
-            out_ds = _encode_ugrid(self.ds)
+            out_ds = _encode_ugrid(self._ds)
 
         elif grid_type == "exodus":
-            out_ds = _encode_exodus(self.ds, self.grid_var_names)
+            out_ds = _encode_exodus(self._ds, self.grid_var_names)
 
         elif grid_type == "scrip":
             out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
@@ -280,7 +284,7 @@ class Grid:
         --------
         Open a uxarray grid file
 
-        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/outCSne30.ug")
+        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
@@ -330,8 +334,8 @@ class Grid:
         # Iterate over dict to set access attributes
         for key, value in self.grid_var_names.items():
             # Check if all grid variables are equal
-            if self.ds.data_vars is not None:
-                if not self.ds[value].equals(other.ds[other.grid_var_names[key]]):
+            if self._ds.data_vars is not None:
+                if not self._ds[value].equals(other._ds[other.grid_var_names[key]]):
                     return False
 
         return True
@@ -346,7 +350,7 @@ class Grid:
         return self._face_areas
 
     def integrate(self, var_ds, quadrature_rule="triangular", order=4):
-        """Integrates over all the faces of the given mesh.
+        """Integrates a xarray.Dataset over all the faces of the given mesh.
 
         Parameters
         ----------

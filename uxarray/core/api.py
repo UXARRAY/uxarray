@@ -1,37 +1,35 @@
 """UXarray dataset module."""
 
-from uxarray.grid import Grid
-from uxarray.helpers import parse_grid_type
+import os
 
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import xarray as xr
 
+from xarray.core.types import NestedSequence
+from uxarray.core.grid import Grid
 
-def open_dataset(filename_or_obj: str,
-                 grid_filename_or_obj: str,
-                 gridspec: Optional[str] = None,
-                 vertices: Optional[list] = None,
-                 islatlon: Optional[bool] = False,
-                 isconcave: Optional[bool] = False,
-                 source_grid: Optional[str] = None,
-                 **kwargs: Dict[str, Any]) -> xr.Dataset:
-    """Wraps ``xarray.open_dataset()``, given a single grid topology file with
-    a single dataset file with corresponding data.
+
+from uxarray.core.dataset import UxDataset
+
+def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray, list, tuple],
+              gridspec: Optional[str] = None,
+              islatlon: Optional[bool] = False,
+              isconcave: Optional[bool] = False,
+              **kwargs: Dict[str, Any]) -> xr.Dataset:
+    """Creates a ``uxarray.core.Grid`` object from a grid topology definition.
 
     Parameters
     ----------
 
-    filename_or_obj : string, required
+    grid_filename_or_obj : string, xarray.Dataset, ndarray, list, tuple, required
         String or Path object as a path to a netCDF file or an OpenDAP URL that
-        stores the actual data set. It is the same ``filename_or_obj`` in
-        ``xarray.open_dataset``.
-
-    grid_filename_or_obj : string, required
-        String or Path object as a path to a netCDF file or an OpenDAP URL that
-        stores the unstructured grid definition that the dataset belongs to. It
-        is read similar to ``filename_or_obj`` in ``xarray.open_dataset``.
+        stores the unstructured grid topology/definition. It is read similar to
+        ``filename_or_obj`` in ``xarray.open_dataset``. Otherwise, either
+        ``xr.DataArray``, ``np.ndarray``, ``list``, or ``tuple`` as a vertices
+        object to define the grid.
 
     islatlon : bool, optional
             Specify if the grid is lat/lon based
@@ -54,54 +52,174 @@ def open_dataset(filename_or_obj: str,
     Returns
     -------
 
-    object : xr.Dataset
+    object : uxarray.core.Grid
         Dataset with the unstructured grid.
 
     Examples
     --------
-    Open grid file only
 
-    >>> mesh = ux.open_dataset("grid_filename.g")
+    Open dataset with a grid topology file
 
-    Open grid file along with data
-
-    >>> mesh_and_data = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
-
-    Open grid file along with multiple data files (two or more)
-
-    >>> mesh_and_data_2 = ux.open_dataset("grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc")
-
-    Open grid file along with a list of data files
-
-    >>> data_files = ["grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc", "grid_filename_vortex_3.nc"]
-    >>> mesh_and_data = ux.open_dataset("grid_filename.g", *data_files)
+    >>> import uxarray as ux
+    >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
-    # todo
-    # unpack kwargs
-    # sets default values for all kwargs to None
-    # kwargs_list = [
-    #     'gridspec', 'vertices', 'islatlon', 'isconcave', 'source_grid'
-    # ]
-    # for key in kwargs_list:
-    #     setattr(self, key, kwargs.get(key, None))
+    ## Grid definition
+    if isinstance(grid_filename_or_obj, (list, tuple, np.ndarray, xr.DataArray)):
+        uxgrid = Grid(grid_filename_or_obj,
+                      gridspec = gridspec,
+                      islatlon = islatlon,
+                      isconcave = isconcave)
+    else:
+        grid_ds = xr.open_dataset(grid_filename_or_obj, decode_times=False, **kwargs)  # type: ignore
+
+        uxgrid = Grid(grid_ds,
+                      gridspec = gridspec,
+                      islatlon = islatlon,
+                      isconcave = isconcave,
+                      source_grid = grid_filename_or_obj)
+
+    return uxgrid
+
+def open_dataset(grid_filename_or_obj: str,
+                 filename_or_obj: str,
+                 gridspec: Optional[str] = None,
+                 vertices: Optional[list] = None,
+                 islatlon: Optional[bool] = False,
+                 isconcave: Optional[bool] = False,
+                 **kwargs: Dict[str, Any]) -> xr.Dataset:
+    """Wraps ``xarray.open_dataset()``, given a grid topology definition with
+    a single dataset file or object with corresponding data.
+
+    Parameters
+    ----------
+
+    grid_filename_or_obj : string, required
+        String or Path object as a path to a netCDF file or an OpenDAP URL that
+        stores the unstructured grid definition that the dataset belongs to. It
+        is read similar to ``filename_or_obj`` in ``xarray.open_dataset``.
+
+    filename_or_obj : string, required
+        String or Path object as a path to a netCDF file or an OpenDAP URL that
+        stores the actual data set. It is the same ``filename_or_obj`` in
+        ``xarray.open_dataset``.
+
+    islatlon : bool, optional
+            Specify if the grid is lat/lon based
+
+    isconcave: bool, optional
+        Specify if this grid has concave elements (internal checks for this are possible)
+
+    gridspec: str, optional
+        Specifies gridspec
+
+    source_grid: str, optional
+        Path or URL to the source grid file. For diagnostic/reporting purposes only.
+
+    **kwargs : Dict[str, Any]
+        Additional arguments passed on to ``xarray.open_dataset``. Refer to the
+        [xarray
+        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
+        for accepted keyword arguments.
+
+    Returns
+    -------
+
+    object : uxarray.core.UxDataset
+        Dataset with the unstructured grid.
+
+    Examples
+    --------
+
+    Open dataset with a grid topology file
+
+    >>> import uxarray as ux
+    >>> ux_ds = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
+    """
 
     grid_ds = xr.open_dataset(grid_filename_or_obj, decode_times=False, **kwargs)  # type: ignore
     ds = xr.open_dataset(filename_or_obj, decode_times=False, **kwargs)  # type: ignore
 
     ## Grid definition
-    uxgrid = Grid(grid_ds)
-
-    # todo: Figure how to handle optional arguments
-    # # Construct the Grid object
-    # ux_grid = Grid(dataset=dataset,
-    #                mesh_filetype=mesh_filetype,
-    #                source_grid=grid_filename_or_obj,
-    #                source_datasets=source_datasets)
+    uxgrid = Grid(grid_ds,
+                  gridspec = gridspec,
+                  vertices = vertices,
+                  islatlon = islatlon,
+                  isconcave = isconcave,
+                  source_grid = grid_filename_or_obj)
 
     ## UxDataset
-    from uxarray.core.dataset import UxDataset
+    uxds = UxDataset(uxgrid, ds, source_datasets=str(filename_or_obj))
 
-    uxds = UxDataset(uxgrid, ds)
+    return uxds
+
+def open_mfdataset(grid_filename_or_obj: str,
+                   paths: str | NestedSequence[str | os.PathLike],
+                   gridspec: Optional[str] = None,
+                   vertices: Optional[list] = None,
+                   islatlon: Optional[bool] = False,
+                   isconcave: Optional[bool] = False,
+                   **kwargs: Dict[str, Any]) -> xr.Dataset:
+    """Wraps ``xarray.open_mfdataset()``, given a single grid topology file with
+    multiple dataset paths with corresponding data.
+
+    Parameters
+    ----------
+
+    grid_filename_or_obj : string, required
+        String or Path object as a path to a netCDF file or an OpenDAP URL that
+        stores the unstructured grid definition that the dataset belongs to. It
+        is read similar to ``filename_or_obj`` in ``xarray.open_dataset``.
+
+    paths : string, required
+        Either a string glob in the form "path/to/my/files/*.nc" or an explicit
+        list of files to open. It is the same ``paths`` in ``xarray.open_mfdataset``.
+
+    islatlon : bool, optional
+            Specify if the grid is lat/lon based
+
+    isconcave: bool, optional
+        Specify if this grid has concave elements (internal checks for this are possible)
+
+    gridspec: str, optional
+        Specifies gridspec
+
+    source_grid: str, optional
+        Path or URL to the source grid file. For diagnostic/reporting purposes only.
+
+    **kwargs : Dict[str, Any]
+        Additional arguments passed on to ``xarray.open_mfdataset``. Refer to the
+        [xarray
+        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_mfdataset.html)
+        for accepted keyword arguments.
+
+    Returns
+    -------
+
+    object : uxarray.core.UxDataset
+        Dataset with the unstructured grid.
+
+    Examples
+    --------
+
+    Open grid file along with multiple data files (two or more)
+
+    >>> import uxarray as ux
+    >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc")
+    """
+
+    grid_ds = xr.open_dataset(grid_filename_or_obj, decode_times=False, **kwargs)  # type: ignore
+    ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
+
+    ## Grid definition
+    uxgrid = Grid(grid_ds,
+                  gridspec = gridspec,
+                  vertices = vertices,
+                  islatlon = islatlon,
+                  isconcave = isconcave,
+                  source_grid = grid_filename_or_obj)
+
+    ## UxDataset
+    uxds = UxDataset(uxgrid, ds, source_datasets=str(paths))
 
     return uxds

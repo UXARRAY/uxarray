@@ -1,13 +1,12 @@
 import os
 import numpy as np
+import numpy.testing as nt
 import xarray as xr
 
 from unittest import TestCase
 from pathlib import Path
 
-import xarray as xr
 import uxarray as ux
-import numpy.testing as nt
 
 try:
     import constants
@@ -16,41 +15,44 @@ except ImportError:
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
+gridfile_CSne8 = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
+gridfile_RLL1deg = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+gridfile_RLL10deg_CSne4 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
+gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
+gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+
+dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
+dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+
+shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
+
 
 class TestGrid(TestCase):
 
-    ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-    ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
-    ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
-
-    xr_ds1 = xr.open_dataset(ug_filename1)
-    xr_ds2 = xr.open_dataset(ug_filename2)
-    xr_ds3 = xr.open_dataset(ug_filename3)
-    tgrid1 = ux.Grid(xr_ds1)
-    tgrid2 = ux.Grid(xr_ds2)
-    tgrid3 = ux.Grid(xr_ds3)
+    grid_CSne30 = ux.open_grid(gridfile_CSne30)
+    grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
+    grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
         types."""
 
-        self.tgrid1.encode_as("ugrid")
-        self.tgrid2.encode_as("ugrid")
-        self.tgrid3.encode_as("ugrid")
+        self.grid_CSne30.encode_as("ugrid")
+        self.grid_RLL1deg.encode_as("ugrid")
+        self.grid_RLL10deg_CSne4.encode_as("ugrid")
 
-        self.tgrid1.encode_as("exodus")
-        self.tgrid2.encode_as("exodus")
-        self.tgrid3.encode_as("exodus")
+        self.grid_CSne30.encode_as("exodus")
+        self.grid_RLL1deg.encode_as("exodus")
+        self.grid_RLL10deg_CSne4.encode_as("exodus")
 
     def test_open_non_mesh2_write_exodus(self):
         """Loads grid files of different formats using uxarray's open_dataset
         call."""
 
-        path = current_path / "meshfiles" / "mesh.nc"
-        xr_grid = xr.open_dataset(path)
-        grid = ux.Grid(xr_grid)
+        grid_geoflow = ux.open_grid(gridfile_CSne30)
 
-        grid.encode_as("exodus")
+        grid_geoflow.encode_as("exodus")
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a ugrid file.
@@ -59,7 +61,9 @@ class TestGrid(TestCase):
         """
 
         verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
-        vgrid = ux.Grid(verts, vertices=True, islatlon=True, isconcave=False)
+        vgrid = ux.open_grid(verts,
+                        islatlon=True,
+                        isconcave=False)
 
         assert (vgrid.source_grid == "From vertices")
 
@@ -72,23 +76,23 @@ class TestGrid(TestCase):
         # Dataset with standard UGRID variable names
         # Coordinates
         xr.testing.assert_equal(
-            self.tgrid1.Mesh2_node_x,
-            self.tgrid1.ds[self.tgrid1.grid_var_names["Mesh2_node_x"]])
+            self.grid_CSne30.Mesh2_node_x,
+            self.grid_CSne30._ds[self.grid_CSne30.grid_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(
-            self.tgrid1.Mesh2_node_y,
-            self.tgrid1.ds[self.tgrid1.grid_var_names["Mesh2_node_y"]])
+            self.grid_CSne30.Mesh2_node_y,
+            self.grid_CSne30._ds[self.grid_CSne30.grid_var_names["Mesh2_node_y"]])
         # Variables
         xr.testing.assert_equal(
-            self.tgrid1.Mesh2_face_nodes,
-            self.tgrid1.ds[self.tgrid1.grid_var_names["Mesh2_face_nodes"]])
+            self.grid_CSne30.Mesh2_face_nodes,
+            self.grid_CSne30._ds[self.grid_CSne30.grid_var_names["Mesh2_face_nodes"]])
 
         # Dimensions
-        n_nodes = self.tgrid1.Mesh2_node_x.shape[0]
-        n_faces, n_face_nodes = self.tgrid1.Mesh2_face_nodes.shape
+        n_nodes = self.grid_CSne30.Mesh2_node_x.shape[0]
+        n_faces, n_face_nodes = self.grid_CSne30.Mesh2_face_nodes.shape
 
-        self.assertEqual(n_nodes, self.tgrid1.nMesh2_node)
-        self.assertEqual(n_faces, self.tgrid1.nMesh2_face)
-        self.assertEqual(n_face_nodes, self.tgrid1.nMaxMesh2_face_nodes)
+        self.assertEqual(n_nodes, self.grid_CSne30.nMesh2_node)
+        self.assertEqual(n_faces, self.grid_CSne30.nMesh2_face)
+        self.assertEqual(n_face_nodes, self.grid_CSne30.nMaxMesh2_face_nodes)
 
         # xr.testing.assert_equal(
         #     self.tgrid1.nMesh2_node,
@@ -98,23 +102,22 @@ class TestGrid(TestCase):
         #     self.tgrid1.ds[self.tgrid1.grid_var_names["nMesh2_face"]])
 
         # Dataset with non-standard UGRID variable names
-        path = current_path / "meshfiles" / "mesh.nc"
-        xr_grid = xr.open_dataset(path)
-        grid = ux.Grid(xr_grid)
-        xr.testing.assert_equal(grid.Mesh2_node_x,
-                                grid.ds[grid.grid_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(grid.Mesh2_node_y,
-                                grid.ds[grid.grid_var_names["Mesh2_node_y"]])
-        # Variables
-        xr.testing.assert_equal(grid.Mesh2_face_nodes,
-                                grid.ds[grid.grid_var_names["Mesh2_face_nodes"]])
-        # Dimensions
-        n_nodes = grid.Mesh2_node_x.shape[0]
-        n_faces, n_face_nodes = grid.Mesh2_face_nodes.shape
+        grid_geoflow = ux.open_grid(gridfile_geoflow)
 
-        self.assertEqual(n_nodes, grid.nMesh2_node)
-        self.assertEqual(n_faces, grid.nMesh2_face)
-        self.assertEqual(n_face_nodes, grid.nMaxMesh2_face_nodes)
+        xr.testing.assert_equal(grid_geoflow.Mesh2_node_x,
+                                grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(grid_geoflow.Mesh2_node_y,
+                                grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_y"]])
+        # Variables
+        xr.testing.assert_equal(grid_geoflow.Mesh2_face_nodes,
+                                grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_face_nodes"]])
+        # Dimensions
+        n_nodes = grid_geoflow.Mesh2_node_x.shape[0]
+        n_faces, n_face_nodes = grid_geoflow.Mesh2_face_nodes.shape
+
+        self.assertEqual(n_nodes, grid_geoflow.nMesh2_node)
+        self.assertEqual(n_faces, grid_geoflow.nMesh2_face)
+        self.assertEqual(n_face_nodes, grid_geoflow.nMaxMesh2_face_nodes)
 
     # def test_init_dimension_attrs(self):
 
@@ -125,73 +128,58 @@ class TestGrid(TestCase):
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
-        with self.assertRaises(RuntimeError):
-            shp_filename = current_path / "meshfiles" / "grid_fire.shp"
-            tgrid = ux.Grid(str(shp_filename))
+        with self.assertRaises(ValueError):
+            grid_shp = ux.open_grid(shp_filename)
 
     def test_read_scrip(self):
         """Reads a scrip file."""
 
-        scrip_8 = current_path / "meshfiles" / "outCSne8.nc"
-        ug_30 = current_path / "meshfiles" / "outCSne30.ug"
-
         # Test read from scrip and from ugrid for grid class
-        xr_grid_s8 = xr.open_dataset(scrip_8)
-        ux_grid_s8 = ux.Grid(xr_grid_s8)  # tests from scrip
-
-        xr_grid_u30 = xr.open_dataset(ug_30)
-        ux_grid_u30 = ux.Grid(xr_grid_u30)  # tests from ugrid
+        grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
 
 
 class TestIntegrate(TestCase):
 
-    mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
-    data_file30 = current_path / "meshfiles" / "outCSne30_vortex.nc"
-    data_file30_v2 = current_path / "meshfiles" / "outCSne30_var2.ug"
+    grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
     def test_calculate_total_face_area_triangle(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
         verts = np.array([[0.57735027, -5.77350269e-01, -0.57735027],
                           [0.57735027, 5.77350269e-01, -0.57735027],
                           [-0.57735027, 5.77350269e-01, -0.57735027]])
-        vgrid = ux.Grid(verts)
+
+        grid_verts = ux.open_grid(verts)
 
         # get node names for each grid object
-        x_var = vgrid.grid_var_names["Mesh2_node_x"]
-        y_var = vgrid.grid_var_names["Mesh2_node_y"]
-        z_var = vgrid.grid_var_names["Mesh2_node_z"]
+        x_var = grid_verts.grid_var_names["Mesh2_node_x"]
+        y_var = grid_verts.grid_var_names["Mesh2_node_y"]
+        z_var = grid_verts.grid_var_names["Mesh2_node_z"]
 
-        vgrid.ds[x_var].attrs["units"] = "m"
-        vgrid.ds[y_var].attrs["units"] = "m"
-        vgrid.ds[z_var].attrs["units"] = "m"
+        grid_verts._ds[x_var].attrs["units"] = "m"
+        grid_verts._ds[y_var].attrs["units"] = "m"
+        grid_verts._ds[z_var].attrs["units"] = "m"
 
-        area_gaussian = vgrid.calculate_total_face_area(
+        area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
 
-        area_triangular = vgrid.calculate_total_face_area(
+        area_triangular = grid_verts.calculate_total_face_area(
             quadrature_rule="triangular", order=4)
         nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
 
     def test_calculate_total_face_area_file(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
 
-        xr_grid = xr.open_dataset(str(self.mesh_file30))
-        grid = ux.Grid(xr_grid)
-
-        area = grid.calculate_total_face_area()
+        area = self.grid_CSne30.calculate_total_face_area()
 
         nt.assert_almost_equal(area, constants.MESH30_AREA, decimal=3)
 
     def test_integrate(self):
-        xr_grid = xr.open_dataset(self.mesh_file30)
-        xr_psi = xr.open_dataset(self.data_file30)
-        xr_v2 = xr.open_dataset(self.data_file30_v2)
+        xr_psi = xr.open_dataset(dsfile_vortex_CSne30)
+        xr_v2 = xr.open_dataset(dsfile_var2_CSne30)
 
-        u_grid = ux.Grid(xr_grid)
-
-        integral_psi = u_grid.integrate(xr_psi)
-        integral_var2 = u_grid.integrate(xr_v2)
+        integral_psi = self.grid_CSne30.integrate(xr_psi)
+        integral_var2 = self.grid_CSne30.integrate(xr_v2)
 
         nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
         nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
@@ -201,16 +189,14 @@ class TestFaceAreas(TestCase):
 
     def test_compute_face_areas_geoflow_small(self):
         """Checks if the GeoFlow Small can generate a face areas output."""
-        geoflow_small_grid = current_path / "meshfiles" / "geoflow-small" / "grid.nc"
-        grid_1_ds = xr.open_dataset(geoflow_small_grid)
-        grid_1 = ux.Grid(grid_1_ds)
-        grid_1.compute_face_areas()
+        grid_geoflow = ux.open_grid(gridfile_geoflow)
+
+        grid_geoflow.compute_face_areas()
 
     def test_compute_face_areas_fesom(self):
         """Checks if the FESOM PI-Grid Output can generate a face areas
         output."""
 
-        fesom_grid_small = current_path / "meshfiles" / "fesom" / "fesom.mesh.diag.nc"
-        grid_2_ds = xr.open_dataset(fesom_grid_small)
-        grid_2 = ux.Grid(grid_2_ds)
-        grid_2.compute_face_areas()
+        grid_fesom = ux.open_grid(gridfile_fesom)
+
+        grid_fesom.compute_face_areas()
