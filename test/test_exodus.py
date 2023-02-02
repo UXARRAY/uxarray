@@ -15,7 +15,7 @@ class TestExodus(TestCase):
     def test_read_exodus(self):
         """Read an exodus file and writes a exodus file."""
 
-        exo2_filename = current_path / "meshfiles" / "outCSne8.g"
+        exo2_filename = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
         xr_exo_ds = xr.open_dataset(exo2_filename)
         tgrid = ux.Grid(xr_exo_ds)
 
@@ -32,7 +32,7 @@ class TestExodus(TestCase):
         """Read/write an exodus file with two types of faces (triangle and
         quadrilaterals) and writes a ugrid file."""
 
-        exo2_filename = current_path / "meshfiles" / "mixed.exo"
+        exo2_filename = current_path / "meshfiles" / "exodus" / "mixed" / "mixed.exo"
         xr_exo_ds = xr.open_dataset(exo2_filename)
         tgrid = ux.Grid(xr_exo_ds)
         outfile = current_path / "write_test_mixed.ug"
