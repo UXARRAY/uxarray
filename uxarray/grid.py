@@ -385,7 +385,16 @@ class Grid:
         DataArray of size (nMesh2_face, MaxNumNodesPerFace)
         """
         mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
-        n, m = mesh2_face_nodes.shape
+        mesh2_face_nodes = mesh2_face_nodes[0:400,:]
+        # two_mesh2_face_nodes = []
+        #
+        # for egde in mesh2_face_nodes:
+        #     if 2 in egde:
+        #         two_mesh2_face_nodes.append(egde)
+        #
+        # two_mesh2_face_nodes = np.array(two_mesh2_face_nodes)
+        # mesh2_face_nodes = two_mesh2_face_nodes
+        n, m= mesh2_face_nodes.shape
 
         # First identify the _FillValue in the mesh2_face_nodes
         # We will unify the _FillValue used in this function as -1:
@@ -397,14 +406,16 @@ class Grid:
         # Then do the paddind for each face to close the polygon
         closed = np.full((n, m + 1), -1, dtype=np.intp)
         closed[:, :-1] = np.array(mesh2_face_nodes, dtype=np.intp)
-        fill_value_index = np.array(list(zip(*np.where(closed == -1))))
+        # We only want the index of first occurence of -1
+        first_fill_value_index = np.array([np.array(list(*np.where(row == -1)))[0] for row in closed])#np.array(list(zip(*np.where(closed == -1))))
         first_node = mesh2_face_nodes[:, 0]
 
         # Now replace the first -1 at each row to be the first node
         def replace_fill_val(row, index, rep_val):
             row[index] = rep_val
             return row
-        pad_results = np.array(list(map(replace_fill_val, closed, fill_value_index[:, 1], first_node)))
+
+        pad_results = np.array(list(map(replace_fill_val, closed, first_fill_value_index, first_node)))
         # Now create the edge_node_connectivity
         mesh2_edge_nodes = np.empty((n * m, 2), dtype=np.intp)
         mesh2_edge_nodes[:, 0] = pad_results[:, :-1].ravel()
@@ -421,14 +432,16 @@ class Grid:
         # In mesh2_edge_nodes, we want to remove all dummy edges (edge that has "-1" node index)
         # But we want to preserve that in our mesh2_face_edges so make the datarray has the same dimensions
         cumprod = (mesh2_edge_node_copy[:,0] + 1) * (mesh2_edge_node_copy[:,1] + 1) # In this case, all the 0 nodes will be positive while the -1 will be 0
-        has_fill_value = np.ma.masked_where(cumprod == 0, cumprod).mask
-        mesh2_edge_nodes = mesh2_edge_node_copy[~has_fill_value] if has_fill_value else mesh2_edge_node_copy
+        has_fill_value = np.ma.masked_where(cumprod != 0, cumprod).mask
+        mesh2_edge_nodes = mesh2_edge_node_copy[has_fill_value] if isinstance(has_fill_value, np.ndarray ) else mesh2_edge_node_copy
+        check_1 = mesh2_edge_nodes[:,0] * mesh2_edge_nodes[:,1]
+        check_2 = np.where(check_1 < 0)
         mesh2_face_edges = np.full((n, m), -1, dtype=np.intp)
         inverse_indices = inverse_indices.reshape(n,m)
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
-            dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
+            dims=["nMesh2_face_temp", "nMaxMesh2_face_edges", "Two"])
         self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
                                                    dims=["nMesh2_edge", "Two"])
 

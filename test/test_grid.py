@@ -17,6 +17,7 @@ except ImportError:
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
+
 class TestGrid(TestCase):
 
     ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
@@ -121,16 +122,96 @@ class TestGrid(TestCase):
         """Tests to see if the generated face_edges_connectivity number match
         the calculated results from Euler formular."""
         ug_filename_list = [
-            "outCSne30.ug", "ov_RLL10deg_CSne4.ug"
+            "outRLL1deg.ug","outCSne30.ug", "ov_RLL10deg_CSne4.ug"
         ]  #["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
         for ug_file_name in ug_filename_list:
             ug_filename1 = current_path / "meshfiles" / ug_file_name
             xr_tgrid1 = xr.open_dataset(str(ug_filename1))
             tgrid1 = ux.Grid(xr_tgrid1)
-            mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
+            mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"][0:400,:].values
+            # two_mesh2_face_nodes = []
+            #
+            # for egde in mesh2_face_nodes:
+            #     if 2 in egde:
+            #         two_mesh2_face_nodes.append(egde)
+            #
+            # two_mesh2_face_nodes = np.array(two_mesh2_face_nodes)
+            # mesh2_face_nodes = two_mesh2_face_nodes
+
+
+
             tgrid1.build_face_edges_connectivity()
             mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
             mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
+
+            # [Test] using old fashion
+            mesh2_edge_nodes_set = set(
+            )  # Use the set data structure to store Edge object (undirected)
+
+            # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
+            mesh2_face_edges = []
+
+
+            # Loop over each face
+            for face in mesh2_face_nodes:
+                cur_face_edge = []
+                # Loop over nodes in a face
+                for i in range(0, face.size - 1):
+                    # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
+                    if (face[i] == -1 or face[i + 1] == -1) or (np.isnan(
+                            face[i]) or np.isnan(face[i + 1])):
+                        continue
+                    # Two nodes are connected to one another if they’re adjacent in the array
+                    mesh2_edge_nodes_set.add(frozenset({face[i], face[i + 1]}))
+                    cur_face_edge.append([face[i], face[i + 1]])
+                # Two nodes are connected if one is the first element of the array and the other is the last
+                # First make sure to skip the dummy _FillValue=-1 node
+                last_node = face.size - 1
+                start_node = 0
+                while (face[last_node] == -1 or
+                       np.isnan(face[last_node])) and last_node > 0:
+                    last_node -= 1
+                while (face[start_node] == -1 or
+                       np.isnan(face[start_node])) and start_node > 0:
+                    start_node += 1
+                if face[last_node] < 0 or face[last_node] < 0:
+                    raise Exception('Invalid node index')
+                mesh2_edge_nodes_set.add(
+                    frozenset({face[last_node], face[start_node]}))
+                cur_face_edge.append([face[last_node], face[start_node]])
+                mesh2_face_edges.append(cur_face_edge)
+
+            mesh2_edge_nodes_old_fashion = []
+            for edge in mesh2_edge_nodes_set:
+                mesh2_edge_nodes_old_fashion.append(list(edge))
+            mesh2_edge_nodes_old_fashion = np.array(mesh2_edge_nodes_old_fashion, dtype=np.int)
+            mesh2_edge_nodes_old_fashion.sort(axis=1)
+            mesh2_edge_nodes_old_fashion =  mesh2_edge_nodes_old_fashion[np.argsort( mesh2_edge_nodes_old_fashion[:, 0])]
+            mesh2_edge_nodes = mesh2_edge_nodes[np.argsort(mesh2_edge_nodes[:, 0])]
+            mesh2_edge_nodes_old_fashion =  mesh2_edge_nodes_old_fashion[np.argsort( mesh2_edge_nodes_old_fashion[:, 1])]
+            mesh2_edge_nodes = mesh2_edge_nodes[np.argsort(mesh2_edge_nodes[:, 1])].values
+            intersection = np.array([x for x in set(tuple(x) for x in mesh2_edge_nodes_old_fashion) & set(tuple(x) for x in mesh2_edge_nodes)])
+            set_vec = np.array(list(set(tuple(x) for x in mesh2_edge_nodes)))
+            set_vec = set_vec[np.argsort( set_vec[:, 0])]
+            intersection = intersection[np.argsort( intersection[:, 0])]
+
+            # def _cal_same_first_nodes_size(edges, first_node):
+            #     entire_group = np.count_nonzero(edges[:,0] == first_node)
+            #     return entire_group
+            #
+            # group_sizes_vec = np.zeros(401)
+            # # Calculate the each group of edges size:
+            # for i in range(0,401):
+            #     group_sizes_vec[i] = _cal_same_first_nodes_size(mesh2_edge_nodes, i)
+            #
+            # group_sizes_old = np.zeros(401)
+            # # Calculate the each group of edges size:
+            # for i in range(0,401):
+            #     group_sizes_old[i] = _cal_same_first_nodes_size(mesh2_edge_nodes_old_fashion, i)
+
+
+
+
 
             # Assert if the mesh2_face_edges sizes are correct.
             self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
@@ -139,67 +220,8 @@ class TestGrid(TestCase):
                              mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
             self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
 
-            # #[Test] try using the set method
-            # mesh2_edge_nodes_set = set(
-            # )  # Use the set data structure to store Edge object (undirected)
-            #
-            # # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
-            # mesh2_face_edges = []
-            # mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"].values
-            #
-            # # Loop over each face
-            # for face in mesh2_face_nodes:
-            #     cur_face_edge = []
-            #     # Loop over nodes in a face
-            #     for i in range(0, face.size - 1):
-            #         # with _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
-            #         if (face[i] == -1 or face[i + 1] == -1) or (np.isnan(
-            #                 face[i]) or np.isnan(face[i + 1])):
-            #             continue
-            #         # Two nodes are connected to one another if they’re adjacent in the array
-            #         mesh2_edge_nodes_set.add(frozenset({face[i], face[i + 1]}))
-            #         cur_face_edge.append([face[i], face[i + 1]])
-            #     # Two nodes are connected if one is the first element of the array and the other is the last
-            #     # First make sure to skip the dummy _FillValue=-1 node
-            #     last_node = face.size - 1
-            #     start_node = 0
-            #     while (face[last_node] == -1 or
-            #            np.isnan(face[last_node])) and last_node > 0:
-            #         last_node -= 1
-            #     while (face[start_node] == -1 or
-            #            np.isnan(face[start_node])) and start_node > 0:
-            #         start_node += 1
-            #     if face[last_node] < 0 or face[last_node] < 0:
-            #         raise Exception('Invalid node index')
-            #     mesh2_edge_nodes_set.add(
-            #         frozenset({face[last_node], face[start_node]}))
-            #     cur_face_edge.append([face[last_node], face[start_node]])
-            #     mesh2_face_edges.append(cur_face_edge)
 
-            # mesh2_edge_nodes_old_fashion = []
-            # for edge in mesh2_edge_nodes_set:
-            #     mesh2_edge_nodes_old_fashion.append(list(edge))
-            # mesh2_edge_nodes_old_fashion = np.array(mesh2_edge_nodes_old_fashion, dtype=np.intp)
-            # mesh2_edge_nodes_old_fashion.sort(axis=0)
-            # mesh2_edge_nodes_old_fashion, inverse_indices = np.unique(
-            #     ar=mesh2_edge_nodes_old_fashion, return_inverse=True, axis=0
-            # )
-            # diff = []
-            # for i in range(0, len(mesh2_edge_nodes)):
-            #     if i >= len(mesh2_edge_nodes_old_fashion):
-            #         diff.append(mesh2_edge_nodes[i])
-            #     else:
-            #         edge = mesh2_edge_nodes[i]
-            #         edge_old_fa = mesh2_edge_nodes_old_fashion[i]
-            #         if ((edge[0] == edge_old_fa[0]) and (edge[1] == edge_old_fa[1])) or ((edge[0] == edge_old_fa[1]) and (edge[1] == edge_old_fa[0])):
-            #             continue
-            #         else:
-            #             diff.append(edge)
-            # diff = np.array(diff)
-
-            # Assert if the mesh2_edge_nodes sizes are correct.
-            # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds[
+            num_edges = mesh2_face_edges.sizes["nMesh2_face_temp"] + tgrid1.ds[
                 "Mesh2_node_x"].sizes["nMesh2_node"] - 2
             self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
