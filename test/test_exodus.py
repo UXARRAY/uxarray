@@ -34,8 +34,5 @@ class TestExodus(TestCase):
 
         uxgrid = ux.open_grid(self.exo2_filename)
 
-        outfile = current_path / "write_test_mixed.ug"
         uxgrid.encode_as("ugrid")
-
-        outfile = current_path / "write_test_mixed.exo"
         uxgrid.encode_as("exodus")
