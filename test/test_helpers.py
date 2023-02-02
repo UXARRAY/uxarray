@@ -107,20 +107,25 @@ class TestCoordinatesConversion(TestCase):
         [x, y, z] = ux.helpers._normalize_in_place([
             random.uniform(-1, 1),
             random.uniform(-1, 1),
-            random.uniform(-1, 1)])
+            random.uniform(-1, 1)
+        ])
         [lon, lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
-        [new_x, new_y, new_z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
+        [new_x, new_y,
+         new_z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
 
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
         self.assertLessEqual(np.absolute(new_z - z), err_tolerance)
 
     def test_convert_node_latlon_rad_to_xyz(self):
-        [lon, lat] = [random.uniform(0, 2 * np.pi),
-                      random.uniform(-0.5 * np.pi, 0.5 * np.pi)]
+        [lon, lat] = [
+            random.uniform(0, 2 * np.pi),
+            random.uniform(-0.5 * np.pi, 0.5 * np.pi)
+        ]
         [x, y, z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
 
-        [new_lon, new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
+        [new_lon,
+         new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
 
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)

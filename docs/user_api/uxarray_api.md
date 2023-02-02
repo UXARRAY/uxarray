@@ -4,8 +4,8 @@ Secondary (tier 2) functionality is indicated using (*) in front.
 
 # class uxarray.Grid
 
-Describes an unstructured grid via [Dataset 
-Accessor](https://docs.xarray.dev/en/stable/internals/extending-xarray.html) 
+Describes an unstructured grid via [Dataset
+Accessor](https://docs.xarray.dev/en/stable/internals/extending-xarray.html)
 to a ``xarray.Dataset`` object.
 
 ## uxarray.Grid Attributes

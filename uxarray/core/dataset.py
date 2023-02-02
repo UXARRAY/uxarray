@@ -3,6 +3,7 @@ import xarray as xr
 
 from typing import Optional
 
+
 class UxDataset(xr.Dataset):
 
     _uxgrid = None
@@ -73,4 +74,3 @@ class UxDataset(xr.Dataset):
         integral = np.dot(face_areas, face_vals)
 
         return integral
-

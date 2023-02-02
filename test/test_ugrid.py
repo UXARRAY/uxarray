@@ -55,7 +55,8 @@ class TestUgrid(TestCase):
 
             assert isinstance(getattr(uxgrid_url, "Mesh2_node_x"), xr.DataArray)
             assert isinstance(getattr(uxgrid_url, "Mesh2_node_y"), xr.DataArray)
-            assert isinstance(getattr(uxgrid_url, "Mesh2_face_nodes"), xr.DataArray)
+            assert isinstance(getattr(uxgrid_url, "Mesh2_face_nodes"),
+                              xr.DataArray)
 
     def test_encode_ugrid(self):
         """Read an Exodus dataset and encode that as a UGRID format."""

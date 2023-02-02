@@ -60,23 +60,23 @@ class TestScrip(TestCase):
 
         # Test newly created SCRIP is same as original SCRIP
         nt.assert_array_almost_equal(scrip_encode_ds['grid_corner_lat'],
-                                             ds_ne8['grid_corner_lat'])
+                                     ds_ne8['grid_corner_lat'])
         nt.assert_array_almost_equal(scrip_encode_ds['grid_corner_lon'],
-                                             ds_ne8['grid_corner_lon'])
+                                     ds_ne8['grid_corner_lon'])
 
         # Tests that calculated center lat/lon values are equivalent to original
         nt.assert_array_almost_equal(scrip_encode_ds['grid_center_lon'],
-                                             ds_ne8['grid_center_lon'])
+                                     ds_ne8['grid_center_lon'])
         nt.assert_array_almost_equal(scrip_encode_ds['grid_center_lat'],
-                                             ds_ne8['grid_center_lat'])
+                                     ds_ne8['grid_center_lat'])
 
         # Tests that calculated face area values are equivalent to original
         nt.assert_array_almost_equal(scrip_encode_ds['grid_area'],
-                                             ds_ne8['grid_area'])
+                                     ds_ne8['grid_area'])
 
         # Tests that calculated grid imask values are equivalent to original
         nt.assert_array_almost_equal(scrip_encode_ds['grid_imask'],
-                                             ds_ne8['grid_imask'])
+                                     ds_ne8['grid_imask'])
 
         # Test that "mesh" variables are not in new file
         with self.assertRaises(KeyError):
@@ -87,8 +87,9 @@ class TestScrip(TestCase):
         """Tests that returned dataset from writer function has all required
         SCRIP variables."""
         uxds_ne30 = ux.open_grid(gridfile_ne30)
-        scrip30 = _encode_scrip(uxds_ne30.Mesh2_face_nodes, uxds_ne30.Mesh2_node_x,
-                                uxds_ne30.Mesh2_node_y, uxds_ne30.face_areas)
+        scrip30 = _encode_scrip(uxds_ne30.Mesh2_face_nodes,
+                                uxds_ne30.Mesh2_node_x, uxds_ne30.Mesh2_node_y,
+                                uxds_ne30.face_areas)
 
         # List of relevant variable names for a scrip file
         var_list = [

@@ -7,8 +7,7 @@ from uxarray._exodus import _read_exodus, _encode_exodus
 from uxarray._ugrid import _read_ugrid, _encode_ugrid
 from uxarray._shapefile import _read_shpfile
 from uxarray._scrip import _read_scrip, _encode_scrip
-from uxarray.helpers import (get_all_face_area_from_coords,
-                             parse_grid_type,
+from uxarray.helpers import (get_all_face_area_from_coords, parse_grid_type,
                              _convert_node_xyz_to_lonlat_rad,
                              _convert_node_lonlat_rad_to_xyz)
 
@@ -176,15 +175,15 @@ class Grid:
         connectivity = [list(range(0, num_nodes))]
 
         self._ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
-                                               dims=["nMesh2_node"],
-                                               attrs={"units": x_units})
+                                                dims=["nMesh2_node"],
+                                                attrs={"units": x_units})
         self._ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
-                                               dims=["nMesh2_node"],
-                                               attrs={"units": y_units})
+                                                dims=["nMesh2_node"],
+                                                attrs={"units": y_units})
         if self.vertices[0].size > 2:
             self._ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
-                                                   dims=["nMesh2_node"],
-                                                   attrs={"units": z_units})
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": z_units})
 
         self._ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(connectivity),
@@ -204,7 +203,8 @@ class Grid:
         elif self.mesh_type == "scrip":
             self._ds = _read_scrip(dataset)
         elif self.mesh_type == "ugrid":
-            self._ds, self.grid_var_names = _read_ugrid(dataset, self.grid_var_names)
+            self._ds, self.grid_var_names = _read_ugrid(dataset,
+                                                        self.grid_var_names)
         elif self.mesh_type == "shp":
             self._ds = _read_shpfile(dataset)
         else:
@@ -321,7 +321,7 @@ class Grid:
         return self._face_areas
 
     def equals(self, other):
-        """ Two grids are equal if they have matching grid topology variables,
+        """Two grids are equal if they have matching grid topology variables,
         coordinates, and dims all of which are equal.
 
         Parameters
@@ -338,7 +338,8 @@ class Grid:
         for key, value in self.grid_var_names.items():
             # Check if all grid variables are equal
             if self._ds.data_vars is not None:
-                if not self._ds[value].equals(other._ds[other.grid_var_names[key]]):
+                if not self._ds[value].equals(
+                        other._ds[other.grid_var_names[key]]):
                     return False
 
         return True
@@ -397,10 +398,10 @@ class Grid:
         return integral
 
     def _populate_cartesian_xyz_coord(self):
-        """A helper function that populates the xyz attribute in UXarray.Grid._ds.
-        This function is called when we need to use the cartesian coordinates
-        for each node to do the calculation but the input data only has the
-        "Mesh2_node_x" and "Mesh2_node_y" in degree.
+        """A helper function that populates the xyz attribute in
+        UXarray.Grid._ds. This function is called when we need to use the
+        cartesian coordinates for each node to do the calculation but the input
+        data only has the "Mesh2_node_x" and "Mesh2_node_y" in degree.
 
         Note
         ----

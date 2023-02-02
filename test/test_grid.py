@@ -61,9 +61,7 @@ class TestGrid(TestCase):
         """
 
         verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
-        vgrid = ux.open_grid(verts,
-                        islatlon=True,
-                        isconcave=False)
+        vgrid = ux.open_grid(verts, islatlon=True, isconcave=False)
 
         assert (vgrid.source_grid == "From vertices")
 
@@ -76,15 +74,15 @@ class TestGrid(TestCase):
         # Dataset with standard UGRID variable names
         # Coordinates
         xr.testing.assert_equal(
-            self.grid_CSne30.Mesh2_node_x,
-            self.grid_CSne30._ds[self.grid_CSne30.grid_var_names["Mesh2_node_x"]])
+            self.grid_CSne30.Mesh2_node_x, self.grid_CSne30._ds[
+                self.grid_CSne30.grid_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(
-            self.grid_CSne30.Mesh2_node_y,
-            self.grid_CSne30._ds[self.grid_CSne30.grid_var_names["Mesh2_node_y"]])
+            self.grid_CSne30.Mesh2_node_y, self.grid_CSne30._ds[
+                self.grid_CSne30.grid_var_names["Mesh2_node_y"]])
         # Variables
         xr.testing.assert_equal(
-            self.grid_CSne30.Mesh2_face_nodes,
-            self.grid_CSne30._ds[self.grid_CSne30.grid_var_names["Mesh2_face_nodes"]])
+            self.grid_CSne30.Mesh2_face_nodes, self.grid_CSne30._ds[
+                self.grid_CSne30.grid_var_names["Mesh2_face_nodes"]])
 
         # Dimensions
         n_nodes = self.grid_CSne30.Mesh2_node_x.shape[0]
@@ -104,13 +102,16 @@ class TestGrid(TestCase):
         # Dataset with non-standard UGRID variable names
         grid_geoflow = ux.open_grid(gridfile_geoflow)
 
-        xr.testing.assert_equal(grid_geoflow.Mesh2_node_x,
-                                grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(grid_geoflow.Mesh2_node_y,
-                                grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_y"]])
+        xr.testing.assert_equal(
+            grid_geoflow.Mesh2_node_x,
+            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(
+            grid_geoflow.Mesh2_node_y,
+            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_y"]])
         # Variables
-        xr.testing.assert_equal(grid_geoflow.Mesh2_face_nodes,
-                                grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_face_nodes"]])
+        xr.testing.assert_equal(
+            grid_geoflow.Mesh2_face_nodes,
+            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_face_nodes"]])
         # Dimensions
         n_nodes = grid_geoflow.Mesh2_node_x.shape[0]
         n_faces, n_face_nodes = grid_geoflow.Mesh2_face_nodes.shape
