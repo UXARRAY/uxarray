@@ -8,13 +8,13 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 import xarray as xr
 
-from xarray.core.types import NestedSequence
 from uxarray.core.grid import Grid
-
 
 from uxarray.core.dataset import UxDataset
 
-def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray, list, tuple],
+
+def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
+                                          list, tuple],
               gridspec: Optional[str] = None,
               islatlon: Optional[bool] = False,
               isconcave: Optional[bool] = False,
@@ -65,21 +65,25 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray, l
     """
 
     ## Grid definition
-    if isinstance(grid_filename_or_obj, (list, tuple, np.ndarray, xr.DataArray)):
+    if isinstance(grid_filename_or_obj,
+                  (list, tuple, np.ndarray, xr.DataArray)):
         uxgrid = Grid(grid_filename_or_obj,
-                      gridspec = gridspec,
-                      islatlon = islatlon,
-                      isconcave = isconcave)
+                      gridspec=gridspec,
+                      islatlon=islatlon,
+                      isconcave=isconcave)
     else:
-        grid_ds = xr.open_dataset(grid_filename_or_obj, decode_times=False, **kwargs)  # type: ignore
+        grid_ds = xr.open_dataset(grid_filename_or_obj,
+                                  decode_times=False,
+                                  **kwargs)  # type: ignore
 
         uxgrid = Grid(grid_ds,
-                      gridspec = gridspec,
-                      islatlon = islatlon,
-                      isconcave = isconcave,
-                      source_grid = grid_filename_or_obj)
+                      gridspec=gridspec,
+                      islatlon=islatlon,
+                      isconcave=isconcave,
+                      source_grid=grid_filename_or_obj)
 
     return uxgrid
+
 
 def open_dataset(grid_filename_or_obj: str,
                  filename_or_obj: str,
@@ -88,8 +92,8 @@ def open_dataset(grid_filename_or_obj: str,
                  islatlon: Optional[bool] = False,
                  isconcave: Optional[bool] = False,
                  **kwargs: Dict[str, Any]) -> xr.Dataset:
-    """Wraps ``xarray.open_dataset()``, given a grid topology definition with
-    a single dataset file or object with corresponding data.
+    """Wraps ``xarray.open_dataset()``, given a grid topology definition with a
+    single dataset file or object with corresponding data.
 
     Parameters
     ----------
@@ -137,31 +141,35 @@ def open_dataset(grid_filename_or_obj: str,
     >>> ux_ds = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
     """
 
-    grid_ds = xr.open_dataset(grid_filename_or_obj, decode_times=False, **kwargs)  # type: ignore
-    ds = xr.open_dataset(filename_or_obj, decode_times=False, **kwargs)  # type: ignore
+    grid_ds = xr.open_dataset(grid_filename_or_obj,
+                              decode_times=False,
+                              **kwargs)  # type: ignore
+    ds = xr.open_dataset(filename_or_obj, decode_times=False,
+                         **kwargs)  # type: ignore
 
     ## Grid definition
     uxgrid = Grid(grid_ds,
-                  gridspec = gridspec,
-                  vertices = vertices,
-                  islatlon = islatlon,
-                  isconcave = isconcave,
-                  source_grid = grid_filename_or_obj)
+                  gridspec=gridspec,
+                  vertices=vertices,
+                  islatlon=islatlon,
+                  isconcave=isconcave,
+                  source_grid=grid_filename_or_obj)
 
     ## UxDataset
     uxds = UxDataset(uxgrid, ds, source_datasets=str(filename_or_obj))
 
     return uxds
 
+
 def open_mfdataset(grid_filename_or_obj: str,
-                   paths: str | NestedSequence[str | os.PathLike],
+                   paths: Union[str, os.PathLike],
                    gridspec: Optional[str] = None,
                    vertices: Optional[list] = None,
                    islatlon: Optional[bool] = False,
                    isconcave: Optional[bool] = False,
                    **kwargs: Dict[str, Any]) -> xr.Dataset:
-    """Wraps ``xarray.open_mfdataset()``, given a single grid topology file with
-    multiple dataset paths with corresponding data.
+    """Wraps ``xarray.open_mfdataset()``, given a single grid topology file
+    with multiple dataset paths with corresponding data.
 
     Parameters
     ----------
@@ -208,16 +216,18 @@ def open_mfdataset(grid_filename_or_obj: str,
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc")
     """
 
-    grid_ds = xr.open_dataset(grid_filename_or_obj, decode_times=False, **kwargs)  # type: ignore
+    grid_ds = xr.open_dataset(grid_filename_or_obj,
+                              decode_times=False,
+                              **kwargs)  # type: ignore
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
 
     ## Grid definition
     uxgrid = Grid(grid_ds,
-                  gridspec = gridspec,
-                  vertices = vertices,
-                  islatlon = islatlon,
-                  isconcave = isconcave,
-                  source_grid = grid_filename_or_obj)
+                  gridspec=gridspec,
+                  vertices=vertices,
+                  islatlon=islatlon,
+                  isconcave=isconcave,
+                  source_grid=grid_filename_or_obj)
 
     ## UxDataset
     uxds = UxDataset(uxgrid, ds, source_datasets=str(paths))
