@@ -144,7 +144,7 @@ class TestGrid(TestCase):
 class TestIntegrate(TestCase):
     mesh_file30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     data_file30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
-    data_file30_v2 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.ug"
+    data_file30_v2 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
     def test_calculate_total_face_area_triangle(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
