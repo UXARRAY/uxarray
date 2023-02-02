@@ -9,7 +9,7 @@ check the draft `Uxarray API
 documentation to see the tentative whole API and let us know if you have any feedback!
 
 Grid Class
-----------
+------------------
 .. autosummary::
    :toctree: _autosummary
 

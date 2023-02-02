@@ -9,13 +9,13 @@ check the draft `Uxarray API
 documentation to see the tentative whole API and let us know if you have any feedback!
 
 Grid Methods
-------------
+--------------------
 
 .. autosummary::
    :nosignatures:
    :toctree: ./generated/
 
-   grid.Grid.__init_ds_var_names__
+   grid.Grid.__init_grid_var_names__
    grid.Grid.__from_ds__
    grid.Grid.__from_vert__
    grid.Grid.__init_grid_var_attrs__
