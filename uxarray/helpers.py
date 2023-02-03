@@ -151,14 +151,14 @@ def calculate_face_area(x,
 
         if (coords_type == "spherical"):
             node1 = np.array(
-                _convert_node_lonlat_rad_to_xyz(
+                convert_node_lonlat_rad_to_xyz(
                     [np.deg2rad(x[0]), np.deg2rad(y[0])]))
             node2 = np.array(
-                _convert_node_lonlat_rad_to_xyz(
+                convert_node_lonlat_rad_to_xyz(
                     [np.deg2rad(x[j + 1]),
                      np.deg2rad(y[j + 1])]))
             node3 = np.array(
-                _convert_node_lonlat_rad_to_xyz(
+                convert_node_lonlat_rad_to_xyz(
                     [np.deg2rad(x[j + 2]),
                      np.deg2rad(y[j + 2])]))
 
@@ -460,7 +460,7 @@ def grid_center_lat_lon(ds):
 
 
 @njit
-def _convert_node_lonlat_rad_to_xyz(node_coord):
+def convert_node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D
     longitude/latitude to normalized 3D xyz.
 
@@ -488,7 +488,7 @@ def _convert_node_lonlat_rad_to_xyz(node_coord):
 
 
 @njit
-def _convert_node_xyz_to_lonlat_rad(node_coord):
+def convert_node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
 
@@ -510,7 +510,7 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     reference_tolerance = 1.0e-12
-    [dx, dy, dz] = _normalize_in_place(node_coord)
+    [dx, dy, dz] = normalize_in_place(node_coord)
     dx /= np.absolute(dx * dx + dy * dy + dz * dz)
     dy /= np.absolute(dx * dx + dy * dy + dz * dz)
     dz /= np.absolute(dx * dx + dy * dy + dz * dz)
@@ -532,7 +532,7 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
 
 
 @njit
-def _normalize_in_place(node):
+def normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate
     the magnitude.
@@ -555,8 +555,4 @@ def _normalize_in_place(node):
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
-
-
-
-
+    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
