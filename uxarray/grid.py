@@ -385,7 +385,7 @@ class Grid:
         DataArray of size (nMesh2_face, MaxNumNodesPerFace)
         """
         mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
-        mesh2_face_nodes = mesh2_face_nodes[0:400,:]
+        mesh2_face_nodes = mesh2_face_nodes[0:5,:]
         # two_mesh2_face_nodes = []
         #
         # for egde in mesh2_face_nodes:
@@ -420,10 +420,13 @@ class Grid:
         mesh2_edge_nodes = np.empty((n * m, 2), dtype=np.intp)
         mesh2_edge_nodes[:, 0] = pad_results[:, :-1].ravel()
         mesh2_edge_nodes[:, 1] = pad_results[:, 1:].ravel()
-        # Clean up the invalid node
-        mesh2_edge_nodes = mesh2_edge_nodes[
-            mesh2_edge_nodes[:, 0] != mesh2_edge_nodes[:, 1]
-            ]
+        # Clean up the invalid edge (same node to same node except the [-1, -1] edge)
+        valid_mask = np.array(list(map(lambda edge:not (edge[0] == edge[1] and not np.array_equal(edge, np.array([-1, -1]))),mesh2_edge_nodes)))
+        mesh2_edge_nodes = mesh2_edge_nodes[valid_mask]
+
+        #mesh2_edge_nodes = np.asarray(np.where((mesh2_edge_nodes[:, 0] != mesh2_edge_nodes[:, 1]) |np.array_equal(mesh2_edge_nodes,[-1, -1])))
+
+
         # Find the unique edge
         mesh2_edge_nodes.sort(axis=1)
         mesh2_edge_node_copy, inverse_indices = np.unique(
@@ -441,7 +444,7 @@ class Grid:
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
-            dims=["nMesh2_face_temp", "nMaxMesh2_face_edges", "Two"])
+            dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
         self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
                                                    dims=["nMesh2_edge", "Two"])
 
