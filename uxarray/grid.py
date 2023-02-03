@@ -385,7 +385,7 @@ class Grid:
         DataArray of size (nMesh2_face, MaxNumNodesPerFace)
         """
         mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
-        mesh2_face_nodes = mesh2_face_nodes[0:5,:]
+        # mesh2_face_nodes = mesh2_face_nodes[0:5,:]
         # two_mesh2_face_nodes = []
         #
         # for egde in mesh2_face_nodes:

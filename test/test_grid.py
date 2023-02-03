@@ -122,7 +122,7 @@ class TestGrid(TestCase):
         """Tests to see if the generated face_edges_connectivity number match
         the calculated results from Euler formular."""
         ug_filename_list = [
-            "ov_RLL10deg_CSne4.ug"
+            "outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"
         ]  #["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
         for ug_file_name in ug_filename_list:
             ug_filename1 = current_path / "meshfiles" / ug_file_name
