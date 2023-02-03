@@ -17,8 +17,8 @@ except ImportError:
 # Data files
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-exodus = current_path / "meshfiles" / "outCSne8.g"
-ne8 = current_path / 'meshfiles' / 'outCSne8.nc'
+exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+ne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
 err_tolerance = 1.0e-12
 
 

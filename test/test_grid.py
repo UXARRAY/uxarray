@@ -18,10 +18,9 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class TestGrid(TestCase):
-
-    ug_filename1 = current_path / "meshfiles" / "outCSne30.ug"
-    ug_filename2 = current_path / "meshfiles" / "outRLL1deg.ug"
-    ug_filename3 = current_path / "meshfiles" / "ov_RLL10deg_CSne4.ug"
+    ug_filename1 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    ug_filename2 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+    ug_filename3 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
     xr_ds1 = xr.open_dataset(ug_filename1)
     xr_ds2 = xr.open_dataset(ug_filename2)
@@ -46,7 +45,7 @@ class TestGrid(TestCase):
         """Loads grid files of different formats using uxarray's open_dataset
         call."""
 
-        path = current_path / "meshfiles" / "mesh.nc"
+        path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
         xr_grid = xr.open_dataset(path)
         grid = ux.Grid(xr_grid)
 
@@ -98,7 +97,7 @@ class TestGrid(TestCase):
         #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
 
         # Dataset with non-standard UGRID variable names
-        path = current_path / "meshfiles" / "mesh.nc"
+        path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
         xr_grid = xr.open_dataset(path)
         grid = ux.Grid(xr_grid)
         xr.testing.assert_equal(grid.Mesh2_node_x,
@@ -143,22 +142,21 @@ class TestGrid(TestCase):
                 "Mesh2_node_x"].sizes["nMesh2_node"] - 2
             self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
-
-# TODO: Move to test_shpfile/scrip when implemented
-# use external package to read?
-# https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
+    # TODO: Move to test_shpfile/scrip when implemented
+    # use external package to read?
+    # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
-            shp_filename = current_path / "meshfiles" / "grid_fire.shp"
+            shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
             tgrid = ux.Grid(str(shp_filename))
 
     def test_read_scrip(self):
         """Reads a scrip file."""
 
-        scrip_8 = current_path / "meshfiles" / "outCSne8.nc"
-        ug_30 = current_path / "meshfiles" / "outCSne30.ug"
+        scrip_8 = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
+        ug_30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 
         # Test read from scrip and from ugrid for grid class
         xr_grid_s8 = xr.open_dataset(scrip_8)
@@ -169,10 +167,9 @@ class TestGrid(TestCase):
 
 
 class TestIntegrate(TestCase):
-
-    mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
-    data_file30 = current_path / "meshfiles" / "outCSne30_vortex.nc"
-    data_file30_v2 = current_path / "meshfiles" / "outCSne30_var2.ug"
+    mesh_file30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    data_file30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
+    data_file30_v2 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
     def test_calculate_total_face_area_triangle(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
@@ -226,7 +223,7 @@ class TestFaceAreas(TestCase):
 
     def test_compute_face_areas_geoflow_small(self):
         """Checks if the GeoFlow Small can generate a face areas output."""
-        geoflow_small_grid = current_path / "meshfiles" / "geoflow-small" / "grid.nc"
+        geoflow_small_grid = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
         grid_1_ds = xr.open_dataset(geoflow_small_grid)
         grid_1 = ux.Grid(grid_1_ds)
         grid_1.compute_face_areas()
@@ -235,7 +232,95 @@ class TestFaceAreas(TestCase):
         """Checks if the FESOM PI-Grid Output can generate a face areas
         output."""
 
-        fesom_grid_small = current_path / "meshfiles" / "fesom" / "fesom.mesh.diag.nc"
+        fesom_grid_small = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
         grid_2_ds = xr.open_dataset(fesom_grid_small)
         grid_2 = ux.Grid(grid_2_ds)
         grid_2.compute_face_areas()
+
+
+class TestPopulateCoordinates(TestCase):
+
+    def test_populate_cartesian_xyz_coord(self):
+        # The following testcases are generated through the matlab cart2sph/sph2cart functions
+        # These points correspond to the eight vertices of a cube.
+        lon_deg = [
+            45.0001052295749, 45.0001052295749, -45.0001052295749,
+            -45.0001052295749, 135.000315688725, 135.000315688725,
+            -135.000315688725, -135.000315688725
+        ]
+        lat_deg = [
+            35.2655522903022, -35.2655522903022, 35.2655522903022,
+            -35.2655522903022, 35.2655522903022, -35.2655522903022,
+            35.2655522903022, -35.2655522903022
+        ]
+        cart_x = [
+            0.577340924821405, 0.577340924821405, 0.577340924821405,
+            0.577340924821405, -0.577345166204668, -0.577345166204668,
+            -0.577345166204668, -0.577345166204668
+        ]
+        cart_y = [
+            0.577343045516932, 0.577343045516932, -0.577343045516932,
+            -0.577343045516932, 0.577338804118089, 0.577338804118089,
+            -0.577338804118089, -0.577338804118089
+        ]
+        cart_z = [
+            0.577366836872017, -0.577366836872017, 0.577366836872017,
+            -0.577366836872017, 0.577366836872017, -0.577366836872017,
+            0.577366836872017, -0.577366836872017
+        ]
+        verts_degree = np.stack((lon_deg, lat_deg), axis=1)
+        vgrid = ux.Grid(verts_degree)
+        vgrid._populate_cartesian_xyz_coord()
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
+                                   cart_x[i],
+                                   decimal=12)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_y"].values[i],
+                                   cart_y[i],
+                                   decimal=12)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
+                                   cart_z[i],
+                                   decimal=12)
+
+    def test_populate_lonlat_coord(self):
+        # The following testcases are generated through the matlab cart2sph/sph2cart functions
+        # These points correspond to the eight vertices of a cube.
+        lon_deg = [
+            45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
+            360 - 45.0001052295749, 135.000315688725, 135.000315688725,
+            360 - 135.000315688725, 360 - 135.000315688725
+        ]
+        lat_deg = [
+            35.2655522903022, -35.2655522903022, 35.2655522903022,
+            -35.2655522903022, 35.2655522903022, -35.2655522903022,
+            35.2655522903022, -35.2655522903022
+        ]
+        cart_x = [
+            0.577340924821405, 0.577340924821405, 0.577340924821405,
+            0.577340924821405, -0.577345166204668, -0.577345166204668,
+            -0.577345166204668, -0.577345166204668
+        ]
+        cart_y = [
+            0.577343045516932, 0.577343045516932, -0.577343045516932,
+            -0.577343045516932, 0.577338804118089, 0.577338804118089,
+            -0.577338804118089, -0.577338804118089
+        ]
+        cart_z = [
+            0.577366836872017, -0.577366836872017, 0.577366836872017,
+            -0.577366836872017, 0.577366836872017, -0.577366836872017,
+            0.577366836872017, -0.577366836872017
+        ]
+
+        verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
+        vgrid = ux.Grid(verts_cart)
+        vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
+        vgrid._populate_lonlat_coord()
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
+                                   lon_deg[i],
+                                   decimal=12)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
+                                   lat_deg[i],
+                                   decimal=12)
