@@ -8,7 +8,7 @@ from ._exodus import _read_exodus, _encode_exodus
 from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
-from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
+from .helpers import get_all_face_area_from_coords, parse_grid_type, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz
 
 int_dtype = np.uint32
 _FillValue_ = float("nan")
@@ -373,7 +373,6 @@ class Grid:
 
         return integral
 
-
     # A one-time-used helper function that will only be used in the build_face_edges_connectivity map() function usage
     def __replace_fill_val(self, row, index, rep_val):
         row[index] = rep_val
@@ -481,7 +480,7 @@ class Grid:
         nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
         nodes_cart = np.asarray(
-            list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
+            list(map(convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
 
         self.ds["Mesh2_node_cart_x"] = xr.DataArray(
             data=nodes_cart[:, 0],
@@ -578,4 +577,3 @@ class Grid:
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
-
