@@ -98,10 +98,12 @@ class TestIntegrate(TestCase):
 
 
     def test_get_intersection_pt(self):
+        # In this testcase, we will only have one intersection point
         gcr_cart = [ux.normalize_in_place([0.1,0.1,1]), ux.normalize_in_place([0.1,0.1,-1])]
         const_lat = 0
         res = ux.get_intersection_pt(gcr_cart, const_lat)
-        self.assertEqual(res[0] ** 2 + res[1] ** 2 + const_lat ** 2, 1)
-        self.assertAlmostEqual(np.dot(np.cross(gcr_cart[0], gcr_cart[1]),[res[0], res[1],const_lat]),1.0e-12)
+        res = res[0]
+        self.assertAlmostEqual(res[0] ** 2 + res[1] ** 2 + const_lat ** 2, 1,12)
+        self.assertAlmostEqual(np.dot(np.cross(gcr_cart[0], gcr_cart[1]),[res[0], res[1],const_lat]),0,12)
 
 

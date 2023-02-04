@@ -331,37 +331,6 @@ def minmax_Longitude_rad(v1, v2):
         end_lon = temp_lon
     return [np.deg2rad(start_lon), np.deg2rad(end_lon)]
 
-import plotly.graph_objs as go
-
-
-def vector_plot(tvects, is_vect=True, orig=[0, 0, 0]):
-    """Plot vectors using plotly."""
-
-    if is_vect:
-        if not hasattr(orig[0], "__iter__"):
-            coords = [[orig, np.sum([orig, v], axis=0)] for v in tvects]
-        else:
-            coords = [[o, np.sum([o, v], axis=0)] for o, v in zip(orig, tvects)]
-    else:
-        coords = tvects
-
-    data = []
-    for i, c in enumerate(coords):
-        X1, Y1, Z1 = zip(c[0])
-        X2, Y2, Z2 = zip(c[1])
-        vector = go.Scatter3d(x=[X1[0], X2[0]],
-                              y=[Y1[0], Y2[0]],
-                              z=[Z1[0], Z2[0]],
-                              marker=dict(size=[0, 5],
-                                          color=['blue'],
-                                          line=dict(width=5,
-                                                    color='DarkSlateGrey')),
-                              name='Vector' + str(i + 1))
-        data.append(vector)
-
-    layout = go.Layout(margin=dict(l=4, r=4, b=4, t=4))
-    fig = go.Figure(data=data, layout=layout)
-    fig.show()
 
 # helper function to calculate the point position of the intersection of two great circle arcs
 def get_intersection_point_gcr_gcr(w0, w1, v0, v1, i=-1):
@@ -393,12 +362,6 @@ def get_intersection_point_gcr_gcr(w0, w1, v0, v1, i=-1):
         return [0, 0, 0]
     x1 = normalize_in_place(np.cross(norm_w0w1, norm_v0v1).tolist())
     x2 = [-x1[0], -x1[1], -x1[2]]
-    w0_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(w0))
-    w1_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(w1))
-    v0_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(v0))
-    v1_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(v1))
-    x1_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(x1))
-    x2_deg = np.rad2deg(convert_node_xyz_to_lonlat_rad(x2))
 
     # if x1_deg[0] == 180. and np.absolute(x1_deg[1] - (-45)) <= 0.00001 :
     #     vector_plot([w0,w1,v0,v1, x1])

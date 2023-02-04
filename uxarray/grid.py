@@ -599,6 +599,15 @@ class Grid:
 
     # Get the non-conservative zonal average of the input variable
     def get_nc_zonal_avg(self, var_key, latitude_rad):
+        '''
+         Algorithm:
+            For each face:
+                Find the constantLat Arc intersection points with the face:
+                How to find:
+                    Use the root calculation to get the approximate point location
+                    Then based on the approximate results, use the newton-raphson method to
+
+        '''
 
         # First build the latitude and longitude boundary
         if "Mesh2_latlon_bounds" not in self.ds.keys() or "Mesh2_latlon_bounds" is None:

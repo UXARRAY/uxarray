@@ -28,6 +28,7 @@ def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max
     tolerance = 1.0e-17
     error = 9e9
     alpha = 1
+    constZ = init_cart[2]
 
 
     y_new = np.ones((2, 1))
@@ -41,8 +42,8 @@ def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max
 
     while error > tolerance and _iter < max_iter:
         F[0] = __parallel_to_plane_eqn(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2],
-                                       y_guess[0], y_guess[1], y_guess[2])
-        F[1] = __sphere_eqn(y_guess[0], y_guess[1], y_guess[2])
+                                       y_guess[0], y_guess[1], constZ)
+        F[1] = __sphere_eqn(y_guess[0], y_guess[1], constZ)
 
         J_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2], y_guess[0],
                                y_guess[1])
