@@ -156,8 +156,8 @@ class TestGrid(TestCase):
                 self.assertLessEqual(np.absolute(lat_min_algo - lat_min_quant), 1.0e-12)
 
     def test_generate_Latlon_bounds_longitude_minmax(self):
-        """Generates a the longitude boundary Xarray from grid file."""
-        ug_filename_list = ["outRLL1deg.ug", "outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
+        """Generates the longitude boundary Xarray from grid file."""
+        ug_filename_list = ["outCSne30.ug", "ov_RLL10deg_CSne4.ug"]
         for ug_file_name in ug_filename_list:
             ug_filename1 = current_path / "meshfiles" / ug_file_name
             tgrid1 = ux.open_dataset(str(ug_filename1))

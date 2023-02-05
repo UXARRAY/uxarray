@@ -556,7 +556,9 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
     res = [[-1, -1, -1], [-1, -1, -1]]
 
     #  Determine if latitude is maximized between endpointscted latitude on the interval a ∈ [0, 1].
-    if not _within(gcr_rad[0][1], const_lat_rad, gcr_rad[1][1]):
+    min_lat = min(gcr_rad[0][1],gcr_rad[1][1])
+    max_lat = get_gcr_max_lat_rad(gcr_cart)
+    if not _within(min_lat, const_lat_rad, max_lat):
         return res
     # If z1 = z2 = 0 then the great circle arc corresponds to the equator.
     if n1[2] == n2[2] == 0 and const_lat_rad != 0:
@@ -588,7 +590,7 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
     # interval between x1 and x2
     if _pt_within_gcr(x1, [n1, n2]):
         res[0] = x1
-    elif _pt_within_gcr(x2, [n1, n2]):
+    if _pt_within_gcr(x2, [n1, n2]):
         res[1] = x2
 
     return res
@@ -596,17 +598,17 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
 
 def get_intersection_pt(gcr_cart, const_lat_rad):
     const_lat_z = np.sin(const_lat_rad)
-    initial_guess = _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_z)
+    initial_guess = _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad)
     intersection_pt = [[-1, -1, -1], [-1, -1, -1]]
 
     if initial_guess[0] != [-1, -1, -1]:
         newton_input = [initial_guess[0][0], initial_guess[0][1], const_lat_z]
         res = _newton_raphson_solver_for_intersection_pts(newton_input, gcr_cart[0], gcr_cart[1])
-        intersection_pt[0] = [res[0], res[1], const_lat_z]
-    elif initial_guess[1] != [-1, -1, -1]:
+        intersection_pt[0] = normalize_in_place([res[0], res[1], const_lat_z])
+    if initial_guess[1] != [-1, -1, -1]:
         newton_input = [initial_guess[1][0], initial_guess[1][1], const_lat_z]
         res = _newton_raphson_solver_for_intersection_pts(newton_input, gcr_cart[0], gcr_cart[1])
-        intersection_pt[0] = [res[0], res[1], const_lat_z]
+        intersection_pt[1] = normalize_in_place([res[0], res[1], const_lat_z])
 
     return intersection_pt
 
@@ -668,3 +670,31 @@ def _get_cart_vector_magnitude(start, end):
     x1_x2 = [x1[0] - x2[0], x1[1] - x2[1], x1[2] - x2[2]]
     x1_x2_mag = np.sqrt(x1_x2[0] ** 2 + x1_x2[1] ** 2 + x1_x2[2] ** 2)
     return x1_x2_mag
+
+def get_gcr_max_lat_rad(gcr_cart):
+    # Helper function in paper 2.1.2 Maximum latitude of a great circle arc
+    n1 = gcr_cart[0]
+    n2 = gcr_cart[1]
+    dot_n1_n2 = np.dot(n1, n2)
+    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
+    d_a_max = (n1[2] * np.dot(n1, n2) - n2[2]) / d_de_nom
+    if (d_a_max > 0.0) and (d_a_max < 1.0):
+        node3 = [0.0, 0.0, 0.0]
+        node3[0] = n1[0] * (1 - d_a_max) + n2[0] * d_a_max
+        node3[1] = n1[1] * (1 - d_a_max) + n2[1] * d_a_max
+        node3[2] = n1[2] * (1 - d_a_max) + n2[2] * d_a_max
+        node3 = normalize_in_place(node3)
+
+        d_lat_rad = node3[2]
+
+        if d_lat_rad > 1.0:
+            d_lat_rad = 0.5 * np.pi
+        elif d_lat_rad < -1.0:
+            d_lat_rad = -0.5 * np.pi
+        else:
+            d_lat_rad = np.arcsin(d_lat_rad)
+        return d_lat_rad
+    else:
+        return max(convert_node_xyz_to_lonlat_rad(n1)[1], convert_node_xyz_to_lonlat_rad(n2)[1])
+
+

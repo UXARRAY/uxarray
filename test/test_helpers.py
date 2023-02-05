@@ -102,8 +102,27 @@ class TestIntegrate(TestCase):
         gcr_cart = [ux.normalize_in_place([0.1,0.1,1]), ux.normalize_in_place([0.1,0.1,-1])]
         const_lat = 0
         res = ux.get_intersection_pt(gcr_cart, const_lat)
-        res = res[0]
-        self.assertAlmostEqual(res[0] ** 2 + res[1] ** 2 + const_lat ** 2, 1,12)
-        self.assertAlmostEqual(np.dot(np.cross(gcr_cart[0], gcr_cart[1]),[res[0], res[1],const_lat]),0,12)
+        res = res[0] if res[0] != [-1, -1, -1] else res[1]
+        self.assertAlmostEqual(res[0] ** 2 + res[1] ** 2 + res[2] ** 2, 1,12)
+        self.assertAlmostEqual(np.dot(np.cross(gcr_cart[0], gcr_cart[1]),res),0,17)
+
+        # A more complicate testcase that will have two intersection points
+        v0_rad = np.deg2rad(np.array([10, 40]))
+        v1_rad = np.deg2rad(np.array([150, 40]))
+        n1 = ux.convert_node_lonlat_rad_to_xyz(list(v0_rad))
+        n2 = ux.convert_node_lonlat_rad_to_xyz(list(v1_rad))
+        const_lat = 1
+        res = ux.get_intersection_pt([n1, n2], const_lat)
+        first_pt = res[0]
+        normal_vect = np.cross(n1, n2)
+        dot_res = np.dot(normal_vect, first_pt)
+
+        self.assertAlmostEqual(first_pt[0] ** 2 + first_pt[1] ** 2 + first_pt[2] ** 2, 1,12)
+        self.assertAlmostEqual(np.dot(np.cross(n1, n2),first_pt),0,12)
+
+        second_pt = res[1]
+        self.assertAlmostEqual(second_pt[0] ** 2 + second_pt[1] ** 2 + second_pt[2] ** 2, 1,12)
+        self.assertAlmostEqual(np.dot(np.cross(n1, n2), second_pt),0,12)
+
 
 

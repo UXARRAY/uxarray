@@ -25,14 +25,13 @@ def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
 
 
 def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max_iter=1000):
-    tolerance = 1.0e-17
+    tolerance = 1.0e-16
     error = 9e9
     alpha = 1
     constZ = init_cart[2]
 
 
     y_new = np.ones((2, 1))
-    y_old = np.array(init_cart[0:2])
     y_guess = np.array(init_cart[0:2])
 
     # numpy column matrix for the F
