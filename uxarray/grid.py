@@ -13,7 +13,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, _within, _get_radius_of_latitude_rad, get_intersection_pt, get_latlonbox_width
+    normalize_in_place, _within, _get_radius_of_latitude_rad, get_intersection_pt
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 
 
@@ -610,7 +610,7 @@ class Grid:
 
         '''
 
-        # First build the latitude and longitude boundary
+        face_vals = self.ds.get(var_key).to_numpy()
         if "Mesh2_latlon_bounds" not in self.ds.keys() or "Mesh2_latlon_bounds" is None:
             self.buildlatlon_bounds()
 
@@ -621,16 +621,25 @@ class Grid:
         candidate_face_set = self._latlonbound_tree.at(latitude_rad)
         for interval in candidate_face_set:
             candidate_faces_index_list.append(interval.data)
+        candidate_faces_weight_list = self._get_zonal_face_weights_at_constlat(candidate_faces_index_list, latitude_rad)
+        # Get the candidate face values:
+        face_vals = self.ds.get(var_key).to_numpy()
+        candidate_faces_vals_list = [0.0] * len(candidate_faces_index_list)
+        for i in range(0, len(candidate_faces_index_list)):
+            face_index = candidate_faces_index_list[i]
+            candidate_faces_vals_list[i] = face_vals[face_index]
+        zonal_average = np.dot(candidate_faces_weight_list, candidate_faces_vals_list)
+        return zonal_average
 
-
+    def _get_zonal_face_weights_at_constlat(self, candidate_faces_index_list, latitude_rad):
         # Then calculate the weight of each face
         # First calculate the perimeter this constant latitude circle
-        lat_radius = _get_radius_of_latitude_rad(latitude_rad)
-        perimeter = 2 * np.pi * lat_radius
         candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
-        for i in candidate_faces_index_list:
-            face_latlon_bounds = self.ds["Mesh2_latlon_bounds"].values[i]
-            face = self.ds["Mesh2_face_edges"].values[i]
+
+        for i in range(0, len(candidate_faces_index_list)):
+            face_index = candidate_faces_index_list[i]
+            [face_lon_bound_min, face_lon_bound_max] = self.ds["Mesh2_latlon_bounds"].values[face_index][1]
+            face = self.ds["Mesh2_face_edges"].values[face_index]
             intersections_pts_list_lonlat = []
             for j in range(0, len(face)):
                 edge = face[j]
@@ -654,27 +663,20 @@ class Grid:
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
                     else:
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
-            #TODO: reformat the codes based on the implementation of the function "get_latlonbox_width()" (which might have a differet API)
-            latlonbox = [[intersections_pts_list_lonlat[0][1],intersections_pts_list_lonlat[0][0]], [intersections_pts_list_lonlat[1][1],intersections_pts_list_lonlat[1][0]]]
-            cur_face_mag_rad = get_latlonbox_width(latlonbox)
+
+            if face_lon_bound_min < face_lon_bound_max:
+                # Normal case
+                cur_face_mag_rad = face_lon_bound_max - face_lon_bound_min
+            else:
+                # Longitude wrap-around
+                cur_face_mag_rad = 2 * np.pi - face_lon_bound_min + face_lon_bound_max
+
             # Calculate the weight from each face by |intersection line length| / total perimeter
             candidate_faces_weight_list[i] = cur_face_mag_rad
 
         # Sum up all the weights to get the total
-
-        face_vals = self.ds.get(var_key).to_numpy()
-        zonal_average = np.dot(candidate_faces_weight_list, face_vals)
-        return zonal_average
-
-    def get_dual_mesh(self):
-        """
-        Compute the dual mesh (the set of spherical polygons connecting centroids of each mesh centroid).
-        """
-        if "Mesh2_node_cart_x" not in self.ds.keys():
-            self.__populate_cartesian_xyz_coord()
-
-        for face in self.ds["Mesh2_face_nodes"].values:
-            pass
+        candidate_faces_weight_list = np.array(candidate_faces_weight_list) / np.sum(candidate_faces_weight_list)
+        return candidate_faces_weight_list
 
 
 

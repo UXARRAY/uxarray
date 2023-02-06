@@ -251,9 +251,26 @@ class TestGrid(TestCase):
 
 
 class TestZonalAverage(TestCase):
+    mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
+    data_file30 = current_path / "meshfiles" / "outCSne30_vortex.nc"
+    data_file30_v2 = current_path / "meshfiles" / "outCSne30_var2.ug"
+
+    def test_get_zonal_face_weights_at_constlat(self):
+        uds = ux.open_dataset(self.mesh_file30, self.data_file30, self.data_file30_v2)
+        uds.buildlatlon_bounds()
+        #  First Get the list of faces that falls into this latitude range
+        candidate_faces_index_list = []
+
+        # Search through the interval tree for all the candidates face
+        candidate_face_set = uds._latlonbound_tree.at(1)
+        for interval in candidate_face_set:
+            candidate_faces_index_list.append(interval.data)
+        res = uds._get_zonal_face_weights_at_constlat(candidate_faces_index_list, 1)
+        sum = np.sum(res)
+        self.assertAlmostEqual(sum,1,12)
+
     def test_nc_zonal_average(self):
-        ug_filename_list = ["outCSne30.ug"]
-        for ug_file_name in ug_filename_list:
-            ug_filename1 = current_path / "meshfiles" / ug_file_name
-            tgrid1 = ux.open_dataset(str(ug_filename1))
-            tgrid1.get_nc_zonal_avg("temperatrue", 1)
+        uds = ux.open_dataset(self.mesh_file30, self.data_file30, self.data_file30_v2)
+
+        res = uds.get_nc_zonal_avg("psi",1)
+        pass
