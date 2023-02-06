@@ -595,7 +595,7 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
 
     return res
 
-
+# Get the intersection point between a GCR and const Lat
 def get_intersection_pt(gcr_cart, const_lat_rad):
     const_lat_z = np.sin(const_lat_rad)
     initial_guess = _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad)
@@ -698,3 +698,23 @@ def get_gcr_max_lat_rad(gcr_cart):
         return max(convert_node_xyz_to_lonlat_rad(n1)[1], convert_node_xyz_to_lonlat_rad(n2)[1])
 
 
+# helper function to calculate the latlonbox width
+# TODO: Change the name to be "get longnitude width of two pts"
+def get_latlonbox_width(latlonbox, is_lon_periodic=True):
+    """Calculate the width of this LatLonBox
+    Parameters: latlonbox: float array, lat lon box [[lat_0, lat_1],[lon_0, lon_1]],required
+                is_lon_periodic: boolean, Flag indicating the latlonbox is a regional (default to be True).
+    Returns: the width of the latlonbox.
+    Raises:
+       Exception: Logic Errors
+    """
+
+    if not is_lon_periodic:
+        return latlonbox[1][1] - latlonbox[1][0]
+
+    if latlonbox[1][0] == latlonbox[1][1]:
+        return 0.0
+    elif latlonbox[1][0] <= latlonbox[1][1]:
+        return latlonbox[1][1] - latlonbox[1][0]
+    else:
+        return latlonbox[1][1] - latlonbox[1][0] + (2 * np.pi)

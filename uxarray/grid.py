@@ -13,7 +13,7 @@ from ._ugrid import _read_ugrid, _write_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
-    normalize_in_place, _within, _get_radius_of_latitude_rad, get_intersection_pt, _sort_intersection_pts_with_lon, _get_cart_vector_magnitude
+    normalize_in_place, _within, _get_radius_of_latitude_rad, get_intersection_pt, get_latlonbox_width
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 
 
@@ -435,6 +435,7 @@ class Grid:
                           self.ds["Mesh2_node_cart_z"].values[edge[1]]]
 
                     # Determine if latitude is maximized between endpoints
+                    # TODO: Replace this with the get_gcr_max_lat_rad function
                     dot_n1_n2 = np.dot(n1, n2)
                     d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
 
@@ -653,20 +654,13 @@ class Grid:
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
                     else:
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
-
-            sorted_in_lon_intersections_pts_list = _sort_intersection_pts_with_lon(intersections_pts_list_lonlat, face_latlon_bounds[1])
-
-            # Calculate the magitude of each intersecting line for each face
-            k = 0
-            cur_face_mag = 0
-            while k < len(sorted_in_lon_intersections_pts_list - 1):
-                cur_mag = _get_cart_vector_magnitude(sorted_in_lon_intersections_pts_list[k], sorted_in_lon_intersections_pts_list[k+1])
-                cur_face_mag += cur_mag
-                k += 2
-
+            #TODO: reformat the codes based on the implementation of the function "get_latlonbox_width()" (which might have a differet API)
+            latlonbox = [[intersections_pts_list_lonlat[0][1],intersections_pts_list_lonlat[0][0]], [intersections_pts_list_lonlat[1][1],intersections_pts_list_lonlat[1][0]]]
+            cur_face_mag_rad = get_latlonbox_width(latlonbox)
             # Calculate the weight from each face by |intersection line length| / total perimeter
-            candidate_faces_weight_list[i] = cur_face_mag / perimeter
-            del k
+            candidate_faces_weight_list[i] = cur_face_mag_rad
+
+        # Sum up all the weights to get the total
 
         face_vals = self.ds.get(var_key).to_numpy()
         zonal_average = np.dot(candidate_faces_weight_list, face_vals)

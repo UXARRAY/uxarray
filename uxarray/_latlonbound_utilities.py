@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from .helpers import _angle_of_2_vectors, _within, normalize_in_place, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz, _pt_within_gcr
+from .helpers import _angle_of_2_vectors, _within, normalize_in_place, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz, _pt_within_gcr, get_latlonbox_width
 
 # helper function to insert a new point into the latlon box
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
@@ -93,26 +93,6 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     else:
         return box_b
 
-
-# helper function to calculate the latlonbox width
-def get_latlonbox_width(latlonbox, is_lon_periodic=True):
-    """Calculate the width of this LatLonBox
-    Parameters: latlonbox: float array, lat lon box [[lat_0, lat_1],[lon_0, lon_1]],required
-                is_lon_periodic: boolean, Flag indicating the latlonbox is a regional (default to be True).
-    Returns: float array, a lat lon box [[lat_0, lat_1],[lon_0, lon_1]]
-    Raises:
-       Exception: Logic Errors
-    """
-
-    if not is_lon_periodic:
-        return latlonbox[1][1] - latlonbox[1][0]
-
-    if latlonbox[1][0] == latlonbox[1][1]:
-        return 0.0
-    elif latlonbox[1][0] <= latlonbox[1][1]:
-        return latlonbox[1][1] - latlonbox[1][0]
-    else:
-        return latlonbox[1][1] - latlonbox[1][0] + (2 * np.pi)
 
 
 # Quantitative method to find the maximum latitude between in a great circle arc
