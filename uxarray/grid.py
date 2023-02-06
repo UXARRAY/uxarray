@@ -11,7 +11,7 @@ from ._scrip import _read_scrip, _encode_scrip
 from .helpers import get_all_face_area_from_coords, parse_grid_type, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz
 
 int_dtype = np.uint32
-_FillValue_ = float("nan")
+_FillValue = float("nan")
 
 
 class Grid:
@@ -387,23 +387,24 @@ class Grid:
         This function will add `Grid.ds.Mesh2_face_edges` to the `Grid` class, which is an integer
         DataArray of size (nMesh2_face, MaxNumNodesPerFace)
         """
-        mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
-        n, m = mesh2_face_nodes.shape
+        mesh2_face_nodes = self.Mesh2_face_nodes.values
+        n = self.nMesh2_face
+        m = self.nMaxMesh2_face_nodes
 
         # First identify the _FillValue in the mesh2_face_nodes
         # We will unify the _FillValue used in this function as -1:
-        if np.isnan(_FillValue_):
+        if np.isnan(_FillValue):
             mesh2_face_nodes = np.nan_to_num(mesh2_face_nodes, nan=-1)
-        elif _FillValue_ is not -1:
-            mesh2_face_nodes[mesh2_face_nodes == _FillValue_] = -1
+        elif _FillValue is not -1:
+            mesh2_face_nodes[mesh2_face_nodes == _FillValue] = -1
 
         # Then do the padding for each face to close the polygon
         closed = np.full((n, m + 1), -1, dtype=np.intp)
         closed[:, :-1] = np.array(mesh2_face_nodes, dtype=np.intp)
         # We only want the index of first occurrence of -1
-        first_fill_value_index = np.array([
-            np.array(list(*np.where(row == -1)))[0] for row in closed
-        ])  # np.array(list(zip(*np.where(closed == -1))))
+        first_fill_value_index = np.argmax(closed == -1, axis=1) #np.array([
+            #np.array(list(*np.where(row == -1)))[0] for row in closed
+        #])  # np.array(list(zip(*np.where(closed == -1))))
         first_node = mesh2_face_nodes[:, 0]
 
         # Now replace the first -1 at each row to be the first node
@@ -440,10 +441,15 @@ class Grid:
             has_fill_value, np.ndarray) else mesh2_edge_node_copy
         inverse_indices = inverse_indices.reshape(n, m)
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
-        self.ds["Mesh2_face_edges"] = xr.DataArray(
+        self.Mesh2_face_edges = xr.DataArray(
             data=mesh2_face_edges,
-            dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"])
-        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
+            dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"],
+            attrs={
+                "cf_role": "face_edges_connectivity",
+                "start_index": 0
+            }
+        )
+        self.Mesh2_edge_nodes = xr.DataArray(data=mesh2_edge_nodes,
                                                    dims=["nMesh2_edge", "Two"])
 
     def _populate_cartesian_xyz_coord(self):
