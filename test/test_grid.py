@@ -128,8 +128,8 @@ class TestGrid(TestCase):
             tgrid1 = ux.Grid(xr_tgrid1)
             mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
             tgrid1.build_face_edges_connectivity()
-            mesh2_face_edges = tgrid1.ds.Mesh2_face_edges
-            mesh2_edge_nodes = tgrid1.ds.Mesh2_edge_nodes
+            mesh2_face_edges = tgrid1.Mesh2_face_edges
+            mesh2_edge_nodes = tgrid1.Mesh2_edge_nodes
 
             # Assert if the mesh2_face_edges sizes are correct.
             self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],

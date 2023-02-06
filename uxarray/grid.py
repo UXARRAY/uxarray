@@ -104,10 +104,7 @@ class Grid:
             "Mesh2_face_nodes": "Mesh2_face_nodes",
             # initialize dims
             "nMesh2_node": "nMesh2_node",
-            "nMesh2_face": "nMesh2_face",
-            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes",
-            "nMaxMesh2_face_edges": "nMaxMesh2_face_edges",
-            "Two": "Two"
+            "nMesh2_face": "nMesh2_face"
         }
 
     def __init_grid_var_attrs__(self) -> None:
@@ -450,10 +447,9 @@ class Grid:
             attrs={
                 "cf_role": "face_edges_connectivity",
                 "start_index": 0
-            }
-        )
+            })
         self.Mesh2_edge_nodes = xr.DataArray(data=mesh2_edge_nodes,
-                                                   dims=["nMesh2_edge", "Two"])
+                                             dims=["nMesh2_edge", "Two"])
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
@@ -491,21 +487,21 @@ class Grid:
         nodes_cart = np.asarray(
             list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
 
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(
+        self.Mesh2_node_cart_x = xr.DataArray(
             data=nodes_cart[:, 0],
             dims=["nMesh2_node"],
             attrs={
                 "standard_name": "cartesian x",
                 "units": "m",
             })
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(
+        self.Mesh2_node_cart_y = xr.DataArray(
             data=nodes_cart[:, 1],
             dims=["nMesh2_node"],
             attrs={
                 "standard_name": "cartesian y",
                 "units": "m",
             })
-        self.ds["Mesh2_node_cart_z"] = xr.DataArray(
+        self.Mesh2_node_cart_z = xr.DataArray(
             data=nodes_cart[:, 2],
             dims=["nMesh2_node"],
             attrs={
