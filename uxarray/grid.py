@@ -8,7 +8,7 @@ from ._exodus import _read_exodus, _encode_exodus
 from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
-from .helpers import get_all_face_area_from_coords, parse_grid_type, convert_node_xyz_to_lonlat_rad, convert_node_lonlat_rad_to_xyz
+from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
 
 int_dtype = np.uint32
 _FillValue = float("nan")
@@ -98,11 +98,16 @@ class Grid:
             "Mesh2_node_x": "Mesh2_node_x",
             "Mesh2_node_y": "Mesh2_node_y",
             "Mesh2_node_z": "Mesh2_node_z",
+            "Mesh2_node_cart_x": "Mesh2_node_cart_x",
+            "Mesh2_node_cart_y": "Mesh2_node_cart_y",
+            "Mesh2_node_cart_z": "Mesh2_node_cart_z",
             "Mesh2_face_nodes": "Mesh2_face_nodes",
             # initialize dims
             "nMesh2_node": "nMesh2_node",
             "nMesh2_face": "nMesh2_face",
-            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
+            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes",
+            "nMaxMesh2_face_edges": "nMaxMesh2_face_edges",
+            "Two": "Two"
         }
 
     def __init_grid_var_attrs__(self) -> None:
@@ -402,9 +407,7 @@ class Grid:
         closed = np.full((n, m + 1), -1, dtype=np.intp)
         closed[:, :-1] = np.array(mesh2_face_nodes, dtype=np.intp)
         # We only want the index of first occurrence of -1
-        first_fill_value_index = np.argmax(closed == -1, axis=1) #np.array([
-            #np.array(list(*np.where(row == -1)))[0] for row in closed
-        #])  # np.array(list(zip(*np.where(closed == -1))))
+        first_fill_value_index = np.argmax(closed == -1, axis=1)
         first_node = mesh2_face_nodes[:, 0]
 
         # Now replace the first -1 at each row to be the first node
@@ -486,7 +489,7 @@ class Grid:
         nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
         nodes_cart = np.asarray(
-            list(map(convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
+            list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
 
         self.ds["Mesh2_node_cart_x"] = xr.DataArray(
             data=nodes_cart[:, 0],
@@ -565,7 +568,7 @@ class Grid:
             (self.ds["Mesh2_node_x"].values, self.ds["Mesh2_node_y"].values,
              self.ds["Mesh2_node_z"].values),
             axis=1).tolist()
-        nodes_rad = list(map(convert_node_xyz_to_lonlat_rad, nodes_cart))
+        nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
         nodes_degree = np.rad2deg(nodes_rad)
         self.ds["Mesh2_node_x"] = xr.DataArray(
             data=nodes_degree[:, 0],
