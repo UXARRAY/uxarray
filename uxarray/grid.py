@@ -447,7 +447,7 @@ class Grid:
                 "start_index": 0
             })
         self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
-                                             dims=["nMesh2_edge", "Two"])
+                                                   dims=["nMesh2_edge", "Two"])
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
