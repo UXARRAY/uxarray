@@ -151,16 +151,13 @@ def calculate_face_area(x,
 
         if (coords_type == "spherical"):
             node1 = np.array(
-                convert_node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[0]), np.deg2rad(y[0])]))
+                node_lonlat_rad_to_xyz([np.deg2rad(x[0]), np.deg2rad(y[0])]))
             node2 = np.array(
-                convert_node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[j + 1]),
-                     np.deg2rad(y[j + 1])]))
+                node_lonlat_rad_to_xyz([np.deg2rad(x[j + 1]),
+                                        np.deg2rad(y[j + 1])]))
             node3 = np.array(
-                convert_node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[j + 2]),
-                     np.deg2rad(y[j + 2])]))
+                node_lonlat_rad_to_xyz([np.deg2rad(x[j + 2]),
+                                        np.deg2rad(y[j + 2])]))
 
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
@@ -460,7 +457,7 @@ def grid_center_lat_lon(ds):
 
 
 @njit
-def convert_node_lonlat_rad_to_xyz(node_coord):
+def node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D
     longitude/latitude to normalized 3D xyz.
 
@@ -488,7 +485,7 @@ def convert_node_lonlat_rad_to_xyz(node_coord):
 
 
 @njit
-def convert_node_xyz_to_lonlat_rad(node_coord):
+def node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
 
