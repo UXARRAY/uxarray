@@ -566,7 +566,7 @@ class Grid:
             axis=1).tolist()
         nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
         nodes_degree = np.rad2deg(nodes_rad)
-        self.ds["Mesh2_node_x"] = xr.DataArray(
+        self.Mesh2_node_x = xr.DataArray(
             data=nodes_degree[:, 0],
             dims=["nMesh2_node"],
             attrs={
@@ -574,7 +574,7 @@ class Grid:
                 "long_name": "longitude of mesh nodes",
                 "units": "degrees_east",
             })
-        self.ds["Mesh2_node_y"] = xr.DataArray(
+        self.Mesh2_node_y = xr.DataArray(
             data=nodes_degree[:, 1],
             dims=["nMesh2_node"],
             attrs={
