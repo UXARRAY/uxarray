@@ -128,8 +128,8 @@ class TestGrid(TestCase):
             tgrid1 = ux.Grid(xr_tgrid1)
             mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
             tgrid1.build_face_edges_connectivity()
-            mesh2_face_edges = tgrid1.Mesh2_face_edges
-            mesh2_edge_nodes = tgrid1.Mesh2_edge_nodes
+            mesh2_face_edges = tgrid1.ds["Mesh2_face_edges"]
+            mesh2_edge_nodes = tgrid1.ds["Mesh2_edge_nodes"]
 
             # Assert if the mesh2_face_edges sizes are correct.
             self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
@@ -272,13 +272,13 @@ class TestPopulateCoordinates(TestCase):
         vgrid = ux.Grid(verts_degree)
         vgrid._populate_cartesian_xyz_coord()
         for i in range(0, vgrid.nMesh2_node):
-            nt.assert_almost_equal(vgrid.Mesh2_node_cart_x.values[i],
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
                                    cart_x[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid.Mesh2_node_cart_y.values[i],
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_y"].values[i],
                                    cart_y[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid.Mesh2_node_cart_z.values[i],
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
                                    cart_z[i],
                                    decimal=12)
 
@@ -318,9 +318,9 @@ class TestPopulateCoordinates(TestCase):
         vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
         vgrid._populate_lonlat_coord()
         for i in range(0, vgrid.nMesh2_node):
-            nt.assert_almost_equal(vgrid.Mesh2_node_x.values[i],
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
                                    lon_deg[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid.Mesh2_node_y.values[i],
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
                                    lat_deg[i],
                                    decimal=12)

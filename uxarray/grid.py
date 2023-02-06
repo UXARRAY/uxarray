@@ -98,13 +98,11 @@ class Grid:
             "Mesh2_node_x": "Mesh2_node_x",
             "Mesh2_node_y": "Mesh2_node_y",
             "Mesh2_node_z": "Mesh2_node_z",
-            "Mesh2_node_cart_x": "Mesh2_node_cart_x",
-            "Mesh2_node_cart_y": "Mesh2_node_cart_y",
-            "Mesh2_node_cart_z": "Mesh2_node_cart_z",
             "Mesh2_face_nodes": "Mesh2_face_nodes",
             # initialize dims
             "nMesh2_node": "nMesh2_node",
-            "nMesh2_face": "nMesh2_face"
+            "nMesh2_face": "nMesh2_face",
+            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
         }
 
     def __init_grid_var_attrs__(self) -> None:
@@ -441,14 +439,14 @@ class Grid:
             has_fill_value, np.ndarray) else mesh2_edge_node_copy
         inverse_indices = inverse_indices.reshape(n, m)
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
-        self.Mesh2_face_edges = xr.DataArray(
+        self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
             dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"],
             attrs={
                 "cf_role": "face_edges_connectivity",
                 "start_index": 0
             })
-        self.Mesh2_edge_nodes = xr.DataArray(data=mesh2_edge_nodes,
+        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
                                              dims=["nMesh2_edge", "Two"])
 
     def _populate_cartesian_xyz_coord(self):
@@ -487,21 +485,21 @@ class Grid:
         nodes_cart = np.asarray(
             list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
 
-        self.Mesh2_node_cart_x = xr.DataArray(
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(
             data=nodes_cart[:, 0],
             dims=["nMesh2_node"],
             attrs={
                 "standard_name": "cartesian x",
                 "units": "m",
             })
-        self.Mesh2_node_cart_y = xr.DataArray(
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(
             data=nodes_cart[:, 1],
             dims=["nMesh2_node"],
             attrs={
                 "standard_name": "cartesian y",
                 "units": "m",
             })
-        self.Mesh2_node_cart_z = xr.DataArray(
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(
             data=nodes_cart[:, 2],
             dims=["nMesh2_node"],
             attrs={
@@ -566,7 +564,7 @@ class Grid:
             axis=1).tolist()
         nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
         nodes_degree = np.rad2deg(nodes_rad)
-        self.Mesh2_node_x = xr.DataArray(
+        self.ds["Mesh2_node_x"] = xr.DataArray(
             data=nodes_degree[:, 0],
             dims=["nMesh2_node"],
             attrs={
@@ -574,7 +572,7 @@ class Grid:
                 "long_name": "longitude of mesh nodes",
                 "units": "degrees_east",
             })
-        self.Mesh2_node_y = xr.DataArray(
+        self.ds["Mesh2_node_y"] = xr.DataArray(
             data=nodes_degree[:, 1],
             dims=["nMesh2_node"],
             attrs={
