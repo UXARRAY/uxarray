@@ -11,7 +11,7 @@ from ._scrip import _read_scrip, _encode_scrip
 from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
 
 int_dtype = np.uint32
-_FillValue = float("nan")
+
 
 
 class Grid:
@@ -28,6 +28,7 @@ class Grid:
 
     >>> mesh.encode_as("ugrid")
     """
+    FillValue = float("nan")
 
     def __init__(self, dataset, **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
@@ -191,7 +192,7 @@ class Grid:
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "_FillValue": -1,
+                "FillValue": -1,
                 "start_index": 0
             })
 
@@ -391,12 +392,12 @@ class Grid:
         n = self.nMesh2_face
         m = self.nMaxMesh2_face_nodes
 
-        # First identify the _FillValue in the mesh2_face_nodes
-        # We will unify the _FillValue used in this function as -1:
-        if np.isnan(_FillValue):
+        # First identify the FillValue in the mesh2_face_nodes
+        # We will unify the FillValue used in this function as -1:
+        if np.isnan(self.FillValue):
             mesh2_face_nodes = np.nan_to_num(mesh2_face_nodes, nan=-1)
-        elif _FillValue is not -1:
-            mesh2_face_nodes[mesh2_face_nodes == _FillValue] = -1
+        elif self.FillValue != -1:
+            mesh2_face_nodes[mesh2_face_nodes == self.FillValue] = -1
 
         # Then do the padding for each face to close the polygon
         closed = np.full((n, m + 1), -1, dtype=np.intp)
@@ -405,11 +406,13 @@ class Grid:
         first_fill_value_index = np.argmax(closed == -1, axis=1)
         first_node = mesh2_face_nodes[:, 0]
 
-        # Now replace the first -1 at each row to be the first node
-        pad_results = np.array(
-            list(
-                map(self.__replace_fill_val, closed, first_fill_value_index,
-                    first_node)))
+        # Create 1D index into a 2D array
+        first_fill_idx = (m + 1) * np.arange(0, n) + first_fill_value_index
+
+        # replace all values at 1D index with the first_node
+        np.put(closed.ravel(), first_fill_idx, first_node)
+
+        pad_results = closed
 
         # Now create the edge_node_connectivity
         mesh2_edge_nodes = np.empty((n * m, 2), dtype=np.intp)
