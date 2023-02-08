@@ -13,7 +13,6 @@ from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to
 int_dtype = np.uint32
 
 
-
 class Grid:
     """
     Examples
