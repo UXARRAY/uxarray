@@ -642,6 +642,11 @@ class Grid:
             face_index = candidate_faces_index_list[i]
             [face_lon_bound_min, face_lon_bound_max] = self.ds["Mesh2_latlon_bounds"].values[face_index][1]
             face = self.ds["Mesh2_face_edges"].values[face_index]
+            x = self.ds["Mesh2_node_cart_x"].values[face[:,0]]
+            y = self.ds["Mesh2_node_cart_y"].values[face[:,0]]
+            z = self.ds["Mesh2_node_cart_z"].values[face[:,0]]
+            face_cart_temp = list(np.stack((x,y,z), axis=-1))
+            face_latlon = list(map(convert_node_xyz_to_lonlat_rad,face_cart_temp))
             intersections_pts_list_lonlat = []
             for j in range(0, len(face)):
                 edge = face[j]
@@ -658,12 +663,16 @@ class Grid:
                     continue
                 elif intersections[0] != [-1, -1, -1] and intersections[1] != [-1, -1, -1]:
                     # The constant latitude goes across this edge ( 1 in and 1 out):
+                    pts1_lonlat = convert_node_xyz_to_lonlat_rad(intersections[0])
+                    pts2_lonlat = convert_node_xyz_to_lonlat_rad(intersections[1])
                     intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
                     intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
                 else:
                     if intersections[0] != [-1, -1, -1]:
+                        pts1_lonlat = convert_node_xyz_to_lonlat_rad(intersections[0])
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[0]))
                     else:
+                        pts2_lonlat = convert_node_xyz_to_lonlat_rad(intersections[1])
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
             [pt_lon_min, pt_lon_max] = np.sort([intersections_pts_list_lonlat[0][0], intersections_pts_list_lonlat[1][0]])
             if face_lon_bound_min < face_lon_bound_max:

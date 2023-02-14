@@ -597,18 +597,24 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
 
 # Get the intersection point between a GCR and const Lat
 def get_intersection_pt(gcr_cart, const_lat_rad):
+    gcr_lonlat_rad = map(convert_node_xyz_to_lonlat_rad,gcr_cart)
     const_lat_z = np.sin(const_lat_rad)
     initial_guess = _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad)
     intersection_pt = [[-1, -1, -1], [-1, -1, -1]]
 
     if initial_guess[0] != [-1, -1, -1]:
+
         newton_input = [initial_guess[0][0], initial_guess[0][1], const_lat_z]
         res = _newton_raphson_solver_for_intersection_pts(newton_input, gcr_cart[0], gcr_cart[1])
-        intersection_pt[0] = normalize_in_place([res[0], res[1], const_lat_z])
+        res_lonlat = convert_node_xyz_to_lonlat_rad([res[0], res[1], const_lat_z])
+        if _pt_within_gcr([res[0], res[1], const_lat_z], gcr_cart):
+            intersection_pt[0] = normalize_in_place([res[0], res[1], const_lat_z])
     if initial_guess[1] != [-1, -1, -1]:
         newton_input = [initial_guess[1][0], initial_guess[1][1], const_lat_z]
         res = _newton_raphson_solver_for_intersection_pts(newton_input, gcr_cart[0], gcr_cart[1])
-        intersection_pt[1] = normalize_in_place([res[0], res[1], const_lat_z])
+        res_lonlat = convert_node_xyz_to_lonlat_rad([res[0], res[1], const_lat_z])
+        if _pt_within_gcr([res[0], res[1], const_lat_z], gcr_cart):
+            intersection_pt[1] = normalize_in_place([res[0], res[1], const_lat_z])
 
     return intersection_pt
 
