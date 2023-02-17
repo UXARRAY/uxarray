@@ -156,7 +156,7 @@ def open_dataset(grid_filename_or_obj: str,
                   source_grid=grid_filename_or_obj)
 
     ## UxDataset
-    uxds = UxDataset(uxgrid, ds, source_datasets=str(filename_or_obj))
+    uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds
 

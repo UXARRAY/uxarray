@@ -1,7 +1,12 @@
 import numpy as np
 import xarray as xr
 
+from collections.abc import Hashable
+
 from typing import Optional
+
+from uxarray.core.dataarray import UxDataArray
+from uxarray.core.grid import Grid
 
 
 class UxDataset(xr.Dataset):
@@ -9,8 +14,8 @@ class UxDataset(xr.Dataset):
     _uxgrid = None
 
     def __init__(self,
-                 uxgrid,
                  *args,
+                 uxgrid: Grid = None,
                  source_datasets: Optional[str] = None,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -18,6 +23,12 @@ class UxDataset(xr.Dataset):
         setattr(self, 'source_datasets', source_datasets)
 
         self.uxgrid = uxgrid
+        # TODO: Weird that below if-check leads miscreation of UxDataset object
+        # if uxgrid is None or not isinstance(uxgrid, Grid):
+        #     raise RuntimeError("uxgrid cannot be None or it needs to "
+        #                        "be of an instance of the uxarray.core.Grid class")
+        # else:
+        #     self.uxgrid = uxgrid
 
     @property
     def uxgrid(self):
@@ -28,6 +39,55 @@ class UxDataset(xr.Dataset):
     def uxgrid(self, ugrid):
 
         self._uxgrid = ugrid
+
+    def _construct_dataarray(self, name) -> UxDataArray:
+        """Override to check if the result is an instance of xarray.DataArray.
+
+        If so, convert to UxDataArray.
+        """
+        xarr = super()._construct_dataarray(name)
+
+        return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def __getitem__(self, key):
+        """Override to check if the result is an instance of xarray.DataArray.
+
+        If so, convert to UxDataArray.
+        """
+        xarr = super().__getitem__(key)
+
+        if isinstance(xarr, xr.DataArray):
+            return UxDataArray(xarr)
+        else:
+            return xarr
+
+    def __setitem__(self, key, value):
+        """Override to check if the value being set is an instance of
+        xarray.DataArray.
+
+        If so, convert to UxDataArray.
+        """
+        if isinstance(value, xr.DataArray):
+            value = UxDataArray(value)
+
+        super().__setitem__(key, value)
+
+    @classmethod
+    def from_dataframe(cls, dataframe):
+        """Convert to a UxDataset instead of an xarray.Dataset."""
+        return cls(
+            {
+                col: ('index', dataframe[col].values)
+                for col in dataframe.columns
+            },
+            coords={'index': dataframe.index})
+
+    @classmethod
+    def from_dict(cls, data, **kwargs):
+        """Convert to a UxDataset instead of an xarray.Dataset."""
+        return cls({key: ('index', val) for key, val in data.items()},
+                   coords={'index': range(len(next(iter(data.values()))))},
+                   **kwargs)
 
     # You can add custom methods to the class here
     def custom_method(self):
