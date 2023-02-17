@@ -230,6 +230,6 @@ def open_mfdataset(grid_filename_or_obj: str,
                   source_grid=grid_filename_or_obj)
 
     ## UxDataset
-    uxds = UxDataset(uxgrid, ds, source_datasets=str(paths))
+    uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
     return uxds
