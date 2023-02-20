@@ -597,9 +597,10 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
 
 # Get the intersection point between a GCR and const Lat
 def get_intersection_pt(gcr_cart, const_lat_rad):
-    gcr_lonlat_rad = map(convert_node_xyz_to_lonlat_rad,gcr_cart)
+    gcr_lonlat_rad = list(map(convert_node_xyz_to_lonlat_rad,gcr_cart))
     const_lat_z = np.sin(const_lat_rad)
     initial_guess = _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad)
+    initial_guess_lonlat = convert_node_xyz_to_lonlat_rad(initial_guess[1])
     intersection_pt = [[-1, -1, -1], [-1, -1, -1]]
 
     if initial_guess[0] != [-1, -1, -1]:

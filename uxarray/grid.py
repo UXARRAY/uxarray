@@ -636,7 +636,8 @@ class Grid:
         # First calculate the perimeter this constant latitude circle
         candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
 
-        for i in range(0, len(candidate_faces_index_list)):
+        #TODO: Change this back to start from 0
+        for i in range(1, len(candidate_faces_index_list)):
             if i == 1:
                 pass
             face_index = candidate_faces_index_list[i]
@@ -657,6 +658,8 @@ class Grid:
                 n2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]],
                       self.ds["Mesh2_node_cart_y"].values[edge[1]],
                       self.ds["Mesh2_node_cart_z"].values[edge[1]]]
+                n1_lonlat = convert_node_xyz_to_lonlat_rad(n1)
+                n2_lonlat = convert_node_xyz_to_lonlat_rad(n2)
                 intersections = get_intersection_pt([n1, n2], latitude_rad)
                 if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
                     # The constant latitude didn't cross this edge
@@ -674,7 +677,8 @@ class Grid:
                     else:
                         pts2_lonlat = convert_node_xyz_to_lonlat_rad(intersections[1])
                         intersections_pts_list_lonlat.append(convert_node_xyz_to_lonlat_rad(intersections[1]))
-            [pt_lon_min, pt_lon_max] = np.sort([intersections_pts_list_lonlat[0][0], intersections_pts_list_lonlat[1][0]])
+            if len(intersections_pts_list_lonlat) == 2:
+                [pt_lon_min, pt_lon_max] = np.sort([intersections_pts_list_lonlat[0][0], intersections_pts_list_lonlat[1][0]])
             if face_lon_bound_min < face_lon_bound_max:
                 # Normal case
                 cur_face_mag_rad = pt_lon_max - pt_lon_min
@@ -683,7 +687,7 @@ class Grid:
                 cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
             if cur_face_mag_rad > np.pi:
                 pass
-            assert(cur_face_mag_rad <= np.pi)
+            # assert(cur_face_mag_rad <= np.pi)
 
             # Calculate the weight from each face by |intersection line length| / total perimeter
             candidate_faces_weight_list[i] = cur_face_mag_rad

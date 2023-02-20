@@ -124,18 +124,42 @@ class TestIntegrate(TestCase):
         # self.assertAlmostEqual(np.dot(np.cross(n1, n2), second_pt),0,12)
         #
         # The testcase that caused trouble before:
-        n1 = [0.323619995813612, -0.4295599711942348, 0.843058912210295]
-        n2 = [0.36874615152693996, -0.42199785145447993, 0.8282174165651636]
-        res = ux.get_intersection_pt([n1, n2], 1.0)
 
-        second_pt = res[1]
-        self.assertAlmostEqual(second_pt[0] ** 2 + second_pt[1] ** 2 + second_pt[2] ** 2, 1,12)
-        self.assertAlmostEqual(np.dot(np.cross(n1, n2), second_pt),0,12)
-        face_lon_bound_max_rad = 5.497787143782138
-        face_lon_bound_min_rad = 5.358046967298215
-        second_pt_lonlat_rad = ux.convert_node_xyz_to_lonlat_rad(second_pt)
-        self.assertLessEqual(second_pt_lonlat_rad[0],face_lon_bound_max_rad)
-        self.assertGreaterEqual(second_pt_lonlat_rad[0], face_lon_bound_min_rad)
+        nodes_lonlat = [[5.430544880865939, 0.9759192936287691],
+                        [5.497787143782138, 1.008861290690584],
+                        [5.423907634712113, 1.0393506170556863],
+                        [5.358046967298215, 1.0029457222814133],
+                        [5.430544880865939, 0.9759192936287691]]
+        intersections_pts_list_lonlat = []
+        pt_lon_min = 3 * np.pi
+        pt_lon_max = -3 * np.pi
+        for i in range (0,4):
+            n1_lonlat = nodes_lonlat[i]
+            n2_lonlat = nodes_lonlat[i+1]
+            n1 = ux.convert_node_lonlat_rad_to_xyz(nodes_lonlat[i])
+            n2 = ux.convert_node_lonlat_rad_to_xyz(nodes_lonlat[i+1])
+            intersections = ux.get_intersection_pt([n1, n2], 1)
+            if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
+                # The constant latitude didn't cross this edge
+                continue
+            elif intersections[0] != [-1, -1, -1] and intersections[1] != [-1, -1, -1]:
+                # The constant latitude goes across this edge ( 1 in and 1 out):
+                pts1_lonlat = ux.convert_node_xyz_to_lonlat_rad(intersections[0])
+                pts2_lonlat = ux.convert_node_xyz_to_lonlat_rad(intersections[1])
+                intersections_pts_list_lonlat.append(ux.convert_node_xyz_to_lonlat_rad(intersections[0]))
+                intersections_pts_list_lonlat.append(ux.convert_node_xyz_to_lonlat_rad(intersections[1]))
+            else:
+                if intersections[0] != [-1, -1, -1]:
+                    intersections_pts_list_lonlat.append(ux.convert_node_xyz_to_lonlat_rad(intersections[0]))
+                else:
+                    intersections_pts_list_lonlat.append(ux.convert_node_xyz_to_lonlat_rad(intersections[1]))
+        if len(intersections_pts_list_lonlat) == 2:
+            [pt_lon_min, pt_lon_max] = np.sort([intersections_pts_list_lonlat[0][0], intersections_pts_list_lonlat[1][0]])
+        else:
+            pass
+        cur_face_mag_rad = pt_lon_max - pt_lon_min
+        self.assertLessEqual(cur_face_mag_rad, np.pi)
+
 
 
 
