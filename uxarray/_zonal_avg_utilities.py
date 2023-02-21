@@ -12,16 +12,22 @@ def __sphere_eqn(x_i_old, y_i_old, z_lat):
 
 
 def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
-    J = np.ones((2, 2))
-    d_dx = (x0 * x_i_old - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0 - y1 * y_i_old * z0)
-    d_dy = 2 * (x0 * x_i_old * z1 - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0)
+    # d_dx = (x0 * x_i_old - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0 - y1 * y_i_old * z0)
+    # d_dy = 2 * (x0 * x_i_old * z1 - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0)
+    #
+    # # row 1
+    # J[0, 0] = y_i_old / d_dx
+    # J[0, 1] = (x0 * z1 - z0 * x1) / d_dy
+    # # row 2
+    # J[1, 0] = x_i_old / d_dx
+    # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
-    # row 1
-    J[0, 0] = y_i_old / d_dx
-    J[0, 1] = (x0 * z1 - z0 * x1) / d_dy
-    J[1, 0] = x_i_old / d_dx
-    J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
-    return J
+    # The Jacobian Matrix
+    jacobian = [[y0 * z1 - z0 * y1, z0 * x1 - x0 * z1],
+                [2 * x_i_old, 2 * y_i_old]]
+    # Now calculate the determinant of the Jacobian Matrix
+    inverse_jacobian = np.linalg.inv(jacobian)
+    return inverse_jacobian
 
 
 def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max_iter=1000):
@@ -40,8 +46,9 @@ def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max
     _iter = 0
 
     while error > tolerance and _iter < max_iter:
-        F[0] = __parallel_to_plane_eqn(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2],
-                                       y_guess[0], y_guess[1], constZ)
+        F[0] = np.dot(np.cross(w0_cart, w1_cart),np.array([y_guess[0], y_guess[1], constZ]))
+        # F[0] = __parallel_to_plane_eqn(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2],
+        #                                y_guess[0], y_guess[1], constZ)
         F[1] = __sphere_eqn(y_guess[0], y_guess[1], constZ)
 
         J_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2], y_guess[0],

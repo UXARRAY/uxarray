@@ -638,14 +638,14 @@ class Grid:
 
         #TODO: Change this back to start from 0
         for i in range(1, len(candidate_faces_index_list)):
-            if i == 1:
-                pass
             face_index = candidate_faces_index_list[i]
             [face_lon_bound_min, face_lon_bound_max] = self.ds["Mesh2_latlon_bounds"].values[face_index][1]
             face = self.ds["Mesh2_face_edges"].values[face_index]
             x = self.ds["Mesh2_node_cart_x"].values[face[:,0]]
             y = self.ds["Mesh2_node_cart_y"].values[face[:,0]]
             z = self.ds["Mesh2_node_cart_z"].values[face[:,0]]
+            pt_lon_min = 3 * np.pi
+            pt_lon_max = -3 * np.pi
             face_cart_temp = list(np.stack((x,y,z), axis=-1))
             face_latlon = list(map(convert_node_xyz_to_lonlat_rad,face_cart_temp))
             intersections_pts_list_lonlat = []
@@ -687,7 +687,7 @@ class Grid:
                 cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
             if cur_face_mag_rad > np.pi:
                 pass
-            # assert(cur_face_mag_rad <= np.pi)
+            assert(cur_face_mag_rad <= np.pi)
 
             # Calculate the weight from each face by |intersection line length| / total perimeter
             candidate_faces_weight_list[i] = cur_face_mag_rad
