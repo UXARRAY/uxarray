@@ -270,7 +270,10 @@ class TestZonalAverage(TestCase):
         self.assertAlmostEqual(sum,1,12)
 
     def test_nc_zonal_average(self):
-        uds = ux.open_dataset(self.mesh_file30, self.data_file30, self.data_file30_v2)
-
-        res = uds.get_nc_zonal_avg("psi",1)
+        mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
+        data_file2 = current_path / "meshfiles" / "outCSne30_test2.nc"
+        data_file3 = current_path / "meshfiles" / "outCSne30_test3.nc"
+        uds = ux.open_dataset(mesh_file30, data_file2,data_file3)
         pass
+
+
