@@ -559,7 +559,7 @@ def _normalize_in_place(node):
 
 
 @njit
-def _pt_within_gcr(pt_cart, gcr_end_pt_cart_1, gcr_end_pt_cart_2):
+def _pt_within_gcr(pt_cart, gcr_end_pt_cart):
     """Helper function to determine if a point lies within the interval of the great circle arc, the accuracy is
     within 1.0e-12 The great circle arc will be represented as two ndarrays: gcr_end_pt_cart_1 and gcr_end_pt_cart_2
     since numba lacks support for the nested array
@@ -579,6 +579,7 @@ def _pt_within_gcr(pt_cart, gcr_end_pt_cart_1, gcr_end_pt_cart_2):
         True if the point lies within the interval of the gcr, False otherwise.
 
     """
+    [gcr_end_pt_cart_1, gcr_end_pt_cart_2] = gcr_end_pt_cart
     cross = np.cross(gcr_end_pt_cart_1, gcr_end_pt_cart_2)
     dot = np.dot(cross,pt_cart)#cross[0] * pt_cart[0] + cross[1] * pt_cart[1] + cross[2] * pt_cart[2]
     if np.absolute(dot - 0) > 1.0e-12:
