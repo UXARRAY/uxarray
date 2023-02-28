@@ -5,23 +5,25 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
+config.DISABLE_JIT = False
+int_dtype = np.uint32
 from uxarray._zonal_avg_utilities import _newton_raphson_solver_for_intersection_pts
 
 config.DISABLE_JIT = True
 
 
-def parse_grid_type(filepath, **kw):
+def parse_grid_type(dataset):
     """Checks input and contents to determine grid type. Supports detection of
     UGrid, SCRIP, Exodus and shape file.
 
     Parameters
     ----------
-    filepath : str
-       Filepath of the file for which the filetype is to be determined.
+    dataset : Xarray dataset
+       Xarray dataset of the grid
 
     Returns
     -------
-    mesh_filetype : str
+    mesh_type : str
         File type of the file, ug, exo, scrip or shp
 
     Raises
@@ -31,29 +33,20 @@ def parse_grid_type(filepath, **kw):
     ValueError
         If file is not in UGRID format
     """
-    # extract the file name and extension
-    path = PurePath(filepath)
-    file_extension = path.suffix
-    # short-circuit for shapefiles
-    if file_extension == ".shp":
-        mesh_filetype, dataset = "shp", None
-        return mesh_filetype, dataset
-
-    dataset = xr.open_dataset(filepath, mask_and_scale=False, **kw)
     # exodus with coord or coordx
     if "coord" in dataset:
-        mesh_filetype = "exo"
+        mesh_type = "exo"
     elif "coordx" in dataset:
-        mesh_filetype = "exo"
+        mesh_type = "exo"
     # scrip with grid_center_lon
     elif "grid_center_lon" in dataset:
-        mesh_filetype = "scrip"
+        mesh_type = "scrip"
     # ugrid topology
     elif _is_ugrid(dataset):
-        mesh_filetype = "ugrid"
+        mesh_type = "ugrid"
     else:
-        raise RuntimeError(f"Could not recognize {filepath} format.")
-    return mesh_filetype, dataset
+        raise RuntimeError(f"Could not recognize dataset format.")
+    return mesh_type
 
     # check mesh topology and dimension
     try:
@@ -70,7 +63,7 @@ def parse_grid_type(filepath, **kw):
         mesh_topo_dv = ext_ds.filter_by_attrs(cf_role="mesh_topology").keys()
         if list(mesh_topo_dv)[0] != "" and list(topo_dim_dv)[0] != "" and list(
                 face_conn_dv)[0] != "" and list(node_coords_dv)[0] != "":
-            mesh_filetype = "ugrid"
+            mesh_type = "ugrid"
         else:
             raise ValueError(
                 "cf_role is other than mesh_topology, the input NetCDF file is not UGRID format"
@@ -83,14 +76,14 @@ def parse_grid_type(filepath, **kw):
         # check if this is a shp file
         # we won't use xarray to load that file
         if file_extension == ".shp":
-            mesh_filetype = "shp"
+            mesh_type = "shp"
         else:
             msg = str(e) + ': {}'.format(filepath)
     except ValueError as e:
         # check if this is a shp file
         # we won't use xarray to load that file
         if file_extension == ".shp":
-            mesh_filetype = "shp"
+            mesh_type = "shp"
         else:
             msg = str(e) + ': {}'.format(filepath)
     finally:
@@ -99,34 +92,7 @@ def parse_grid_type(filepath, **kw):
                 filepath)
             raise ValueError(msg)
 
-    return mesh_filetype
-
-
-@njit
-def _spherical_to_cartesian_unit_(node, r=6371):
-    """Converts spherical (lat/lon) coordinates to cartesian (x,y,z).
-
-    Final output is cartesian coordinates on a sphere of unit radius
-
-    Parameters
-    ----------
-    node: a list consisting of lat and lon
-
-    Returns: numpy array
-        Cartesian coordinates of length 3
-    """
-    lon = node[0]
-    lat = node[1]
-    lat, lon = np.deg2rad(lat), np.deg2rad(lon)
-    x = r * np.cos(lat) * np.cos(lon)  # x coordinate
-    y = r * np.cos(lat) * np.sin(lon)  # y coordinate
-    z = r * np.sin(lat)  # z coordinate
-
-    coord = np.array([x, y, z])
-    # make it coord on a sphere with unit radius
-    unit_coord = coord / np.linalg.norm(coord)
-
-    return unit_coord
+    return mesh_type
 
 
 # Calculate the area of all faces.
@@ -185,10 +151,20 @@ def calculate_face_area(x,
         node1 = np.array([x[0], y[0], z[0]], dtype=np.float64)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
+
         if (coords_type == "spherical"):
-            node1 = _spherical_to_cartesian_unit_(node1)
-            node2 = _spherical_to_cartesian_unit_(node2)
-            node3 = _spherical_to_cartesian_unit_(node3)
+            node1 = np.array(
+                _convert_node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[0]), np.deg2rad(y[0])]))
+            node2 = np.array(
+                _convert_node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[j + 1]),
+                     np.deg2rad(y[j + 1])]))
+            node3 = np.array(
+                _convert_node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[j + 2]),
+                     np.deg2rad(y[j + 2])]))
+
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
                 for q in range(len(dW)):
@@ -253,8 +229,9 @@ def get_all_face_area_from_coords(x,
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
 
-    for i in range(num_faces):
+    face_nodes = face_nodes[:].astype(int_dtype)
 
+    for i in range(num_faces):
         face_z = np.zeros(len(face_nodes[i]))
 
         face_x = x[face_nodes[i]]
@@ -707,3 +684,149 @@ def get_gcr_max_lat_rad(gcr_cart):
 
 
 
+
+
+def grid_center_lat_lon(ds):
+    """Using scrip file variables ``grid_corner_lat`` and ``grid_corner_lon``,
+    calculates the ``grid_center_lat`` and ``grid_center_lon``.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset that contains ``grid_corner_lat`` and ``grid_corner_lon``
+        data variables
+
+    Returns
+    -------
+    center_lon : :class:`numpy.ndarray`
+        The calculated center longitudes of the grid box based on the corner
+        points
+    center_lat : :class:`numpy.ndarray`
+        The calculated center latitudes of the grid box based on the corner
+        points
+    """
+
+    # Calculate and create grid center lat/lon
+    scrip_corner_lon = ds['grid_corner_lon']
+    scrip_corner_lat = ds['grid_corner_lat']
+
+    # convert to radians
+    rad_corner_lon = np.deg2rad(scrip_corner_lon)
+    rad_corner_lat = np.deg2rad(scrip_corner_lat)
+
+    # get nodes per face
+    nodes_per_face = rad_corner_lat.shape[1]
+
+    # geographic center of each cell
+    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon),
+               axis=1) / nodes_per_face
+    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon),
+               axis=1) / nodes_per_face
+    z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
+
+    center_lon = np.rad2deg(np.arctan2(y, x))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+
+    # Make negative lons positive
+    center_lon[center_lon < 0] += 360
+
+    return center_lat, center_lon
+
+
+@njit
+def _convert_node_lonlat_rad_to_xyz(node_coord):
+    """Helper function to Convert the node coordinate from 2D
+    longitude/latitude to normalized 3D xyz.
+
+    Parameters
+    ----------
+    node: float list
+        2D coordinates[longitude, latitude] in radiance
+
+    Returns
+    ----------
+    float list
+        the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
+    """
+    if len(node_coord) != 2:
+        raise RuntimeError(
+            "Input array should have a length of 2: [longitude, latitude]")
+    lon = node_coord[0]
+    lat = node_coord[1]
+    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+
+
+@njit
+def _convert_node_xyz_to_lonlat_rad(node_coord):
+    """Calculate the latitude and longitude in radiance for a node represented
+    in the [x, y, z] 3D Cartesian coordinates.
+
+    Parameters
+    ----------
+    node_coord: float list
+        3D Cartesian Coordinates [x, y, z] of the node
+
+    Returns
+    ----------
+    float list
+        the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
+    """
+    if len(node_coord) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+    reference_tolerance = 1.0e-12
+    [dx, dy, dz] = _normalize_in_place(node_coord)
+    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
+    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
+
+    if np.absolute(dz) < (1.0 - reference_tolerance):
+        d_lon_rad = math.atan2(dy, dx)
+        d_lat_rad = np.arcsin(dz)
+
+        if d_lon_rad < 0.0:
+            d_lon_rad += 2.0 * np.pi
+    elif dz > 0.0:
+        d_lon_rad = 0.0
+        d_lat_rad = 0.5 * np.pi
+    else:
+        d_lon_rad = 0.0
+        d_lat_rad = -0.5 * np.pi
+
+    return [d_lon_rad, d_lat_rad]
+
+
+@njit
+def _normalize_in_place(node):
+    """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
+    on the unit sphere. It uses the `np.linalg.norm` internally to calculate
+    the magnitude.
+
+    Parameters
+    ----------
+    node: float list
+        3D Cartesian Coordinates [x, y, z]
+
+    Returns
+    ----------
+    float list
+        the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
+
+    Raises
+    ----------
+    RuntimeError
+        The input array doesn't have the size of 3.
+    """
+    if len(node) != 3:
+        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+
+    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))

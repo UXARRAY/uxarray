@@ -8,29 +8,33 @@ from pathlib import PurePath
 from intervaltree import Interval, IntervalTree
 
 # reader and writer imports
-from ._exodus import _read_exodus, _write_exodus
-from ._ugrid import _read_ugrid, _write_ugrid
+from ._exodus import _read_exodus, _encode_exodus
+from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip
 from .helpers import get_all_face_area_from_coords, convert_node_lonlat_rad_to_xyz, convert_node_xyz_to_lonlat_rad, \
     normalize_in_place, _within, _get_radius_of_latitude_rad, get_intersection_pt
 from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 
+from ._scrip import _read_scrip, _encode_scrip
+from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
+
+int_dtype = np.uint32
 
 
 class Grid:
-    """The Uxarray Grid object class that describes an unstructured grid.
-
+    """
     Examples
     ----------
 
     Open an exodus file with Uxarray Grid object
 
-    >>> mesh = ux.Grid("filename.g")
+    >>> xarray_obj = xr.open_dataset("filename.g")
+    >>> mesh = ux.Grid(xarray_obj)
 
-    Save as ugrid file
+    Encode as a `xarray.Dataset` in the UGRID format
 
-    >>> mesh.write("outfile.ug")
+    >>> mesh.encode_as("ugrid")
     """
 
     def __init__(self, dataset, **kwargs):
@@ -50,7 +54,7 @@ class Grid:
             Specify if this grid has concave elements (internal checks for this are possible)
         gridspec: bool, optional
             Specifies gridspec
-        mesh_filetype: str, optional
+        mesh_type: str, optional
             Specify the mesh file type, eg. exo, ugrid, shp, etc
 
         Raises
@@ -70,31 +74,80 @@ class Grid:
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'concave', 'mesh_filetype',
-            'source_grid', 'source_datasets'
+            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid'
         ]
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
-
-        # internal uxarray representation of mesh stored in internal object ds
-        self.ds = xr.Dataset()
 
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             self.vertices = dataset
             self.__from_vert__()
             self.source_grid = "From vertices"
-            self.source_datasets = None
-
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
+            self.mesh_type = parse_grid_type(dataset)
             self.__from_ds__(dataset=dataset)
         else:
-            raise RuntimeError(f"{dataset} is not a valid input type.")
+            raise RuntimeError("Dataset is not a valid input type.")
 
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
+
+    def __init_ds_var_names__(self):
+        """Populates a dictionary for storing uxarray's internal representation
+        of xarray object.
+
+        Note ugrid conventions are flexible with names of variables, see:
+        http://ugrid-conventions.github.io/ugrid-conventions/
+        """
+        self.ds_var_names = {
+            "Mesh2": "Mesh2",
+            "Mesh2_node_x": "Mesh2_node_x",
+            "Mesh2_node_y": "Mesh2_node_y",
+            "Mesh2_node_z": "Mesh2_node_z",
+            "Mesh2_face_nodes": "Mesh2_face_nodes",
+            # initialize dims
+            "nMesh2_node": "nMesh2_node",
+            "nMesh2_face": "nMesh2_face",
+            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
+        }
+
+    def __init_grid_var_attrs__(self) -> None:
+        """Initialize attributes for directly accessing UGRID dimensions and
+        variables.
+
+        Examples
+        ----------
+        Assuming the mesh node coordinates for longitude are stored with an input
+        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
+        dictionary with the key 'Mesh2_node_x'. In order to access it, we do:
+
+        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
+
+        With the help of this function, we can directly access it through the
+        use of a standardized name based on the UGRID conventions
+
+        >>> x = grid.Mesh2_node_x
+        """
+
+        # Iterate over dict to set access attributes
+        for key, value in self.ds_var_names.items():
+            # Set Attributes for Data Variables
+            if self.ds.data_vars is not None:
+                if value in self.ds.data_vars:
+                    setattr(self, key, self.ds[value])
+
+            # Set Attributes for Coordinates
+            if self.ds.coords is not None:
+                if value in self.ds.coords:
+                    setattr(self, key, self.ds[value])
+
+            # Set Attributes for Dimensions
+            if self.ds.dims is not None:
+                if value in self.ds.dims:
+                    setattr(self, key, len(self.ds[value]))
 
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
@@ -102,6 +155,7 @@ class Grid:
 
         Called by :func:`__init__`.
         """
+        self.ds = xr.Dataset()
         self.ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
@@ -130,10 +184,10 @@ class Grid:
         num_nodes = x_coord.size
         connectivity = [list(range(0, num_nodes))]
 
-        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
+        self.Mesh2_node_x = xr.DataArray(data=xr.DataArray(x_coord),
                                                dims=["nMesh2_node"],
                                                attrs={"units": x_units})
-        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
+        self.Mesh2_node_y = xr.DataArray(data=xr.DataArray(y_coord),
                                                dims=["nMesh2_node"],
                                                attrs={"units": y_units})
         if self.vertices[0].size > 2:
@@ -153,47 +207,54 @@ class Grid:
     # load mesh from a file
     def __from_ds__(self, dataset):
         """Loads a mesh dataset."""
-        # call reader as per mesh_filetype
-        if self.mesh_filetype == "exo":
+        # call reader as per mesh_type
+        if self.mesh_type == "exo":
             self.ds = _read_exodus(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "scrip":
+        elif self.mesh_type == "scrip":
             self.ds = _read_scrip(dataset)
-        elif self.mesh_filetype == "ugrid":
+        elif self.mesh_type == "ugrid":
             self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
-        elif self.mesh_filetype == "shp":
-            self.ds = _read_shpfile(self.filepath)
+        elif self.mesh_type == "shp":
+            self.ds = _read_shpfile(dataset)
         else:
-            raise RuntimeError("unknown file format: " + self.mesh_filetype)
+            raise RuntimeError("unknown mesh type")
+
         dataset.close()
 
-    def write(self, outfile, extension=""):
-        """Writes mesh file as per extension supplied in the outfile string.
+    def encode_as(self, grid_type):
+        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
+        in the `grid_type` argument.
 
         Parameters
         ----------
-        outfile : str, required
-            Path to output file
-        extension : str, optional
-            Extension of output file. Defaults to empty string.
-            Currently supported options are ".ugrid", ".ug", ".g", ".exo", and ""
+        grid_type : str, required
+            Grid type of output dataset.
+            Currently supported options are "ugrid", "exodus", and "scrip"
+
+        Returns
+        -------
+        out_ds : xarray.Dataset
+            The output `xarray.Dataset` that is encoded from the this grid.
 
         Raises
         ------
         RuntimeError
-            If unsupported extension provided or directory not found
+            If provided grid type or file type is unsupported.
         """
-        if extension == "":
-            outfile_path = PurePath(outfile)
-            extension = outfile_path.suffix
-            if not os.path.isdir(outfile_path.parent):
-                raise RuntimeError("File directory not found: " + outfile)
 
-        if extension == ".ugrid" or extension == ".ug":
-            _write_ugrid(self.ds, outfile, self.ds_var_names)
-        elif extension == ".g" or extension == ".exo":
-            _write_exodus(self.ds, outfile, self.ds_var_names)
+        if grid_type == "ugrid":
+            out_ds = _encode_ugrid(self.ds)
+
+        elif grid_type == "exodus":
+            out_ds = _encode_exodus(self.ds, self.ds_var_names)
+
+        elif grid_type == "scrip":
+            out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
+                                   self.Mesh2_node_y, self.face_areas)
         else:
-            raise RuntimeError("Format not supported for writing: ", extension)
+            raise RuntimeError("The grid type not supported: ", grid_type)
+
+        return out_ds
 
     def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
         """Function to calculate the total surface area of all the faces in a
@@ -229,7 +290,7 @@ class Grid:
         # Also generate the face_edge_connectivity:Mesh2_face_edges for the latlonbox building
         mesh2_face_edges = []
 
-        mesh2_face_nodes = self.ds["Mesh2_face_nodes"].values
+        mesh2_face_nodes = self.Mesh2_face_nodes.values
 
         # Loop over each face
         for face in mesh2_face_nodes:
@@ -262,7 +323,7 @@ class Grid:
         for edge in mesh2_edge_nodes_set:
             mesh2_edge_nodes.append(list(edge))
 
-        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
+        self.Mesh2_edge_nodes = xr.DataArray(data=mesh2_edge_nodes,
                                                    dims=["nMesh2_edge", "Two"])
         for i in range(0, len(mesh2_face_edges)):
             while len(mesh2_face_edges[i]) < len(mesh2_face_nodes[0]):
@@ -279,10 +340,10 @@ class Grid:
 
         # First make sure the Grid object has the Mesh2_face_edges
 
-        if "Mesh2_face_edges" not in self.ds.keys():
+        if "Mesh2_face_edges" not in self.keys():
             self.build_edge_face_connectivity()
 
-        if "Mesh2_node_cart_x" not in self.ds.keys():
+        if "Mesh2_node_cart_x" not in self.keys():
             self.__populate_cartesian_xyz_coord()
 
         # All value are inialized as 404.0 to indicate that they're null
@@ -323,7 +384,7 @@ class Grid:
                     if edge[0] == -1 or edge[1] == -1:
                         continue
                     # All the following calculation is based on the 3D XYZ coord
-                    # And assume the self.ds["Mesh2_node_x"] always store the lon info
+                    # And assume the self.Mesh2_node_x always store the lon info
 
                     # Get the edge end points in 3D [x, y, z] coordinates
                     n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
@@ -342,9 +403,9 @@ class Grid:
                             d_lat_extent_rad = 0.5 * np.pi
 
                     # insert edge endpoint into box
-                    if np.absolute(self.ds["Mesh2_node_y"].values[
+                    if np.absolute(self.Mesh2_node_y.values[
                                        edge[0]]) < d_lat_extent_rad:
-                        d_lat_extent_rad = self.ds["Mesh2_node_y"].values[
+                        d_lat_extent_rad = self.Mesh2_node_y.values[
                             edge[0]]
 
                     # Determine if latitude is maximized between endpoints
@@ -392,8 +453,8 @@ class Grid:
 
                     # For each edge, we only need to consider the first end point in each loop
                     # Check if the end point is the pole point
-                    n1 = [self.ds["Mesh2_node_x"].values[edge[0]],
-                          self.ds["Mesh2_node_y"].values[edge[0]]]
+                    n1 = [self.Mesh2_node_x.values[edge[0]],
+                          self.Mesh2_node_y.values[edge[0]]]
 
                     # North Pole:
                     if (np.absolute(n1[0] - 0) < reference_tolerance and np.absolute(
@@ -402,7 +463,7 @@ class Grid:
                         n1[1] - 90) < reference_tolerance):
                         # insert edge endpoint into box
                         d_lat_rad = np.deg2rad(
-                            self.ds["Mesh2_node_y"].values[edge[0]])
+                            self.Mesh2_node_y.values[edge[0]])
                         d_lon_rad = 404.0
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
@@ -415,7 +476,7 @@ class Grid:
                             np.absolute(n1[0] - 180) < reference_tolerance and np.absolute(
                         n1[1] - (-90)) < reference_tolerance):
                         d_lat_rad = np.deg2rad(
-                            self.ds["Mesh2_node_y"].values[edge[0]])
+                            self.Mesh2_node_y.values[edge[0]])
                         d_lon_rad = 404.0
                         temp_latlon_array[i] = insert_pt_in_latlonbox(
                             copy.deepcopy(temp_latlon_array[i]),
@@ -424,7 +485,7 @@ class Grid:
 
                     # Only consider the great circles arcs
                     # All the following calculation is based on the 3D XYZ coord
-                    # And assume the self.ds["Mesh2_node_x"] always store the lon info
+                    # And assume the self.Mesh2_node_x always store the lon info
 
                     # Get the edge end points in 3D [x, y, z] coordinates
                     n1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]],
@@ -441,9 +502,9 @@ class Grid:
 
                     # insert edge endpoint into box
                     d_lat_rad = np.deg2rad(
-                        self.ds["Mesh2_node_y"].values[edge[0]])
+                        self.Mesh2_node_y.values[edge[0]])
                     d_lon_rad = np.deg2rad(
-                        self.ds["Mesh2_node_x"].values[edge[0]])
+                        self.Mesh2_node_x.values[edge[0]])
                     temp_latlon_array[i] = insert_pt_in_latlonbox(
                         copy.deepcopy(temp_latlon_array[i]),
                         [d_lat_rad, d_lon_rad])
@@ -502,12 +563,12 @@ class Grid:
             if edge[0] == -1 or edge[1] == -1:
                 continue
             n1 = [
-                self.ds["Mesh2_node_x"].values[edge[0]],
-                self.ds["Mesh2_node_y"].values[edge[0]]
+                self.Mesh2_node_x.values[edge[0]],
+                self.Mesh2_node_y.values[edge[0]]
             ]
             n2 = [
-                self.ds["Mesh2_node_x"].values[edge[1]],
-                self.ds["Mesh2_node_y"].values[edge[1]]
+                self.Mesh2_node_x.values[edge[1]],
+                self.Mesh2_node_y.values[edge[1]]
             ]
 
             # Since we only want to sort the Edge based on their longitude,
@@ -544,25 +605,25 @@ class Grid:
 
             # [Test]
             w1_rad = [
-                self.ds["Mesh2_node_x"].values[edge[0]],
-                self.ds["Mesh2_node_y"].values[edge[0]]
+                self.Mesh2_node_x.values[edge[0]],
+                self.Mesh2_node_y.values[edge[0]]
             ]
 
             w2_rad = [
-                self.ds["Mesh2_node_x"].values[edge[1]],
-                self.ds["Mesh2_node_y"].values[edge[1]]
+                self.Mesh2_node_x.values[edge[1]],
+                self.Mesh2_node_y.values[edge[1]]
             ]
             w1 = []
             w2 = []
 
             # Convert the 2D [lon, lat] to 3D [x, y, z]
             w1 = convert_node_lonlat_rad_to_xyz([
-                np.deg2rad(self.ds["Mesh2_node_x"].values[edge[0]]),
-                np.deg2rad(self.ds["Mesh2_node_y"].values[edge[0]])
+                np.deg2rad(self.Mesh2_node_x.values[edge[0]]),
+                np.deg2rad(self.Mesh2_node_y.values[edge[0]])
             ])
             w2 = convert_node_lonlat_rad_to_xyz([
-                np.deg2rad(self.ds["Mesh2_node_x"].values[edge[1]]),
-                np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
+                np.deg2rad(self.Mesh2_node_x.values[edge[1]]),
+                np.deg2rad(self.Mesh2_node_y.values[edge[1]])
             ])
 
 
@@ -584,12 +645,12 @@ class Grid:
                 if edge[0] == -1 or edge[1] == -1:
                     continue
                 w1 = convert_node_lonlat_rad_to_xyz([
-                    np.deg2rad(self.ds["Mesh2_node_x"].values[edge[0]]),
-                    np.deg2rad(self.ds["Mesh2_node_y"].values[edge[0]])
+                    np.deg2rad(self.Mesh2_node_x.values[edge[0]]),
+                    np.deg2rad(self.Mesh2_node_y.values[edge[0]])
                 ])
                 w2 = convert_node_lonlat_rad_to_xyz([
-                    np.deg2rad(self.ds["Mesh2_node_x"].values[edge[1]]),
-                    np.deg2rad(self.ds["Mesh2_node_y"].values[edge[1]])
+                    np.deg2rad(self.Mesh2_node_x.values[edge[1]]),
+                    np.deg2rad(self.Mesh2_node_y.values[edge[1]])
                 ])
 
                 if list(intersection_pt) == w1 or list(intersection_pt) == w2:
@@ -637,7 +698,7 @@ class Grid:
         candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
 
         #TODO: Change this back to start from 0
-        for i in range(1, len(candidate_faces_index_list)):
+        for i in range(0, len(candidate_faces_index_list)):
             face_index = candidate_faces_index_list[i]
             [face_lon_bound_min, face_lon_bound_max] = self.ds["Mesh2_latlon_bounds"].values[face_index][1]
             face = self.ds["Mesh2_face_edges"].values[face_index]
@@ -785,7 +846,7 @@ class Grid:
         --------
         Open a uxarray grid file
 
-        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/outCSne30.ug")
+        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
@@ -799,11 +860,11 @@ class Grid:
             if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.data
+            face_nodes = self.Mesh2_face_nodes.data.astype(int_dtype)
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z
-            z = np.zeros((self.ds.nMesh2_node.size))
+            z = np.zeros((self.nMesh2_node))
 
             # call func to cal face area of all nodes
             x = self.Mesh2_node_x.data
@@ -827,108 +888,173 @@ class Grid:
             self.compute_face_areas()
         return self._face_areas
 
-    def __init_grid_var_attrs__(self):
-        """Initialize attributes for directly accessing Coordinate and Data
-        variables through ugrid conventions.
+    def integrate(self, var_ds, quadrature_rule="triangular", order=4):
+        """Integrates over all the faces of the given mesh.
+
+        Parameters
+        ----------
+        var_ds : Xarray dataset, required
+            Xarray dataset containing values to integrate on this grid
+        quadrature_rule : str, optional
+            Quadrature rule to use. Defaults to "triangular".
+        order : int, optional
+            Order of quadrature rule. Defaults to 4.
+
+        Returns
+        -------
+        Calculated integral : float
 
         Examples
-        ----------
-        Assuming the mesh node coordinates for longitude are stored with an input
-        name of 'mesh_node_x', we store this variable name in the `ds_var_names`
-        dictionary with the key 'Mesh2_node_x'. In order to access it:
+        --------
+        Open grid file only
 
-        >>> x = grid.ds[grid.ds_var_names["Mesh2_node_x"]]
+        >>> xr_grid = xr.open_dataset("grid.ug")
+        >>> grid = ux.Grid.(xr_grid)
+        >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
 
-        With the help of this function, we can directly access it through the
-        use of a standardized name (ugrid convention)
-
-        >>> x = grid.Mesh2_node_x
+        # Compute the integral
+        >>> integral_psi = grid.integrate(var_ds)
         """
+        integral = 0.0
 
-        # Set UGRID standardized attributes
-        for key, value in self.ds_var_names.items():
-            # Present Data Names
-            if self.ds.data_vars is not None:
-                if value in self.ds.data_vars:
-                    setattr(self, key, self.ds[value])
+        # call function to get area of all the faces as a np array
+        face_areas = self.compute_face_areas(quadrature_rule, order)
 
-            # Present Coordinate Names
-            if self.ds.coords is not None:
-                if value in self.ds.coords:
-                    setattr(self, key, self.ds[value])
+        var_key = list(var_ds.keys())
+        if len(var_key) > 1:
+            # warning: print message
+            print(
+                "WARNING: The xarray dataset file has more than one variable, using the first variable for integration"
+            )
+        var_key = var_key[0]
+        face_vals = var_ds[var_key].to_numpy()
+        integral = np.dot(face_areas, face_vals)
 
-    def __populate_cartesian_xyz_coord(self):
+        return integral
+
+    def _populate_cartesian_xyz_coord(self):
+        """A helper function that populates the xyz attribute in UXarray.ds.
+        This function is called when we need to use the cartesian coordinates
+        for each node to do the calculation but the input data only has the
+        "Mesh2_node_x" and "Mesh2_node_y" in degree.
+        Note
+        ----
+        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
+        corresponding units as stated below:
+        Mesh2_node_x
+         unit:  "degree_east" for longitude
+        Mesh2_node_y
+         unit:  "degrees_north" for latitude
+        Mesh2_node_z
+         unit:  "m"
+        Mesh2_node_cart_x
+         unit:  "m"
+        Mesh2_node_cart_y
+         unit:  "m"
+        Mesh2_node_cart_z
+         unit:  "m"
         """
-        A helper function that populates the xyz attribute in Mesh.ds
-        use case: If the grid file's Mesh2_node_x 's unit is in degree
-        """
-        #   Mesh2_node_x
-        #      unit x = "lon" degree
-        #   Mesh2_node_y
-        #      unit x = "lat" degree
-        #   Mesh2_node_z
-        #      unit x = "m"
-        #   Mesh2_node_cart_x
-        #      unit m
-        #   Mesh2_node_cart_y
-        #      unit m
-        #   Mesh2_node_cart_z
-        #      unit m
 
         # Check if the cartesian coordinates are already populated
         if "Mesh2_node_cart_x" in self.ds.keys():
             return
 
         # check for units and create Mesh2_node_cart_x/y/z set to self.ds
-        num_nodes = self.ds.Mesh2_node_x.size
-        node_cart_list_x = [0.0] * num_nodes
-        node_cart_list_y = [0.0] * num_nodes
-        node_cart_list_z = [0.0] * num_nodes
-        for i in range(num_nodes):
-            if "degree" in self.ds.Mesh2_node_x.units:
-                node = [np.deg2rad(self.ds["Mesh2_node_x"].values[i]),
-                        np.deg2rad(self.ds["Mesh2_node_y"].values[i])]  # [lon, lat]
-                node_cart = convert_node_lonlat_rad_to_xyz(node)  # [x, y, z]
-                node_cart_list_x[i] = node_cart[0]
-                node_cart_list_y[i] = node_cart[1]
-                node_cart_list_z[i] = node_cart[2]
+        nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
+        nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
+        nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
+        nodes_cart = np.asarray(
+            list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
 
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
-        self.ds["Mesh2_node_cart_z"] = xr.DataArray(data=node_cart_list_z)
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(
+            data=nodes_cart[:, 0],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "cartesian x",
+                "units": "m",
+            })
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(
+            data=nodes_cart[:, 1],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "cartesian y",
+                "units": "m",
+            })
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(
+            data=nodes_cart[:, 2],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "cartesian z",
+                "units": "m",
+            })
 
-    def __populate_lonlat_coord(self):
-        """
-         Helper function that populates the longitude and latitude and store it into the Mesh2_node_x and Mesh2_node_y
-          use case: If the grid file's Mesh2_node_x 's unit is in meter
+    def _populate_lonlat_coord(self):
+        """Helper function that populates the longitude and latitude and store
+        it into the Mesh2_node_x and Mesh2_node_y. This is called when the
+        input data has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in
+        meters. Since we want "Mesh2_node_x" and "Mesh2_node_y" always have the
+        "degree" units. For more details, please read the following.
+        Raises
+        ------
+            RuntimeError
+                Mesh2_node_x/y/z are not represented in the cartesian format with the unit 'm'/'meters' when calling this function"
+        Note
+        ----
+        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
+        corresponding units as stated below:
+        Mesh2_node_x
+         unit:  "degree_east" for longitude
+        Mesh2_node_y
+         unit:  "degrees_north" for latitude
+        Mesh2_node_z
+         unit:  "m"
+        Mesh2_node_cart_x
+         unit:  "m"
+        Mesh2_node_cart_y
+         unit:  "m"
+        Mesh2_node_cart_z
+         unit:  "m"
         """
 
         # Check if the "Mesh2_node_x" is already in longitude
         if "degree" in self.ds.Mesh2_node_x.units:
             return
-        num_nodes = self.ds.Mesh2_node_x.size
-        node_latlon_list_lat = [0.0] * num_nodes
-        node_latlon_list_lon = [0.0] * num_nodes
-        node_cart_list_x = [0.0] * num_nodes
-        node_cart_list_y = [0.0] * num_nodes
-        node_cart_list_z = [0.0] * num_nodes
-        for i in range(num_nodes):
-            if "m" in self.ds.Mesh2_node_x.units:
-                node = [self.ds["Mesh2_node_x"][i],
-                        self.ds["Mesh2_node_y"][i],
-                        self.ds["Mesh2_node_z"][i]]  # [x, y, z]
-                node_lonlat = convert_node_xyz_to_lonlat_rad(node)  # [lon, lat]
-                node_cart_list_x[i] = self.ds["Mesh2_node_x"].values[i]
-                node_cart_list_y[i] = self.ds["Mesh2_node_y"].values[i]
-                node_cart_list_z[i] = self.ds["Mesh2_node_z"].values[i]
-                node_lonlat[0] = np.rad2deg(node_lonlat[0])
-                node_lonlat[1] = np.rad2deg(node_lonlat[1])
-                node_latlon_list_lon[i] = node_lonlat[0]
-                node_latlon_list_lat[i] = node_lonlat[1]
 
-        self.ds["Mesh2_node_cart_x"] = xr.DataArray(data=node_cart_list_x)
-        self.ds["Mesh2_node_cart_y"] = xr.DataArray(data=node_cart_list_y)
+        # Check if the input Mesh2_node_xyz" are represented in the cartesian format with the unit "m"
+        if ("m" not in self.ds.Mesh2_node_x.units) or ("m" not in self.ds.Mesh2_node_y.units) \
+                or ("m" not in self.ds.Mesh2_node_z.units):
+            raise RuntimeError(
+                "Expected: Mesh2_node_x/y/z should be represented in the cartesian format with the "
+                "unit 'm' when calling this function")
 
-        self.ds["Mesh2_node_x"].values = node_latlon_list_lon
-        self.ds["Mesh2_node_y"].values = node_latlon_list_lat
-        self.ds.Mesh2_node_x.units = "degree_east"
+        # Put the cartesian coordinates inside the proper data structure
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(
+            data=self.ds["Mesh2_node_x"].values)
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(
+            data=self.ds["Mesh2_node_y"].values)
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(
+            data=self.ds["Mesh2_node_z"].values)
+
+        # convert the input cartesian values into the longitude latitude degree
+        nodes_cart = np.stack(
+            (self.ds["Mesh2_node_x"].values, self.ds["Mesh2_node_y"].values,
+             self.ds["Mesh2_node_z"].values),
+            axis=1).tolist()
+        nodes_rad = list(map(_convert_node_xyz_to_lonlat_rad, nodes_cart))
+        nodes_degree = np.rad2deg(nodes_rad)
+        self.ds["Mesh2_node_x"] = xr.DataArray(
+            data=nodes_degree[:, 0],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "longitude",
+                "long_name": "longitude of mesh nodes",
+                "units": "degrees_east",
+            })
+        self.ds["Mesh2_node_y"] = xr.DataArray(
+            data=nodes_degree[:, 1],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "lattitude",
+                "long_name": "latitude of mesh nodes",
+                "units": "degrees_north",
+            })

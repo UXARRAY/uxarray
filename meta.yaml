@@ -1,4 +1,4 @@
-{% set version = "2022.08.0" %}
+{% set version = "2023.02.0" %}
 
 package:
   name: 'uxarray'
@@ -33,7 +33,7 @@ test:
     - netcdf4
     - pytest
     - numba
-    - numpy>=1.2,<1.22
+    - numpy
     - scipy>=0.16
     - xarray
   imports:
@@ -54,7 +54,6 @@ extra:
     - P. Ullrich # https://github.com/paullric
     - O. Eroglu # https://github.com/erogluorhan
     - A. Zacharias # https://github.com/anissa111
-    - M. Sizemore # https://github.com/michaelavs
     - R. Jain # https://github.com/rajeeja
     - J. Zhang # https://github.com/chengzhuzhang
     - R. Jacob # https://github.com/rljacob

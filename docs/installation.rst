@@ -1,3 +1,7 @@
+.. currentmodule:: uxarray
+
+.. _installation:
+
 Installation
 ============
 
