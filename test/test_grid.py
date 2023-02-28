@@ -256,24 +256,36 @@ class TestZonalAverage(TestCase):
     data_file30_v2 = current_path / "meshfiles" / "outCSne30_var2.ug"
 
     def test_get_zonal_face_weights_at_constlat(self):
-        uds = ux.open_dataset(self.mesh_file30, self.data_file30, self.data_file30_v2)
+        uds = ux.open_dataset(self.mesh_file30)
         uds.buildlatlon_bounds()
-        #  First Get the list of faces that falls into this latitude range
-        candidate_faces_index_list = []
 
-        # Search through the interval tree for all the candidates face
-        candidate_face_set = uds._latlonbound_tree.at(1)
-        for interval in candidate_face_set:
-            candidate_faces_index_list.append(interval.data)
-        res = uds._get_zonal_face_weights_at_constlat(candidate_faces_index_list, 1)
-        sum = np.sum(res)
-        self.assertAlmostEqual(sum,1,12)
+        #TODO:Fix latitude on 0.0 and -1.5
+        for lat in [0.1, 0.6,1.5, -0.1, -0.6, -1.5, 0.0]:
+            #  First Get the list of faces that falls into this latitude range
+            candidate_faces_index_list = []
+
+            # Search through the interval tree for all the candidates face
+
+            candidate_face_set = uds._latlonbound_tree.at(lat)
+            for interval in candidate_face_set:
+                candidate_faces_index_list.append(interval.data)
+            res = uds._get_zonal_face_weights_at_constlat(candidate_faces_index_list, lat)
+            sum = np.sum(res)
+            self.assertAlmostEqual(sum, 1, 12)
+        # print(res)
+        # res = uds._get_zonal_face_weights_at_constlat(candidate_faces_index_list, 1)
+        # sum = np.sum(res)
+        # self.assertAlmostEqual(sum,1,12)
 
     def test_nc_zonal_average(self):
         mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
         data_file2 = current_path / "meshfiles" / "outCSne30_test2.nc"
         data_file3 = current_path / "meshfiles" / "outCSne30_test3.nc"
-        uds = ux.open_dataset(mesh_file30, data_file2,data_file3)
+        uds = ux.open_dataset(mesh_file30, data_file2)
+        res = []
+        for lat in [0.1, 0.6,1.5, -0.1, -0.6, -1.5]:
+            res.append(uds.get_nc_zonal_avg("Psi", lat))
+        print(res)
         pass
 
 

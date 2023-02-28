@@ -570,7 +570,7 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
         temp = n1
         n1 = n2
         n2 = temp
-
+    # TODO: Fix when the latitude is 0
     z_0 = np.sin(const_lat_rad)
     n_x = n1[1] * n2[2] - n2[1] * n1[2]
     n_y = -n1[0] * n2[2] + n2[0] * n1[2]

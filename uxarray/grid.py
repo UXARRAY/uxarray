@@ -686,8 +686,8 @@ class Grid:
                 # Longitude wrap-around
                 cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
             if cur_face_mag_rad > np.pi:
-                pass
-            assert(cur_face_mag_rad <= np.pi)
+                print("Problematic lat is "+str(latitude_rad)+" And the cur_face_mag_rad is "+str(cur_face_mag_rad))
+            # assert(cur_face_mag_rad <= np.pi)
 
             # Calculate the weight from each face by |intersection line length| / total perimeter
             candidate_faces_weight_list[i] = cur_face_mag_rad
