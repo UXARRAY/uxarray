@@ -49,16 +49,22 @@ def _read_ugrid(xr_ds, var_names_dict):
             var_names_dict["Mesh2_node_x"], var_names_dict["Mesh2_node_y"],
             var_names_dict["Mesh2_node_z"]
         ])
+
     return xr_ds, var_names_dict
 
 
-def _encode_ugrid(ds):
-    """Encodes UGRID file.
+# Write a uxgrid to a file with specified format.
+def _write_ugrid(ds, outfile, ugrid_vars):
+    """UGRID file writer.
     Parameters
     ----------
     ds : xarray.Dataset
-        Dataset to be encoded to file
+        Dataset to be written to file
+    outfile : string, required
+        Name of output file
 
     Uses to_netcdf from xarray object.
     """
-    return ds
+
+    print("Writing ugrid file: ", outfile)
+    ds.to_netcdf(outfile)

@@ -1,7 +1,3 @@
-.. currentmodule:: uxarray
-
-.. _api:
-
 API Reference
 =============
 
@@ -12,7 +8,6 @@ documentation to see the tentative whole API and let us know if you have any fee
 
 .. toctree::
    :maxdepth: 2
-   :hidden:
 
    user_api/index.rst
    internal_api/index.rst

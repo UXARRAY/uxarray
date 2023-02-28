@@ -7,49 +7,31 @@
 
 
 
-UXarray aims to address the geoscience community need for tools that enable
-standard data analysis techniques to operate directly on unstructured grid
-data. UXarray will provide Xarray styled functions to better read in and use
-unstructured grid datasets that follow standard conventions, including UGRID,
-SCRIP, Exodus and shapefile formats.  This effort is a result of the
-collaboration between Project Raijin (NCAR and Pennsylvania State University)
-and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
-Livermore National Laboratory). The UXarray team welcomes other community
-members to become part of this collaboration at any level of contribution.
+Uxarray aims to address the geoscience community need for tools that enable standard data analysis techniques to
+operate directly on unstructured grid data.  Uxarray will provide Xarray styled functions to better read in and
+use unstructured grid datasets that follow standard conventions, including UGRID, SCRIP, Exodus and shapefile
+formats.  This effort is a result of the collaboration between Project Raijin (NCAR and Pennsylvania State University)
+and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence Livermore National Laboratory).  The
+Uxarray team welcomes other community members to become part of this collaboration at any level of contribution.
 
-UXarray is implemented in pure Python and does not explicitly contain or require
-any compiled code. This makes UXarray more accessible to the general Python
-community. Any contributions to this repository in pure Python are welcome and
-documentation for contribution guidelines can be found when clicking `New Issue`
-under the `Issues` tab in the UXarray repository.
+Uxarray is implemented in pure Python and does not explicitly contain or require any compiled code. This makes Uxarray
+more accessible to the general Python community. Any contributions to this repository in pure Python are welcome and
+documentation for contribution guidelines can be found when clicking `New Issue` under the `Issues` tab in the Uxarray
+repository.
 
-# Why is the name "UXarray"?
-
-We have created UXarray based on [Xarray](https://docs.xarray.dev/en/stable/)
-(via composition of a Xarray dataset object), a Pangeo ecosystem package
-commonly-used for structured grids recognition, to support reading and
-recognizing unstructured grid model outputs. We picked the name "UXarray"
-and preferred to capitalize the first two letters to emphasize it is Xarray
-for Unstructured grids.
-
-# UXarray Functionality
-
-The following intended functionality has been inspired by discussions with
-members of the scientific community, within the SEATS Project and Project
-Raijin, and on several community platforms such as [Xarray GitHub
-Repository](https://github.com/pydata/xarray/issues/4222). The UXarray team
-is receptive to additional functionality requests.
+The following intended functionality has been inspired by discussions with members of the scientific community,
+within the SEATS Project and Project Raijin, and on several community platforms such as
+[Xarray GitHub Repository](https://github.com/pydata/xarray/issues/4222).  The Uxarray team is receptive to additional
+functionality requests.
 
 # Intended Functionality for Grids
 
 * Support for reading and writing UGRID, SCRIP and Exodus formatted grids.
 * Support for reading and writing shapefiles.
-* Support for arbitrary structured and unstructured grids on the sphere,
-  including latitude-longitude grids, grids with only partial coverage of
-  the sphere, and grids with concave faces.
+* Support for arbitrary structured and unstructured grids on the sphere, including latitude-longitude grids, grids
+  with only partial coverage of the sphere, and grids with concave faces.
 * Support for finite volume and finite element outputs.
-* Support for edges that are either great circle arcs or lines of constant
-  latitude.
+* Support for edges that are either great circle arcs or lines of constant latitude.
 * Calculation of face areas, centroids, and bounding latitude-longitude boxes.
 * Triangular decompositions.
 * Calculation of supermeshes (consisting of grid lines from two input grids).
@@ -58,26 +40,25 @@ is receptive to additional functionality requests.
 
 * Regridding of data between unstructured grids.
 * Global and regional integration of fields, including zonal averages.
-* Application of calculus operations, including divergence, curl, Laplacian
-  and gradient.
+* Application of calculus operations, including divergence, curl, Laplacian and gradient.
 * Snapshots and composites following particular features.
 
 # Documentation
 
-[UXarray Documentation](https://uxarray.readthedocs.io/en/latest)
+[Uxarray Documentation](https://uxarray.readthedocs.io/en/latest)
 
-[Contributor’s Guide](https://uxarray.readthedocs.io/en/latest/contributing.html)
+[Uxarray Contributor’s Guide](https://uxarray.readthedocs.io/en/latest/contributing.html)
 
-[Installation](https://uxarray.readthedocs.io/en/latest/installation.html)
+[Uxarray Installation](https://uxarray.readthedocs.io/en/latest/installation.html)
 
 [Project Raijin Homepage](https://raijin.ucar.edu/)
 
 [SEATS Project Homepage](https://seatstandards.org)
 
-# Citing UXarray
+# Citing Uxarray
 
 If you'd like to cite our work, please follow [How to cite
-UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
+Uxarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 # Support
 
@@ -90,7 +71,7 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 <table>
   <tr>
-    <td><a href="https://www.energy.gov/science/office-science"><img src="docs/_static/images/logos/DOE_vertical.png" alt="DOE Logo" width="1200"/></a></td>
+    <td><a href="https://www.energy.gov/science/office-science"><img src="docs/_static/images/logos/DOE_Office_of_Science_logo.png" alt="DOE Logo" width="1200"/></a></td>
     <td>SEATS is funded by the Regional and Global Modeling and Analysis (RGMA) program area in the U.S. Department of Energy (DOE) Earth and Environmental System Modeling Program which is part of the Earth and Environmental Systems Sciences Division of the Office of Biological and Environmental Research in DOE’s Office of Science.</td>
   </tr>
 </table>
@@ -111,7 +92,7 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
 
 
-[github-ci-badge]: https://img.shields.io/github/actions/workflow/status/UXARRAY/uxarray/ci.yml?branch=main&label=CI&logo=github&style=for-the-badge
+[github-ci-badge]: https://img.shields.io/github/workflow/status/UXARRAY/uxarray/CI?label=CI&logo=github&style=for-the-badge
 [github-ci-link]: https://github.com/UXARRAY/uxarray/actions?query=workflow%3ACI
 [codecov-badge]: https://img.shields.io/codecov/c/github/UXARRAY/uxarray.svg?logo=codecov&style=for-the-badge
 [codecov-link]: https://codecov.io/gh/UXARRAY/uxarray

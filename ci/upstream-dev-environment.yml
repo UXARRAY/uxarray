@@ -1,12 +1,17 @@
-name: uxarray_upstream_build
+name: uxarray_build
 channels:
   - conda-forge
 dependencies:
   - netcdf4
   - numba
-  - numpy
+  # pinning the numpy version for numba compatibility
+  - numpy>=1.2, <1.22
   - pathlib
   - python
   - pytest
   - pytest-cov
+  - pip
   - scipy
+  - pip:
+    - git+https://github.com/pydata/xarray.git
+    - git+https://github.com/dask/dask.git

@@ -7,18 +7,11 @@
 
 import os
 import sys
-import pathlib
-import yaml
-from sphinx.application import Sphinx
-from sphinx.util import logging
-from textwrap import dedent, indent
 
 sys.path.insert(0,
                 os.path.abspath('../'))  # Source code dir relative to this file
 
 import uxarray
-
-LOGGER = logging.getLogger("conf")
 
 try:
     from unittest.mock import MagicMock
@@ -42,33 +35,12 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.mathjax',
-    'myst_nb',
-    "sphinx_design",
-    "nbsphinx",
+    'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx', 'sphinx.ext.mathjax'
 ]
 
-extlinks = {
-    "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
-    "pull": ("https://github.com/uxarray/uxarray/pull/%s", "PR"),
-}
-
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
-    "iris": ("https://scitools-iris.readthedocs.io/en/latest", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy", None),
-    "numba": ("https://numba.pydata.org/numba-doc/latest", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
-    "dask": ("https://docs.dask.org/en/latest", None),
-    "cftime": ("https://unidata.github.io/cftime", None),
-    "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
-    "sparse": ("https://sparse.pydata.org/en/latest/", None),
+    'python': ('http://docs.python.org/3/', None),
     'xarray': ('http://xarray.pydata.org/en/stable/', None),
 }
 
@@ -83,11 +55,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
-source_suffix = {
-    '.rst': 'restructuredtext',
-    '.ipynb': 'myst-nb',
-    '.myst': 'myst-nb',
-}
+source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'index'
@@ -138,34 +106,15 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
-html_theme = "sphinx_book_theme"
-html_title = ""
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    html_theme = 'default'
+else:
+    import sphinx_rtd_theme
+    html_theme = 'sphinx_rtd_theme'
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 autosummary_imported_members = True
-
-html_context = {
-    "github_user": "uxarray",
-    "github_repo": "uxarray",
-    "github_version": "main",
-    "doc_path": "docs",
-}
-
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options = dict(
-    # analytics_id=''  this is configured in rtfd.io
-    # canonical_url="",
-    repository_url="https://github.com/uxarray/uxarray",
-    repository_branch="main",
-    path_to_docs="docs",
-    use_edit_page_button=True,
-    use_repository_button=True,
-    use_issues_button=True,
-    home_page_in_toc=False,
-    navbar_footer_text="",
-    #extra_footer="""<p></p>""",
-)
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
@@ -173,18 +122,12 @@ html_theme_options = dict(
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = '_static/images/logos/uxarray_temp_logo.png'
-
-# The name of an image file (within the static path) to use as favicon of the
-# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
-# pixels large.
-html_favicon = '_static/images/logos/uxarray_temp_logo.png'
+# html_logo = '_static/images/nsf.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-html_css_files = ["style.css"]
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'uxarraydoc'
@@ -192,42 +135,6 @@ htmlhelp_basename = 'uxarraydoc'
 autodoc_typehints = 'none'
 
 
-# custom scripts for making a gallery of examples notebooks
-def update_gallery(app: Sphinx):
-    """Update the gallery of examples notebooks."""
-
-    LOGGER.info("creating gallery...")
-
-    notebooks = yaml.safe_load(
-        pathlib.Path(app.srcdir, "gallery.yml").read_bytes())
-
-    items = [
-        f"""
-         .. grid-item-card::
-            :text-align: center
-            :link: {item['path']}
-
-            .. image:: {item['thumbnail']}
-                :alt: {item['title']}
-            +++
-            {item['title']}
-            """ for item in notebooks
-    ]
-
-    items_md = indent(dedent("\n".join(items)), prefix="    ")
-    markdown = f"""
-.. grid:: 1 2 3 3
-    :gutter: 2
-
-    {items_md}
-    """
-
-    pathlib.Path(app.srcdir, "notebook-examples.txt").write_text(markdown)
-
-    LOGGER.info("gallery created")
-
-
 # Allow for changes to be made to the css in the theme_overrides file
 def setup(app):
     app.add_css_file('theme_overrides.css')
-    app.connect("builder-inited", update_gallery)

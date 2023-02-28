@@ -2,14 +2,3 @@
 .wy-nav-content {
     max-width: none !important;
 }
-
-.custom-title {
-    font-weight: bold;
-    color: #283618;
-    text-align: left;
-}
-
-.custom-body {
-    text-align: left;
-    margin-left: max(45px, 15%);
-}

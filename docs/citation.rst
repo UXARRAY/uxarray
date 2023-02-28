@@ -1,9 +1,8 @@
-.. currentmodule:: uxarray
+Citation
+==========
 
-.. _citation:
-
-How to Cite Uxarray
-===================
+How to cite Uxarray
+-----------------------
 
 Cite Uxarray using the following text:
 
