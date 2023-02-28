@@ -580,7 +580,7 @@ def _pt_within_gcr(pt_cart, gcr_end_pt_cart_1, gcr_end_pt_cart_2):
 
     """
     cross = np.cross(gcr_end_pt_cart_1, gcr_end_pt_cart_2)
-    dot = cross[0] * pt_cart[0] + cross[1] * pt_cart[1] + cross[2] * pt_cart[2]
+    dot = np.dot(cross,pt_cart)#cross[0] * pt_cart[0] + cross[1] * pt_cart[1] + cross[2] * pt_cart[2]
     if np.absolute(dot - 0) > 1.0e-12:
         return False
 
