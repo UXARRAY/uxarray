@@ -583,8 +583,9 @@ def _get_approx_intersection_point_gcr_constlat(gcr_cart, const_lat_rad):
     if b * b - 4 * a * c < 0:
         return res
 
+    # This means the GCR overlaps with the constant latitude, so the intersection point will be the two endpoints of the GCR
     if a == b == c == 0:
-        return [[0,0,0], [-1,-1,-1]]
+        return gcr_cart
     [t1, t2] = np.roots([a, b, c])
     x1 = [z_0 * n1[0] * (1 / n1[2]) + t1 * n_y, z_0 * n1[1] * (1 / n1[2]) - t1 * n_x, z_0]
     x2 = [z_0 * n1[0] * (1 / n1[2]) + t2 * n_y, z_0 * n1[1] * (1 / n1[2]) - t2 * n_x, z_0]

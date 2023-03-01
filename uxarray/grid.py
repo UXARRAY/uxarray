@@ -636,8 +636,7 @@ class Grid:
         # First calculate the perimeter this constant latitude circle
         candidate_faces_weight_list = [0.0] * len(candidate_faces_index_list)
 
-        #TODO: Change this back to start from 0
-        for i in range(1, len(candidate_faces_index_list)):
+        for i in range(0, len(candidate_faces_index_list)):
             face_index = candidate_faces_index_list[i]
             [face_lon_bound_min, face_lon_bound_max] = self.ds["Mesh2_latlon_bounds"].values[face_index][1]
             face = self.ds["Mesh2_face_edges"].values[face_index]
