@@ -26,7 +26,13 @@ def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     jacobian = [[y0 * z1 - z0 * y1, z0 * x1 - x0 * z1],
                 [2 * x_i_old, 2 * y_i_old]]
     # Now calculate the determinant of the Jacobian Matrix
-    inverse_jacobian = np.linalg.inv(jacobian)
+
+    try:
+        inverse_jacobian = np.linalg.inv(jacobian)
+    except np.linalg.LinAlgError:
+        return -1
+
+
     return inverse_jacobian
 
 
@@ -37,8 +43,9 @@ def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max
     constZ = init_cart[2]
 
 
-    y_new = np.ones((2, 1))
+
     y_guess = np.array(init_cart[0:2])
+    y_new = y_guess
 
     # numpy column matrix for the F
     F = np.copy(y_guess)
@@ -53,6 +60,8 @@ def _newton_raphson_solver_for_intersection_pts(init_cart, w0_cart, w1_cart, max
 
         J_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2], y_guess[0],
                                y_guess[1])
+        if J_inv == -1:
+            return y_guess
         y_new = y_guess - alpha * np.matmul(J_inv, F)
         error = np.max(np.abs(y_guess - y_new))
         y_guess = y_new

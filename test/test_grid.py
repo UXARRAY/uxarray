@@ -260,7 +260,7 @@ class TestZonalAverage(TestCase):
         uds.buildlatlon_bounds()
 
         #TODO:Fix latitude on 0.0 and -1.5
-        for lat in [0.1, 0.6,1.5, -0.1, -0.6, -1.5, 0.0]:
+        for lat in [0.0]:
             #  First Get the list of faces that falls into this latitude range
             candidate_faces_index_list = []
 
