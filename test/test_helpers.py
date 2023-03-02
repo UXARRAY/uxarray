@@ -96,7 +96,11 @@ class TestIntegrate(TestCase):
             self.assertLessEqual(np.absolute(new_lon - lon), 1.0e-12)
             self.assertLessEqual(np.absolute(new_lat - lat), 1.0e-12)
 
-
+    def test_get_gcr_max_lat_rad(self):
+        gcr_cart = [[-0.052264427688714095, 0.0522644276887141, -0.9972646886342373], [3.204653064661768e-18, 0.05233595624294241, -0.9986295347545739]]
+        gcr_rad = [[2.356194490192345, -1.4968157987597273], [1.5707963267948966, -1.518436449235066]]
+        max_lat = ux.get_gcr_max_lat_rad(gcr_cart)
+        pass
     def test_get_intersection_pt(self):
         # # In this testcase, we will only have one intersection point
         # gcr_cart = [ux.normalize_in_place([0.1,0.1,1]), ux.normalize_in_place([0.1,0.1,-1])]

@@ -690,6 +690,10 @@ def get_gcr_max_lat_rad(gcr_cart):
     dot_n1_n2 = np.dot(n1, n2)
     d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * np.dot(n1, n2) - n2[2]) / d_de_nom
+    if np.abs(d_a_max - 0.0) < 1.0e-12:
+        d_a_max = 0.0
+    if np.abs(d_a_max - 1.0) < 1.0e-12:
+        d_a_max = 1.0
     if (d_a_max > 0.0) and (d_a_max < 1.0):
         node3 = [0.0, 0.0, 0.0]
         node3[0] = n1[0] * (1 - d_a_max) + n2[0] * d_a_max

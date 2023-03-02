@@ -683,6 +683,7 @@ class Grid:
                 cur_face_mag_rad = pt_lon_max - pt_lon_min
             else:
                 # Longitude wrap-around
+                #TODO: Need to think more marginal cases
                 cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
             if cur_face_mag_rad > np.pi:
                 print("Problematic lat is "+str(latitude_rad)+" And the cur_face_mag_rad is "+str(cur_face_mag_rad))
