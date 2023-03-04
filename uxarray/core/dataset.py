@@ -23,12 +23,13 @@ class UxDataset(xr.Dataset):
         setattr(self, 'source_datasets', source_datasets)
 
         self.uxgrid = uxgrid
-        # TODO: Weird that below if-check leads miscreation of UxDataset object
-        # if uxgrid is None or not isinstance(uxgrid, Grid):
-        #     raise RuntimeError("uxgrid cannot be None or it needs to "
-        #                        "be of an instance of the uxarray.core.Grid class")
-        # else:
-        #     self.uxgrid = uxgrid
+
+        if uxgrid is None or not isinstance(uxgrid, Grid):
+            raise RuntimeError(
+                "uxgrid cannot be None or it needs to "
+                "be of an instance of the uxarray.core.Grid class")
+        else:
+            self.uxgrid = uxgrid
 
     @property
     def uxgrid(self):

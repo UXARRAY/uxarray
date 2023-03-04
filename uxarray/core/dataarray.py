@@ -14,7 +14,7 @@ class UxDataArray(xr.DataArray):
         super().__init__(*args, **kwargs)
 
         self.uxgrid = uxgrid
-        # TODO: Weird that below if-check leads miscreation of UxDataArray object
+
         if uxgrid is None:
             raise RuntimeError("uxgrid cannot be None")
         else:
