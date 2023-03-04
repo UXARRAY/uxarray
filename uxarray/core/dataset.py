@@ -57,7 +57,7 @@ class UxDataset(xr.Dataset):
         xarr = super().__getitem__(key)
 
         if isinstance(xarr, xr.DataArray):
-            return UxDataArray(xarr)
+            return UxDataArray(xarr, uxgrid=self.uxgrid)
         else:
             return xarr
 
@@ -69,6 +69,8 @@ class UxDataset(xr.Dataset):
         """
         if isinstance(value, xr.DataArray):
             value = UxDataArray(value)
+            # works with the value below also.
+            # value = value.to_dataarray()
 
         super().__setitem__(key, value)
 

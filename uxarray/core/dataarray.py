@@ -15,11 +15,10 @@ class UxDataArray(xr.DataArray):
 
         self.uxgrid = uxgrid
         # TODO: Weird that below if-check leads miscreation of UxDataArray object
-        # if uxgrid is None:
-        #     raise RuntimeError("uxgrid cannot be None")
-        # else:
-        #     self.uxgrid = uxgrid
-
+        if uxgrid is None:
+            raise RuntimeError("uxgrid cannot be None")
+        else:
+            self.uxgrid = uxgrid
     @property
     def uxgrid(self):
         return self._uxgrid
