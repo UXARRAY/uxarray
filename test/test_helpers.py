@@ -96,7 +96,7 @@ class TestGridCenter(TestCase):
 class TestCoordinatesConversion(TestCase):
 
     def test_normalize_in_place(self):
-        [x, y, z] = ux.helpers._normalize_in_place(
+        [x, y, z] = ux.utils.helpers._normalize_in_place(
             [random.random(), random.random(),
              random.random()])
 
@@ -104,14 +104,14 @@ class TestCoordinatesConversion(TestCase):
                              err_tolerance)
 
     def test_convert_node_xyz_to_lonlat_rad(self):
-        [x, y, z] = ux.helpers._normalize_in_place([
+        [x, y, z] = ux.utils.helpers._normalize_in_place([
             random.uniform(-1, 1),
             random.uniform(-1, 1),
             random.uniform(-1, 1)
         ])
-        [lon, lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
+        [lon, lat] = ux.utils.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
         [new_x, new_y,
-         new_z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
+         new_z] = ux.utils.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
 
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
@@ -122,10 +122,10 @@ class TestCoordinatesConversion(TestCase):
             random.uniform(0, 2 * np.pi),
             random.uniform(-0.5 * np.pi, 0.5 * np.pi)
         ]
-        [x, y, z] = ux.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
+        [x, y, z] = ux.utils.helpers._convert_node_lonlat_rad_to_xyz([lon, lat])
 
         [new_lon,
-         new_lat] = ux.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
+         new_lat] = ux.utils.helpers._convert_node_xyz_to_lonlat_rad([x, y, z])
 
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
