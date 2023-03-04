@@ -19,6 +19,7 @@ class UxDataArray(xr.DataArray):
             raise RuntimeError("uxgrid cannot be None")
         else:
             self.uxgrid = uxgrid
+
     @property
     def uxgrid(self):
         return self._uxgrid
