@@ -29,15 +29,15 @@ Grid Helper Modules
    :nosignatures:
    :toctree: ./generated/
 
-   _exodus._read_exodus
-   _exodus._encode_exodus
-   _exodus._get_element_type
-   _ugrid._encode_ugrid
-   _ugrid._read_ugrid
-   _scrip._read_scrip
-   _scrip._encode_scrip
-   _scrip._to_ugrid
-   helpers._is_ugrid
-   helpers._convert_node_xyz_to_lonlat_rad
-   helpers._convert_node_lonlat_rad_to_xyz
-   helpers._normalize_in_place
+   io._exodus._read_exodus
+   io._exodus._encode_exodus
+   io._exodus._get_element_type
+   io._ugrid._encode_ugrid
+   io._ugrid._read_ugrid
+   io._scrip._read_scrip
+   io._scrip._encode_scrip
+   io._scrip._to_ugrid
+   utils.helpers._is_ugrid
+   utils.helpers._convert_node_xyz_to_lonlat_rad
+   utils.helpers._convert_node_lonlat_rad_to_xyz
+   utils.helpers._normalize_in_place

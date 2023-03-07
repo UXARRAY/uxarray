@@ -1,4 +1,4 @@
-from uxarray._scrip import _read_scrip, _encode_scrip
+from uxarray.io._scrip import _read_scrip, _encode_scrip
 import uxarray as ux
 import xarray as xr
 from unittest import TestCase
