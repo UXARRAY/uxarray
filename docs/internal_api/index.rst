@@ -10,21 +10,22 @@ documentation to see the tentative whole API and let us know if you have any fee
 
 Grid Methods
 --------------------
-
+.. currentmodule:: uxarray.core.grid.Grid
 .. autosummary::
    :nosignatures:
    :toctree: ./generated/
 
-   grid.Grid.__init_grid_var_names__
-   grid.Grid.__from_ds__
-   grid.Grid.__from_vert__
-   grid.Grid.__init_grid_var_attrs__
-   grid.Grid._populate_cartesian_xyz_coord
-   grid.Grid._populate_lonlat_coord
+   __init_grid_var_names__
+   __from_ds__
+   __from_vert__
+   __init_grid_var_attrs__
+   _populate_cartesian_xyz_coord
+   _populate_lonlat_coord
 
 
 Grid Helper Modules
 --------------------
+.. currentmodule:: uxarray
 .. autosummary::
    :nosignatures:
    :toctree: ./generated/
