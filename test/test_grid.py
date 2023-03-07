@@ -257,10 +257,12 @@ class TestZonalAverage(TestCase):
 
     def test_get_zonal_face_weights_at_constlat(self):
         uds = ux.open_dataset(self.mesh_file30)
+        test_lat = np.arange(-1.57, 1.57, 0.5).tolist()
+        test_lat.append(0.0)
         uds.buildlatlon_bounds()
 
         #TODO:Fix latitude on 0.0 and -1.5
-        for lat in [-1.5]:
+        for lat in test_lat:
             #  First Get the list of faces that falls into this latitude range
             candidate_faces_index_list = []
 
@@ -283,7 +285,9 @@ class TestZonalAverage(TestCase):
         data_file3 = current_path / "meshfiles" / "outCSne30_test3.nc"
         uds = ux.open_dataset(mesh_file30, data_file2)
         res = []
-        for lat in [0.1, 0.6,1.5, -0.1, -0.6, -1.5]:
+        test_lat = np.arange(-1.57, 1.57, 0.5).tolist()
+        test_lat.append(0.0)
+        for lat in test_lat:
             res.append(uds.get_nc_zonal_avg("Psi", lat))
         print(res)
         pass

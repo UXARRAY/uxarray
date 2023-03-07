@@ -684,9 +684,18 @@ class Grid:
             else:
                 # Longitude wrap-around
                 #TODO: Need to think more marginal cases
-                cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
+
+                if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
+                    # They're both on the "left side" of the 0-lon
+                    cur_face_mag_rad = pt_lon_max - pt_lon_min
+                if pt_lon_max <= np.pi and pt_lon_min <= np.pi:
+                    # They're both on the "right side" of the 0-lon
+                    cur_face_mag_rad = pt_lon_max - pt_lon_min
+                else:
+                    # They're at the different side of the 0-lon
+                    cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
             if cur_face_mag_rad > np.pi:
-                print("Problematic lat is "+str(latitude_rad)+" And the cur_face_mag_rad is "+str(cur_face_mag_rad))
+                print("At face: "+str(face_index)+"Problematic lat is "+str(latitude_rad)+" And the cur_face_mag_rad is "+str(cur_face_mag_rad))
             # assert(cur_face_mag_rad <= np.pi)
 
             # Calculate the weight from each face by |intersection line length| / total perimeter
