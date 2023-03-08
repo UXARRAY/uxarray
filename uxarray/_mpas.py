@@ -17,7 +17,7 @@ def _to_ugrid(in_ds, out_ds):
     in_ds : xarray.Dataset
         Original MPAS dataset of interest being used
 
-    out_ds : xarray.Variable
+    out_ds : xarray.Dataset
         Output dataset encoded in the UGRID conventions
     """
 
