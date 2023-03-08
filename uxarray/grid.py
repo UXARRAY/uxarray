@@ -8,6 +8,7 @@ from ._exodus import _read_exodus, _encode_exodus
 from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
+from ._mpas import _read_mpas
 from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
 
 int_dtype = np.uint32
@@ -206,6 +207,8 @@ class Grid:
             self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
         elif self.mesh_type == "shp":
             self.ds = _read_shpfile(dataset)
+        elif self.mesh_type == "mpas":
+            self.ds = _read_mpas(dataset)
         else:
             raise RuntimeError("unknown mesh type")
 
