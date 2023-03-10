@@ -138,6 +138,20 @@ class TestGrid(TestCase):
         grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
 
 
+class TestOperators(TestCase):
+    grid_CSne30_01 = ux.open_grid(gridfile_CSne30)
+    grid_CSne30_02 = ux.open_grid(gridfile_CSne30)
+    grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
+
+    def test_eq(self):
+        """Test Equals ('==') operator."""
+        assert self.grid_CSne30_01 == self.grid_CSne30_02
+
+    def test_ne(self):
+        """Test Not Equals ('!=') operator."""
+        assert self.grid_CSne30_01 != self.grid_RLL1deg
+
+
 class TestIntegrate(TestCase):
 
     grid_CSne30 = ux.open_grid(gridfile_CSne30)

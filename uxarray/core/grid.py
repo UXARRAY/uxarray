@@ -320,7 +320,7 @@ class Grid:
 
         return self._face_areas
 
-    def equals(self, other):
+    def __eq__(self, other):
         """Two grids are equal if they have matching grid topology variables,
         coordinates, and dims all of which are equal.
 
@@ -329,11 +329,10 @@ class Grid:
         other : uxarray.Grid
             The second grid object to be compared with `self`
 
-        Returns
+        Returnsgit
         -------
         If two grids are equal : bool
         """
-
         # Iterate over dict to set access attributes
         for key, value in self.grid_var_names.items():
             # Check if all grid variables are equal
@@ -344,6 +343,21 @@ class Grid:
                         return False
 
         return True
+
+    def __ne__(self, other):
+        """Two grids are not equal if they have differing grid topology
+        variables, coordinates, or dims.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are not equal : bool
+        """
+        return not self.__eq__(other)
 
     # use the property keyword for declaration on face_areas property
     @property
