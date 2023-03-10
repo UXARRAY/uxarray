@@ -1,7 +1,7 @@
 import xarray as xr
 import numpy as np
 
-from .helpers import grid_center_lat_lon
+from uxarray.utils.helpers import grid_center_lat_lon
 
 int_dtype = np.uint32
 

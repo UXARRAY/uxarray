@@ -3,13 +3,14 @@ import xarray as xr
 import numpy as np
 
 # reader and writer imports
-from uxarray._exodus import _read_exodus, _encode_exodus
-from uxarray._ugrid import _read_ugrid, _encode_ugrid
-from uxarray._shapefile import _read_shpfile
-from uxarray._scrip import _read_scrip, _encode_scrip
-from uxarray.helpers import (get_all_face_area_from_coords, parse_grid_type,
-                             _convert_node_xyz_to_lonlat_rad,
-                             _convert_node_lonlat_rad_to_xyz)
+from uxarray.io._exodus import _read_exodus, _encode_exodus
+from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
+from uxarray.io._shapefile import _read_shpfile
+from uxarray.io._scrip import _read_scrip, _encode_scrip
+from uxarray.utils.helpers import (get_all_face_area_from_coords,
+                                   parse_grid_type,
+                                   _convert_node_xyz_to_lonlat_rad,
+                                   _convert_node_lonlat_rad_to_xyz)
 
 int_dtype = np.uint32
 
