@@ -10,7 +10,7 @@ from uxarray.core.grid import Grid
 
 
 class UxDataset(xr.Dataset):
-
+    __slots__ = ("source_datasets",)
     _uxgrid = None
 
     def __init__(self,

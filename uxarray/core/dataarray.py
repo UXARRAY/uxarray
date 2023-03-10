@@ -7,7 +7,7 @@ from uxarray.core.grid import Grid
 
 
 class UxDataArray(xr.DataArray):
-
+    __slots__ = ("source_datasets")
     _uxgrid = None
 
     def __init__(self, *args, uxgrid: Grid = None, **kwargs):
@@ -20,6 +20,8 @@ class UxDataArray(xr.DataArray):
         else:
             self.uxgrid = uxgrid
 
+    # def __slots__ = ()
+    #     # print("slots")
     @property
     def uxgrid(self):
         return self._uxgrid
