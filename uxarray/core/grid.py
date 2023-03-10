@@ -329,7 +329,7 @@ class Grid:
         other : uxarray.Grid
             The second grid object to be compared with `self`
 
-        Returnsgit
+        Returns
         -------
         If two grids are equal : bool
         """
