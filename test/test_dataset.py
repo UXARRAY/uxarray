@@ -29,8 +29,7 @@ class TestUxDataset(TestCase):
         uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
         uxgrid_var2_ne30 = ux.open_grid(gridfile_ne30)
-
-        assert (uxds_var2_ne30.uxgrid.equals(uxgrid_var2_ne30))
+        assert (uxds_var2_ne30.uxgrid == uxgrid_var2_ne30)
 
     def test_integrate(self):
         """Load a dataset and calculate integrate()."""
