@@ -39,3 +39,11 @@ class TestUxDataset(TestCase):
         integrate_var2 = uxds_var2_ne30.integrate()
 
         nt.assert_almost_equal(integrate_var2, constants.VAR2_INTG, decimal=3)
+
+    def test_info(self):
+        """Tests custom info containing grid information."""
+        uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+
+        #print(uxds_var2_ne30.info())
+        uxds_var2_ne30.info()
+        pass

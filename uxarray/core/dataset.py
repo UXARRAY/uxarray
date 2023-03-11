@@ -1,9 +1,11 @@
 import numpy as np
 import xarray as xr
 
+import sys
+
 from collections.abc import Hashable
 
-from typing import Optional
+from typing import Optional, IO
 
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.grid import Grid
@@ -50,6 +52,10 @@ class UxDataset(xr.Dataset):
 
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
+    def __repr__(self):
+        dataset_str = "Rich description is currently not implemented. Please uses the .info() method instead"
+        return dataset_str
+
     def __getitem__(self, key):
         """Override to check if the result is an instance of xarray.DataArray.
 
@@ -91,6 +97,56 @@ class UxDataset(xr.Dataset):
         return cls({key: ('index', val) for key, val in data.items()},
                    coords={'index': range(len(next(iter(data.values()))))},
                    **kwargs)
+
+    def info(self, buf: IO | None = None, print_attrs=False) -> None:
+        """
+        Concise summary of a Dataset variables and attributes.
+        Parameters
+        ----------
+        buf : file-like, default: sys.stdout
+            writable buffer
+        See Also
+        --------
+        pandas.DataFrame.assign
+        ncdump : netCDF's ncdump
+        """
+        if buf is None:  # pragma: no cover
+            buf = sys.stdout
+
+        lines = []
+        lines.append("uxarray.Dataset {")
+
+        lines.append("grid topology dimensions:")
+        for name, size in self.uxgrid._ds.dims.items():
+            lines.append(f"\t{name} = {size} ;")
+
+        lines.append("\ngrid topology variables:")
+        for name, da in self.uxgrid._ds.variables.items():
+            dims = ", ".join(map(str, da.dims))
+            lines.append(f"\t{da.dtype} {name}({dims}) ;")
+            if print_attrs:
+                for k, v in da.attrs.items():
+                    lines.append(f"\t\t{name}:{k} = {v} ;")
+
+        lines.append("\ndata dimensions:")
+        for name, size in self.dims.items():
+            lines.append(f"\t{name} = {size} ;")
+
+        lines.append("\ndata variables:")
+        for name, da in self.variables.items():
+            dims = ", ".join(map(str, da.dims))
+            lines.append(f"\t{da.dtype} {name}({dims}) ;")
+            if print_attrs:
+                for k, v in da.attrs.items():
+                    lines.append(f"\t\t{name}:{k} = {v} ;")
+
+        if print_attrs:
+            lines.append("\nglobal attributes:")
+            for k, v in self.attrs.items():
+                lines.append(f"\t:{k} = {v} ;")
+
+        lines.append("}")
+        buf.write("\n".join(lines))
 
     # You can add custom methods to the class here
     def custom_method(self):
