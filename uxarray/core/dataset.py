@@ -98,7 +98,7 @@ class UxDataset(xr.Dataset):
                    coords={'index': range(len(next(iter(data.values()))))},
                    **kwargs)
 
-    def info(self, buf: IO | None = None, print_attrs=False) -> None:
+    def info(self, buf: IO = None, print_attrs=False) -> None:
         """
         Concise summary of a Dataset variables and attributes.
         Parameters
