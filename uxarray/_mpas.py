@@ -21,7 +21,7 @@ def _to_ugrid(in_ds, out_ds):
         Output dataset encoded in the UGRID conventions
     """
 
-    # corners of dual-mesh cells
+    # corners of primal mesh cells
     lonVertex = in_ds['lonVertex'].values
     latVertex = in_ds['latVertex'].values
 
@@ -43,7 +43,7 @@ def _to_ugrid(in_ds, out_ds):
             "units": "degrees_north",
         })
 
-    # centers of dual-mesh cells
+    # centers of primal mesh cells
     lonCell = in_ds['lonCell'].values
     latCell = in_ds['latCell'].values
 
@@ -65,7 +65,7 @@ def _to_ugrid(in_ds, out_ds):
             "units": "degrees_north",
         })
 
-    # vertex indices that surround each dual-mesh cell
+    # vertex indices that surround each primal mesh cell
     verticesOnCell = in_ds['verticesOnCell'].values
 
     # max number of edges & vertices that make up a cell
@@ -116,7 +116,7 @@ def _add_fill_values(verticesOnCell, nEdgesOnCell):
     # convert to unsigned integers
     verticesOnCell = verticesOnCell.astype(int_dtype)
 
-    # iterate over each dual-mesh cell
+    # iterate over each primal mesh cell
     for D, pad_start_idx in enumerate(nEdgesOnCell):
         # convert non-padded values to zero-index
         verticesOnCell[D, 0:pad_start_idx] -= 1
@@ -127,8 +127,8 @@ def _add_fill_values(verticesOnCell, nEdgesOnCell):
 
 
 def _read_mpas(ext_ds):
-    """Function to read in a MPAS dataset and encode the Dual-Mesh in the UGRID
-    conventions.
+    """Function to read in a MPAS dataset and encode the Primal mesh in the
+    UGRID conventions.
 
     Parameters
     ----------
