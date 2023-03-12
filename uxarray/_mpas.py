@@ -22,8 +22,8 @@ def _to_ugrid(in_ds, out_ds):
     """
 
     # corners of primal mesh cells
-    lonVertex = in_ds['lonVertex'].values
-    latVertex = in_ds['latVertex'].values
+    lonVertex = np.rad2deg(in_ds['lonVertex'].values)
+    latVertex = np.rad2deg(in_ds['latVertex'].values)
 
     out_ds['Mesh2_node_x'] = xr.DataArray(
         lonVertex,
@@ -44,8 +44,8 @@ def _to_ugrid(in_ds, out_ds):
         })
 
     # centers of primal mesh cells
-    lonCell = in_ds['lonCell'].values
-    latCell = in_ds['latCell'].values
+    lonCell = np.rad2deg(in_ds['lonCell'].values)
+    latCell = np.rad2deg(in_ds['latCell'].values)
 
     out_ds['Mesh2_face_x'] = xr.DataArray(
         lonCell,
