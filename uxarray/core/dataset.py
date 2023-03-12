@@ -52,10 +52,6 @@ class UxDataset(xr.Dataset):
 
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
-    def __repr__(self):
-        dataset_str = "Rich description is currently not implemented. Please uses the .info() method instead"
-        return dataset_str
-
     def __getitem__(self, key):
         """Override to check if the result is an instance of xarray.DataArray.
 
@@ -98,13 +94,16 @@ class UxDataset(xr.Dataset):
                    coords={'index': range(len(next(iter(data.values()))))},
                    **kwargs)
 
-    def info(self, buf: IO = None, print_attrs=False) -> None:
+    def info(self, buf: IO = None, show_attrs=False) -> None:
         """
-        Concise summary of a Dataset variables and attributes.
+        Concise summary of a Dataset variables and attributes including
+        grid topology information stored in the (``uxgrid``) accessor
         Parameters
         ----------
         buf : file-like, default: sys.stdout
             writable buffer
+        show_attrs : bool
+            Flag to select whether to show attributes
         See Also
         --------
         pandas.DataFrame.assign
@@ -124,7 +123,7 @@ class UxDataset(xr.Dataset):
         for name, da in self.uxgrid._ds.variables.items():
             dims = ", ".join(map(str, da.dims))
             lines.append(f"\t{da.dtype} {name}({dims}) ;")
-            if print_attrs:
+            if show_attrs:
                 for k, v in da.attrs.items():
                     lines.append(f"\t\t{name}:{k} = {v} ;")
 
@@ -136,11 +135,11 @@ class UxDataset(xr.Dataset):
         for name, da in self.variables.items():
             dims = ", ".join(map(str, da.dims))
             lines.append(f"\t{da.dtype} {name}({dims}) ;")
-            if print_attrs:
+            if show_attrs:
                 for k, v in da.attrs.items():
                     lines.append(f"\t\t{name}:{k} = {v} ;")
 
-        if print_attrs:
+        if show_attrs:
             lines.append("\nglobal attributes:")
             for k, v in self.attrs.items():
                 lines.append(f"\t:{k} = {v} ;")

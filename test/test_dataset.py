@@ -44,6 +44,6 @@ class TestUxDataset(TestCase):
         """Tests custom info containing grid information."""
         uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
-        #print(uxds_var2_ne30.info())
-        uxds_var2_ne30.info()
+        # uncomment to show display info
+        # uxds_var2_ne30.info(show_attrs=True)
         pass
