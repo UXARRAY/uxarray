@@ -18,6 +18,7 @@ dsfiles_mf_ne30 = str(
     current_path) + "/meshfiles/ugrid/outCSne30/outCSne30_*.nc"
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+datafile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
 
 
 class TestUxDataset(TestCase):
@@ -42,8 +43,8 @@ class TestUxDataset(TestCase):
 
     def test_info(self):
         """Tests custom info containing grid information."""
-        uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        uxds_var2_ne30 = ux.open_dataset(gridfile_geoflow, datafile_geoflow)
 
         # uncomment to show display info
-        # uxds_var2_ne30.info(show_attrs=True)
+        #uxds_var2_ne30.info(show_attrs=True)
         pass
