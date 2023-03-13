@@ -21,7 +21,7 @@ def _to_ugrid(in_ds, out_ds):
         Output dataset encoded in the UGRID conventions
     """
 
-    # corners of primal mesh cells
+    # corners of primal mesh cells (in degrees)
     lonVertex = np.rad2deg(in_ds['lonVertex'].values)
     latVertex = np.rad2deg(in_ds['latVertex'].values)
 
@@ -43,7 +43,7 @@ def _to_ugrid(in_ds, out_ds):
             "units": "degrees_north",
         })
 
-    # centers of primal mesh cells
+    # centers of primal mesh cells (in degrees)
     lonCell = np.rad2deg(in_ds['lonCell'].values)
     latCell = np.rad2deg(in_ds['latCell'].values)
 
@@ -68,7 +68,7 @@ def _to_ugrid(in_ds, out_ds):
     # vertex indices that surround each primal mesh cell
     verticesOnCell = in_ds['verticesOnCell'].values
 
-    # max number of edges & vertices that make up a cell
+    # max number of edges & vertices that make up each cell
     nEdgesOnCell = in_ds['nEdgesOnCell'].values
 
     # correct to be zero-indexed and to use fill values
@@ -85,12 +85,11 @@ def _to_ugrid(in_ds, out_ds):
 
     # add Mesh2_edge_nodes if available
     if "verticesOnEdge" in in_ds:
-
         # vertex indices that saddle a given edge
         verticesOnEdge = in_ds['verticesOnEdge'].values
 
         # convert to zero-indexed
-        verticesOnEdge = verticesOnEdge - 1
+        verticesOnEdge -= 1
 
         out_ds["Mesh2_edge_nodes"] = xr.DataArray(
             data=verticesOnEdge,
