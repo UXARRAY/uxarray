@@ -112,15 +112,21 @@ def _add_fill_values(verticesOnCell, nEdgesOnCell):
     nEdgesOnCell : np.ndarray
         Number of edges on a given cell
     """
+
     # convert to unsigned integers
     verticesOnCell = verticesOnCell.astype(int_dtype)
 
-    # iterate over each primal mesh cell
-    for D, pad_start_idx in enumerate(nEdgesOnCell):
+    # max vertices/edges per cell
+    maxEdges = verticesOnCell.shape[1]
+
+    # iterate over the maximum number of vertices on a cell
+    for vert_idx in range(maxEdges):
+        # mask for non-padded values
+        mask = vert_idx < nEdgesOnCell
         # convert non-padded values to zero-index
-        verticesOnCell[D, 0:pad_start_idx] -= 1
+        verticesOnCell[mask, vert_idx] -= 1
         # replace remaining padding or zeros with fill_value
-        verticesOnCell[D, pad_start_idx:] = fill_val
+        verticesOnCell[np.logical_not(mask), vert_idx] = fill_val
 
     return verticesOnCell
 
