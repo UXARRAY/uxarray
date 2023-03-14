@@ -205,7 +205,7 @@ def _add_fill_values(verticesOnCell, nEdgesOnCell):
     maxEdges = verticesOnCell.shape[1]
 
     # is verticesOnCell one-indexed
-    one_idx = [True if verticesOnCell.min() == 0 else False]
+    one_idx = [True if verticesOnCell.min() == 1 else False]
 
     # iterate over the maximum number of vertices on a cell
     for vert_idx in range(maxEdges):
