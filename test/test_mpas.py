@@ -1,4 +1,5 @@
-from uxarray._mpas import _read_mpas, _add_fill_values, _primal_to_ugrid, _dual_to_ugrid
+from uxarray._mpas import _replace_padding, _replace_zeros, _to_zero_index
+from uxarray._mpas import _read_mpas, _primal_to_ugrid, _dual_to_ugrid
 import uxarray as ux
 import xarray as xr
 from unittest import TestCase
@@ -62,9 +63,6 @@ class TestMPAS(TestCase):
         assert ds['Mesh2_face_nodes'].shape == (nMesh2_face,
                                                 nMaxMesh2_face_nodes)
 
-        # check for zero-indexing
-        assert ds['Mesh2_face_nodes'].min() == 0
-
     def test_dual_to_ugrid_conversion(self):
         """Verifies that the Dual-Mesh was converted properly."""
 
@@ -84,25 +82,25 @@ class TestMPAS(TestCase):
         nMesh2_face = ds.sizes['nMesh2_face']
         assert ds['Mesh2_face_nodes'].shape == (nMesh2_face, 3)
 
-        # check for zero-indexing
-        assert ds['Mesh2_face_nodes'].min() == 0
-
     def test_add_fill_values(self):
         """Test _add_fill_values() implementation, output should be both be
         zero-indexed and padded values should be replaced with fill values."""
 
-        # two cells with 2 and 3 padded faces respectively
-        test_verticesOnCell = np.array([[1, 2, 1, 1], [3, 4, 5, 3]])
+        # two cells with 2, 3 and 2 padded faces respectively
+        verticesOnCell = np.array([[1, 2, 1, 1], [3, 4, 5, 3], [6, 7, 0, 0]],
+                                  dtype=self.int_dtype)
 
-        # cell has 2 and 3 nodes respectively
-        test_nEdgesOnCell = np.array([2, 3])
+        # cell has 2, 3 and 2 nodes respectively
+        nEdgesOnCell = np.array([2, 3, 2])
 
         # expected output of _add_fill_values()
-        gold_output = np.array([[0, 1, self.fv, self.fv],
-                                [2, 3, 4, self.fv]]).astype(self.int_dtype)
+        gold_output = np.array([[0, 1, self.fv, self.fv], [2, 3, 4, self.fv],
+                                [5, 6, self.fv, self.fv]],
+                               dtype=self.int_dtype)
 
         # test data output
-        verticesOnCell_fill = _add_fill_values(test_verticesOnCell,
-                                               test_nEdgesOnCell)
+        verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
+        verticesOnCell = _replace_zeros(verticesOnCell)
+        verticesOnCell = _to_zero_index(verticesOnCell)
 
-        assert np.array_equal(verticesOnCell_fill, gold_output)
+        assert np.array_equal(verticesOnCell, gold_output)

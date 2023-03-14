@@ -64,16 +64,21 @@ def _primal_to_ugrid(in_ds, out_ds):
         })
 
     # vertex indices that surround each primal-mesh cell
-    verticesOnCell = in_ds['verticesOnCell'].values
+    verticesOnCell = np.array(in_ds['verticesOnCell'].values, dtype=int_dtype)
 
-    # max number of edges & vertices that make up each primal-mesh cell
-    nEdgesOnCell = in_ds['nEdgesOnCell'].values
+    nEdgesOnCell = np.array(in_ds['nEdgesOnCell'].values, dtype=int_dtype)
 
-    # correct to be zero-indexed and to use fill values
-    verticesOnCell_fill = _add_fill_values(verticesOnCell, nEdgesOnCell)
+    # replace padded values with fill values
+    verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
+
+    # replace missing/zero values with fill values
+    verticesOnCell = _replace_zeros(verticesOnCell)
+
+    # convert to zero-indexed
+    verticesOnCell = _to_zero_index(verticesOnCell)
 
     out_ds["Mesh2_face_nodes"] = xr.DataArray(
-        data=verticesOnCell_fill,
+        data=verticesOnCell,
         dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
         attrs={
             "cf_role": "face_node_connectivity",
@@ -82,11 +87,13 @@ def _primal_to_ugrid(in_ds, out_ds):
         })
 
     # vertex indices that saddle a given edge
-    verticesOnEdge = in_ds['verticesOnEdge'].values
+    verticesOnEdge = np.array(in_ds['verticesOnEdge'].values, dtype=int_dtype)
+
+    # replace missing/zero values with fill value
+    verticesOnEdge = _replace_zeros(verticesOnEdge)
 
     # convert to zero-indexed
-    if verticesOnEdge.min() == 1:
-        verticesOnEdge -= 1
+    verticesOnEdge = _to_zero_index(verticesOnEdge)
 
     out_ds["Mesh2_edge_nodes"] = xr.DataArray(
         data=verticesOnEdge,
@@ -155,11 +162,13 @@ def _dual_to_ugrid(in_ds, out_ds):
         })
 
     # vertex indices that surround each dual-mesh cell
-    cellsOnVertex = in_ds['cellsOnVertex'].values
+    cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=int_dtype)
+
+    # replace missing/zero values with fill values
+    _replace_zeros(cellsOnVertex)
 
     # convert to zero-indexed
-    if cellsOnVertex.min() == 1:
-        cellsOnVertex -= 1
+    _to_zero_index(cellsOnVertex)
 
     out_ds["Mesh2_face_nodes"] = xr.DataArray(
         data=cellsOnVertex,
@@ -170,11 +179,13 @@ def _dual_to_ugrid(in_ds, out_ds):
         })
 
     # vertex indices that saddle a given edge
-    cellsOnEdge = in_ds['cellsOnEdge'].values
+    cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=int_dtype)
+
+    # replace missing/zero values with fill values
+    _replace_zeros(cellsOnEdge)
 
     # convert to zero-indexed
-    if cellsOnEdge.min() == 1:
-        cellsOnEdge -= 1
+    _to_zero_index(cellsOnEdge)
 
     out_ds["Mesh2_edge_nodes"] = xr.DataArray(
         data=cellsOnEdge,
@@ -185,9 +196,9 @@ def _dual_to_ugrid(in_ds, out_ds):
         })
 
 
-def _add_fill_values(verticesOnCell, nEdgesOnCell):
-    """Corrects the input verticesOnCell to be zero-indexed and to use fill-
-    values instead of padding / zero-fills.
+def _replace_padding(verticesOnCell, nEdgesOnCell):
+    """Replaces the padded values in verticesOnCell defined by nEdgesOnCell
+    with a fill-value.
 
     Parameters
     ----------
@@ -196,28 +207,72 @@ def _add_fill_values(verticesOnCell, nEdgesOnCell):
 
     nEdgesOnCell : np.ndarray
         Number of edges on a given cell
-    """
 
-    # convert to unsigned integers
-    verticesOnCell = verticesOnCell.astype(int_dtype)
+    Outputs
+    ----------
+    verticesOnCell : np.ndarray
+        Vertex indices that surround a given cell with padded values replaced
+        by fill values, done in-place
+    """
 
     # max vertices/edges per cell
     maxEdges = verticesOnCell.shape[1]
-
-    # is verticesOnCell one-indexed
-    one_idx = [True if verticesOnCell.min() == 1 else False]
 
     # iterate over the maximum number of vertices on a cell
     for vert_idx in range(maxEdges):
         # mask for non-padded values
         mask = vert_idx < nEdgesOnCell
-        # convert non-padded values to zero-index
-        if one_idx:
-            verticesOnCell[mask, vert_idx] -= 1
         # replace remaining padding or zeros with fill_value
         verticesOnCell[np.logical_not(mask), vert_idx] = fill_val
 
     return verticesOnCell
+
+
+def _replace_zeros(grid_var):
+    """Replaces all instances of a zero (invalid/missing MPAS value) with a
+    fill value.
+
+    Parameters
+    ----------
+    grid_var : np.ndarray
+        Grid variable that may contain zeros that need to be replaced
+
+     Outputs
+    ----------
+    grid_var : np.ndarray
+        Grid variable with zero replaced by fill values, done in-place
+    """
+
+    # one dimensional view of grid variable
+    grid_var_flat = grid_var.ravel()
+
+    # replace all zeros with a fill value
+    grid_var_flat[grid_var_flat == 0] = fill_val
+
+    return grid_var
+
+
+def _to_zero_index(grid_var):
+    """Given an input using that is one-indexed, subtracts one from all non-
+    fill value entries to convert to zero-indexed.
+
+    Parameters
+    ----------
+    grid_var : np.ndarray
+        Grid variable that is one-indexed
+
+     Outputs
+    ----------
+    grid_var : np.ndarray
+        Grid variable that is converted to zero-indexed, done in-place
+    """
+    # one dimensional view of grid variable
+    grid_var_flat = grid_var.ravel()
+
+    # convert non-fill values to zero-indexed
+    grid_var_flat[grid_var_flat != fill_val] -= 1
+
+    return grid_var
 
 
 def _read_mpas(ext_ds, use_dual=False):
