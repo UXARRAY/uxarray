@@ -556,3 +556,45 @@ def _normalize_in_place(node):
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
     return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
+
+
+def replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
+    """Replaces all instances of the the current fill value (``original_fill``)
+    in (``grid_var``) with (``new_fill``) and converts to the dtype defined by
+    (``new_dtype``)
+
+    Parameters
+    ----------
+    grid_var : np.ndarray
+        grid variable to be modified
+    original_fill : constant
+        original fill value used in (``grid_var``)
+    new_fill : constant
+        new fill value to be used in (``grid_var``)
+    new_dtype : np.dtype
+        new data type to convert (``grid_var``) to
+
+    Returns
+    ----------
+    grid_var : xarray.Dataset
+        Input Dataset with correct fill value and dtype
+    """
+
+    # locations of fill values
+    fill_val_idx = grid_var.ravel() == original_fill
+
+    # convert to new data type
+    if new_dtype != grid_var.dtype and new_dtype is not None:
+        grid_var = grid_var.astype(new_dtype)
+
+    # ensure select fill value can be represented with current dtype
+    dtype_min = np.iinfo(grid_var.dtype).min
+    dtype_max = np.iinfo(grid_var.dtype).max
+    if new_fill not in range(dtype_min, dtype_max + 1):
+        raise ValueError(f'New fill value: {new_fill} not representable by'
+                         f' dtype: {grid_var.dtype}')
+
+    # replace all zeros with a fill value
+    grid_var.ravel()[fill_val_idx] = new_fill
+
+    return grid_var

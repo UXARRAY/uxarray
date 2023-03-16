@@ -3,6 +3,9 @@ import numpy as np
 from pathlib import PurePath
 from datetime import datetime
 
+from uxarray.helpers import replace_fill_values
+from uxarray.constants import INT_DTYPE, FILL_VALUE
+
 int_dtype = np.uint32
 
 
@@ -120,14 +123,21 @@ def _read_exodus(ext_ds, ds_var_names):
 
     # outside the k,v for loop
     # set the face nodes data compiled in "connect" section
+
+    # standardize fill values and data type face nodes
+    face_nodes = replace_fill_values(grid_var=conn[:] - 1,
+                                     original_fill=-1,
+                                     new_fill=FILL_VALUE,
+                                     new_dtype=INT_DTYPE)
+
     ds["Mesh2_face_nodes"] = xr.DataArray(
-        data=(conn[:] - 1),
+        data=face_nodes,
         dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
         attrs={
             "cf_role":
                 "face_node_connectivity",
             "_FillValue":
-                -1,
+                FILL_VALUE,
             "start_index":
                 int_dtype(
                     0)  # NOTE: This might cause an error if numbering has holes

@@ -1,9 +1,10 @@
 import xarray as xr
 import numpy as np
 
-from .helpers import grid_center_lat_lon
+from uxarray.helpers import grid_center_lat_lon
 
-int_dtype = np.uint32
+from uxarray.helpers import replace_fill_values
+from uxarray.constants import INT_DTYPE, FILL_VALUE
 
 
 def _to_ugrid(in_ds, out_ds):
@@ -70,17 +71,23 @@ def _to_ugrid(in_ds, out_ds):
         out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
         out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
 
+        # standardize fill values and data type face nodes
+        face_nodes = replace_fill_values(unq_inv,
+                                         original_fill=-1,
+                                         new_fill=FILL_VALUE,
+                                         new_dtype=INT_DTYPE)
+
         # set the face nodes data compiled in "connect" section
         out_ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=unq_inv,
+            data=face_nodes,
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role":
                     "face_node_connectivity",
                 "_FillValue":
-                    -1,
+                    FILL_VALUE,
                 "start_index":
-                    int_dtype(
+                    INT_DTYPE(
                         0
                     )  # NOTE: This might cause an error if numbering has holes
             })
@@ -184,7 +191,7 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     ds = xr.Dataset()
 
     # Make grid corner lat/lon
-    f_nodes = mesh2_face_nodes.values.astype(int_dtype).ravel()
+    f_nodes = mesh2_face_nodes.values.astype(INT_DTYPE).ravel()
 
     # Create arrays to hold lat/lon data
     lat_nodes = mesh2_node_y[f_nodes].values

@@ -1,4 +1,5 @@
 from uxarray._scrip import _read_scrip, _encode_scrip
+from uxarray.constants import INT_DTYPE, FILL_VALUE
 import uxarray as ux
 import xarray as xr
 from unittest import TestCase
@@ -110,3 +111,18 @@ class TestScrip(TestCase):
         strip_lon = np.unique(corner_lon)
 
         assert strip_lon.all() == mesh08['Mesh2_node_x'].all()
+
+    def test_standardized_dtype_and_fill(self):
+        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+        and expected fill value as set in constants.py."""
+
+        xr_ne30 = xr.open_dataset(ne30)
+        ux_grid_01 = ux.Grid(xr_ne30)
+
+        xr_ne8 = xr.open_dataset(ne8)
+        ux_grid_02 = ux.Grid(xr_ne8)
+
+        grids = [ux_grid_01, ux_grid_02]
+        for grid in grids:
+            assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
+            assert grid.Mesh2_face_nodes._FillValue == FILL_VALUE

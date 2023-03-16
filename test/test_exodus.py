@@ -6,6 +6,7 @@ from pathlib import Path
 
 import xarray as xr
 import uxarray as ux
+from uxarray.constants import INT_DTYPE, FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -39,3 +40,14 @@ class TestExodus(TestCase):
         tgrid.encode_as("ugrid")
         outfile = current_path / "write_test_mixed.exo"
         tgrid.encode_as("exodus")
+
+    def test_standardized_dtype_and_fill(self):
+        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+        and expected fill value as set in constants.py."""
+
+        exo2_filename = current_path / "meshfiles" / "exodus" / "mixed" / "mixed.exo"
+        xr_exo_ds = xr.open_dataset(exo2_filename)
+        ux_grid = ux.Grid(xr_exo_ds)
+
+        assert ux_grid.Mesh2_face_nodes.dtype == INT_DTYPE
+        assert ux_grid.Mesh2_face_nodes._FillValue == FILL_VALUE
