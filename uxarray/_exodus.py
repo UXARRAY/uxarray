@@ -6,8 +6,6 @@ from datetime import datetime
 from uxarray.helpers import replace_fill_values
 from uxarray.constants import INT_DTYPE, FILL_VALUE
 
-int_dtype = np.uint32
-
 
 # Exodus Number is one-based.
 def _read_exodus(ext_ds, ds_var_names):
@@ -50,7 +48,7 @@ def _read_exodus(ext_ds, ds_var_names):
             # TODO: Use the data here for Mesh2 construct, if required.
             pass
         elif key == "coord":
-            ds.Mesh2.attrs['topology_dimension'] = int_dtype(
+            ds.Mesh2.attrs['topology_dimension'] = INT_DTYPE(
                 ext_ds.dims['num_dim'])
             ds["Mesh2_node_x"] = xr.DataArray(
                 data=ext_ds.coord[0],
@@ -139,7 +137,7 @@ def _read_exodus(ext_ds, ds_var_names):
             "_FillValue":
                 FILL_VALUE,
             "start_index":
-                int_dtype(
+                INT_DTYPE(
                     0)  # NOTE: This might cause an error if numbering has holes
         })
     print("Finished reading exodus file.")
@@ -178,7 +176,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
     now = datetime.now()
     date = now.strftime("%Y:%m:%d")
     time = now.strftime("%H:%M:%S")
-    fp_word = int_dtype(8)
+    fp_word = INT_DTYPE(8)
     exo_version = np.float32(5.0)
     api_version = np.float32(5.0)
 
@@ -238,7 +236,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds[ds_var_names["Mesh2_face_nodes"]].astype(int_dtype).data:
+    for row in ds[ds_var_names["Mesh2_face_nodes"]].astype(INT_DTYPE).data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
