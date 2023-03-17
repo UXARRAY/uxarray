@@ -18,7 +18,7 @@ dsfiles_mf_ne30 = str(
     current_path) + "/meshfiles/ugrid/outCSne30/outCSne30_*.nc"
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-datafile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
+dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
 
 
 class TestUxDataset(TestCase):
@@ -43,8 +43,13 @@ class TestUxDataset(TestCase):
 
     def test_info(self):
         """Tests custom info containing grid information."""
-        uxds_var2_ne30 = ux.open_dataset(gridfile_geoflow, datafile_geoflow)
+        uxds_var2_ne30 = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
-        # uncomment to show display info
-        #uxds_var2_ne30.info(show_attrs=True)
-        pass
+        import contextlib
+        import io
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            try:
+                uxds_var2_ne30.info(show_attrs=True)
+            except Exception as exc:
+                assert False, f"'uxds_var2_ne30.info()' raised an exception: {exc}"
