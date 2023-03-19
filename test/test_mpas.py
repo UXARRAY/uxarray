@@ -38,7 +38,8 @@ class TestMPAS(TestCase):
 
     def test_mpas_to_grid(self):
         """Tests creation of Grid object from converted MPAS dataset."""
-        mpas_uxgrid = ux.Grid(self.mpas_xr_ds)
+        mpas_uxgrid_primal = ux.Grid(self.mpas_xr_ds, use_dual=False)
+        mpas_uxgrid_primal = ux.Grid(self.mpas_xr_ds, use_dual=True)
 
     def test_primal_to_ugrid_conversion(self):
         """Verifies that the Primal-Mesh was converted properly."""
