@@ -10,8 +10,6 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
 
-int_dtype = np.uint32
-
 
 class Grid:
     """
@@ -300,7 +298,7 @@ class Grid:
             if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.data.astype(int_dtype)
+            face_nodes = self.Mesh2_face_nodes.values
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z

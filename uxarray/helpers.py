@@ -5,8 +5,9 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
+from .constants import INT_DTYPE
+
 config.DISABLE_JIT = False
-int_dtype = np.uint32
 
 
 def parse_grid_type(dataset):
@@ -226,7 +227,7 @@ def get_all_face_area_from_coords(x,
     num_faces = face_nodes.shape[0]
     area = np.zeros(num_faces)  # set area of each face to 0
 
-    face_nodes = face_nodes[:].astype(int_dtype)
+    face_nodes = face_nodes[:].astype(INT_DTYPE)
 
     for i in range(num_faces):
         face_z = np.zeros(len(face_nodes[i]))
