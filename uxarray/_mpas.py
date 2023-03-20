@@ -103,6 +103,23 @@ def _primal_to_ugrid(in_ds, out_ds):
             "start_index": int_dtype(0)
         })
 
+    # global required attributes
+    if 'sphere_radius' in in_ds:
+        out_ds['sphere_radius'] = in_ds.sphere_radius
+    if 'mesh_id' in in_ds:
+        out_ds['mesh_id'] = in_ds.mesh_id
+    if 'mesh_spec' in in_ds:
+        out_ds['mesh_spec'] = in_ds.mesh_spec
+    if "on_a_sphere" in in_ds:
+        out_ds['on_a_sphere'] = in_ds.on_a_sphere
+        # required attributes if mesh lies on a sphere
+        if in_ds.on_a_sphere == "YES":
+            out_ds['is_periodic'] = in_ds.is_periodic
+            # required attributes if mesh is periodic
+            if in_ds.is_periodic == "YES":
+                out_ds['x_period'] = in_ds.x_period
+                out_ds['y_period'] = in_ds.y_period
+
 
 def _dual_to_ugrid(in_ds, out_ds):
     """If input dataset is an unstructured MPAS file, function will encode the
