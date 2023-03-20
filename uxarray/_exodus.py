@@ -4,7 +4,7 @@ from pathlib import PurePath
 from datetime import datetime
 
 from uxarray.helpers import replace_fill_values
-from uxarray.constants import INT_DTYPE, FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 # Exodus Number is one-based.
@@ -125,7 +125,7 @@ def _read_exodus(ext_ds, ds_var_names):
     # standardize fill values and data type face nodes
     face_nodes = replace_fill_values(grid_var=conn[:] - 1,
                                      original_fill=-1,
-                                     new_fill=FILL_VALUE,
+                                     new_fill=INT_FILL_VALUE,
                                      new_dtype=INT_DTYPE)
 
     ds["Mesh2_face_nodes"] = xr.DataArray(
@@ -135,7 +135,7 @@ def _read_exodus(ext_ds, ds_var_names):
             "cf_role":
                 "face_node_connectivity",
             "_FillValue":
-                FILL_VALUE,
+                INT_FILL_VALUE,
             "start_index":
                 INT_DTYPE(
                     0)  # NOTE: This might cause an error if numbering has holes
@@ -291,14 +291,15 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
         # assign Data variables
         # convert list to np.array, sorted list guarantees we have the correct info
         conn_blk = conn_nofill[start:start + num_faces]
-        conn_np = np.array([np.array(xi, dtype="i8") for xi in conn_blk])
+        conn_np = np.array([np.array(xi, dtype=INT_DTYPE) for xi in conn_blk])
         exo_ds[str_connect] = xr.DataArray(data=xr.DataArray((conn_np[:] + 1)),
                                            dims=[str_el_in_blk, str_nod_per_el],
                                            attrs={"elem_type": element_type})
 
         # edge type
         exo_ds[str_edge_type] = xr.DataArray(
-            data=xr.DataArray(np.zeros((num_faces, num_nodes), "i8")),
+            data=xr.DataArray(np.zeros((num_faces, num_nodes),
+                                       dtype=INT_DTYPE)),
             dims=[str_el_in_blk, str_nod_per_el])
 
         # global id
@@ -323,7 +324,7 @@ def _encode_exodus(ds, ds_var_names, outfile=None):
                                       attrs={"name": "ID"})
     # eb_status
     exo_ds["eb_status"] = xr.DataArray(data=xr.DataArray(
-        np.ones([num_blks], dtype="i8")),
+        np.ones([num_blks], dtype=INT_DTYPE)),
                                        dims=["num_el_blk"])
 
     # eb_names

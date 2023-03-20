@@ -4,7 +4,7 @@ import numpy as np
 from uxarray.helpers import grid_center_lat_lon
 
 from uxarray.helpers import replace_fill_values
-from uxarray.constants import INT_DTYPE, FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _to_ugrid(in_ds, out_ds):
@@ -74,7 +74,7 @@ def _to_ugrid(in_ds, out_ds):
         # standardize fill values and data type face nodes
         face_nodes = replace_fill_values(unq_inv,
                                          original_fill=-1,
-                                         new_fill=FILL_VALUE,
+                                         new_fill=INT_FILL_VALUE,
                                          new_dtype=INT_DTYPE)
 
         # set the face nodes data compiled in "connect" section
@@ -85,7 +85,7 @@ def _to_ugrid(in_ds, out_ds):
                 "cf_role":
                     "face_node_connectivity",
                 "_FillValue":
-                    FILL_VALUE,
+                    INT_FILL_VALUE,
                 "start_index":
                     INT_DTYPE(
                         0

@@ -1,5 +1,5 @@
 from uxarray._scrip import _read_scrip, _encode_scrip
-from uxarray.constants import INT_DTYPE, FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 import uxarray as ux
 import xarray as xr
 from unittest import TestCase
@@ -125,4 +125,4 @@ class TestScrip(TestCase):
         grids = [ux_grid_01, ux_grid_02]
         for grid in grids:
             assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
-            assert grid.Mesh2_face_nodes._FillValue == FILL_VALUE
+            assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE

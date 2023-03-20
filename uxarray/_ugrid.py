@@ -1,7 +1,7 @@
 import xarray as xr
 
 from uxarray.helpers import replace_fill_values
-from uxarray.constants import INT_DTYPE, FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _read_ugrid(xr_ds, var_names_dict):
@@ -97,16 +97,17 @@ def _standardize_fill_values(ds, var_names_dict):
         current_fv = None
 
     # if current dtype and fill value are not standardized
-    if face_nodes.dtype != INT_DTYPE or current_fv != FILL_VALUE:
+    if face_nodes.dtype != INT_DTYPE or current_fv != INT_FILL_VALUE:
         # replace fill values and set correct dtype
         new_face_nodes = replace_fill_values(grid_var=face_nodes,
                                              original_fill=current_fv,
-                                             new_fill=FILL_VALUE,
+                                             new_fill=INT_FILL_VALUE,
                                              new_dtype=INT_DTYPE)
         # reassign data to use updated face nodes
         ds[var_names_dict['Mesh2_face_nodes']].data = new_face_nodes
 
         # use new fill value
-        ds[var_names_dict['Mesh2_face_nodes']].attrs['_FillValue'] = FILL_VALUE
+        ds[var_names_dict['Mesh2_face_nodes']].attrs[
+            '_FillValue'] = INT_FILL_VALUE
 
     return ds

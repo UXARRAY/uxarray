@@ -6,7 +6,7 @@ from pathlib import Path
 
 import xarray as xr
 import uxarray as ux
-from uxarray.constants import INT_DTYPE, FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -50,4 +50,4 @@ class TestExodus(TestCase):
         ux_grid = ux.Grid(xr_exo_ds)
 
         assert ux_grid.Mesh2_face_nodes.dtype == INT_DTYPE
-        assert ux_grid.Mesh2_face_nodes._FillValue == FILL_VALUE
+        assert ux_grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE

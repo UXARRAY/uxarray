@@ -10,7 +10,7 @@ from pathlib import Path
 import uxarray as ux
 
 from uxarray.helpers import replace_fill_values
-from uxarray.constants import INT_DTYPE, FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
     import constants
@@ -128,8 +128,8 @@ class TestConstants(TestCase):
     # DTYPE as set in constants.py
     expected_int_dtype = INT_DTYPE
 
-    # FILL_VALUE as set in constants.py
-    fv = FILL_VALUE
+    # INT_FILL_VALUE as set in constants.py
+    fv = INT_FILL_VALUE
 
     def test_replace_fill_values(self):
         """Tests replace_fill_values() helper function across multiple
@@ -137,7 +137,7 @@ class TestConstants(TestCase):
 
         # expected output from replace_fill_values()
         face_nodes_gold = np.array(
-            [[1, 2, self.fv], [self.fv, self.fv, self.fv]], dtype=np.uint32)
+            [[1, 2, self.fv], [self.fv, self.fv, self.fv]], dtype=INT_DTYPE)
 
         # test different datatypes for face_nodes
         dtypes = [np.int32, np.int64, np.float32, np.float64]
@@ -148,7 +148,7 @@ class TestConstants(TestCase):
             # output of replace_fill_values()
             face_nodes_test = replace_fill_values(grid_var=face_nodes,
                                                   original_fill=-1,
-                                                  new_fill=FILL_VALUE,
+                                                  new_fill=INT_FILL_VALUE,
                                                   new_dtype=INT_DTYPE)
 
             assert np.array_equal(face_nodes_test, face_nodes_gold)
@@ -160,8 +160,8 @@ class TestConstants(TestCase):
         face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=np.uint32)
         # invalid fill value with dtype should raise a valueError
         with self.assertRaises(ValueError):
-            # FILL_VALUE (max(uint32) not representable by int16)
+            # INT_FILL_VALUE (max(uint32) not representable by int16)
             face_nodes_test = replace_fill_values(grid_var=face_nodes,
                                                   original_fill=-1,
-                                                  new_fill=FILL_VALUE,
+                                                  new_fill=INT_FILL_VALUE,
                                                   new_dtype=np.int16)
