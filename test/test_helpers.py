@@ -131,7 +131,7 @@ class TestConstants(TestCase):
     # INT_FILL_VALUE as set in constants.py
     fv = INT_FILL_VALUE
 
-    def test__replace_fill_values(self):
+    def test_replace_fill_values(self):
         """Tests _replace_fill_values() helper function across multiple
         different dtype arrays used as face_nodes."""
 
@@ -153,7 +153,7 @@ class TestConstants(TestCase):
 
             assert np.array_equal(face_nodes_test, face_nodes_gold)
 
-    def test__replace_fill_values_invalid(self):
+    def test_replace_fill_values_invalid(self):
         """Tests _replace_fill_values() helper function attempting to use a
         fill value that is not representable by the current dtype."""
 
