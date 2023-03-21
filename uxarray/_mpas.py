@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import warnings
 
 # remove/edit once unified fill value approach is implemented
 int_dtype = np.uint32
@@ -106,19 +107,35 @@ def _primal_to_ugrid(in_ds, out_ds):
     # global required attributes
     if 'sphere_radius' in in_ds:
         out_ds['sphere_radius'] = in_ds.sphere_radius
+    else:
+        warnings.warn("Missing Required Attribute: 'sphere_radius'")
     if 'mesh_id' in in_ds:
         out_ds['mesh_id'] = in_ds.mesh_id
+    else:
+        warnings.warn("Missing Required Attribute: 'mesh_id'")
+
     if 'mesh_spec' in in_ds:
         out_ds['mesh_spec'] = in_ds.mesh_spec
+    else:
+        warnings.warn("Missing Required Attribute: 'mesh_spec'")
+
     if "on_a_sphere" in in_ds:
         out_ds['on_a_sphere'] = in_ds.on_a_sphere
         # required attributes if mesh lies on a sphere
         if in_ds.on_a_sphere == "YES":
             out_ds['is_periodic'] = in_ds.is_periodic
             # required attributes if mesh is periodic
-            if in_ds.is_periodic == "YES":
-                out_ds['x_period'] = in_ds.x_period
-                out_ds['y_period'] = in_ds.y_period
+            if in_ds.is_periodic == "NO":
+                if "x_period" in in_ds:
+                    out_ds['x_period'] = in_ds.x_period
+                else:
+                    warnings.warn("Missing Required Attribute: 'x_period'")
+                if "y_period" in in_ds:
+                    out_ds['y_period'] = in_ds.y_period
+                else:
+                    warnings.warn("Missing Required Attribute: 'y_period'")
+    else:
+        warnings.warn("Missing Required Attribute: 'on_a_sphere'")
 
 
 def _dual_to_ugrid(in_ds, out_ds):
@@ -219,15 +236,15 @@ def _replace_padding(verticesOnCell, nEdgesOnCell):
 
     Parameters
     ----------
-    verticesOnCell : np.ndarray
+    verticesOnCell : numpy.ndarray
         Vertex indices that surround a given cell
 
-    nEdgesOnCell : np.ndarray
+    nEdgesOnCell : numpy.ndarray
         Number of edges on a given cell
 
-    Outputs
-    ----------
-    verticesOnCell : np.ndarray
+    Returns
+    -------
+    verticesOnCell : numpy.ndarray
         Vertex indices that surround a given cell with padded values replaced
         by fill values, done in-place
     """
@@ -251,12 +268,12 @@ def _replace_zeros(grid_var):
 
     Parameters
     ----------
-    grid_var : np.ndarray
+    grid_var : numpy.ndarray
         Grid variable that may contain zeros that need to be replaced
 
-     Outputs
-    ----------
-    grid_var : np.ndarray
+    Returns
+    -------
+    grid_var : numpy.ndarray
         Grid variable with zero replaced by fill values, done in-place
     """
 
@@ -275,12 +292,12 @@ def _to_zero_index(grid_var):
 
     Parameters
     ----------
-    grid_var : np.ndarray
+    grid_var : numpy.ndarray
         Grid variable that is one-indexed
 
-     Outputs
-    ----------
-    grid_var : np.ndarray
+    Returns
+    -------
+    grid_var : numpy.ndarray
         Grid variable that is converted to zero-indexed, done in-place
     """
     # one dimensional view of grid variable
@@ -300,8 +317,8 @@ def _read_mpas(ext_ds, use_dual=False):
     ----------
     ext_ds : xarray.Dataset, required
         MPAS datafile of interest
-    use_dual : bool
-        Flag to select whether to encode the Dual-Mesh
+    use_dual : bool, optional
+        Flag to select whether to encode the Dual-Mesh. Defaults to False
 
     Returns
     -------
@@ -331,8 +348,9 @@ def _read_mpas(ext_ds, use_dual=False):
                 "face_dimension": "nMesh2_face"
             })
     except:
-        print("Variables not in recognized MPAS form. Please refer to",
-              "https://mpas-dev.github.io/files/documents/MPAS-MeshSpec.pdf",
-              "for more information on MPAS Grid file formatting")
+        raise Exception(
+            "Variables not in recognized MPAS form. Please refer to",
+            "https://mpas-dev.github.io/files/documents/MPAS-MeshSpec.pdf",
+            "for more information on MPAS Grid file formatting")
 
     return ds

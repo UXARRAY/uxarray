@@ -21,16 +21,6 @@ class TestMPAS(TestCase):
     int_dtype = np.uint32
     fv = np.iinfo(int_dtype).max
 
-    def test_primal_to_ugrid_execution(self):
-        """Tests execution of _primal_to_ugrid()"""
-        ugrid_ds = xr.Dataset()
-        _primal_to_ugrid(self.mpas_xr_ds, ugrid_ds)
-
-    def test_dual_to_ugrid_execution(self):
-        """Tests execution of _dual_to_ugrid()"""
-        ugrid_ds = xr.Dataset()
-        _dual_to_ugrid(self.mpas_xr_ds, ugrid_ds)
-
     def test_read_mpas(self):
         """Tests execution of _read_mpas()"""
         mpas_primal_ugrid = _read_mpas(self.mpas_xr_ds, use_dual=False)
