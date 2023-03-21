@@ -34,6 +34,12 @@ Grid Helper Modules
    _exodus._get_element_type
    _ugrid._encode_ugrid
    _ugrid._read_ugrid
+   _mpas._dual_to_ugrid
+   _mpas._primal_to_ugrid
+   _mpas._replace_padding
+   _mpas._replace_zeros
+   _mpas._to_zero_index
+   _mpas._read_mpas
    _scrip._read_scrip
    _scrip._encode_scrip
    _scrip._to_ugrid

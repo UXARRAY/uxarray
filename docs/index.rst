@@ -1,49 +1,123 @@
-.. currentmodule:: uxarray
+.. Uxarray documentation master file, created by
+   sphinx-quickstart on Tues Oct 26 08:45:00 2019.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
 
-Internal API
+.. module:: uxarray
+
+.. meta::
+   :description: Uxarray Python module
+   :keywords: weather research and forecasting,
+              model, weather, numerical weather prediction, model,
+              matplotlib, cartopy, ncar, ucar, cisl, UC Davis, SEATs, ugrid,
+              national center for atmospheric research,
+              university corporation for atmospheric research
+
+
+.. .. image:: _static/images/nsf.png
+..    :scale: 100%
+..   :align: right
+
+.. |
+.. |
+
+Uxarray Documentation
+=====================
+
+Uxarray aims to provide xarray styled functionality for unstructured grid datasets
+following ugrid conventions.
+
+.. grid:: 1 1 2 2
+    :gutter: 2
+
+    .. grid-item-card:: Getting Started
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/tips.svg
+        :link: quickstart
+        :link-type: doc
+
+        A good place to start for new users
+
+    .. grid-item-card::  Examples
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/science.svg
+        :link: examples
+        :link-type: doc
+
+        A gallery of examples using uxarray
+
+    .. grid-item-card::  Installation
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/download.svg
+        :link: installation
+        :link-type: doc
+
+        Installation instructions for uxarray
+
+    .. grid-item-card::  API
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/code.svg
+        :link: api
+        :link-type: doc
+
+        See the complete uxarray API
+
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: For users
+
+    Installation <installation>
+    Getting Started <quickstart>
+    Usage Examples <examples>
+    API Reference <api>
+    Tutorials <tutorials>
+    Cite Uxarray <citation>
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: For developers
+
+    Contributor's Guide <contributing>
+
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+    :caption: Community
+
+    GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
+    GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
+    Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
+
+
+--------------------
+
+Supported By
 ============
 
-This page shows already-implemented Uxarray internal API functions. You can also
-check the draft `Uxarray API
-<https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-documentation to see the tentative whole API and let us know if you have any feedback!
+.. raw:: html
 
-Grid Methods
-------------
-
-.. autosummary::
-   :nosignatures:
-   :toctree: ./generated/
-
-   grid.Grid.__init_ds_var_names__
-   grid.Grid.__from_ds__
-   grid.Grid.__from_vert__
-   grid.Grid.__init_grid_var_attrs__
-   grid.Grid._populate_cartesian_xyz_coord
-   grid.Grid._populate_lonlat_coord
-
-
-Grid Helper Modules
---------------------
-.. autosummary::
-   :nosignatures:
-   :toctree: ./generated/
-
-   _exodus._read_exodus
-   _exodus._encode_exodus
-   _exodus._get_element_type
-   _ugrid._encode_ugrid
-   _ugrid._read_ugrid
-   _mpas._dual_to_ugrid
-   _mpas._primal_to_ugrid
-   _mpas._replace_padding
-   _mpas._replace_zeros
-   _mpas._to_zero_index
-   _mpas._read_mpas
-   _scrip._read_scrip
-   _scrip._encode_scrip
-   _scrip._to_ugrid
-   helpers._is_ugrid
-   helpers._convert_node_xyz_to_lonlat_rad
-   helpers._convert_node_lonlat_rad_to_xyz
-   helpers._normalize_in_place
+   <table>
+     <tr style="height:80px">
+       <td style="width:20%"><a href="https://www.nsf.gov/"><img src="_static/images/logos/NSF_logo.png" alt="NSF Logo" width="65"/></a></td>
+       <td>Project Raijin, entitled "Collaborative Research: EarthCube Capabilities: Raijin: Community Geoscience Analysis Tools for Unstructured Mesh Data", was awarded by NSF 21-515 EarthCube (Award Number (FAIN): 2126458) on 08/19/2021. The award period of performance has a start date of 09/01/2021 and end date of 08/31/2024.</td>
+     </tr>
+     <tr style="height:80px">
+       <td><a href="https://www.energy.gov/science/office-science"><img src="_static/images/logos/DOE_vertical.png" alt="DOE Logo" width="250"/></a></td>
+       <td>SEATS is funded by the Regional and Global Modeling and Analysis (RGMA) program area in the U.S. Department of Energy (DOE) Earth and Environmental System Modeling Program which is part of the Earth and Environmental Systems Sciences Division of the Office of Biological and Environmental Research in DOE’s Office of Science.</td>
+     </tr>
+     <tr style="height:80px">
+       <td><a href="https://www.earthcube.org/"><img src="_static/images/logos/EarthCube_logo.png" alt="EarthCube Logo" width="50"/></a></td>
+       <td><a href="https://www.earthcube.org/">EarthCube</a> aims to transform the conduct of geosciences research by developing and maintaining a well-connected and facile environment that improves access, sharing, visualization, and analysis of data and related resources.</td>
+     </tr>
+     <tr style="height:80px">
+       <td><a href="https://pangeo.io/"><img src="_static/images/logos/PANGEO_logo.png" alt="PANGEO Logo" width="160"/></a></td>
+       <td><a href="https://pangeo.io/">Pangeo</a> supports collaborative efforts to develop software and infrastructure to enable Big Data geoscience research.</td>
+     </tr>
+   </table>
