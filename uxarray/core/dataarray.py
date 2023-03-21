@@ -7,21 +7,16 @@ from uxarray.core.grid import Grid
 
 
 class UxDataArray(xr.DataArray):
-    __slots__ = ("source_datasets")
-    _uxgrid = None
+    __slots__ = ("_uxgrid",)
 
     def __init__(self, *args, uxgrid: Grid = None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.uxgrid = uxgrid
+        self._uxgrid = uxgrid
 
         if uxgrid is None:
             raise RuntimeError("uxgrid cannot be None")
-        else:
-            self.uxgrid = uxgrid
 
-    # def __slots__ = ()
-    #     # print("slots")
     @property
     def uxgrid(self):
         return self._uxgrid
@@ -29,7 +24,6 @@ class UxDataArray(xr.DataArray):
     # a setter function
     @uxgrid.setter
     def uxgrid(self, ugrid):
-
         self._uxgrid = ugrid
 
     # You can add custom methods to the class here

@@ -10,8 +10,11 @@ from uxarray.core.grid import Grid
 
 
 class UxDataset(xr.Dataset):
-    __slots__ = ("source_datasets",)
-    _uxgrid = None
+
+    __slots__ = (
+        '_uxgrid',
+        'source_datasets',
+    )
 
     def __init__(self,
                  *args,
@@ -20,9 +23,8 @@ class UxDataset(xr.Dataset):
                  **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._uxgrid = uxgrid
         setattr(self, 'source_datasets', source_datasets)
-
-        self.uxgrid = uxgrid
 
         if uxgrid is None or not isinstance(uxgrid, Grid):
             raise RuntimeError(
@@ -38,7 +40,6 @@ class UxDataset(xr.Dataset):
     # a setter function
     @uxgrid.setter
     def uxgrid(self, ugrid):
-
         self._uxgrid = ugrid
 
     def _construct_dataarray(self, name) -> UxDataArray:
@@ -47,7 +48,6 @@ class UxDataset(xr.Dataset):
         If so, convert to UxDataArray.
         """
         xarr = super()._construct_dataarray(name)
-
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     def __getitem__(self, key):
@@ -60,7 +60,8 @@ class UxDataset(xr.Dataset):
         if isinstance(xarr, xr.DataArray):
             return UxDataArray(xarr, uxgrid=self.uxgrid)
         else:
-            return xarr
+            assert isinstance(xarr, xr.Dataset)
+            return UxDataset(xarr, uxgrid=self.uxgrid)
 
     def __setitem__(self, key, value):
         """Override to check if the value being set is an instance of
