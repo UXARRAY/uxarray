@@ -3,7 +3,7 @@ import numpy as np
 
 from uxarray.helpers import grid_center_lat_lon
 
-from uxarray.helpers import replace_fill_values
+from uxarray.helpers import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -72,10 +72,10 @@ def _to_ugrid(in_ds, out_ds):
         out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
 
         # standardize fill values and data type face nodes
-        face_nodes = replace_fill_values(unq_inv,
-                                         original_fill=-1,
-                                         new_fill=INT_FILL_VALUE,
-                                         new_dtype=INT_DTYPE)
+        face_nodes = _replace_fill_values(unq_inv,
+                                          original_fill=-1,
+                                          new_fill=INT_FILL_VALUE,
+                                          new_dtype=INT_DTYPE)
 
         # set the face nodes data compiled in "connect" section
         out_ds["Mesh2_face_nodes"] = xr.DataArray(

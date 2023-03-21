@@ -298,7 +298,7 @@ class Grid:
             if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.values
+            face_nodes = self.Mesh2_face_nodes.data
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z

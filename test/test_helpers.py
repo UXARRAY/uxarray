@@ -9,7 +9,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.helpers import replace_fill_values
+from uxarray.helpers import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
@@ -131,11 +131,11 @@ class TestConstants(TestCase):
     # INT_FILL_VALUE as set in constants.py
     fv = INT_FILL_VALUE
 
-    def test_replace_fill_values(self):
-        """Tests replace_fill_values() helper function across multiple
+    def test__replace_fill_values(self):
+        """Tests _replace_fill_values() helper function across multiple
         different dtype arrays used as face_nodes."""
 
-        # expected output from replace_fill_values()
+        # expected output from _replace_fill_values()
         face_nodes_gold = np.array(
             [[1, 2, self.fv], [self.fv, self.fv, self.fv]], dtype=INT_DTYPE)
 
@@ -145,23 +145,23 @@ class TestConstants(TestCase):
             # test face nodes with set dtype
             face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=dtype)
 
-            # output of replace_fill_values()
-            face_nodes_test = replace_fill_values(grid_var=face_nodes,
-                                                  original_fill=-1,
-                                                  new_fill=INT_FILL_VALUE,
-                                                  new_dtype=INT_DTYPE)
+            # output of _replace_fill_values()
+            face_nodes_test = _replace_fill_values(grid_var=face_nodes,
+                                                   original_fill=-1,
+                                                   new_fill=INT_FILL_VALUE,
+                                                   new_dtype=INT_DTYPE)
 
             assert np.array_equal(face_nodes_test, face_nodes_gold)
 
-    def test_replace_fill_values_invalid(self):
-        """Tests replace_fill_values() helper function attempting to use a fill
-        value that is not representable by the current dtype."""
+    def test__replace_fill_values_invalid(self):
+        """Tests _replace_fill_values() helper function attempting to use a
+        fill value that is not representable by the current dtype."""
 
         face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=np.uint32)
         # invalid fill value with dtype should raise a valueError
         with self.assertRaises(ValueError):
             # INT_FILL_VALUE (max(uint32) not representable by int16)
-            face_nodes_test = replace_fill_values(grid_var=face_nodes,
-                                                  original_fill=-1,
-                                                  new_fill=INT_FILL_VALUE,
-                                                  new_dtype=np.int16)
+            face_nodes_test = _replace_fill_values(grid_var=face_nodes,
+                                                   original_fill=-1,
+                                                   new_fill=INT_FILL_VALUE,
+                                                   new_dtype=np.int16)

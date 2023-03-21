@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import PurePath
 from datetime import datetime
 
-from uxarray.helpers import replace_fill_values
+from uxarray.helpers import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -123,10 +123,10 @@ def _read_exodus(ext_ds, ds_var_names):
     # set the face nodes data compiled in "connect" section
 
     # standardize fill values and data type face nodes
-    face_nodes = replace_fill_values(grid_var=conn[:] - 1,
-                                     original_fill=-1,
-                                     new_fill=INT_FILL_VALUE,
-                                     new_dtype=INT_DTYPE)
+    face_nodes = _replace_fill_values(grid_var=conn[:] - 1,
+                                      original_fill=-1,
+                                      new_fill=INT_FILL_VALUE,
+                                      new_dtype=INT_DTYPE)
 
     ds["Mesh2_face_nodes"] = xr.DataArray(
         data=face_nodes,

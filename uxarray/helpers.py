@@ -559,7 +559,7 @@ def _normalize_in_place(node):
     return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
 
 
-def replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
+def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the the current fill value (``original_fill``)
     in (``grid_var``) with (``new_fill``) and converts to the dtype defined by
     (``new_dtype``)

@@ -86,3 +86,16 @@ class TestUgrid(TestCase):
         for grid in grids:
             assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
             assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
+
+    def test_standardized_dtype_and_fill_dask(self):
+        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+        and expected fill value as set in constants.py.
+
+        with dask chunking
+        """
+        ug_filename = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+        xr_grid = xr.open_dataset(str(ug_filename), chunks={'nMesh2_node': 100})
+        ux_grid = ux.Grid(xr_grid)
+        assert ux_grid.Mesh2_face_nodes.dtype == INT_DTYPE
+        assert ux_grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
+        pass
