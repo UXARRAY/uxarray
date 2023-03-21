@@ -121,11 +121,11 @@ def _primal_to_ugrid(in_ds, out_ds):
 
     if "on_a_sphere" in in_ds:
         out_ds['on_a_sphere'] = in_ds.on_a_sphere
-        # required attributes if mesh lies on a sphere
-        if in_ds.on_a_sphere == "YES":
+        # required attributes if mesh does not lie on a sphere
+        if in_ds.on_a_sphere == "NO":
             out_ds['is_periodic'] = in_ds.is_periodic
             # required attributes if mesh is periodic
-            if in_ds.is_periodic == "NO":
+            if in_ds.is_periodic == "YES":
                 if "x_period" in in_ds:
                     out_ds['x_period'] = in_ds.x_period
                 else:
