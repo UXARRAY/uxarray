@@ -39,6 +39,7 @@ Grid Helper Modules
    _mpas._replace_padding
    _mpas._replace_zeros
    _mpas._to_zero_index
+   _mpas._set_global_attrs
    _mpas._read_mpas
    _scrip._read_scrip
    _scrip._encode_scrip

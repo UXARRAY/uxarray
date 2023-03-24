@@ -2,14 +2,13 @@ import xarray as xr
 import numpy as np
 import warnings
 
-# remove/edit once unified fill value approach is implemented
-int_dtype = np.uint32
-fill_val = np.iinfo(int_dtype).max
+# edit once PR #241 is merged
+INT_DTYPE = np.uint32
+INT_FILL_VALUE = np.iinfo(INT_DTYPE).max
 
 
 def _primal_to_ugrid(in_ds, out_ds):
-    """If input dataset is an unstructured MPAS file, function will encode the
-    MPAS Primal-Mesh in the UGRID conventions.
+    """Encodes the MPAS Primal-Mesh in the UGRID conventions.
 
     Parameters
     ----------
@@ -19,6 +18,18 @@ def _primal_to_ugrid(in_ds, out_ds):
         Output dataset where the MPAS Primal-Mesh is encoded in the UGRID
         conventions
     """
+
+    # set mesh topology
+    out_ds["Mesh2"] = xr.DataArray(
+        attrs={
+            "cf_role": "mesh_topology",
+            "long_name": "Topology data of unstructured mesh",
+            "topology_dimension": 2,
+            "node_coordinates": "Mesh2_node_x Mesh2_node_y",
+            "node_dimension": "nMesh2_node",
+            "face_node_connectivity": "Mesh2_face_nodes",
+            "face_dimension": "nMesh2_face"
+        })
 
     # corners of primal-mesh cells (in degrees)
     lonVertex = np.rad2deg(in_ds['lonVertex'].values)
@@ -65,9 +76,9 @@ def _primal_to_ugrid(in_ds, out_ds):
         })
 
     # vertex indices that surround each primal-mesh cell
-    verticesOnCell = np.array(in_ds['verticesOnCell'].values, dtype=int_dtype)
+    verticesOnCell = np.array(in_ds['verticesOnCell'].values, dtype=INT_DTYPE)
 
-    nEdgesOnCell = np.array(in_ds['nEdgesOnCell'].values, dtype=int_dtype)
+    nEdgesOnCell = np.array(in_ds['nEdgesOnCell'].values, dtype=INT_DTYPE)
 
     # replace padded values with fill values
     verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
@@ -83,12 +94,12 @@ def _primal_to_ugrid(in_ds, out_ds):
         dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
         attrs={
             "cf_role": "face_node_connectivity",
-            "_FillValue": fill_val,
-            "start_index": int_dtype(0)
+            "_FillValue": INT_FILL_VALUE,
+            "start_index": INT_DTYPE(0)
         })
 
     # vertex indices that saddle a given edge
-    verticesOnEdge = np.array(in_ds['verticesOnEdge'].values, dtype=int_dtype)
+    verticesOnEdge = np.array(in_ds['verticesOnEdge'].values, dtype=INT_DTYPE)
 
     # replace missing/zero values with fill value
     verticesOnEdge = _replace_zeros(verticesOnEdge)
@@ -101,46 +112,15 @@ def _primal_to_ugrid(in_ds, out_ds):
         dims=["nMesh2_edge", "Two"],
         attrs={
             "cf_role": "edge_node_connectivity",
-            "start_index": int_dtype(0)
+            "start_index": INT_DTYPE(0)
         })
 
-    # global required attributes
-    if 'sphere_radius' in in_ds:
-        out_ds['sphere_radius'] = in_ds.sphere_radius
-    else:
-        warnings.warn("Missing Required Attribute: 'sphere_radius'")
-    if 'mesh_id' in in_ds:
-        out_ds['mesh_id'] = in_ds.mesh_id
-    else:
-        warnings.warn("Missing Required Attribute: 'mesh_id'")
-
-    if 'mesh_spec' in in_ds:
-        out_ds['mesh_spec'] = in_ds.mesh_spec
-    else:
-        warnings.warn("Missing Required Attribute: 'mesh_spec'")
-
-    if "on_a_sphere" in in_ds:
-        out_ds['on_a_sphere'] = in_ds.on_a_sphere
-        # required attributes if mesh does not lie on a sphere
-        if in_ds.on_a_sphere == "NO":
-            out_ds['is_periodic'] = in_ds.is_periodic
-            # required attributes if mesh is periodic
-            if in_ds.is_periodic == "YES":
-                if "x_period" in in_ds:
-                    out_ds['x_period'] = in_ds.x_period
-                else:
-                    warnings.warn("Missing Required Attribute: 'x_period'")
-                if "y_period" in in_ds:
-                    out_ds['y_period'] = in_ds.y_period
-                else:
-                    warnings.warn("Missing Required Attribute: 'y_period'")
-    else:
-        warnings.warn("Missing Required Attribute: 'on_a_sphere'")
+    # set global attributes
+    _set_global_attrs(in_ds, out_ds)
 
 
 def _dual_to_ugrid(in_ds, out_ds):
-    """If input dataset is an unstructured MPAS file, function will encode the
-    MPAS Dual-Mesh in the UGRID conventions.
+    """Encodes the MPAS Dual-Mesh in the UGRID conventions.
 
     Parameters
     ----------
@@ -150,6 +130,18 @@ def _dual_to_ugrid(in_ds, out_ds):
         Output dataset where the MPAS Dual-Mesh is encoded in the UGRID
         conventions
     """
+
+    # set mesh topology
+    out_ds["Mesh2"] = xr.DataArray(
+        attrs={
+            "cf_role": "mesh_topology",
+            "long_name": "Topology data of unstructured mesh",
+            "topology_dimension": 2,
+            "node_coordinates": "Mesh2_node_x Mesh2_node_y",
+            "node_dimension": "nMesh2_node",
+            "face_node_connectivity": "Mesh2_face_nodes",
+            "face_dimension": "nMesh2_face"
+        })
 
     # corners of dual-mesh cells (in degrees)
     lonCell = np.rad2deg(in_ds['lonCell'].values)
@@ -196,7 +188,7 @@ def _dual_to_ugrid(in_ds, out_ds):
         })
 
     # vertex indices that surround each dual-mesh cell
-    cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=int_dtype)
+    cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=INT_DTYPE)
 
     # replace missing/zero values with fill values
     _replace_zeros(cellsOnVertex)
@@ -209,11 +201,11 @@ def _dual_to_ugrid(in_ds, out_ds):
         dims=["nMesh2_face", "Three"],
         attrs={
             "cf_role": "face_node_connectivity",
-            "start_index": int_dtype(0)
+            "start_index": INT_DTYPE(0)
         })
 
     # vertex indices that saddle a given edge
-    cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=int_dtype)
+    cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=INT_DTYPE)
 
     # replace missing/zero values with fill values
     _replace_zeros(cellsOnEdge)
@@ -226,8 +218,63 @@ def _dual_to_ugrid(in_ds, out_ds):
         dims=["nMesh2_edge", "Two"],
         attrs={
             "cf_role": "edge_node_connectivity",
-            "start_index": int_dtype(0)
+            "start_index": INT_DTYPE(0)
         })
+
+    # set global attributes
+    _set_global_attrs(in_ds, out_ds)
+
+
+def _set_global_attrs(in_ds, out_ds):
+    """Helper to set MPAS global attributes.
+
+    Parameters
+    ----------
+    in_ds : xarray.Dataset
+        Input MPAS dataset
+    out_ds : xarray.Dataset
+        Output dataset where the MPAS Primal-Mesh is encoded in the UGRID
+        conventions with global attributes included
+    """
+
+    # defines if the mesh describes points that lie on the surface of a sphere or not
+    if 'sphere_radius' in in_ds:
+        out_ds['sphere_radius'] = in_ds.sphere_radius
+    else:
+        warnings.warn("Missing Required Attribute: 'sphere_radius'")
+
+    # typically a random string used for tracking mesh provenance
+    if 'mesh_id' in in_ds:
+        out_ds['mesh_id'] = in_ds.mesh_id
+    else:
+        warnings.warn("Missing Required Attribute: 'mesh_id'")
+
+    # defines the version of the MPAS Mesh specification the mesh conforms to
+    if 'mesh_spec' in in_ds:
+        out_ds['mesh_spec'] = in_ds.mesh_spec
+    else:
+        warnings.warn("Missing Required Attribute: 'mesh_spec'")
+
+    # defines if the mesh describes points that lie on the surface of a sphere or not
+    if "on_a_sphere" in in_ds:
+        out_ds['on_a_sphere'] = in_ds.on_a_sphere
+        # required attributes if mesh does not lie on a sphere
+        if in_ds.on_a_sphere == "NO":
+            # defines if the mesh has any periodic boundaries
+            out_ds['is_periodic'] = in_ds.is_periodic
+            if in_ds.is_periodic == "YES":
+                # period of the mesh in the x direction
+                if "x_period" in in_ds:
+                    out_ds['x_period'] = in_ds.x_period
+                else:
+                    warnings.warn("Missing Required Attribute: 'x_period'")
+                # period of the mesh in the y direction
+                if "y_period" in in_ds:
+                    out_ds['y_period'] = in_ds.y_period
+                else:
+                    warnings.warn("Missing Required Attribute: 'y_period'")
+    else:
+        warnings.warn("Missing Required Attribute: 'on_a_sphere'")
 
 
 def _replace_padding(verticesOnCell, nEdgesOnCell):
@@ -252,12 +299,11 @@ def _replace_padding(verticesOnCell, nEdgesOnCell):
     # max vertices/edges per cell
     maxEdges = verticesOnCell.shape[1]
 
-    # iterate over the maximum number of vertices on a cell
-    for vert_idx in range(maxEdges):
-        # mask for non-padded values
-        mask = vert_idx < nEdgesOnCell
-        # replace remaining padding or zeros with fill_value
-        verticesOnCell[np.logical_not(mask), vert_idx] = fill_val
+    # mask for non-padded values
+    mask = np.arange(maxEdges) < nEdgesOnCell[:, None]
+
+    # replace remaining padding or zeros with INT_FILL_VALUE
+    verticesOnCell[np.logical_not(mask)] = INT_FILL_VALUE
 
     return verticesOnCell
 
@@ -277,11 +323,8 @@ def _replace_zeros(grid_var):
         Grid variable with zero replaced by fill values, done in-place
     """
 
-    # one dimensional view of grid variable
-    grid_var_flat = grid_var.ravel()
-
-    # replace all zeros with a fill value
-    grid_var_flat[grid_var_flat == 0] = fill_val
+    # replace all zeros with INT_FILL_VALUE
+    grid_var[grid_var == 0] = INT_FILL_VALUE
 
     return grid_var
 
@@ -300,18 +343,19 @@ def _to_zero_index(grid_var):
     grid_var : numpy.ndarray
         Grid variable that is converted to zero-indexed, done in-place
     """
-    # one dimensional view of grid variable
-    grid_var_flat = grid_var.ravel()
 
     # convert non-fill values to zero-indexed
-    grid_var_flat[grid_var_flat != fill_val] -= 1
+    grid_var[grid_var != INT_FILL_VALUE] -= 1
 
     return grid_var
 
 
 def _read_mpas(ext_ds, use_dual=False):
     """Function to read in a MPAS Grid dataset and encode either the Primal or
-    Dual mesh in the UGRID conventions.
+    Dual Mesh in the UGRID conventions.
+
+    Adheres to the MPAS Mesh Specifications outlined in the following document:
+    https://mpas-dev.github.io/files/documents/MPAS-MeshSpec.pdf
 
     Parameters
     ----------
@@ -323,34 +367,17 @@ def _read_mpas(ext_ds, use_dual=False):
     Returns
     -------
     ds : xarray.Dataset
-        ugrid aware :class:`xarray.Dataset`
+        UGRID dataset derived from inputted MPAS dataset
     """
 
     # empty dataset that will contain our encoded MPAS mesh
     ds = xr.Dataset()
 
-    try:
-        # convert dual-mesh to UGRID
-        if use_dual:
-            _dual_to_ugrid(ext_ds, ds)
-        # convert primal-mesh to UGRID
-        else:
-            _primal_to_ugrid(ext_ds, ds)
-
-        ds["Mesh2"] = xr.DataArray(
-            attrs={
-                "cf_role": "mesh_topology",
-                "long_name": "Topology data of unstructured mesh",
-                "topology_dimension": 2,
-                "node_coordinates": "Mesh2_node_x Mesh2_node_y",
-                "node_dimension": "nMesh2_node",
-                "face_node_connectivity": "Mesh2_face_nodes",
-                "face_dimension": "nMesh2_face"
-            })
-    except:
-        raise Exception(
-            "Variables not in recognized MPAS form. Please refer to",
-            "https://mpas-dev.github.io/files/documents/MPAS-MeshSpec.pdf",
-            "for more information on MPAS Grid file formatting")
+    # convert dual-mesh to UGRID
+    if use_dual:
+        _dual_to_ugrid(ext_ds, ds)
+    # convert primal-mesh to UGRID
+    else:
+        _primal_to_ugrid(ext_ds, ds)
 
     return ds
