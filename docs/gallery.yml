@@ -5,3 +5,7 @@
 - title: Accessing Grid Information
   path: examples/002-access-grid-info.ipynb
   thumbnail: _static/thumbnails/default.svg
+
+- title: Working with MPAS Grids
+  path: examples/003-working-with-mpas.ipynb
+  thumbnail: _static/thumbnails/default.svg
