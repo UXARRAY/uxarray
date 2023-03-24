@@ -42,6 +42,8 @@ def parse_grid_type(dataset):
     # ugrid topology
     elif _is_ugrid(dataset):
         mesh_type = "ugrid"
+    elif "verticesOnCell" in dataset:
+        mesh_type = "mpas"
     else:
         raise RuntimeError(f"Could not recognize dataset format.")
     return mesh_type
