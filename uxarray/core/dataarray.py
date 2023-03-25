@@ -7,6 +7,7 @@ from uxarray.core.grid import Grid
 
 
 class UxDataArray(xr.DataArray):
+    # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = ("_uxgrid",)
 
     def __init__(self, *args, uxgrid: Grid = None, **kwargs):
