@@ -43,8 +43,8 @@ class UxDataset(xr.Dataset):
 
     # a setter function
     @uxgrid.setter
-    def uxgrid(self, ugrid):
-        self._uxgrid = ugrid
+    def uxgrid(self, ugrid_obj):
+        self._uxgrid = ugrid_obj
 
     def _construct_dataarray(self, name) -> UxDataArray:
         """Override to check if the result is an instance of xarray.DataArray.

@@ -28,8 +28,8 @@ class UxDataArray(xr.DataArray):
 
     # a setter function
     @uxgrid.setter
-    def uxgrid(self, grid_obj):
-        self._uxgrid = grid_obj
+    def uxgrid(self, ugrid_obj):
+        self._uxgrid = ugrid_obj
 
     # You can add custom methods to the class here.
     def custom_method(self):
