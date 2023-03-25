@@ -31,7 +31,8 @@ class UxDataset(xr.Dataset):
 
         if uxgrid is None or not isinstance(uxgrid, Grid):
             raise RuntimeError(
-                "uxgrid cannot be None or it needs to "
+                "uxarray.core.UxDataset.__init__: uxgrid cannot be None. It needs to "
+                "be an instance of the uxarray.core.Grid class")
                 "be of an instance of the uxarray.core.Grid class")
         else:
             self.uxgrid = uxgrid
