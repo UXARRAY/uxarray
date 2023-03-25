@@ -17,8 +17,8 @@ class UxDataArray(xr.DataArray):
 
         if uxgrid is None or not isinstance(uxgrid, Grid):
             raise RuntimeError(
-                "UxDataArray__init__: uxgrid cannot be None. It needs to "
-                "be of an instance of the uxarray.core.Grid class")
+                "uxarray.core.UxDataArray.__init__: uxgrid cannot be None. It needs to "
+                "be an instance of the uxarray.core.Grid class")
         else:
             self.uxgrid = uxgrid
 
