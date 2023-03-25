@@ -64,8 +64,8 @@ class UxDataset(xr.Dataset):
         if isinstance(xarr, xr.DataArray):
             return UxDataArray(xarr, uxgrid=self.uxgrid)
         else:
-            assert isinstance(xarr, xr.Dataset)
-            return UxDataset(xarr, uxgrid=self.uxgrid)
+            assert isinstance(xarr, ux.UxDataset)
+            xarr
 
     def __setitem__(self, key, value):
         """Override to check if the value being set is an instance of
