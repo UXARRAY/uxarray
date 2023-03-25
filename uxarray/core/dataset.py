@@ -13,6 +13,7 @@ from uxarray.core.grid import Grid
 
 class UxDataset(xr.Dataset):
 
+    # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = (
         '_uxgrid',
         'source_datasets',
