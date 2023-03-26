@@ -13,7 +13,11 @@ from uxarray.core.grid import Grid
 
 class UxDataset(xr.Dataset):
 
-    _uxgrid = None
+    # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
+    __slots__ = (
+        '_uxgrid',
+        'source_datasets',
+    )
 
     def __init__(self,
                  *args,
@@ -22,13 +26,12 @@ class UxDataset(xr.Dataset):
                  **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._uxgrid = uxgrid
         setattr(self, 'source_datasets', source_datasets)
-
-        self.uxgrid = uxgrid
 
         if uxgrid is None or not isinstance(uxgrid, Grid):
             raise RuntimeError(
-                "uxgrid cannot be None or it needs to "
+                "uxarray.core.UxDataset.__init__: uxgrid cannot be None. It needs to "
                 "be of an instance of the uxarray.core.Grid class")
         else:
             self.uxgrid = uxgrid
@@ -39,9 +42,8 @@ class UxDataset(xr.Dataset):
 
     # a setter function
     @uxgrid.setter
-    def uxgrid(self, ugrid):
-
-        self._uxgrid = ugrid
+    def uxgrid(self, ugrid_obj):
+        self._uxgrid = ugrid_obj
 
     def _construct_dataarray(self, name) -> UxDataArray:
         """Override to check if the result is an instance of xarray.DataArray.
@@ -49,7 +51,6 @@ class UxDataset(xr.Dataset):
         If so, convert to UxDataArray.
         """
         xarr = super()._construct_dataarray(name)
-
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     def __getitem__(self, key):
@@ -62,7 +63,8 @@ class UxDataset(xr.Dataset):
         if isinstance(xarr, xr.DataArray):
             return UxDataArray(xarr, uxgrid=self.uxgrid)
         else:
-            return xarr
+            assert isinstance(xarr, ux.UxDataset)
+            xarr
 
     def __setitem__(self, key, value):
         """Override to check if the value being set is an instance of
