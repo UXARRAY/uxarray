@@ -1,4 +1,4 @@
-{% set version = "2022.12.0" %}
+{% set version = "2023.03.0" %}
 
 package:
   name: 'uxarray'
@@ -54,7 +54,6 @@ extra:
     - P. Ullrich # https://github.com/paullric
     - O. Eroglu # https://github.com/erogluorhan
     - A. Zacharias # https://github.com/anissa111
-    - M. Sizemore # https://github.com/michaelavs
     - R. Jain # https://github.com/rajeeja
     - J. Zhang # https://github.com/chengzhuzhang
     - R. Jacob # https://github.com/rljacob
