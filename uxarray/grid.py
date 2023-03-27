@@ -11,7 +11,7 @@ from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
 
 # helper function imports
-from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
+from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
 
 int_dtype = np.uint32
 
