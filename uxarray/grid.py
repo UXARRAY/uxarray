@@ -10,8 +10,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
 from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
-
-int_dtype = np.uint32
+from .constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class Grid:
@@ -189,11 +188,11 @@ class Grid:
                                                    attrs={"units": z_units})
 
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(connectivity),
+            data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "_FillValue": -1,
+                "_FillValue": INT_FILL_VALUE,
                 "start_index": 0
             })
 
@@ -309,7 +308,7 @@ class Grid:
             if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.data.astype(int_dtype)
+            face_nodes = self.Mesh2_face_nodes.data
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z

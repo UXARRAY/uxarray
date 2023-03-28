@@ -7,6 +7,8 @@ import numpy as np
 import os
 from pathlib import Path
 
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
@@ -18,8 +20,7 @@ class TestMPAS(TestCase):
     mpas_xr_ds = xr.open_dataset(mpas_grid_path)
 
     # fill value (remove once there is a unified approach in uxarray)
-    int_dtype = np.uint32
-    fv = np.iinfo(int_dtype).max
+    fv = INT_FILL_VALUE
 
     def test_read_mpas(self):
         """Tests execution of _read_mpas()"""
@@ -79,7 +80,7 @@ class TestMPAS(TestCase):
 
         # two cells with 2, 3 and 2 padded faces respectively
         verticesOnCell = np.array([[1, 2, 1, 1], [3, 4, 5, 3], [6, 7, 0, 0]],
-                                  dtype=self.int_dtype)
+                                  dtype=INT_DTYPE)
 
         # cell has 2, 3 and 2 nodes respectively
         nEdgesOnCell = np.array([2, 3, 2])
@@ -87,7 +88,7 @@ class TestMPAS(TestCase):
         # expected output of _add_fill_values()
         gold_output = np.array([[0, 1, self.fv, self.fv], [2, 3, 4, self.fv],
                                 [5, 6, self.fv, self.fv]],
-                               dtype=self.int_dtype)
+                               dtype=INT_DTYPE)
 
         # test data output
         verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
