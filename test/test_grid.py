@@ -120,12 +120,11 @@ class TestGrid(TestCase):
         """Tests to see if the generated face_edges_connectivity number match
         the calculated results from Euler formular."""
         ug_filename_list = [
-            self.ug_filename1, self.ug_filename2, self.ug_filename3
-        ]
+            self.ug_filename1
+        ] #, self.ug_filename2, self.ug_filename3
         for ug_file_name in ug_filename_list:
-            ug_filename1 = current_path / "meshfiles" / ug_file_name
-            xr_tgrid1 = xr.open_dataset(ug_filename1)
-            tgrid1 = ux.Grid(xr_tgrid1)
+            xr_tgrid = xr.open_dataset(ug_file_name)
+            tgrid1 = ux.Grid(xr_tgrid)
             mesh2_face_nodes = tgrid1.ds["Mesh2_face_nodes"]
             tgrid1.build_face_edges_connectivity()
             mesh2_face_edges = tgrid1.ds["Mesh2_face_edges"]

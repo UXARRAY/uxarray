@@ -380,11 +380,6 @@ class Grid:
 
         return integral
 
-    # A one-time-used helper function that will only be used in the build_face_edges_connectivity map() function usage
-    def __replace_fill_val(self, row, index, rep_val):
-        row[index] = rep_val
-        return row
-
     def build_face_edges_connectivity(self):
         """A DataArray of indices indicating edges that are neighboring each
         face.
@@ -397,28 +392,28 @@ class Grid:
         mesh2_face_nodes = self.Mesh2_face_nodes.values
         n = self.nMesh2_face
         m = self.nMaxMesh2_face_nodes
-
+        # First identify the FillValue in the mesh2_face_nodes
+        # We will unify the FillValue used in this function as -1:
+        if np.isnan(INT_FILL_VALUE):
+            mesh2_face_nodes = np.nan_to_num(mesh2_face_nodes, nan=-1)
+        elif INT_FILL_VALUE != -1:
+            where_is_fill = mesh2_face_nodes == INT_FILL_VALUE
+            mesh2_face_nodes[mesh2_face_nodes == INT_FILL_VALUE] = -1
         # Then do the padding for each face to close the polygon
-        closed = np.full((n, m + 1), INT_FILL_VALUE, dtype=INT_DTYPE)
+        closed = np.full((n, m + 1), -1)
         closed[:, :-1] = np.array(mesh2_face_nodes, dtype=INT_DTYPE)
-
-        # We only want the index of first occurrence of INT_FILL_VALUE
-        first_fill_value_index = np.argmax(closed == INT_FILL_VALUE, axis=1)
+        # We only want the index of first occurrence of -1
+        first_fill_value_index = np.argmax(closed == -1, axis=1)
         first_node = mesh2_face_nodes[:, 0]
-
         # Create 1D index into a 2D array
         first_fill_idx = (m + 1) * np.arange(0, n) + first_fill_value_index
-
         # replace all values at 1D index with the first_node
         np.put(closed.ravel(), first_fill_idx, first_node)
-
         pad_results = closed
-
         # Now create the edge_node_connectivity
-        mesh2_edge_nodes = np.empty((n * m, 2), dtype=INT_DTYPE)
+        mesh2_edge_nodes = np.empty((n * m, 2), dtype=np.intp)
         mesh2_edge_nodes[:, 0] = pad_results[:, :-1].ravel()
         mesh2_edge_nodes[:, 1] = pad_results[:, 1:].ravel()
-
         # Clean up the invalid edge (same node to same node except the [-1, -1] edge)
         valid_mask = np.array(
             list(
@@ -426,13 +421,11 @@ class Grid:
                     lambda edge: not (edge[0] == edge[1] and not np.array_equal(
                         edge, np.array([-1, -1]))), mesh2_edge_nodes)))
         mesh2_edge_nodes = mesh2_edge_nodes[valid_mask]
-
-        # # Find the unique edge
+        # Find the unique edge
         mesh2_edge_nodes.sort(axis=1)
         mesh2_edge_node_copy, inverse_indices = np.unique(ar=mesh2_edge_nodes,
                                                           return_inverse=True,
                                                           axis=0)
-
         # In mesh2_edge_nodes, we want to remove all dummy edges (edge that has "-1" node index)
         # But we want to preserve that in our mesh2_face_edges so make the datarray has the same dimensions
         cumprod = (mesh2_edge_node_copy[:, 0] + 1) * \
@@ -443,26 +436,26 @@ class Grid:
         inverse_indices = inverse_indices.reshape(n, m)
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
 
-        # TODO: Reorder each edge such that they're in the counterclockwise
+        #TODO: Convert the Fill_Value back to the default one:
+        # To reorder the face edges into counter-clockwise, \
         # First we need to recover the original order from the `Mesh2_face_nodes`. Since we know `Mesh2_face_nodes` are
-        # stored in the counterclockwise order, we just need to construct the first edge to predict the following.
+        # stored in the counter-clockwise order, we just need to construct the first edge to predict the following.
         mesh2_face_edges[:, 0] = np.stack(
             (mesh2_face_nodes[:, 0], mesh2_face_nodes[:, 1]), axis=-1)
-        for i in range(0, mesh2_face_nodes):
+        for i in range(0, len(mesh2_face_edges)):
             # We need to make sure cur_edge[0] has the same node index as the prev_edge[1]
-            for j in range(1, len(mesh2_face_nodes[i])):
-                last_node = mesh2_face_nodes[i][j - 1][1]
+            for j in range(1, len(mesh2_face_edges[i])):
+                last_node = mesh2_face_edges[i][j - 1][1]
                 match_index_cur_edge = np.where(
-                    mesh2_face_nodes[i][j] == last_node)
-                match_index_cur_edge = match_index_cur_edge[
-                    0] if match_index_cur_edge[0].size else -1
+                    mesh2_face_edges[i][j] == last_node)
+                match_index_cur_edge = match_index_cur_edge[0]
                 if match_index_cur_edge == 0:
                     continue
-                elif match_index_cur_edge == 1:
+                else:
                     # Now switch two indexes
-                    temp = mesh2_face_nodes[i][j][0]
-                    mesh2_face_nodes[i][j][0] = last_node
-                    mesh2_face_nodes[i][j][1] = temp
+                    temp = mesh2_face_edges[i][j][0]
+                    mesh2_face_edges[i][j][0] = last_node
+                    mesh2_face_edges[i][j][1] = temp
 
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
