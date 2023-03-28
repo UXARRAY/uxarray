@@ -454,6 +454,30 @@ class Grid:
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
 
         # TODO: Reorder each edge such that they're in the counterclockwise
+        # First we need to recover the original order from the `Mesh2_face_nodes`. Since we know `Mesh2_face_nodes` are
+        # stored in the counterclockwise order, we just need to construct the first edge to predict the following.
+        mesh2_face_edges[:,0] = np.stack((mesh2_face_nodes[:,0], mesh2_face_nodes[:,1]), axis=-1)
+        for i in range(0, mesh2_face_nodes):
+            # We need to make sure cur_edge[0] has the same node index as the prev_edge[1]
+            for j in range(1,len(mesh2_face_nodes[i])):
+                last_node = mesh2_face_nodes[i][j - 1][1]
+                match_index_cur_edge = np.where(mesh2_face_nodes[i][j] == last_node)
+                match_index_cur_edge = match_index_cur_edge[0] if match_index_cur_edge[0].size else -1
+                if match_index_cur_edge == 0:
+                    continue
+                elif match_index_cur_edge == 1:
+                    # Now switch two indexes
+                    temp = mesh2_face_nodes[i][j][0]
+                    mesh2_face_nodes[i][j][0] = last_node
+                    mesh2_face_nodes[i][j][1] = temp
+
+
+
+
+
+
+
+
 
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
