@@ -574,7 +574,7 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
         original fill value used in (``grid_var``)
     new_fill : constant
         new fill value to be used in (``grid_var``)
-    new_dtype (np.dtype, optional)
+    new_dtype : (np.dtype, optional)
         new data type to convert (``grid_var``) to
 
     Returns
