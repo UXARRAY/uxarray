@@ -9,11 +9,7 @@ from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
-
-# helper function imports
 from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
-
-# standardized dtype and fill value for indexing/connectivity vars
 from .constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -196,7 +192,7 @@ class Grid:
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "FillValue": INT_FILL_VALUE,
+                "_FillValue": INT_FILL_VALUE,
                 "start_index": 0
             })
 
