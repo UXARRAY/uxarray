@@ -452,6 +452,9 @@ class Grid:
             has_fill_value, np.ndarray) else mesh2_edge_node_copy
         inverse_indices = inverse_indices.reshape(n, m)
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
+
+        # TODO: Reorder each edge such that they're in the counterclockwise
+
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
             dims=["nMesh2_face", "nMaxMesh2_face_edges", "Two"],
