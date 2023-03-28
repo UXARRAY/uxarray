@@ -6,6 +6,7 @@ from pathlib import Path
 import warnings
 
 import uxarray as ux
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
     import constants
@@ -63,3 +64,38 @@ class TestUgrid(TestCase):
         xr_grid = xr.open_dataset(str(exo2_filename))
         ux_grid = ux.Grid(xr_grid)
         ux_grid.encode_as("ugrid")
+
+    def test_standardized_dtype_and_fill(self):
+        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+        and expected fill value as set in constants.py."""
+
+        ug_filename1 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+        ug_filename2 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+        ug_filename3 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
+
+        xr_grid1 = xr.open_dataset(str(ug_filename1))
+        xr_grid2 = xr.open_dataset(str(ug_filename2))
+        xr_grid3 = xr.open_dataset(str(ug_filename3))
+
+        ux_grid1 = ux.Grid(xr_grid1)
+        ux_grid2 = ux.Grid(xr_grid2)
+        ux_grid3 = ux.Grid(xr_grid3)
+
+        # check for correct dtype and fill value
+        grids = [ux_grid1, ux_grid2, ux_grid3]
+        for grid in grids:
+            assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
+            assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
+
+    def test_standardized_dtype_and_fill_dask(self):
+        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+        and expected fill value as set in constants.py.
+
+        with dask chunking
+        """
+        ug_filename = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+        xr_grid = xr.open_dataset(str(ug_filename), chunks={'nMesh2_node': 100})
+        ux_grid = ux.Grid(xr_grid)
+        assert ux_grid.Mesh2_face_nodes.dtype == INT_DTYPE
+        assert ux_grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
+        pass
