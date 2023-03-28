@@ -2,9 +2,7 @@ import xarray as xr
 import numpy as np
 import warnings
 
-# edit once PR #241 is merged
-INT_DTYPE = np.uint32
-INT_FILL_VALUE = np.iinfo(INT_DTYPE).max
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _primal_to_ugrid(in_ds, out_ds):
