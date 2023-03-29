@@ -585,9 +585,9 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
 
     # locations of fill values
     if original_fill is not np.nan:
-        fill_val_idx = grid_var.ravel() == original_fill
+        fill_val_idx = grid_var == original_fill
     else:
-        fill_val_idx = np.isnan(grid_var.ravel())
+        fill_val_idx = np.isnan(grid_var)
 
     # convert to new data type
     if new_dtype != grid_var.dtype and new_dtype is not None:
@@ -601,6 +601,6 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
                          f' dtype: {grid_var.dtype}')
 
     # replace all zeros with a fill value
-    grid_var.ravel()[fill_val_idx] = new_fill
+    grid_var[fill_val_idx] = new_fill
 
     return grid_var
