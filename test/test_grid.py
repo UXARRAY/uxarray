@@ -119,9 +119,8 @@ class TestGrid(TestCase):
     def test_build_face_edges_connectivity(self):
         """Tests to see if the generated face_edges_connectivity number match
         the calculated results from Euler formular."""
-        ug_filename_list = [
-            self.ug_filename1
-        ] #, self.ug_filename2, self.ug_filename3
+        ug_filename_list = [self.ug_filename1
+                           ]  #, self.ug_filename2, self.ug_filename3
         for ug_file_name in ug_filename_list:
             xr_tgrid = xr.open_dataset(ug_file_name)
             tgrid1 = ux.Grid(xr_tgrid)
