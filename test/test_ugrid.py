@@ -82,8 +82,14 @@ class TestUgrid(TestCase):
         ux_grid3 = ux.Grid(xr_grid3)
 
         # check for correct dtype and fill value
-        grids = [ux_grid1, ux_grid2, ux_grid3]
-        for grid in grids:
+        grids_with_fill = [ux_grid2]
+        for grid in grids_with_fill:
+            assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
+            assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
+            assert INT_FILL_VALUE in grid.Mesh2_face_nodes.values
+
+        grids_without_fill = [ux_grid1, ux_grid2]
+        for grid in grids_without_fill:
             assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
             assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
 
@@ -93,9 +99,9 @@ class TestUgrid(TestCase):
 
         with dask chunking
         """
-        ug_filename = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+        ug_filename = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
         xr_grid = xr.open_dataset(str(ug_filename), chunks={'nMesh2_node': 100})
         ux_grid = ux.Grid(xr_grid)
         assert ux_grid.Mesh2_face_nodes.dtype == INT_DTYPE
         assert ux_grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
-        pass
+        assert INT_FILL_VALUE in ux_grid.Mesh2_face_nodes.values
