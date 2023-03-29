@@ -436,7 +436,9 @@ class Grid:
         inverse_indices = inverse_indices.reshape(n, m)
         mesh2_face_edges = mesh2_edge_node_copy[inverse_indices]
 
-        #TODO: Convert the Fill_Value back to the default one:
+        # Convert the -1 into the default fill value
+        mesh2_face_edges[mesh2_face_edges == -1] = INT_FILL_VALUE
+        mesh2_edge_nodes[mesh2_edge_nodes == -1] = INT_FILL_VALUE
         # To reorder the face edges into counter-clockwise, \
         # First we need to recover the original order from the `Mesh2_face_nodes`. Since we know `Mesh2_face_nodes` are
         # stored in the counter-clockwise order, we just need to construct the first edge to predict the following.
