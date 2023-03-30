@@ -88,7 +88,7 @@ class TestUgrid(TestCase):
             assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
             assert INT_FILL_VALUE in grid.Mesh2_face_nodes.values
 
-        grids_without_fill = [ux_grid1, ux_grid2]
+        grids_without_fill = [ux_grid1, ux_grid3]
         for grid in grids_without_fill:
             assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
             assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
