@@ -420,6 +420,8 @@ class Grid:
         mesh2_edge_node_copy, inverse_indices = np.unique(ar=mesh2_edge_nodes,
                                                           return_inverse=True,
                                                           axis=0)
+        # TODO: Make the dummy edge index in the mesh2_face_edges as INT_FILL_VALUE
+
         # In mesh2_edge_nodes, we want to remove all dummy edges (edge that has "INT_FILL_VALUE" node index)
         # But we want to preserve that in our mesh2_face_edges so make the datarray has the same dimensions
         has_fill_value = np.logical_or(mesh2_edge_node_copy[:, 0] == INT_FILL_VALUE,
