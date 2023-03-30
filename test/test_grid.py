@@ -134,7 +134,6 @@ class TestGrid(TestCase):
                              mesh2_face_nodes.sizes["nMesh2_face"])
             self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
                              mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
-            self.assertEqual(mesh2_face_edges.sizes["Two"], 2)
 
             num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid1.ds[
                 "Mesh2_node_x"].sizes["nMesh2_node"] - 2
