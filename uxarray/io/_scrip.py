@@ -3,7 +3,7 @@ import numpy as np
 
 from uxarray.utils.helpers import grid_center_lat_lon, _replace_fill_values
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _to_ugrid(in_ds, out_ds):

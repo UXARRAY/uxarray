@@ -7,7 +7,7 @@ import warnings
 import numpy.testing as nt
 
 import uxarray as ux
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
     import constants

@@ -5,7 +5,7 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 

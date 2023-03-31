@@ -12,7 +12,7 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type,
                                    _convert_node_xyz_to_lonlat_rad,
                                    _convert_node_lonlat_rad_to_xyz)
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class Grid:

@@ -4,7 +4,7 @@ from pathlib import PurePath
 from datetime import datetime
 
 from uxarray.utils.helpers import _replace_fill_values
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 # Exodus Number is one-based.
