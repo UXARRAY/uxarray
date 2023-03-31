@@ -18,7 +18,8 @@ dependencies:
     - ipython
     - jupyter_client
     - matplotlib-base
-    - sphinx-book-theme>=0.13.3 # 0.13.2 broke sphinx_book_theme import
+    - sphinx-book-theme
+    - pydata-sphinx-theme>=0.13.3 # 0.13.2 broke sphinx_book_theme import
     - myst-nb
     - sphinx-design
     - nbsphinx
