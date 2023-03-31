@@ -33,6 +33,13 @@ Grid Helper Modules
    io._exodus._read_exodus
    io._exodus._encode_exodus
    io._exodus._get_element_type
+   io._mpas._dual_to_ugrid
+   io._mpas._primal_to_ugrid
+   io._mpas._replace_padding
+   io._mpas._replace_zeros
+   io._mpas._to_zero_index
+   io._mpas._set_global_attrs
+   io._mpas._read_mpas
    io._ugrid._encode_ugrid
    io._ugrid._read_ugrid
    io._scrip._read_scrip
@@ -42,3 +49,4 @@ Grid Helper Modules
    utils.helpers._convert_node_xyz_to_lonlat_rad
    utils.helpers._convert_node_lonlat_rad_to_xyz
    utils.helpers._normalize_in_place
+   utils.helpers._replace_fill_values

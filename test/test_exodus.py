@@ -5,6 +5,7 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -36,3 +37,12 @@ class TestExodus(TestCase):
 
         uxgrid.encode_as("ugrid")
         uxgrid.encode_as("exodus")
+
+    def test_standardized_dtype_and_fill(self):
+        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+        and expected fill value as set in constants.py."""
+
+        uxgrid = ux.open_grid(self.exo2_filename)
+
+        assert uxgrid.Mesh2_face_nodes.dtype == INT_DTYPE
+        assert uxgrid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE

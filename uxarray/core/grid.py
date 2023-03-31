@@ -4,6 +4,7 @@ import numpy as np
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
+from uxarray.io._mpas import _read_mpas
 from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
@@ -11,8 +12,7 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type,
                                    _convert_node_xyz_to_lonlat_rad,
                                    _convert_node_lonlat_rad_to_xyz)
-
-int_dtype = np.uint32
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class Grid:
@@ -47,6 +47,8 @@ class Grid:
             Specify if the grid is lat/lon based
         isconcave: bool, optional
             Specify if this grid has concave elements (internal checks for this are possible)
+        use_dual: bool, optional
+            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
         Raises
         ------
@@ -65,7 +67,8 @@ class Grid:
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'isconcave', 'source_grid'
+            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid',
+            'use_dual'
         ]
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
@@ -187,11 +190,11 @@ class Grid:
                                                     attrs={"units": z_units})
 
         self._ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(connectivity),
+            data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "_FillValue": -1,
+                "_FillValue": INT_FILL_VALUE,
                 "start_index": 0
             })
 
@@ -208,6 +211,12 @@ class Grid:
                                                         self.grid_var_names)
         elif self.mesh_type == "shp":
             self._ds = _read_shpfile(dataset)
+        elif self.mesh_type == "mpas":
+            # select whether to use the dual mesh
+            if self.use_dual is not None:
+                self._ds = _read_mpas(dataset, self.use_dual)
+            else:
+                self._ds = _read_mpas(dataset)
         else:
             raise RuntimeError("unknown mesh type")
 
@@ -302,7 +311,7 @@ class Grid:
             if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.data.astype(int_dtype)
+            face_nodes = self.Mesh2_face_nodes.data
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z
