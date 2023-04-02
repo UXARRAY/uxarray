@@ -413,7 +413,8 @@ class Grid:
             list(
                 map(
                     lambda edge: not (edge[0] == edge[1] and not np.array_equal(
-                        edge, np.array([INT_FILL_VALUE, INT_FILL_VALUE]))), mesh2_edge_nodes)))
+                        edge, np.array([INT_FILL_VALUE, INT_FILL_VALUE]))),
+                    mesh2_edge_nodes)))
         mesh2_edge_nodes = mesh2_edge_nodes[valid_mask]
         # Find the unique edge
         mesh2_edge_nodes.sort(axis=1)
@@ -424,11 +425,12 @@ class Grid:
 
         # In mesh2_edge_nodes, we want to remove all dummy edges (edge that has "INT_FILL_VALUE" node index)
         # But we want to preserve that in our mesh2_face_edges so make the datarray has the same dimensions
-        has_fill_value = np.logical_or(mesh2_edge_node_copy[:, 0] == INT_FILL_VALUE,
-              mesh2_edge_node_copy[:, 1] == INT_FILL_VALUE)
+        has_fill_value = np.logical_or(
+            mesh2_edge_node_copy[:, 0] == INT_FILL_VALUE,
+            mesh2_edge_node_copy[:, 1] == INT_FILL_VALUE)
         mesh2_edge_nodes = mesh2_edge_node_copy[~has_fill_value]
         inverse_indices = inverse_indices.reshape(n, m)
-        mesh2_face_edges = inverse_indices # We only need to store the edge index
+        mesh2_face_edges = inverse_indices  # We only need to store the edge index
 
         self.ds["Mesh2_face_edges"] = xr.DataArray(
             data=mesh2_face_edges,
