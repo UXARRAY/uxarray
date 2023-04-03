@@ -122,7 +122,7 @@ class TestGrid(TestCase):
         for ug_file_name in ug_filename_list:
             xr_tgrid = xr.open_dataset(ug_file_name)
             tgrid = ux.Grid(xr_tgrid)
-            tgrid.build_edge_node_connectivity()
+            tgrid._build_edge_node_connectivity()
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""

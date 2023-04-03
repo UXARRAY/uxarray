@@ -621,8 +621,34 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
 
 
 def _close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
+    """Closes (``Mesh2_face_nodes``) by inserting the first node index after
+    the last non-fill-value node.
 
-    # padding is of shape [nMesh2_face x nMaxMesh2_face_nodes + 1]
+    Parameters
+    ----------
+    Mesh2_face_nodes : np.ndarray
+        Connectivity array for constructing a face from its nodes
+    nMesh2_face : constant
+        Number of faces
+    nMaxMesh2_face_nodes : constant
+        Max number of nodes that compose a face
+
+    Returns
+    ----------
+    closed : ndarray
+        Closed (padded) Mesh2_face_nodes
+
+    Example
+    ----------
+    Given face nodes with shape [2 x 5]
+        [0, 1, 2, 3, FILL_VALUE]
+        [4, 5, 6, 7, 8]
+    Pads them to the following with shape [2 x 6]
+        [0, 1, 2, 3, 0, FILL_VALUE]
+        [4, 5, 6, 7, 8, 4]
+    """
+
+    # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
     closed = np.ones((nMesh2_face, nMaxMesh2_face_nodes + 1),
                      dtype=INT_DTYPE) * INT_FILL_VALUE
 
@@ -632,11 +658,14 @@ def _close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     # instance of first fill value
     first_fv_idx_2d = np.argmax(closed == INT_FILL_VALUE, axis=1)
 
-    #
+    # 2d to 1d index for np.put()
     first_fv_idx_1d = first_fv_idx_2d + (
         (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
 
+    # column of first node values
     first_node_value = Mesh2_face_nodes[:, 0]
+
+    # insert first node column at occurrence of first fill value
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
 
     return closed

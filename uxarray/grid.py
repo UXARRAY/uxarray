@@ -380,7 +380,7 @@ class Grid:
 
         return integral
 
-    def build_edge_node_connectivity(self):
+    def _build_edge_node_connectivity(self):
 
         # padded face nodes: [nMesh2_face x nMaxMesh2_face_nodes + 1]
         padded_face_nodes = _close_face_nodes(self.Mesh2_face_nodes.values,

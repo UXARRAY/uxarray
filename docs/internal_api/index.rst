@@ -19,6 +19,7 @@ Grid Methods
    grid.Grid.__from_ds__
    grid.Grid.__from_vert__
    grid.Grid.__init_grid_var_attrs__
+   grid.Grid._build_edge_node_connectivity
    grid.Grid._populate_cartesian_xyz_coord
    grid.Grid._populate_lonlat_coord
 
@@ -49,3 +50,4 @@ Grid Helper Modules
    helpers._convert_node_lonlat_rad_to_xyz
    helpers._normalize_in_place
    helpers._replace_fill_values
+   helpers._close_face_nodes
