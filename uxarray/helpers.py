@@ -5,7 +5,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-from .constants import INT_DTYPE
+from .constants import INT_DTYPE, INT_FILL_VALUE
 
 config.DISABLE_JIT = False
 
@@ -618,3 +618,25 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     grid_var[fill_val_idx] = new_fill
 
     return grid_var
+
+
+def _close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
+
+    # padding is of shape [nMesh2_face x nMaxMesh2_face_nodes + 1]
+    closed = np.ones((nMesh2_face, nMaxMesh2_face_nodes + 1),
+                     dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    # set all non-paded values to original face nodee values
+    closed[:, :-1] = Mesh2_face_nodes
+
+    # instance of first fill value
+    first_fv_idx_2d = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    #
+    first_fv_idx_1d = first_fv_idx_2d + (
+        (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
+
+    first_node_value = Mesh2_face_nodes[:, 0]
+    np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
+
+    return closed

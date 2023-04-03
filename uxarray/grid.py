@@ -9,7 +9,7 @@ from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
-from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
+from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, _close_face_nodes
 from .constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -380,67 +380,47 @@ class Grid:
 
         return integral
 
-    def build_face_edges_connectivity(self):
-        """A DataArray of indices indicating edges that are neighboring each
-        face.
+    def build_edge_node_connectivity(self):
 
-        Notes
-        -----
-        This function will add `Grid.ds.Mesh2_face_edges` to the `Grid` class, which is an integer
-        DataArray of size (nMesh2_face, MaxNumNodesPerFace)
-        """
-        mesh2_face_nodes = self.Mesh2_face_nodes.values
-        n = self.nMesh2_face
-        m = self.nMaxMesh2_face_nodes
+        # padded face nodes: [nMesh2_face x nMaxMesh2_face_nodes + 1]
+        padded_face_nodes = _close_face_nodes(self.Mesh2_face_nodes.values,
+                                              self.nMesh2_face,
+                                              self.nMaxMesh2_face_nodes)
 
-        # Then do the padding for each face to close the polygon
-        closed = np.full((n, m + 1), INT_FILL_VALUE)
-        closed[:, :-1] = np.array(mesh2_face_nodes, dtype=INT_DTYPE)
-        # We only want the index of first occurrence of INT_FILL_VALUE
-        first_fill_value_index = np.argmax(closed == INT_FILL_VALUE, axis=1)
-        first_node = mesh2_face_nodes[:, 0]
-        # Create 1D index into a 2D array
-        first_fill_idx = (m + 1) * np.arange(0, n) + first_fill_value_index
-        # replace all values at 1D index with the first_node
-        np.put(closed.ravel(), first_fill_idx, first_node)
-        pad_results = closed
-        # Now create the edge_node_connectivity
-        mesh2_edge_nodes = np.empty((n * m, 2), dtype=np.intp)
-        mesh2_edge_nodes[:, 0] = pad_results[:, :-1].ravel()
-        mesh2_edge_nodes[:, 1] = pad_results[:, 1:].ravel()
-        # Clean up the invalid edge (same node to same node except the [-1, -1] edge)
-        valid_mask = np.array(
-            list(
-                map(
-                    lambda edge: not (edge[0] == edge[1] and not np.array_equal(
-                        edge, np.array([INT_FILL_VALUE, INT_FILL_VALUE]))),
-                    mesh2_edge_nodes)))
-        mesh2_edge_nodes = mesh2_edge_nodes[valid_mask]
-        # Find the unique edge
-        mesh2_edge_nodes.sort(axis=1)
-        mesh2_edge_node_copy, inverse_indices = np.unique(ar=mesh2_edge_nodes,
-                                                          return_inverse=True,
-                                                          axis=0)
-        # TODO: Make the dummy edge index in the mesh2_face_edges as INT_FILL_VALUE
+        # construct an array of empty edge nodes where each entry is a pair of indices
+        edge_nodes = np.empty((self.nMesh2_face * self.nMaxMesh2_face_nodes, 2),
+                              dtype=INT_DTYPE)
 
-        # In mesh2_edge_nodes, we want to remove all dummy edges (edge that has "INT_FILL_VALUE" node index)
-        # But we want to preserve that in our mesh2_face_edges so make the datarray has the same dimensions
-        has_fill_value = np.logical_or(
-            mesh2_edge_node_copy[:, 0] == INT_FILL_VALUE,
-            mesh2_edge_node_copy[:, 1] == INT_FILL_VALUE)
-        mesh2_edge_nodes = mesh2_edge_node_copy[~has_fill_value]
-        inverse_indices = inverse_indices.reshape(n, m)
-        mesh2_face_edges = inverse_indices  # We only need to store the edge index
+        # first index includes starting node up to non-padded value
+        edge_nodes[:, 0] = padded_face_nodes[:, :-1].ravel()
 
-        self.ds["Mesh2_face_edges"] = xr.DataArray(
-            data=mesh2_face_edges,
-            dims=["nMesh2_face", "nMaxMesh2_face_edges"],
+        # second index includes second node up to padded value
+        edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
+
+        # all edge nodes that contain a fill value
+        fill_value_mask = np.logical_or(edge_nodes[:, 0] == INT_FILL_VALUE,
+                                        edge_nodes[:, 1] == INT_FILL_VALUE)
+
+        # all edge nodes that do not contain a fill value
+        non_fill_value_mask = np.logical_not(fill_value_mask)
+
+        # filter out all invalid edges
+        edge_nodes = edge_nodes[non_fill_value_mask]
+
+        # add mesh2_edge_nodes to internal dataset
+        self.ds['Mesh2_edge_nodes'] = xr.DataArray(
+            edge_nodes,
+            dims=["nMesh2_edge", "Two"],
             attrs={
-                "cf_role": "face_edges_connectivity",
-                "start_index": 0
+                "cf_role":
+                    "edge_node_connectivity",
+                "long_name":
+                    "Maps every edge to the two nodes that it connects",
+                "start_index":
+                    INT_DTYPE(0),
+                "original_fill_value_mask":
+                    fill_value_mask,
             })
-        self.ds["Mesh2_edge_nodes"] = xr.DataArray(data=mesh2_edge_nodes,
-                                                   dims=["nMesh2_edge", "Two"])
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
