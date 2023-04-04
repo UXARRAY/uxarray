@@ -18,6 +18,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
               gridspec: Optional[str] = None,
               islatlon: Optional[bool] = False,
               isconcave: Optional[bool] = False,
+              use_dual: Optional[bool] = False,
               **kwargs: Dict[str, Any]) -> xr.Dataset:
     """Creates a ``uxarray.core.Grid`` object from a grid topology definition.
 
@@ -42,6 +43,9 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
+
+    use_dual: bool, optional
+            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_dataset``. Refer to the
@@ -70,7 +74,8 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
         uxgrid = Grid(grid_filename_or_obj,
                       gridspec=gridspec,
                       islatlon=islatlon,
-                      isconcave=isconcave)
+                      isconcave=isconcave,
+                      use_dual=use_dual)
     else:
         grid_ds = xr.open_dataset(grid_filename_or_obj,
                                   decode_times=False,
@@ -80,7 +85,8 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
                       gridspec=gridspec,
                       islatlon=islatlon,
                       isconcave=isconcave,
-                      source_grid=grid_filename_or_obj)
+                      source_grid=grid_filename_or_obj,
+                      use_dual=use_dual)
 
     return uxgrid
 
@@ -91,6 +97,7 @@ def open_dataset(grid_filename_or_obj: str,
                  vertices: Optional[list] = None,
                  islatlon: Optional[bool] = False,
                  isconcave: Optional[bool] = False,
+                 use_dual: Optional[bool] = False,
                  **kwargs: Dict[str, Any]) -> xr.Dataset:
     """Wraps ``xarray.open_dataset()``, given a grid topology definition with a
     single dataset file or object with corresponding data.
@@ -119,6 +126,9 @@ def open_dataset(grid_filename_or_obj: str,
 
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
+
+    use_dual: bool, optional
+            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_dataset``. Refer to the
@@ -153,7 +163,8 @@ def open_dataset(grid_filename_or_obj: str,
                   vertices=vertices,
                   islatlon=islatlon,
                   isconcave=isconcave,
-                  source_grid=grid_filename_or_obj)
+                  source_grid=grid_filename_or_obj,
+                  use_dual=use_dual)
 
     ## UxDataset
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
@@ -167,6 +178,7 @@ def open_mfdataset(grid_filename_or_obj: str,
                    vertices: Optional[list] = None,
                    islatlon: Optional[bool] = False,
                    isconcave: Optional[bool] = False,
+                   use_dual: Optional[bool] = False,
                    **kwargs: Dict[str, Any]) -> xr.Dataset:
     """Wraps ``xarray.open_mfdataset()``, given a single grid topology file
     with multiple dataset paths with corresponding data.
@@ -194,6 +206,9 @@ def open_mfdataset(grid_filename_or_obj: str,
 
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
+
+    use_dual: bool, optional
+            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_mfdataset``. Refer to the
@@ -227,7 +242,8 @@ def open_mfdataset(grid_filename_or_obj: str,
                   vertices=vertices,
                   islatlon=islatlon,
                   isconcave=isconcave,
-                  source_grid=grid_filename_or_obj)
+                  source_grid=grid_filename_or_obj,
+                  use_dual=use_dual)
 
     ## UxDataset
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
