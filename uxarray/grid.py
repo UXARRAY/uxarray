@@ -87,6 +87,10 @@ class Grid:
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
 
+        # construct connectivity
+        if "Mesh2_edge_nodes" not in self.ds:
+            self._build_edge_node_connectivity()
+
     def __init_ds_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
         of xarray object.
@@ -424,7 +428,7 @@ class Grid:
                                                        axis=0)
         # add mesh2_edge_nodes to internal dataset
         self.ds['Mesh2_edge_nodes'] = xr.DataArray(
-            edge_nodes,
+            edge_nodes_unique,
             dims=["nMesh2_edge", "Two"],
             attrs={
                 "cf_role":
@@ -438,9 +442,6 @@ class Grid:
                 "fill_value_mask":
                     fill_value_mask
             })
-
-        # set standardized access attribute
-        setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.

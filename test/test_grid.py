@@ -115,15 +115,6 @@ class TestGrid(TestCase):
         self.assertEqual(n_faces, grid.nMesh2_face)
         self.assertEqual(n_face_nodes, grid.nMaxMesh2_face_nodes)
 
-    def test_build_edge_node_connectivity(self):
-        ug_filename_list = [
-            self.ug_filename1, self.ug_filename2, self.ug_filename3
-        ]
-        for ug_file_name in ug_filename_list:
-            xr_tgrid = xr.open_dataset(ug_file_name)
-            tgrid = ux.Grid(xr_tgrid)
-            tgrid._build_edge_node_connectivity()
-
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
@@ -302,3 +293,19 @@ class TestPopulateCoordinates(TestCase):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
                                    lat_deg[i],
                                    decimal=12)
+
+
+class TestConnectivity(TestCase):
+    ug_filename1 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+    ug_filename2 = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+    ug_filename3 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+
+    def test_build_edge_nodes(self):
+        """Tests the construction of (``Mesh2_edge_nodes``)."""
+        ug_filenames = [self.ug_filename1, self.ug_filename2, self.ug_filename3]
+
+        for ug_filename in ug_filenames:
+            xr_grid = xr.open_dataset(ug_filename)
+            ux_grid = ux.Grid(xr_grid)
+            edge_nodes = ux_grid.ds['Mesh2_edge_nodes']
+            # to-do

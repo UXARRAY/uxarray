@@ -653,7 +653,7 @@ def _close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
                      dtype=INT_DTYPE) * INT_FILL_VALUE
 
     # set all non-paded values to original face nodee values
-    closed[:, :-1] = Mesh2_face_nodes
+    closed[:, :-1] = Mesh2_face_nodes.copy()
 
     # instance of first fill value
     first_fv_idx_2d = np.argmax(closed == INT_FILL_VALUE, axis=1)
@@ -663,7 +663,7 @@ def _close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
         (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
 
     # column of first node values
-    first_node_value = Mesh2_face_nodes[:, 0]
+    first_node_value = Mesh2_face_nodes[:, 0].copy()
 
     # insert first node column at occurrence of first fill value
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
