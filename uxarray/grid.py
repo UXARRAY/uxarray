@@ -383,7 +383,12 @@ class Grid:
     def _build_edge_node_connectivity(self):
         """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
         and stores it within the internal (``Grid.ds``) and through the
-        attribute (``Grid.Mesh2_edge_nodes``)."""
+        attribute (``Grid.Mesh2_edge_nodes``).
+
+        Additionally, the attributes (``inverse_indices``) and
+        (``fill_value_mask``) are stored for constructing other
+        connectivity variables.
+        """
 
         # padded face nodes: [nMesh2_face x nMaxMesh2_face_nodes + 1]
         padded_face_nodes = _close_face_nodes(self.Mesh2_face_nodes.values,
