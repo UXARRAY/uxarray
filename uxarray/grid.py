@@ -432,6 +432,8 @@ class Grid:
                     INT_DTYPE(0),
                 "inverse_indices":
                     inverse_indices,
+                "fill_value_mask":
+                    fill_value_mask
             })
 
         # set standardized access attribute
