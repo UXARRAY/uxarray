@@ -88,8 +88,9 @@ class Grid:
         self.__init_grid_var_attrs__()
 
         # construct connectivity
-        if "Mesh2_edge_nodes" not in self.ds:
-            self._build_edge_node_connectivity()
+        if self.source_grid != "From vertices":
+            if "Mesh2_edge_nodes" not in self.ds:
+                self._build_edge_node_connectivity()
 
     def __init_ds_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
@@ -442,6 +443,8 @@ class Grid:
                 "fill_value_mask":
                     fill_value_mask
             })
+
+        setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.

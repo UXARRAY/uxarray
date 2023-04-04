@@ -296,16 +296,24 @@ class TestPopulateCoordinates(TestCase):
 
 
 class TestConnectivity(TestCase):
-    ug_filename1 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
-    ug_filename2 = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
-    ug_filename3 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+    ugrid_filepath = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+    mpas_filepath = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+    exodus_filepath = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
 
     def test_build_edge_nodes(self):
-        """Tests the construction of (``Mesh2_edge_nodes``)."""
-        ug_filenames = [self.ug_filename1, self.ug_filename2, self.ug_filename3]
+        """Tests the construction of (``Mesh2_edge_nodes``)"""
 
-        for ug_filename in ug_filenames:
-            xr_grid = xr.open_dataset(ug_filename)
-            ux_grid = ux.Grid(xr_grid)
-            edge_nodes = ux_grid.ds['Mesh2_edge_nodes']
-            # to-do
+        # grid with known edge node connectivity
+        mpas_grid_xr = xr.open_dataset(self.mpas_filepath)
+        mpas_grid_ux = ux.Grid(mpas_grid_xr)
+        edge_nodes_expected = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
+
+        # arrange edge nodes in the same manner as Grid._build_edge_node_connectivity
+        edge_nodes_expected.sort(axis=1)
+        edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
+
+        # construct edge nodes
+        mpas_grid_ux._build_edge_node_connectivity()
+        edge_nodes_output = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
+
+        assert np.array_equal(edge_nodes_expected, edge_nodes_output)
