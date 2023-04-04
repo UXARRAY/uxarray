@@ -317,3 +317,10 @@ class TestConnectivity(TestCase):
         edge_nodes_output = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
 
         assert np.array_equal(edge_nodes_expected, edge_nodes_output)
+
+        # euler's formula (n_face = n_edges - n_nodes + 2)
+        n_face = mpas_grid_ux.nMesh2_node
+        n_node = mpas_grid_ux.nMesh2_face
+        n_edge = edge_nodes_output.shape[0]
+
+        assert (n_face == n_edge - n_node + 2)
