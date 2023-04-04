@@ -381,6 +381,11 @@ class Grid:
         return integral
 
     def _build_edge_node_connectivity(self):
+        """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
+        and stores it within the internal (``Grid.ds``).
+
+        Additionally sets the attribute (``Grid.Mesh2_edge_nodes``).
+        """
 
         # padded face nodes: [nMesh2_face x nMaxMesh2_face_nodes + 1]
         padded_face_nodes = _close_face_nodes(self.Mesh2_face_nodes.values,
@@ -407,6 +412,13 @@ class Grid:
         # filter out all invalid edges
         edge_nodes = edge_nodes[non_fill_value_mask]
 
+        # sorted edge nodes
+        edge_nodes.sort(axis=1)
+
+        # unique edge nodes
+        edge_nodes_unique, inverse_indices = np.unique(edge_nodes,
+                                                       return_inverse=True,
+                                                       axis=0)
         # add mesh2_edge_nodes to internal dataset
         self.ds['Mesh2_edge_nodes'] = xr.DataArray(
             edge_nodes,
@@ -418,9 +430,12 @@ class Grid:
                     "Maps every edge to the two nodes that it connects",
                 "start_index":
                     INT_DTYPE(0),
-                "original_fill_value_mask":
-                    fill_value_mask,
+                "inverse_indices":
+                    inverse_indices,
             })
+
+        # set standardized access attribute
+        setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
