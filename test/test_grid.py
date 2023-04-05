@@ -296,12 +296,15 @@ class TestPopulateCoordinates(TestCase):
 
 
 class TestConnectivity(TestCase):
-    ugrid_filepath = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
     mpas_filepath = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
     exodus_filepath = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+    ugrid_filepath_01 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    ugrid_filepath_02 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+    ugrid_filepath_03 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
     def test_build_edge_nodes(self):
-        """Tests the construction of (``Mesh2_edge_nodes``)"""
+        """Tests the construction of (``Mesh2_edge_nodes``) on an MPAS grid
+        with known edge nodes."""
 
         # grid with known edge node connectivity
         mpas_grid_xr = xr.open_dataset(self.mpas_filepath)
@@ -324,3 +327,21 @@ class TestConnectivity(TestCase):
         n_edge = edge_nodes_output.shape[0]
 
         assert (n_face == n_edge - n_node + 2)
+
+    def test_edge_nodes_euler(self):
+        """Verifies that (``nMesh2_edge``) follows euler's formula."""
+        grid_paths = [
+            self.exodus_filepath, self.ugrid_filepath_01,
+            self.ugrid_filepath_02, self.ugrid_filepath_03
+        ]
+
+        for grid_path in grid_paths:
+            grid_xr = xr.open_dataset(grid_path)
+            grid_ux = ux.Grid(grid_xr)
+
+            n_face = grid_ux.nMesh2_node
+            n_node = grid_ux.nMesh2_face
+            n_edge = grid_ux.nMesh2_edge
+
+            # euler's formula (n_face = n_edges - n_nodes + 2)
+            assert (n_face == n_edge - n_node + 2)
