@@ -179,19 +179,31 @@ class Grid:
         y_coord = dataset[:, :, 1].flatten()
         if dataset[0][0].size > 2:
             z_coord = dataset[:, :, 2].flatten()
-        num_nodes = x_coord.size
-        connectivity = np.array(list(range(0, num_nodes))).reshape(
-            (dataset.shape[0], dataset.shape[1])).tolist()
-        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
+
+        # Identify unique vertices and their indices
+        unique_verts, indices = np.unique(dataset.reshape(
+            -1, dataset.shape[-1]),
+                                          axis=0,
+                                          return_inverse=True)
+        num_nodes = unique_verts.shape[0]
+
+        # Create coordinate DataArrays
+        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(
+            unique_verts[:, 0]),
                                                dims=["nMesh2_node"],
                                                attrs={"units": x_units})
-        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
+        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(
+            unique_verts[:, 1]),
                                                dims=["nMesh2_node"],
                                                attrs={"units": y_units})
-        if dataset[0][0].size > 2:
-            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
+        if dataset.shape[-1] > 2:
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(
+                unique_verts[:, 2]),
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
+
+        # Create connectivity array using indices of unique vertices
+        connectivity = indices.reshape(dataset.shape[:-1]).tolist()
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],

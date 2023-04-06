@@ -57,7 +57,21 @@ class TestGrid(TestCase):
 
         Also, test kwargs for grid initialization
         """
+        # Test it would identify the duplicate vertices and generate the correct vertices numbers from a cube using
+        # 3D coordinates
+        """
+             7---------6
+            /|        /|
+           / |       / |
+          3---------2  |
+          |  |      |  |
+          |  4------|--5
+          | /       | /
+          |/        |/
+          0---------1
 
+        """
+        # Test for ndarray
         faces_verts_ndarray = np.array([
             np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
                       [135, 10]]),
@@ -66,13 +80,61 @@ class TestGrid(TestCase):
             np.array([[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                       [85, 10]]),
         ])
+        cart_x = [
+            0.577340924821405, 0.577340924821405, 0.577340924821405,
+            0.577340924821405, -0.577345166204668, -0.577345166204668,
+            -0.577345166204668, -0.577345166204668
+        ]
+        cart_y = [
+            0.577343045516932, 0.577343045516932, -0.577343045516932,
+            -0.577343045516932, 0.577338804118089, 0.577338804118089,
+            -0.577338804118089, -0.577338804118089
+        ]
+        cart_z = [
+            0.577366836872017, -0.577366836872017, 0.577366836872017,
+            -0.577366836872017, 0.577366836872017, -0.577366836872017,
+            0.577366836872017, -0.577366836872017
+        ]
+
+        # The order of the vertexes is irrelevant, the following indexing is just for forming a face matrix
+        face_vertices = [
+            [0, 1, 2, 3],  # front face
+            [1, 5, 6, 2],  # right face
+            [5, 4, 7, 6],  # back face
+            [4, 0, 3, 7],  # left face
+            [3, 2, 6, 7],  # top face
+            [4, 5, 1, 0]  # bottom face
+        ]
+
+        faces_coords = []
+        for face in face_vertices:
+            face_coords = []
+            for vertex_index in face:
+                x, y, z = cart_x[vertex_index], cart_y[vertex_index], cart_z[
+                    vertex_index]
+                face_coords.append([x, y, z])
+            faces_coords.append(face_coords)
+
+        verts_cart = np.array(faces_coords)
+        vgrid = ux.Grid(verts_cart,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
+        vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 6)
+        assert (vgrid.nMesh2_node == 8)
+        vgrid.encode_as("ugrid")
+
         vgrid = ux.Grid(faces_verts_ndarray,
                         vertices=True,
                         islatlon=True,
                         concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
-        assert (vgrid.nMesh2_node == 18)
+        assert (vgrid.nMesh2_node == 14)
         vgrid.encode_as("ugrid")
 
         # Test the case when user created a nested one-face grid
@@ -89,24 +151,6 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_node == 6)
         vgrid.encode_as("ugrid")
 
-        # Test the case when user tries to input a 3D coordinates
-        faces_verts_3d = np.array([
-            np.array([[150, 10, 5], [160, 20, 5], [150, 30, 5], [135, 30, 5],
-                      [125, 20, 5], [135, 10, 5]]),
-            np.array([[125, 20, 6], [135, 30, 6], [125, 60, 6], [110, 60, 6],
-                      [100, 30, 6], [105, 20, 6]]),
-            np.array([[95, 10, 7], [105, 20, 7], [100, 30, 7], [85, 30, 7],
-                      [75, 20, 7], [85, 10, 7]]),
-        ])
-        vgrid = ux.Grid(faces_verts_3d,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
-        assert (vgrid.source_grid == "From vertices")
-        assert (vgrid.nMesh2_face == 3)
-        assert (vgrid.nMesh2_node == 18)
-        vgrid.encode_as("ugrid")
-
         # Test initializing Grid from list
         faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30],
                              [125, 20], [135, 10]],
@@ -120,7 +164,7 @@ class TestGrid(TestCase):
                         concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
-        assert (vgrid.nMesh2_node == 18)
+        assert (vgrid.nMesh2_node == 14)
         vgrid.encode_as("ugrid")
 
         # Test initializing Grid from tuples
@@ -135,7 +179,7 @@ class TestGrid(TestCase):
                         concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
-        assert (vgrid.nMesh2_node == 18)
+        assert (vgrid.nMesh2_node == 14)
         vgrid.encode_as("ugrid")
 
     def test_init_grid_var_attrs(self):
@@ -333,39 +377,37 @@ class TestPopulateCoordinates(TestCase):
 
     def test_populate_lonlat_coord(self):
         # The following testcases are generated through the matlab cart2sph/sph2cart functions
-        # These points correspond to the eight vertices of a cube.
+        # These points correspond to the 4 vertexes on a cube.
+
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-            360 - 45.0001052295749, 135.000315688725, 135.000315688725,
-            360 - 135.000315688725, 360 - 135.000315688725
+            360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
-            -35.2655522903022, 35.2655522903022, -35.2655522903022,
-            35.2655522903022, -35.2655522903022
+            -35.2655522903022
         ]
         cart_x = [
             0.577340924821405, 0.577340924821405, 0.577340924821405,
-            0.577340924821405, -0.577345166204668, -0.577345166204668,
-            -0.577345166204668, -0.577345166204668
+            0.577340924821405
         ]
         cart_y = [
             0.577343045516932, 0.577343045516932, -0.577343045516932,
-            -0.577343045516932, 0.577338804118089, 0.577338804118089,
-            -0.577338804118089, -0.577338804118089
+            -0.577343045516932
         ]
         cart_z = [
             0.577366836872017, -0.577366836872017, 0.577366836872017,
-            -0.577366836872017, 0.577366836872017, -0.577366836872017,
-            0.577366836872017, -0.577366836872017
+            -0.577366836872017
         ]
 
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
-        vgrid = ux.Grid(verts_cart)
+        vgrid = ux.Grid([verts_cart])
         vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
         vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
         vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
         vgrid._populate_lonlat_coord()
+        # The connectivity in `__from_vert__()` will be formed in a reverse order
+        lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
                                    lon_deg[i],
