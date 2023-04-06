@@ -151,6 +151,19 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_node == 6)
         vgrid.encode_as("ugrid")
 
+        # Test the case when user created a one-face grid
+        faces_verts_single_face = np.array([[150, 10], [160, 20], [150, 30],
+                                            [135, 30], [125, 20], [135, 10]])
+
+        vgrid = ux.Grid(faces_verts_single_face,
+                        vertices=True,
+                        islatlon=True,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 1)
+        assert (vgrid.nMesh2_node == 6)
+        vgrid.encode_as("ugrid")
+
         # Test initializing Grid from list
         faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30],
                              [125, 20], [135, 10]],
@@ -266,9 +279,9 @@ class TestIntegrate(TestCase):
 
     def test_calculate_total_face_area_triangle(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
-        verts = np.array([[0.57735027, -5.77350269e-01, -0.57735027],
-                          [0.57735027, 5.77350269e-01, -0.57735027],
-                          [-0.57735027, 5.77350269e-01, -0.57735027]])
+        verts = [[[0.57735027, -5.77350269e-01, -0.57735027],
+                  [0.57735027, 5.77350269e-01, -0.57735027],
+                  [-0.57735027, 5.77350269e-01, -0.57735027]]]
         vgrid = ux.Grid(verts)
 
         # get node names for each grid object

@@ -78,10 +78,15 @@ class Grid:
                 # This Grid contains multiple faces
                 self.__from_vert__(dataset)
                 self.source_grid = "From vertices"
+            elif dataset.ndim == 2:
+                dataset = np.array([dataset])
+                self.__from_vert__(dataset)
+                self.source_grid = "From vertices"
             else:
                 raise RuntimeError(
-                    "Input vertices don't have correct dimensions (Expected dimention will be 3: [nMesh2_face, "
-                    "nMesh2_node, Two/Three]). ")
+                    "Input vertices don't have correct dimensions (Expected dimension will be 3: [nMesh2_face, "
+                    "nMesh2_node, Two/Three]). Or dimesion of 2 when only one face is passed"
+                )
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
