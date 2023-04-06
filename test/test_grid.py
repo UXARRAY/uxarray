@@ -52,19 +52,6 @@ class TestGrid(TestCase):
         grid.encode_as("exodus")
 
     def test_init_verts(self):
-        """Create a uxarray grid from vertices and saves a ugrid file.
-
-        Also, test kwargs for grid initialization
-        """
-
-        verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
-        vgrid = ux.Grid(verts, vertices=True, islatlon=True, concave=False)
-
-        assert (vgrid.source_grid == "From vertices")
-
-        vgrid.encode_as("ugrid")
-
-    def test_init_multi_faces_vert(self):
         """Create a uxarray grid from multiple face' vertices and saves a ugrid
         file.
 
