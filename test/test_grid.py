@@ -64,6 +64,62 @@ class TestGrid(TestCase):
 
         vgrid.encode_as("ugrid")
 
+    def test_init_multi_faces_vert(self):
+        """Create a uxarray grid from multiple face' vertices and saves a ugrid
+        file.
+
+        Also, test kwargs for grid initialization
+        """
+
+        faces_verts = np.array([
+            np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
+                      [135, 10]]),
+            np.array([[125, 20], [135, 30], [125, 60], [110, 60], [100, 30],
+                      [105, 20]]),
+            np.array([[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
+                      [85, 10]]),
+        ])
+        vgrid = ux.Grid(faces_verts,
+                        vertices=True,
+                        islatlon=True,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 3)
+        assert (vgrid.nMesh2_node == 18)
+        vgrid.encode_as("ugrid")
+
+        # Test the case when user created a nested one-face grid
+        faces_verts = np.array([
+            np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
+                      [135, 10]])
+        ])
+        vgrid = ux.Grid(faces_verts,
+                        vertices=True,
+                        islatlon=True,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 1)
+        assert (vgrid.nMesh2_node == 6)
+        vgrid.encode_as("ugrid")
+
+        # Test the case when user tries to input a 3D coordinates
+        faces_verts = np.array([
+            np.array([[150, 10, 5], [160, 20, 5], [150, 30, 5], [135, 30, 5],
+                      [125, 20, 5], [135, 10, 5]]),
+            np.array([[125, 20, 6], [135, 30, 6], [125, 60, 6], [110, 60, 6],
+                      [100, 30, 6], [105, 20, 6]]),
+            np.array([[95, 10, 7], [105, 20, 7], [100, 30, 7], [85, 30, 7],
+                      [75, 20, 7], [85, 10, 7]]),
+        ])
+        vgrid = ux.Grid(faces_verts,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 3)
+        assert (vgrid.nMesh2_node == 18)
+        vgrid.encode_as("ugrid")
+
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal
         to using the dict."""

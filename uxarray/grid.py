@@ -73,9 +73,19 @@ class Grid:
 
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
-            self.vertices = dataset
-            self.__from_vert__()
-            self.source_grid = "From vertices"
+            if dataset.ndim == 2:
+                # This Grid only contains one face
+                self.vertices = dataset
+                self.__from_vert__()
+                self.source_grid = "From vertices"
+            elif dataset.ndim == 3:
+                # This Grid contains multiple faces
+                self.__from_multi_faces_vert__(dataset)
+                self.source_grid = "From vertices"
+            else:
+                raise RuntimeError(
+                    "Input vertices don't have correct dimensions (Expected dimention will be 2 or 3)."
+                )
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
@@ -140,6 +150,60 @@ class Grid:
             if self.ds.dims is not None:
                 if value in self.ds.dims:
                     setattr(self, key, len(self.ds[value]))
+
+    def __from_multi_faces_vert__(self, dataset):
+        """Create a grid with multiple faces with vertices specified by the
+        given argument. Called by :func:`__init__`.
+
+        Parameters
+        ----------
+        dataset : ndarray
+            ndarry of vertex coordinates that form multiple faces.
+        """
+        self.ds = xr.Dataset()
+        self.ds["Mesh2"] = xr.DataArray(
+            attrs={
+                "cf_role": "mesh_topology",
+                "long_name": "Topology data of unstructured mesh",
+                "topology_dimension": -1,
+                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
+                "node_dimension": "nMesh2_node",
+                "face_node_connectivity": "Mesh2_face_nodes",
+                "face_dimension": "nMesh2_face"
+            })
+        self.ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
+
+        # set default coordinate units to spherical coordinates
+        # users can change to cartesian if using cartesian for initialization
+        x_units = "degrees_east"
+        y_units = "degrees_north"
+        if dataset[0][0].size > 2:
+            z_units = "elevation"
+        x_coord = dataset[:, :, 0].flatten()
+        y_coord = dataset[:, :, 1].flatten()
+        if dataset[0][0].size > 2:
+            z_coord = dataset[:, :, 2].flatten()
+        num_nodes = x_coord.size
+        connectivity = np.array(list(range(0, num_nodes))).reshape(
+            (dataset.shape[0], dataset.shape[1])).tolist()
+        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
+                                               dims=["nMesh2_node"],
+                                               attrs={"units": x_units})
+        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
+                                               dims=["nMesh2_node"],
+                                               attrs={"units": y_units})
+        if dataset[0][0].size > 2:
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
+                                                   dims=["nMesh2_node"],
+                                                   attrs={"units": z_units})
+        self.ds["Mesh2_face_nodes"] = xr.DataArray(
+            data=xr.DataArray(connectivity).astype(INT_DTYPE),
+            dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+            attrs={
+                "cf_role": "face_node_connectivity",
+                "_FillValue": INT_FILL_VALUE,
+                "start_index": 0
+            })
 
     def __from_vert__(self):
         """Create a grid with one face with vertices specified by the given
