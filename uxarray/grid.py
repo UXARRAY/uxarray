@@ -73,6 +73,7 @@ class Grid:
 
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
+            dataset = np.asarray(dataset)
             if dataset.ndim == 2:
                 # This Grid only contains one face
                 self.vertices = dataset
