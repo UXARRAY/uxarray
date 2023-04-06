@@ -58,7 +58,7 @@ class TestGrid(TestCase):
         Also, test kwargs for grid initialization
         """
 
-        faces_verts = np.array([
+        faces_verts_ndarray = np.array([
             np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
                       [135, 10]]),
             np.array([[125, 20], [135, 30], [125, 60], [110, 60], [100, 30],
@@ -66,7 +66,7 @@ class TestGrid(TestCase):
             np.array([[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                       [85, 10]]),
         ])
-        vgrid = ux.Grid(faces_verts,
+        vgrid = ux.Grid(faces_verts_ndarray,
                         vertices=True,
                         islatlon=True,
                         concave=False)
@@ -76,11 +76,11 @@ class TestGrid(TestCase):
         vgrid.encode_as("ugrid")
 
         # Test the case when user created a nested one-face grid
-        faces_verts = np.array([
+        faces_verts_one = np.array([
             np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
                       [135, 10]])
         ])
-        vgrid = ux.Grid(faces_verts,
+        vgrid = ux.Grid(faces_verts_one,
                         vertices=True,
                         islatlon=True,
                         concave=False)
@@ -90,7 +90,7 @@ class TestGrid(TestCase):
         vgrid.encode_as("ugrid")
 
         # Test the case when user tries to input a 3D coordinates
-        faces_verts = np.array([
+        faces_verts_3d = np.array([
             np.array([[150, 10, 5], [160, 20, 5], [150, 30, 5], [135, 30, 5],
                       [125, 20, 5], [135, 10, 5]]),
             np.array([[125, 20, 6], [135, 30, 6], [125, 60, 6], [110, 60, 6],
@@ -98,7 +98,38 @@ class TestGrid(TestCase):
             np.array([[95, 10, 7], [105, 20, 7], [100, 30, 7], [85, 30, 7],
                       [75, 20, 7], [85, 10, 7]]),
         ])
-        vgrid = ux.Grid(faces_verts,
+        vgrid = ux.Grid(faces_verts_3d,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 3)
+        assert (vgrid.nMesh2_node == 18)
+        vgrid.encode_as("ugrid")
+
+        # Test initializing Grid from list
+        faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30],
+                             [125, 20], [135, 10]],
+                            [[125, 20], [135, 30], [125, 60], [110, 60],
+                             [100, 30], [105, 20]],
+                            [[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
+                             [85, 10]]]
+        vgrid = ux.Grid(faces_verts_list,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 3)
+        assert (vgrid.nMesh2_node == 18)
+        vgrid.encode_as("ugrid")
+
+        # Test initializing Grid from tuples
+        faces_verts_tuples = [
+            ((150, 10), (160, 20), (150, 30), (135, 30), (125, 20), (135, 10)),
+            ((125, 20), (135, 30), (125, 60), (110, 60), (100, 30), (105, 20)),
+            ((95, 10), (105, 20), (100, 30), (85, 30), (75, 20), (85, 10))
+        ]
+        vgrid = ux.Grid(faces_verts_tuples,
                         vertices=True,
                         islatlon=False,
                         concave=False)

@@ -153,7 +153,7 @@ class Grid:
 
         Parameters
         ----------
-        dataset : xarray.Dataset, ndarray, list, tuple, required
+        dataset : ndarray, list, tuple, required
             Input xarray.Dataset or vertex coordinates that form one face.
         """
         self.ds = xr.Dataset()
