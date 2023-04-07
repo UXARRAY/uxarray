@@ -205,7 +205,7 @@ class Grid:
         false_indices = np.where(fill_value_mask == True)[0]
 
         # Check if any False values were found
-        indices = indices.astype(np.int64)
+        indices = indices.astype(INT_DTYPE)
         if false_indices.size > 0:
 
             # Remove the rows corresponding to False values in unique_verts
