@@ -52,7 +52,7 @@ class TestGrid(TestCase):
         grid.encode_as("exodus")
 
     def test_init_verts(self):
-        """Create a uxarray grid from multiple face' vertices and saves a ugrid
+        """Create a uxarray grid from multiple face vertices and saves a ugrid
         file.
 
         Also, test kwargs for grid initialization
