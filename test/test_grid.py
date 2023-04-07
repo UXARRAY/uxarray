@@ -203,7 +203,21 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_node == 14)
         vgrid.encode_as("ugrid")
 
-    # TODO: Support users input faces with different face geometry.
+    def test_init_verts_fill_values(self):
+        faces_verts_filled_values = [[[150, 10], [160, 20], [150, 30], [135, 30],
+                             [125, 20], [135, 10]],
+                            [[125, 20], [135, 30], [125, 60], [110, 60],
+                             [100, 30], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]],
+                            [[95, 10], [105, 20], [100, 30], [85, 30], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                             [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]]
+        vgrid = ux.Grid(faces_verts_filled_values,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 3)
+        assert (vgrid.nMesh2_node == 12)
+        pass
 
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal
