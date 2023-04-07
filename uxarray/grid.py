@@ -213,9 +213,7 @@ class Grid:
 
             # Update indices accordingly
             for i, idx in enumerate(false_indices):
-                # TODO: setting the INT_FILL_VALUE as np.iinfo(INT_DTYPE).max will cause "OverflowError: Python int too large to convert to C long" here
-                indices[indices ==
-                        idx] = -1  # TODO: Replace -1 with  INT_FILL_VALUE later
+                indices[indices == idx] = INT_FILL_VALUE
                 indices[indices > idx] -= 1
 
         # Create coordinate DataArrays
@@ -232,8 +230,6 @@ class Grid:
 
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
-        connectivity = np.where(connectivity == -1, INT_FILL_VALUE,
-                                connectivity)
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
