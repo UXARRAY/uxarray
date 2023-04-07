@@ -219,7 +219,6 @@ class TestGrid(TestCase):
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 12)
-        pass
 
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal
