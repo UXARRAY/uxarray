@@ -188,15 +188,18 @@ class Grid:
 
         # Identify unique vertices and their indices
         unique_verts, indices = np.unique(dataset.reshape(
-            -1, dataset.shape[-1]),axis=0, return_inverse=True)
+            -1, dataset.shape[-1]),
+                                          axis=0,
+                                          return_inverse=True)
 
         # Nodes index that contain a fill value
         fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
                                         unique_verts[:, 1] == INT_FILL_VALUE)
         if dataset[0][0].size > 2:
-            fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
-                                            unique_verts[:, 1] == INT_FILL_VALUE,
-                                            unique_verts[:, 2] == INT_FILL_VALUE)
+            fill_value_mask = np.logical_or(
+                unique_verts[:, 0] == INT_FILL_VALUE,
+                unique_verts[:, 1] == INT_FILL_VALUE,
+                unique_verts[:, 2] == INT_FILL_VALUE)
 
         # Get the indices of all the False values in fill_value_mask
         false_indices = np.where(fill_value_mask == True)[0]
@@ -211,7 +214,8 @@ class Grid:
             # Update indices accordingly
             for i, idx in enumerate(false_indices):
                 # TODO: setting the INT_FILL_VALUE as np.iinfo(INT_DTYPE).max will cause "OverflowError: Python int too large to convert to C long" here
-                indices[indices == idx] = -1 # TODO: Replace -1 with  INT_FILL_VALUE later
+                indices[indices ==
+                        idx] = -1  # TODO: Replace -1 with  INT_FILL_VALUE later
                 indices[indices > idx] -= 1
 
         # Create coordinate DataArrays
@@ -233,7 +237,7 @@ class Grid:
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "_FillValue": -1, # TODO: Replace -1 with  INT_FILL_VALUE later
+                "_FillValue": -1,  # TODO: Replace -1 with  INT_FILL_VALUE later
                 "start_index": 0
             })
 

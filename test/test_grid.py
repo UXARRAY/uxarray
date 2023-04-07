@@ -204,12 +204,14 @@ class TestGrid(TestCase):
         vgrid.encode_as("ugrid")
 
     def test_init_verts_fill_values(self):
-        faces_verts_filled_values = [[[150, 10], [160, 20], [150, 30], [135, 30],
-                             [125, 20], [135, 10]],
-                            [[125, 20], [135, 30], [125, 60], [110, 60],
-                             [100, 30], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]],
-                            [[95, 10], [105, 20], [100, 30], [85, 30], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
-                             [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]]
+        faces_verts_filled_values = [[[150, 10], [160, 20], [150, 30],
+                                      [135, 30], [125, 20], [135, 10]],
+                                     [[125, 20], [135, 30], [125, 60],
+                                      [110, 60], [100, 30],
+                                      [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]],
+                                     [[95, 10], [105, 20], [100, 30], [85, 30],
+                                      [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                                      [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]]
         vgrid = ux.Grid(faces_verts_filled_values,
                         vertices=True,
                         islatlon=False,
