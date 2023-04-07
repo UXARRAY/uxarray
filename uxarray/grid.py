@@ -74,8 +74,8 @@ class Grid:
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             dataset = np.asarray(dataset)
+            # grid with multiple faces
             if dataset.ndim == 3:
-                # This Grid contains multiple faces
                 self.__from_vert__(dataset)
                 self.source_grid = "From vertices"
             elif dataset.ndim == 2:
