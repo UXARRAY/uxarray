@@ -160,7 +160,7 @@ class Grid:
         Parameters
         ----------
         dataset : ndarray, list, tuple, required
-            Input xarray.Dataset or vertex coordinates that form one face.
+            To be Input vertex coordinates that form one face.
         """
         self.ds = xr.Dataset()
         self.ds["Mesh2"] = xr.DataArray(
@@ -194,22 +194,19 @@ class Grid:
         num_nodes = unique_verts.shape[0]
 
         # Create coordinate DataArrays
-        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(
-            unique_verts[:, 0]),
+        self.ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
                                                dims=["nMesh2_node"],
                                                attrs={"units": x_units})
-        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(
-            unique_verts[:, 1]),
+        self.ds["Mesh2_node_y"] = xr.DataArray(data=unique_verts[:, 1],
                                                dims=["nMesh2_node"],
                                                attrs={"units": y_units})
         if dataset.shape[-1] > 2:
-            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(
-                unique_verts[:, 2]),
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
         # Create connectivity array using indices of unique vertices
-        connectivity = indices.reshape(dataset.shape[:-1]).tolist()
+        connectivity = indices.reshape(dataset.shape[:-1])
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],

@@ -52,14 +52,12 @@ class TestGrid(TestCase):
         grid.encode_as("exodus")
 
     def test_init_verts(self):
-        """Create a uxarray grid from multiple face vertices and saves a ugrid
-        file.
+        """Create a uxarray grid from multiple face vertices with duplicate
+        nodes and saves a ugrid file.
 
         Also, test kwargs for grid initialization
-        """
-        # Test it would identify the duplicate vertices and generate the correct vertices numbers from a cube using
-        # 3D coordinates
-        """
+
+        The input cartesian coordinates represents 8 vertices on a cube
              7---------6
             /|        /|
            / |       / |
@@ -69,17 +67,7 @@ class TestGrid(TestCase):
           | /       | /
           |/        |/
           0---------1
-
         """
-        # Test for ndarray
-        faces_verts_ndarray = np.array([
-            np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
-                      [135, 10]]),
-            np.array([[125, 20], [135, 30], [125, 60], [110, 60], [100, 30],
-                      [105, 20]]),
-            np.array([[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
-                      [85, 10]]),
-        ])
         cart_x = [
             0.577340924821405, 0.577340924821405, 0.577340924821405,
             0.577340924821405, -0.577345166204668, -0.577345166204668,
@@ -106,6 +94,7 @@ class TestGrid(TestCase):
             [4, 5, 1, 0]  # bottom face
         ]
 
+        # Pack the cart_x/y/z into the face matrix using the index from face_vertices
         faces_coords = []
         for face in face_vertices:
             face_coords = []
@@ -115,26 +104,20 @@ class TestGrid(TestCase):
                 face_coords.append([x, y, z])
             faces_coords.append(face_coords)
 
+        # Now consturct the grid using the faces_coords
         verts_cart = np.array(faces_coords)
         vgrid = ux.Grid(verts_cart,
                         vertices=True,
                         islatlon=False,
                         concave=False)
+
+        # Since the read-in data are cartesian coordinates, we should change the unit to m
         vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
         vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
         vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 6)
         assert (vgrid.nMesh2_node == 8)
-        vgrid.encode_as("ugrid")
-
-        vgrid = ux.Grid(faces_verts_ndarray,
-                        vertices=True,
-                        islatlon=True,
-                        concave=False)
-        assert (vgrid.source_grid == "From vertices")
-        assert (vgrid.nMesh2_face == 3)
-        assert (vgrid.nMesh2_node == 14)
         vgrid.encode_as("ugrid")
 
         # Test the case when user created a nested one-face grid
@@ -162,6 +145,31 @@ class TestGrid(TestCase):
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
+        vgrid.encode_as("ugrid")
+
+    def test_init_verts_different_input_datatype(self):
+        """Create a uxarray grid from multiple face vertices with different
+        datatypes(ndarray, list, tuple) and saves a ugrid file.
+
+        Also, test kwargs for grid initialization
+        """
+
+        # Test initializing Grid from ndarray
+        faces_verts_ndarray = np.array([
+            np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
+                      [135, 10]]),
+            np.array([[125, 20], [135, 30], [125, 60], [110, 60], [100, 30],
+                      [105, 20]]),
+            np.array([[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
+                      [85, 10]]),
+        ])
+        vgrid = ux.Grid(faces_verts_ndarray,
+                        vertices=True,
+                        islatlon=True,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 3)
+        assert (vgrid.nMesh2_node == 14)
         vgrid.encode_as("ugrid")
 
         # Test initializing Grid from list
@@ -194,6 +202,8 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
         vgrid.encode_as("ugrid")
+
+    # TODO: Support users input faces with different face geometry.
 
     def test_init_grid_var_attrs(self):
         """Tests to see if accessing variables through set attributes is equal
