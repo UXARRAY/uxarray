@@ -232,12 +232,15 @@ class Grid:
 
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
+        connectivity = np.where(connectivity == -1, INT_FILL_VALUE,
+                                connectivity)
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "_FillValue": -1,  # TODO: Replace -1 with  INT_FILL_VALUE later
+                "_FillValue":
+                    INT_FILL_VALUE,  # TODO: Replace -1 with  INT_FILL_VALUE later
                 "start_index": 0
             })
 
