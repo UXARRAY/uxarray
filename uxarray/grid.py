@@ -78,6 +78,7 @@ class Grid:
             if dataset.ndim == 3:
                 self.__from_vert__(dataset)
                 self.source_grid = "From vertices"
+            # grid with a single face
             elif dataset.ndim == 2:
                 dataset = np.array([dataset])
                 self.__from_vert__(dataset)
