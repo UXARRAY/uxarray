@@ -86,7 +86,7 @@ class Grid:
             else:
                 raise RuntimeError(
                     f"Invalid Input Dimension: {dataset.ndim}. Expected dimension should be "
-                    f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only one "
+                    f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
                     f"one face is passed in.")
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
