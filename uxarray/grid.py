@@ -87,8 +87,7 @@ class Grid:
                 raise RuntimeError(
                     f"Invalid Input Dimension: {dataset.ndim}. Expected dimension should be "
                     f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only one "
-                    f"one face is passed in."
-                )
+                    f"one face is passed in.")
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
@@ -156,7 +155,7 @@ class Grid:
 
     def __from_vert__(self, dataset):
         """Create a grid with faces constructed from vertices specified by the
-        given argument. 
+        given argument.
 
         Parameters
         ----------
@@ -236,8 +235,7 @@ class Grid:
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "_FillValue":
-                    INT_FILL_VALUE, 
+                "_FillValue": INT_FILL_VALUE,
                 "start_index": 0
             })
 
