@@ -236,7 +236,7 @@ class Grid:
             attrs={
                 "cf_role": "face_node_connectivity",
                 "_FillValue":
-                    INT_FILL_VALUE,  # TODO: Replace -1 with  INT_FILL_VALUE later
+                    INT_FILL_VALUE, 
                 "start_index": 0
             })
 
