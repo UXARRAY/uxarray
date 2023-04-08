@@ -85,8 +85,9 @@ class Grid:
                 self.source_grid = "From vertices"
             else:
                 raise RuntimeError(
-                    "Input vertices don't have correct dimensions (Expected dimension will be 3: [nMesh2_face, "
-                    "nMesh2_node, Two/Three]). Or dimesion of 2 when only one face is passed"
+                    f"Invalid Input Dimension: {dataset.ndim}. Expected dimension should be "
+                    f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only one "
+                    f"one face is passed in."
                 )
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
