@@ -154,8 +154,8 @@ class Grid:
                     setattr(self, key, len(self.ds[value]))
 
     def __from_vert__(self, dataset):
-        """Create a grid with multiple faces with vertices specified by the
-        given argument. Called by :func:`__init__`.
+        """Create a grid with faces constructed from vertices specified by the
+        given argument. 
 
         Parameters
         ----------
