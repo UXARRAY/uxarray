@@ -160,7 +160,7 @@ class Grid:
         Parameters
         ----------
         dataset : ndarray, list, tuple, required
-            To be Input vertex coordinates that form one face.
+            Input vertex coordinates that form our face(s)
         """
         self.ds = xr.Dataset()
         self.ds["Mesh2"] = xr.DataArray(
