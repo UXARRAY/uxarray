@@ -214,7 +214,7 @@ class Grid:
             # Update indices accordingly
             for i, idx in enumerate(false_indices):
                 indices[indices == idx] = INT_FILL_VALUE
-                indices[indices > idx] -= 1
+                indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
 
         # Create coordinate DataArrays
         self.ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
