@@ -73,9 +73,21 @@ class Grid:
 
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
-            self.vertices = dataset
-            self.__from_vert__()
-            self.source_grid = "From vertices"
+            dataset = np.asarray(dataset)
+            # grid with multiple faces
+            if dataset.ndim == 3:
+                self.__from_vert__(dataset)
+                self.source_grid = "From vertices"
+            # grid with a single face
+            elif dataset.ndim == 2:
+                dataset = np.array([dataset])
+                self.__from_vert__(dataset)
+                self.source_grid = "From vertices"
+            else:
+                raise RuntimeError(
+                    f"Invalid Input Dimension: {dataset.ndim}. Expected dimension should be "
+                    f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
+                    f"one face is passed in.")
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
@@ -146,11 +158,14 @@ class Grid:
                 if value in self.ds.dims:
                     setattr(self, key, len(self.ds[value]))
 
-    def __from_vert__(self):
-        """Create a grid with one face with vertices specified by the given
-        argument.
+    def __from_vert__(self, dataset):
+        """Create a grid with faces constructed from vertices specified by the
+        given argument.
 
-        Called by :func:`__init__`.
+        Parameters
+        ----------
+        dataset : ndarray, list, tuple, required
+            Input vertex coordinates that form our face(s)
         """
         self.ds = xr.Dataset()
         self.ds["Mesh2"] = xr.DataArray(
@@ -163,35 +178,63 @@ class Grid:
                 "face_node_connectivity": "Mesh2_face_nodes",
                 "face_dimension": "nMesh2_face"
             })
-        self.ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
+        self.ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
 
         # set default coordinate units to spherical coordinates
         # users can change to cartesian if using cartesian for initialization
         x_units = "degrees_east"
         y_units = "degrees_north"
-        if self.vertices[0].size > 2:
+        if dataset[0][0].size > 2:
             z_units = "elevation"
+        x_coord = dataset[:, :, 0].flatten()
+        y_coord = dataset[:, :, 1].flatten()
+        if dataset[0][0].size > 2:
+            z_coord = dataset[:, :, 2].flatten()
 
-        x_coord = self.vertices.transpose()[0]
-        y_coord = self.vertices.transpose()[1]
-        if self.vertices[0].size > 2:
-            z_coord = self.vertices.transpose()[2]
+        # Identify unique vertices and their indices
+        unique_verts, indices = np.unique(dataset.reshape(
+            -1, dataset.shape[-1]),
+                                          axis=0,
+                                          return_inverse=True)
 
-        # single face with all nodes
-        num_nodes = x_coord.size
-        connectivity = [list(range(0, num_nodes))]
+        # Nodes index that contain a fill value
+        fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
+                                        unique_verts[:, 1] == INT_FILL_VALUE)
+        if dataset[0][0].size > 2:
+            fill_value_mask = np.logical_or(
+                unique_verts[:, 0] == INT_FILL_VALUE,
+                unique_verts[:, 1] == INT_FILL_VALUE,
+                unique_verts[:, 2] == INT_FILL_VALUE)
 
-        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
+        # Get the indices of all the False values in fill_value_mask
+        false_indices = np.where(fill_value_mask == True)[0]
+
+        # Check if any False values were found
+        indices = indices.astype(INT_DTYPE)
+        if false_indices.size > 0:
+
+            # Remove the rows corresponding to False values in unique_verts
+            unique_verts = np.delete(unique_verts, false_indices, axis=0)
+
+            # Update indices accordingly
+            for i, idx in enumerate(false_indices):
+                indices[indices == idx] = INT_FILL_VALUE
+                indices[indices > idx] -= 1
+
+        # Create coordinate DataArrays
+        self.ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
                                                dims=["nMesh2_node"],
                                                attrs={"units": x_units})
-        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
+        self.ds["Mesh2_node_y"] = xr.DataArray(data=unique_verts[:, 1],
                                                dims=["nMesh2_node"],
                                                attrs={"units": y_units})
-        if self.vertices[0].size > 2:
-            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
+        if dataset.shape[-1] > 2:
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
+        # Create connectivity array using indices of unique vertices
+        connectivity = indices.reshape(dataset.shape[:-1])
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
             data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
