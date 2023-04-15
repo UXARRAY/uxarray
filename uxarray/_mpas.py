@@ -259,18 +259,21 @@ def _set_global_attrs(in_ds, out_ds):
         # required attributes if mesh does not lie on a sphere
         if in_ds.on_a_sphere == "NO":
             # defines if the mesh has any periodic boundaries
-            out_ds['is_periodic'] = in_ds.is_periodic
-            if in_ds.is_periodic == "YES":
-                # period of the mesh in the x direction
-                if "x_period" in in_ds.attrs:
-                    out_ds['x_period'] = in_ds.x_period
-                else:
-                    warnings.warn("Missing Required Attribute: 'x_period'")
-                # period of the mesh in the y direction
-                if "y_period" in in_ds.attrs:
-                    out_ds['y_period'] = in_ds.y_period
-                else:
-                    warnings.warn("Missing Required Attribute: 'y_period'")
+            if "is_periodic" in in_ds.attrs:
+                out_ds['is_periodic'] = in_ds.is_periodic
+                if in_ds.is_periodic == "YES":
+                    # period of the mesh in the x direction
+                    if "x_period" in in_ds.attrs:
+                        out_ds['x_period'] = in_ds.x_period
+                    else:
+                        warnings.warn("Missing Required Attribute: 'x_period'")
+                    # period of the mesh in the y direction
+                    if "y_period" in in_ds.attrs:
+                        out_ds['y_period'] = in_ds.y_period
+                    else:
+                        warnings.warn("Missing Required Attribute: 'y_period'")
+            else:
+                warnings.warn("Missing Required Attribute: 'is_periodic'")
     else:
         warnings.warn("Missing Required Attribute: 'on_a_sphere'")
 
