@@ -2,9 +2,7 @@ import xarray as xr
 import numpy as np
 import warnings
 
-# edit once PR #241 is merged
-INT_DTYPE = np.uint32
-INT_FILL_VALUE = np.iinfo(INT_DTYPE).max
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _primal_to_ugrid(in_ds, out_ds):
@@ -238,25 +236,25 @@ def _set_global_attrs(in_ds, out_ds):
     """
 
     # defines if the mesh describes points that lie on the surface of a sphere or not
-    if 'sphere_radius' in in_ds:
+    if 'sphere_radius' in in_ds.attrs:
         out_ds['sphere_radius'] = in_ds.sphere_radius
     else:
         warnings.warn("Missing Required Attribute: 'sphere_radius'")
 
     # typically a random string used for tracking mesh provenance
-    if 'mesh_id' in in_ds:
+    if 'mesh_id' in in_ds.attrs:
         out_ds['mesh_id'] = in_ds.mesh_id
     else:
         warnings.warn("Missing Required Attribute: 'mesh_id'")
 
     # defines the version of the MPAS Mesh specification the mesh conforms to
-    if 'mesh_spec' in in_ds:
+    if 'mesh_spec' in in_ds.attrs:
         out_ds['mesh_spec'] = in_ds.mesh_spec
     else:
         warnings.warn("Missing Required Attribute: 'mesh_spec'")
 
     # defines if the mesh describes points that lie on the surface of a sphere or not
-    if "on_a_sphere" in in_ds:
+    if "on_a_sphere" in in_ds.attrs:
         out_ds['on_a_sphere'] = in_ds.on_a_sphere
         # required attributes if mesh does not lie on a sphere
         if in_ds.on_a_sphere == "NO":
@@ -264,12 +262,12 @@ def _set_global_attrs(in_ds, out_ds):
             out_ds['is_periodic'] = in_ds.is_periodic
             if in_ds.is_periodic == "YES":
                 # period of the mesh in the x direction
-                if "x_period" in in_ds:
+                if "x_period" in in_ds.attrs:
                     out_ds['x_period'] = in_ds.x_period
                 else:
                     warnings.warn("Missing Required Attribute: 'x_period'")
                 # period of the mesh in the y direction
-                if "y_period" in in_ds:
+                if "y_period" in in_ds.attrs:
                     out_ds['y_period'] = in_ds.y_period
                 else:
                     warnings.warn("Missing Required Attribute: 'y_period'")
