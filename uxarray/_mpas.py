@@ -272,8 +272,6 @@ def _set_global_attrs(in_ds, out_ds):
                         out_ds.attrs['y_period'] = in_ds.y_period
                     else:
                         warnings.warn("Missing Required Attribute: 'y_period'")
-            else:
-                warnings.warn("Missing Required Attribute: 'is_periodic'")
     else:
         warnings.warn("Missing Required Attribute: 'on_a_sphere'")
 
