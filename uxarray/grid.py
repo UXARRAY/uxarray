@@ -8,9 +8,9 @@ from ._exodus import _read_exodus, _encode_exodus
 from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
-from .helpers import get_all_face_area_from_coords, parse_grid_type
-
-int_dtype = np.uint32
+from ._mpas import _read_mpas
+from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
+from .constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class Grid:
@@ -46,8 +46,9 @@ class Grid:
         gridspec: bool, optional
             Specifies gridspec
         mesh_type: str, optional
-            Specify the mesh file type, eg. exo, ugrid, shp, etc
-
+            Specify the mesh file type, eg. exo, ugrid, shp, mpas, etc
+        use_dual: bool, optional
+            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
         Raises
         ------
             RuntimeError
@@ -64,16 +65,29 @@ class Grid:
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid'
+            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid',
+            'use_dual'
         ]
         for key in kwargs_list:
             setattr(self, key, kwargs.get(key, None))
 
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
-            self.vertices = dataset
-            self.__from_vert__()
-            self.source_grid = "From vertices"
+            dataset = np.asarray(dataset)
+            # grid with multiple faces
+            if dataset.ndim == 3:
+                self.__from_vert__(dataset)
+                self.source_grid = "From vertices"
+            # grid with a single face
+            elif dataset.ndim == 2:
+                dataset = np.array([dataset])
+                self.__from_vert__(dataset)
+                self.source_grid = "From vertices"
+            else:
+                raise RuntimeError(
+                    f"Invalid Input Dimension: {dataset.ndim}. Expected dimension should be "
+                    f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
+                    f"one face is passed in.")
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
@@ -139,11 +153,14 @@ class Grid:
                 if value in self.ds.dims:
                     setattr(self, key, len(self.ds[value]))
 
-    def __from_vert__(self):
-        """Create a grid with one face with vertices specified by the given
-        argument.
+    def __from_vert__(self, dataset):
+        """Create a grid with faces constructed from vertices specified by the
+        given argument.
 
-        Called by :func:`__init__`.
+        Parameters
+        ----------
+        dataset : ndarray, list, tuple, required
+            Input vertex coordinates that form our face(s)
         """
         self.ds = xr.Dataset()
         self.ds["Mesh2"] = xr.DataArray(
@@ -156,41 +173,69 @@ class Grid:
                 "face_node_connectivity": "Mesh2_face_nodes",
                 "face_dimension": "nMesh2_face"
             })
-        self.ds.Mesh2.attrs['topology_dimension'] = self.vertices[0].size
+        self.ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
 
         # set default coordinate units to spherical coordinates
         # users can change to cartesian if using cartesian for initialization
         x_units = "degrees_east"
         y_units = "degrees_north"
-        if self.vertices[0].size > 2:
+        if dataset[0][0].size > 2:
             z_units = "elevation"
+        x_coord = dataset[:, :, 0].flatten()
+        y_coord = dataset[:, :, 1].flatten()
+        if dataset[0][0].size > 2:
+            z_coord = dataset[:, :, 2].flatten()
 
-        x_coord = self.vertices.transpose()[0]
-        y_coord = self.vertices.transpose()[1]
-        if self.vertices[0].size > 2:
-            z_coord = self.vertices.transpose()[2]
+        # Identify unique vertices and their indices
+        unique_verts, indices = np.unique(dataset.reshape(
+            -1, dataset.shape[-1]),
+                                          axis=0,
+                                          return_inverse=True)
 
-        # single face with all nodes
-        num_nodes = x_coord.size
-        connectivity = [list(range(0, num_nodes))]
+        # Nodes index that contain a fill value
+        fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
+                                        unique_verts[:, 1] == INT_FILL_VALUE)
+        if dataset[0][0].size > 2:
+            fill_value_mask = np.logical_or(
+                unique_verts[:, 0] == INT_FILL_VALUE,
+                unique_verts[:, 1] == INT_FILL_VALUE,
+                unique_verts[:, 2] == INT_FILL_VALUE)
 
-        self.ds["Mesh2_node_x"] = xr.DataArray(data=xr.DataArray(x_coord),
+        # Get the indices of all the False values in fill_value_mask
+        false_indices = np.where(fill_value_mask == True)[0]
+
+        # Check if any False values were found
+        indices = indices.astype(INT_DTYPE)
+        if false_indices.size > 0:
+
+            # Remove the rows corresponding to False values in unique_verts
+            unique_verts = np.delete(unique_verts, false_indices, axis=0)
+
+            # Update indices accordingly
+            for i, idx in enumerate(false_indices):
+                indices[indices == idx] = INT_FILL_VALUE
+                indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
+
+        # Create coordinate DataArrays
+        self.ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
                                                dims=["nMesh2_node"],
                                                attrs={"units": x_units})
-        self.ds["Mesh2_node_y"] = xr.DataArray(data=xr.DataArray(y_coord),
+        self.ds["Mesh2_node_y"] = xr.DataArray(data=unique_verts[:, 1],
                                                dims=["nMesh2_node"],
                                                attrs={"units": y_units})
-        if self.vertices[0].size > 2:
-            self.ds["Mesh2_node_z"] = xr.DataArray(data=xr.DataArray(z_coord),
+        if dataset.shape[-1] > 2:
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
+        # Create connectivity array using indices of unique vertices
+        connectivity = indices.reshape(dataset.shape[:-1])
         self.ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(connectivity),
+            data=xr.DataArray(connectivity).astype(INT_DTYPE),
             dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
             attrs={
                 "cf_role": "face_node_connectivity",
-                "_FillValue": -1,
+                "_FillValue": INT_FILL_VALUE,
                 "start_index": 0
             })
 
@@ -206,6 +251,12 @@ class Grid:
             self.ds, self.ds_var_names = _read_ugrid(dataset, self.ds_var_names)
         elif self.mesh_type == "shp":
             self.ds = _read_shpfile(dataset)
+        elif self.mesh_type == "mpas":
+            # select whether to use the dual mesh
+            if self.use_dual is not None:
+                self.ds = _read_mpas(dataset, self.use_dual)
+            else:
+                self.ds = _read_mpas(dataset)
         else:
             raise RuntimeError("unknown mesh type")
 
@@ -286,7 +337,7 @@ class Grid:
         --------
         Open a uxarray grid file
 
-        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/outCSne30.ug")
+        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
@@ -300,7 +351,7 @@ class Grid:
             if not "degree" in self.Mesh2_node_x.units:
                 coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.data.astype(int_dtype)
+            face_nodes = self.Mesh2_face_nodes.data
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z
@@ -371,3 +422,135 @@ class Grid:
         integral = np.dot(face_areas, face_vals)
 
         return integral
+
+    def _populate_cartesian_xyz_coord(self):
+        """A helper function that populates the xyz attribute in UXarray.ds.
+        This function is called when we need to use the cartesian coordinates
+        for each node to do the calculation but the input data only has the
+        "Mesh2_node_x" and "Mesh2_node_y" in degree.
+
+        Note
+        ----
+        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
+        corresponding units as stated below:
+
+        Mesh2_node_x
+         unit:  "degree_east" for longitude
+        Mesh2_node_y
+         unit:  "degrees_north" for latitude
+        Mesh2_node_z
+         unit:  "m"
+        Mesh2_node_cart_x
+         unit:  "m"
+        Mesh2_node_cart_y
+         unit:  "m"
+        Mesh2_node_cart_z
+         unit:  "m"
+        """
+
+        # Check if the cartesian coordinates are already populated
+        if "Mesh2_node_cart_x" in self.ds.keys():
+            return
+
+        # check for units and create Mesh2_node_cart_x/y/z set to self.ds
+        nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
+        nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
+        nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
+        nodes_cart = np.asarray(
+            list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
+
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(
+            data=nodes_cart[:, 0],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "cartesian x",
+                "units": "m",
+            })
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(
+            data=nodes_cart[:, 1],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "cartesian y",
+                "units": "m",
+            })
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(
+            data=nodes_cart[:, 2],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "cartesian z",
+                "units": "m",
+            })
+
+    def _populate_lonlat_coord(self):
+        """Helper function that populates the longitude and latitude and store
+        it into the Mesh2_node_x and Mesh2_node_y. This is called when the
+        input data has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in
+        meters. Since we want "Mesh2_node_x" and "Mesh2_node_y" always have the
+        "degree" units. For more details, please read the following.
+
+        Raises
+        ------
+            RuntimeError
+                Mesh2_node_x/y/z are not represented in the cartesian format with the unit 'm'/'meters' when calling this function"
+
+        Note
+        ----
+        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
+        corresponding units as stated below:
+
+        Mesh2_node_x
+         unit:  "degree_east" for longitude
+        Mesh2_node_y
+         unit:  "degrees_north" for latitude
+        Mesh2_node_z
+         unit:  "m"
+        Mesh2_node_cart_x
+         unit:  "m"
+        Mesh2_node_cart_y
+         unit:  "m"
+        Mesh2_node_cart_z
+         unit:  "m"
+        """
+
+        # Check if the "Mesh2_node_x" is already in longitude
+        if "degree" in self.ds.Mesh2_node_x.units:
+            return
+
+        # Check if the input Mesh2_node_xyz" are represented in the cartesian format with the unit "m"
+        if ("m" not in self.ds.Mesh2_node_x.units) or ("m" not in self.ds.Mesh2_node_y.units) \
+                or ("m" not in self.ds.Mesh2_node_z.units):
+            raise RuntimeError(
+                "Expected: Mesh2_node_x/y/z should be represented in the cartesian format with the "
+                "unit 'm' when calling this function")
+
+        # Put the cartesian coordinates inside the proper data structure
+        self.ds["Mesh2_node_cart_x"] = xr.DataArray(
+            data=self.ds["Mesh2_node_x"].values)
+        self.ds["Mesh2_node_cart_y"] = xr.DataArray(
+            data=self.ds["Mesh2_node_y"].values)
+        self.ds["Mesh2_node_cart_z"] = xr.DataArray(
+            data=self.ds["Mesh2_node_z"].values)
+
+        # convert the input cartesian values into the longitude latitude degree
+        nodes_cart = np.stack(
+            (self.ds["Mesh2_node_x"].values, self.ds["Mesh2_node_y"].values,
+             self.ds["Mesh2_node_z"].values),
+            axis=1).tolist()
+        nodes_rad = list(map(_convert_node_xyz_to_lonlat_rad, nodes_cart))
+        nodes_degree = np.rad2deg(nodes_rad)
+        self.ds["Mesh2_node_x"] = xr.DataArray(
+            data=nodes_degree[:, 0],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "longitude",
+                "long_name": "longitude of mesh nodes",
+                "units": "degrees_east",
+            })
+        self.ds["Mesh2_node_y"] = xr.DataArray(
+            data=nodes_degree[:, 1],
+            dims=["nMesh2_node"],
+            attrs={
+                "standard_name": "lattitude",
+                "long_name": "latitude of mesh nodes",
+                "units": "degrees_north",
+            })

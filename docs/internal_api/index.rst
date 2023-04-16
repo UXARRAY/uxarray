@@ -19,6 +19,9 @@ Grid Methods
    grid.Grid.__from_ds__
    grid.Grid.__from_vert__
    grid.Grid.__init_grid_var_attrs__
+   grid.Grid._populate_cartesian_xyz_coord
+   grid.Grid._populate_lonlat_coord
+
 
 Grid Helper Modules
 --------------------
@@ -31,6 +34,13 @@ Grid Helper Modules
    _exodus._get_element_type
    _ugrid._encode_ugrid
    _ugrid._read_ugrid
+   _mpas._dual_to_ugrid
+   _mpas._primal_to_ugrid
+   _mpas._replace_padding
+   _mpas._replace_zeros
+   _mpas._to_zero_index
+   _mpas._set_global_attrs
+   _mpas._read_mpas
    _scrip._read_scrip
    _scrip._encode_scrip
    _scrip._to_ugrid
@@ -38,3 +48,4 @@ Grid Helper Modules
    helpers._convert_node_xyz_to_lonlat_rad
    helpers._convert_node_lonlat_rad_to_xyz
    helpers._normalize_in_place
+   helpers._replace_fill_values
