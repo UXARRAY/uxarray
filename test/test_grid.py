@@ -310,14 +310,10 @@ class TestIntegrate(TestCase):
                   [-0.57735027, 5.77350269e-01, -0.57735027]]]
         vgrid = ux.Grid(verts)
 
-        # get node names for each grid object
-        x_var = vgrid.ds_var_names["Mesh2_node_x"]
-        y_var = vgrid.ds_var_names["Mesh2_node_y"]
-        z_var = vgrid.ds_var_names["Mesh2_node_z"]
-
-        vgrid.ds[x_var].attrs["units"] = "m"
-        vgrid.ds[y_var].attrs["units"] = "m"
-        vgrid.ds[z_var].attrs["units"] = "m"
+        # Add units
+        vgrid.Mesh2_node_x.attrs["units"] = "m"
+        vgrid.Mesh2_node_y.attrs["units"] = "m"
+        vgrid.Mesh2_node_z.attrs["units"] = "m"
 
         area_gaussian = vgrid.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
