@@ -15,7 +15,7 @@ except ImportError:
     from . import constants
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-mesh_file30 = current_path / "meshfiles" / "outCSne30.ug"
+mesh_file30 = current_path / "meshfiles" / "ugrid"/ "outCSne30"/ "outCSne30.ug"
 
 
 class TestGrid(TestCase):
