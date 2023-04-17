@@ -23,7 +23,7 @@ class TestExodus(TestCase):
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a 1 face exodus
         file."""
-        verts = np.array([[0, 0], [2, 0], [0, 2], [2, 2]])
+        verts = [[[0, 0], [2, 0], [0, 2], [2, 2]]]
         uxgrid = ux.open_grid(verts)
 
     def test_encode_exodus(self):
