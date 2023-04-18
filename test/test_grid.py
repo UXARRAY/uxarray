@@ -296,19 +296,19 @@ class TestGrid(TestCase):
         xr_grid_u30 = xr.open_dataset(ug_30)
         ux_grid_u30 = ux.Grid(xr_grid_u30)  # tests from ugrid
 
-    def test_build_face_geometry(self):
-        """Tests the construction of the ``Mesh2_face_geometry`` variable."""
+    def test_build_face_dimension(self):
+        """Tests the construction of the ``Mesh2_face_dimension`` variable."""
         grids = [self.tgrid1, self.tgrid2, self.tgrid3]
 
         for grid in grids:
-            # highest possible geometry dimension for a face
-            max_geometry = grid.nMaxMesh2_face_nodes
+            # highest possible dimension dimension for a face
+            max_dimension = grid.nMaxMesh2_face_nodes
 
             # face must be at least a triangle
-            min_geometry = 3
+            min_dimension = 3
 
-            assert grid.Mesh2_face_geometry.min() >= min_geometry
-            assert grid.Mesh2_face_geometry.max() <= max_geometry
+            assert grid.Mesh2_face_dimension.min() >= min_dimension
+            assert grid.Mesh2_face_dimension.max() <= max_dimension
 
 
 class TestIntegrate(TestCase):

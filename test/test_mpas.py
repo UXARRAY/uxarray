@@ -98,8 +98,8 @@ class TestMPAS(TestCase):
         assert np.array_equal(verticesOnCell, gold_output)
 
     def test_set_attrs(self):
-        """Tests the execution of ``_set_global_attrs``, checking for
-        attributes being correctly stored in ``Grid.ds``"""
+        """Tests the execution of "_set_global_attrs", checking for attributes
+        being correctly stored in "Grid.ds"."""
 
         # full set of expected mpas attributes
         expected_attrs = [
@@ -122,16 +122,3 @@ class TestMPAS(TestCase):
         # check if all expected attributes are set
         for mpas_attr in expected_attrs:
             assert mpas_attr in uxgrid.ds.attrs
-
-    def test_sphere_face_area(self):
-
-        #ds = xr.open_dataset(current_path / 'meshfiles' / "mpas" / "x1.40962.grid.nc")
-        ds = xr.open_dataset(self.mpas_grid_path)
-        primal_grid = ux.Grid(ds, use_dual=False)
-        dual_grid = ux.Grid(ds, use_dual=True)
-
-        primal_face_area = primal_grid.calculate_total_face_area()
-        dual_face_area = dual_grid.calculate_total_face_area()
-
-        pass
-

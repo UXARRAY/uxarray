@@ -34,12 +34,12 @@ class TestIntegrate(TestCase):
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
         face_nodes = np.array([[0, 1, 2]]).astype(INT_DTYPE)
-        face_geometry = np.array([3], dtype=INT_DTYPE)
+        face_dimension = np.array([3], dtype=INT_DTYPE)
         area = ux.get_all_face_area_from_coords(x,
                                                 y,
                                                 z,
                                                 face_nodes,
-                                                face_geometry,
+                                                face_dimension,
                                                 3,
                                                 coords_type="cartesian")
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=1)
