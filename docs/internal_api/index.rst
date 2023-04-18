@@ -21,7 +21,7 @@ Grid Methods
    grid.Grid.__init_grid_var_attrs__
    grid.Grid._populate_cartesian_xyz_coord
    grid.Grid._populate_lonlat_coord
-   grid.Grid._build_face_geometry
+   grid.Grid._build_face_dimension
 
 
 Grid Helper Modules
