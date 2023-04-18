@@ -97,7 +97,7 @@ def parse_grid_type(dataset):
 
 
 # Calculate the area of all faces.
-# @njit
+@njit
 def calculate_face_area(x,
                         y,
                         z,
@@ -184,7 +184,7 @@ def calculate_face_area(x,
     return area
 
 
-# @njit
+@njit
 def get_all_face_area_from_coords(x,
                                   y,
                                   z,
