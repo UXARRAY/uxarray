@@ -99,7 +99,7 @@ class Grid:
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
 
-        # build face dimension
+        # build face dimension, possibly safeguard for large datasets
         self._build_face_dimension()
 
     def __init_ds_var_names__(self):
