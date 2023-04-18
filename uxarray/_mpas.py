@@ -236,41 +236,42 @@ def _set_global_attrs(in_ds, out_ds):
     """
 
     # defines if the mesh describes points that lie on the surface of a sphere or not
-    if 'sphere_radius' in in_ds:
-        out_ds['sphere_radius'] = in_ds.sphere_radius
+    if 'sphere_radius' in in_ds.attrs:
+        out_ds.attrs['sphere_radius'] = in_ds.sphere_radius
     else:
         warnings.warn("Missing Required Attribute: 'sphere_radius'")
 
     # typically a random string used for tracking mesh provenance
-    if 'mesh_id' in in_ds:
-        out_ds['mesh_id'] = in_ds.mesh_id
+    if 'mesh_id' in in_ds.attrs:
+        out_ds.attrs['mesh_id'] = in_ds.mesh_id
     else:
         warnings.warn("Missing Required Attribute: 'mesh_id'")
 
     # defines the version of the MPAS Mesh specification the mesh conforms to
-    if 'mesh_spec' in in_ds:
-        out_ds['mesh_spec'] = in_ds.mesh_spec
+    if 'mesh_spec' in in_ds.attrs:
+        out_ds.attrs['mesh_spec'] = in_ds.mesh_spec
     else:
         warnings.warn("Missing Required Attribute: 'mesh_spec'")
 
     # defines if the mesh describes points that lie on the surface of a sphere or not
-    if "on_a_sphere" in in_ds:
-        out_ds['on_a_sphere'] = in_ds.on_a_sphere
+    if "on_a_sphere" in in_ds.attrs:
+        out_ds.attrs['on_a_sphere'] = in_ds.on_a_sphere
         # required attributes if mesh does not lie on a sphere
         if in_ds.on_a_sphere == "NO":
             # defines if the mesh has any periodic boundaries
-            out_ds['is_periodic'] = in_ds.is_periodic
-            if in_ds.is_periodic == "YES":
-                # period of the mesh in the x direction
-                if "x_period" in in_ds:
-                    out_ds['x_period'] = in_ds.x_period
-                else:
-                    warnings.warn("Missing Required Attribute: 'x_period'")
-                # period of the mesh in the y direction
-                if "y_period" in in_ds:
-                    out_ds['y_period'] = in_ds.y_period
-                else:
-                    warnings.warn("Missing Required Attribute: 'y_period'")
+            if "is_periodic" in in_ds.attrs:
+                out_ds.attrs['is_periodic'] = in_ds.is_periodic
+                if in_ds.is_periodic == "YES":
+                    # period of the mesh in the x direction
+                    if "x_period" in in_ds.attrs:
+                        out_ds.attrs['x_period'] = in_ds.x_period
+                    else:
+                        warnings.warn("Missing Required Attribute: 'x_period'")
+                    # period of the mesh in the y direction
+                    if "y_period" in in_ds.attrs:
+                        out_ds.attrs['y_period'] = in_ds.y_period
+                    else:
+                        warnings.warn("Missing Required Attribute: 'y_period'")
     else:
         warnings.warn("Missing Required Attribute: 'on_a_sphere'")
 
