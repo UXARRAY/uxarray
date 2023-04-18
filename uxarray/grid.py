@@ -99,6 +99,9 @@ class Grid:
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
 
+        # build face geometry
+        self._build_face_geometry()
+
     def __init_ds_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
         of xarray object.
@@ -352,6 +355,7 @@ class Grid:
                 coords_type = "cartesian"
 
             face_nodes = self.Mesh2_face_nodes.data
+            face_geometry = self.Mesh2_face_geometry.data
             dim = self.Mesh2.attrs['topology_dimension']
 
             # initialize z
@@ -366,7 +370,8 @@ class Grid:
 
             # call function to get area of all the faces as a np array
             self._face_areas = get_all_face_area_from_coords(
-                x, y, z, face_nodes, dim, quadrature_rule, order, coords_type)
+                x, y, z, face_nodes, face_geometry, dim, quadrature_rule, order,
+                coords_type)
 
         return self._face_areas
 
@@ -554,3 +559,29 @@ class Grid:
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
+
+    def _build_face_geometry(self):
+        """Constructs ``Mesh2_face_geometry``, which calculates the geometry of
+        each face in ``Mesh2_face_nodes``"""
+
+        # Triangular Mesh
+        if not hasattr(self, "nMaxMesh2_face_nodes"):
+            nMaxMesh2_face_nodes = self.Mesh2_face_nodes.shape[1]
+            setattr(self, "nMaxMesh2_face_nodes", nMaxMesh2_face_nodes)
+
+        # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
+        closed = np.ones((self.nMesh2_face, self.nMaxMesh2_face_nodes + 1),
+                         dtype=INT_DTYPE) * INT_FILL_VALUE
+
+        closed[:, :-1] = self.Mesh2_face_nodes.copy()
+
+        face_geometry = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+        # add to internal dataset
+        self.ds["Mesh2_face_geometry"] = xr.DataArray(
+            data=face_geometry,
+            dims=["nMesh2_face"],
+            attrs={"long_name": "geometry of each face"})
+
+        # standardized attribute
+        setattr(self, "Mesh2_face_geometry", self.ds["Mesh2_face_geometry"])
