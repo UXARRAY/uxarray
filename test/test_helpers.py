@@ -131,6 +131,19 @@ class TestConstants(TestCase):
     # INT_FILL_VALUE as set in constants.py
     fv = INT_FILL_VALUE
 
+    def test_invalid_indexing(self):
+        """Tests if the current INT_DTYPE and INT_FILL_VALUE throw the correct
+        errors when indexing."""
+        dummy_data = np.array([1, 2, 3, 4])
+
+        invalid_indices = np.array([self.fv, self.fv], dtype=INT_DTYPE)
+        invalid_index = self.fv
+
+        # invalid index/indices should throw an Index Error
+        with self.assertRaises(IndexError):
+            dummy_data[invalid_indices]
+            dummy_data[invalid_index]
+
     def test_replace_fill_values(self):
         """Tests _replace_fill_values() helper function across multiple
         different dtype arrays used as face_nodes."""
