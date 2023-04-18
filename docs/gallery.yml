@@ -5,3 +5,7 @@
 - title: Accessing Grid Information
   path: examples/002-access-grid-info.ipynb
   thumbnail: _static/thumbnails/default.svg
+
+- title: Calculating face area(s) with UXarray
+  path: examples/002-access-grid-info.ipynb
+  thumbnail: _static/thumbnails/default.svg
