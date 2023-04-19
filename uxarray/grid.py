@@ -9,7 +9,7 @@ from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
-from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, _close_face_nodes
+from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, close_face_nodes
 from .constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -442,9 +442,9 @@ class Grid:
         (``fill_value_mask``) are stored for constructing other
         connectivity variables.
         """
-        padded_face_nodes = _close_face_nodes(self.Mesh2_face_nodes.values,
-                                              self.nMesh2_face,
-                                              self.nMaxMesh2_face_nodes)
+        padded_face_nodes = close_face_nodes(self.Mesh2_face_nodes.values,
+                                             self.nMesh2_face,
+                                             self.nMaxMesh2_face_nodes)
 
         # array of empty edge nodes where each entry is a pair of indices
         edge_nodes = np.empty((self.nMesh2_face * self.nMaxMesh2_face_nodes, 2),

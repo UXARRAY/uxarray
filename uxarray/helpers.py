@@ -623,7 +623,7 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     return grid_var
 
 
-def _close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
+def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     """Closes (``Mesh2_face_nodes``) by inserting the first node index after
     the last non-fill-value node.
 

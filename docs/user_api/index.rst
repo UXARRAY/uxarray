@@ -43,3 +43,4 @@ Helper Functions
    helpers.node_xyz_to_lonlat_rad
    helpers.node_lonlat_rad_to_xyz
    helpers.normalize_in_place
+   helpers.close_face_nodes

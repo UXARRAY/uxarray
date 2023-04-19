@@ -51,4 +51,3 @@ Grid Helper Modules
    helpers._convert_node_lonlat_rad_to_xyz
    helpers._normalize_in_place
    helpers._replace_fill_values
-   helpers._close_face_nodes
