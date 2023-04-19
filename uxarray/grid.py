@@ -356,37 +356,37 @@ class Grid:
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
-        if self._face_areas is None:
-            # area of a face call needs the units for coordinate conversion if spherical grid is used
-            coords_type = "spherical"
-            if not "degree" in self.Mesh2_node_x.units:
-                coords_type = "cartesian"
+        # if self._face_areas is None:
+        # area of a face call needs the units for coordinate conversion if spherical grid is used
+        coords_type = "spherical"
+        if not "degree" in self.Mesh2_node_x.units:
+            coords_type = "cartesian"
 
-            face_nodes = self.Mesh2_face_nodes.data
-            face_dimension = self.Mesh2_face_dimension.data
-            dim = self.Mesh2.attrs['topology_dimension']
+        face_nodes = self.Mesh2_face_nodes.data
+        face_dimension = self.Mesh2_face_dimension.data
+        dim = self.Mesh2.attrs['topology_dimension']
 
-            # initialize z
-            z = np.zeros((self.nMesh2_node))
+        # initialize z
+        z = np.zeros((self.nMesh2_node))
 
-            # call func to cal face area of all nodes
-            x = self.Mesh2_node_x.data
-            y = self.Mesh2_node_y.data
-            # check if z dimension
-            if self.Mesh2.topology_dimension > 2:
-                z = self.Mesh2_node_z.data
+        # call func to cal face area of all nodes
+        x = self.Mesh2_node_x.data
+        y = self.Mesh2_node_y.data
+        # check if z dimension
+        if self.Mesh2.topology_dimension > 2:
+            z = self.Mesh2_node_z.data
 
-            # Note: x, y, z are np arrays of type float
-            # Using np.issubdtype to check if the type is float
-            # if not (int etc.), convert to float, this is to avoid numba errors
-            x, y, z = (arr.astype(float)
-                       if not np.issubdtype(arr[0], np.floating) else arr
-                       for arr in (x, y, z))
+        # Note: x, y, z are np arrays of type float
+        # Using np.issubdtype to check if the type is float
+        # if not (int etc.), convert to float, this is to avoid numba errors
+        x, y, z = (arr.astype(float)
+                   if not np.issubdtype(arr[0], np.floating) else arr
+                   for arr in (x, y, z))
 
-            # call function to get area of all the faces as a np array
-            self._face_areas = get_all_face_area_from_coords(
-                x, y, z, face_nodes, face_dimension, dim, quadrature_rule,
-                order, coords_type)
+        # call function to get area of all the faces as a np array
+        self._face_areas = get_all_face_area_from_coords(
+            x, y, z, face_nodes, face_dimension, dim, quadrature_rule, order,
+            coords_type)
 
         return self._face_areas
 

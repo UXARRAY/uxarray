@@ -6,6 +6,6 @@
   path: examples/002-access-grid-info.ipynb
   thumbnail: _static/thumbnails/default.svg
 
-- title: Calculating face area(s) with UXarray
+- title: Face Area Calculations
   path: examples/003-area-calc.ipynb
   thumbnail: _static/thumbnails/default.svg
