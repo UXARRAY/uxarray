@@ -182,12 +182,15 @@ class Grid:
         # users can change to cartesian if using cartesian for initialization
         x_units = "degrees_east"
         y_units = "degrees_north"
-        if dataset[0][0].size > 2:
-            z_units = "elevation"
+        z_units = "elevation"
+
         x_coord = dataset[:, :, 0].flatten()
         y_coord = dataset[:, :, 1].flatten()
+
         if dataset[0][0].size > 2:
             z_coord = dataset[:, :, 2].flatten()
+        else:
+            z_coord = x_coord * 0.0
 
         # Identify unique vertices and their indices
         unique_verts, indices = np.unique(dataset.reshape(
@@ -228,6 +231,11 @@ class Grid:
                                                attrs={"units": y_units})
         if dataset.shape[-1] > 2:
             self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
+                                                   dims=["nMesh2_node"],
+                                                   attrs={"units": z_units})
+        else:
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] *
+                                                   0.0,
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
