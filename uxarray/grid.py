@@ -368,6 +368,13 @@ class Grid:
             if self.Mesh2.topology_dimension > 2:
                 z = self.Mesh2_node_z.data
 
+            # Note: x, y, z are np arrays of type float
+            # Using np.issubdtype to check if the type is float
+            # if not (int etc.), convert to float, this is to avoid numba errors
+            x, y, z = (arr.astype(float)
+                       if not np.issubdtype(arr[0], np.floating) else arr
+                       for arr in (x, y, z))
+
             # call function to get area of all the faces as a np array
             self._face_areas = get_all_face_area_from_coords(
                 x, y, z, face_nodes, face_dimension, dim, quadrature_rule,

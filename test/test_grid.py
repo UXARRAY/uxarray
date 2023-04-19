@@ -403,7 +403,26 @@ class TestFaceAreas(TestCase):
     #     grid_2 = ux.Grid(grid_2_ds)
     #     grid_2.compute_face_areas()
 
+    def test_verts_calc_area(self):
+        faces_verts_ndarray = np.array([
+            np.array([[150, 10, 0], [160, 20, 0], [150, 30, 0], [135, 30, 0],
+                      [125, 20, 0], [135, 10, 0]]),
+            np.array([[125, 20, 0], [135, 30, 0], [125, 60, 0], [110, 60, 0],
+                      [100, 30, 0], [105, 20, 0]]),
+            np.array([[95, 10, 0], [105, 20, 0], [100, 30, 0], [85, 30, 0],
+                      [75, 20, 0], [85, 10, 0]]),
+        ])
+        # load our vertices into a UXarray Grid object
+        verts_grid = ux.Grid(faces_verts_ndarray,
+                             vertices=True,
+                             islatlon=True,
+                             concave=False)
 
+        face_verts_areas = verts_grid.face_areas
+
+        nt.assert_almost_equal(face_verts_areas.sum(),
+                               constants.FACE_VERTS_AREA,
+                               decimal=3)
 class TestPopulateCoordinates(TestCase):
 
     def test_populate_cartesian_xyz_coord(self):
