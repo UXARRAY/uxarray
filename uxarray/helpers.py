@@ -5,6 +5,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from .constants import INT_DTYPE
 
 config.DISABLE_JIT = False
@@ -188,6 +189,7 @@ def get_all_face_area_from_coords(x,
                                   y,
                                   z,
                                   face_nodes,
+                                  face_geometry,
                                   dim,
                                   quadrature_rule="triangular",
                                   order=4,
@@ -226,25 +228,27 @@ def get_all_face_area_from_coords(x,
     -------
     area of all faces : ndarray
     """
-    num_faces = face_nodes.shape[0]
-    area = np.zeros(num_faces)  # set area of each face to 0
 
-    face_nodes = face_nodes[:].astype(INT_DTYPE)
+    n_face, n_max_face_nodes = face_nodes.shape
 
-    for i in range(num_faces):
-        face_z = np.zeros(len(face_nodes[i]))
+    # set initial area of each face to 0
+    area = np.zeros(n_face)
 
-        face_x = x[face_nodes[i]]
-        face_y = y[face_nodes[i]]
+    for face_idx, max_nodes in enumerate(face_geometry):
+        face_x = x[face_nodes[face_idx, 0:max_nodes]]
+        face_y = y[face_nodes[face_idx, 0:max_nodes]]
+
         # check if z dimension
         if dim > 2:
-            face_z = z[face_nodes[i]]
+            face_z = z[face_nodes[face_idx, 0:max_nodes]]
+        else:
+            face_z = np.zeros_like(face_y)
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
                                         order, coords_type)
-
-        area[i] = face_area
+        # store current face area
+        area[face_idx] = face_area
 
     return area
 
