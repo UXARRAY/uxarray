@@ -34,10 +34,12 @@ class TestIntegrate(TestCase):
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
         face_nodes = np.array([[0, 1, 2]]).astype(INT_DTYPE)
+        face_dimension = np.array([3], dtype=INT_DTYPE)
         area = ux.get_all_face_area_from_coords(x,
                                                 y,
                                                 z,
                                                 face_nodes,
+                                                face_dimension,
                                                 3,
                                                 coords_type="cartesian")
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=1)
@@ -128,6 +130,19 @@ class TestConstants(TestCase):
 
     # INT_FILL_VALUE as set in constants.py
     fv = INT_FILL_VALUE
+
+    def test_invalid_indexing(self):
+        """Tests if the current INT_DTYPE and INT_FILL_VALUE throw the correct
+        errors when indexing."""
+        dummy_data = np.array([1, 2, 3, 4])
+
+        invalid_indices = np.array([self.fv, self.fv], dtype=INT_DTYPE)
+        invalid_index = self.fv
+
+        # invalid index/indices should throw an Index Error
+        with self.assertRaises(IndexError):
+            dummy_data[invalid_indices]
+            dummy_data[invalid_index]
 
     def test_replace_fill_values(self):
         """Tests _replace_fill_values() helper function across multiple

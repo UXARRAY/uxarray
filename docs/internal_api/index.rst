@@ -22,6 +22,7 @@ Grid Methods
    grid.Grid._build_edge_node_connectivity
    grid.Grid._populate_cartesian_xyz_coord
    grid.Grid._populate_lonlat_coord
+   grid.Grid._build_face_dimension
 
 
 Grid Helper Modules
