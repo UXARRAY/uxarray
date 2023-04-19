@@ -167,7 +167,6 @@ class TestGrid(TestCase):
                         vertices=True,
                         islatlon=True,
                         concave=False)
-        vgrid.calculate_total_face_area()
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
