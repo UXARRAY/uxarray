@@ -1,4 +1,5 @@
 import numpy as np
 
-INT_DTYPE = np.uintp
-INT_FILL_VALUE = np.iinfo(INT_DTYPE).max
+# numpy indexing code is written for np.intp
+INT_DTYPE = np.intp
+INT_FILL_VALUE = np.iinfo(INT_DTYPE).min

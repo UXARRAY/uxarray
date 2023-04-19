@@ -98,8 +98,8 @@ class TestMPAS(TestCase):
         assert np.array_equal(verticesOnCell, gold_output)
 
     def test_set_attrs(self):
-        """Tests the execution of ``_set_global_attrs``, checking for
-        attributes being correctly stored in ``Grid.ds``"""
+        """Tests the execution of "_set_global_attrs", checking for attributes
+        being correctly stored in "Grid.ds"."""
 
         # full set of expected mpas attributes
         expected_attrs = [
