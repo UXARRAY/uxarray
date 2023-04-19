@@ -167,6 +167,7 @@ class TestGrid(TestCase):
                         vertices=True,
                         islatlon=True,
                         concave=False)
+        vgrid.calculate_total_face_area()
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -423,6 +424,8 @@ class TestFaceAreas(TestCase):
         nt.assert_almost_equal(face_verts_areas.sum(),
                                constants.FACE_VERTS_AREA,
                                decimal=3)
+
+
 class TestPopulateCoordinates(TestCase):
 
     def test_populate_cartesian_xyz_coord(self):

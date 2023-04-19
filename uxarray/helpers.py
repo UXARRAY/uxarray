@@ -239,11 +239,11 @@ def get_all_face_area_from_coords(x,
         face_y = y[face_nodes[face_idx, 0:max_nodes]]
 
         # check if z dimension
-        
+
         if dim > 2:
             face_z = z[face_nodes[face_idx, 0:max_nodes]]
         else:
-            face_z = face_x*0.0
+            face_z = face_x * 0.0
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
