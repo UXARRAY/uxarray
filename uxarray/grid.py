@@ -442,13 +442,11 @@ class Grid:
         (``fill_value_mask``) are stored for constructing other
         connectivity variables.
         """
-
-        # padded face nodes: [nMesh2_face x nMaxMesh2_face_nodes + 1]
         padded_face_nodes = _close_face_nodes(self.Mesh2_face_nodes.values,
                                               self.nMesh2_face,
                                               self.nMaxMesh2_face_nodes)
 
-        # construct an array of empty edge nodes where each entry is a pair of indices
+        # array of empty edge nodes where each entry is a pair of indices
         edge_nodes = np.empty((self.nMesh2_face * self.nMaxMesh2_face_nodes, 2),
                               dtype=INT_DTYPE)
 
@@ -458,16 +456,6 @@ class Grid:
         # second index includes second node up to padded value
         edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
 
-        # all edge nodes that contain a fill value
-        fill_value_mask = np.logical_or(edge_nodes[:, 0] == INT_FILL_VALUE,
-                                        edge_nodes[:, 1] == INT_FILL_VALUE)
-
-        # all edge nodes that do not contain a fill value
-        non_fill_value_mask = np.logical_not(fill_value_mask)
-
-        # filter out all invalid edges
-        edge_nodes = edge_nodes[non_fill_value_mask]
-
         # sorted edge nodes
         edge_nodes.sort(axis=1)
 
@@ -475,7 +463,31 @@ class Grid:
         edge_nodes_unique, inverse_indices = np.unique(edge_nodes,
                                                        return_inverse=True,
                                                        axis=0)
-        # add mesh2_edge_nodes to internal dataset
+        # find all edge nodes that contain a fill value
+        fill_value_mask = np.logical_or(
+            edge_nodes_unique[:, 0] == INT_FILL_VALUE,
+            edge_nodes_unique[:, 1] == INT_FILL_VALUE)
+
+        # all edge nodes that do not contain a fill value
+        non_fill_value_mask = np.logical_not(fill_value_mask)
+        edge_nodes_unique = edge_nodes_unique[non_fill_value_mask]
+
+        # Update inverse_indices accordingly
+        indices_to_update = np.where(fill_value_mask)[0]
+
+        remove_mask = np.isin(inverse_indices, indices_to_update)
+        inverse_indices[remove_mask] = INT_FILL_VALUE
+
+        # Compute the indices where inverse_indices exceeds the values in indices_to_update
+        indexes = np.searchsorted(indices_to_update,
+                                  inverse_indices,
+                                  side='right')
+        # subtract the corresponding indexes from `inverse_indices`
+        for i in range(len(inverse_indices)):
+            if inverse_indices[i] != INT_FILL_VALUE:
+                inverse_indices[i] -= indexes[i]
+
+        # add Mesh2_edge_nodes to internal dataset
         self.ds['Mesh2_edge_nodes'] = xr.DataArray(
             edge_nodes_unique,
             dims=["nMesh2_edge", "Two"],
@@ -492,6 +504,7 @@ class Grid:
                     fill_value_mask
             })
 
+        # set standardized attributes
         setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
         setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
 
