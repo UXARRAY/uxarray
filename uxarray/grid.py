@@ -361,7 +361,9 @@ class Grid:
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
-        # if self._face_areas is None:
+        # if self._face_areas is None: # this allows for using the cached result,
+        # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
+
         # area of a face call needs the units for coordinate conversion if spherical grid is used
         coords_type = "spherical"
         if not "degree" in self.Mesh2_node_x.units:
@@ -399,7 +401,7 @@ class Grid:
     @property
     def face_areas(self):
         """Declare face_areas as a property."""
-
+        # if self._face_areas is not None: it allows for using the cached result
         if self._face_areas is None:
             self.compute_face_areas()
         return self._face_areas
