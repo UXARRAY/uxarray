@@ -43,13 +43,13 @@ class TestUxDataset(TestCase):
 
     def test_info(self):
         """Tests custom info containing grid information."""
-        uxds_var2_ne30 = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        uxds_var2_geoflow = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
         import contextlib
         import io
 
         with contextlib.redirect_stdout(io.StringIO()):
             try:
-                uxds_var2_ne30.info(show_attrs=True)
+                uxds_var2_geoflow.info(show_attrs=True)
             except Exception as exc:
-                assert False, f"'uxds_var2_ne30.info()' raised an exception: {exc}"
+                assert False, f"'uxds_var2_geoflow.info()' raised an exception: {exc}"

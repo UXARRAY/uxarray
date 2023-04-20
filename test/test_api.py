@@ -22,6 +22,22 @@ gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "gri
 
 class TestAPI(TestCase):
 
+    def test_open_dataset_failing(self):
+        """Loads a single dataset with its grid topology file using uxarray's
+        open_dataset call."""
+
+        # Base data path
+        base_path = "test/meshfiles/ugrid/geoflow-small/"
+
+        # Path to Grid file
+        grid_path = base_path + "grid.nc"
+
+        # Paths to Data Variable files
+        var_names = ['v1.nc', 'v2.nc', 'v3.nc']
+        data_paths = [base_path + name for name in var_names]
+
+        uxds_v1 = ux.open_dataset(grid_path, data_paths[0])
+
     def test_open_dataset(self):
         """Loads a single dataset with its grid topology file using uxarray's
         open_dataset call."""

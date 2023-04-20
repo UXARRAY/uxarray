@@ -234,7 +234,8 @@ def open_mfdataset(grid_filename_or_obj: str,
     grid_ds = xr.open_dataset(grid_filename_or_obj,
                               decode_times=False,
                               **kwargs)  # type: ignore
-    ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
+    ds = xr.open_mfdataset(paths, decode_times=False,
+                           **kwargs).isel(meshLayers=0, time=0)  # type: ignore
 
     ## Grid definition
     uxgrid = Grid(grid_ds,

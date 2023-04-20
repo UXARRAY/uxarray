@@ -109,10 +109,10 @@ class TestGrid(TestCase):
 
         # Now consturct the grid using the faces_coords
         verts_cart = np.array(faces_coords)
-        vgrid = ux.Grid(verts_cart,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(verts_cart,
+                             vertices=True,
+                             islatlon=False,
+                             concave=False)
 
         # Since the read-in data are cartesian coordinates, we should change the unit to m
         vgrid._ds.Mesh2_node_x.attrs["units"] = "m"
@@ -128,10 +128,10 @@ class TestGrid(TestCase):
             np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
                       [135, 10]])
         ])
-        vgrid = ux.Grid(faces_verts_one,
-                        vertices=True,
-                        islatlon=True,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_one,
+                             vertices=True,
+                             islatlon=True,
+                             concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
@@ -141,10 +141,10 @@ class TestGrid(TestCase):
         faces_verts_single_face = np.array([[150, 10], [160, 20], [150, 30],
                                             [135, 30], [125, 20], [135, 10]])
 
-        vgrid = ux.Grid(faces_verts_single_face,
-                        vertices=True,
-                        islatlon=True,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_single_face,
+                             vertices=True,
+                             islatlon=True,
+                             concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
@@ -183,10 +183,10 @@ class TestGrid(TestCase):
                              [100, 30], [105, 20]],
                             [[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                              [85, 10]]]
-        vgrid = ux.Grid(faces_verts_list,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_list,
+                             vertices=True,
+                             islatlon=False,
+                             concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -198,10 +198,10 @@ class TestGrid(TestCase):
             ((125, 20), (135, 30), (125, 60), (110, 60), (100, 30), (105, 20)),
             ((95, 10), (105, 20), (100, 30), (85, 30), (75, 20), (85, 10))
         ]
-        vgrid = ux.Grid(faces_verts_tuples,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_tuples,
+                             vertices=True,
+                             islatlon=False,
+                             concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -216,10 +216,10 @@ class TestGrid(TestCase):
                                      [[95, 10], [105, 20], [100, 30], [85, 30],
                                       [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
                                       [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]]
-        vgrid = ux.Grid(faces_verts_filled_values,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_filled_values,
+                             vertices=True,
+                             islatlon=False,
+                             concave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 12)
@@ -444,7 +444,7 @@ class TestPopulateCoordinates(TestCase):
 
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
 
-        vgrid = ux.Grid(verts_cart)
+        vgrid = ux.open_grid(verts_cart)
         vgrid._ds.Mesh2_node_x.attrs["units"] = "m"
         vgrid._ds.Mesh2_node_y.attrs["units"] = "m"
         vgrid._ds.Mesh2_node_z.attrs["units"] = "m"
