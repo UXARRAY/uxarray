@@ -183,16 +183,22 @@ class Grid:
             })
         self.ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
 
-        # set default coordinate units to spherical coordinates
-        # users can change to cartesian if using cartesian for initialization
-        x_units = "degrees_east"
-        y_units = "degrees_north"
-        if dataset[0][0].size > 2:
+        if self.islatlon is not None and self.islatlon is False:
+            x_units = 'm'
+            y_units = 'm'
+            z_units = 'm'
+        else:
+            x_units = "degrees_east"
+            y_units = "degrees_north"
             z_units = "elevation"
+
         x_coord = dataset[:, :, 0].flatten()
         y_coord = dataset[:, :, 1].flatten()
+
         if dataset[0][0].size > 2:
             z_coord = dataset[:, :, 2].flatten()
+        else:
+            z_coord = x_coord * 0.0
 
         # Identify unique vertices and their indices
         unique_verts, indices = np.unique(dataset.reshape(
@@ -233,6 +239,11 @@ class Grid:
                                                attrs={"units": y_units})
         if dataset.shape[-1] > 2:
             self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
+                                                   dims=["nMesh2_node"],
+                                                   attrs={"units": z_units})
+        else:
+            self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] *
+                                                   0.0,
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
@@ -349,34 +360,43 @@ class Grid:
 
         Get area of all faces in the same order as listed in grid.ds.Mesh2_face_nodes
 
-        >>> grid.get_face_areas
+        >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
-        if self._face_areas is None:
-            # area of a face call needs the units for coordinate conversion if spherical grid is used
-            coords_type = "spherical"
-            if not "degree" in self.Mesh2_node_x.units:
-                coords_type = "cartesian"
+        # if self._face_areas is None: # this allows for using the cached result,
+        # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
-            face_nodes = self.Mesh2_face_nodes.data
-            face_dimension = self.Mesh2_face_dimension.data
-            dim = self.Mesh2.attrs['topology_dimension']
+        # area of a face call needs the units for coordinate conversion if spherical grid is used
+        coords_type = "spherical"
+        if not "degree" in self.Mesh2_node_x.units:
+            coords_type = "cartesian"
 
-            # initialize z
-            z = np.zeros((self.nMesh2_node))
+        face_nodes = self.Mesh2_face_nodes.data
+        face_dimension = self.Mesh2_face_dimension.data
+        dim = self.Mesh2.attrs['topology_dimension']
 
-            # call func to cal face area of all nodes
-            x = self.Mesh2_node_x.data
-            y = self.Mesh2_node_y.data
-            # check if z dimension
-            if self.Mesh2.topology_dimension > 2:
-                z = self.Mesh2_node_z.data
+        # initialize z
+        z = np.zeros((self.nMesh2_node))
 
-            # call function to get area of all the faces as a np array
-            self._face_areas = get_all_face_area_from_coords(
-                x, y, z, face_nodes, face_dimension, dim, quadrature_rule,
-                order, coords_type)
+        # call func to cal face area of all nodes
+        x = self.Mesh2_node_x.data
+        y = self.Mesh2_node_y.data
+        # check if z dimension
+        if self.Mesh2.topology_dimension > 2:
+            z = self.Mesh2_node_z.data
+
+        # Note: x, y, z are np arrays of type float
+        # Using np.issubdtype to check if the type is float
+        # if not (int etc.), convert to float, this is to avoid numba errors
+        x, y, z = (arr.astype(float)
+                   if not np.issubdtype(arr[0], np.floating) else arr
+                   for arr in (x, y, z))
+
+        # call function to get area of all the faces as a np array
+        self._face_areas = get_all_face_area_from_coords(
+            x, y, z, face_nodes, face_dimension, dim, quadrature_rule, order,
+            coords_type)
 
         return self._face_areas
 
@@ -384,7 +404,7 @@ class Grid:
     @property
     def face_areas(self):
         """Declare face_areas as a property."""
-
+        # if self._face_areas is not None: it allows for using the cached result
         if self._face_areas is None:
             self.compute_face_areas()
         return self._face_areas
