@@ -184,14 +184,14 @@ class Grid:
         self.ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
 
         if self.islatlon is not None:
-            if self.islatlon:
-                x_units = "degrees_east"
-                y_units = "degrees_north"
-                z_units = "elevation"
-            else:
+            if self.islatlon is False:
                 x_units = 'm'
                 y_units = 'm'
                 z_units = 'm'
+        else:
+            x_units = "degrees_east"
+            y_units = "degrees_north"
+            z_units = "elevation"
 
         x_coord = dataset[:, :, 0].flatten()
         y_coord = dataset[:, :, 1].flatten()
