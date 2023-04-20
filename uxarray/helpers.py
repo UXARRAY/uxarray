@@ -5,8 +5,9 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+
 config.DISABLE_JIT = False
-int_dtype = np.uint32
 
 
 def parse_grid_type(dataset):
@@ -41,6 +42,8 @@ def parse_grid_type(dataset):
     # ugrid topology
     elif _is_ugrid(dataset):
         mesh_type = "ugrid"
+    elif "verticesOnCell" in dataset:
+        mesh_type = "mpas"
     else:
         raise RuntimeError(f"Could not recognize dataset format.")
     return mesh_type
@@ -151,14 +154,14 @@ def calculate_face_area(x,
 
         if (coords_type == "spherical"):
             node1 = np.array(
-                _convert_node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[0]), np.deg2rad(y[0])]))
+                node_lonlat_rad_to_xyz([np.deg2rad(x[0]),
+                                        np.deg2rad(y[0])]))
             node2 = np.array(
-                _convert_node_lonlat_rad_to_xyz(
+                node_lonlat_rad_to_xyz(
                     [np.deg2rad(x[j + 1]),
                      np.deg2rad(y[j + 1])]))
             node3 = np.array(
-                _convert_node_lonlat_rad_to_xyz(
+                node_lonlat_rad_to_xyz(
                     [np.deg2rad(x[j + 2]),
                      np.deg2rad(y[j + 2])]))
 
@@ -185,6 +188,7 @@ def get_all_face_area_from_coords(x,
                                   y,
                                   z,
                                   face_nodes,
+                                  face_geometry,
                                   dim,
                                   quadrature_rule="triangular",
                                   order=4,
@@ -223,25 +227,28 @@ def get_all_face_area_from_coords(x,
     -------
     area of all faces : ndarray
     """
-    num_faces = face_nodes.shape[0]
-    area = np.zeros(num_faces)  # set area of each face to 0
 
-    face_nodes = face_nodes[:].astype(int_dtype)
+    n_face, n_max_face_nodes = face_nodes.shape
 
-    for i in range(num_faces):
-        face_z = np.zeros(len(face_nodes[i]))
+    # set initial area of each face to 0
+    area = np.zeros(n_face)
 
-        face_x = x[face_nodes[i]]
-        face_y = y[face_nodes[i]]
+    for face_idx, max_nodes in enumerate(face_geometry):
+        face_x = x[face_nodes[face_idx, 0:max_nodes]]
+        face_y = y[face_nodes[face_idx, 0:max_nodes]]
+
         # check if z dimension
+
         if dim > 2:
-            face_z = z[face_nodes[i]]
+            face_z = z[face_nodes[face_idx, 0:max_nodes]]
+        else:
+            face_z = face_x * 0.0
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
                                         order, coords_type)
-
-        area[i] = face_area
+        # store current face area
+        area[face_idx] = face_area
 
     return area
 
@@ -460,7 +467,7 @@ def grid_center_lat_lon(ds):
 
 
 @njit
-def _convert_node_lonlat_rad_to_xyz(node_coord):
+def node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D
     longitude/latitude to normalized 3D xyz.
 
@@ -488,7 +495,7 @@ def _convert_node_lonlat_rad_to_xyz(node_coord):
 
 
 @njit
-def _convert_node_xyz_to_lonlat_rad(node_coord):
+def node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
 
@@ -510,7 +517,7 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     reference_tolerance = 1.0e-12
-    [dx, dy, dz] = _normalize_in_place(node_coord)
+    [dx, dy, dz] = normalize_in_place(node_coord)
     dx /= np.absolute(dx * dx + dy * dy + dz * dz)
     dy /= np.absolute(dx * dx + dy * dy + dz * dz)
     dz /= np.absolute(dx * dx + dy * dy + dz * dz)
@@ -532,7 +539,7 @@ def _convert_node_xyz_to_lonlat_rad(node_coord):
 
 
 @njit
-def _normalize_in_place(node):
+def normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate
     the magnitude.
@@ -555,4 +562,114 @@ def _normalize_in_place(node):
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
+    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
+
+
+def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
+    """Replaces all instances of the the current fill value (``original_fill``)
+    in (``grid_var``) with (``new_fill``) and converts to the dtype defined by
+    (``new_dtype``)
+
+    Parameters
+    ----------
+    grid_var : np.ndarray
+        grid variable to be modified
+    original_fill : constant
+        original fill value used in (``grid_var``)
+    new_fill : constant
+        new fill value to be used in (``grid_var``)
+    new_dtype : np.dtype, optional
+        new data type to convert (``grid_var``) to
+
+    Returns
+    ----------
+    grid_var : xarray.Dataset
+        Input Dataset with correct fill value and dtype
+    """
+
+    # locations of fill values
+    if original_fill is not None and np.isnan(original_fill):
+        fill_val_idx = np.isnan(grid_var)
+    else:
+        fill_val_idx = grid_var == original_fill
+
+    # convert to new data type
+    if new_dtype != grid_var.dtype and new_dtype is not None:
+        grid_var = grid_var.astype(new_dtype)
+
+    # ensure fill value can be represented with current integer data type
+    if np.issubdtype(new_dtype, np.integer):
+        int_min = np.iinfo(grid_var.dtype).min
+        int_max = np.iinfo(grid_var.dtype).max
+        # ensure new_fill is in range [int_min, int_max]
+        if new_fill < int_min or new_fill > int_max:
+            raise ValueError(f'New fill value: {new_fill} not representable by'
+                             f' integer dtype: {grid_var.dtype}')
+
+    # ensure non-nan fill value can be represented with current float data type
+    elif np.issubdtype(new_dtype, np.floating) and not np.isnan(new_fill):
+        float_min = np.finfo(grid_var.dtype).min
+        float_max = np.finfo(grid_var.dtype).max
+        # ensure new_fill is in range [float_min, float_max]
+        if new_fill < float_min or new_fill > float_max:
+            raise ValueError(f'New fill value: {new_fill} not representable by'
+                             f' float dtype: {grid_var.dtype}')
+    else:
+        raise ValueError(f'Data type {grid_var.dtype} not supported'
+                         f'for grid variables')
+
+    # replace all zeros with a fill value
+    grid_var[fill_val_idx] = new_fill
+
+    return grid_var
+
+
+def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
+    """Closes (``Mesh2_face_nodes``) by inserting the first node index after
+    the last non-fill-value node.
+
+    Parameters
+    ----------
+    Mesh2_face_nodes : np.ndarray
+        Connectivity array for constructing a face from its nodes
+    nMesh2_face : constant
+        Number of faces
+    nMaxMesh2_face_nodes : constant
+        Max number of nodes that compose a face
+
+    Returns
+    ----------
+    closed : ndarray
+        Closed (padded) Mesh2_face_nodes
+
+    Example
+    ----------
+    Given face nodes with shape [2 x 5]
+        [0, 1, 2, 3, FILL_VALUE]
+        [4, 5, 6, 7, 8]
+    Pads them to the following with shape [2 x 6]
+        [0, 1, 2, 3, 0, FILL_VALUE]
+        [4, 5, 6, 7, 8, 4]
+    """
+
+    # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
+    closed = np.ones((nMesh2_face, nMaxMesh2_face_nodes + 1),
+                     dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    # set all non-paded values to original face nodee values
+    closed[:, :-1] = Mesh2_face_nodes.copy()
+
+    # instance of first fill value
+    first_fv_idx_2d = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    # 2d to 1d index for np.put()
+    first_fv_idx_1d = first_fv_idx_2d + (
+        (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
+
+    # column of first node values
+    first_node_value = Mesh2_face_nodes[:, 0].copy()
+
+    # insert first node column at occurrence of first fill value
+    np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
+
+    return closed
