@@ -17,4 +17,5 @@ see the :doc:`contributing`.
 
    examples/001-read-grid-data.ipynb
    examples/002-access-grid-info.ipynb
-   examples/003-working-with-mpas-grids.ipynb
+   examples/003-area-calc.ipynb
+   examples/004-working-with-mpas-grids.ipynb
