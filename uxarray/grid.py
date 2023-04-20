@@ -183,11 +183,15 @@ class Grid:
             })
         self.ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
 
-        # set default coordinate units to spherical coordinates
-        # users can change to cartesian if using cartesian for initialization
-        x_units = "degrees_east"
-        y_units = "degrees_north"
-        z_units = "elevation"
+        if self.islatlon is not None:
+            if self.islatlon:
+                x_units = "degrees_east"
+                y_units = "degrees_north"
+                z_units = "elevation"
+            else:
+                x_units = 'm'
+                y_units = 'm'
+                z_units = 'm'
 
         x_coord = dataset[:, :, 0].flatten()
         y_coord = dataset[:, :, 1].flatten()
