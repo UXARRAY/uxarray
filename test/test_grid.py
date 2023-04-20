@@ -271,12 +271,6 @@ class TestGrid(TestCase):
         self.assertEqual(n_faces, grid.nMesh2_face)
         self.assertEqual(n_face_nodes, grid.nMaxMesh2_face_nodes)
 
-    # def test_init_dimension_attrs(self):
-
-    # TODO: Move to test_shpfile/scrip when implemented
-    # use external package to read?
-    # https://gis.stackexchange.com/questions/113799/how-to-read-a-shapefile-in-python
-
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(RuntimeError):
@@ -486,3 +480,55 @@ class TestPopulateCoordinates(TestCase):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
                                    lat_deg[i],
                                    decimal=12)
+
+
+class TestConnectivity(TestCase):
+    mpas_filepath = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+    exodus_filepath = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+    ugrid_filepath_01 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    ugrid_filepath_02 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+    ugrid_filepath_03 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
+
+    def test_build_edge_nodes(self):
+        """Tests the construction of (``Mesh2_edge_nodes``) on an MPAS grid
+        with known edge nodes."""
+
+        # grid with known edge node connectivity
+        mpas_grid_xr = xr.open_dataset(self.mpas_filepath)
+        mpas_grid_ux = ux.Grid(mpas_grid_xr)
+        edge_nodes_expected = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
+
+        # arrange edge nodes in the same manner as Grid._build_edge_node_connectivity
+        edge_nodes_expected.sort(axis=1)
+        edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
+
+        # construct edge nodes
+        mpas_grid_ux._build_edge_node_connectivity()
+        edge_nodes_output = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
+
+        assert np.array_equal(edge_nodes_expected, edge_nodes_output)
+
+        # euler's formula (n_face = n_edges - n_nodes + 2)
+        n_face = mpas_grid_ux.nMesh2_node
+        n_node = mpas_grid_ux.nMesh2_face
+        n_edge = edge_nodes_output.shape[0]
+
+        assert (n_face == n_edge - n_node + 2)
+
+    def test_edge_nodes_euler(self):
+        """Verifies that (``nMesh2_edge``) follows euler's formula."""
+        grid_paths = [
+            self.exodus_filepath, self.ugrid_filepath_01,
+            self.ugrid_filepath_02, self.ugrid_filepath_03
+        ]
+
+        for grid_path in grid_paths:
+            grid_xr = xr.open_dataset(grid_path)
+            grid_ux = ux.Grid(grid_xr)
+
+            n_face = grid_ux.nMesh2_node
+            n_node = grid_ux.nMesh2_face
+            n_edge = grid_ux.nMesh2_edge
+
+            # euler's formula (n_face = n_edges - n_nodes + 2)
+            assert (n_face == n_edge - n_node + 2)

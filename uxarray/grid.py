@@ -9,7 +9,7 @@ from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
-from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz
+from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, close_face_nodes
 from .constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -98,6 +98,11 @@ class Grid:
 
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
+
+        # construct connectivity
+        if self.source_grid != "From vertices":
+            if "Mesh2_edge_nodes" not in self.ds:
+                self._build_edge_node_connectivity()
 
         # build face dimension, possibly safeguard for large datasets
         self._build_face_dimension()
@@ -428,6 +433,81 @@ class Grid:
 
         return integral
 
+    def _build_edge_node_connectivity(self):
+        """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
+        and stores it within the internal (``Grid.ds``) and through the
+        attribute (``Grid.Mesh2_edge_nodes``).
+
+        Additionally, the attributes (``inverse_indices``) and
+        (``fill_value_mask``) are stored for constructing other
+        connectivity variables.
+        """
+        padded_face_nodes = close_face_nodes(self.Mesh2_face_nodes.values,
+                                             self.nMesh2_face,
+                                             self.nMaxMesh2_face_nodes)
+
+        # array of empty edge nodes where each entry is a pair of indices
+        edge_nodes = np.empty((self.nMesh2_face * self.nMaxMesh2_face_nodes, 2),
+                              dtype=INT_DTYPE)
+
+        # first index includes starting node up to non-padded value
+        edge_nodes[:, 0] = padded_face_nodes[:, :-1].ravel()
+
+        # second index includes second node up to padded value
+        edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
+
+        # sorted edge nodes
+        edge_nodes.sort(axis=1)
+
+        # unique edge nodes
+        edge_nodes_unique, inverse_indices = np.unique(edge_nodes,
+                                                       return_inverse=True,
+                                                       axis=0)
+        # find all edge nodes that contain a fill value
+        fill_value_mask = np.logical_or(
+            edge_nodes_unique[:, 0] == INT_FILL_VALUE,
+            edge_nodes_unique[:, 1] == INT_FILL_VALUE)
+
+        # all edge nodes that do not contain a fill value
+        non_fill_value_mask = np.logical_not(fill_value_mask)
+        edge_nodes_unique = edge_nodes_unique[non_fill_value_mask]
+
+        # Update inverse_indices accordingly
+        indices_to_update = np.where(fill_value_mask)[0]
+
+        remove_mask = np.isin(inverse_indices, indices_to_update)
+        inverse_indices[remove_mask] = INT_FILL_VALUE
+
+        # Compute the indices where inverse_indices exceeds the values in indices_to_update
+        indexes = np.searchsorted(indices_to_update,
+                                  inverse_indices,
+                                  side='right')
+        # subtract the corresponding indexes from `inverse_indices`
+        for i in range(len(inverse_indices)):
+            if inverse_indices[i] != INT_FILL_VALUE:
+                inverse_indices[i] -= indexes[i]
+
+        # add Mesh2_edge_nodes to internal dataset
+        self.ds['Mesh2_edge_nodes'] = xr.DataArray(
+            edge_nodes_unique,
+            dims=["nMesh2_edge", "Two"],
+            attrs={
+                "cf_role":
+                    "edge_node_connectivity",
+                "long_name":
+                    "Maps every edge to the two nodes that it connects",
+                "start_index":
+                    INT_DTYPE(0),
+                "inverse_indices":
+                    inverse_indices,
+                "fill_value_mask":
+                    fill_value_mask
+            })
+
+        # set standardized attributes
+        setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
+        setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
+
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
         This function is called when we need to use the cartesian coordinates
@@ -462,7 +542,7 @@ class Grid:
         nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
         nodes_cart = np.asarray(
-            list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
+            list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
 
         self.ds["Mesh2_node_cart_x"] = xr.DataArray(
             data=nodes_cart[:, 0],
@@ -541,7 +621,7 @@ class Grid:
             (self.ds["Mesh2_node_x"].values, self.ds["Mesh2_node_y"].values,
              self.ds["Mesh2_node_z"].values),
             axis=1).tolist()
-        nodes_rad = list(map(_convert_node_xyz_to_lonlat_rad, nodes_cart))
+        nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
         nodes_degree = np.rad2deg(nodes_rad)
         self.ds["Mesh2_node_x"] = xr.DataArray(
             data=nodes_degree[:, 0],
