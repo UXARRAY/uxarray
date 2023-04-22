@@ -48,7 +48,7 @@ Grid Helper Modules
    helpers._convert_node_lonlat_rad_to_xyz
    helpers._normalize_in_place
    helpers._replace_fill_values
-   coordinates._build_edge_node_connectivity
    coordinates._populate_cartesian_xyz_coord
-   connectivity._populate_lonlat_coord
+   coordinates._populate_lonlat_coord
+   connectivity._build_edge_node_connectivity
    connectivity._build_face_dimension
