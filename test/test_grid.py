@@ -9,6 +9,10 @@ import xarray as xr
 import uxarray as ux
 import numpy.testing as nt
 
+from uxarray.connectivity import _build_edge_nodes
+from uxarray.coordinates import _populate_lonlat_coord, \
+                                _populate_cartesian_xyz_coord
+
 try:
     import constants
 except ImportError:
@@ -439,7 +443,7 @@ class TestPopulateCoordinates(TestCase):
 
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
         vgrid = ux.Grid([verts_degree], islatlon=False)
-        vgrid._populate_cartesian_xyz_coord()
+        _populate_cartesian_xyz_coord(vgrid)
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
                                    cart_x[i],
@@ -478,7 +482,7 @@ class TestPopulateCoordinates(TestCase):
 
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
         vgrid = ux.Grid([verts_cart], islatlon=False)
-        vgrid._populate_lonlat_coord()
+        _populate_lonlat_coord(vgrid)
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.nMesh2_node):
@@ -511,7 +515,7 @@ class TestConnectivity(TestCase):
         edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
         # construct edge nodes
-        mpas_grid_ux._build_edge_node_connectivity()
+        _build_edge_nodes(mpas_grid_ux)
         edge_nodes_output = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
 
         assert np.array_equal(edge_nodes_expected, edge_nodes_output)
