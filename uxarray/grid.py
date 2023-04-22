@@ -100,9 +100,10 @@ class Grid:
         self.__init_grid_var_attrs__()
 
         # construct connectivity
-        if self.source_grid != "From vertices":
-            if "Mesh2_edge_nodes" not in self.ds:
-                self._build_edge_node_connectivity()
+        if "Mesh2_edge_nodes" not in self.ds:
+            self._build_edge_node_connectivity()
+        if "Mesh2_face_edges" not in self.ds:
+            self.build_face_edges_connectivity()
 
         # build face dimension, possibly safeguard for large datasets
         self._build_face_dimension()
@@ -527,6 +528,25 @@ class Grid:
         # set standardized attributes
         setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
         setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
+
+    def build_face_edges_connectivity(self):
+        if "Mesh2_edge_nodes" not in self.ds.keys():
+            self._build_edge_node_connectivity()
+        inverse_indices = self.ds['Mesh2_edge_nodes'].inverse_indices
+        inverse_indices = inverse_indices.reshape(self.nMesh2_face, self.nMaxMesh2_face_nodes)
+        mesh2_face_edges = inverse_indices # We only need to store the edge index
+
+        self.ds["Mesh2_face_edges"] = xr.DataArray(
+            data=mesh2_face_edges,
+            dims=["nMesh2_face", "nMaxMesh2_face_edges"],
+            attrs={
+                "cf_role": "face_edges_connectivity",
+                "start_index": 0
+            })
+
+        # set standardized attributes
+        setattr(self, "Mesh2_face_edges", self.ds["Mesh2_face_edges"] )
+
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
