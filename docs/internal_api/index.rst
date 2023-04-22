@@ -50,5 +50,5 @@ Grid Helper Modules
    helpers._replace_fill_values
    coordinates._build_edge_node_connectivity
    coordinates._populate_cartesian_xyz_coord
-   connectivity.Grid._populate_lonlat_coord
+   connectivity._populate_lonlat_coord
    connectivity._build_face_dimension
