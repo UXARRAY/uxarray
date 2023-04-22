@@ -534,9 +534,57 @@ class TestConnectivity(TestCase):
             grid_xr = xr.open_dataset(grid_path)
             grid_ux = ux.Grid(grid_xr)
 
-            n_face = grid_ux.nMesh2_node
-            n_node = grid_ux.nMesh2_face
+            n_face = grid_ux.nMesh2_face
+            n_node = grid_ux.nMesh2_node
             n_edge = grid_ux.nMesh2_edge
 
             # euler's formula (n_face = n_edges - n_nodes + 2)
             assert (n_face == n_edge - n_node + 2)
+
+    def test_build_face_edges_connectivity(self):
+        """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
+        ug_filename_list = [self.ugrid_filepath_01, self.ugrid_filepath_02, self.ugrid_filepath_03]
+        for ug_file_name in ug_filename_list:
+            xr_ds = xr.open_dataset(ug_file_name)
+            tgrid = ux.Grid(xr_ds)
+
+            mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
+
+            tgrid.build_face_edges_connectivity()
+            mesh2_face_edges = tgrid.ds.Mesh2_face_edges
+            mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
+
+            # Assert if the mesh2_face_edges sizes are correct.
+            self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
+                             mesh2_face_nodes.sizes["nMesh2_face"])
+            self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
+                             mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+
+            # Assert if the mesh2_edge_nodes sizes are correct.
+            # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid.ds[
+                "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+            size = mesh2_edge_nodes.sizes["nMesh2_edge"]
+            self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+
+    def test_build_face_edges_connectivity_fillvalues(self):
+        f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10], [105, -20]]
+        f1_deg = [[120, 0], [120, 10],[115, 0], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],[ux.INT_FILL_VALUE, ux.INT_FILL_VALUE], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+        f2_deg = [[115, 0], [120, 10], [100, 10], [105, 0], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+        f3_deg = [[95, -10], [105, 0], [95, 30], [80, 30], [70, 0], [75, -10]]
+        f4_deg = [[65, -20], [75, -10], [70, 0], [55, 0], [45, -10], [55, -20]]
+        f5_deg = [[70, 0], [80, 30], [70, 30], [60, 0], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+        f6_deg = [[60, 0], [70, 30], [40, 30], [45, 0], [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+
+        verts = [f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg]
+        uds = ux.Grid(verts)
+        n_face = len(uds.ds["Mesh2_face_edges"].values)
+        n_node = uds.nMesh2_node
+        n_edge = len(uds.ds["Mesh2_edge_nodes"].values)
+
+        self.assertEqual(7, n_face)
+        self.assertEqual(21, n_node)
+        self.assertEqual(28, n_edge)
