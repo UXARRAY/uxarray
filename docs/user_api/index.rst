@@ -25,7 +25,7 @@ Grid Methods
    grid.Grid.compute_face_areas
    grid.Grid.encode_as
    grid.Grid.integrate
-
+   grid.Grid.build_face_edges_connectivity
 
 Helper Functions
 ----------------
