@@ -532,11 +532,9 @@ class Grid:
         setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
 
     def build_face_edges_connectivity(self):
-        """Build the `Grid.face_edges_connectivity`, a DataArray of indices
-        indicating edges that are neighboring each face.
-
-        The `Grid.face_edges_connectivity` will be an integer DataArray
-        of size (nMesh2_face, MaxNumNodesPerFace) (optional)
+        """Constructs the UGRID connectivity variable (``Mesh2_face_edges``)
+        and stores it within the internal (``Grid.ds``) and through the
+        attribute (``Grid.Mesh2_face_edges``).
         """
         if "Mesh2_edge_nodes" not in self.ds.keys() or (
                 self.source_grid != "From vertices" and
