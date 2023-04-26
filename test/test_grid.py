@@ -591,7 +591,7 @@ class TestConnectivity(TestCase):
 
         verts = [f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg]
         uds = ux.Grid(verts)
-        uds.build_face_edges_connectivity()
+        uds._build_face_edges_connectivity()
         n_face = len(uds.ds["Mesh2_face_edges"].values)
         n_node = uds.nMesh2_node
         n_edge = len(uds.ds["Mesh2_edge_nodes"].values)
