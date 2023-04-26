@@ -1,4 +1,4 @@
-<!--  The PR title should summarize the changes, for example "Add `Grid._build_face_dimension` function". 
+<!--  The PR title should summarize the changes, for example "Add `Grid._build_face_dimension` function".
       Avoid non-descriptive titles such as "Addresses issue #229". -->
 
 <!--  Replace XXX with the number of the issue that this PR will resolve. If this PR closed more than one,
@@ -69,5 +69,3 @@ consider the following points:
 
 - Do mark conversations as resolved *if you opened them* and are satisfied with the changes/discussion.
 -->
-
-
