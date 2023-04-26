@@ -111,10 +111,6 @@ class TestGrid(TestCase):
                         islatlon=False,
                         concave=False)
 
-        # Since the read-in data are cartesian coordinates, we should change the unit to m
-        vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
-        vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
-        vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 6)
         assert (vgrid.nMesh2_node == 8)
@@ -315,17 +311,11 @@ class TestIntegrate(TestCase):
         verts = [[[0.57735027, -5.77350269e-01, -0.57735027],
                   [0.57735027, 5.77350269e-01, -0.57735027],
                   [-0.57735027, 5.77350269e-01, -0.57735027]]]
+
+        # load grid
         vgrid = ux.Grid(verts, vertices=True, islatlon=False, concave=False)
 
-        # get node names for each grid object
-        x_var = vgrid.ds_var_names["Mesh2_node_x"]
-        y_var = vgrid.ds_var_names["Mesh2_node_y"]
-        z_var = vgrid.ds_var_names["Mesh2_node_z"]
-
-        vgrid.Mesh2_node_x.attrs["units"] = "m"
-        vgrid.Mesh2_node_y.attrs["units"] = "m"
-        vgrid.Mesh2_node_z.attrs["units"] = "m"
-
+        #calculate area
         area_gaussian = vgrid.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -397,6 +387,27 @@ class TestFaceAreas(TestCase):
     #     grid_2 = ux.Grid(grid_2_ds)
     #     grid_2.compute_face_areas()
 
+    def test_verts_calc_area(self):
+        faces_verts_ndarray = np.array([
+            np.array([[150, 10, 0], [160, 20, 0], [150, 30, 0], [135, 30, 0],
+                      [125, 20, 0], [135, 10, 0]]),
+            np.array([[125, 20, 0], [135, 30, 0], [125, 60, 0], [110, 60, 0],
+                      [100, 30, 0], [105, 20, 0]]),
+            np.array([[95, 10, 0], [105, 20, 0], [100, 30, 0], [85, 30, 0],
+                      [75, 20, 0], [85, 10, 0]]),
+        ])
+        # load our vertices into a UXarray Grid object
+        verts_grid = ux.Grid(faces_verts_ndarray,
+                             vertices=True,
+                             islatlon=True,
+                             concave=False)
+
+        face_verts_areas = verts_grid.face_areas
+
+        nt.assert_almost_equal(face_verts_areas.sum(),
+                               constants.FACE_VERTS_AREA,
+                               decimal=3)
+
 
 class TestPopulateCoordinates(TestCase):
 
@@ -427,7 +438,7 @@ class TestPopulateCoordinates(TestCase):
         ]
 
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
-        vgrid = ux.Grid([verts_degree])
+        vgrid = ux.Grid([verts_degree], islatlon=False)
         vgrid._populate_cartesian_xyz_coord()
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
@@ -466,10 +477,7 @@ class TestPopulateCoordinates(TestCase):
         ]
 
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
-        vgrid = ux.Grid([verts_cart])
-        vgrid.ds.Mesh2_node_x.attrs["units"] = "m"
-        vgrid.ds.Mesh2_node_y.attrs["units"] = "m"
-        vgrid.ds.Mesh2_node_z.attrs["units"] = "m"
+        vgrid = ux.Grid([verts_cart], islatlon=False)
         vgrid._populate_lonlat_coord()
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
