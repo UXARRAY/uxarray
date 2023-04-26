@@ -57,9 +57,6 @@ apply to this PR, comment it out or delete it. -->
 Thank you so much for your PR!  To help us review your contribution, please
 consider the following points:
 
-- A development guide is available at https://geocat.ucar.edu/pages/contributing.html.
-
-
 **PR Etiquette Reminders**
 - This PR should be listed as a draft PR until you are ready to request reviewers
 
