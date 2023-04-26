@@ -459,6 +459,12 @@ class Grid:
         Additionally, the attributes (``inverse_indices``) and
         (``fill_value_mask``) are stored for constructing other
         connectivity variables.
+
+        Parameters
+        ----------
+        repopulate : bool, optional
+            Flag used to indicate if we want to overwrite the existed `Mesh2_edge_nodes` and generate a new
+            inverse_indices, default is False
         """
 
         # need to derive edge nodes
@@ -478,7 +484,8 @@ class Grid:
             # second index includes second node up to padded value
             edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
         else:
-            edge_nodes = self.ds['Mesh2_edge_nodes'].values
+            # If "Mesh2_edge_nodes" already exists, directly return the function call
+            return
 
         # sorted edge nodes
         edge_nodes.sort(axis=1)
@@ -517,6 +524,8 @@ class Grid:
             attrs={
                 "cf_role":
                     "edge_node_connectivity",
+                "_FillValue":
+                    INT_FILL_VALUE,
                 "long_name":
                     "Maps every edge to the two nodes that it connects",
                 "start_index":
@@ -531,15 +540,14 @@ class Grid:
         setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
         setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
 
-    def build_face_edges_connectivity(self):
+    def _build_face_edges_connectivity(self):
         """Constructs the UGRID connectivity variable (``Mesh2_face_edges``)
         and stores it within the internal (``Grid.ds``) and through the
-        attribute (``Grid.Mesh2_face_edges``).
-        """
-        if "Mesh2_edge_nodes" not in self.ds.keys() or (
-                self.source_grid != "From vertices" and
-                self.mesh_type == "mpas"):
+        attribute (``Grid.Mesh2_face_edges``)."""
+        if "Mesh2_edge_nodes" not in self.ds.keys(
+        ) or (self.ds['Mesh2_edge_nodes'].attrs.get("inverse_indices") is None):
             self._build_edge_node_connectivity(repopulate=True)
+
         inverse_indices = self.ds['Mesh2_edge_nodes'].inverse_indices
         inverse_indices = inverse_indices.reshape(self.nMesh2_face,
                                                   self.nMaxMesh2_face_nodes)
@@ -549,12 +557,16 @@ class Grid:
             data=mesh2_face_edges,
             dims=["nMesh2_face", "nMaxMesh2_face_edges"],
             attrs={
-                "cf_role": "face_edges_connectivity",
-                "start_index": 0
+                "cf_role":
+                    "face_edges_connectivity",
+                "start_index":
+                    INT_DTYPE(0),
+                "long_name":
+                    "Maps every edge to the two nodes that it connects",
             })
 
         # set standardized attributes
-        setattr(self, "Mesh2_face_edges", self.ds["Mesh2_face_edges"])
+        setattr(self, "nMaxMesh2_face_edges", mesh2_face_edges.shape[1])
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
