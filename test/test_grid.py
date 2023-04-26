@@ -553,7 +553,7 @@ class TestConnectivity(TestCase):
 
             mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
 
-            tgrid.build_face_edges_connectivity()
+            tgrid._build_face_edges_connectivity()
             mesh2_face_edges = tgrid.ds.Mesh2_face_edges
             mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
 
