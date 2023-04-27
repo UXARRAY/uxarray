@@ -567,7 +567,7 @@ class Grid:
 
         # set standardized attributes
         setattr(self, "nMaxMesh2_face_edges", mesh2_face_edges.shape[1])
-
+setattr(self, "Mesh2_face_edges", self.ds["Mesh2_face_edges"])
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
         This function is called when we need to use the cartesian coordinates
