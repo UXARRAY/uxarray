@@ -315,7 +315,7 @@ class TestIntegrate(TestCase):
         # load grid
         vgrid = ux.Grid(verts, vertices=True, islatlon=False, concave=False)
 
-        #calculate area
+        # calculate area
         area_gaussian = vgrid.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -416,7 +416,7 @@ class TestPopulateCoordinates(TestCase):
         # These points correspond to the eight vertices of a cube.
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-            360 - 45.0001052295749
+                                                360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -457,7 +457,7 @@ class TestPopulateCoordinates(TestCase):
 
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-            360 - 45.0001052295749
+                                                360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -541,5 +541,29 @@ class TestConnectivity(TestCase):
             # euler's formula (n_face = n_edges - n_nodes + 2)
             assert (n_face == n_edge - n_node + 2)
 
-    def test_node_face_connectivity(self):
-        pass
+    def test_node_face_connectivity_from_verts(self):
+        node_latlon_degree = [
+            [162., 30],
+            [216., 30],
+            [70., 30],
+            [162., -30],
+            [216., -30],
+            [70., -30]
+        ]
+
+        face_nodes_conn_index = np.array([[3, 4, 5, ux.INT_FILL_VALUE],
+                                          [3, 0, 2, 5],
+                                          [3, 4, 1, 0],
+                                          [0, 1, 2, ux.INT_FILL_VALUE]])
+        face_nodes_conn_lonlat = np.full((face_nodes_conn_index.shape[0], face_nodes_conn_index.shape[1], 2), ux.INT_FILL_VALUE)
+
+        for i, face_nodes_conn_index_row in enumerate(face_nodes_conn_index):
+            for j, node_index in enumerate(face_nodes_conn_index_row):
+                if node_index != ux.INT_FILL_VALUE:
+                    face_nodes_conn_lonlat[i, j] = node_latlon_degree[node_index]
+
+        vgrid = ux.Grid(face_nodes_conn_lonlat,
+                        vertices=True,
+                        islatlon=True,
+                        concave=False)
+        vgrid._build_node_face_connectivity()

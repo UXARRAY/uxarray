@@ -458,7 +458,7 @@ def grid_center_lat_lon(ds):
     z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
 
     center_lon = np.rad2deg(np.arctan2(y, x))
-    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x ** 2 + y ** 2)))
 
     # Make negative lons positive
     center_lon[center_lon < 0] += 360
@@ -664,7 +664,7 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
 
     # 2d to 1d index for np.put()
     first_fv_idx_1d = first_fv_idx_2d + (
-        (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
+            (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
 
     # column of first node values
     first_node_value = Mesh2_face_nodes[:, 0].copy()
@@ -674,32 +674,43 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
 
     return closed
 
-def _extract_COO_matrix_info(original_matrix, fill_value = INT_FILL_VALUE):
+
+def _convert_face_node_conn_to_sparse_matrix(dense_matrix: np.ndarray, fill_value=np.nan) -> tuple:
     """
-    Converts a given dense matrix to COO (coordinate list) sparse matrix format, where the locations of non-zero entries
-    are stored along with their values. It is represented by three arrays: row indices, column indices, and data values.
+    Converts a given dense matrix connectivity to a sparse matrix format where the locations of non-zero entries are stored
+    using COO (coordinate list) standard. It is represented by three arrays: row indices, column indices,
+    and non-zero element flags.
 
     Parameters
     ----------
-    original_matrix : np.ndarray
-        The dense matrix to be converted to COO sparse matrix format.
+    dense_matrix : np.ndarray
+        The dense matrix to be converted.
     fill_value : constant, optional
-        The fill value to be discarded from the original_matrix. Default value is `INT_FILL_VALUE`.
+        The fill value to be discarded from the dense matrix. Defaults to `np.nan`.
 
     Returns
     -------
-    data : np.ndarray
-        Array containing non-zero data values in the COO sparse matrix format.
-    row_indices : np.ndarray
-        Array containing the row indices of non-zero data values in the COO sparse matrix format.
-    col_indices : np.ndarray
-        Array containing the column indices of non-zero data values in the COO sparse matrix format.
-
+    tuple
+        A tuple containing three arrays:
+        - face_indices : np.ndarray
+            Array containing the face indices for each non-zero element.
+        - node_indices : np.ndarray
+            Array containing the node indices for each non-zero element.
+        - non_zero_elements_flag : np.ndarray
+            Array containing flags indicating if a non-zero element is present in the corresponding row and column
+            index.
     """
-    n_row, n_col = original_matrix.shape
-    node_indices = original_matrix.ravel()
-    valid_nodes_mask = node_indices != fill_value
-    data = node_indices[valid_nodes_mask]
-    row_indices = np.repeat(np.arange(n_row), n_col)[valid_nodes_mask]
-    col_indices = np.tile(np.arange(n_col), n_row)[valid_nodes_mask]
-    return data, row_indices, col_indices
+    n_rows, n_cols = dense_matrix.shape
+    flattened_matrix = dense_matrix.ravel()
+    valid_node_mask = ~np.isnan(flattened_matrix) & (flattened_matrix != fill_value)
+    face_indices = np.repeat(np.arange(n_rows), n_cols)[valid_node_mask]
+    node_indices = flattened_matrix[valid_node_mask]
+    non_zero_element_flags = np.ones(len(node_indices))
+    return face_indices, node_indices, non_zero_element_flags
+
+
+
+
+
+
+
