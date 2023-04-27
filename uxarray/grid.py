@@ -545,7 +545,7 @@ class Grid:
         and stores it within the internal (``Grid.ds``) and through the
         attribute (``Grid.Mesh2_face_edges``)."""
         if ("Mesh2_edge_nodes" not in self.ds or
-            "inverse_indices" not in self.ds['Mesh2_edge_nodes'].attrs):
+                "inverse_indices" not in self.ds['Mesh2_edge_nodes'].attrs):
             self._build_edge_node_connectivity(repopulate=True)
 
         inverse_indices = self.ds['Mesh2_edge_nodes'].inverse_indices
@@ -567,7 +567,8 @@ class Grid:
 
         # set standardized attributes
         setattr(self, "nMaxMesh2_face_edges", mesh2_face_edges.shape[1])
-setattr(self, "Mesh2_face_edges", self.ds["Mesh2_face_edges"])
+        setattr(self, "Mesh2_face_edges", self.ds["Mesh2_face_edges"])
+
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
         This function is called when we need to use the cartesian coordinates
