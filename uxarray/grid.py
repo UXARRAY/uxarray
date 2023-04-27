@@ -544,7 +544,7 @@ class Grid:
         """Constructs the UGRID connectivity variable (``Mesh2_face_edges``)
         and stores it within the internal (``Grid.ds``) and through the
         attribute (``Grid.Mesh2_face_edges``)."""
-        if ("Mesh2_edge_nodes" not in self.ds or  
+        if ("Mesh2_edge_nodes" not in self.ds or
             "inverse_indices" not in self.ds['Mesh2_edge_nodes'].attrs):
             self._build_edge_node_connectivity(repopulate=True)
 
