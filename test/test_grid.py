@@ -540,3 +540,6 @@ class TestConnectivity(TestCase):
 
             # euler's formula (n_face = n_edges - n_nodes + 2)
             assert (n_face == n_edge - n_node + 2)
+
+    def test_node_face_connectivity(self):
+        pass
