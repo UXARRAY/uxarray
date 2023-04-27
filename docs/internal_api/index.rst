@@ -19,6 +19,8 @@ Grid Methods
    __from_ds__
    __from_vert__
    __init_grid_var_attrs__
+   _build_edge_node_connectivity
+   _build_face_dimension
    _populate_cartesian_xyz_coord
    _populate_lonlat_coord
 
@@ -46,7 +48,4 @@ Grid Helper Modules
    io._scrip._encode_scrip
    io._scrip._to_ugrid
    utils.helpers._is_ugrid
-   utils.helpers._convert_node_xyz_to_lonlat_rad
-   utils.helpers._convert_node_lonlat_rad_to_xyz
-   utils.helpers._normalize_in_place
    utils.helpers._replace_fill_values

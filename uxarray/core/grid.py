@@ -9,9 +9,8 @@ from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.utils.helpers import (get_all_face_area_from_coords,
-                                   parse_grid_type,
-                                   _convert_node_xyz_to_lonlat_rad,
-                                   _convert_node_lonlat_rad_to_xyz)
+                                   parse_grid_type, node_xyz_to_lonlat_rad,
+                                   node_lonlat_rad_to_xyz, close_face_nodes)
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -102,6 +101,14 @@ class Grid:
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
 
+        # construct connectivity
+        if self.source_grid != "From vertices":
+            if "Mesh2_edge_nodes" not in self._ds:
+                self._build_edge_node_connectivity()
+
+        # build face dimension, possibly safeguard for large datasets
+        self._build_face_dimension()
+
     def __init_grid_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
         of xarray object.
@@ -179,12 +186,22 @@ class Grid:
 
         self._ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
 
-        # set default coordinate units to spherical coordinates
-        # users can change to cartesian if using cartesian for initialization
-        x_units = "degrees_east"
-        y_units = "degrees_north"
-        if dataset[0][0].size > 2:
+        if self.islatlon is not None and self.islatlon is False:
+            x_units = 'm'
+            y_units = 'm'
+            z_units = 'm'
+        else:
+            x_units = "degrees_east"
+            y_units = "degrees_north"
             z_units = "elevation"
+
+        x_coord = dataset[:, :, 0].flatten()
+        y_coord = dataset[:, :, 1].flatten()
+
+        if dataset[0][0].size > 2:
+            z_coord = dataset[:, :, 2].flatten()
+        else:
+            z_coord = x_coord * 0.0
 
         # Identify unique vertices and their indices
         unique_verts, indices = np.unique(dataset.reshape(
@@ -225,6 +242,11 @@ class Grid:
                                                 attrs={"units": y_units})
         if dataset.shape[-1] > 2:
             self._ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": z_units})
+        else:
+            self._ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] *
+                                                    0.0,
                                                     dims=["nMesh2_node"],
                                                     attrs={"units": z_units})
 
@@ -342,32 +364,43 @@ class Grid:
 
         Get area of all faces in the same order as listed in grid._ds.Mesh2_face_nodes
 
-        >>> grid.get_face_areas
+        >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
-        if self._face_areas is None:
-            # area of a face call needs the units for coordinate conversion if spherical grid is used
-            coords_type = "spherical"
-            if not "degree" in self.Mesh2_node_x.units:
-                coords_type = "cartesian"
+        # if self._face_areas is None: # this allows for using the cached result,
+        # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
-            face_nodes = self.Mesh2_face_nodes.data
-            dim = self.Mesh2.attrs['topology_dimension']
+        # area of a face call needs the units for coordinate conversion if spherical grid is used
+        coords_type = "spherical"
+        if not "degree" in self.Mesh2_node_x.units:
+            coords_type = "cartesian"
 
-            # initialize z
-            z = np.zeros((self.nMesh2_node))
+        face_nodes = self.Mesh2_face_nodes.data
+        face_dimension = self.Mesh2_face_dimension.data
+        dim = self.Mesh2.attrs['topology_dimension']
 
-            # call func to cal face area of all nodes
-            x = self.Mesh2_node_x.data
-            y = self.Mesh2_node_y.data
-            # check if z dimension
-            if self.Mesh2.topology_dimension > 2:
-                z = self.Mesh2_node_z.data
+        # initialize z
+        z = np.zeros((self.nMesh2_node))
 
-            # call function to get area of all the faces as a np array
-            self._face_areas = get_all_face_area_from_coords(
-                x, y, z, face_nodes, dim, quadrature_rule, order, coords_type)
+        # call func to cal face area of all nodes
+        x = self.Mesh2_node_x.data
+        y = self.Mesh2_node_y.data
+        # check if z dimension
+        if self.Mesh2.topology_dimension > 2:
+            z = self.Mesh2_node_z.data
+
+        # Note: x, y, z are np arrays of type float
+        # Using np.issubdtype to check if the type is float
+        # if not (int etc.), convert to float, this is to avoid numba errors
+        x, y, z = (arr.astype(float)
+                   if not np.issubdtype(arr[0], np.floating) else arr
+                   for arr in (x, y, z))
+
+        # call function to get area of all the faces as a np array
+        self._face_areas = get_all_face_area_from_coords(
+            x, y, z, face_nodes, face_dimension, dim, quadrature_rule, order,
+            coords_type)
 
         return self._face_areas
 
@@ -414,7 +447,7 @@ class Grid:
     @property
     def face_areas(self):
         """Declare face_areas as a property."""
-
+        # if self._face_areas is not None: it allows for using the cached result
         if self._face_areas is None:
             self.compute_face_areas()
         return self._face_areas
@@ -463,6 +496,81 @@ class Grid:
 
         return integral
 
+    def _build_edge_node_connectivity(self):
+        """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
+        and stores it within the internal (``Grid.ds``) and through the
+        attribute (``Grid.Mesh2_edge_nodes``).
+
+        Additionally, the attributes (``inverse_indices``) and
+        (``fill_value_mask``) are stored for constructing other
+        connectivity variables.
+        """
+        padded_face_nodes = close_face_nodes(self.Mesh2_face_nodes.values,
+                                             self.nMesh2_face,
+                                             self.nMaxMesh2_face_nodes)
+
+        # array of empty edge nodes where each entry is a pair of indices
+        edge_nodes = np.empty((self.nMesh2_face * self.nMaxMesh2_face_nodes, 2),
+                              dtype=INT_DTYPE)
+
+        # first index includes starting node up to non-padded value
+        edge_nodes[:, 0] = padded_face_nodes[:, :-1].ravel()
+
+        # second index includes second node up to padded value
+        edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
+
+        # sorted edge nodes
+        edge_nodes.sort(axis=1)
+
+        # unique edge nodes
+        edge_nodes_unique, inverse_indices = np.unique(edge_nodes,
+                                                       return_inverse=True,
+                                                       axis=0)
+        # find all edge nodes that contain a fill value
+        fill_value_mask = np.logical_or(
+            edge_nodes_unique[:, 0] == INT_FILL_VALUE,
+            edge_nodes_unique[:, 1] == INT_FILL_VALUE)
+
+        # all edge nodes that do not contain a fill value
+        non_fill_value_mask = np.logical_not(fill_value_mask)
+        edge_nodes_unique = edge_nodes_unique[non_fill_value_mask]
+
+        # Update inverse_indices accordingly
+        indices_to_update = np.where(fill_value_mask)[0]
+
+        remove_mask = np.isin(inverse_indices, indices_to_update)
+        inverse_indices[remove_mask] = INT_FILL_VALUE
+
+        # Compute the indices where inverse_indices exceeds the values in indices_to_update
+        indexes = np.searchsorted(indices_to_update,
+                                  inverse_indices,
+                                  side='right')
+        # subtract the corresponding indexes from `inverse_indices`
+        for i in range(len(inverse_indices)):
+            if inverse_indices[i] != INT_FILL_VALUE:
+                inverse_indices[i] -= indexes[i]
+
+        # add Mesh2_edge_nodes to internal dataset
+        self._ds['Mesh2_edge_nodes'] = xr.DataArray(
+            edge_nodes_unique,
+            dims=["nMesh2_edge", "Two"],
+            attrs={
+                "cf_role":
+                    "edge_node_connectivity",
+                "long_name":
+                    "Maps every edge to the two nodes that it connects",
+                "start_index":
+                    INT_DTYPE(0),
+                "inverse_indices":
+                    inverse_indices,
+                "fill_value_mask":
+                    fill_value_mask
+            })
+
+        # set standardized attributes
+        setattr(self, "Mesh2_edge_nodes", self._ds['Mesh2_edge_nodes'])
+        setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
+
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in
         UXarray.Grid._ds. This function is called when we need to use the
@@ -497,7 +605,7 @@ class Grid:
         nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
         nodes_cart = np.asarray(
-            list(map(_convert_node_lonlat_rad_to_xyz, list(nodes_rad))))
+            list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
 
         self._ds["Mesh2_node_cart_x"] = xr.DataArray(
             data=nodes_cart[:, 0],
@@ -576,7 +684,7 @@ class Grid:
             (self._ds["Mesh2_node_x"].values, self._ds["Mesh2_node_y"].values,
              self._ds["Mesh2_node_z"].values),
             axis=1).tolist()
-        nodes_rad = list(map(_convert_node_xyz_to_lonlat_rad, nodes_cart))
+        nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
         nodes_degree = np.rad2deg(nodes_rad)
         self._ds["Mesh2_node_x"] = xr.DataArray(
             data=nodes_degree[:, 0],
@@ -594,3 +702,29 @@ class Grid:
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
+
+    def _build_face_dimension(self):
+        """Constructs ``Mesh2_face_dimension``, which calculates the dimension
+        of each face in ``Mesh2_face_nodes``"""
+
+        # Triangular Mesh
+        if not hasattr(self, "nMaxMesh2_face_nodes"):
+            nMaxMesh2_face_nodes = self.Mesh2_face_nodes.shape[1]
+            setattr(self, "nMaxMesh2_face_nodes", nMaxMesh2_face_nodes)
+
+        # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
+        closed = np.ones((self.nMesh2_face, self.nMaxMesh2_face_nodes + 1),
+                         dtype=INT_DTYPE) * INT_FILL_VALUE
+
+        closed[:, :-1] = self.Mesh2_face_nodes.copy()
+
+        face_dimension = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+        # add to internal dataset
+        self._ds["Mesh2_face_dimension"] = xr.DataArray(
+            data=face_dimension,
+            dims=["nMesh2_face"],
+            attrs={"long_name": "number of non-fill value nodes for each face"})
+
+        # standardized attribute
+        setattr(self, "Mesh2_face_dimension", self._ds["Mesh2_face_dimension"])

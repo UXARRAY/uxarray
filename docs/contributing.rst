@@ -620,7 +620,7 @@ file so that its documentation page is automatically generated.
     accordingly if you are proposing changes to the API (e.g. new functions/attributes,
     modification(s) to existing functions, etc.)
 
-3.7.3.5. Usage examples
+3.7.3.4. Usage examples
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::

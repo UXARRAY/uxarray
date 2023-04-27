@@ -37,8 +37,12 @@ Helper Functions
    utils.helpers.calculate_face_area
    utils.helpers.calculate_spherical_triangle_jacobian
    utils.helpers.calculate_spherical_triangle_jacobian_barycentric
+   utils.helpers.close_face_nodes
    utils.helpers.get_all_face_area_from_coords
    utils.helpers.get_gauss_quadratureDG
    utils.helpers.get_tri_quadratureDG
    utils.helpers.grid_center_lat_lon
+   utils.helpers.node_xyz_to_lonlat_rad
+   utils.helpers.node_lonlat_rad_to_xyz
+   utils.helpers.normalize_in_place
    utils.helpers.parse_grid_type
