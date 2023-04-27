@@ -673,3 +673,33 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
 
     return closed
+
+def _extract_COO_matrix_info(original_matrix, fill_value = INT_FILL_VALUE):
+    """
+    Converts a given dense matrix to COO (coordinate list) sparse matrix format, where the locations of non-zero entries
+    are stored along with their values. It is represented by three arrays: row indices, column indices, and data values.
+
+    Parameters
+    ----------
+    original_matrix : np.ndarray
+        The dense matrix to be converted to COO sparse matrix format.
+    fill_value : constant, optional
+        The fill value to be discarded from the original_matrix. Default value is `INT_FILL_VALUE`.
+
+    Returns
+    -------
+    data : np.ndarray
+        Array containing non-zero data values in the COO sparse matrix format.
+    row_indices : np.ndarray
+        Array containing the row indices of non-zero data values in the COO sparse matrix format.
+    col_indices : np.ndarray
+        Array containing the column indices of non-zero data values in the COO sparse matrix format.
+
+    """
+    n_row, n_col = original_matrix.shape
+    node_indices = original_matrix.ravel()
+    valid_nodes_mask = node_indices != fill_value
+    data = node_indices[valid_nodes_mask]
+    row_indices = np.repeat(np.arange(n_row), n_col)[valid_nodes_mask]
+    col_indices = np.tile(np.arange(n_col), n_row)[valid_nodes_mask]
+    return data, row_indices, col_indices

@@ -178,3 +178,20 @@ class TestConstants(TestCase):
                                                    original_fill=-1,
                                                    new_fill=INT_FILL_VALUE,
                                                    new_dtype=np.int16)
+
+
+class TestSparseMatrix(TestCase):
+    def test_extract_COO_matrix_info(self):
+        face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE],
+                                    [3, 0, 2, 5],
+                                    [3, 4, 1, 0],
+                                    [0, 1, 2, INT_FILL_VALUE]])
+
+        data, row_indices, col_indices = ux.helpers._extract_COO_matrix_info(face_nodes_conn, INT_FILL_VALUE)
+        expected_data = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
+        expected_row_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
+        expected_col_indices = np.array([0,1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2])
+
+        nt.assert_array_equal(data, expected_data)
+        nt.assert_array_equal(row_indices, expected_row_indices)
+        nt.assert_array_equal(col_indices, expected_col_indices)

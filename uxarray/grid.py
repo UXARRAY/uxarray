@@ -528,6 +528,20 @@ class Grid:
         setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
         setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
 
+    def _build_node_face_connectivity(self):
+        """
+        Build the node_face_connectivity using the sparse matrix
+        """
+        if "Mesh2_face_nodes" not in self.ds:
+            raise RuntimeError(
+                "Currently, node_face_connectivity can only be built with Mesh2_face_nodes")
+
+        # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
+        # indexes (similar to an adjacency matrix)
+
+
+
+
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.
         This function is called when we need to use the cartesian coordinates
