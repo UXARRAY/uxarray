@@ -9,9 +9,11 @@ from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
-from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, close_face_nodes, _convert_face_node_conn_to_sparse_matrix, normalize_in_place
+from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, \
+    close_face_nodes, _convert_face_node_conn_to_sparse_matrix, normalize_in_place
 from .constants import INT_DTYPE, INT_FILL_VALUE
 from scipy import sparse
+
 
 class Grid:
     """
@@ -203,9 +205,8 @@ class Grid:
         # Identify unique vertices and their indices
         unique_verts, indices = np.unique(dataset.reshape(
             -1, dataset.shape[-1]),
-                                          axis=0,
-                                          return_inverse=True)
-
+            axis=0,
+            return_inverse=True)
 
         # Nodes index that contain a fill value
         fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
@@ -244,7 +245,7 @@ class Grid:
                                                    attrs={"units": z_units})
         else:
             self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] *
-                                                   0.0,
+                                                        0.0,
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
@@ -558,14 +559,15 @@ class Grid:
 
         # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
         # indexes (similar to an adjacency matrix)
-        face_indices, node_indices, non_zero_element_flags = _convert_face_node_conn_to_sparse_matrix(self.ds["Mesh2_face_nodes"].values,
-                                                                                                      fill_value = self.ds["Mesh2_face_nodes"].attrs["_FillValue"])
-        coo_matrix = sparse.coo_matrix((non_zero_element_flags,(node_indices, face_indices)))
+        face_indices, node_indices, non_zero_element_flags = _convert_face_node_conn_to_sparse_matrix(
+            self.ds["Mesh2_face_nodes"].values,
+            fill_value=self.ds["Mesh2_face_nodes"].attrs["_FillValue"])
+        coo_matrix = sparse.coo_matrix((non_zero_element_flags, (node_indices, face_indices)))
         csr_matrix = coo_matrix.tocsr()
         # get the row and column indices of the non-zero elements
         rows, cols = csr_matrix.nonzero()
         # Find the frequency of each face to determine the maximum number of faces per node
-        freq = np.bincount(csr_matrix.indices, minlength=csr_matrix.shape[1])
+        freq = np.bincount(rows)
         nMaxNumFacesPerNode = freq.max()
 
         node_face_connectivity = [[]] * self.nMesh2_node
@@ -581,22 +583,22 @@ class Grid:
         end_indices = np.cumsum([len(subarray) for subarray in subarrays]) - 1
 
         for node_index in range(self.nMesh2_node):
-            node_face_connectivity[node_index] = cols[start_indices[node_index]:end_indices[node_index]+1]
+            node_face_connectivity[node_index] = cols[start_indices[node_index]:end_indices[node_index] + 1]
             if len(node_face_connectivity[node_index]) < nMaxNumFacesPerNode:
                 node_face_connectivity[node_index] = np.append(node_face_connectivity[node_index],
-                                                               np.full(nMaxNumFacesPerNode - len(node_face_connectivity[node_index]),
+                                                               np.full(nMaxNumFacesPerNode - len(
+                                                                   node_face_connectivity[node_index]),
                                                                        self.ds["Mesh2_face_nodes"].attrs["_FillValue"]))
-        self.ds["Mesh2_node_face_connectivity"] = xr.DataArray(node_face_connectivity,
-                                                               dims=["nMesh2_node", "nMaxNumFacesPerNode"],
-                                                               attrs={"long_name": "Maps every node to the faces that it connects",
-                                                                      "nMaxNumFacesPerNode": nMaxNumFacesPerNode,
-                                                                      "_FillValue": self.ds["Mesh2_face_nodes"].attrs["_FillValue"]})
+        self.ds["Mesh2_node_faces"] = xr.DataArray(node_face_connectivity,
+                                                   dims=["nMesh2_node", "nMaxNumFacesPerNode"],
+                                                   attrs={"long_name": "Maps every node to the faces that "
+                                                                       "it connects",
+                                                          "nMaxNumFacesPerNode": nMaxNumFacesPerNode,
+                                                          "_FillValue": self.ds["Mesh2_face_nodes"].attrs[
+                                                              "_FillValue"]})
 
-        setattr(self, "Mesh2_node_face_connectivity", self.ds["Mesh2_node_face_connectivity"])
+        setattr(self, "Mesh2_node_faces", self.ds["Mesh2_node_faces"])
         setattr(self, "nMaxNumFacesPerNode", nMaxNumFacesPerNode)
-
-
-
 
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in UXarray.ds.

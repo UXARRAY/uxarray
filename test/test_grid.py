@@ -555,7 +555,8 @@ class TestConnectivity(TestCase):
                                           [3, 0, 2, 5],
                                           [3, 4, 1, 0],
                                           [0, 1, 2, ux.INT_FILL_VALUE]])
-        face_nodes_conn_lonlat = np.full((face_nodes_conn_index.shape[0], face_nodes_conn_index.shape[1], 2), ux.INT_FILL_VALUE)
+        face_nodes_conn_lonlat = np.full((face_nodes_conn_index.shape[0], face_nodes_conn_index.shape[1], 2),
+                                         ux.INT_FILL_VALUE)
 
         for i, face_nodes_conn_index_row in enumerate(face_nodes_conn_index):
             for j, node_index in enumerate(face_nodes_conn_index_row):
@@ -567,3 +568,42 @@ class TestConnectivity(TestCase):
                         islatlon=True,
                         concave=False)
         vgrid._build_node_face_connectivity()
+        expected = np.array([np.array([0, 1, ux.INT_FILL_VALUE]),
+                             np.array([1, 3, ux.INT_FILL_VALUE]),
+                             np.array([0, 1, 2]),
+                             np.array([1, 2, 3]),
+                             np.array([0, 2, ux.INT_FILL_VALUE]),
+                             np.array([2, 3, ux.INT_FILL_VALUE])])
+
+        self.assertTrue(np.array_equal(vgrid.ds["Mesh2_node_faces"].values, expected))
+
+    def test_node_face_connectivity_from_files(self):
+        grid_paths = [
+            self.exodus_filepath, self.ugrid_filepath_01,
+            self.ugrid_filepath_02, self.ugrid_filepath_03
+        ]
+
+        for grid_path in grid_paths:
+            grid_xr = xr.open_dataset(grid_path)
+            grid_ux = ux.Grid(grid_xr)
+            grid_ux._build_node_face_connectivity()
+
+            # use the dictionary method to build the node_face_connectivity
+            node_face_connectivity = {}
+            for i in range(grid_ux.nMesh2_face):
+                face_nodes = grid_ux.ds["Mesh2_face_nodes"].values[i]
+                for j in face_nodes:
+                    if j != ux.INT_FILL_VALUE:
+                        if j not in node_face_connectivity:
+                            node_face_connectivity[j] = []
+                        node_face_connectivity[j].append(i)
+
+            # compare the two methods
+            for i in range(grid_ux.nMesh2_node):
+                face_index_from_sparse_matrix = grid_ux.ds["Mesh2_node_faces"].values[i]
+                valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[face_index_from_sparse_matrix != grid_ux.ds["Mesh2_face_nodes"].attrs["_FillValue"]]
+                valid_face_index_from_sparse_matrix.sort()
+                face_index_from_dict = node_face_connectivity[i]
+                face_index_from_dict.sort()
+                self.assertTrue(np.array_equal(valid_face_index_from_sparse_matrix, face_index_from_dict))
+
