@@ -693,6 +693,7 @@ def _convert_face_node_conn_to_sparse_matrix(
     -------
     tuple
         A tuple containing three arrays:
+
         - face_indices : np.ndarray
             Array containing the face indices for each non-zero element.
         - node_indices : np.ndarray
