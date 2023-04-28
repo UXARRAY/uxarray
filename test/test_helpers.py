@@ -181,17 +181,19 @@ class TestConstants(TestCase):
 
 
 class TestSparseMatrix(TestCase):
+
     def test_convert_face_node_conn_to_sparse_matrix(self):
-        face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE],
-                                    [3, 0, 2, 5],
-                                    [3, 4, 1, 0],
-                                    [0, 1, 2, INT_FILL_VALUE]])
+        face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5],
+                                    [3, 4, 1, 0], [0, 1, 2, INT_FILL_VALUE]])
 
         face_indices, nodes_indices, non_zero_flag = ux.helpers._convert_face_node_conn_to_sparse_matrix(
             face_nodes_conn, INT_FILL_VALUE)
-        expected_non_zero_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-        expected_face_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
-        expected_nodes_indices = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
+        expected_non_zero_flag = np.array(
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+        expected_face_indices = np.array(
+            [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
+        expected_nodes_indices = np.array(
+            [3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
 
         nt.assert_array_equal(non_zero_flag, expected_non_zero_flag)
         nt.assert_array_equal(face_indices, expected_face_indices)
@@ -199,18 +201,15 @@ class TestSparseMatrix(TestCase):
 
     def test_convert_face_node_conn_to_sparse_matrix_nan(self):
         # Set up test data
-        face_nodes_conn = np.array([[3, 4, 5, np.nan],
-                                    [3, 0, 2, 5],
-                                    [3, 4, 1, 0],
-                                    [0, 1, 2, np.nan]])
-        expected_result = (
-            np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3]),
-            np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2]),
-            np.ones(14)
-        )
+        face_nodes_conn = np.array([[3, 4, 5, np.nan], [3, 0, 2, 5],
+                                    [3, 4, 1, 0], [0, 1, 2, np.nan]])
+        expected_result = (np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3]),
+                           np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1,
+                                     2]), np.ones(14))
 
         # Run the function with nan fill_value
-        result = ux.helpers._convert_face_node_conn_to_sparse_matrix(face_nodes_conn, fill_value=np.nan)
+        result = ux.helpers._convert_face_node_conn_to_sparse_matrix(
+            face_nodes_conn, fill_value=np.nan)
 
         # Assert that the result is as expected
         self.assertTrue(np.array_equal(result[0], expected_result[0]))

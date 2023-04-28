@@ -458,7 +458,7 @@ def grid_center_lat_lon(ds):
     z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
 
     center_lon = np.rad2deg(np.arctan2(y, x))
-    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x ** 2 + y ** 2)))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
 
     # Make negative lons positive
     center_lon[center_lon < 0] += 360
@@ -664,7 +664,7 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
 
     # 2d to 1d index for np.put()
     first_fv_idx_1d = first_fv_idx_2d + (
-            (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
+        (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
 
     # column of first node values
     first_node_value = Mesh2_face_nodes[:, 0].copy()
@@ -675,18 +675,19 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     return closed
 
 
-def _convert_face_node_conn_to_sparse_matrix(dense_matrix: np.ndarray, fill_value=np.nan) -> tuple:
-    """
-    Converts a given dense matrix connectivity to a sparse matrix format where the locations of non-zero entries are stored
-    using COO (coordinate list) standard. It is represented by three arrays: row indices, column indices,
-    and non-zero element flags.
+def _convert_face_node_conn_to_sparse_matrix(
+        dense_matrix: np.ndarray, fill_value=INT_FILL_VALUE) -> tuple:
+    """Converts a given dense matrix connectivity to a sparse matrix format
+    where the locations of non-zero entries are stored using COO (coordinate
+    list) standard. It is represented by three arrays: row indices, column
+    indices, and non-zero element flags.
 
     Parameters
     ----------
     dense_matrix : np.ndarray
         The dense matrix to be converted.
     fill_value : constant, optional
-        The fill value to be discarded from the dense matrix. Defaults to `np.nan`.
+        The fill value to be discarded from the dense matrix. Defaults to `INT_FILL_VALUE`.
 
     Returns
     -------
@@ -699,18 +700,25 @@ def _convert_face_node_conn_to_sparse_matrix(dense_matrix: np.ndarray, fill_valu
         - non_zero_elements_flag : np.ndarray
             Array containing flags indicating if a non-zero element is present in the corresponding row and column
             index.
+
+    Example
+    -------
+    >>> face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE],
+    ...                             [3, 0, 2, 5],
+    ...                             [3, 4, 1, 0],
+    ...                             [0, 1, 2, -999]])
+    >>> face_indices, nodes_indices, non_zero_flag = _convert_face_node_conn_to_sparse_matrix(
+    ...     face_nodes_conn, INT_FILL_VALUE)
+
+    >>> face_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
+    >>> nodes_indices = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
+    >>> non_zero_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
     """
     n_rows, n_cols = dense_matrix.shape
     flattened_matrix = dense_matrix.ravel()
-    valid_node_mask = ~np.isnan(flattened_matrix) & (flattened_matrix != fill_value)
+    valid_node_mask = ~np.isnan(flattened_matrix) & (flattened_matrix !=
+                                                     fill_value)
     face_indices = np.repeat(np.arange(n_rows), n_cols)[valid_node_mask]
     node_indices = flattened_matrix[valid_node_mask]
     non_zero_element_flags = np.ones(len(node_indices))
     return face_indices, node_indices, non_zero_element_flags
-
-
-
-
-
-
-

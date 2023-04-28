@@ -205,8 +205,8 @@ class Grid:
         # Identify unique vertices and their indices
         unique_verts, indices = np.unique(dataset.reshape(
             -1, dataset.shape[-1]),
-            axis=0,
-            return_inverse=True)
+                                          axis=0,
+                                          return_inverse=True)
 
         # Nodes index that contain a fill value
         fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
@@ -245,7 +245,7 @@ class Grid:
                                                    attrs={"units": z_units})
         else:
             self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] *
-                                                        0.0,
+                                                   0.0,
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
@@ -530,10 +530,10 @@ class Grid:
         setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
         setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
 
-    def _build_node_face_connectivity(self):
-        """
-        Builds the `Grid.Mesh2_node_faces`: integer DataArray of size (nMesh2_node, MaxNumFacesPerNode) (optional)
-        A DataArray of indices indicating faces that are neighboring each node.
+    def _build_node_faces_connectivity(self):
+        """Builds the `Grid.Mesh2_node_faces`: integer DataArray of size
+        (nMesh2_node, MaxNumFacesPerNode) (optional) A DataArray of indices
+        indicating faces that are neighboring each node.
 
         This function converts the face-node connectivity data into a sparse matrix, and then constructs the node-face
         connectivity by iterating over each node in the mesh and retrieving the set of neighboring faces.
@@ -551,18 +551,19 @@ class Grid:
         ------
         RuntimeError
             If the Mesh object does not contain a 'Mesh2_face_nodes' variable.
-
         """
         if "Mesh2_face_nodes" not in self.ds:
             raise RuntimeError(
-                "Currently, node_face_connectivity can only be built with Mesh2_face_nodes")
+                "Currently, node_face_connectivity can only be built with Mesh2_face_nodes"
+            )
 
         # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
         # indexes (similar to an adjacency matrix)
         face_indices, node_indices, non_zero_element_flags = _convert_face_node_conn_to_sparse_matrix(
             self.ds["Mesh2_face_nodes"].values,
             fill_value=self.ds["Mesh2_face_nodes"].attrs["_FillValue"])
-        coo_matrix = sparse.coo_matrix((non_zero_element_flags, (node_indices, face_indices)))
+        coo_matrix = sparse.coo_matrix(
+            (non_zero_element_flags, (node_indices, face_indices)))
         csr_matrix = coo_matrix.tocsr()
         # get the row and column indices of the non-zero elements
         rows, cols = csr_matrix.nonzero()
@@ -579,23 +580,29 @@ class Grid:
         subarrays = np.split(rows, change_indices)
 
         # get the start and end indices for each subarray
-        start_indices = np.cumsum([0] + [len(subarray) for subarray in subarrays[:-1]])
+        start_indices = np.cumsum(
+            [0] + [len(subarray) for subarray in subarrays[:-1]])
         end_indices = np.cumsum([len(subarray) for subarray in subarrays]) - 1
 
         for node_index in range(self.nMesh2_node):
-            node_face_connectivity[node_index] = cols[start_indices[node_index]:end_indices[node_index] + 1]
+            node_face_connectivity[node_index] = cols[
+                start_indices[node_index]:end_indices[node_index] + 1]
             if len(node_face_connectivity[node_index]) < nMaxNumFacesPerNode:
-                node_face_connectivity[node_index] = np.append(node_face_connectivity[node_index],
-                                                               np.full(nMaxNumFacesPerNode - len(
-                                                                   node_face_connectivity[node_index]),
-                                                                       self.ds["Mesh2_face_nodes"].attrs["_FillValue"]))
-        self.ds["Mesh2_node_faces"] = xr.DataArray(node_face_connectivity,
-                                                   dims=["nMesh2_node", "nMaxNumFacesPerNode"],
-                                                   attrs={"long_name": "Maps every node to the faces that "
-                                                                       "it connects",
-                                                          "nMaxNumFacesPerNode": nMaxNumFacesPerNode,
-                                                          "_FillValue": self.ds["Mesh2_face_nodes"].attrs[
-                                                              "_FillValue"]})
+                node_face_connectivity[node_index] = np.append(
+                    node_face_connectivity[node_index],
+                    np.full(
+                        nMaxNumFacesPerNode -
+                        len(node_face_connectivity[node_index]),
+                        self.ds["Mesh2_face_nodes"].attrs["_FillValue"]))
+        self.ds["Mesh2_node_faces"] = xr.DataArray(
+            node_face_connectivity,
+            dims=["nMesh2_node", "nMaxNumFacesPerNode"],
+            attrs={
+                "long_name": "Maps every node to the faces that "
+                             "it connects",
+                "nMaxNumFacesPerNode": nMaxNumFacesPerNode,
+                "_FillValue": self.ds["Mesh2_face_nodes"].attrs["_FillValue"]
+            })
 
         setattr(self, "Mesh2_node_faces", self.ds["Mesh2_node_faces"])
         setattr(self, "nMaxNumFacesPerNode", nMaxNumFacesPerNode)

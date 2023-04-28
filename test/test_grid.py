@@ -416,7 +416,7 @@ class TestPopulateCoordinates(TestCase):
         # These points correspond to the eight vertices of a cube.
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-                                                360 - 45.0001052295749
+            360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -457,7 +457,7 @@ class TestPopulateCoordinates(TestCase):
 
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-                                                360 - 45.0001052295749
+            360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -542,40 +542,38 @@ class TestConnectivity(TestCase):
             assert (n_face == n_edge - n_node + 2)
 
     def test_node_face_connectivity_from_verts(self):
-        node_latlon_degree = [
-            [162., 30],
-            [216., 30],
-            [70., 30],
-            [162., -30],
-            [216., -30],
-            [70., -30]
-        ]
+        node_latlon_degree = [[162., 30], [216., 30], [70., 30], [162., -30],
+                              [216., -30], [70., -30]]
 
         face_nodes_conn_index = np.array([[3, 4, 5, ux.INT_FILL_VALUE],
-                                          [3, 0, 2, 5],
-                                          [3, 4, 1, 0],
+                                          [3, 0, 2, 5], [3, 4, 1, 0],
                                           [0, 1, 2, ux.INT_FILL_VALUE]])
-        face_nodes_conn_lonlat = np.full((face_nodes_conn_index.shape[0], face_nodes_conn_index.shape[1], 2),
-                                         ux.INT_FILL_VALUE)
+        face_nodes_conn_lonlat = np.full(
+            (face_nodes_conn_index.shape[0], face_nodes_conn_index.shape[1], 2),
+            ux.INT_FILL_VALUE)
 
         for i, face_nodes_conn_index_row in enumerate(face_nodes_conn_index):
             for j, node_index in enumerate(face_nodes_conn_index_row):
                 if node_index != ux.INT_FILL_VALUE:
-                    face_nodes_conn_lonlat[i, j] = node_latlon_degree[node_index]
+                    face_nodes_conn_lonlat[i,
+                                           j] = node_latlon_degree[node_index]
 
         vgrid = ux.Grid(face_nodes_conn_lonlat,
                         vertices=True,
                         islatlon=True,
                         concave=False)
-        vgrid._build_node_face_connectivity()
-        expected = np.array([np.array([0, 1, ux.INT_FILL_VALUE]),
-                             np.array([1, 3, ux.INT_FILL_VALUE]),
-                             np.array([0, 1, 2]),
-                             np.array([1, 2, 3]),
-                             np.array([0, 2, ux.INT_FILL_VALUE]),
-                             np.array([2, 3, ux.INT_FILL_VALUE])])
+        vgrid._build_node_faces_connectivity()
+        expected = np.array([
+            np.array([0, 1, ux.INT_FILL_VALUE]),
+            np.array([1, 3, ux.INT_FILL_VALUE]),
+            np.array([0, 1, 2]),
+            np.array([1, 2, 3]),
+            np.array([0, 2, ux.INT_FILL_VALUE]),
+            np.array([2, 3, ux.INT_FILL_VALUE])
+        ])
 
-        self.assertTrue(np.array_equal(vgrid.ds["Mesh2_node_faces"].values, expected))
+        self.assertTrue(
+            np.array_equal(vgrid.ds["Mesh2_node_faces"].values, expected))
 
     def test_node_face_connectivity_from_files(self):
         grid_paths = [
@@ -586,7 +584,7 @@ class TestConnectivity(TestCase):
         for grid_path in grid_paths:
             grid_xr = xr.open_dataset(grid_path)
             grid_ux = ux.Grid(grid_xr)
-            grid_ux._build_node_face_connectivity()
+            grid_ux._build_node_faces_connectivity()
 
             # use the dictionary method to build the node_face_connectivity
             node_face_connectivity = {}
@@ -600,10 +598,14 @@ class TestConnectivity(TestCase):
 
             # compare the two methods
             for i in range(grid_ux.nMesh2_node):
-                face_index_from_sparse_matrix = grid_ux.ds["Mesh2_node_faces"].values[i]
-                valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[face_index_from_sparse_matrix != grid_ux.ds["Mesh2_face_nodes"].attrs["_FillValue"]]
+                face_index_from_sparse_matrix = grid_ux.ds[
+                    "Mesh2_node_faces"].values[i]
+                valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[
+                    face_index_from_sparse_matrix !=
+                    grid_ux.ds["Mesh2_face_nodes"].attrs["_FillValue"]]
                 valid_face_index_from_sparse_matrix.sort()
                 face_index_from_dict = node_face_connectivity[i]
                 face_index_from_dict.sort()
-                self.assertTrue(np.array_equal(valid_face_index_from_sparse_matrix, face_index_from_dict))
-
+                self.assertTrue(
+                    np.array_equal(valid_face_index_from_sparse_matrix,
+                                   face_index_from_dict))
