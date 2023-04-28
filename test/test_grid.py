@@ -545,6 +545,75 @@ class TestConnectivity(TestCase):
             size = mesh2_edge_nodes.sizes["nMesh2_edge"]
             self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
+            # We will utilize the edge_nodes_connectivity and face_edges_connectivity to generate the
+            # res_face_nodes_connectivity and compare it with the uds.ds["Mesh2_face_nodes"].values
+            edge_nodes_connectivity = tgrid.ds["Mesh2_edge_nodes"].values
+            face_edges_connectivity = tgrid.ds["Mesh2_face_edges"].values
+            face_nodes_connectivity = tgrid.ds["Mesh2_face_nodes"].values
+
+            # Create a dictionary to store the face indices for each edge
+            face_nodes_dict = {}
+
+            # Loop through each face and edge to build the dictionary
+            for face_idx, face_edges in enumerate(face_edges_connectivity):
+                for edge_idx in face_edges:
+                    if edge_idx != ux.INT_FILL_VALUE or np.isnan(edge_idx):
+                        edge = edge_nodes_connectivity[edge_idx]
+                        if face_idx not in face_nodes_dict:
+                            face_nodes_dict[face_idx] = []
+                        face_nodes_dict[face_idx].append(edge[0])
+                        face_nodes_dict[face_idx].append(edge[1])
+
+            # Make sure the face_nodes_dict is in the counter-clockwise order and remove duplicate nodes
+            for face_idx, face_nodes in face_nodes_dict.items():
+                # First need to re-position the first two nodes position according to the original face_nodes_connectivity
+                first_edge_correct = np.array([
+                    face_nodes_connectivity[face_idx][0],
+                    face_nodes_connectivity[face_idx][1]
+                ])
+                first_edge = np.array([face_nodes[0], face_nodes[1]])
+
+                first_edge_correct_copy = first_edge_correct.copy()
+                first_edge_copy = first_edge.copy()
+                self.assertTrue(
+                    np.array_equal(first_edge_correct_copy.sort(),
+                                   first_edge_copy.sort()))
+                face_nodes[0] = first_edge_correct[0]
+                face_nodes[1] = first_edge_correct[1]
+                i = 2
+                while i < len(face_nodes):
+                    if face_nodes[i] != face_nodes[i - 1]:
+                        # swap the order
+                        old = face_nodes[i]
+                        face_nodes[i] = face_nodes[i - 1]
+                        face_nodes[i + 1] = old
+                    i += 2
+
+                after_swapped = face_nodes
+
+                after_swapped_remove = [after_swapped[0]]
+
+                for i in range(1, len(after_swapped) - 1):
+                    if after_swapped[i] != after_swapped[i - 1]:
+                        after_swapped_remove.append(after_swapped[i])
+
+                face_nodes_dict[face_idx] = after_swapped_remove
+
+            # Convert the dictionary to a list
+            res_face_nodes_connectivity = []
+            for face_idx in range(len(tgrid.ds["Mesh2_face_edges"].values)):
+                res_face_nodes_connectivity.append(face_nodes_dict[face_idx])
+                while len(res_face_nodes_connectivity[face_idx]
+                         ) < tgrid.ds["Mesh2_face_nodes"].values.shape[1]:
+                    res_face_nodes_connectivity[face_idx].append(
+                        ux.INT_FILL_VALUE)
+
+            # Compare the res_face_nodes_connectivity with the uds.ds["Mesh2_face_nodes"].values
+            for face_idx in range(len(face_nodes_connectivity)):
+                original = face_nodes_connectivity[face_idx]
+                generated = res_face_nodes_connectivity[face_idx]
+                nt.assert_array_equal(original, generated)
+
     def test_build_face_edges_connectivity_mpas(self):
         xr_ds = xr.open_dataset(self.mpas_filepath)
         tgrid = ux.Grid(xr_ds)
@@ -602,6 +671,7 @@ class TestConnectivity(TestCase):
         # res_face_nodes_connectivity and compare it with the uds.ds["Mesh2_face_nodes"].values
         edge_nodes_connectivity = uds.ds["Mesh2_edge_nodes"].values
         face_edges_connectivity = uds.ds["Mesh2_face_edges"].values
+        face_nodes_connectivity = uds.ds["Mesh2_face_nodes"].values
 
         # Create a dictionary to store the face indices for each edge
         face_nodes_dict = {}
@@ -618,6 +688,18 @@ class TestConnectivity(TestCase):
 
         # Make sure the face_nodes_dict is in the counter-clockwise order and remove duplicate nodes
         for face_idx, face_nodes in face_nodes_dict.items():
+            # First need to re-position the first two nodes position according to the original face_nodes_connectivity
+            first_edge_correct = np.array([
+                face_nodes_connectivity[face_idx][0],
+                face_nodes_connectivity[face_idx][1]
+            ])
+            first_edge = np.array([face_nodes[0], face_nodes[1]])
+
+            first_edge_correct_copy = first_edge_correct.copy()
+            first_edge_copy = first_edge.copy()
+            self.assertTrue(
+                np.array_equal(first_edge_correct_copy.sort(),
+                               first_edge_copy.sort()))
             i = 2
             while i < len(face_nodes):
                 if face_nodes[i] != face_nodes[i - 1]:
@@ -626,8 +708,6 @@ class TestConnectivity(TestCase):
                     face_nodes[i] = face_nodes[i - 1]
                     face_nodes[i + 1] = old
                 i += 2
-
-
 
             after_swapped = face_nodes
 
@@ -643,12 +723,11 @@ class TestConnectivity(TestCase):
         res_face_nodes_connectivity = []
         for face_idx in range(n_face):
             res_face_nodes_connectivity.append(face_nodes_dict[face_idx])
-            while len(res_face_nodes_connectivity[face_idx]) < uds.ds["Mesh2_face_nodes"].values.shape[1]:
+            while len(res_face_nodes_connectivity[face_idx]
+                     ) < uds.ds["Mesh2_face_nodes"].values.shape[1]:
                 res_face_nodes_connectivity[face_idx].append(ux.INT_FILL_VALUE)
 
         # Compare the res_face_nodes_connectivity with the uds.ds["Mesh2_face_nodes"].values
-        self.assertTrue(np.array_equal(res_face_nodes_connectivity, uds.ds["Mesh2_face_nodes"].values))
-
-
-
-
+        self.assertTrue(
+            np.array_equal(res_face_nodes_connectivity,
+                           uds.ds["Mesh2_face_nodes"].values))
