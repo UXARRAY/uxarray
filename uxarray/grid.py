@@ -551,10 +551,9 @@ class Grid:
         inverse_indices = self.ds['Mesh2_edge_nodes'].inverse_indices
         inverse_indices = inverse_indices.reshape(self.nMesh2_face,
                                                   self.nMaxMesh2_face_nodes)
-        mesh2_face_edges = inverse_indices  # We only need to store the edge index
 
         self.ds["Mesh2_face_edges"] = xr.DataArray(
-            data=mesh2_face_edges,
+            data=inverse_indices,
             dims=["nMesh2_face", "nMaxMesh2_face_edges"],
             attrs={
                 "cf_role":
@@ -566,7 +565,7 @@ class Grid:
             })
 
         # set standardized attributes
-        setattr(self, "nMaxMesh2_face_edges", mesh2_face_edges.shape[1])
+        setattr(self, "nMaxMesh2_face_edges", inverse_indices.shape[1])
         setattr(self, "Mesh2_face_edges", self.ds["Mesh2_face_edges"])
 
     def _populate_cartesian_xyz_coord(self):
