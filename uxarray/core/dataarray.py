@@ -13,12 +13,12 @@ class UxDataArray(xr.DataArray):
     def __init__(self, *args, uxgrid: Grid = None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._uxgrid = uxgrid
+        self._uxgrid = None
 
-        if uxgrid is None or not isinstance(uxgrid, Grid):
+        if uxgrid is not None and not isinstance(uxgrid, Grid):
             raise RuntimeError(
-                "uxarray.core.UxDataArray.__init__: uxgrid cannot be None. It needs to "
-                "be an instance of the uxarray.core.Grid class")
+                "uxarray.core.UxDataArray.__init__: uxgrid can be either None or "
+                "an instance of the uxarray.core.Grid class")
         else:
             self.uxgrid = uxgrid
 
@@ -30,7 +30,3 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
-
-    # You can add custom methods to the class here.
-    def custom_method(self):
-        print("Custom method for the class")

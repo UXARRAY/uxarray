@@ -26,7 +26,7 @@ class UxDataset(xr.Dataset):
                  **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._uxgrid = uxgrid
+        self._uxgrid = None
         setattr(self, 'source_datasets', source_datasets)
 
         if uxgrid is None or not isinstance(uxgrid, Grid):
@@ -35,23 +35,6 @@ class UxDataset(xr.Dataset):
                 "be of an instance of the uxarray.core.Grid class")
         else:
             self.uxgrid = uxgrid
-
-    @property
-    def uxgrid(self):
-        return self._uxgrid
-
-    # a setter function
-    @uxgrid.setter
-    def uxgrid(self, ugrid_obj):
-        self._uxgrid = ugrid_obj
-
-    def _construct_dataarray(self, name) -> UxDataArray:
-        """Override to check if the result is an instance of xarray.DataArray.
-
-        If so, convert to UxDataArray.
-        """
-        xarr = super()._construct_dataarray(name)
-        return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     def __getitem__(self, key):
         """Override to check if the result is an instance of xarray.DataArray.
@@ -78,6 +61,30 @@ class UxDataset(xr.Dataset):
             # value = value.to_dataarray()
 
         super().__setitem__(key, value)
+
+    @property
+    def uxgrid(self):
+        return self._uxgrid
+
+    # a setter function
+    @uxgrid.setter
+    def uxgrid(self, ugrid_obj):
+        self._uxgrid = ugrid_obj
+
+    def _construct_dataarray(self, name) -> UxDataArray:
+        """Override to check if the result is an instance of xarray.DataArray.
+
+        If so, convert to UxDataArray.
+        """
+        xarr = super()._construct_dataarray(name)
+        return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def _replace(self, *args, **kwargs):
+        ds = super()._replace(*args, **kwargs)
+
+        return UxDataset(ds,
+                         uxgrid=self.uxgrid,
+                         source_datasets=self.source_datasets)
 
     @classmethod
     def from_dataframe(cls, dataframe):
@@ -148,10 +155,6 @@ class UxDataset(xr.Dataset):
 
         lines.append("}")
         buf.write("\n".join(lines))
-
-    # You can add custom methods to the class here
-    def custom_method(self):
-        print("Custom method for the class")
 
     def integrate(self, quadrature_rule="triangular", order=4):
         """Integrates over all the faces of the given mesh.
