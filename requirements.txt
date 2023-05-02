@@ -1,2 +1,10 @@
-xarray
+xarray~=2022.12.0
 numpy<1.24
+
+pathlib~=1.0.1
+yaml~=0.2.5
+pyyaml~=6.0
+numba~=0.56.4
+intervaltree~=3.1.0
+sortedcontainers~=2.4.0
+setuptools~=66.0.0
