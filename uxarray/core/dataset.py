@@ -24,30 +24,31 @@ class UxDataset(xr.Dataset):
                  uxgrid: Grid = None,
                  source_datasets: Optional[str] = None,
                  **kwargs):
-        super().__init__(*args, **kwargs)
 
         self._uxgrid = None
         setattr(self, 'source_datasets', source_datasets)
 
-        if uxgrid is None or not isinstance(uxgrid, Grid):
+        if uxgrid is not None and not isinstance(uxgrid, Grid):
             raise RuntimeError(
-                "uxarray.core.UxDataset.__init__: uxgrid cannot be None. It needs to "
-                "be of an instance of the uxarray.core.Grid class")
+                "uxarray.core.UxDataset.__init__: uxgrid can be either None or "
+                "an instance of the uxarray.core.Grid class")
         else:
             self.uxgrid = uxgrid
+
+        super().__init__(*args, **kwargs)
 
     def __getitem__(self, key):
         """Override to check if the result is an instance of xarray.DataArray.
 
         If so, convert to UxDataArray.
         """
-        xarr = super().__getitem__(key)
 
-        if isinstance(xarr, xr.DataArray):
-            return UxDataArray(xarr, uxgrid=self.uxgrid)
-        else:
-            assert isinstance(xarr, ux.UxDataset)
-            xarr
+        value = super().__getitem__(key)
+
+        if isinstance(value, xr.DataArray):
+            value = UxDataArray(value, uxgrid=self.uxgrid)
+
+        return value
 
     def __setitem__(self, key, value):
         """Override to check if the value being set is an instance of
@@ -56,7 +57,7 @@ class UxDataset(xr.Dataset):
         If so, convert to UxDataArray.
         """
         if isinstance(value, xr.DataArray):
-            value = UxDataArray(value)
+            value = UxDataArray(value, uxgrid=self.uxgrid)
             # works with the value below also.
             # value = value.to_dataarray()
 
@@ -79,12 +80,16 @@ class UxDataset(xr.Dataset):
         xarr = super()._construct_dataarray(name)
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
-    def _replace(self, *args, **kwargs):
-        ds = super()._replace(*args, **kwargs)
+    @classmethod
+    def _construct_direct(cls, *args, **kwargs):
+        return cls(xr.Dataset._construct_direct(*args, **kwargs))
 
-        return UxDataset(ds,
-                         uxgrid=self.uxgrid,
-                         source_datasets=self.source_datasets)
+    # def _replace(self, *args, **kwargs):
+    #     ds = super()._replace(*args, **kwargs)
+    #
+    #     return UxDataset(ds,
+    #                      uxgrid=self.uxgrid,
+    #                      source_datasets=self.source_datasets)
 
     @classmethod
     def from_dataframe(cls, dataframe):
