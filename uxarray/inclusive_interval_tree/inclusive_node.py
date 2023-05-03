@@ -12,7 +12,7 @@ class InclusiveNode(Node):
     @classmethod
     def from_interval(cls, interval):
         """
-        :rtype : Node
+        :rtype : change to InclusiveNode from intervaltree.Node
         """
         center = interval.begin
         return InclusiveNode(center, [interval])
@@ -20,7 +20,7 @@ class InclusiveNode(Node):
     @classmethod
     def from_intervals(cls, intervals):
         """
-        :rtype : Node
+        :rtype : change to InclusiveNode from intervaltree.Node
         """
         if not intervals:
             return None
@@ -29,7 +29,7 @@ class InclusiveNode(Node):
     @classmethod
     def from_sorted_intervals(cls, intervals):
         """
-        :rtype : Node
+        :rtype : change to InclusiveNode from intervaltree.Node
         """
         if not intervals:
             return None
@@ -38,12 +38,12 @@ class InclusiveNode(Node):
         return node
 
     def center_hit(self, inclusive_interval: InclusiveInterval):
-        """Returns whether interval overlaps self.x_center."""
+        """Returns whether interval overlaps self.x_center, inclusive."""
         return inclusive_interval.contains_point(self.x_center)
 
     def search_point(self, point, result):
         """
-        Returns all intervals that contain point. Begin and end are inclusive.
+        Tweak the parent class implementation that it returns all intervals that contain point. Begin and end are inclusive.
         """
         for k in self.s_center:
             if k.begin <= point <= k.end:
@@ -56,6 +56,7 @@ class InclusiveNode(Node):
 
     def add(self, interval):
         """
+        Tweak the parent class implementation by calling the InclusiveNode.from_interval() method.
         Returns self after adding the interval and balancing.
         """
         if self.center_hit(interval):

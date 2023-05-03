@@ -48,4 +48,8 @@ class TestInclusiveIntervalTree(TestCase):
         expected = [InclusiveInterval(5, 9, 2), InclusiveInterval(4, 7, 1)]
         self.assertTrue(all([r == e for r, e in zip(res, expected)]))
 
+        res = list(tree.envelop(4,8))
+        expected = [InclusiveInterval(4, 7, 1)]
+        self.assertTrue(all([r == e for r, e in zip(res, expected)]))
+
 

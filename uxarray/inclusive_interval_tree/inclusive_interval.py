@@ -8,7 +8,7 @@ class InclusiveInterval(Interval):
 
     def overlaps(self, begin, end=None):
         """
-        Make it inclusive for the beginning and end.
+        Tweak the parent class implementation by making it inclusive for the beginning and end.
         """
         if end is not None:
             # An overlap means that some C exists that is inside both ranges:
@@ -24,7 +24,7 @@ class InclusiveInterval(Interval):
 
     def contains_point(self, p):
         """
-        Make it inclusive for the beginning and end.
+        Tweak the parent class implementation by making it inclusive for the beginning and end.
         """
         return self.begin <= p <= self.end
 
