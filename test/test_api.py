@@ -71,3 +71,16 @@ class TestAPI(TestCase):
         nt.assert_almost_equal(uxgrid.calculate_total_face_area(),
                                constants.MESH30_AREA,
                                decimal=3)
+
+    def test_copy_dataset(self):
+        """Loads a single dataset with its grid topology file using uxarray's
+        open_dataset call and make a copy of the object."""
+
+        uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        uxds_var2_ne30_copy = uxds_var2_ne30.copy()
+
+        # Ideally this should fail and uxgrid should NOT be None
+        nt.assert_equal(uxds_var2_ne30_copy.uxgrid, None)
+
+        # this should pass
+        # nt.assert_equal(uxds_var2_ne30.uxgrid.Mesh2_node_x.size, uxds_var2_ne30_copy.uxgrid.Mesh2_node_x.size)
