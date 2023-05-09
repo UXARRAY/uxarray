@@ -101,15 +101,15 @@ class Grid:
         # initialize convenience attributes
         self.__init_grid_var_attrs__()
 
+        # build face dimension, possibly safeguard for large datasets
+        self._build_face_dimension()
+
         # construct connectivity
         if self.source_grid != "From vertices":
             try:
                 getattr(self, "Mesh2_edge_nodes")
             except:
                 self._build_edge_node_connectivity()
-
-        # build face dimension, possibly safeguard for large datasets
-        self._build_face_dimension()
 
     def __init_grid_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
