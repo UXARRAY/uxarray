@@ -79,8 +79,10 @@ class TestAPI(TestCase):
         uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
         uxds_var2_ne30_copy = uxds_var2_ne30.copy()
 
-        # Ideally this should fail and uxgrid should NOT be None
-        nt.assert_equal(uxds_var2_ne30_copy.uxgrid, None)
+        # Ideally uxds_var2_ne30_copy.uxgrid should NOT be None
+        with self.assertRaises(AssertionError):
+            nt.assert_equal(uxds_var2_ne30_copy.uxgrid, None)
 
         # this should pass
-        # nt.assert_equal(uxds_var2_ne30.uxgrid.Mesh2_node_x.size, uxds_var2_ne30_copy.uxgrid.Mesh2_node_x.size)
+        nt.assert_equal(uxds_var2_ne30.uxgrid.Mesh2_node_x.size,
+                        uxds_var2_ne30_copy.uxgrid.Mesh2_node_x.size)

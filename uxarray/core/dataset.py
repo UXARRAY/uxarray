@@ -84,6 +84,15 @@ class UxDataset(xr.Dataset):
     def _construct_direct(cls, *args, **kwargs):
         return cls(xr.Dataset._construct_direct(*args, **kwargs))
 
+    def _copy(self, **kwargs):
+        """Override to make the result a complete instance of
+        uxarray.Dataset."""
+        copied = super()._copy(**kwargs)
+
+        #TODO: If deep==False in *kwargs?
+        copied.uxgrid = self.uxgrid.copy()  # deep copy
+        return copied
+
     # def _replace(self, *args, **kwargs):
     #     ds = super()._replace(*args, **kwargs)
     #

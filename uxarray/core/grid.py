@@ -66,7 +66,7 @@ class Grid:
         # unpack kwargs
         # sets default values for all kwargs to None
         kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'concave', 'source_grid',
+            'gridspec', 'vertices', 'islatlon', 'isconcave', 'source_grid',
             'use_dual'
         ]
         for key in kwargs_list:
@@ -103,7 +103,9 @@ class Grid:
 
         # construct connectivity
         if self.source_grid != "From vertices":
-            if "Mesh2_edge_nodes" not in self._ds:
+            try:
+                getattr(self, "Mesh2_edge_nodes")
+            except:
                 self._build_edge_node_connectivity()
 
         # build face dimension, possibly safeguard for large datasets
@@ -285,6 +287,16 @@ class Grid:
 
         dataset.close()
 
+    def copy(self):
+        """Returns a deep copy of this grid."""
+        return Grid(xr.Dataset(self._ds),
+                    gridspec=self.gridspec,
+                    vertices=self.vertices,
+                    islatlon=self.islatlon,
+                    isconcave=self.isconcave,
+                    source_grid=self.source_grid,
+                    use_dual=self.use_dual)
+
     def encode_as(self, grid_type):
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
         in the `grid_type` argument.
@@ -417,14 +429,17 @@ class Grid:
         -------
         If two grids are equal : bool
         """
-        # Iterate over dict to set access attributes
-        for key, value in self.grid_var_names.items():
-            # Check if all grid variables are equal
-            if self._ds.data_vars is not None:
-                if value in self._ds.data_vars:
-                    if not self._ds[value].equals(
-                            other._ds[other.grid_var_names[key]]):
-                        return False
+        if other is not None:
+            # Iterate over dict to set access attributes
+            for key, value in self.grid_var_names.items():
+                # Check if all grid variables are equal
+                if self._ds.data_vars is not None:
+                    if value in self._ds.data_vars:
+                        if not self._ds[value].equals(
+                                other._ds[other.grid_var_names[key]]):
+                            return False
+        else:
+            return False
 
         return True
 
