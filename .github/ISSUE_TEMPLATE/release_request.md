@@ -6,6 +6,8 @@ labels: release, high-priority
 assignees: 'anissa111'
 ---
 
+Date of intended release:
+
 ## Release progress checklist
 
 - [ ] CI tests are passing
