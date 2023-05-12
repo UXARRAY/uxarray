@@ -26,7 +26,6 @@ Grid Methods
    grid.Grid.encode_as
    grid.Grid.integrate
 
-
 Helper Functions
 ----------------
 .. autosummary::
