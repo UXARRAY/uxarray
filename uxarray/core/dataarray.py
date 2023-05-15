@@ -22,6 +22,22 @@ class UxDataArray(xr.DataArray):
         else:
             self.uxgrid = uxgrid
 
+    def _copy(self, **kwargs):
+        """Override to make the result a complete instance of
+        uxarray.DataArray."""
+        copied = super()._copy(**kwargs)
+
+        deep = kwargs.get('deep', None)
+
+        if deep == True:
+            # Reinitialize the uxgrid assessor
+            copied.uxgrid = self.uxgrid.copy()  # deep copy
+        else:
+            # Point to the existing uxgrid object
+            copied.uxgrid = self.uxgrid
+
+        return copied
+
     @property
     def uxgrid(self):
         return self._uxgrid

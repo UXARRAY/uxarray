@@ -22,7 +22,7 @@ gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "gri
 
 class TestAPI(TestCase):
 
-    def test_open_dataset_failing(self):
+    def test_open_geoflow_dataset(self):
         """Loads a single dataset with its grid topology file using uxarray's
         open_dataset call."""
 
@@ -37,6 +37,8 @@ class TestAPI(TestCase):
         data_paths = [base_path + name for name in var_names]
 
         uxds_v1 = ux.open_dataset(grid_path, data_paths[0])
+
+    #     TODO: Add asserts
 
     def test_open_dataset(self):
         """Loads a single dataset with its grid topology file using uxarray's
@@ -77,12 +79,50 @@ class TestAPI(TestCase):
         open_dataset call and make a copy of the object."""
 
         uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
-        uxds_var2_ne30_copy = uxds_var2_ne30.copy()
+
+        # make a shallow and deep copy of the dataset object
+        uxds_var2_ne30_copy_deep = uxds_var2_ne30.copy(deep=True)
+        uxds_var2_ne30_copy = uxds_var2_ne30.copy(deep=False)
 
         # Ideally uxds_var2_ne30_copy.uxgrid should NOT be None
         with self.assertRaises(AssertionError):
             nt.assert_equal(uxds_var2_ne30_copy.uxgrid, None)
 
-        # this should pass
-        nt.assert_equal(uxds_var2_ne30.uxgrid.Mesh2_node_x.size,
-                        uxds_var2_ne30_copy.uxgrid.Mesh2_node_x.size)
+        # Check that the copy is a shallow copy
+        assert (uxds_var2_ne30_copy.uxgrid is uxds_var2_ne30.uxgrid)
+        assert (uxds_var2_ne30_copy.uxgrid == uxds_var2_ne30.uxgrid)
+
+        # Check that the deep copy is a deep copy
+        assert (uxds_var2_ne30_copy_deep.uxgrid == uxds_var2_ne30.uxgrid)
+        assert (uxds_var2_ne30_copy_deep.uxgrid is not uxds_var2_ne30.uxgrid)
+
+    def test_copy_dataarray(self):
+        """Loads an unstructured grid and data using uxarray's open_dataset
+        call and make a copy of the dataarray object."""
+
+        # Base data path
+        base_path = "test/meshfiles/ugrid/geoflow-small/"
+
+        # Path to Grid file
+        grid_path = base_path + "grid.nc"
+
+        # Paths to Data Variable files
+        var_names = ['v1.nc', 'v2.nc', 'v3.nc']
+        data_paths = [base_path + name for name in var_names]
+
+        uxds_v1 = ux.open_dataset(grid_path, data_paths[0])
+
+        # get the uxdataarray object
+        v1_uxdata_array = uxds_v1['v1']
+
+        # make a shallow and deep copy of the dataarray object
+        v1_uxdata_array_copy_deep = v1_uxdata_array.copy(deep=True)
+        v1_uxdata_array_copy = v1_uxdata_array.copy(deep=False)
+
+        # Check that the copy is a shallow copy
+        assert (v1_uxdata_array_copy.uxgrid is v1_uxdata_array.uxgrid)
+        assert (v1_uxdata_array_copy.uxgrid == v1_uxdata_array.uxgrid)
+
+        # Check that the deep copy is a deep copy
+        assert (v1_uxdata_array_copy_deep.uxgrid == v1_uxdata_array.uxgrid)
+        assert (v1_uxdata_array_copy_deep.uxgrid is not v1_uxdata_array.uxgrid)

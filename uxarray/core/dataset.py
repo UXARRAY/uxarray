@@ -89,8 +89,15 @@ class UxDataset(xr.Dataset):
         uxarray.Dataset."""
         copied = super()._copy(**kwargs)
 
-        #TODO: If deep==False in *kwargs?
-        copied.uxgrid = self.uxgrid.copy()  # deep copy
+        deep = kwargs.get('deep', None)
+
+        if deep == True:
+            # Reinitialize the uxgrid assessor
+            copied.uxgrid = self.uxgrid.copy()  # deep copy
+        else:
+            # Point to the existing uxgrid object
+            copied.uxgrid = self.uxgrid
+
         return copied
 
     # def _replace(self, *args, **kwargs):
