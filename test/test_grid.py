@@ -505,7 +505,121 @@ class TestConnectivity(TestCase):
     ugrid_filepath_02 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
     ugrid_filepath_03 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
-    def test_build_edge_nodes(self):
+    # Helper function
+    def _revert_edges_conn_to_face_nodes_conn(
+            self, edge_nodes_connectivity: np.ndarray,
+            face_edges_connectivity: np.ndarray,
+            original_face_nodes_connectivity: np.ndarray):
+        """utilize the edge_nodes_connectivity and face_edges_connectivity to
+        generate the res_face_nodes_connectivity in the counter-clockwise
+        order. The counter-clockwise order will be enforced by the passed in
+        original_face_edges_connectivity. We will only use the first two nodes
+        in the original_face_edges_connectivity. The order of these two nodes
+        will provide a correct counter-clockwise order to build our
+        res_face_nodes_connectivity. A ValueError will be raised if the first
+        two nodes in the res_face_nodes_connectivity and the
+        original_face_nodes_connectivity are not the same elements (The order
+        doesn't matter here).
+
+        Parameters
+        ----------
+        edge_nodes_connectivity : np.ndarray
+            The edge_nodes_connectivity array
+        face_edges_connectivity : np.ndarray
+            The face_edges_connectivity array
+        original_face_nodes_connectivity : np.ndarray
+            The original face_nodes_connectivity array
+
+        Returns
+        -------
+        res_face_nodes_connectivity : np.ndarray
+            The face_nodes_connectivity array in the counter-clockwise order
+
+        Raises
+        ------
+        ValueError
+            if the first two nodes in the res_face_nodes_connectivity are not the same as the first two nodes in the
+            original_face_nodes_connectivity
+        """
+
+        # Create a dictionary to store the face indices for each edge
+        face_nodes_dict = {}
+
+        # Loop through each face and edge to build the dictionary
+        for face_idx, face_edges in enumerate(face_edges_connectivity):
+            for edge_idx in face_edges:
+                if edge_idx != ux.INT_FILL_VALUE:
+                    edge = edge_nodes_connectivity[edge_idx]
+                    if face_idx not in face_nodes_dict:
+                        face_nodes_dict[face_idx] = []
+                    face_nodes_dict[face_idx].append(edge[0])
+                    face_nodes_dict[face_idx].append(edge[1])
+
+        # Make sure the face_nodes_dict is in the counter-clockwise order and remove duplicate nodes
+        for face_idx, face_nodes in face_nodes_dict.items():
+            # First need to re-position the first two nodes position according to the original face_nodes_connectivity
+            first_edge_correct = np.array([
+                original_face_nodes_connectivity[face_idx][0],
+                original_face_nodes_connectivity[face_idx][1]
+            ])
+            first_edge = np.array([face_nodes[0], face_nodes[1]])
+
+            first_edge_correct_copy = first_edge_correct.copy()
+            first_edge_copy = first_edge.copy()
+            self.assertTrue(
+                np.array_equal(first_edge_correct_copy.sort(),
+                               first_edge_copy.sort()))
+            face_nodes[0] = first_edge_correct[0]
+            face_nodes[1] = first_edge_correct[1]
+
+            i = 2
+            while i < len(face_nodes):
+                if face_nodes[i] != face_nodes[i - 1]:
+                    # swap the order
+                    old = face_nodes[i]
+                    face_nodes[i] = face_nodes[i - 1]
+                    face_nodes[i + 1] = old
+                i += 2
+
+            after_swapped = face_nodes
+
+            after_swapped_remove = [after_swapped[0]]
+
+            for i in range(1, len(after_swapped) - 1):
+                if after_swapped[i] != after_swapped[i - 1]:
+                    after_swapped_remove.append(after_swapped[i])
+
+            face_nodes_dict[face_idx] = after_swapped_remove
+
+        # Convert the dictionary to a list
+        res_face_nodes_connectivity = []
+        for face_idx in range(len(face_edges_connectivity)):
+            res_face_nodes_connectivity.append(face_nodes_dict[face_idx])
+            while len(res_face_nodes_connectivity[face_idx]
+                     ) < original_face_nodes_connectivity.shape[1]:
+                res_face_nodes_connectivity[face_idx].append(ux.INT_FILL_VALUE)
+
+        return np.array(res_face_nodes_connectivity)
+
+    def test_edge_nodes_euler(self):
+        """Verifies that (``nMesh2_edge``) follows euler's formula."""
+        grid_paths = [
+            self.exodus_filepath, self.ugrid_filepath_01,
+            self.ugrid_filepath_02, self.ugrid_filepath_03
+        ]
+
+        for grid_path in grid_paths:
+            grid_xr = xr.open_dataset(grid_path)
+            grid_ux = ux.Grid(grid_xr)
+
+            n_face = grid_ux.nMesh2_face
+            n_node = grid_ux.nMesh2_node
+            n_edge = grid_ux.nMesh2_edge
+
+            # euler's formula (n_face = n_edges - n_nodes + 2)
+            assert (n_face == n_edge - n_node + 2)
+
+    def test_build_face_edges_connectivity_mpas(self):
         """Tests the construction of (``Mesh2_edge_nodes``) on an MPAS grid
         with known edge nodes."""
 
@@ -519,10 +633,10 @@ class TestConnectivity(TestCase):
         edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
         # construct edge nodes
-        mpas_grid_ux._build_edge_node_connectivity()
+        mpas_grid_ux._build_edge_node_connectivity(repopulate=True)
         edge_nodes_output = mpas_grid_ux._ds['Mesh2_edge_nodes'].values
 
-        assert np.array_equal(edge_nodes_expected, edge_nodes_output)
+        self.assertTrue(np.array_equal(edge_nodes_expected, edge_nodes_output))
 
         # euler's formula (n_face = n_edges - n_nodes + 2)
         n_face = mpas_grid_ux.nMesh2_node
@@ -531,20 +645,112 @@ class TestConnectivity(TestCase):
 
         assert (n_face == n_edge - n_node + 2)
 
-    def test_edge_nodes_euler(self):
-        """Verifies that (``nMesh2_edge``) follows euler's formula."""
-        grid_paths = [
-            self.exodus_filepath, self.ugrid_filepath_01,
-            self.ugrid_filepath_02, self.ugrid_filepath_03
+    def test_build_face_edges_connectivity(self):
+        """Generates Grid.Mesh2_edge_nodes from Grid.Mesh2_face_nodes."""
+        ug_filename_list = [
+            self.ugrid_filepath_01, self.ugrid_filepath_02,
+            self.ugrid_filepath_03
         ]
+        for ug_file_name in ug_filename_list:
+            xr_ds = xr.open_dataset(ug_file_name)
+            tgrid = ux.Grid(xr_ds)
 
-        for grid_path in grid_paths:
-            grid_xr = xr.open_dataset(grid_path)
-            grid_ux = ux.Grid(grid_xr)
+            mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-            n_face = grid_ux.nMesh2_node
-            n_node = grid_ux.nMesh2_face
-            n_edge = grid_ux.nMesh2_edge
+            tgrid._build_face_edges_connectivity()
+            mesh2_face_edges = tgrid._ds.Mesh2_face_edges
+            mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
-            # euler's formula (n_face = n_edges - n_nodes + 2)
-            assert (n_face == n_edge - n_node + 2)
+            # Assert if the mesh2_face_edges sizes are correct.
+            self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
+                             mesh2_face_nodes.sizes["nMesh2_face"])
+            self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
+                             mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+
+            # Assert if the mesh2_edge_nodes sizes are correct.
+            # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid._ds[
+                "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+            size = mesh2_edge_nodes.sizes["nMesh2_edge"]
+            self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+
+            original_face_nodes_connectivity = tgrid._ds.Mesh2_face_nodes.values
+
+            reverted_mesh2_edge_nodes = self._revert_edges_conn_to_face_nodes_conn(
+                edge_nodes_connectivity=mesh2_edge_nodes.values,
+                face_edges_connectivity=mesh2_face_edges.values,
+                original_face_nodes_connectivity=original_face_nodes_connectivity
+            )
+
+            for i in range(len(reverted_mesh2_edge_nodes)):
+                self.assertTrue(
+                    np.array_equal(reverted_mesh2_edge_nodes[i],
+                                   original_face_nodes_connectivity[i]))
+
+    def test_build_face_edges_connectivity_mpas(self):
+        xr_ds = xr.open_dataset(self.mpas_filepath)
+        tgrid = ux.Grid(xr_ds)
+
+        mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
+
+        tgrid._build_face_edges_connectivity()
+        mesh2_face_edges = tgrid._ds.Mesh2_face_edges
+        mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
+
+        # Assert if the mesh2_face_edges sizes are correct.
+        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
+                         mesh2_face_nodes.sizes["nMesh2_face"])
+        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
+                         mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+
+        # Assert if the mesh2_edge_nodes sizes are correct.
+        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid._ds[
+            "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+        size = mesh2_edge_nodes.sizes["nMesh2_edge"]
+        self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+
+    def test_build_face_edges_connectivity_fillvalues(self):
+        f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10],
+                  [105, -20]]
+        f1_deg = [[120, 0], [120, 10], [115, 0],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+        f2_deg = [[115, 0], [120, 10], [100, 10], [105, 0],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+        f3_deg = [[95, -10], [105, 0], [95, 30], [80, 30], [70, 0], [75, -10]]
+        f4_deg = [[65, -20], [75, -10], [70, 0], [55, 0], [45, -10], [55, -20]]
+        f5_deg = [[70, 0], [80, 30], [70, 30], [60, 0],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+        f6_deg = [[60, 0], [70, 30], [40, 30], [45, 0],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+
+        verts = [f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg]
+        uds = ux.Grid(verts)
+        uds._build_face_edges_connectivity()
+        n_face = len(uds._ds["Mesh2_face_edges"].values)
+        n_node = uds.nMesh2_node
+        n_edge = len(uds._ds["Mesh2_edge_nodes"].values)
+
+        self.assertEqual(7, n_face)
+        self.assertEqual(21, n_node)
+        self.assertEqual(28, n_edge)
+
+        # We will utilize the edge_nodes_connectivity and face_edges_connectivity to generate the
+        # res_face_nodes_connectivity and compare it with the uds._ds["Mesh2_face_nodes"].values
+        edge_nodes_connectivity = uds._ds["Mesh2_edge_nodes"].values
+        face_edges_connectivity = uds._ds["Mesh2_face_edges"].values
+        face_nodes_connectivity = uds._ds["Mesh2_face_nodes"].values
+
+        res_face_nodes_connectivity = self._revert_edges_conn_to_face_nodes_conn(
+            edge_nodes_connectivity, face_edges_connectivity,
+            face_nodes_connectivity)
+
+        # Compare the res_face_nodes_connectivity with the uds._ds["Mesh2_face_nodes"].values
+        self.assertTrue(
+            np.array_equal(res_face_nodes_connectivity,
+                           uds._ds["Mesh2_face_nodes"].values))

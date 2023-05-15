@@ -27,7 +27,6 @@ Grid Methods
    encode_as
    integrate
 
-
 Helper Functions
 ----------------
 .. currentmodule:: uxarray
