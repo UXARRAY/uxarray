@@ -1,10 +1,10 @@
 name: uxarray_build
 channels:
   - conda-forge
+  - numba
 dependencies:
   - dask
   - netcdf4
-  - numba
   - numpy
   - pathlib
   - pre_commit
@@ -12,3 +12,4 @@ dependencies:
   - pytest-cov
   - scipy
   - xarray
+  - numba::numba
