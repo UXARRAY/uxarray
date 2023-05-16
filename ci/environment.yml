@@ -1,7 +1,6 @@
 name: uxarray_build
 channels:
   - conda-forge
-  - numba
 dependencies:
   - dask
   - netcdf4
@@ -12,4 +11,4 @@ dependencies:
   - pytest-cov
   - scipy
   - xarray
-  - numba::numba
+  - numba
