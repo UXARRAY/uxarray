@@ -23,7 +23,7 @@ setup(
     version=version(),
     maintainer='UXARRAY',
     maintainer_email='',
-    python_requires='>=3.7',
+    python_requires='>=3.9',
     install_requires=requirements,
     description=
     """Unstructured grid model reading and recognizing with xarray.""",
