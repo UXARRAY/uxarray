@@ -178,3 +178,32 @@ class TestConstants(TestCase):
                                                    original_fill=-1,
                                                    new_fill=INT_FILL_VALUE,
                                                    new_dtype=np.int16)
+
+class TestMultiPrecision(TestCase):
+    def test_convert_to_mpfr(self):
+        """Tests if the convert_to_mpfr() helper function converts a numpy
+        array to a numpy array of the correct dtype."""
+        # test different datatypes for face_nodes
+        f0_deg = np.array([np.array([120, -20]), np.array([130, -10]), np.array([120, 0]),
+                           np.array([105, 0]), np.array([95, -10]), np.array([105, -20])])
+        f1_deg = np.array([np.array([120, 0]), np.array([120, 10]), np.array([115, 0]),
+                           np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]),
+                           np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]),
+                           np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE])])
+        f2_deg = np.array([np.array([115, 0]), np.array([120, 10]), np.array([100, 10]),
+                           np.array([105, 0]), np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]),
+                           np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE])])
+        f3_deg = np.array([np.array([95, -10]), np.array([105, 0]), np.array([95, 30]),
+                           np.array([80, 30]), np.array([70, 0]), np.array([75, -10])])
+        f4_deg = np.array([np.array([65, -20]), np.array([75, -10]), np.array([70, 0]),
+                           np.array([55, 0]), np.array([45, -10]), np.array([55, -20])])
+        f5_deg = np.array([np.array([70, 0]), np.array([80, 30]), np.array([70, 30]),
+                           np.array([60, 0]), np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]),
+                           np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE])])
+        f6_deg = np.array([np.array([60, 0]), np.array([70, 30]), np.array([40, 30]),
+                           np.array([45, 0]), np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]),
+                           np.array([ux.INT_FILL_VALUE, ux.INT_FILL_VALUE])])
+
+        verts = np.array([f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg])
+
+        verts_mpfr = ux.helpers.convert_to_mpfr(verts, str_mode=False,precision=64)

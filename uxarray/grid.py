@@ -2,6 +2,7 @@
 import os
 import xarray as xr
 import numpy as np
+from gmpy2 import mpfr
 
 # reader and writer imports
 from ._exodus import _read_exodus, _encode_exodus
@@ -199,6 +200,7 @@ class Grid:
             z_coord = x_coord * 0.0
 
         # Identify unique vertices and their indices
+        # TODO: Utilize GMPY2 for precise unique vertex identification
         unique_verts, indices = np.unique(dataset.reshape(
             -1, dataset.shape[-1]),
                                           axis=0,
