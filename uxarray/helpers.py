@@ -1,10 +1,9 @@
 import numpy as np
 import xarray as xr
-import gmpy2
+
 from pathlib import PurePath
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
-from gmpy2 import mpfr
 import math
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -676,43 +675,8 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
 
     return closed
 
-def convert_to_mpfr(input_array, str_mode = True, precision = 53):
-    """
-    Convert a numpy array to a list of mpfr numbers.
-    The default precision of an mpfr is 53 bits - the same precision as Python’s `float` type.
-    https://gmpy2.readthedocs.io/en/latest/mpfr.html
 
-    Parameters
-    ----------
-    input_array : numpy array, float/string
-        The input array to be converted to mpfr
-    str_mode : bool, optional
-        If True, the input array should be string when passing into the function.
-        If False, the input array should be float when passing into the function.
-        str_mode is True by default and is recommended. Because to take advantage of the higher precision provided by
-        the mpfr type, always pass constants as strings.
-    precision : int, optional
-        The precision of the mpfr numbers. The default precision of an mpfr is 53 bits - the same precision as Python’s `float` type.
 
-    Returns
-    ----------
-    mpfr_array : numpy array, mpfr type
-        The output array with mpfr type, which supports correct
-        rounding, selectable rounding modes, and many trigonometric, exponential, and special functions. A context
-        manager is used to control precision, rounding modes, and the behavior of exceptions.
-    """
-    gmpy2.set_context(gmpy2.context())
-    gmpy2.get_context().precision = precision
 
-    # To take advantage of the higher precision provided by the mpfr type, always pass constants as strings.
-    # https://gmpy2.readthedocs.io/en/latest/mpfr.html
-    if not str_mode:
-        # Cast the input 2D array to string array
-        input_array = input_array.astype(str)
-    else:
-        if input_array.dtype != 'str':
-            raise ValueError('The input array should be string when str_mode is True.')
 
-    # Then convert the input array to mpfr array
-    mpfr_array = np.array([gmpy2.mpfr(x) for x in input_array.ravel()]).reshape(input_array.shape)
-    return mpfr_array
+
