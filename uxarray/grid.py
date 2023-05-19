@@ -39,7 +39,16 @@ class Grid:
         ----------
         dataset : xarray.Dataset, ndarray, list, tuple, required
             Input xarray.Dataset or vertex coordinates that form one face.
-
+        multi_precision : bool, optional
+            Specify if want to use multi-precision (mpfr) for all grid operations (default: False).
+            Each node coordinates will be stored as the gmpy2.mpfr/mpz(filled value) type
+            instead of the python ``float``/``int`` type.
+            Note: when using multi-precision, all grid operations are done in multi-precision using the GMPY2 library. And
+            the run time will significantly increase. To gain the full benefit of multi-precision, it is recommended to input
+            the grid coordinates in string format (eg. '0.1', '0.2', etc) and use string 'INT_FILL_VALUE'
+            to specify the fill value.
+        precision : int, optional
+            Specify the precision of the grid coordinates (default: FLOAT_PRECISION_BITS (python `float` bit precision)).
         Other Parameters
         ----------------
         islatlon : bool, optional
@@ -95,6 +104,7 @@ class Grid:
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
             self.mesh_type = parse_grid_type(dataset)
+            #TODO: Support multiprecision for __from_ds__
             self.__from_ds__(dataset=dataset)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
