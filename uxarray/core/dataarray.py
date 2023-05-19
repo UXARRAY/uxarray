@@ -11,7 +11,6 @@ class UxDataArray(xr.DataArray):
     __slots__ = ("_uxgrid",)
 
     def __init__(self, *args, uxgrid: Grid = None, **kwargs):
-        super().__init__(*args, **kwargs)
 
         self._uxgrid = None
 
@@ -21,6 +20,8 @@ class UxDataArray(xr.DataArray):
                 "an instance of the uxarray.core.Grid class")
         else:
             self.uxgrid = uxgrid
+
+        super().__init__(*args, **kwargs)
 
     def _copy(self, **kwargs):
         """Override to make the result a complete instance of
@@ -37,6 +38,16 @@ class UxDataArray(xr.DataArray):
             copied.uxgrid = self.uxgrid
 
         return copied
+
+    def _replace(self, *args, **kwargs):
+        da = super()._replace(*args, **kwargs)
+
+        if isinstance(da, UxDataArray):
+            da.uxgrid = self.uxgrid
+        else:
+            da = UxDataArray(da, uxgrid=self.uxgrid)
+
+        return da
 
     @property
     def uxgrid(self):

@@ -16,7 +16,7 @@ class UxDataset(xr.Dataset):
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = (
         '_uxgrid',
-        'source_datasets',
+        '_source_datasets',
     )
 
     def __init__(self,
@@ -26,7 +26,8 @@ class UxDataset(xr.Dataset):
                  **kwargs):
 
         self._uxgrid = None
-        setattr(self, 'source_datasets', source_datasets)
+        self._source_datasets = source_datasets
+        # setattr(self, 'source_datasets', source_datasets)
 
         if uxgrid is not None and not isinstance(uxgrid, Grid):
             raise RuntimeError(
@@ -62,6 +63,15 @@ class UxDataset(xr.Dataset):
             # value = value.to_dataarray()
 
         super().__setitem__(key, value)
+
+    @property
+    def source_datasets(self):
+        return self._source_datasets
+
+    # a setter function
+    @source_datasets.setter
+    def source_datasets(self, source_datasets_input):
+        self._source_datasets = source_datasets_input
 
     @property
     def uxgrid(self):
@@ -100,12 +110,18 @@ class UxDataset(xr.Dataset):
 
         return copied
 
-    # def _replace(self, *args, **kwargs):
-    #     ds = super()._replace(*args, **kwargs)
-    #
-    #     return UxDataset(ds,
-    #                      uxgrid=self.uxgrid,
-    #                      source_datasets=self.source_datasets)
+    def _replace(self, *args, **kwargs):
+        ds = super()._replace(*args, **kwargs)
+
+        if isinstance(ds, UxDataset):
+            ds.uxgrid = self.uxgrid
+            ds.source_datasets = self.source_datasets
+        else:
+            ds = UxDataset(ds,
+                           uxgrid=self.uxgrid,
+                           source_datasets=self.source_datasets)
+
+        return ds
 
     @classmethod
     def from_dataframe(cls, dataframe):
