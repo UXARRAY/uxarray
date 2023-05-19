@@ -32,8 +32,6 @@ def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
         rounding, selectable rounding modes, and many trigonometric, exponential, and special functions. A context
         manager is used to control precision, rounding modes, and the behavior of exceptions.
     """
-    gmpy2.set_context(gmpy2.context())
-    gmpy2.get_context().precision = precision
 
     # To take advantage of the higher precision provided by the mpfr type, always pass constants as strings.
     # https://gmpy2.readthedocs.io/en/latest/mpfr.html
@@ -76,9 +74,6 @@ def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
 
 
     """
-
-    # Reset the mpfr precision
-    gmpy2.get_context().precision = precision
 
     # Check if the input_array is in th mpfr type
     try:
