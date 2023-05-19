@@ -3,14 +3,14 @@
 import os
 import numpy as np
 import gmpy2
-from gmpy2 import mpfr
+from gmpy2 import mpfr, mpz
 
 from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
 from  uxarray.multi_precision_helpers import convert_to_mpfr, unique_coordinates_mpfr, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
 import math
 
@@ -60,12 +60,14 @@ class TestMultiPrecision(TestCase):
         # Test if every object in the verts_mpfr array is of type mpfr
         for i in range(verts_mpfr.shape[0]):
             for j in range(verts_mpfr.shape[1]):
-                self.assertEqual(verts_mpfr[i, j][0].precision, test_precision)
-                self.assertEqual(verts_mpfr[i, j][1].precision, test_precision)
+                for idx, val in enumerate(verts_mpfr[i, j]):
+                    if type(val) != mpz:
+                        self.assertEqual(val.precision, test_precision)
+                        # Then compare the values between verts and verts_mpfr up to the 53 bits of precision
+                        self.assertAlmostEqual(verts[i, j][idx], val, places=FLOAT_PRECISION_BITS)
 
-                # Then compare the values between verts and verts_mpfr up to the 53 bits of precision
-                self.assertAlmostEqual(verts[i, j][0], verts_mpfr[i, j][0], places=FLOAT_PRECISION_BITS)
-                self.assertAlmostEqual(verts[i, j][1], verts_mpfr[i, j][1], places=FLOAT_PRECISION_BITS)
+                    else:
+                        self.assertTrue(gmpy2.cmp(val, INT_FILL_VALUE_MPZ) == 0)
 
     def test_mpfr_unique_normal_case(self):
         """

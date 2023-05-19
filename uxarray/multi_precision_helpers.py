@@ -2,7 +2,7 @@ import gmpy2
 from gmpy2 import mpfr, mpz
 import numpy as np
 import math
-from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS
+from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
 
 
 def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
@@ -37,16 +37,32 @@ def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
 
     # To take advantage of the higher precision provided by the mpfr type, always pass constants as strings.
     # https://gmpy2.readthedocs.io/en/latest/mpfr.html
+    flattened_array = np.ravel(input_array)
+    mpfr_array = np.array(flattened_array, dtype=object)
     if not str_mode:
         # Cast the input 2D array to string array
-        input_array = input_array.astype(str)
+        for idx,val in enumerate(flattened_array):
+            if gmpy2.cmp(mpz(val), INT_FILL_VALUE_MPZ) == 0:
+                mpfr_array[idx] = INT_FILL_VALUE_MPZ
+            else:
+                decimal_digit = precision_bits_to_decimal_digits(precision)
+                format_str = "{0:+." + str(decimal_digit) + "f}"
+                val_str = format_str.format(val)
+                mpfr_array[idx] = mpfr(val_str, precision)
+
     else:
-        flattened_array = np.ravel(input_array)
+
         if ~np.all([np.issubdtype(type(element), np.str_) for element in flattened_array]):
             raise ValueError('The input array should be string when str_mode is True.')
+        # Then convert the input array to mpfr array
+        for idx, val in enumerate(flattened_array):
+            if val == "INT_FILL_VALUE":
+                mpfr_array[idx] = INT_FILL_VALUE_MPZ
+            else:
+                mpfr_array[idx] = mpfr(val, precision)
 
-    # Then convert the input array to mpfr array
-    mpfr_array = np.array([gmpy2.mpfr(x, precision) for x in input_array.ravel()]).reshape(input_array.shape)
+    mpfr_array = mpfr_array.reshape(input_array.shape)
+
     return mpfr_array
 
 
