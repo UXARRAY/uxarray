@@ -2,9 +2,6 @@
 
 import os
 import numpy as np
-import numpy.testing as nt
-import random
-import xarray as xr
 import gmpy2
 from gmpy2 import mpfr
 
@@ -13,9 +10,9 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.helpers import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS
-from  uxarray.multi_precision_helpers import convert_to_mpfr, unique_coordinates_mpfr
+from  uxarray.multi_precision_helpers import convert_to_mpfr, unique_coordinates_mpfr, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
+import math
 
 try:
     import constants
@@ -147,11 +144,39 @@ class TestMultiPrecision(TestCase):
         coord1_final = [coord + '0' for coord in coord1_str]
         coord2_final = [coord + '1' for coord in coord2_str]
         verts = np.array([coord1_final, coord2_final])
-        verts_60 = convert_to_mpfr(verts, str_mode=True, precision=60)
-        verts_57 = convert_to_mpfr(verts, str_mode=True, precision=57)
+        bit_precision = decimal_digits_to_precision_bits(18)
+        verts_60 = convert_to_mpfr(verts, str_mode=True, precision=bit_precision)
+        verts_57 = convert_to_mpfr(verts, str_mode=True, precision=bit_precision - 1)
 
-        verts_cart_mpfr_unique_64, unique_inverse_64 = unique_coordinates_mpfr(verts_60, precision=60)
-        verts_cart_mpfr_unique_57, unique_inverse_57 = unique_coordinates_mpfr(verts_57, precision=57)
+        verts_cart_mpfr_unique_64, unique_inverse_64 = unique_coordinates_mpfr(verts_60, precision=bit_precision)
+        verts_cart_mpfr_unique_57, unique_inverse_57 = unique_coordinates_mpfr(verts_57, precision=bit_precision - 1)
         self.assertTrue(len(verts_cart_mpfr_unique_64) == 2)
         self.assertTrue(len(verts_cart_mpfr_unique_57) == 1)
+
+        coord1 = [gmpy2.mpfr('1.23456789'), gmpy2.mpfr('2.34567890'), gmpy2.mpfr('3.45678901')]
+        coord2 = [gmpy2.mpfr('1.23456789'), gmpy2.mpfr('2.34567890'), gmpy2.mpfr('3.45678901')]
+        # Convert the coordinates to string format
+        precision_bits = 200
+        decimal_digits = precision_bits_to_decimal_digits(precision_bits - 1)
+        check = decimal_digits_to_precision_bits(decimal_digits)
+
+        format_str = "{0:." + str(decimal_digits) + "f}"
+        coord1_str = [format_str.format(coord) for coord in coord1]
+        coord2_str = [format_str.format(coord) for coord in coord2]
+
+        # Create the final coordinates with the differing 64th bit
+        coord1_final = [coord + '0' for coord in coord1_str]
+        coord2_final = [coord + '1' for coord in coord2_str]
+        verts = np.array([coord1_final, coord2_final])
+
+        verts_200 = convert_to_mpfr(verts, str_mode=True, precision=precision_bits)
+        verts_199 = convert_to_mpfr(verts, str_mode=True, precision=check - 1)
+
+        verts_cart_mpfr_unique_200, unique_inverse_200 = unique_coordinates_mpfr(verts_200, precision=precision_bits)
+        verts_cart_mpfr_unique_199, unique_inverse_199 = unique_coordinates_mpfr(verts_199, precision=check - 1)
+        self.assertTrue(len(verts_cart_mpfr_unique_200) == 2)
+        self.assertTrue(len(verts_cart_mpfr_unique_199) == 1)
+
+
+
 

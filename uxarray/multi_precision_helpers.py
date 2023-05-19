@@ -1,6 +1,7 @@
 import gmpy2
-from gmpy2 import mpfr
+from gmpy2 import mpfr, mpz
 import numpy as np
+import math
 from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS
 
 
@@ -45,7 +46,7 @@ def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
             raise ValueError('The input array should be string when str_mode is True.')
 
     # Then convert the input array to mpfr array
-    mpfr_array = np.array([gmpy2.mpfr(x,precision) for x in input_array.ravel()]).reshape(input_array.shape)
+    mpfr_array = np.array([gmpy2.mpfr(x, precision) for x in input_array.ravel()]).reshape(input_array.shape)
     return mpfr_array
 
 
@@ -82,7 +83,7 @@ def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
     current_index = 0
 
     for i in range(m):
-        format_string = "{0:+."+str(precision+1)+"Uf}"
+        format_string = "{0:+." + str(precision + 1) + "Uf}"
         hashable_row = tuple(format_string.format(gmpy2.mpfr(x, precision)) for x in input_array_mpfr[i])
 
         if hashable_row not in unique_dict:
@@ -97,3 +98,46 @@ def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
     inverse_indices = np.array(inverse_indices)
 
     return unique_arr, inverse_indices
+
+
+def decimal_digits_to_precision_bits(decimal_digits):
+    """
+    Convert the number of decimal digits to the number of bits of precision
+
+    Parameters
+    ----------
+    decimal_digits : int
+        The number of decimal digits of precision
+
+    Returns
+    -------
+    bits : int
+        The number of bits of precision
+    """
+    bits = math.ceil(decimal_digits * math.log2(10))
+    return bits
+
+
+def precision_bits_to_decimal_digits(precision):
+    """
+    Convert the number of bits of precision to the number of decimal digits
+
+    Parameters
+    ----------
+    precision : int
+        The number of bits of precision
+
+    Returns
+    -------
+    decimal_digits : int
+        The number of decimal digits of precision
+    """
+    # Compute the decimal digit count using gmpy2.log10()
+    log10_2 = gmpy2.log10(gmpy2.mpfr(2))  # Logarithm base 10 of 2
+    log10_precision = gmpy2.div(1, log10_2)  # Logarithm base 10 of the precision
+    decimal_digits = gmpy2.div(precision, log10_precision)
+
+    # Convert the result to an integer
+    decimal_digits = int(math.floor(decimal_digits))
+
+    return decimal_digits
