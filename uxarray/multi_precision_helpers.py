@@ -69,7 +69,7 @@ def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
         # Flatten the input_array_mpfr to a 1D array so that we can check the type of each element
         input_array_mpfr_copy = np.ravel(input_array_mpfr)
         for i in range(len(input_array_mpfr_copy)):
-            if type(input_array_mpfr_copy[i]) != gmpy2.mpfr:
+            if type(input_array_mpfr_copy[i]) != gmpy2.mpfr and type(input_array_mpfr_copy[i]) != gmpy2.mpz:
                 raise ValueError('The input array should be in the mpfr type. You can use convert_to_mpfr() to '
                                  'convert the input array to mpfr.')
     except Exception as e:

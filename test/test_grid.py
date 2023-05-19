@@ -1,12 +1,15 @@
 import os
 import numpy as np
 import xarray as xr
+import gmpy2
+from gmpy2 import mpfr
 
 from unittest import TestCase
 from pathlib import Path
 
 import xarray as xr
 import uxarray as ux
+import uxarray.multi_precision_helpers as mph
 import numpy.testing as nt
 
 try:
@@ -142,6 +145,71 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
         vgrid.encode_as("ugrid")
+
+    def test_init_verts_multi_precision_triangle(self):
+        nodes = []
+        # Generate the nodes on the unit sphere, and the nodes are extremely close to each other: the edge length
+        # between any two nodes is less than 1e-17 (the precision of the nodes is 60 bits but we will use 65 bits for
+        # testing)
+        for i in range(4):
+            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65), 4)  # Angle in radians
+            x = gmpy2.cos(theta)
+            y = gmpy2.sin(theta)
+            z = mpfr(0)  # All nodes will have z-coordinate as 0 on the unit sphere
+            nodes.append([x, y, z])
+
+        # Generate the face nodes connectivity
+        face_nodes_connectivity = np.array([
+            np.array([nodes[0], nodes[1], nodes[2]], dtype=object),
+            np.array([nodes[0], nodes[2], nodes[3]], dtype=object),
+            np.array([nodes[0], nodes[3], nodes[1]], dtype=object),
+            np.array([nodes[1], nodes[2], nodes[3]], dtype=object)
+        ])
+
+        # Create the grid
+        vgrid = ux.Grid(face_nodes_connectivity, multi_precision=True, precision= 65,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 4)
+        assert (vgrid.nMesh2_node == 4)
+
+    def test_init_verts_multi_precision_fill_values(self):
+        # Set the desired precision
+        gmpy2.get_context().precision = 100
+
+        # Generate the nodes on the unit sphere, and the nodes are extremely close to each other: the edge length
+        # between any two nodes is less than 1e-17 (the precision of the nodes is 60 bits but we will use 65 bits for
+        # testing)
+
+        nodes = []
+        for i in range(4):
+            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65), 4)  # Angle in radians
+            x = gmpy2.cos(theta)
+            y = gmpy2.sin(theta)
+            z = mpfr('0')  # All nodes will have z-coordinate as 0 on the unit sphere
+            nodes.append([x, y, z])
+
+        # Generate the face nodes connectivity
+        dumb_nodes = [ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ]
+        face_nodes_connectivity = np.array([
+            np.array([nodes[0], nodes[1], nodes[2], dumb_nodes], dtype=object),
+            np.array([nodes[0], nodes[2], nodes[3], dumb_nodes], dtype=object),
+            np.array([nodes[0], nodes[3], nodes[1], dumb_nodes], dtype=object),
+            np.array([nodes[1], nodes[2], nodes[3], nodes[0]], dtype=object)
+        ], dtype=object)
+        # Create the grid
+        vgrid = ux.Grid(face_nodes_connectivity, multi_precision=True, precision= 65,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 4)
+        assert (vgrid.nMesh2_node == 4)
+
+        # Test the all numbers in the vgird.ds["Mesh2_face_nodes"] are less than 4
+        assert (np.all(vgrid.ds["Mesh2_face_nodes"] < 4))
 
     def test_init_verts_different_input_datatype(self):
         """Create a uxarray grid from multiple face vertices with different

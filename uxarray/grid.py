@@ -2,7 +2,8 @@
 import os
 import xarray as xr
 import numpy as np
-from gmpy2 import mpfr
+import gmpy2
+from gmpy2 import mpfr, mpz
 
 # reader and writer imports
 from ._exodus import _read_exodus, _encode_exodus
@@ -11,7 +12,8 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
 from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, close_face_nodes
-from .constants import INT_DTYPE, INT_FILL_VALUE
+from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
+from .multi_precision_helpers import convert_to_mpfr, unique_coordinates_mpfr, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
 
 
 class Grid:
@@ -29,7 +31,7 @@ class Grid:
     >>> mesh.encode_as("ugrid")
     """
 
-    def __init__(self, dataset, **kwargs):
+    def __init__(self, dataset, multi_precision=False, precision = FLOAT_PRECISION_BITS, **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec.
 
@@ -77,12 +79,12 @@ class Grid:
             dataset = np.asarray(dataset)
             # grid with multiple faces
             if dataset.ndim == 3:
-                self.__from_vert__(dataset)
+                self.__from_vert__(dataset, multi_precision=multi_precision, precision=precision)
                 self.source_grid = "From vertices"
             # grid with a single face
             elif dataset.ndim == 2:
                 dataset = np.array([dataset])
-                self.__from_vert__(dataset)
+                self.__from_vert__(dataset, multi_precision=multi_precision, precision=precision)
                 self.source_grid = "From vertices"
             else:
                 raise RuntimeError(
@@ -160,7 +162,7 @@ class Grid:
                 if value in self.ds.dims:
                     setattr(self, key, len(self.ds[value]))
 
-    def __from_vert__(self, dataset):
+    def __from_vert__(self, dataset, multi_precision=False, precision= FLOAT_PRECISION_BITS):
         """Create a grid with faces constructed from vertices specified by the
         given argument.
 
@@ -200,20 +202,51 @@ class Grid:
             z_coord = x_coord * 0.0
 
         # Identify unique vertices and their indices
-        # TODO: Utilize GMPY2 for precise unique vertex identification
-        unique_verts, indices = np.unique(dataset.reshape(
-            -1, dataset.shape[-1]),
-                                          axis=0,
-                                          return_inverse=True)
+        if multi_precision:
+            # Check if the input_array is in th mpfr type
+            try:
+                # Flatten the input_array_mpfr to a 1D array so that we can check the type of each element
+                input_array_mpfr_copy = np.ravel(dataset)
+                for i in range(len(input_array_mpfr_copy)):
+                    if type(input_array_mpfr_copy[i]) != gmpy2.mpfr and type(input_array_mpfr_copy[i]) != gmpy2.mpz:
+                        dataset= convert_to_mpfr(dataset, precision=precision)
+            except Exception as e:
+                raise e
+
+            unique_verts, indices = unique_coordinates_mpfr(dataset.reshape(
+                -1, dataset.shape[-1]), precision=precision)
+
+        else:
+            unique_verts, indices = np.unique(dataset.reshape(
+                -1, dataset.shape[-1]),
+                                              axis=0,
+                                              return_inverse=True)
 
         # Nodes index that contain a fill value
-        fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
-                                        unique_verts[:, 1] == INT_FILL_VALUE)
-        if dataset[0][0].size > 2:
+        if multi_precision:
+            # Perform element-wise comparison using gmpy.cmp()
             fill_value_mask = np.logical_or(
-                unique_verts[:, 0] == INT_FILL_VALUE,
-                unique_verts[:, 1] == INT_FILL_VALUE,
-                unique_verts[:, 2] == INT_FILL_VALUE)
+                np.array([gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0 for x in unique_verts[:, 0]], dtype=bool),
+                np.array([gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0 for x in unique_verts[:, 1]], dtype=bool)
+            )
+
+            if dataset[0][0].size > 2:
+                fill_value_mask = np.logical_or(
+                    np.array([gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0 for x in
+                              unique_verts[:, 0]], dtype=bool),
+                    np.array([gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0 for x in
+                              unique_verts[:, 1]], dtype=bool),
+                    np.array([gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0 for x in
+                              unique_verts[:, 2]], dtype=bool))
+
+        else:
+            fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
+                                            unique_verts[:, 1] == INT_FILL_VALUE)
+            if dataset[0][0].size > 2:
+                fill_value_mask = np.logical_or(
+                    unique_verts[:, 0] == INT_FILL_VALUE,
+                    unique_verts[:, 1] == INT_FILL_VALUE,
+                    unique_verts[:, 2] == INT_FILL_VALUE)
 
         # Get the indices of all the False values in fill_value_mask
         false_indices = np.where(fill_value_mask == True)[0]
@@ -226,9 +259,17 @@ class Grid:
             unique_verts = np.delete(unique_verts, false_indices, axis=0)
 
             # Update indices accordingly
-            for i, idx in enumerate(false_indices):
-                indices[indices == idx] = INT_FILL_VALUE
-                indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
+            if multi_precision:
+                for i, idx in enumerate(false_indices):
+                    indices[indices == idx] = INT_FILL_VALUE_MPZ
+                    for j in range(indices.size):
+                        if gmpy2.cmp(mpz(indices[j]), mpz(idx)) > 0 and gmpy2.cmp(mpz(indices[j]), INT_FILL_VALUE_MPZ) != 0:
+                            indices[j] -= 1
+
+            else:
+                for i, idx in enumerate(false_indices):
+                    indices[indices == idx] = INT_FILL_VALUE
+                    indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
 
         # Create coordinate DataArrays
         self.ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
@@ -249,14 +290,24 @@ class Grid:
 
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
-        self.ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(connectivity).astype(INT_DTYPE),
-            dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-            attrs={
-                "cf_role": "face_node_connectivity",
-                "_FillValue": INT_FILL_VALUE,
-                "start_index": 0
-            })
+        if multi_precision:
+            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+                data=xr.DataArray(connectivity).astype(INT_DTYPE),
+                dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+                attrs={
+                    "cf_role": "face_node_connectivity",
+                    "_FillValue": INT_FILL_VALUE_MPZ,
+                    "start_index": 0
+                })
+        else:
+            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+                data=xr.DataArray(connectivity).astype(INT_DTYPE),
+                dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+                attrs={
+                    "cf_role": "face_node_connectivity",
+                    "_FillValue": INT_FILL_VALUE,
+                    "start_index": 0
+                })
 
     # load mesh from a file
     def __from_ds__(self, dataset):
