@@ -192,8 +192,7 @@ class TestGrid(TestCase):
                               4)  # Angle in radians
             x = gmpy2.cos(theta)
             y = gmpy2.sin(theta)
-            z = mpfr(
-                '0')
+            z = mpfr('0')
             nodes.append([x, y, z])
 
         # Generate the face nodes connectivity
