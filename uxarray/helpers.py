@@ -1,7 +1,5 @@
 import numpy as np
 import xarray as xr
-
-from pathlib import PurePath
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
@@ -674,9 +672,3 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
 
     return closed
-
-
-
-
-
-

@@ -22,3 +22,5 @@ dependencies:
     - myst-nb
     - sphinx-design
     - nbsphinx
+    - gmpy2
+    - mpmath

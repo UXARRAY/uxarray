@@ -152,10 +152,12 @@ class TestGrid(TestCase):
         # between any two nodes is less than 1e-17 (the precision of the nodes is 60 bits but we will use 65 bits for
         # testing)
         for i in range(4):
-            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65), 4)  # Angle in radians
+            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65),
+                              4)  # Angle in radians
             x = gmpy2.cos(theta)
             y = gmpy2.sin(theta)
-            z = mpfr(0)  # All nodes will have z-coordinate as 0 on the unit sphere
+            z = mpfr(
+                0)  # All nodes will have z-coordinate as 0 on the unit sphere
             nodes.append([x, y, z])
 
         # Generate the face nodes connectivity
@@ -167,7 +169,9 @@ class TestGrid(TestCase):
         ])
 
         # Create the grid
-        vgrid = ux.Grid(face_nodes_connectivity, multi_precision=True, precision= 65,
+        vgrid = ux.Grid(face_nodes_connectivity,
+                        multi_precision=True,
+                        precision=65,
                         vertices=True,
                         islatlon=False,
                         concave=False)
@@ -177,7 +181,6 @@ class TestGrid(TestCase):
 
     def test_init_verts_multi_precision_fill_values(self):
         # Set the desired precision
-        gmpy2.get_context().precision = 100
 
         # Generate the nodes on the unit sphere, and the nodes are extremely close to each other: the edge length
         # between any two nodes is less than 1e-17 (the precision of the nodes is 60 bits but we will use 65 bits for
@@ -185,22 +188,29 @@ class TestGrid(TestCase):
 
         nodes = []
         for i in range(4):
-            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65), 4)  # Angle in radians
+            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65),
+                              4)  # Angle in radians
             x = gmpy2.cos(theta)
             y = gmpy2.sin(theta)
-            z = mpfr('0')  # All nodes will have z-coordinate as 0 on the unit sphere
+            z = mpfr(
+                '0')  # All nodes will have z-coordinate as 0 on the unit sphere
             nodes.append([x, y, z])
 
         # Generate the face nodes connectivity
-        dumb_nodes = [ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ]
+        dumb_nodes = [
+            ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ
+        ]
         face_nodes_connectivity = np.array([
             np.array([nodes[0], nodes[1], nodes[2], dumb_nodes], dtype=object),
             np.array([nodes[0], nodes[2], nodes[3], dumb_nodes], dtype=object),
             np.array([nodes[0], nodes[3], nodes[1], dumb_nodes], dtype=object),
             np.array([nodes[1], nodes[2], nodes[3], nodes[0]], dtype=object)
-        ], dtype=object)
+        ],
+                                           dtype=object)
         # Create the grid
-        vgrid = ux.Grid(face_nodes_connectivity, multi_precision=True, precision= 65,
+        vgrid = ux.Grid(face_nodes_connectivity,
+                        multi_precision=True,
+                        precision=65,
                         vertices=True,
                         islatlon=False,
                         concave=False)

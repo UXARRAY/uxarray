@@ -2,14 +2,18 @@ import gmpy2
 from gmpy2 import mpfr, mpz
 import numpy as np
 import math
-from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
+from .constants import FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
 
 
-def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
-    """
-    Convert a numpy array to a list of mpfr numbers.
+def convert_to_multiprecision(input_array,
+                              str_mode=True,
+                              precision=FLOAT_PRECISION_BITS):
+    """Convert a numpy array to a list of mpfr numbers.
+
     The default precision of an mpfr is 53 bits - the same precision as Python’s `float` type.
     https://gmpy2.readthedocs.io/en/latest/mpfr.html
+    If the input array contains fill values INT_FILL_VALUE, the fill values will be converted to INT_FILL_VALUE_MPZ,
+    which is the multi-precision integer representation of INT_FILL_VALUE.
 
     Parameters
     ----------
@@ -31,6 +35,12 @@ def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
         The output array with mpfr type, which supports correct
         rounding, selectable rounding modes, and many trigonometric, exponential, and special functions. A context
         manager is used to control precision, rounding modes, and the behavior of exceptions.
+
+    Raises
+    ----------
+    ValueError
+        The input array should be string when str_mode is True, if not, raise
+        ValueError('The input array should be string when str_mode is True.')
     """
 
     # To take advantage of the higher precision provided by the mpfr type, always pass constants as strings.
@@ -39,7 +49,7 @@ def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
     mpfr_array = np.array(flattened_array, dtype=object)
     if not str_mode:
         # Cast the input 2D array to string array
-        for idx,val in enumerate(flattened_array):
+        for idx, val in enumerate(flattened_array):
             if gmpy2.cmp(mpz(val), INT_FILL_VALUE_MPZ) == 0:
                 mpfr_array[idx] = INT_FILL_VALUE_MPZ
             else:
@@ -50,8 +60,12 @@ def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
 
     else:
 
-        if ~np.all([np.issubdtype(type(element), np.str_) for element in flattened_array]):
-            raise ValueError('The input array should be string when str_mode is True.')
+        if ~np.all([
+                np.issubdtype(type(element), np.str_)
+                for element in flattened_array
+        ]):
+            raise ValueError(
+                'The input array should be string when str_mode is True.')
         # Then convert the input array to mpfr array
         for idx, val in enumerate(flattened_array):
             if val == "INT_FILL_VALUE":
@@ -64,15 +78,35 @@ def convert_to_mpfr(input_array, str_mode=True, precision=FLOAT_PRECISION_BITS):
     return mpfr_array
 
 
-def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
-    """
-    Find the unique coordinates in the input array with mpfr numbers.
+def unique_coordinates_multiprecision(input_array_mpfr,
+                                      precision=FLOAT_PRECISION_BITS):
+    """Find the unique coordinates in the input array with mpfr numbers.
+
     The default precision of an mpfr is 53 bits - the same precision as Python’s `float` type.
+    It can recognize the fill values INT_FILL_VALUE_MPZ, which is the multi-precision integer representation of
+    INT_FILL_VALUE.
 
     Parameters:
     ----------
+    input_array_mpfr : numpy.ndarray, gmpy2.mpfr type
+        The input array containing mpfr numbers.
 
+    precision : int, optional
+        The precision in bits used for the mpfr calculations. Default is FLOAT_PRECISION_BITS.
 
+    Returns:
+    -------
+    unique_arr ： numpy.ndarray, gmpy2.mpfr
+        Array of unique coordinates in the input array.
+
+    inverse_indices: numpy.ndarray, int
+        The indices to reconstruct the original array from the unique array. Only provided if return_inverse is True.
+
+    Raises
+    ----------
+    ValueError
+        The input array should be string when str_mode is True, if not, raise
+        ValueError('The input array should be string when str_mode is True.')
     """
 
     # Check if the input_array is in th mpfr type
@@ -80,9 +114,11 @@ def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
         # Flatten the input_array_mpfr to a 1D array so that we can check the type of each element
         input_array_mpfr_copy = np.ravel(input_array_mpfr)
         for i in range(len(input_array_mpfr_copy)):
-            if type(input_array_mpfr_copy[i]) != gmpy2.mpfr and type(input_array_mpfr_copy[i]) != gmpy2.mpz:
-                raise ValueError('The input array should be in the mpfr type. You can use convert_to_mpfr() to '
-                                 'convert the input array to mpfr.')
+            if type(input_array_mpfr_copy[i]) != gmpy2.mpfr and type(
+                    input_array_mpfr_copy[i]) != gmpy2.mpz:
+                raise ValueError(
+                    'The input array should be in the mpfr type. You can use convert_to_mpfr() to '
+                    'convert the input array to mpfr.')
     except Exception as e:
         raise e
 
@@ -94,8 +130,18 @@ def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
     current_index = 0
 
     for i in range(m):
-        format_string = "{0:+." + str(precision + 1) + "Uf}"
-        hashable_row = tuple(format_string.format(gmpy2.mpfr(x, precision)) for x in input_array_mpfr[i])
+        # We only need to check the first element of each row since the elements in the same row are the same type
+        # (Either mpfr for valid coordinates or INT_FILL_VALUE_MPZ for fill values)
+        if type(input_array_mpfr[i][0]) == gmpy2.mpfr:
+            format_string = "{0:+." + str(precision + 1) + "Uf}"
+        elif type(input_array_mpfr[i][0]) == gmpy2.mpz:
+            format_string = "{:<+" + str(precision + 1) + "d}"
+        else:
+            raise ValueError(
+                'The input array should be in the mpfr/mpz type. You can use convert_to_multiprecision() '
+                'to convert the input array to multiprecision format.')
+        hashable_row = tuple(
+            format_string.format(x) for x in input_array_mpfr[i])
 
         if hashable_row not in unique_dict:
             unique_dict[hashable_row] = current_index
@@ -112,8 +158,7 @@ def unique_coordinates_mpfr(input_array_mpfr, precision=FLOAT_PRECISION_BITS):
 
 
 def decimal_digits_to_precision_bits(decimal_digits):
-    """
-    Convert the number of decimal digits to the number of bits of precision
+    """Convert the number of decimal digits to the number of bits of precision.
 
     Parameters
     ----------
@@ -130,8 +175,7 @@ def decimal_digits_to_precision_bits(decimal_digits):
 
 
 def precision_bits_to_decimal_digits(precision):
-    """
-    Convert the number of bits of precision to the number of decimal digits
+    """Convert the number of bits of precision to the number of decimal digits.
 
     Parameters
     ----------
@@ -145,7 +189,8 @@ def precision_bits_to_decimal_digits(precision):
     """
     # Compute the decimal digit count using gmpy2.log10()
     log10_2 = gmpy2.log10(gmpy2.mpfr(2))  # Logarithm base 10 of 2
-    log10_precision = gmpy2.div(1, log10_2)  # Logarithm base 10 of the precision
+    log10_precision = gmpy2.div(1,
+                                log10_2)  # Logarithm base 10 of the precision
     decimal_digits = gmpy2.div(precision, log10_precision)
 
     # Convert the result to an integer

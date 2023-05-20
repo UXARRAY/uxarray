@@ -178,4 +178,3 @@ class TestConstants(TestCase):
                                                    original_fill=-1,
                                                    new_fill=INT_FILL_VALUE,
                                                    new_dtype=np.int16)
-
