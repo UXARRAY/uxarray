@@ -193,7 +193,7 @@ class TestGrid(TestCase):
             x = gmpy2.cos(theta)
             y = gmpy2.sin(theta)
             z = mpfr(
-                '0')  # All nodes will have z-coordinate as 0 on the unit sphere
+                '0')
             nodes.append([x, y, z])
 
         # Generate the face nodes connectivity
