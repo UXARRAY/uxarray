@@ -18,3 +18,4 @@ see the :doc:`contributing`.
    examples/001-read-grid-data.ipynb
    examples/002-access-grid-info.ipynb
    examples/003-area-calc.ipynb
+   examples/004-multiprecision-usage.ipynb
