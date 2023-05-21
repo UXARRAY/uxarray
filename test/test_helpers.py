@@ -103,6 +103,8 @@ class TestCoordinatesConversion(TestCase):
              random.random()])
         self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
                              err_tolerance)
+
+        # Multiprecision test for places=19
         precision = decimal_digits_to_precision_bits(19)
         set_global_precision(precision)
         [x_mpfr, y_mpfr, z_mpfr] = convert_to_multiprecision(np.array(['1.0000000000000000001', '0.0000000000000000009', '0.0000000000000000001']), precision=precision)
