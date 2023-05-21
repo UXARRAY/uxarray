@@ -1,5 +1,8 @@
 import numpy as np
 import xarray as xr
+import gmpy2
+from gmpy2 import mpfr, mpz
+import mpmath
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
@@ -493,7 +496,6 @@ def node_lonlat_rad_to_xyz(node_coord):
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
 
-@njit
 def node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
@@ -536,8 +538,6 @@ def node_xyz_to_lonlat_rad(node_coord):
 
     return [d_lon_rad, d_lat_rad]
 
-
-@njit
 def normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate
@@ -545,12 +545,12 @@ def normalize_in_place(node):
 
     Parameters
     ----------
-    node: float list
+    node: list, python `float` or gmpy2.mpfr
         3D Cartesian Coordinates [x, y, z]
 
     Returns
     ----------
-    float list
+    normalized_node: list, python `float` or gmpy2.mpfr
         the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -561,7 +561,18 @@ def normalize_in_place(node):
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
+    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(node)):
+        # Convert the node to mpmath array
+        squres = [gmpy2.square(value) for value in node]
+        norm = gmpy2.sqrt(gmpy2.fsum([gmpy2.square(value) for value in node]))
+
+        # Divide each element of the node by the norm using gmpy2
+        normalized_node = [gmpy2.div(element, norm) for element in node]
+
+        # Convert the result back to numpy array
+        return np.array(normalized_node)
+    else:
+        return np.array(node) / np.linalg.norm(np.array(node), ord=2)
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):

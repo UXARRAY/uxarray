@@ -3,7 +3,9 @@ import numpy as np
 import numpy.testing as nt
 import random
 import xarray as xr
-
+import gmpy2
+from gmpy2 import mpfr, mpz
+import mpmath
 from unittest import TestCase
 from pathlib import Path
 
@@ -11,6 +13,7 @@ import uxarray as ux
 
 from uxarray.helpers import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.multi_precision_helpers import convert_to_multiprecision, set_global_precision, decimal_digits_to_precision_bits
 
 try:
     import constants
@@ -100,6 +103,15 @@ class TestCoordinatesConversion(TestCase):
              random.random()])
         self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
                              err_tolerance)
+        precision = decimal_digits_to_precision_bits(19)
+        set_global_precision(precision)
+        [x_mpfr, y_mpfr, z_mpfr] = convert_to_multiprecision(np.array(['1.0000000000000000001', '0.0000000000000000009', '0.0000000000000000001']), precision=precision)
+        normalized = ux.helpers.normalize_in_place([x_mpfr, y_mpfr, z_mpfr])
+        # Calculate the sum of squares using gmpy2.fsum()
+        sum_of_squares = gmpy2.fsum([gmpy2.square(value) for value in normalized])
+        abs = gmpy2.mul(gmpy2.reldiff(mpfr('1.0'),sum_of_squares), mpfr('1.0'))
+        self.assertAlmostEqual(abs, 0,places=19)
+
 
     def test_node_xyz_to_lonlat_rad(self):
         [x, y, z] = ux.helpers.normalize_in_place([

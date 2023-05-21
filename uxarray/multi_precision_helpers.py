@@ -5,6 +5,28 @@ import math
 from .constants import FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
 
 
+def set_global_precision(global_precision=FLOAT_PRECISION_BITS):
+    """Set the global precision of the mpfr numbers.
+    Important Note:
+    1. To avoid arithmetic overflow, the global precision should always be higher than any other precision speicified
+    in the code.
+    2. Modifying the precision by calling this function will modify all following codes running context until
+    another call to this function.
+
+    Parameters
+    ----------
+    global_precision : int, optional
+        The global precision of the expected multiprecision float.
+        The default precision of an mpfr is 53 bits - the same precision as Python’s `float` type.
+
+    Returns
+    -------
+    None
+    """
+
+    gmpy2.get_context().precision = global_precision
+
+
 def convert_to_multiprecision(input_array,
                               str_mode=True,
                               precision=FLOAT_PRECISION_BITS):
@@ -61,8 +83,8 @@ def convert_to_multiprecision(input_array,
     else:
 
         if ~np.all([
-                np.issubdtype(type(element), np.str_)
-                for element in flattened_array
+            np.issubdtype(type(element), np.str_)
+            for element in flattened_array
         ]):
             raise ValueError(
                 'The input array should be string when str_mode is True.')
