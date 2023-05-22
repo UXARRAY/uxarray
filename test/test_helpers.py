@@ -114,6 +114,9 @@ class TestCoordinatesConversion(TestCase):
         abs = gmpy2.mul(gmpy2.reldiff(mpfr('1.0'),sum_of_squares), mpfr('1.0'))
         self.assertAlmostEqual(abs, 0,places=19)
 
+        # Reset global precision to default
+        set_global_precision()
+
 
     def test_node_xyz_to_lonlat_rad(self):
         [x, y, z] = ux.helpers.normalize_in_place([
@@ -126,6 +129,21 @@ class TestCoordinatesConversion(TestCase):
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
         self.assertLessEqual(np.absolute(new_z - z), err_tolerance)
+
+        # Multiprecision test for places=19
+        precision = decimal_digits_to_precision_bits(19)
+        set_global_precision(precision)
+        # Assign 1 at the 21th decimal place, which is beyond the precision of 19 decimal places
+        [x_mpfr, y_mpfr, z_mpfr] = convert_to_multiprecision(np.array(['1.000000000000000000001', '0.000000000000000000001', '0.000000000000000000001']), precision=precision)
+        [lon_mpfr, lat_mpfr] = ux.helpers.node_xyz_to_lonlat_rad([x_mpfr, y_mpfr, z_mpfr])
+        self.assertAlmostEqual(lon_mpfr, 0, places=19)
+        self.assertAlmostEqual(lat_mpfr, 0, places=19)
+
+        # Remove 1 at the 21th decimal place, and the total digit place are 19. the results should be perfectly equal to [0,0]
+        [x_mpfr, y_mpfr, z_mpfr] = convert_to_multiprecision(np.array(['1.0000000000000000000', '0.0000000000000000000', '0.0000000000000000000']), precision=precision)
+        [lon_mpfr, lat_mpfr] = ux.helpers.node_xyz_to_lonlat_rad([x_mpfr, y_mpfr, z_mpfr])
+        self.assertEqual(lon_mpfr, 0,)
+        self.assertEqual(lat_mpfr, 0)
 
     def test_node_latlon_rad_to_xyz(self):
         [lon, lat] = [

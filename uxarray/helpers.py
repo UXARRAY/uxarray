@@ -502,12 +502,12 @@ def node_xyz_to_lonlat_rad(node_coord):
 
     Parameters
     ----------
-    node_coord: float list
+    node_coord: list, python `float` or `gmpy2.mpfr`
         3D Cartesian Coordinates [x, y, z] of the node
 
     Returns
     ----------
-    float list
+    node_coord_rad: list, python `float` or `gmpy2.mpfr`
         the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
 
     Raises
@@ -517,26 +517,41 @@ def node_xyz_to_lonlat_rad(node_coord):
     """
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-    reference_tolerance = 1.0e-12
-    [dx, dy, dz] = normalize_in_place(node_coord)
-    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
+    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(node_coord)):
+        [dx, dy, dz] = normalize_in_place(node_coord)
+        # The precision is set by the gmpy2.context through the set_global_precision() function
+        if gmpy2.cmp_abs(dz, mpfr('1.0')):
+            d_lon_rad = gmpy2.atan2(dy, dx)
+            d_lat_rad = gmpy2.asin(dz)
 
-    if np.absolute(dz) < (1.0 - reference_tolerance):
-        d_lon_rad = math.atan2(dy, dx)
-        d_lat_rad = np.arcsin(dz)
+            if gmpy2.cmp(d_lon_rad, mpfr('0.0')) < 0:
+                d_lon_rad += gmpy2.mul(mpfr('2.0'), gmpy2.const_pi())
+        elif gmpy2.cmp(dz, mpfr('0.0')) > 0:
+            d_lon_rad = mpfr('0.0')
+            d_lat_rad = gmpy2.mul(mpfr('0.5'), gmpy2.const_pi())
+        else:
+            d_lon_rad = mpfr('0.0')
+            d_lat_rad = gmpy2.mul(mpfr('-0.5'), gmpy2.const_pi())
 
-        if d_lon_rad < 0.0:
-            d_lon_rad += 2.0 * np.pi
-    elif dz > 0.0:
-        d_lon_rad = 0.0
-        d_lat_rad = 0.5 * np.pi
+        return [d_lon_rad, d_lat_rad]
     else:
-        d_lon_rad = 0.0
-        d_lat_rad = -0.5 * np.pi
+        reference_tolerance = 1.0e-12
+        [dx, dy, dz] = normalize_in_place(node_coord)
 
-    return [d_lon_rad, d_lat_rad]
+        if np.absolute(dz) < (1.0 - reference_tolerance):
+            d_lon_rad = math.atan2(dy, dx)
+            d_lat_rad = np.arcsin(dz)
+
+            if d_lon_rad < 0.0:
+                d_lon_rad += 2.0 * np.pi
+        elif dz > 0.0:
+            d_lon_rad = 0.0
+            d_lat_rad = 0.5 * np.pi
+        else:
+            d_lon_rad = 0.0
+            d_lat_rad = -0.5 * np.pi
+
+        return [d_lon_rad, d_lat_rad]
 
 def normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
@@ -563,7 +578,6 @@ def normalize_in_place(node):
 
     if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(node)):
         # Convert the node to mpmath array
-        squres = [gmpy2.square(value) for value in node]
         norm = gmpy2.sqrt(gmpy2.fsum([gmpy2.square(value) for value in node]))
 
         # Divide each element of the node by the norm using gmpy2
