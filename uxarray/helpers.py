@@ -468,7 +468,6 @@ def grid_center_lat_lon(ds):
     return center_lat, center_lon
 
 
-@njit
 def node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D
     longitude/latitude to normalized 3D xyz.
@@ -491,9 +490,18 @@ def node_lonlat_rad_to_xyz(node_coord):
     if len(node_coord) != 2:
         raise RuntimeError(
             "Input array should have a length of 2: [longitude, latitude]")
-    lon = node_coord[0]
-    lat = node_coord[1]
-    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(node_coord)):
+        lon = node_coord[0]
+        lat = node_coord[1]
+        return [
+            gmpy2.mul(gmpy2.cos(lon), gmpy2.cos(lat)),
+            gmpy2.mul(gmpy2.sin(lon), gmpy2.cos(lat)),
+            gmpy2.sin(lat)
+        ]
+    else:
+        lon = node_coord[0]
+        lat = node_coord[1]
+        return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
 
 def node_xyz_to_lonlat_rad(node_coord):
