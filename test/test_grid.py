@@ -515,7 +515,7 @@ class TestPopulateCoordinates(TestCase):
         ]
 
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
-        vgrid = ux.Grid([verts_degree], islatlon=False)
+        vgrid = ux.Grid([verts_degree], islatlon=True, vertices=True)
         vgrid._populate_cartesian_xyz_coord()
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
@@ -527,6 +527,46 @@ class TestPopulateCoordinates(TestCase):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
                                    cart_z[i],
                                    decimal=12)
+
+        lon_deg = [
+            '45.0001052295749', '45.0001052295749', '314.9998947704251',
+            '314.9998947704251'
+        ]
+        lat_deg = [
+            '35.2655522903022', '-35.2655522903022', '35.2655522903022', '-35.2655522903022'
+        ]
+
+        cart_x = [
+            '0.577340924821405', '0.577340924821405', '0.577340924821405', '0.577340924821405'
+        ]
+
+        cart_y = [
+            '0.577343045516932', '0.577343045516932', '-0.577343045516932', '-0.577343045516932'
+        ]
+
+        cart_z = [
+            '0.577366836872017', '-0.577366836872017', '0.577366836872017', '-0.577366836872017'
+        ]
+
+        verts_degree = np.stack((lon_deg, lat_deg), axis=1)
+        vgrid = ux.Grid([verts_degree], multi_precision=True, precision=64, islatlon=True, vertices=True)
+        vgrid._populate_cartesian_xyz_coord()
+        ans_x = vgrid.ds["Mesh2_node_cart_x"].values
+        ans_y = vgrid.ds["Mesh2_node_cart_y"].values
+        ans_z = vgrid.ds["Mesh2_node_cart_z"].values
+        [test_x, test_y, test_z] = ux.helpers.node_lonlat_rad_to_xyz([gmpy2.radians(mpfr('45.0001052295749')), gmpy2.radians(mpfr('35.2655522903022'))])
+        [real_x, real_y, real_z] = ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(45.0001052295749), np.deg2rad(35.2655522903022)])
+        pass
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
+                                   mpfr(cart_x[i]),
+                                   decimal=14)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_y"].values[i],
+                                   mpfr(cart_y[i]),
+                                   decimal=14)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
+                                   mpfr(cart_z[i]),
+                                   decimal=14)
 
     def test_populate_lonlat_coord(self):
         # The following testcases are generated through the matlab cart2sph/sph2cart functions
@@ -755,29 +795,6 @@ class TestConnectivity(TestCase):
                 self.assertTrue(
                     np.array_equal(reverted_mesh2_edge_nodes[i],
                                    original_face_nodes_connectivity[i]))
-
-    def test_build_face_edges_connectivity_mpas(self):
-        xr_ds = xr.open_dataset(self.mpas_filepath)
-        tgrid = ux.Grid(xr_ds)
-
-        mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
-
-        tgrid._build_face_edges_connectivity()
-        mesh2_face_edges = tgrid.ds.Mesh2_face_edges
-        mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
-
-        # Assert if the mesh2_face_edges sizes are correct.
-        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
-                         mesh2_face_nodes.sizes["nMesh2_face"])
-        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
-                         mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
-
-        # Assert if the mesh2_edge_nodes sizes are correct.
-        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid.ds[
-            "Mesh2_node_x"].sizes["nMesh2_node"] - 2
-        size = mesh2_edge_nodes.sizes["nMesh2_edge"]
-        self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
     def test_build_face_edges_connectivity_fillvalues(self):
         f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10],

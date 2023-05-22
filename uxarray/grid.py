@@ -76,6 +76,10 @@ class Grid:
         # initialize face_area variable
         self._face_areas = None
 
+        # initialize the multi-precision flag
+        self._multi_precision = multi_precision
+        self._precision = precision
+
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -90,18 +94,27 @@ class Grid:
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             dataset = np.asarray(dataset)
+            # Pre-process dataset if the multi-precision flag is set
+            if self._multi_precision:
+                # If the input are floats
+                if dataset.dtype == np.float64 or dataset.dtype == np.float or dataset.dtype == np.float32:
+                    dataset = convert_to_multiprecision(dataset, str_mode=False, precision=self._precision)
+                # If the input are strings
+                elif np.all([np.issubdtype(type(element), np.str_)for element in dataset.ravel()]):
+                    dataset = convert_to_multiprecision(dataset, str_mode=True, precision=self._precision)
+                else:
+                    # If the input are not floats or strings or gmpy2.mpfr/mpz, raise an error
+                    if ~np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(dataset.ravel())):
+                        raise ValueError(
+                            'The input array should be either floats, strings, or gmpy2.mpfr/mpz')
             # grid with multiple faces
             if dataset.ndim == 3:
-                self.__from_vert__(dataset,
-                                   multi_precision=multi_precision,
-                                   precision=precision)
+                self.__from_vert__(dataset)
                 self.source_grid = "From vertices"
             # grid with a single face
             elif dataset.ndim == 2:
                 dataset = np.array([dataset])
-                self.__from_vert__(dataset,
-                                   multi_precision=multi_precision,
-                                   precision=precision)
+                self.__from_vert__(dataset)
                 self.source_grid = "From vertices"
             else:
                 raise RuntimeError(
@@ -181,9 +194,7 @@ class Grid:
                     setattr(self, key, len(self.ds[value]))
 
     def __from_vert__(self,
-                      dataset,
-                      multi_precision=False,
-                      precision=FLOAT_PRECISION_BITS):
+                      dataset):
         """Create a grid with faces constructed from vertices specified by the
         given argument.
 
@@ -193,6 +204,7 @@ class Grid:
             Input vertex coordinates that form our face(s)
         """
         self.ds = xr.Dataset()
+
         self.ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
@@ -223,7 +235,7 @@ class Grid:
             z_coord = x_coord * 0.0
 
         # Identify unique vertices and their indices
-        if multi_precision:
+        if self._multi_precision:
             # Check if the input_array is in th mpfr type
             try:
                 # Flatten the input_array_mpfr to a 1D array so that we can check the type of each element
@@ -232,12 +244,12 @@ class Grid:
                     if type(input_array_mpfr_copy[i]) != gmpy2.mpfr and type(
                             input_array_mpfr_copy[i]) != gmpy2.mpz:
                         dataset = convert_to_multiprecision(dataset,
-                                                            precision=precision)
+                                                            precision=self._precision)
             except Exception as e:
                 raise e
 
             unique_verts, indices = unique_coordinates_multiprecision(
-                dataset.reshape(-1, dataset.shape[-1]), precision=precision)
+                dataset.reshape(-1, dataset.shape[-1]), precision=self._precision)
 
         else:
             unique_verts, indices = np.unique(dataset.reshape(
@@ -246,7 +258,7 @@ class Grid:
                                               return_inverse=True)
 
         # Nodes index that contain a fill value
-        if multi_precision:
+        if self._multi_precision:
             # Perform element-wise comparison using gmpy.cmp()
             fill_value_mask = np.logical_or(
                 np.array([
@@ -299,7 +311,7 @@ class Grid:
             unique_verts = np.delete(unique_verts, false_indices, axis=0)
 
             # Update indices accordingly
-            if multi_precision:
+            if self._multi_precision:
                 for i, idx in enumerate(false_indices):
                     indices[indices == idx] = INT_FILL_VALUE_MPZ
                     for j in range(indices.size):
@@ -332,7 +344,7 @@ class Grid:
 
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
-        if multi_precision:
+        if self._multi_precision:
             self.ds["Mesh2_face_nodes"] = xr.DataArray(
                 data=xr.DataArray(connectivity).astype(INT_DTYPE),
                 dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
@@ -693,8 +705,12 @@ class Grid:
             return
 
         # check for units and create Mesh2_node_cart_x/y/z set to self.ds
-        nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
-        nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
+        if self._multi_precision:
+            nodes_lon_rad = np.array([gmpy2.radians(x) for x in self.Mesh2_node_x.values])
+            nodes_lat_rad = np.array([gmpy2.radians(y) for y in self.Mesh2_node_y.values])
+        else:
+            nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
+            nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
         nodes_cart = np.asarray(
             list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
@@ -777,7 +793,11 @@ class Grid:
              self.ds["Mesh2_node_z"].values),
             axis=1).tolist()
         nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
-        nodes_degree = np.rad2deg(nodes_rad)
+
+        if self._multi_precision:
+            nodes_degree = np.array([[gmpy2.degrees(x), gmpy2.degrees(y)] for x, y in nodes_rad])
+        else:
+            nodes_degree = np.rad2deg(nodes_rad)
         self.ds["Mesh2_node_x"] = xr.DataArray(
             data=nodes_degree[:, 0],
             dims=["nMesh2_node"],

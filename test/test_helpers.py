@@ -197,10 +197,20 @@ class TestCoordinatesConversion(TestCase):
             self.assertAlmostEqual(new_y, init_y, places=19)
             self.assertAlmostEqual(new_z, init_z, places=19)
 
+        # Test for the longitude and latitude conversion
+        # The initial coordinates
+        [init_lon, init_lat] = [mpfr('1.4000332309896247'),mpfr('1.190289949682531')]
+        # Reset global precision to default
+        new_lat = init_lat
+        new_lon = init_lon
+        for iter in range(1000):
+            [new_x, new_y, new_z] = ux.helpers.node_lonlat_rad_to_xyz([new_lon, new_lat])
+            [new_lon, new_lat] = ux.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
+            self.assertAlmostEqual(new_lon, init_lon, places=19)
+            self.assertAlmostEqual(new_lat, init_lat, places=19)
 
-
-
-
+        # Reset global precision to default
+        set_global_precision()
 
 class TestConstants(TestCase):
     # DTYPE as set in constants.py

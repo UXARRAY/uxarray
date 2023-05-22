@@ -474,12 +474,12 @@ def node_lonlat_rad_to_xyz(node_coord):
 
     Parameters
     ----------
-    node: float list
+    node: list, python `float` or `gmpy2.mpfr`
         2D coordinates[longitude, latitude] in radiance
 
     Returns
     ----------
-    float list
+    node_cartesian: list, python `float` or `gmpy2.mpfr`
         the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
