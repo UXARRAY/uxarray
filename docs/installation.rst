@@ -49,7 +49,7 @@ Required dependencies for installing and testing Uxarray
 The following packages should be installed (in your active conda
 environment)::
 
-    - Python 3.7+
+    - Python 3.9+
     - `pytest <https://docs.pytest.org/en/stable/>`_  (For tests only)
     - `xarray <http://xarray.pydata.org/en/stable/>`_
 
