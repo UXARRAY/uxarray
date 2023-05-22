@@ -10,7 +10,7 @@ assignees: ''
 **Describe the feature you'd like added to this project**
 A clear and concise description of what the problem is.
 
-**Link to original NCL functionality, if applicable**
+**Link to original functionality implementation elsewhere, if applicable**
 
 **Links to other examples, if applicable**
 
