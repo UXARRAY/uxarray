@@ -76,6 +76,9 @@ class Grid:
         # initialize face_area variable
         self._face_areas = None
 
+        # initialize the multi-precision flag
+        self._multi_precision = multi_precision
+        self._precision = precision
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
