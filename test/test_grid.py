@@ -551,11 +551,6 @@ class TestPopulateCoordinates(TestCase):
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
         vgrid = ux.Grid([verts_degree], multi_precision=True, precision=64, islatlon=True, vertices=True)
         vgrid._populate_cartesian_xyz_coord()
-        ans_x = vgrid.ds["Mesh2_node_cart_x"].values
-        ans_y = vgrid.ds["Mesh2_node_cart_y"].values
-        ans_z = vgrid.ds["Mesh2_node_cart_z"].values
-        [test_x, test_y, test_z] = ux.helpers.node_lonlat_rad_to_xyz([gmpy2.radians(mpfr('45.0001052295749')), gmpy2.radians(mpfr('35.2655522903022'))])
-        [real_x, real_y, real_z] = ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(45.0001052295749), np.deg2rad(35.2655522903022)])
         pass
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],

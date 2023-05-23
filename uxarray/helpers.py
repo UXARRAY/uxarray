@@ -98,7 +98,7 @@ def parse_grid_type(dataset):
 
 
 # Calculate the area of all faces.
-@njit
+# @njit
 def calculate_face_area(x,
                         y,
                         z,
@@ -185,7 +185,7 @@ def calculate_face_area(x,
     return area
 
 
-@njit
+# @njit
 def get_all_face_area_from_coords(x,
                                   y,
                                   z,
@@ -255,7 +255,7 @@ def get_all_face_area_from_coords(x,
     return area
 
 
-@njit
+# @njit
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
@@ -331,7 +331,7 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     return dJacobian
 
 
-@njit
+# @njit
 def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
                                                       dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
@@ -460,7 +460,7 @@ def grid_center_lat_lon(ds):
     z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
 
     center_lon = np.rad2deg(np.arctan2(y, x))
-    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x ** 2 + y ** 2)))
 
     # Make negative lons positive
     center_lon[center_lon < 0] += 360
@@ -560,6 +560,7 @@ def node_xyz_to_lonlat_rad(node_coord):
             d_lat_rad = -0.5 * np.pi
 
         return [d_lon_rad, d_lat_rad]
+
 
 def normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
@@ -696,7 +697,7 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
 
     # 2d to 1d index for np.put()
     first_fv_idx_1d = first_fv_idx_2d + (
-        (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
+            (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
 
     # column of first node values
     first_node_value = Mesh2_face_nodes[:, 0].copy()
