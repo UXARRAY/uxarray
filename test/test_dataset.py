@@ -2,6 +2,7 @@ import os
 from unittest import TestCase
 from pathlib import Path
 import numpy.testing as nt
+import xarray.testing as xt
 
 import uxarray as ux
 
@@ -55,7 +56,8 @@ class TestUxDataset(TestCase):
                 assert False, f"'uxds_var2_geoflow.info()' raised an exception: {exc}"
 
     def test_topology(self):
+        """Tests to see if our topology attribute correctly points to the
+        internal grid dataset."""
 
         uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
-        print
-        pass
+        xt.assert_equal(uxds_var2_ne30.uxgrid._ds, uxds_var2_ne30.topology)
