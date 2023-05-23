@@ -145,7 +145,7 @@ class Grid:
         self._build_edge_node_connectivity()
 
         # build face dimension, possibly safeguard for large datasets
-        self._build_face_dimension()
+        self._build_nNodes_per_face()
 
     def __init_ds_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
@@ -486,7 +486,7 @@ class Grid:
             coords_type = "cartesian"
 
         face_nodes = self.Mesh2_face_nodes.data
-        face_dimension = self.Mesh2_face_dimension.data
+        nNodes_per_face = self.nNodes_per_face.data
         dim = self.Mesh2.attrs['topology_dimension']
 
         # initialize z
@@ -508,7 +508,7 @@ class Grid:
 
         # call function to get area of all the faces as a np array
         self._face_areas = get_all_face_area_from_coords(
-            x, y, z, face_nodes, face_dimension, dim, quadrature_rule, order,
+            x, y, z, face_nodes, nNodes_per_face, dim, quadrature_rule, order,
             coords_type)
 
         return self._face_areas
@@ -826,11 +826,11 @@ class Grid:
                 "units": "degrees_north",
             })
 
-    def _build_face_dimension(self):
-        """Constructs ``Mesh2_face_dimension``, which calculates the dimension
-        of each face in ``Mesh2_face_nodes``"""
+    def _build_nNodes_per_face(self):
+        """Constructs ``nNodes_per_face``, which contains the number of non-
+        fill-value nodes for each face in ``Mesh2_face_nodes``"""
 
-        # Triangular Mesh
+        # Triangular Mesh (No Fill Values)
         if not hasattr(self, "nMaxMesh2_face_nodes"):
             nMaxMesh2_face_nodes = self.Mesh2_face_nodes.shape[1]
             setattr(self, "nMaxMesh2_face_nodes", nMaxMesh2_face_nodes)
@@ -841,13 +841,13 @@ class Grid:
 
         closed[:, :-1] = self.Mesh2_face_nodes.copy()
 
-        face_dimension = np.argmax(closed == INT_FILL_VALUE, axis=1)
+        nNodes_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
 
         # add to internal dataset
-        self.ds["Mesh2_face_dimension"] = xr.DataArray(
-            data=face_dimension,
+        self.ds["nNodes_per_face"] = xr.DataArray(
+            data=nNodes_per_face,
             dims=["nMesh2_face"],
             attrs={"long_name": "number of non-fill value nodes for each face"})
 
         # standardized attribute
-        setattr(self, "Mesh2_face_dimension", self.ds["Mesh2_face_dimension"])
+        setattr(self, "nNodes_per_face", self.ds["nNodes_per_face"])
