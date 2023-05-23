@@ -533,25 +533,32 @@ class TestPopulateCoordinates(TestCase):
             '314.9998947704251'
         ]
         lat_deg = [
-            '35.2655522903022', '-35.2655522903022', '35.2655522903022', '-35.2655522903022'
+            '35.2655522903022', '-35.2655522903022', '35.2655522903022',
+            '-35.2655522903022'
         ]
 
         cart_x = [
-            '0.577340924821405', '0.577340924821405', '0.577340924821405', '0.577340924821405'
+            '0.577340924821405', '0.577340924821405', '0.577340924821405',
+            '0.577340924821405'
         ]
 
         cart_y = [
-            '0.577343045516932', '0.577343045516932', '-0.577343045516932', '-0.577343045516932'
+            '0.577343045516932', '0.577343045516932', '-0.577343045516932',
+            '-0.577343045516932'
         ]
 
         cart_z = [
-            '0.577366836872017', '-0.577366836872017', '0.577366836872017', '-0.577366836872017'
+            '0.577366836872017', '-0.577366836872017', '0.577366836872017',
+            '-0.577366836872017'
         ]
 
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
-        vgrid = ux.Grid([verts_degree], multi_precision=True, precision=64, islatlon=True, vertices=True)
+        vgrid = ux.Grid([verts_degree],
+                        multi_precision=True,
+                        precision=64,
+                        islatlon=True,
+                        vertices=True)
         vgrid._populate_cartesian_xyz_coord()
-        pass
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
                                    mpfr(cart_x[i]),
@@ -600,6 +607,46 @@ class TestPopulateCoordinates(TestCase):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
                                    lat_deg[i],
                                    decimal=12)
+
+        lon_deg = [
+            '45.0001052295749', '45.0001052295749', '314.9998947704251',
+            '314.9998947704251'
+        ]
+        lat_deg = [
+            '35.2655522903022', '-35.2655522903022', '35.2655522903022',
+            '-35.2655522903022'
+        ]
+
+        cart_x = [
+            '0.577340924821405', '0.577340924821405', '0.577340924821405',
+            '0.577340924821405'
+        ]
+
+        cart_y = [
+            '0.577343045516932', '0.577343045516932', '-0.577343045516932',
+            '-0.577343045516932'
+        ]
+
+        cart_z = [
+            '0.577366836872017', '-0.577366836872017', '0.577366836872017',
+            '-0.577366836872017'
+        ]
+
+        verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
+        vgrid = ux.Grid([verts_cart],
+                        multi_precision=True,
+                        precision=64,
+                        islatlon=False)
+        vgrid._populate_lonlat_coord()
+        # The connectivity in `__from_vert__()` will be formed in a reverse order
+        lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
+                                   mpfr(lon_deg[i]),
+                                   decimal=14)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
+                                   mpfr(lat_deg[i]),
+                                   decimal=14)
 
 
 class TestConnectivity(TestCase):

@@ -98,15 +98,23 @@ class Grid:
             if self._multi_precision:
                 # If the input are floats
                 if dataset.dtype == np.float64 or dataset.dtype == np.float or dataset.dtype == np.float32:
-                    dataset = convert_to_multiprecision(dataset, str_mode=False, precision=self._precision)
+                    dataset = convert_to_multiprecision(
+                        dataset, str_mode=False, precision=self._precision)
                 # If the input are strings
-                elif np.all([np.issubdtype(type(element), np.str_)for element in dataset.ravel()]):
-                    dataset = convert_to_multiprecision(dataset, str_mode=True, precision=self._precision)
+                elif np.all([
+                        np.issubdtype(type(element), np.str_)
+                        for element in dataset.ravel()
+                ]):
+                    dataset = convert_to_multiprecision(
+                        dataset, str_mode=True, precision=self._precision)
                 else:
                     # If the input are not floats or strings or gmpy2.mpfr/mpz, raise an error
-                    if ~np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(dataset.ravel())):
+                    if ~np.any(
+                            np.vectorize(lambda x: isinstance(
+                                x, (gmpy2.mpfr, gmpy2.mpz)))(dataset.ravel())):
                         raise ValueError(
-                            'The input array should be either floats, strings, or gmpy2.mpfr/mpz')
+                            'The input array should be either floats, strings, or gmpy2.mpfr/mpz'
+                        )
             # grid with multiple faces
             if dataset.ndim == 3:
                 self.__from_vert__(dataset)
@@ -193,8 +201,7 @@ class Grid:
                 if value in self.ds.dims:
                     setattr(self, key, len(self.ds[value]))
 
-    def __from_vert__(self,
-                      dataset):
+    def __from_vert__(self, dataset):
         """Create a grid with faces constructed from vertices specified by the
         given argument.
 
@@ -243,13 +250,14 @@ class Grid:
                 for i in range(len(input_array_mpfr_copy)):
                     if type(input_array_mpfr_copy[i]) != gmpy2.mpfr and type(
                             input_array_mpfr_copy[i]) != gmpy2.mpz:
-                        dataset = convert_to_multiprecision(dataset,
-                                                            precision=self._precision)
+                        dataset = convert_to_multiprecision(
+                            dataset, precision=self._precision)
             except Exception as e:
                 raise e
 
             unique_verts, indices = unique_coordinates_multiprecision(
-                dataset.reshape(-1, dataset.shape[-1]), precision=self._precision)
+                dataset.reshape(-1, dataset.shape[-1]),
+                precision=self._precision)
 
         else:
             unique_verts, indices = np.unique(dataset.reshape(
@@ -706,8 +714,10 @@ class Grid:
 
         # check for units and create Mesh2_node_cart_x/y/z set to self.ds
         if self._multi_precision:
-            nodes_lon_rad = np.array([gmpy2.radians(x) for x in self.Mesh2_node_x.values])
-            nodes_lat_rad = np.array([gmpy2.radians(y) for y in self.Mesh2_node_y.values])
+            nodes_lon_rad = np.array(
+                [gmpy2.radians(x) for x in self.Mesh2_node_x.values])
+            nodes_lat_rad = np.array(
+                [gmpy2.radians(y) for y in self.Mesh2_node_y.values])
         else:
             nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
             nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
@@ -795,7 +805,8 @@ class Grid:
         nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
 
         if self._multi_precision:
-            nodes_degree = np.array([[gmpy2.degrees(x), gmpy2.degrees(y)] for x, y in nodes_rad])
+            nodes_degree = np.array(
+                [[gmpy2.degrees(x), gmpy2.degrees(y)] for x, y in nodes_rad])
         else:
             nodes_degree = np.rad2deg(nodes_rad)
         self.ds["Mesh2_node_x"] = xr.DataArray(

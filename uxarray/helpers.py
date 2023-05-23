@@ -460,7 +460,7 @@ def grid_center_lat_lon(ds):
     z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
 
     center_lon = np.rad2deg(np.arctan2(y, x))
-    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x ** 2 + y ** 2)))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
 
     # Make negative lons positive
     center_lon[center_lon < 0] += 360
@@ -490,7 +490,9 @@ def node_lonlat_rad_to_xyz(node_coord):
     if len(node_coord) != 2:
         raise RuntimeError(
             "Input array should have a length of 2: [longitude, latitude]")
-    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(node_coord)):
+    if np.any(
+            np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(
+                node_coord)):
         lon = node_coord[0]
         lat = node_coord[1]
         return [
@@ -501,7 +503,11 @@ def node_lonlat_rad_to_xyz(node_coord):
     else:
         lon = node_coord[0]
         lat = node_coord[1]
-        return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+        return [
+            np.cos(lon) * np.cos(lat),
+            np.sin(lon) * np.cos(lat),
+            np.sin(lat)
+        ]
 
 
 def node_xyz_to_lonlat_rad(node_coord):
@@ -525,7 +531,9 @@ def node_xyz_to_lonlat_rad(node_coord):
     """
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(node_coord)):
+    if np.any(
+            np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(
+                node_coord)):
         [dx, dy, dz] = normalize_in_place(node_coord)
         # The precision is set by the gmpy2.context through the set_global_precision() function
         if gmpy2.cmp_abs(dz, mpfr('1.0')):
@@ -585,7 +593,9 @@ def normalize_in_place(node):
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(node)):
+    if np.any(
+            np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(
+                node)):
         # Convert the node to mpmath array
         norm = gmpy2.sqrt(gmpy2.fsum([gmpy2.square(value) for value in node]))
 
@@ -697,7 +707,7 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
 
     # 2d to 1d index for np.put()
     first_fv_idx_1d = first_fv_idx_2d + (
-            (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
+        (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
 
     # column of first node values
     first_node_value = Mesh2_face_nodes[:, 0].copy()

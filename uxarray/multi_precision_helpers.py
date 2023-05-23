@@ -83,8 +83,8 @@ def convert_to_multiprecision(input_array,
     else:
 
         if ~np.all([
-            np.issubdtype(type(element), np.str_)
-            for element in flattened_array
+                np.issubdtype(type(element), np.str_)
+                for element in flattened_array
         ]):
             raise ValueError(
                 'The input array should be string when str_mode is True.')
