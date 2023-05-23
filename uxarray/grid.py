@@ -90,6 +90,27 @@ class Grid:
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             dataset = np.asarray(dataset)
+            # Pre-process dataset if the multi-precision flag is set
+            if self._multi_precision:
+                # If the input are floats
+                if dataset.dtype == np.float64 or dataset.dtype == np.float or dataset.dtype == np.float32:
+                    dataset = convert_to_multiprecision(
+                        dataset, str_mode=False, precision=self._precision)
+                # If the input are strings
+                elif np.all([
+                        np.issubdtype(type(element), np.str_)
+                        for element in dataset.ravel()
+                ]):
+                    dataset = convert_to_multiprecision(
+                        dataset, str_mode=True, precision=self._precision)
+                else:
+                    # If the input are not floats or strings or gmpy2.mpfr/mpz, raise an error
+                    if ~np.any(
+                            np.vectorize(lambda x: isinstance(
+                                x, (gmpy2.mpfr, gmpy2.mpz)))(dataset.ravel())):
+                        raise ValueError(
+                            'The input array should be either floats, strings, or gmpy2.mpfr/mpz'
+                        )
             # grid with multiple faces
             if dataset.ndim == 3:
                 self.__from_vert__(dataset,
