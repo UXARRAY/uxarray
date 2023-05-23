@@ -53,6 +53,10 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self):
         return self._uxgrid
 
+    @property
+    def topology(self):
+        return self._uxgrid._ds
+
     # a setter function
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
