@@ -96,7 +96,7 @@ class Grid:
             # Pre-process dataset if the multi-precision flag is set
             if self._multi_precision:
                 # If the input are floats
-                if dataset.dtype == np.float64 or dataset.dtype == np.float or dataset.dtype == np.float32:
+                if dataset.dtype == float:
                     dataset = convert_to_multiprecision(
                         dataset, str_mode=False, precision=self._precision)
                 # If the input are strings
