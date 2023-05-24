@@ -125,7 +125,6 @@ def unique_coordinates_multiprecision(input_array_mpfr,
     unique_arr = []
     inverse_indices = []
     m, n = input_array_mpfr.shape
-
     unique_dict = {}
     current_index = 0
 
