@@ -93,6 +93,7 @@ class Grid:
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             dataset = np.asarray(dataset)
+
             # Pre-process dataset if the multi-precision flag is set
             if self._multi_precision:
                 # If the input are floats
