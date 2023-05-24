@@ -683,17 +683,41 @@ class TestConnectivity(TestCase):
             self.ugrid_filepath_01, self.ugrid_filepath_02,
             self.ugrid_filepath_03
         ]
+        for ug_file_name in ug_filename_list:
+            xr_ds = xr.open_dataset(ug_file_name)
+            tgrid = ux.Grid(xr_ds)
 
-        for grid_path in grid_paths:
-            grid_xr = xr.open_dataset(grid_path)
-            grid_ux = ux.Grid(grid_xr)
+            mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
 
-            n_face = grid_ux.nMesh2_node
-            n_node = grid_ux.nMesh2_face
-            n_edge = grid_ux.nMesh2_edge
+            tgrid._build_face_edges_connectivity()
+            mesh2_face_edges = tgrid.ds.Mesh2_face_edges
+            mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
 
-            # euler's formula (n_face = n_edges - n_nodes + 2)
-            assert (n_face == n_edge - n_node + 2)
+            # Assert if the mesh2_face_edges sizes are correct.
+            self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
+                             mesh2_face_nodes.sizes["nMesh2_face"])
+            self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
+                             mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
+
+            # Assert if the mesh2_edge_nodes sizes are correct.
+            # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
+            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid.ds[
+                "Mesh2_node_x"].sizes["nMesh2_node"] - 2
+            size = mesh2_edge_nodes.sizes["nMesh2_edge"]
+            self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
+
+            original_face_nodes_connectivity = tgrid.ds.Mesh2_face_nodes.values
+
+            reverted_mesh2_edge_nodes = self._revert_edges_conn_to_face_nodes_conn(
+                edge_nodes_connectivity=mesh2_edge_nodes.values,
+                face_edges_connectivity=mesh2_face_edges.values,
+                original_face_nodes_connectivity=original_face_nodes_connectivity
+            )
+
+            for i in range(len(reverted_mesh2_edge_nodes)):
+                self.assertTrue(
+                    np.array_equal(reverted_mesh2_edge_nodes[i],
+                                   original_face_nodes_connectivity[i]))
 
     def test_build_face_edges_connectivity_mpas(self):
         xr_ds = xr.open_dataset(self.mpas_filepath)
@@ -747,8 +771,8 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds.ds["Mesh2_face_nodes"].values))
-        
-         def test_node_face_connectivity_from_verts(self):
+
+    def test_node_face_connectivity_from_verts(self):
         node_latlon_degree = [[162., 30], [216., 30], [70., 30], [162., -30],
                               [216., -30], [70., -30]]
 
@@ -816,39 +840,3 @@ class TestConnectivity(TestCase):
                 self.assertTrue(
                     np.array_equal(valid_face_index_from_sparse_matrix,
                                    face_index_from_dict))
-
-        for ug_file_name in ug_filename_list:
-            xr_ds = xr.open_dataset(ug_file_name)
-            tgrid = ux.Grid(xr_ds)
-
-            mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
-
-            tgrid._build_face_edges_connectivity()
-            mesh2_face_edges = tgrid.ds.Mesh2_face_edges
-            mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
-
-            # Assert if the mesh2_face_edges sizes are correct.
-            self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
-                             mesh2_face_nodes.sizes["nMesh2_face"])
-            self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
-                             mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
-
-            # Assert if the mesh2_edge_nodes sizes are correct.
-            # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid.ds[
-                "Mesh2_node_x"].sizes["nMesh2_node"] - 2
-            size = mesh2_edge_nodes.sizes["nMesh2_edge"]
-            self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
-
-            original_face_nodes_connectivity = tgrid.ds.Mesh2_face_nodes.values
-
-            reverted_mesh2_edge_nodes = self._revert_edges_conn_to_face_nodes_conn(
-                edge_nodes_connectivity=mesh2_edge_nodes.values,
-                face_edges_connectivity=mesh2_face_edges.values,
-                original_face_nodes_connectivity=original_face_nodes_connectivity
-            )
-
-            for i in range(len(reverted_mesh2_edge_nodes)):
-                self.assertTrue(
-                    np.array_equal(reverted_mesh2_edge_nodes[i],
-                                   original_face_nodes_connectivity[i]))

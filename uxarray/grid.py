@@ -542,7 +542,6 @@ class Grid:
         setattr(self, "Mesh2_edge_nodes", self.ds['Mesh2_edge_nodes'])
         setattr(self, "nMesh2_edge", edge_nodes_unique.shape[0])
 
-
     def _build_node_faces_connectivity(self):
         """Builds the `Grid.Mesh2_node_faces`: integer DataArray of size
         (nMesh2_node, MaxNumFacesPerNode) (optional) A DataArray of indices
