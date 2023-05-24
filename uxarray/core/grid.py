@@ -782,5 +782,6 @@ class Grid:
                 "long_name": "number of non-fill value nodes for each face"})
 
         # standardized attribute
-        setattr(self, "Mesh2_face_dimension", self._ds["nNodes_per_face"])
+
+        setattr(self, "nNodes_per_face", self._ds["nNodes_per_face"])
 
