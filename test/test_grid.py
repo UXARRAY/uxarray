@@ -34,7 +34,6 @@ class TestGrid(TestCase):
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
 
-
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
         types."""
@@ -298,6 +297,7 @@ class TestOperators(TestCase):
     def test_ne(self):
         """Test Not Equals ('!=') operator."""
         assert self.grid_CSne30_01 != self.grid_RLL1deg
+
 
 class TestIntegrate(TestCase):
 
@@ -628,6 +628,7 @@ class TestConnectivity(TestCase):
 
             assert grid.nNodes_per_face.min() >= min_dimension
             assert grid.nNodes_per_face.max() <= max_dimension
+
     def test_build_nNodes_per_face(self):
         """Tests the construction of the ``nNodes_per_face`` variable."""
 
@@ -655,7 +656,6 @@ class TestConnectivity(TestCase):
         expected_nodes_per_face = np.array([6, 3, 4, 6, 6, 4, 4], dtype=int)
         nt.assert_equal(grid_from_verts.nNodes_per_face.values,
                         expected_nodes_per_face)
-
 
     def test_edge_nodes_euler(self):
         """Verifies that (``nMesh2_edge``) follows euler's formula."""

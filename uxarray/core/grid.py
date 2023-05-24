@@ -778,10 +778,8 @@ class Grid:
         self._ds["nNodes_per_face"] = xr.DataArray(
             data=nNodes_per_face,
             dims=["nMesh2_face"],
-            attrs={
-                "long_name": "number of non-fill value nodes for each face"})
+            attrs={"long_name": "number of non-fill value nodes for each face"})
 
         # standardized attribute
 
         setattr(self, "nNodes_per_face", self._ds["nNodes_per_face"])
-
