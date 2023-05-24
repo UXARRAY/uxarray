@@ -15,26 +15,15 @@ Grid Methods
    :nosignatures:
    :toctree: ./generated/
 
-<<<<<<< HEAD
    __init_grid_var_names__
    __from_ds__
    __from_vert__
    __init_grid_var_attrs__
    _build_edge_node_connectivity
-   _build_face_dimension
    _build_face_edges_connectivity
+   _build_nNodes_per_face
    _populate_cartesian_xyz_coord
    _populate_lonlat_coord
-=======
-   grid.Grid.__init_ds_var_names__
-   grid.Grid.__from_ds__
-   grid.Grid.__from_vert__
-   grid.Grid.__init_grid_var_attrs__
-   grid.Grid._build_edge_node_connectivity
-   grid.Grid._build_face_edges_connectivity
-   grid.Grid._populate_cartesian_xyz_coord
-   grid.Grid._populate_lonlat_coord
-   grid.Grid._build_nNodes_per_face
 
 
 Grid Helper Modules
