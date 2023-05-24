@@ -146,6 +146,32 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_node == 6)
         vgrid.encode_as("ugrid")
 
+    def test_init_verts_from_string(self):
+        # Provide nodes that are extremely closed to each other
+        face_nodes_connectivity = [[
+            '1.000000000000000000', '1.000000000000000000001',
+            '1.0000000000000000000012'
+        ],
+                                   [
+                                       '1.000000000000000001',
+                                       '1.000000000000000000002',
+                                       '1.0000000000000000000013'
+                                   ],
+                                   [
+                                       '1.00000000000000000001',
+                                       '1.00000000000000000000',
+                                       '1.0000000000000000000013'
+                                   ]]
+
+        uxgrid = ux.Grid(face_nodes_connectivity,
+                         multi_precision=True,
+                         precision=100,
+                         vertices=True,
+                         islatlon=False,
+                         concave=False)
+        self.assertEqual(uxgrid.nMesh2_face, 1)
+        self.assertEqual(uxgrid.nMesh2_node, 3)
+
     def test_init_verts_multi_precision_triangle(self):
         nodes = []
         # Generate the nodes on the unit sphere, and the nodes are extremely close to each other: the edge length
