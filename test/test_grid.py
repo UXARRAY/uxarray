@@ -34,20 +34,6 @@ class TestGrid(TestCase):
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
 
-    def test_build_face_dimension(self):
-        """Tests the construction of the ``Mesh2_face_dimension`` variable."""
-        grids = [self.grid_CSne30, self.grid_RLL1deg, self.grid_RLL10deg_CSne4]
-
-        for grid in grids:
-            # highest possible dimension dimension for a face
-            max_dimension = grid.nMaxMesh2_face_nodes
-
-            # face must be at least a triangle
-            min_dimension = 3
-
-            assert grid.Mesh2_face_dimension.min() >= min_dimension
-            assert grid.Mesh2_face_dimension.max() <= max_dimension
-
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
         types."""
@@ -505,6 +491,32 @@ class TestConnectivity(TestCase):
     ugrid_filepath_02 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
     ugrid_filepath_03 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
+    xrds_maps = xr.open_dataset(mpas_filepath)
+    xrds_exodus = xr.open_dataset(exodus_filepath)
+    xrds_ugrid = xr.open_dataset(ugrid_filepath_01)
+
+    grid_mpas = ux.Grid(xrds_maps)
+    grid_exodus = ux.Grid(xrds_exodus)
+    grid_ugrid = ux.Grid(xrds_ugrid)
+
+    # used from constructing vertices
+    f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10], [105, -20]]
+    f1_deg = [[120, 0], [120, 10], [115, 0],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+    f2_deg = [[115, 0], [120, 10], [100, 10], [105, 0],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+    f3_deg = [[95, -10], [105, 0], [95, 30], [80, 30], [70, 0], [75, -10]]
+    f4_deg = [[65, -20], [75, -10], [70, 0], [55, 0], [45, -10], [55, -20]]
+    f5_deg = [[70, 0], [80, 30], [70, 30], [60, 0],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+    f6_deg = [[60, 0], [70, 30], [40, 30], [45, 0],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
+              [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
+
     # Helper function
     def _revert_edges_conn_to_face_nodes_conn(
             self, edge_nodes_connectivity: np.ndarray,
@@ -600,6 +612,50 @@ class TestConnectivity(TestCase):
                 res_face_nodes_connectivity[face_idx].append(ux.INT_FILL_VALUE)
 
         return np.array(res_face_nodes_connectivity)
+
+    def test_build_nNodes_per_face(self):
+        """Tests the construction of the ``nNodes_per_face`` variable."""
+
+        # test on grid constructed from sample datasets
+        grids = [self.grid_mpas, self.grid_exodus, self.grid_ugrid]
+
+        for grid in grids:
+            # highest possible dimension dimension for a face
+            max_dimension = grid.nMaxMesh2_face_nodes
+
+            # face must be at least a triangle
+            min_dimension = 3
+
+            assert grid.nNodes_per_face.min() >= min_dimension
+            assert grid.nNodes_per_face.max() <= max_dimension
+
+    def test_build_nNodes_per_face(self):
+        """Tests the construction of the ``nNodes_per_face`` variable."""
+
+        # test on grid constructed from sample datasets
+        grids = [self.grid_mpas, self.grid_exodus, self.grid_ugrid]
+
+        for grid in grids:
+            # highest possible dimension dimension for a face
+            max_dimension = grid.nMaxMesh2_face_nodes
+
+            # face must be at least a triangle
+            min_dimension = 3
+
+            assert grid.nNodes_per_face.min() >= min_dimension
+            assert grid.nNodes_per_face.max() <= max_dimension
+
+        # test on grid constructed from vertices
+        verts = [
+            self.f0_deg, self.f1_deg, self.f2_deg, self.f3_deg, self.f4_deg,
+            self.f5_deg, self.f6_deg
+        ]
+        grid_from_verts = ux.Grid(verts)
+
+        # number of non-fill-value nodes per face
+        expected_nodes_per_face = np.array([6, 3, 4, 6, 6, 4, 4], dtype=int)
+        nt.assert_equal(grid_from_verts.nNodes_per_face.values,
+                        expected_nodes_per_face)
 
     def test_edge_nodes_euler(self):
         """Verifies that (``nMesh2_edge``) follows euler's formula."""
@@ -711,25 +767,10 @@ class TestConnectivity(TestCase):
         self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
     def test_build_face_edges_connectivity_fillvalues(self):
-        f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10],
-                  [105, -20]]
-        f1_deg = [[120, 0], [120, 10], [115, 0],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
-        f2_deg = [[115, 0], [120, 10], [100, 10], [105, 0],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
-        f3_deg = [[95, -10], [105, 0], [95, 30], [80, 30], [70, 0], [75, -10]]
-        f4_deg = [[65, -20], [75, -10], [70, 0], [55, 0], [45, -10], [55, -20]]
-        f5_deg = [[70, 0], [80, 30], [70, 30], [60, 0],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
-        f6_deg = [[60, 0], [70, 30], [40, 30], [45, 0],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
-                  [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
-
-        verts = [f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg]
+        verts = [
+            self.f0_deg, self.f1_deg, self.f2_deg, self.f3_deg, self.f4_deg,
+            self.f5_deg, self.f6_deg
+        ]
         uds = ux.Grid(verts)
         uds._build_face_edges_connectivity()
         n_face = len(uds._ds["Mesh2_face_edges"].values)
