@@ -79,7 +79,6 @@ class Grid:
         # initialize the multi-precision flag
         self._multi_precision = multi_precision
         self._precision = precision
-
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -94,10 +93,11 @@ class Grid:
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             dataset = np.asarray(dataset)
+
             # Pre-process dataset if the multi-precision flag is set
             if self._multi_precision:
                 # If the input are floats
-                if dataset.dtype == np.float64 or dataset.dtype == np.float or dataset.dtype == np.float32:
+                if dataset.dtype == float:
                     dataset = convert_to_multiprecision(
                         dataset, str_mode=False, precision=self._precision)
                 # If the input are strings
@@ -211,7 +211,6 @@ class Grid:
             Input vertex coordinates that form our face(s)
         """
         self.ds = xr.Dataset()
-
         self.ds["Mesh2"] = xr.DataArray(
             attrs={
                 "cf_role": "mesh_topology",
