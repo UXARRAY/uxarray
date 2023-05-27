@@ -8,6 +8,7 @@ from gmpy2 import mpfr, mpz
 import mpmath
 from unittest import TestCase
 from pathlib import Path
+import time
 
 import uxarray as ux
 
@@ -244,6 +245,60 @@ class TestCoordinatesConversion(TestCase):
 
         # Reset global precision to default
         set_global_precision()
+
+    def test_coordinates_conversion_accumulate_error(self):
+        # Get the accumulated error of each function call
+        ux.multi_precision_helpers.set_global_precision(64)
+        run_time = 100
+        print("\n")
+
+        # Using the float number
+        new_lon = 122.987654321098765
+        new_lat = 36.123456789012345
+
+        start_time = time.time()
+        for iter in range(run_time):
+            [new_x, new_y, new_z
+            ] = ux.helpers.node_lonlat_rad_to_xyz(np.deg2rad([new_lon,
+                                                              new_lat]))
+            [new_lon,
+             new_lat] = ux.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
+            [new_lon, new_lat] = np.rad2deg([new_lon, new_lat])
+
+        end_time = time.time()
+        diff_lat = mpfr(str(new_lat)) - mpfr('36.123456789012345')
+        diff_lon = mpfr(str(new_lon)) - mpfr('122.987654321098765')
+        print("The floating point longitude accumulated error is: " +
+              str(diff_lon) + "and the latitude accumulated "
+              "error is: " + str(diff_lat))
+        print("The floating point Execution time: ", end_time - start_time,
+              " seconds")
+
+        # Get the accumulated error of each function call
+        print("\n")
+
+        # Using the float number
+
+        [init_lon, init_lat
+        ] = [mpfr('122.987654321098765', 64),
+             mpfr('36.123456789012345', 64)]
+        new_lon = mpfr('122.987654321098765', 64)
+        new_lat = mpfr('36.123456789012345', 64)
+        start_time = time.time()
+
+        for iter in range(run_time):
+            [new_x, new_y, new_z] = ux.helpers.node_lonlat_rad_to_xyz(
+                [gmpy2.radians(val) for val in [new_lon, new_lat]])
+            [new_lon,
+             new_lat] = ux.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
+            [new_lon,
+             new_lat] = [gmpy2.degrees(val) for val in [new_lon, new_lat]]
+        end_time = time.time()
+        diff_lat = new_lat - init_lat
+        diff_lon = new_lon - init_lon
+        print("The mpfr longitude accumulated error is: " + str(diff_lon) +
+              " and the latitude accumulated error is: " + str(diff_lat))
+        print("The mpfr Execution time: ", end_time - start_time, " seconds")
 
 
 class TestConstants(TestCase):

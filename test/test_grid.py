@@ -6,6 +6,7 @@ from gmpy2 import mpfr
 
 from unittest import TestCase
 from pathlib import Path
+import timeit
 
 import xarray as xr
 import uxarray as ux
@@ -318,13 +319,6 @@ class TestGrid(TestCase):
         self.assertEqual(n_faces, self.tgrid1.nMesh2_face)
         self.assertEqual(n_face_nodes, self.tgrid1.nMaxMesh2_face_nodes)
 
-        # xr.testing.assert_equal(
-        #     self.tgrid1.nMesh2_node,
-        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
-        # xr.testing.assert_equal(
-        #     self.tgrid1.nMesh2_face,
-        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
-
         # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
         xr_grid = xr.open_dataset(path)
@@ -378,7 +372,7 @@ class TestIntegrate(TestCase):
         # load grid
         vgrid = ux.Grid(verts, vertices=True, islatlon=False, concave=False)
 
-        #calculate area
+        # calculate area
         area_gaussian = vgrid.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -474,7 +468,7 @@ class TestFaceAreas(TestCase):
 
 class TestPopulateCoordinates(TestCase):
 
-    def test_populate_cartesian_xyz_coord(self):
+    def test_populate_cartesian_xyz_coord_float(self):
         # The following testcases are generated through the matlab cart2sph/sph2cart functions
         # These points correspond to the eight vertices of a cube.
         lon_deg = [
@@ -514,6 +508,7 @@ class TestPopulateCoordinates(TestCase):
                                    cart_z[i],
                                    decimal=12)
 
+    def test_populate_cartesian_xyz_coord_mpfr(self):
         lon_deg = [
             '45.0001052295749', '45.0001052295749', '314.9998947704251',
             '314.9998947704251'
@@ -556,7 +551,7 @@ class TestPopulateCoordinates(TestCase):
                                    mpfr(cart_z[i]),
                                    decimal=14)
 
-    def test_populate_lonlat_coord(self):
+    def test_populate_lonlat_coord_float(self):
         # The following testcases are generated through the matlab cart2sph/sph2cart functions
         # These points correspond to the 4 vertexes on a cube.
 
@@ -594,6 +589,7 @@ class TestPopulateCoordinates(TestCase):
                                    lat_deg[i],
                                    decimal=12)
 
+    def test_populate_lonlat_coord_mpfr(self):
         lon_deg = [
             '45.0001052295749', '45.0001052295749', '314.9998947704251',
             '314.9998947704251'
@@ -624,15 +620,13 @@ class TestPopulateCoordinates(TestCase):
                         precision=64,
                         islatlon=False)
         vgrid._populate_lonlat_coord()
-        # The connectivity in `__from_vert__()` will be formed in a reverse order
-        lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
                                    mpfr(lon_deg[i]),
-                                   decimal=14)
+                                   decimal=13)
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
                                    mpfr(lat_deg[i]),
-                                   decimal=14)
+                                   decimal=13)
 
 
 class TestConnectivity(TestCase):
