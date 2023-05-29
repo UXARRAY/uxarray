@@ -716,3 +716,8 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
 
     return closed
+
+def get_GCR_GCR_intersections(gcr1, gcr2):
+    """
+    Get the intersection point(s) of two Great Circle Arcs
+    """

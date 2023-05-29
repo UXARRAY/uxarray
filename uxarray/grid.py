@@ -12,7 +12,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
 from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, close_face_nodes
-from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
+from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ, ERROR_TOLERANCE
 from .multi_precision_helpers import convert_to_multiprecision, unique_coordinates_multiprecision, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
 
 
@@ -564,6 +564,22 @@ class Grid:
         integral = np.dot(face_areas, face_vals)
 
         return integral
+
+    def build_latlon_bounds(self):
+
+        # First make sure the Grid object has the Mesh2_face_edges
+
+        if "Mesh2_face_edges" not in self.ds.keys():
+            self._build_edge_node_connectivity()
+            self._build_face_edges_connectivity()
+
+        if "Mesh2_node_cart_x" not in self.ds.keys():
+            self._populate_cartesian_xyz_coord()
+
+        # The interval list that stores the intervals
+        interval_list = []
+        pass
+
 
     def _build_edge_node_connectivity(self, repopulate=False):
         """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
