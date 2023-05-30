@@ -62,7 +62,9 @@ class TestMPAS(TestCase):
         ds = _read_mpas(self.mpas_xr_ds, use_dual=True)
 
         # check for correct dimensions
-        expected_ugrid_dims = ['nMesh2_node', "nMesh2_face", "Three"]
+        expected_ugrid_dims = [
+            'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
+        ]
         for dim in expected_ugrid_dims:
             assert dim in ds.sizes
 
