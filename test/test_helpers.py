@@ -355,3 +355,9 @@ class TestConstants(TestCase):
                                                    original_fill=-1,
                                                    new_fill=INT_FILL_VALUE,
                                                    new_dtype=np.int16)
+
+class TestIntersectionPoint(TestCase):
+
+    def test_pt_on_gcr(self):
+        gcr_same_lon = np.array([[0, 30], [0, -30]])
+
