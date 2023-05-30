@@ -552,8 +552,7 @@ class Grid:
 
         Parameters
         ----------
-        self : Mesh
-            The Mesh object containing the mesh data.
+        None
 
         Returns
         -------
