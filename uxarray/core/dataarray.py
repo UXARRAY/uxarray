@@ -23,6 +23,10 @@ class UxDataArray(xr.DataArray):
 
         super().__init__(*args, **kwargs)
 
+    @classmethod
+    def _construct_direct(cls, *args, **kwargs):
+        return cls(xr.DataArray._construct_direct(*args, **kwargs))
+
     def _copy(self, **kwargs):
         """Override to make the result a complete instance of
         uxarray.DataArray."""
