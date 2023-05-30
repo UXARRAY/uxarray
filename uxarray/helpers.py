@@ -8,7 +8,7 @@ from numba import njit, config
 import math
 from typing import Union
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 
 config.DISABLE_JIT = False
 
@@ -771,7 +771,7 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
 
 def pt_on_gcr(pt, gcr):
     """
-    Check if a point is on a Great Circle Arc
+    Check if a point is on a given Great Circle Arc. The anti-meridian case is already considered.
 
     Parameters
     ----------
@@ -783,40 +783,37 @@ def pt_on_gcr(pt, gcr):
     Returns
     -------
     bool
-        True if the point is on the GCR, False otherwise
+        True if the point is on the GCR (Lies between the two endpoints), False otherwise
     """
     # First determine if the pt lies on the plane defined by the gcr
-    if not np.isclose(np.dot(np.cross(gcr[0], gcr[1]), pt), 0, rtol=0, atol=1.0e-12):
+    if not np.isclose(np.dot(np.cross(gcr[0], gcr[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE):
         return False
 
-    # If we have determined the point lies on the gcr plane, we only need to check if the pt's longitude lie within
-    # the gcr
-    pt_lonlat_rad = node_xyz_to_lonlat_rad(pt)
-    gcr_lonlat_rad = np.array([node_xyz_to_lonlat_rad(node) for node in gcr])
+    # Check if the GCR is presented in the multiprecision format
+    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(np.hstack((pt, gcr)))):
+        pass
 
-    # Special case: when the gcr and the point are all on the same longitude line:
-    if np.allclose(gcr_lonlat_rad[:, 0], pt_lonlat_rad[0]):
-        # Now use the latitude to determine if the pt falls between the interval
-        return is_between(gcr_lonlat_rad[0, 1], pt_lonlat_rad[1], gcr_lonlat_rad[1, 1])
-
-    # First we need to deal with the longitude wrap-around case
-    # x0--> 0 lon --> x1
-    if np.abs(gcr_lonlat_rad[1, 0] - gcr_lonlat_rad[0, 0]) >= np.deg2rad(180):
-        if is_between(np.deg2rad(180), gcr_lonlat_rad[0, 0], np.deg2rad(360)) and is_between(0, gcr_lonlat_rad[1, 0],
-                                                                                             np.deg2rad(180)):
-            return is_between(gcr_lonlat_rad[0, 0], pt_lonlat_rad[0], np.deg2rad(360)) or is_between(0,
-                                                                                                     pt_lonlat_rad[0],
-                                                                                                     gcr_lonlat_rad[
-                                                                                                         1, 0])
-        elif is_between(np.deg2rad(180), gcr_lonlat_rad[1, 0], np.deg2rad(360)) and is_between(0, gcr_lonlat_rad[0, 0],
-                                                                                               np.deg2rad(180)):
-            # x1 <-- 0 lon <-- x0
-            return is_between(gcr_lonlat_rad[1, 0], pt_lonlat_rad[0], np.deg2rad(360)) or is_between(0,
-                                                                                                     pt_lonlat_rad[0],
-                                                                                                     gcr_lonlat_rad[
-                                                                                                         0, 0])
     else:
-        return is_between(gcr_lonlat_rad[0, 0], pt_lonlat_rad[0], gcr_lonlat_rad[1, 0])
+        # Use the cartesian coordinates to determine if the gcr goes across the anti-meridian
+        # If the pt and the GCR are on the same longitude (the y coordinates are the same)
+        if pt[1] == gcr[0][1] and pt[1] == gcr[1][1]:
+            # Now use the latitude to determine if the pt falls between the interval
+            return is_between(gcr[0][2], pt[2], gcr[0][2])
+
+        # The anti-meridian case
+        # If the longitude span of the GCR is more than 180 degress (the y values difference is more than 2 )
+        if abs(gcr[0][1] - gcr[1][1]) >= 2:
+            # x0--> 0 lon --> x1
+            # x0 has the y coordinate < 0 while x1 has the y coordinate > 0
+            if -1 < gcr[0][1] < 0 < gcr[1][1] < 1:
+                return is_between(gcr[0][1], pt[1], 0) or is_between(0, pt[1], gcr[1][1])
+            # x1 <-- 0 lon <-- x0
+            elif -1 < gcr[1][1] < 0 < gcr[0][1] < 1:
+                return is_between(gcr[1][1], pt[1], 0) or is_between(
+                    0, pt[1], gcr[0][1])
+        else:
+            # If the all gcr is on the same hemisphere, then we only needs to compare the y values of the pt and the gcr
+            return is_between(gcr[0][1], pt[1], gcr[0][1])
 
 
 def is_between(p: Union[float, gmpy2.mpfr], q: Union[float, gmpy2.mpfr], r: Union[float, gmpy2.mpfr]) -> bool:
