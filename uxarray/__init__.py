@@ -3,6 +3,7 @@ from .helpers import *
 
 
 def __version__():
+    """Returns the version of uxarray currently installed."""
     # Attempt to import the needed modules
     try:
         from importlib.metadata import version as version
@@ -11,7 +12,8 @@ def __version__():
 
     try:
         __version = version("uxarray")
-        print(__version)
-    except AttributeError:
-        # Incase something happens, such as the library isn't installed
+    except NameError:
+        # Placeholder version incase an error occurs, such as the library isn't installed
         __version = "0000"
+
+    return __version
