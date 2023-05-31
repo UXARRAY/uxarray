@@ -3,9 +3,9 @@ from .helpers import *
 # Sets the version of uxarray currently installed
 # Attempt to import the needed modules
 try:
-    from importlib.metadata import version as version
+    from importlib.metadata import version as _version
 except Exception:
-    from importlib_metadata import version as version
+    from importlib_metadata import version as _version
 
 try:
     __version__ = version("uxarray")
