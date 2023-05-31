@@ -8,7 +8,7 @@ except ImportError:
     from importlib_metadata import version as version
 
 try:
-    __version = version("uxarray")
+    __version__ = version("uxarray")
 except Exception:
     # Placeholder version incase an error occurs, such as the library isn't installed
-    __version = "999"
+    __version__ = "999"
