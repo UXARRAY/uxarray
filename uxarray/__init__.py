@@ -4,7 +4,7 @@ from .helpers import *
 # Attempt to import the needed modules
 try:
     from importlib.metadata import version as version
-except ImportError:
+except Exception:
     from importlib_metadata import version as version
 
 try:
