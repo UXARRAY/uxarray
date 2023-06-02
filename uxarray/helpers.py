@@ -675,19 +675,16 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     return closed
 
 
-def _convert_face_node_conn_to_sparse_matrix(
-        dense_matrix: np.ndarray, fill_value=INT_FILL_VALUE) -> tuple:
+def _convert_face_node_conn_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     """Converts a given dense matrix connectivity to a sparse matrix format
-    where the locations of non-zero entries are stored using COO (coordinate
-    list) standard. It is represented by three arrays: row indices, column
-    indices, and non-zero element flags.
+    where the locations of non fill-value entries are stored using COO
+    (coordinate list) standard. It is represented by three arrays: row indices,
+    column indices, and non-zero element flags.
 
     Parameters
     ----------
     dense_matrix : np.ndarray
         The dense matrix to be converted.
-    fill_value : constant, optional
-        The fill value to be discarded from the dense matrix. Defaults to `INT_FILL_VALUE`.
 
     Returns
     -------
@@ -717,8 +714,7 @@ def _convert_face_node_conn_to_sparse_matrix(
     """
     n_rows, n_cols = dense_matrix.shape
     flattened_matrix = dense_matrix.ravel()
-    valid_node_mask = ~np.isnan(flattened_matrix) & (flattened_matrix !=
-                                                     fill_value)
+    valid_node_mask = flattened_matrix != INT_FILL_VALUE
     face_indices = np.repeat(np.arange(n_rows), n_cols)[valid_node_mask]
     node_indices = flattened_matrix[valid_node_mask]
     non_zero_element_flags = np.ones(len(node_indices))

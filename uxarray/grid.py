@@ -550,14 +550,6 @@ class Grid:
         This function converts the face-node connectivity data into a sparse matrix, and then constructs the node-face
         connectivity by iterating over each node in the mesh and retrieving the set of neighboring faces.
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
         Raises
         ------
         RuntimeError
