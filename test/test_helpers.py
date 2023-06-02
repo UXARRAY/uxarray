@@ -187,7 +187,7 @@ class TestSparseMatrix(TestCase):
                                     [3, 4, 1, 0], [0, 1, 2, INT_FILL_VALUE]])
 
         face_indices, nodes_indices, non_zero_flag = ux.helpers._convert_face_node_conn_to_sparse_matrix(
-            face_nodes_conn, INT_FILL_VALUE)
+            face_nodes_conn)
         expected_non_zero_flag = np.array(
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
         expected_face_indices = np.array(
@@ -198,20 +198,3 @@ class TestSparseMatrix(TestCase):
         nt.assert_array_equal(non_zero_flag, expected_non_zero_flag)
         nt.assert_array_equal(face_indices, expected_face_indices)
         nt.assert_array_equal(nodes_indices, expected_nodes_indices)
-
-    def test_convert_face_node_conn_to_sparse_matrix_nan(self):
-        # Set up test data
-        face_nodes_conn = np.array([[3, 4, 5, np.nan], [3, 0, 2, 5],
-                                    [3, 4, 1, 0], [0, 1, 2, np.nan]])
-        expected_result = (np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3]),
-                           np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1,
-                                     2]), np.ones(14))
-
-        # Run the function with nan fill_value
-        result = ux.helpers._convert_face_node_conn_to_sparse_matrix(
-            face_nodes_conn, fill_value=np.nan)
-
-        # Assert that the result is as expected
-        self.assertTrue(np.array_equal(result[0], expected_result[0]))
-        self.assertTrue(np.array_equal(result[1], expected_result[1]))
-        self.assertTrue(np.array_equal(result[2], expected_result[2]))

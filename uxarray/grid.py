@@ -563,8 +563,7 @@ class Grid:
         # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
         # indexes (similar to an adjacency matrix)
         face_indices, node_indices, non_zero_element_flags = _convert_face_node_conn_to_sparse_matrix(
-            self.ds["Mesh2_face_nodes"].values,
-            fill_value=self.ds["Mesh2_face_nodes"].attrs["_FillValue"])
+            self.ds["Mesh2_face_nodes"].values)
         coo_matrix = sparse.coo_matrix(
             (non_zero_element_flags, (node_indices, face_indices)))
         csr_matrix = coo_matrix.tocsr()
