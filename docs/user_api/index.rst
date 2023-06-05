@@ -12,7 +12,9 @@ documentation to see the tentative whole API and let us know if you have any fee
 
 UxDataset
 =========
-The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``. {add a disclaimer here}
+The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``. Below is a list of explicitly added
+or overloaded features guaranteed to work on Unstructured Grids.
+
 
 Class
 -----
@@ -48,7 +50,8 @@ Methods
 
 UxDataArray
 ===========
-The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. {add a disclaimer here}
+The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list of explicitly added
+or overloaded features guaranteed to work on Unstructured Grids.
 
 Class
 -----

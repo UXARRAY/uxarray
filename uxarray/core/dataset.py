@@ -154,15 +154,16 @@ class UxDataset(xr.Dataset):
                    **kwargs)
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
-        """
-        Concise summary of a Dataset variables and attributes including
-        grid topology information stored in the (``uxgrid``) accessor
+        """Concise summary of a Dataset variables and attributes including grid
+        topology information stored in the (``uxgrid``) accessor.
+
         Parameters
         ----------
         buf : file-like, default: sys.stdout
             writable buffer
         show_attrs : bool
             Flag to select whether to show attributes
+
         See Also
         --------
         pandas.DataFrame.assign
