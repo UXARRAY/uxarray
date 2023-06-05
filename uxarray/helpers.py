@@ -675,11 +675,11 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     return closed
 
 
-def _convert_face_node_conn_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
+def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     """Converts a given dense matrix connectivity to a sparse matrix format
     where the locations of non fill-value entries are stored using COO
     (coordinate list) standard. It is represented by three arrays: row indices,
-    column indices, and non-zero element flags.
+    column indices, and non-filled element flags.
 
     Parameters
     ----------
@@ -692,11 +692,11 @@ def _convert_face_node_conn_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
         A tuple containing three arrays:
 
         - face_indices : np.ndarray
-            Array containing the face indices for each non-zero element.
+            Array containing the face indices for each non fill-value element.
         - node_indices : np.ndarray
-            Array containing the node indices for each non-zero element.
-        - non_zero_elements_flag : np.ndarray
-            Array containing flags indicating if a non-zero element is present in the corresponding row and column
+            Array containing the node indices for each non fill-value element.
+        - non_filled_elements_flag : np.ndarray
+            Array containing flags indicating if a non fill-value element is present in the corresponding row and column
             index.
 
     Example
@@ -705,17 +705,16 @@ def _convert_face_node_conn_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     ...                             [3, 0, 2, 5],
     ...                             [3, 4, 1, 0],
     ...                             [0, 1, 2, -999]])
-    >>> face_indices, nodes_indices, non_zero_flag = _convert_face_node_conn_to_sparse_matrix(
-    ...     face_nodes_conn, INT_FILL_VALUE)
+    >>> face_indices, nodes_indices, non_filled_flag = _face_nodes_to_sparse_matrix(face_nodes_conn)
 
     >>> face_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
     >>> nodes_indices = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
-    >>> non_zero_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    >>> non_filled_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
     """
     n_rows, n_cols = dense_matrix.shape
     flattened_matrix = dense_matrix.ravel()
     valid_node_mask = flattened_matrix != INT_FILL_VALUE
     face_indices = np.repeat(np.arange(n_rows), n_cols)[valid_node_mask]
     node_indices = flattened_matrix[valid_node_mask]
-    non_zero_element_flags = np.ones(len(node_indices))
-    return face_indices, node_indices, non_zero_element_flags
+    non_filled_element_flags = np.ones(len(node_indices))
+    return face_indices, node_indices, non_filled_element_flags

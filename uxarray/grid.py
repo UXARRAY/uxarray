@@ -10,7 +10,7 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
 from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, \
-    close_face_nodes, _convert_face_node_conn_to_sparse_matrix, normalize_in_place
+    close_face_nodes, _face_nodes_to_sparse_matrix, normalize_in_place
 from .constants import INT_DTYPE, INT_FILL_VALUE
 from scipy import sparse
 
@@ -562,10 +562,10 @@ class Grid:
 
         # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
         # indexes (similar to an adjacency matrix)
-        face_indices, node_indices, non_zero_element_flags = _convert_face_node_conn_to_sparse_matrix(
+        face_indices, node_indices, non_filled_element_flags = _face_nodes_to_sparse_matrix(
             self.ds["Mesh2_face_nodes"].values)
         coo_matrix = sparse.coo_matrix(
-            (non_zero_element_flags, (node_indices, face_indices)))
+            (non_filled_element_flags, (node_indices, face_indices)))
         csr_matrix = coo_matrix.tocsr()
         # get the row and column indices of the non-zero elements
         rows, cols = csr_matrix.nonzero()
@@ -592,10 +592,10 @@ class Grid:
             if len(node_face_connectivity[node_index]) < nMaxNumFacesPerNode:
                 node_face_connectivity[node_index] = np.append(
                     node_face_connectivity[node_index],
-                    np.full(
-                        nMaxNumFacesPerNode -
-                        len(node_face_connectivity[node_index]),
-                        self.ds["Mesh2_face_nodes"].attrs["_FillValue"]))
+                    np.full(nMaxNumFacesPerNode -
+                            len(node_face_connectivity[node_index]),
+                            INT_FILL_VALUE,
+                            dtype=INT_DTYPE))
         self.ds["Mesh2_node_faces"] = xr.DataArray(
             node_face_connectivity,
             dims=["nMesh2_node", "nMaxNumFacesPerNode"],
@@ -603,7 +603,7 @@ class Grid:
                 "long_name": "Maps every node to the faces that "
                              "it connects",
                 "nMaxNumFacesPerNode": nMaxNumFacesPerNode,
-                "_FillValue": self.ds["Mesh2_face_nodes"].attrs["_FillValue"]
+                "_FillValue": INT_FILL_VALUE
             })
 
         setattr(self, "Mesh2_node_faces", self.ds["Mesh2_node_faces"])
