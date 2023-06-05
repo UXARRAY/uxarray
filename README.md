@@ -29,8 +29,8 @@ We have created UXarray based on [Xarray](https://docs.xarray.dev/en/stable/)
 (via inheritance of Xarray Dataset and DataArray classes), a Pangeo ecosystem package
 commonly-used for structured grids recognition, to support reading and
 recognizing unstructured grid model outputs. We picked the name "UXarray"
-and preferred to capitalize the first two letters to emphasize it is Xarray
-for Unstructured grids.
+(pronounced "you-ex-array") and preferred to capitalize the first two letters to
+emphasize it builds upon Xarray for Unstructured grids.
 
 # UXarray Functionality
 

@@ -49,6 +49,7 @@ Methods
 UxDataArray
 ===========
 The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. {add a disclaimer here}
+
 Class
 -----
 .. autosummary::
