@@ -24,8 +24,12 @@
 Uxarray Documentation
 =====================
 
-Uxarray aims to provide xarray styled functionality for unstructured grid datasets
-following ugrid conventions.
+UXarray provides Xarray-styled functionality for working with unstructured grids build around the
+`UGRID`_ conventions.
+
+.. _UGRID: http://ugrid-conventions.github.io/ugrid-conventions/
+
+
 
 .. grid:: 1 1 2 2
     :gutter: 2
