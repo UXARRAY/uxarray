@@ -5,9 +5,6 @@ from uxarray.core.api import (open_grid, open_dataset, open_mfdataset)
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.dataset import UxDataset
 
-from .grid import *
-from .helpers import *
-
 # Sets the version of uxarray currently installed
 # Attempt to import the needed modules
 try:
