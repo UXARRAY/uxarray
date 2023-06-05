@@ -12,6 +12,7 @@ documentation to see the tentative whole API and let us know if you have any fee
 
 UxDataset
 =========
+The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``. {add a disclaimer here}
 
 Class
 -----
@@ -19,6 +20,14 @@ Class
    :toctree: _autosummary
 
    UxDataset
+
+IO
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+    core.api.open_dataset
+    core.api.open_mfdataset
 
 Attributes
 ----------
@@ -39,13 +48,14 @@ Methods
 
 UxDataArray
 ===========
-
+The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. {add a disclaimer here}
 Class
 -----
 .. autosummary::
    :toctree: _autosummary
 
    UxDataArray
+
 
 Attributes
 ----------
@@ -70,31 +80,35 @@ Class
 .. autosummary::
    :toctree: _autosummary
 
-   uxarray.core.grid.Grid
+   Grid
 
 IO
 ----------
 .. autosummary::
    :toctree: _autosummary
 
-   uxarray.core.api.open_grid
+   core.api.open_grid
 
 
 Methods
-------------
-.. currentmodule:: uxarray.core.grid.Grid
+-------
 .. autosummary::
    :toctree: _autosummary
 
-   calculate_total_face_area
-   compute_face_areas
-   encode_as
-   integrate
+   Grid.calculate_total_face_area
+   Grid.compute_face_areas
+   Grid.encode_as
+   Grid.integrate
+
+Attributes
+----------
+.. autosummary::
+   :toctree: _autosummary
 
 Helpers
 ===========
 
-Replace with better name
+Place into categories under utils
 ----------------
 .. currentmodule:: uxarray
 .. autosummary::
