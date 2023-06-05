@@ -26,7 +26,7 @@ under the `Issues` tab in the UXarray repository.
 # Why is the name "UXarray"?
 
 We have created UXarray based on [Xarray](https://docs.xarray.dev/en/stable/)
-(via composition of a Xarray dataset object), a Pangeo ecosystem package
+(via inheritance of Xarray Dataset and DataArray classes), a Pangeo ecosystem package
 commonly-used for structured grids recognition, to support reading and
 recognizing unstructured grid model outputs. We picked the name "UXarray"
 and preferred to capitalize the first two letters to emphasize it is Xarray
