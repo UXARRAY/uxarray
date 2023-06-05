@@ -8,6 +8,48 @@ check the draft `Uxarray API
 <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
 documentation to see the tentative whole API and let us know if you have any feedback!
 
+
+UxDataset Class
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   uxarray.core.dataset.UxDataset
+
+UxDataset Methods
+----------
+.. currentmodule:: uxarray.core.dataset.UxDataset
+.. autosummary::
+   :toctree: _autosummary
+
+  uxgrid
+
+UxDataArray Class
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   uxarray.core.dataarray.UxDataArray
+
+UxDataArray Methods
+----------
+.. currentmodule:: uxarray.core.dataarray.UxDataArray
+.. autosummary::
+   :toctree: _autosummary
+
+   uxgrid
+
+
+
+Grid Class
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   uxarray.core.grid.Grid
+
+
+
 Grid Class
 ----------
 .. autosummary::
