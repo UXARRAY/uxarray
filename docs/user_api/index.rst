@@ -1,7 +1,8 @@
 .. currentmodule:: uxarray
 
+########
 User API
-========
+########
 
 This page shows already-implemented Uxarray user API functions. You can also
 check the draft `Uxarray API
@@ -9,56 +10,77 @@ check the draft `Uxarray API
 documentation to see the tentative whole API and let us know if you have any feedback!
 
 
-UxDataset Class
+UxDataset
+=========
+
+Class
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset
+
+Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
 
-   uxarray.core.dataset.UxDataset
+    UxDataset.uxgrid
+    UxDataset.source_datasets
 
-UxDataset Methods
-----------
-.. currentmodule:: uxarray.core.dataset.UxDataset
+Methods
+-------
 .. autosummary::
    :toctree: _autosummary
 
-  uxgrid
+    UxDataset.info
+    UxDataset.integrate
 
-UxDataArray Class
+
+UxDataArray
+===========
+
+Class
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray
+
+Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
 
-   uxarray.core.dataarray.UxDataArray
+   UxDataArray.uxgrid
 
-UxDataArray Methods
-----------
-.. currentmodule:: uxarray.core.dataarray.UxDataArray
+
+Methods
+-------
 .. autosummary::
    :toctree: _autosummary
 
-   uxgrid
 
 
+Grid
+===========
 
-Grid Class
+Class
 ----------
 .. autosummary::
    :toctree: _autosummary
 
    uxarray.core.grid.Grid
 
-
-
-Grid Class
+IO
 ----------
 .. autosummary::
    :toctree: _autosummary
 
-   uxarray.core.grid.Grid
+   uxarray.core.api.open_grid
 
 
-Grid Methods
+Methods
 ------------
 .. currentmodule:: uxarray.core.grid.Grid
 .. autosummary::
@@ -69,7 +91,10 @@ Grid Methods
    encode_as
    integrate
 
-Helper Functions
+Helpers
+===========
+
+Replace with better name
 ----------------
 .. currentmodule:: uxarray
 .. autosummary::
