@@ -196,9 +196,10 @@ def _dual_to_ugrid(in_ds, out_ds):
 
     out_ds["Mesh2_face_nodes"] = xr.DataArray(
         data=cellsOnVertex,
-        dims=["nMesh2_face", "Three"],
+        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
         attrs={
             "cf_role": "face_node_connectivity",
+            "_FillValue": INT_FILL_VALUE,
             "start_index": INT_DTYPE(0)
         })
 
