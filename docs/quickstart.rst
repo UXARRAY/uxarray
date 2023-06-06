@@ -10,7 +10,7 @@ the main concepts. For a more detailed overview of functionality, check out our 
 and Usage Example sections.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :hidden:
 
     getting-started/overview.rst
