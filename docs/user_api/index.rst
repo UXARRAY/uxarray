@@ -43,3 +43,13 @@ Helper Functions
    helpers.node_lonlat_rad_to_xyz
    helpers.normalize_in_place
    helpers.close_face_nodes
+
+Multi-Precision Helper Functions
+-------------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   multi_precision_helpers.convert_to_multiprecision
+   multi_precision_helpers.unique_coordinates_multiprecision
+   multi_precision_helpers.decimal_digits_to_precision_bits
+   multi_precision_helpers.precision_bits_to_decimal_digits

@@ -9,3 +9,7 @@
 - title: Face Area Calculations
   path: examples/003-area-calc.ipynb
   thumbnail: _static/thumbnails/default.svg
+
+- title: Multiprecision Arithmetic Grid
+  path: examples/004-multiprecision-usage.ipynb
+  thumbnail: _static/thumbnails/default.svg

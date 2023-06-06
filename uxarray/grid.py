@@ -2,6 +2,8 @@
 import os
 import xarray as xr
 import numpy as np
+import gmpy2
+from gmpy2 import mpfr, mpz
 
 # reader and writer imports
 from ._exodus import _read_exodus, _encode_exodus
@@ -10,7 +12,8 @@ from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
 from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, close_face_nodes
-from .constants import INT_DTYPE, INT_FILL_VALUE
+from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
+from .multi_precision_helpers import convert_to_multiprecision, unique_coordinates_multiprecision, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
 
 
 class Grid:
@@ -28,7 +31,11 @@ class Grid:
     >>> mesh.encode_as("ugrid")
     """
 
-    def __init__(self, dataset, **kwargs):
+    def __init__(self,
+                 dataset,
+                 multi_precision=False,
+                 precision=FLOAT_PRECISION_BITS,
+                 **kwargs):
         """Initialize grid variables, decide if loading happens via file, verts
         or gridspec.
 
@@ -36,7 +43,16 @@ class Grid:
         ----------
         dataset : xarray.Dataset, ndarray, list, tuple, required
             Input xarray.Dataset or vertex coordinates that form one face.
-
+        multi_precision : bool, optional
+            Specify if want to use multi-precision (mpfr) for all grid operations (default: False).
+            Each node coordinates will be stored as the gmpy2.mpfr/mpz(filled value) type
+            instead of the python ``float``/``int`` type.
+            Note: when using multi-precision, all grid operations are done in multi-precision using the GMPY2 library. And
+            the run time will significantly increase. To gain the full benefit of multi-precision, it is recommended to input
+            the grid coordinates in string format (eg. '0.1', '0.2', etc) and use string 'INT_FILL_VALUE'
+            to specify the fill value.
+        precision : int, optional
+            Specify the precision of the grid coordinates (default: FLOAT_PRECISION_BITS (python `float` bit precision)).
         Other Parameters
         ----------------
         islatlon : bool, optional
@@ -60,6 +76,9 @@ class Grid:
         # initialize face_area variable
         self._face_areas = None
 
+        # initialize the multi-precision flag
+        self._multi_precision = multi_precision
+        self._precision = precision
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -74,6 +93,28 @@ class Grid:
         # check if initializing from verts:
         if isinstance(dataset, (list, tuple, np.ndarray)):
             dataset = np.asarray(dataset)
+
+            # Pre-process dataset if the multi-precision flag is set
+            if self._multi_precision:
+                # If the input are floats
+                if dataset.dtype == float:
+                    dataset = convert_to_multiprecision(
+                        dataset, str_mode=False, precision=self._precision)
+                # If the input are strings
+                elif np.all([
+                        np.issubdtype(type(element), np.str_)
+                        for element in dataset.ravel()
+                ]):
+                    dataset = convert_to_multiprecision(
+                        dataset, str_mode=True, precision=self._precision)
+                else:
+                    # If the input are not floats or strings or gmpy2.mpfr/mpz, raise an error
+                    if ~np.any(
+                            np.vectorize(lambda x: isinstance(
+                                x, (gmpy2.mpfr, gmpy2.mpz)))(dataset.ravel())):
+                        raise ValueError(
+                            'The input array should be either floats, strings, or gmpy2.mpfr/mpz'
+                        )
             # grid with multiple faces
             if dataset.ndim == 3:
                 self.__from_vert__(dataset)
@@ -92,6 +133,7 @@ class Grid:
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
             self.mesh_type = parse_grid_type(dataset)
+            #TODO: Support multiprecision for __from_ds__
             self.__from_ds__(dataset=dataset)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
@@ -199,19 +241,71 @@ class Grid:
             z_coord = x_coord * 0.0
 
         # Identify unique vertices and their indices
-        unique_verts, indices = np.unique(dataset.reshape(
-            -1, dataset.shape[-1]),
-                                          axis=0,
-                                          return_inverse=True)
+        if self._multi_precision:
+            # Check if the input_array is in th mpfr type
+            try:
+                # Flatten the input_array_mpfr to a 1D array so that we can check the type of each element
+                input_array_mpfr_copy = np.ravel(dataset)
+                for i in range(len(input_array_mpfr_copy)):
+                    if type(input_array_mpfr_copy[i]) != gmpy2.mpfr and type(
+                            input_array_mpfr_copy[i]) != gmpy2.mpz:
+                        dataset = convert_to_multiprecision(
+                            dataset, precision=self._precision)
+            except Exception as e:
+                raise e
+
+            unique_verts, indices = unique_coordinates_multiprecision(
+                dataset.reshape(-1, dataset.shape[-1]),
+                precision=self._precision)
+
+        else:
+            unique_verts, indices = np.unique(dataset.reshape(
+                -1, dataset.shape[-1]),
+                                              axis=0,
+                                              return_inverse=True)
 
         # Nodes index that contain a fill value
-        fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
-                                        unique_verts[:, 1] == INT_FILL_VALUE)
-        if dataset[0][0].size > 2:
+        if self._multi_precision:
+            # Perform element-wise comparison using gmpy.cmp()
+            fill_value_mask = np.logical_or(
+                np.array([
+                    gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
+                    for x in unique_verts[:, 0]
+                ],
+                         dtype=bool),
+                np.array([
+                    gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
+                    for x in unique_verts[:, 1]
+                ],
+                         dtype=bool))
+
+            if dataset[0][0].size > 2:
+                fill_value_mask = np.logical_or(
+                    np.array([
+                        gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
+                        for x in unique_verts[:, 0]
+                    ],
+                             dtype=bool),
+                    np.array([
+                        gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
+                        for x in unique_verts[:, 1]
+                    ],
+                             dtype=bool),
+                    np.array([
+                        gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
+                        for x in unique_verts[:, 2]
+                    ],
+                             dtype=bool))
+
+        else:
             fill_value_mask = np.logical_or(
                 unique_verts[:, 0] == INT_FILL_VALUE,
-                unique_verts[:, 1] == INT_FILL_VALUE,
-                unique_verts[:, 2] == INT_FILL_VALUE)
+                unique_verts[:, 1] == INT_FILL_VALUE)
+            if dataset[0][0].size > 2:
+                fill_value_mask = np.logical_or(
+                    unique_verts[:, 0] == INT_FILL_VALUE,
+                    unique_verts[:, 1] == INT_FILL_VALUE,
+                    unique_verts[:, 2] == INT_FILL_VALUE)
 
         # Get the indices of all the False values in fill_value_mask
         false_indices = np.where(fill_value_mask == True)[0]
@@ -224,9 +318,19 @@ class Grid:
             unique_verts = np.delete(unique_verts, false_indices, axis=0)
 
             # Update indices accordingly
-            for i, idx in enumerate(false_indices):
-                indices[indices == idx] = INT_FILL_VALUE
-                indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
+            if self._multi_precision:
+                for i, idx in enumerate(false_indices):
+                    indices[indices == idx] = INT_FILL_VALUE_MPZ
+                    for j in range(indices.size):
+                        if gmpy2.cmp(mpz(
+                                indices[j]), mpz(idx)) > 0 and gmpy2.cmp(
+                                    mpz(indices[j]), INT_FILL_VALUE_MPZ) != 0:
+                            indices[j] -= 1
+
+            else:
+                for i, idx in enumerate(false_indices):
+                    indices[indices == idx] = INT_FILL_VALUE
+                    indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
 
         # Create coordinate DataArrays
         self.ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
@@ -247,14 +351,24 @@ class Grid:
 
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
-        self.ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(connectivity).astype(INT_DTYPE),
-            dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-            attrs={
-                "cf_role": "face_node_connectivity",
-                "_FillValue": INT_FILL_VALUE,
-                "start_index": 0
-            })
+        if self._multi_precision:
+            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+                data=xr.DataArray(connectivity).astype(INT_DTYPE),
+                dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+                attrs={
+                    "cf_role": "face_node_connectivity",
+                    "_FillValue": INT_FILL_VALUE_MPZ,
+                    "start_index": 0
+                })
+        else:
+            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+                data=xr.DataArray(connectivity).astype(INT_DTYPE),
+                dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+                attrs={
+                    "cf_role": "face_node_connectivity",
+                    "_FillValue": INT_FILL_VALUE,
+                    "start_index": 0
+                })
 
     # load mesh from a file
     def __from_ds__(self, dataset):
@@ -598,8 +712,14 @@ class Grid:
             return
 
         # check for units and create Mesh2_node_cart_x/y/z set to self.ds
-        nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
-        nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
+        if self._multi_precision:
+            nodes_lon_rad = np.array(
+                [gmpy2.radians(x) for x in self.Mesh2_node_x.values])
+            nodes_lat_rad = np.array(
+                [gmpy2.radians(y) for y in self.Mesh2_node_y.values])
+        else:
+            nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
+            nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
         nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
         nodes_cart = np.asarray(
             list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
@@ -682,7 +802,12 @@ class Grid:
              self.ds["Mesh2_node_z"].values),
             axis=1).tolist()
         nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
-        nodes_degree = np.rad2deg(nodes_rad)
+
+        if self._multi_precision:
+            nodes_degree = np.array(
+                [[gmpy2.degrees(x), gmpy2.degrees(y)] for x, y in nodes_rad])
+        else:
+            nodes_degree = np.rad2deg(nodes_rad)
         self.ds["Mesh2_node_x"] = xr.DataArray(
             data=nodes_degree[:, 0],
             dims=["nMesh2_node"],

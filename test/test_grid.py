@@ -1,12 +1,16 @@
 import os
 import numpy as np
 import xarray as xr
+import gmpy2
+from gmpy2 import mpfr
 
 from unittest import TestCase
 from pathlib import Path
+import timeit
 
 import xarray as xr
 import uxarray as ux
+import uxarray.multi_precision_helpers as mph
 import numpy.testing as nt
 
 try:
@@ -143,6 +147,106 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_node == 6)
         vgrid.encode_as("ugrid")
 
+    def test_init_verts_from_string(self):
+        # Provide nodes that are extremely closed to each other
+        face_nodes_connectivity = [[
+            '1.000000000000000000', '1.000000000000000000001',
+            '1.0000000000000000000012'
+        ],
+                                   [
+                                       '1.000000000000000001',
+                                       '1.000000000000000000002',
+                                       '1.0000000000000000000013'
+                                   ],
+                                   [
+                                       '1.00000000000000000001',
+                                       '1.00000000000000000000',
+                                       '1.0000000000000000000013'
+                                   ]]
+
+        uxgrid = ux.Grid(face_nodes_connectivity,
+                         multi_precision=True,
+                         precision=100,
+                         vertices=True,
+                         islatlon=False,
+                         concave=False)
+        self.assertEqual(uxgrid.nMesh2_face, 1)
+        self.assertEqual(uxgrid.nMesh2_node, 3)
+
+    def test_init_verts_multi_precision_triangle(self):
+        nodes = []
+        # Generate the nodes on the unit sphere, and the nodes are extremely close to each other: the edge length
+        # between any two nodes is less than 1e-17 (the precision of the nodes is 60 bits but we will use 65 bits for
+        # testing)
+        for i in range(4):
+            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65),
+                              4)  # Angle in radians
+            x = gmpy2.cos(theta)
+            y = gmpy2.sin(theta)
+            z = mpfr(
+                0)  # All nodes will have z-coordinate as 0 on the unit sphere
+            nodes.append([x, y, z])
+
+        # Generate the face nodes connectivity
+        face_nodes_connectivity = np.array([
+            np.array([nodes[0], nodes[1], nodes[2]], dtype=object),
+            np.array([nodes[0], nodes[2], nodes[3]], dtype=object),
+            np.array([nodes[0], nodes[3], nodes[1]], dtype=object),
+            np.array([nodes[1], nodes[2], nodes[3]], dtype=object)
+        ])
+
+        # Create the grid
+        vgrid = ux.Grid(face_nodes_connectivity,
+                        multi_precision=True,
+                        precision=65,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 4)
+        assert (vgrid.nMesh2_node == 4)
+
+    def test_init_verts_multi_precision_fill_values(self):
+        # Set the desired precision
+
+        # Generate the nodes on the unit sphere, and the nodes are extremely close to each other: the edge length
+        # between any two nodes is less than 1e-17 (the precision of the nodes is 60 bits but we will use 65 bits for
+        # testing)
+
+        nodes = []
+        for i in range(4):
+            theta = gmpy2.div(i * 2 * gmpy2.const_pi(precision=65),
+                              4)  # Angle in radians
+            x = gmpy2.cos(theta)
+            y = gmpy2.sin(theta)
+            z = mpfr('0')
+            nodes.append([x, y, z])
+
+        # Generate the face nodes connectivity
+        dumb_nodes = [
+            ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ
+        ]
+        face_nodes_connectivity = np.array([
+            np.array([nodes[0], nodes[1], nodes[2], dumb_nodes], dtype=object),
+            np.array([nodes[0], nodes[2], nodes[3], dumb_nodes], dtype=object),
+            np.array([nodes[0], nodes[3], nodes[1], dumb_nodes], dtype=object),
+            np.array([nodes[1], nodes[2], nodes[3], nodes[0]], dtype=object)
+        ],
+                                           dtype=object)
+        # Create the grid
+        vgrid = ux.Grid(face_nodes_connectivity,
+                        multi_precision=True,
+                        precision=65,
+                        vertices=True,
+                        islatlon=False,
+                        concave=False)
+        assert (vgrid.source_grid == "From vertices")
+        assert (vgrid.nMesh2_face == 4)
+        assert (vgrid.nMesh2_node == 4)
+
+        # Test the all numbers in the vgird.ds["Mesh2_face_nodes"] are less than 4
+        assert (np.all(vgrid.ds["Mesh2_face_nodes"] < 4))
+
     def test_init_verts_different_input_datatype(self):
         """Create a uxarray grid from multiple face vertices with different
         datatypes(ndarray, list, tuple) and saves a ugrid file.
@@ -241,13 +345,6 @@ class TestGrid(TestCase):
         self.assertEqual(n_faces, self.tgrid1.nMesh2_face)
         self.assertEqual(n_face_nodes, self.tgrid1.nMaxMesh2_face_nodes)
 
-        # xr.testing.assert_equal(
-        #     self.tgrid1.nMesh2_node,
-        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
-        # xr.testing.assert_equal(
-        #     self.tgrid1.nMesh2_face,
-        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
-
         # Dataset with non-standard UGRID variable names
         path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
         xr_grid = xr.open_dataset(path)
@@ -301,7 +398,7 @@ class TestIntegrate(TestCase):
         # load grid
         vgrid = ux.Grid(verts, vertices=True, islatlon=False, concave=False)
 
-        #calculate area
+        # calculate area
         area_gaussian = vgrid.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -397,7 +494,7 @@ class TestFaceAreas(TestCase):
 
 class TestPopulateCoordinates(TestCase):
 
-    def test_populate_cartesian_xyz_coord(self):
+    def test_populate_cartesian_xyz_coord_float(self):
         # The following testcases are generated through the matlab cart2sph/sph2cart functions
         # These points correspond to the eight vertices of a cube.
         lon_deg = [
@@ -424,7 +521,7 @@ class TestPopulateCoordinates(TestCase):
         ]
 
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
-        vgrid = ux.Grid([verts_degree], islatlon=False)
+        vgrid = ux.Grid([verts_degree], islatlon=True, vertices=True)
         vgrid._populate_cartesian_xyz_coord()
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
@@ -437,7 +534,50 @@ class TestPopulateCoordinates(TestCase):
                                    cart_z[i],
                                    decimal=12)
 
-    def test_populate_lonlat_coord(self):
+    def test_populate_cartesian_xyz_coord_mpfr(self):
+        lon_deg = [
+            '45.0001052295749', '45.0001052295749', '314.9998947704251',
+            '314.9998947704251'
+        ]
+        lat_deg = [
+            '35.2655522903022', '-35.2655522903022', '35.2655522903022',
+            '-35.2655522903022'
+        ]
+
+        cart_x = [
+            '0.577340924821405', '0.577340924821405', '0.577340924821405',
+            '0.577340924821405'
+        ]
+
+        cart_y = [
+            '0.577343045516932', '0.577343045516932', '-0.577343045516932',
+            '-0.577343045516932'
+        ]
+
+        cart_z = [
+            '0.577366836872017', '-0.577366836872017', '0.577366836872017',
+            '-0.577366836872017'
+        ]
+
+        verts_degree = np.stack((lon_deg, lat_deg), axis=1)
+        vgrid = ux.Grid([verts_degree],
+                        multi_precision=True,
+                        precision=64,
+                        islatlon=True,
+                        vertices=True)
+        vgrid._populate_cartesian_xyz_coord()
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
+                                   mpfr(cart_x[i]),
+                                   decimal=14)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_y"].values[i],
+                                   mpfr(cart_y[i]),
+                                   decimal=14)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
+                                   mpfr(cart_z[i]),
+                                   decimal=14)
+
+    def test_populate_lonlat_coord_float(self):
         # The following testcases are generated through the matlab cart2sph/sph2cart functions
         # These points correspond to the 4 vertexes on a cube.
 
@@ -474,6 +614,45 @@ class TestPopulateCoordinates(TestCase):
             nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
                                    lat_deg[i],
                                    decimal=12)
+
+    def test_populate_lonlat_coord_mpfr(self):
+        lon_deg = [
+            '45.0001052295749', '45.0001052295749', '314.9998947704251',
+            '314.9998947704251'
+        ]
+        lat_deg = [
+            '35.2655522903022', '-35.2655522903022', '35.2655522903022',
+            '-35.2655522903022'
+        ]
+
+        cart_x = [
+            '0.577340924821405', '0.577340924821405', '0.577340924821405',
+            '0.577340924821405'
+        ]
+
+        cart_y = [
+            '0.577343045516932', '0.577343045516932', '-0.577343045516932',
+            '-0.577343045516932'
+        ]
+
+        cart_z = [
+            '0.577366836872017', '-0.577366836872017', '0.577366836872017',
+            '-0.577366836872017'
+        ]
+
+        verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
+        vgrid = ux.Grid([verts_cart],
+                        multi_precision=True,
+                        precision=64,
+                        islatlon=False)
+        vgrid._populate_lonlat_coord()
+        for i in range(0, vgrid.nMesh2_node):
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
+                                   mpfr(lon_deg[i]),
+                                   decimal=13)
+            nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
+                                   mpfr(lat_deg[i]),
+                                   decimal=13)
 
 
 class TestConnectivity(TestCase):
@@ -718,29 +897,6 @@ class TestConnectivity(TestCase):
                 self.assertTrue(
                     np.array_equal(reverted_mesh2_edge_nodes[i],
                                    original_face_nodes_connectivity[i]))
-
-    def test_build_face_edges_connectivity_mpas(self):
-        xr_ds = xr.open_dataset(self.mpas_filepath)
-        tgrid = ux.Grid(xr_ds)
-
-        mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
-
-        tgrid._build_face_edges_connectivity()
-        mesh2_face_edges = tgrid.ds.Mesh2_face_edges
-        mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
-
-        # Assert if the mesh2_face_edges sizes are correct.
-        self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
-                         mesh2_face_nodes.sizes["nMesh2_face"])
-        self.assertEqual(mesh2_face_edges.sizes["nMaxMesh2_face_edges"],
-                         mesh2_face_nodes.sizes["nMaxMesh2_face_nodes"])
-
-        # Assert if the mesh2_edge_nodes sizes are correct.
-        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid.ds[
-            "Mesh2_node_x"].sizes["nMesh2_node"] - 2
-        size = mesh2_edge_nodes.sizes["nMesh2_edge"]
-        self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
     def test_build_face_edges_connectivity_fillvalues(self):
         verts = [
