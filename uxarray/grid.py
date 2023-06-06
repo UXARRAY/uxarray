@@ -829,11 +829,6 @@ class Grid:
         """Constructs ``nNodes_per_face``, which contains the number of non-
         fill-value nodes for each face in ``Mesh2_face_nodes``"""
 
-        # Triangular Mesh (No Fill Values)
-        if not hasattr(self, "nMaxMesh2_face_nodes"):
-            nMaxMesh2_face_nodes = self.Mesh2_face_nodes.shape[1]
-            setattr(self, "nMaxMesh2_face_nodes", nMaxMesh2_face_nodes)
-
         # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
         closed = np.ones((self.nMesh2_face, self.nMaxMesh2_face_nodes + 1),
                          dtype=INT_DTYPE) * INT_FILL_VALUE
