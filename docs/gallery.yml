@@ -1,5 +1,5 @@
-- title: Reading In Grid Data
-  path: examples/001-read-grid-data.ipynb
+- title: Working with Unstructured Grid Data
+  path: examples/001-working-with-unstructured-grids.ipynb
   thumbnail: _static/thumbnails/default.svg
 
 - title: Accessing Grid Information
