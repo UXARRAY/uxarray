@@ -112,7 +112,7 @@ Attributes
 Helpers
 ===========
 
-Place into categories under utils
+Place into categories under utils eventually
 ----------------
 .. currentmodule:: uxarray
 .. autosummary::
