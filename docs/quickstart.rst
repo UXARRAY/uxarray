@@ -13,5 +13,5 @@ and Usage Example sections.
    :maxdepth: 1
    :hidden:
 
-    getting-started/overview.rst
-    getting-started/freq-asked-questions.rst
+   getting-started/overview.rst
+   getting-started/freq-asked-questions.rst
