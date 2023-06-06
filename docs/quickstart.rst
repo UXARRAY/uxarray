@@ -5,7 +5,9 @@
 Quick Start Guide
 =================
 
-Coming Soon!
+This getting started guide aims to get you using UXarray productively as quickly as possible by covering
+the main concepts. For a more detailed overview of functionality, check out our API Reference and
+Usage Examples sections.
 
 .. toctree::
    :maxdepth: 2
