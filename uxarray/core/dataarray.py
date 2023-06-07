@@ -61,9 +61,3 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
-
-    @property
-    def topology(self):
-        """Returns a reference to the internal grid dataset that contains Grid
-        Topology Variables."""
-        return self._uxgrid._ds

@@ -54,10 +54,3 @@ class TestUxDataset(TestCase):
                 uxds_var2_geoflow.info(show_attrs=True)
             except Exception as exc:
                 assert False, f"'uxds_var2_geoflow.info()' raised an exception: {exc}"
-
-    def test_topology(self):
-        """Tests to see if our topology attribute correctly points to the
-        internal grid dataset."""
-
-        uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
-        xt.assert_equal(uxds_var2_ne30.uxgrid._ds, uxds_var2_ne30.topology)
