@@ -96,3 +96,29 @@ class TestMPAS(TestCase):
         verticesOnCell = _to_zero_index(verticesOnCell)
 
         assert np.array_equal(verticesOnCell, gold_output)
+
+    def test_set_attrs(self):
+        """Tests the execution of ``_set_global_attrs``, checking for
+        attributes being correctly stored in ``Grid.ds``"""
+
+        # full set of expected mpas attributes
+        expected_attrs = [
+            'sphere_radius', 'mesh_spec', 'on_a_sphere', 'mesh_id',
+            'is_periodic', 'x_period', 'y_period'
+        ]
+
+        # included attrs: 'sphere_radius', 'mesh_spec' 'on_a_sphere'
+        ds = _read_mpas(self.mpas_xr_ds)
+
+        # set dummy attrs to test execution
+        ds.attrs['mesh_id'] = "12345678"
+        ds.attrs['is_periodic'] = "YES"
+        ds.attrs['x_period'] = 1.0
+        ds.attrs['y_period'] = 1.0
+
+        # create a grid
+        uxgrid = ux.Grid(ds)
+
+        # check if all expected attributes are set
+        for mpas_attr in expected_attrs:
+            assert mpas_attr in uxgrid.ds.attrs
