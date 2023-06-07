@@ -25,6 +25,14 @@ Grid Methods
    _populate_cartesian_xyz_coord
    _populate_lonlat_coord
 
+Grid Attributes (test)
+--------------------
+.. currentmodule:: uxarray.core.grid.Grid
+.. autosummary::
+   :nosignatures:
+   :toctree: ./generated/
+
+   Mesh2_face_nodes
 
 Grid Helper Modules
 --------------------
