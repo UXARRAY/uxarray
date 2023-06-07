@@ -26,7 +26,6 @@ Grid Methods
    grid.Grid.encode_as
    grid.Grid.integrate
 
-
 Helper Functions
 ----------------
 .. autosummary::
@@ -40,3 +39,7 @@ Helper Functions
    helpers.get_tri_quadratureDG
    helpers.grid_center_lat_lon
    helpers.parse_grid_type
+   helpers.node_xyz_to_lonlat_rad
+   helpers.node_lonlat_rad_to_xyz
+   helpers.normalize_in_place
+   helpers.close_face_nodes
