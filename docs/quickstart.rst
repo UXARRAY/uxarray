@@ -14,4 +14,5 @@ and Usage Example sections.
    :hidden:
 
    getting-started/overview.rst
+   getting-started/quick-install.rst
    getting-started/freq-asked-questions.rst
