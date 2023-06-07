@@ -87,6 +87,19 @@ class UxDataset(xr.Dataset):
         """Returns a reference to the internal grid dataset that contains Grid
         Topology Variables."""
         return self._uxgrid._ds
+   
+    def _calculate_binary_op(self, *args, **kwargs):
+        ds = super()._calculate_binary_op(*args, **kwargs)
+
+        if isinstance(ds, UxDataset):
+            ds.uxgrid = self.uxgrid
+            ds.source_datasets = self.source_datasets
+        else:
+            ds = UxDataset(ds,
+                           uxgrid=self.uxgrid,
+                           source_datasets=self.source_datasets)
+
+        return ds
 
     def _construct_dataarray(self, name) -> UxDataArray:
         """Override to check if the result is an instance of xarray.DataArray.
@@ -242,3 +255,11 @@ class UxDataset(xr.Dataset):
         integral = np.dot(face_areas, face_vals)
 
         return integral
+
+    def to_array(self) -> UxDataArray:
+        """Override to check if the result is an instance of xarray.DataArray.
+
+        If so, convert to UxDataArray.
+        """
+        xarr = super().to_array()
+        return UxDataArray(xarr, uxgrid=self.uxgrid)
