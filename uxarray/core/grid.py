@@ -274,19 +274,11 @@ class Grid:
 
     @property
     def Mesh2_face_nodes(self):
-        """UGRID Connectivity Variable ``Mesh2_face_nodes`` with dimensions
-        (``nMesh2_face``, ``nMaxMesh2_face_nodes``).
+        """UGRID Connectivity Variable ``Mesh2_face_nodes``, which maps each
+        face to its corner nodes.
 
-        Description
-        -----------
-        Maps every face to its corner nodes.
-
-        Dimensions
-        ----------
-        nMesh2_face
-            Number of Faces
-        nMaxMesh2_face_nodes
-            Maximum number of Nodes per Face
+        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
+        datatype ``INT_DTYPE``.
         """
 
         return self._ds[self.grid_var_names["Mesh2_face_nodes"]]
