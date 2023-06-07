@@ -275,7 +275,7 @@ class Grid:
     @property
     def Mesh2_face_nodes(self):
         """UGRID Connectivity Variable ``Mesh2_face_nodes`` with dimensions
-        (``nMesh2_face``, ``nMaxMesh2_face_nodes``)
+        (``nMesh2_face``, ``nMaxMesh2_face_nodes``).
 
         Description
         -----------
