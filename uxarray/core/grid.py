@@ -245,20 +245,31 @@ class Grid:
 
         dataset.close()
 
-    @property
-    def topology(self):
-        return self._ds
+    def __repr__(self):
+        return "UXarray Grid Object"
 
     @property
     def Mesh2(self):
+        """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
+        unstructured mesh."""
         return self._ds[self.grid_var_names["Mesh2"]]
 
     @property
     def Mesh2_node_x(self):
+        """UGRID Coordinate Variable ``Mesh2_node_x``, which contains the
+        longitude of each node.
+
+        Dimensions (``nMesh2_node``)
+        """
         return self._ds[self.grid_var_names["Mesh2_node_x"]]
 
     @property
     def Mesh2_node_y(self):
+        """UGRID Coordinate Variable ``Mesh2_node_y``, which contains the
+        latitude of each node.
+
+        Dimensions (``nMesh2_node``)
+        """
         return self._ds[self.grid_var_names["Mesh2_node_y"]]
 
     @property
@@ -270,6 +281,8 @@ class Grid:
 
     @property
     def nMesh2_node(self):
+        """UGRID Dimension ``nMesh2_node``, which represents the total number
+        of nodes."""
         return self._ds[self.grid_var_names["Mesh2_node_x"]].shape[0]
 
     @property
@@ -278,21 +291,31 @@ class Grid:
         face to its corner nodes.
 
         Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
-        datatype ``INT_DTYPE``.
+        DataType ``INT_DTYPE``.
         """
 
         return self._ds[self.grid_var_names["Mesh2_face_nodes"]]
 
     @property
     def nMesh2_face(self):
+        """UGRID Dimension ``nMesh2_face``, which represents the total number
+        of faces."""
         return self._ds[self.grid_var_names["Mesh2_face_nodes"]].shape[0]
 
     @property
     def nMaxMesh2_face_nodes(self):
+        """UGRID Dimension ``nMaxMesh2_face_nodes``, which represents the
+        maximum number of faces nodes that a face may contain."""
         return self.Mesh2_face_nodes.shape[1]
 
     @property
     def Mesh2_edge_nodes(self):
+        """UGRID Connectivity Variable ``Mesh2_edge_nodes``, which maps every
+        edge to the two nodes that it connects.
+
+        Dimensions (``nMesh2_edge``, ``Two``) and DataType
+        ``INT_DTYPE``.
+        """
         if 'Mesh2_edge_nodes' in self._ds:
             return self._ds['Mesh2_edge_nodes']
         else:
@@ -300,6 +323,8 @@ class Grid:
 
     @property
     def nMesh2_edge(self):
+        """UGRID Dimension ``nMesh2_face``, which represents the total number
+        of edges."""
         if "Mesh2_edge_nodes" in self._ds:
             return self._ds['Mesh2_edge_nodes'].shape[0]
         else:
@@ -307,6 +332,12 @@ class Grid:
 
     @property
     def Mesh2_face_edges(self):
+        """UGRID Connectivity Variable ``Mesh2_face_edges``, which maps every
+        face to its edges.
+
+        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
+        DataType ``INT_DTYPE``.
+        """
         if "Mesh2_face_edges" in self._ds:
             return self._ds["Mesh2_face_edges"]
         else:
@@ -321,6 +352,11 @@ class Grid:
 
     @property
     def nNodes_per_face(self):
+        """Internal Connectivity Variable ``nNodes_per_face``, which contains
+        the number of non-fill-value nodes per face.
+
+        Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
+        """
         return self._ds["nNodes_per_face"]
 
     def copy(self):
