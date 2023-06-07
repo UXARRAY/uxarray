@@ -87,7 +87,7 @@ class UxDataset(xr.Dataset):
         """Returns a reference to the internal grid dataset that contains Grid
         Topology Variables."""
         return self._uxgrid._ds
-   
+
     def _calculate_binary_op(self, *args, **kwargs):
         ds = super()._calculate_binary_op(*args, **kwargs)
 
