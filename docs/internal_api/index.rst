@@ -48,7 +48,5 @@ Grid Helper Modules
    _scrip._encode_scrip
    _scrip._to_ugrid
    helpers._is_ugrid
-   helpers._convert_node_xyz_to_lonlat_rad
-   helpers._convert_node_lonlat_rad_to_xyz
    helpers._normalize_in_place
    helpers._replace_fill_values
