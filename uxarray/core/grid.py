@@ -275,20 +275,9 @@ class Grid:
             connectivity_heading + connectivity_str
 
     @property
-    def topology(self):
-        """Dataset containing a collection of parsed grid coordinates,
-        connectivity variables, and attributes.
-
-        Note
-        ----
-        This dataset contains the internal representation of the parsed grid file.
-        """
-        return self._ds
-
-    @property
     def Mesh2(self):
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
-        unstructured mesh."""
+        unstructured mesh and includes parsed attributes."""
         return self._ds[self.grid_var_names["Mesh2"]]
 
     @property
