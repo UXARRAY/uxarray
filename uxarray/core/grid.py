@@ -246,7 +246,46 @@ class Grid:
         dataset.close()
 
     def __repr__(self):
-        return "UXarray Grid Object"
+        """Constructs a string representation of the contents of a ``Grid``."""
+        prefix = "<uxarray.Grid>\n"
+        original_grid_str = f"Original Grid Type: {self.mesh_type}\n"
+        dims_heading = "Grid Dimensions:\n"
+        dims_str = ""
+        for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
+            dims_str += f"  * {key}: {value}\n"
+
+        coord_heading = "Grid Coordinate Variables:\n"
+        coords_str = ""
+        if "Mesh2_node_x" in self._ds:
+            coords_str += f"  * Mesh2_node_x: {self.Mesh2_node_x.shape}\n"
+            coords_str += f"  * Mesh2_node_y: {self.Mesh2_node_y.shape}\n"
+        if "Mesh2_face_x" in self._ds:
+            coords_str += f"  * Mesh2_face_x: {self.Mesh2_face_x.shape}\n"
+            coords_str += f"  * Mesh2_face_y: {self.Mesh2_face_y.shape} \n"
+
+        connectivity_heading = "Grid Connectivity Variables:\n"
+        connectivity_str = ""
+        if "Mesh2_face_nodes" in self._ds:
+            connectivity_str += f"  * Mesh2_face_nodes: {self.Mesh2_face_nodes.shape}\n"
+        if "Mesh2_edge_nodes" in self._ds:
+            connectivity_str += f"  * Mesh2_edge_nodes: {self.Mesh2_edge_nodes.shape}\n"
+        if "Mesh2_face_edges" in self._ds:
+            connectivity_str += f"  * Mesh2_face_edges: {self.Mesh2_face_edges.shape}\n"
+        connectivity_str += f"  * nNodes_per_face: {self.nNodes_per_face.shape}\n"
+
+        return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
+            connectivity_heading + connectivity_str
+
+    @property
+    def topology(self):
+        """Dataset containing a collection of parsed grid coordinates,
+        connectivity variables, and attributes.
+
+        Note
+        ----
+        This dataset contains the internal representation of the parsed grid file.
+        """
+        return self._ds
 
     @property
     def Mesh2(self):
@@ -262,6 +301,30 @@ class Grid:
         Dimensions (``nMesh2_node``)
         """
         return self._ds[self.grid_var_names["Mesh2_node_x"]]
+
+    @property
+    def Mesh2_face_x(self):
+        """UGRID Coordinate Variable ``Mesh2_face_x``, which contains the
+        longitude of each face center.
+
+        Dimensions (``nMesh2_face``)
+        """
+        if "Mesh2_face_x" in self._ds:
+            return self._ds["Mesh2_face_x"]
+        else:
+            return None
+
+    @property
+    def Mesh2_face_y(self):
+        """UGRID Coordinate Variable ``Mesh2_face_y``, which contains the
+        latitude of each face center.
+
+        Dimensions (``nMesh2_face``)
+        """
+        if "Mesh2_face_y" in self._ds:
+            return self._ds["Mesh2_face_y"]
+        else:
+            return None
 
     @property
     def Mesh2_node_y(self):
