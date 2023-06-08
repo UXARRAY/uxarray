@@ -377,7 +377,7 @@ class Grid:
                 })
 
     # load mesh from a file
-    def __from_ds__(self, dataset):
+    def __from_ds__(self, dataset, multi_precision=False, precision=FLOAT_PRECISION_BITS):
         """Loads a mesh dataset."""
         # call reader as per mesh_type
         if self.mesh_type == "exo":
@@ -397,7 +397,30 @@ class Grid:
         else:
             raise RuntimeError("unknown mesh type")
 
+        # set precision flags
+        self._multi_precision = multi_precision
+        self._precision = precision
+
+        # loops through the dataset
+        if self._multi_precision:
+            for varName, varData in dataset.data_vars.items():
+                # check if the variable data is of float, integer, or string type and convert it based on the type
+                if np.issubdtype(varData.dtype, np.floating):
+                    convertedData = convert_to_multiprecision(
+                        varData.values, str_mode=False, precision=self._precision)
+                    self.ds[varName] = (varData.dims, convertedData)
+                elif np.issubdtype(varData.dtype, np.integer):
+                    convertedData = convert_to_multiprecision(
+                        varData.values, str_mode=False, precision=self._precision)
+                    self.ds[varName] = (varData.dims, convertedData)
+                elif np.issubdtype(varData.dtype, np.str):
+                    convertedData = convert_to_multiprecision(
+                        varData.values, str_mode=True, precision=self._precision)
+                    self.ds[varName] = (varData.dims, convertedData)
+
         dataset.close()
+
+        return self.ds
 
     def encode_as(self, grid_type):
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
