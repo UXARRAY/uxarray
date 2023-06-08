@@ -220,8 +220,8 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 12)
 
-    def test_init_grid_var_attrs(self):
-        """Tests to see if accessing variables through set attributes is equal
+    def test_grid_properties(self):
+        """Tests to see if accessing variables through set properties is equal
         to using the dict."""
 
         # Dataset with standard UGRID variable names

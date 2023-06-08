@@ -18,7 +18,6 @@ Grid Methods
    __init_grid_var_names__
    __from_ds__
    __from_vert__
-   __init_grid_var_attrs__
    _build_edge_node_connectivity
    _build_face_edges_connectivity
    _build_nNodes_per_face
