@@ -415,3 +415,4 @@ class TestIntersectionPoint(TestCase):
         gcr_car_flipped = np.array([v2_cart, v1_cart])
         self.assertTrue(ux.helpers.pt_within_gcr(pt_cart, gcr_car_flipped))
 
+        # This testcase will test if the np

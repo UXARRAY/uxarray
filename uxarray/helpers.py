@@ -810,8 +810,9 @@ def pt_within_gcr(pt, gcr_cart):
 
         # The anti-meridian case where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
         # Need to redirect such that 180 --> x0 --> 0 --> x1 --> 180
-        if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi and GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
-            return is_between(0, pt_lonlat[0], GCRv0_lonlat[0]) or is_between(GCRv1_lonlat[0], pt_lonlat[0], 2 * np.pi)
+        if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi:
+            if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
+                return is_between(0, pt_lonlat[0], GCRv0_lonlat[0]) or is_between(GCRv1_lonlat[0], pt_lonlat[0], 2 * np.pi)
 
         # The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 that doesn't require redirection.
         elif 2*np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
