@@ -2,7 +2,6 @@ import os
 from unittest import TestCase
 from pathlib import Path
 import numpy.testing as nt
-import xarray.testing as xt
 
 import uxarray as ux
 
