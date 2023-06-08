@@ -12,32 +12,30 @@ except ImportError:
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
-dsfiles_mf_ne30 = str(
-    current_path) + "/meshfiles/ugrid/outCSne30/outCSne30_*.nc"
-
-gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-
 
 class TestAPI(TestCase):
+
+    geoflow_data_path = current_path / "meshfiles" / "ugrid" / "geoflow-small"
+    gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+    geoflow_data_v1 = geoflow_data_path / "v1.nc"
+    geoflow_data_v2 = geoflow_data_path / "v2.nc"
+    geoflow_data_v3 = geoflow_data_path / "v3.nc"
+
+    gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+    dsfiles_mf_ne30 = str(
+        current_path) + "/meshfiles/ugrid/outCSne30/outCSne30_*.nc"
 
     def test_open_geoflow_dataset(self):
         """Loads a single dataset with its grid topology file using uxarray's
         open_dataset call."""
 
-        # Path to Grid file
-        data_path = current_path / "meshfiles" / "ugrid" / "geoflow-small"
-        data_v1 = data_path / "v1.nc"
-        data_v2 = data_path / "v2.nc"
-        data_v3 = data_path / "v3.nc"
-
-        grid_path = gridfile_geoflow
-
         # Paths to Data Variable files
-        data_paths = [data_v1, data_v2, data_v3]
+        data_paths = [
+            self.geoflow_data_v1, self.geoflow_data_v2, self.geoflow_data_v3
+        ]
 
-        uxds_v1 = ux.open_dataset(grid_path, data_paths[0])
+        uxds_v1 = ux.open_dataset(self.gridfile_geoflow, data_paths[0])
 
     #     TODO: Add asserts
 
@@ -45,31 +43,34 @@ class TestAPI(TestCase):
         """Loads a single dataset with its grid topology file using uxarray's
         open_dataset call."""
 
-        uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        uxds_var2_ne30 = ux.open_dataset(self.gridfile_ne30,
+                                         self.dsfile_var2_ne30)
 
         nt.assert_equal(uxds_var2_ne30.uxgrid.Mesh2_node_x.size,
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)
-        nt.assert_equal(uxds_var2_ne30.uxgrid.source_grid, gridfile_ne30)
-        nt.assert_equal(uxds_var2_ne30.source_datasets, str(dsfile_var2_ne30))
+        nt.assert_equal(uxds_var2_ne30.uxgrid.source_grid, self.gridfile_ne30)
+        nt.assert_equal(uxds_var2_ne30.source_datasets,
+                        str(self.dsfile_var2_ne30))
 
     def test_open_mf_dataset(self):
         """Loads multiple datasets with their grid topology file using
         uxarray's open_dataset call."""
 
-        uxds_mf_ne30 = ux.open_mfdataset(gridfile_ne30, dsfiles_mf_ne30)
+        uxds_mf_ne30 = ux.open_mfdataset(self.gridfile_ne30,
+                                         self.dsfiles_mf_ne30)
 
         nt.assert_equal(uxds_mf_ne30.uxgrid.Mesh2_node_x.size,
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_mf_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)
-        nt.assert_equal(uxds_mf_ne30.uxgrid.source_grid, gridfile_ne30)
-        nt.assert_equal(uxds_mf_ne30.source_datasets, dsfiles_mf_ne30)
+        nt.assert_equal(uxds_mf_ne30.uxgrid.source_grid, self.gridfile_ne30)
+        nt.assert_equal(uxds_mf_ne30.source_datasets, self.dsfiles_mf_ne30)
 
     def test_open_grid(self):
         """Loads only a grid topology file using uxarray's open_grid call."""
-        uxgrid = ux.open_grid(gridfile_geoflow)
+        uxgrid = ux.open_grid(self.gridfile_geoflow)
 
         nt.assert_almost_equal(uxgrid.calculate_total_face_area(),
                                constants.MESH30_AREA,
@@ -79,7 +80,8 @@ class TestAPI(TestCase):
         """Loads a single dataset with its grid topology file using uxarray's
         open_dataset call and make a copy of the object."""
 
-        uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        uxds_var2_ne30 = ux.open_dataset(self.gridfile_ne30,
+                                         self.dsfile_var2_ne30)
 
         # make a shallow and deep copy of the dataset object
         uxds_var2_ne30_copy_deep = uxds_var2_ne30.copy(deep=True)
@@ -101,18 +103,12 @@ class TestAPI(TestCase):
         """Loads an unstructured grid and data using uxarray's open_dataset
         call and make a copy of the dataarray object."""
 
-        # Path to Grid file
-        data_path = current_path / "meshfiles" / "ugrid" / "geoflow-small"
-        data_v1 = data_path / "v1.nc"
-        data_v2 = data_path / "v2.nc"
-        data_v3 = data_path / "v3.nc"
-
-        grid_path = gridfile_geoflow
-
         # Paths to Data Variable files
-        data_paths = [data_v1, data_v2, data_v3]
+        data_paths = [
+            self.geoflow_data_v1, self.geoflow_data_v2, self.geoflow_data_v3
+        ]
 
-        uxds_v1 = ux.open_dataset(grid_path, data_paths[0])
+        uxds_v1 = ux.open_dataset(self.gridfile_geoflow, data_paths[0])
 
         # get the uxdataarray object
         v1_uxdata_array = uxds_v1['v1']

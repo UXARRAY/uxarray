@@ -244,6 +244,7 @@ class Grid:
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
+
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.mesh_type}\n"
         dims_heading = "Grid Dimensions:\n"
