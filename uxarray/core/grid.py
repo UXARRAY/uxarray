@@ -98,10 +98,7 @@ class Grid:
         else:
             raise RuntimeError("Dataset is not a valid input type.")
 
-        # construct connectivity
-        self._build_edge_node_connectivity()
-
-        # build face dimension, possibly safeguard for large datasets
+        # construct nNodes_per_Face
         self._build_nNodes_per_face()
 
     def __init_grid_var_names__(self):
@@ -337,6 +334,11 @@ class Grid:
 
     @property
     def Mesh2_node_z(self):
+        """UGRID Coordinate Variable ``Mesh2_node_z``, which contains the
+        latitude of each node.
+
+        Dimensions (``nMesh2_node``)
+        """
         if self.grid_var_names["Mesh2_node_z"] in self._ds:
             return self._ds[self.grid_var_names["Mesh2_node_z"]]
         else:
@@ -379,19 +381,20 @@ class Grid:
         Dimensions (``nMesh2_edge``, ``Two``) and DataType
         ``INT_DTYPE``.
         """
-        if 'Mesh2_edge_nodes' in self._ds:
-            return self._ds['Mesh2_edge_nodes']
-        else:
-            return None
+        if "Mesh2_edge_nodes" not in self._ds:
+            self._build_edge_node_connectivity()
+
+        return self._ds['Mesh2_edge_nodes']
 
     @property
     def nMesh2_edge(self):
         """UGRID Dimension ``nMesh2_face``, which represents the total number
         of edges."""
-        if "Mesh2_edge_nodes" in self._ds:
-            return self._ds['Mesh2_edge_nodes'].shape[0]
-        else:
-            return None
+
+        if "Mesh2_edge_nodes" not in self._ds:
+            self._build_edge_node_connectivity(repopulate=True)
+
+        return self._ds['Mesh2_edge_nodes'].shape[0]
 
     @property
     def Mesh2_face_edges(self):
@@ -401,17 +404,23 @@ class Grid:
         Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
         DataType ``INT_DTYPE``.
         """
-        if "Mesh2_face_edges" in self._ds:
-            return self._ds["Mesh2_face_edges"]
-        else:
-            return None
+        if "Mesh2_face_edges" not in self._ds:
+            self._build_face_edges_connectivity()
+
+        return self._ds["Mesh2_face_edges"]
 
     @property
     def nMaxMesh2_face_edges(self):
-        if "Mesh2_face_edges" in self._ds:
-            return self._ds["Mesh2_face_edges"].shape[0]
-        else:
-            return None
+        """Internal Dimension ``nMaxMesh2_face_edges``, which represents the
+        maximum number of edges per face.
+
+        Equivalent to ``nMaxMesh2_face_nodes``
+        """
+
+        if "Mesh2_face_edges" not in self._ds:
+            self._build_face_edges_connectivity()
+
+        return self._ds["Mesh2_face_edges"].shape[1]
 
     @property
     def nNodes_per_face(self):
