@@ -762,14 +762,14 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
             return x1.reshape(1, -1)
 
         mask = np.logical_and(
-            pt_on_gcr(x1, gcr1_cart),
-            pt_on_gcr(x1, gcr2_cart)
+            pt_within_gcr(x1, gcr1_cart),
+            pt_within_gcr(x1, gcr2_cart)
         )
 
         return np.array([x1, x2])[mask]
 
 
-def pt_on_gcr(pt, gcr):
+def pt_within_gcr(pt, gcr_cart):
     """
     Check if a point is on a given Great Circle Arc. The anti-meridian case is already considered.
 
@@ -777,7 +777,7 @@ def pt_on_gcr(pt, gcr):
     ----------
     pt : np.ndarray
         Cartesian coordinates of the point
-    gcr : np.ndarray of shape (2, 3)
+    gcr_cart : np.ndarray of shape (2, 3)
         Cartesian coordinates of the GCR
 
     Returns
@@ -786,35 +786,41 @@ def pt_on_gcr(pt, gcr):
         True if the point is on the GCR (Lies between the two endpoints), False otherwise
     """
     # First determine if the pt lies on the plane defined by the gcr
-    if not np.isclose(np.dot(np.cross(gcr[0], gcr[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE):
+    temp = np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt)
+    if not np.allclose(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE):
         return False
 
     # Check if the GCR is presented in the multiprecision format
-    if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(np.hstack((pt, gcr)))):
+    if np.any(np.logical_or(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(pt),
+                     np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(gcr_cart))):
         pass
 
     else:
         # Use the cartesian coordinates to determine if the gcr goes across the anti-meridian
         # If the pt and the GCR are on the same longitude (the y coordinates are the same)
-        if pt[1] == gcr[0][1] and pt[1] == gcr[1][1]:
+        if pt[1] == gcr_cart[0][1] and pt[1] == gcr_cart[1][1]:
             # Now use the latitude to determine if the pt falls between the interval
-            return is_between(gcr[0][2], pt[2], gcr[0][2])
+            return is_between(gcr_cart[0][2], pt[2], gcr_cart[1][2])
 
-        # The anti-meridian case
-        # If the longitude span of the GCR is more than 180 degress (the y values difference is more than 2 )
-        if abs(gcr[0][1] - gcr[1][1]) >= 2:
-            # x0--> 0 lon --> x1
-            # x0 has the y coordinate < 0 while x1 has the y coordinate > 0
-            if -1 < gcr[0][1] < 0 < gcr[1][1] < 1:
-                return is_between(gcr[0][1], pt[1], 0) or is_between(0, pt[1], gcr[1][1])
-            # x1 <-- 0 lon <-- x0
-            elif -1 < gcr[1][1] < 0 < gcr[0][1] < 1:
-                return is_between(gcr[1][1], pt[1], 0) or is_between(
-                    0, pt[1], gcr[0][1])
+
+        # Convert the cartesian coordinates to lonlat coordinates
+        pt_lonlat = node_xyz_to_lonlat_rad(pt)
+        GCRv0_lonlat = node_xyz_to_lonlat_rad(gcr_cart[0])
+        GCRv1_lonlat = node_xyz_to_lonlat_rad(gcr_cart[1])
+
+        # The anti-meridian case where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
+        # Need to redirect such that 180 --> x0 --> 0 --> x1 --> 180
+        if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi and GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
+            return is_between(0, pt_lonlat[0], GCRv0_lonlat[0]) or is_between(GCRv1_lonlat[0], pt_lonlat[0], 2 * np.pi)
+
+        # The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 that doesn't require redirection.
+        elif 2*np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
+            return is_between(GCRv0_lonlat[0], pt_lonlat[0], 2 * np.pi) or is_between(0, pt_lonlat[0], GCRv1_lonlat[0])
+
+        # The non-anti-meridian case.
         else:
-            # If the all gcr is on the same hemisphere, then we only needs to compare the y values of the pt and the gcr
-            return is_between(gcr[0][1], pt[1], gcr[0][1])
-
+            is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+            return is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
 
 def is_between(p: Union[float, gmpy2.mpfr], q: Union[float, gmpy2.mpfr], r: Union[float, gmpy2.mpfr]) -> bool:
     """Determines whether the number q is between p and r.
