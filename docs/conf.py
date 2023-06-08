@@ -25,6 +25,8 @@ try:
 except ImportError:
     from mock import Mock as MagicMock
 
+import matplotlib.pyplot
+
 
 class Mock(MagicMock):
 
