@@ -23,6 +23,7 @@ Class
 
    UxDataset
 
+
 IO
 ----------
 .. autosummary::
@@ -149,8 +150,8 @@ Attributes
 
 Operators
 ---------
-   __eq__
-   __ne__
+   Grid.__eq__
+   Grid.__ne__
 
 Helpers
 ===========
