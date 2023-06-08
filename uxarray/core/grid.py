@@ -275,9 +275,14 @@ class Grid:
             connectivity_heading + connectivity_str
 
     @property
+    def parsed_attrs(self):
+        """Dictionary of parsed attributes from the source grid."""
+        return self._ds.attrs
+
+    @property
     def Mesh2(self):
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
-        unstructured mesh and includes parsed attributes."""
+        unstructured mesh."""
         return self._ds[self.grid_var_names["Mesh2"]]
 
     @property
@@ -401,8 +406,8 @@ class Grid:
 
     @property
     def nMaxMesh2_face_edges(self):
-        """Internal Dimension ``nMaxMesh2_face_edges``, which represents the
-        maximum number of edges per face.
+        """Dimension ``nMaxMesh2_face_edges``, which represents the maximum
+        number of edges per face.
 
         Equivalent to ``nMaxMesh2_face_nodes``
         """
@@ -414,8 +419,8 @@ class Grid:
 
     @property
     def nNodes_per_face(self):
-        """Internal Connectivity Variable ``nNodes_per_face``, which contains
-        the number of non-fill-value nodes per face.
+        """Connectivity Variable ``nNodes_per_face``, which contains the number
+        of non-fill-value nodes per face.
 
         Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
         """
