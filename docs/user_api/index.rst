@@ -103,11 +103,30 @@ Methods
    Grid.compute_face_areas
    Grid.encode_as
    Grid.integrate
+   Grid.copy
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
+   parsed_attrs
+   Mesh2
+   nMesh2_node
+   nMesh2_face
+   nMesh2_edge
+   nMaxMesh2_face_nodes
+   nMaxMesh2_face_edges
+   nNodes_per_face
+   Mesh2_node_x
+   Mesh2_face_x
+   Mesh2_node_y
+   Mesh2_face_y
+   Mesh2_node_z
+   Mesh2_face_nodes
+   Mesh2_edge_nodes
+   Mesh2_face_edges
+
 
 Helpers
 ===========
