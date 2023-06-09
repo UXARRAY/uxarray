@@ -24,7 +24,7 @@ class Grid:
     Parameters
     ----------
     input_obj : xarray.Dataset, ndarray, list, tuple, required
-        Input `xarray.Dataset` or vertex coordinates that form faces.
+        Input ``xarray.Dataset`` or vertex coordinates that form faces.
 
     Other Parameters
     ----------------
