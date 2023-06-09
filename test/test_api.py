@@ -37,7 +37,9 @@ class TestAPI(TestCase):
 
         uxds_v1 = ux.open_dataset(self.gridfile_geoflow, data_paths[0])
 
-    #     TODO: Add asserts
+        # Ideally uxds_v1.uxgrid should NOT be None
+        with self.assertRaises(AssertionError):
+            nt.assert_equal(uxds_v1.uxgrid, None)
 
     def test_open_dataset(self):
         """Loads a single dataset with its grid topology file using uxarray's
