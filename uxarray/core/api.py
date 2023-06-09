@@ -20,7 +20,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
               isconcave: Optional[bool] = False,
               use_dual: Optional[bool] = False,
               **kwargs: Dict[str, Any]) -> xr.Dataset:
-    """Creates a ``uxarray.core.Grid`` object from a grid topology definition.
+    """Creates a ``uxarray.Grid`` object from a grid topology definition.
 
     Parameters
     ----------
@@ -56,7 +56,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     Returns
     -------
 
-    object : uxarray.core.Grid
+    object : uxarray.Grid
         Dataset with the unstructured grid.
 
     Examples
@@ -139,7 +139,7 @@ def open_dataset(grid_filename_or_obj: str,
     Returns
     -------
 
-    object : uxarray.core.UxDataset
+    object : uxarray.UxDataset
         Dataset with the unstructured grid.
 
     Examples
@@ -219,7 +219,7 @@ def open_mfdataset(grid_filename_or_obj: str,
     Returns
     -------
 
-    object : uxarray.core.UxDataset
+    object : uxarray.UxDataset
         Dataset with the unstructured grid.
 
     Examples

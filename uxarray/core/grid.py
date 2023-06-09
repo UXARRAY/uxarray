@@ -1,4 +1,4 @@
-"""uxarray grid module."""
+"""uxarray.core.grid module."""
 import xarray as xr
 import numpy as np
 
@@ -15,46 +15,49 @@ from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class Grid:
-    """
+    """Unstructured grid topology definition.
+
+    Can be used standalone to explore an unstructured grid topology, or
+    can be seen as the property of `uxarray.UxDataset` and `uxarray.DataArray`
+    and makes them ustrudtured grid-aware data sets and arrays.
+
+    Parameters
+    ----------
+    input_obj : xarray.Dataset, ndarray, list, tuple, required
+        Input `xarray.Dataset` or vertex coordinates that form faces.
+
+    Other Parameters
+    ----------------
+    gridspec: bool, optional
+        Specifies gridspec
+    islatlon : bool, optional
+        Specify if the grid is lat/lon based
+    isconcave: bool, optional
+        Specify if this grid has concave elements (internal checks for this are possible)
+    use_dual: bool, optional
+        Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+
+    Raises
+    ------
+        RuntimeError
+            If specified file not found or recognized
+
     Examples
     ----------
 
-    Open an exodus file with Uxarray Grid object
+    >>> import uxarray as ux
 
-    >>> xarray_obj = xr.open_dataset("filename.g")
-    >>> mesh = ux.Grid(xarray_obj)
+    1. Open a grid file with `uxarray.open_grid()`:
 
-    Encode as the UGRID format
+    >>> uxgrid = ux.open_grid("filename.g")
 
-    >>> mesh.encode_as("ugrid")
+    2. Open an unstructured grid dataset file with
+    `uxarray.open_dataset()`, then access `Grid` info:
+
+    >>> uxds = ux.open_dataset("filename.g")
     """
 
     def __init__(self, input_obj, **kwargs):
-        """Initialize grid variables, decide if loading happens via file, verts
-        or gridspec.
-
-        Parameters
-        ----------
-        input_obj : xarray.Dataset, ndarray, list, tuple, required
-            Input xarray.Dataset or vertex coordinates that form faces.
-
-        Other Parameters
-        ----------------
-        gridspec: bool, optional
-            Specifies gridspec
-        islatlon : bool, optional
-            Specify if the grid is lat/lon based
-        isconcave: bool, optional
-            Specify if this grid has concave elements (internal checks for this are possible)
-        use_dual: bool, optional
-            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
-
-        Raises
-        ------
-            RuntimeError
-                If specified file not found or recognized
-        """
-
         # initialize internal variable names
         self.__init_grid_var_names__()
 
