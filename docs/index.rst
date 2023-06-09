@@ -21,7 +21,7 @@
 .. |
 .. |
 
-Uxarray Documentation
+UXarray Documentation
 =====================
 
 UXarray provides Xarray-styled functionality for working with unstructured grids build around the
