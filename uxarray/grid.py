@@ -544,7 +544,7 @@ class Grid:
 
     def _build_node_faces_connectivity(self):
         """Builds the `Grid.Mesh2_node_faces`: integer DataArray of size
-        (nMesh2_node, MaxNumFacesPerNode) (optional) A DataArray of indices
+        (nMesh2_node, nMaxNumFacesPerNode) (optional) A DataArray of indices
         indicating faces that are neighboring each node.
 
         This function converts the face-node connectivity data into a sparse matrix, and then constructs the node-face
