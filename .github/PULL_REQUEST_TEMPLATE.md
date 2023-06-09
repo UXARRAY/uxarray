@@ -18,7 +18,7 @@ import uxarray as ux
 grid_path = "/path/to/grid.nc"
 data_path = "/path/to/data.nc"
 
-uxgrid = ux.Grid(grid_path)
+uxgrid = ux.open_grid(grid_path)
 
 # this is how you use this function
 some_output = uxgrid.some_function()
