@@ -3,7 +3,7 @@
   thumbnail: _static/thumbnails/default.svg
 
 - title: Grid Topology Overview
-  path: examples/002-grid-topo.ipynb
+  path: examples/002-grid-topology.ipynb
   thumbnail: _static/thumbnails/default.svg
 
 - title: Face Area Calculations
