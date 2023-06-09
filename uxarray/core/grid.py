@@ -321,7 +321,7 @@ class Grid:
 
     @property
     def nMesh2_edge(self):
-        """UGRID Dimension ``nMesh2_face``, which represents the total number
+        """UGRID Dimension ``nMesh2_edge``, which represents the total number
         of edges."""
 
         if "Mesh2_edge_nodes" not in self._ds:
