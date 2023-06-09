@@ -16,11 +16,12 @@ from uxarray.core.dataset import UxDataset
 def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
                                           list, tuple],
               gridspec: Optional[str] = None,
+              vertices: Optional[list] = None,
               islatlon: Optional[bool] = False,
               isconcave: Optional[bool] = False,
               use_dual: Optional[bool] = False,
               **kwargs: Dict[str, Any]) -> xr.Dataset:
-    """Creates a ``uxarray.core.Grid`` object from a grid topology definition.
+    """Creates a ``uxarray.Grid`` object from a grid topology definition.
 
     Parameters
     ----------
@@ -41,6 +42,9 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     gridspec: str, optional
         Specifies gridspec
 
+    vertices: bool, optional
+        Whether to create grid from vertices
+
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
@@ -56,7 +60,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     Returns
     -------
 
-    object : uxarray.core.Grid
+    object : uxarray.Grid
         Dataset with the unstructured grid.
 
     Examples
@@ -73,8 +77,10 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
                   (list, tuple, np.ndarray, xr.DataArray)):
         uxgrid = Grid(grid_filename_or_obj,
                       gridspec=gridspec,
+                      vertices=vertices,
                       islatlon=islatlon,
                       isconcave=isconcave,
+                      source_grid=str(grid_filename_or_obj),
                       use_dual=use_dual)
     else:
         grid_ds = xr.open_dataset(grid_filename_or_obj,
@@ -83,9 +89,10 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 
         uxgrid = Grid(grid_ds,
                       gridspec=gridspec,
+                      vertices=vertices,
                       islatlon=islatlon,
                       isconcave=isconcave,
-                      source_grid=grid_filename_or_obj,
+                      source_grid=str(grid_filename_or_obj),
                       use_dual=use_dual)
 
     return uxgrid
@@ -124,6 +131,9 @@ def open_dataset(grid_filename_or_obj: str,
     gridspec: str, optional
         Specifies gridspec
 
+    vertices: bool, optional
+        Whether to create grid from vertices
+
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
@@ -139,7 +149,7 @@ def open_dataset(grid_filename_or_obj: str,
     Returns
     -------
 
-    object : uxarray.core.UxDataset
+    object : uxarray.UxDataset
         Dataset with the unstructured grid.
 
     Examples
@@ -151,22 +161,18 @@ def open_dataset(grid_filename_or_obj: str,
     >>> ux_ds = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
     """
 
-    grid_ds = xr.open_dataset(grid_filename_or_obj,
-                              decode_times=False,
-                              **kwargs)  # type: ignore
+    ## Grid definition
+    uxgrid = open_grid(grid_filename_or_obj,
+                       gridspec=gridspec,
+                       vertices=vertices,
+                       islatlon=islatlon,
+                       isconcave=isconcave,
+                       use_dual=use_dual)
+
+    ## UxDataset
     ds = xr.open_dataset(filename_or_obj, decode_times=False,
                          **kwargs)  # type: ignore
 
-    ## Grid definition
-    uxgrid = Grid(grid_ds,
-                  gridspec=gridspec,
-                  vertices=vertices,
-                  islatlon=islatlon,
-                  isconcave=isconcave,
-                  source_grid=grid_filename_or_obj,
-                  use_dual=use_dual)
-
-    ## UxDataset
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds
@@ -204,6 +210,9 @@ def open_mfdataset(grid_filename_or_obj: str,
     gridspec: str, optional
         Specifies gridspec
 
+    vertices: bool, optional
+        Whether to create grid from vertices
+
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
@@ -219,7 +228,7 @@ def open_mfdataset(grid_filename_or_obj: str,
     Returns
     -------
 
-    object : uxarray.core.UxDataset
+    object : uxarray.UxDataset
         Dataset with the unstructured grid.
 
     Examples
@@ -228,24 +237,27 @@ def open_mfdataset(grid_filename_or_obj: str,
     Open grid file along with multiple data files (two or more)
 
     >>> import uxarray as ux
+
+    1. Open from an explicit list of dataset files
+
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc")
+
+    2. Open from a string glob
+
+    >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
-    grid_ds = xr.open_dataset(grid_filename_or_obj,
-                              decode_times=False,
-                              **kwargs)  # type: ignore
-    ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
-
     ## Grid definition
-    uxgrid = Grid(grid_ds,
-                  gridspec=gridspec,
-                  vertices=vertices,
-                  islatlon=islatlon,
-                  isconcave=isconcave,
-                  source_grid=grid_filename_or_obj,
-                  use_dual=use_dual)
+    uxgrid = open_grid(grid_filename_or_obj,
+                       gridspec=gridspec,
+                       vertices=vertices,
+                       islatlon=islatlon,
+                       isconcave=isconcave,
+                       use_dual=use_dual)
 
     ## UxDataset
+    ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
+
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
     return uxds

@@ -42,6 +42,8 @@ class Grid:
         ----------------
         gridspec: bool, optional
             Specifies gridspec
+        vertices: bool, optional
+            Whether to create grid from vertices
         islatlon : bool, optional
             Specify if the grid is lat/lon based
         isconcave: bool, optional

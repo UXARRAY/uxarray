@@ -112,7 +112,7 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(verts_cart,
                              vertices=True,
                              islatlon=False,
-                             concave=False)
+                             isconcave=False)
 
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 6)
@@ -127,7 +127,7 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(faces_verts_one,
                              vertices=True,
                              islatlon=True,
-                             concave=False)
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
@@ -140,7 +140,7 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(faces_verts_single_face,
                              vertices=True,
                              islatlon=True,
-                             concave=False)
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
@@ -182,7 +182,7 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(faces_verts_list,
                              vertices=True,
                              islatlon=False,
-                             concave=False)
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -197,7 +197,7 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(faces_verts_tuples,
                              vertices=True,
                              islatlon=False,
-                             concave=False)
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -215,7 +215,7 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(faces_verts_filled_values,
                              vertices=True,
                              islatlon=False,
-                             concave=False)
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 12)
@@ -313,7 +313,7 @@ class TestIntegrate(TestCase):
         grid_verts = ux.open_grid(verts,
                                   vertices=True,
                                   islatlon=False,
-                                  concave=False)
+                                  isconcave=False)
 
         #calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
@@ -336,9 +336,8 @@ class TestIntegrate(TestCase):
         sphere, with an expected total face area of 4pi."""
         mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
 
-        ds = xr.open_dataset(mpas_grid_path)
-        primal_grid = ux.Grid(ds, use_dual=False)
-        dual_grid = ux.Grid(ds, use_dual=True)
+        primal_grid = ux.open_grid(mpas_grid_path, use_dual=False)
+        dual_grid = ux.open_grid(mpas_grid_path, use_dual=True)
 
         primal_face_area = primal_grid.calculate_total_face_area()
         dual_face_area = dual_grid.calculate_total_face_area()
@@ -370,7 +369,7 @@ class TestFaceAreas(TestCase):
 
         grid_geoflow.compute_face_areas()
 
-    # removed test until fix to tranposed face nodes
+    # TODO: Add this test after fix to tranposed face nodes
     # def test_compute_face_areas_fesom(self):
     #     """Checks if the FESOM PI-Grid Output can generate a face areas
     #     output."""
@@ -388,10 +387,10 @@ class TestFaceAreas(TestCase):
                       [75, 20, 0], [85, 10, 0]]),
         ])
         # load our vertices into a UXarray Grid object
-        verts_grid = ux.Grid(faces_verts_ndarray,
-                             vertices=True,
-                             islatlon=True,
-                             concave=False)
+        verts_grid = ux.open_grid(faces_verts_ndarray,
+                                  vertices=True,
+                                  islatlon=True,
+                                  concave=False)
 
         face_verts_areas = verts_grid.face_areas
 
@@ -491,13 +490,9 @@ class TestConnectivity(TestCase):
     ugrid_filepath_02 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
     ugrid_filepath_03 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
-    xrds_maps = xr.open_dataset(mpas_filepath)
-    xrds_exodus = xr.open_dataset(exodus_filepath)
-    xrds_ugrid = xr.open_dataset(ugrid_filepath_01)
-
-    grid_mpas = ux.Grid(xrds_maps)
-    grid_exodus = ux.Grid(xrds_exodus)
-    grid_ugrid = ux.Grid(xrds_ugrid)
+    grid_mpas = ux.open_grid(mpas_filepath)
+    grid_exodus = ux.open_grid(exodus_filepath)
+    grid_ugrid = ux.open_grid(ugrid_filepath_01)
 
     # used from constructing vertices
     f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10], [105, -20]]
@@ -650,7 +645,7 @@ class TestConnectivity(TestCase):
             self.f0_deg, self.f1_deg, self.f2_deg, self.f3_deg, self.f4_deg,
             self.f5_deg, self.f6_deg
         ]
-        grid_from_verts = ux.Grid(verts)
+        grid_from_verts = ux.open_grid(verts)
 
         # number of non-fill-value nodes per face
         expected_nodes_per_face = np.array([6, 3, 4, 6, 6, 4, 4], dtype=int)
@@ -665,8 +660,7 @@ class TestConnectivity(TestCase):
         ]
 
         for grid_path in grid_paths:
-            grid_xr = xr.open_dataset(grid_path)
-            grid_ux = ux.Grid(grid_xr)
+            grid_ux = ux.open_grid(grid_path)
 
             n_face = grid_ux.nMesh2_face
             n_node = grid_ux.nMesh2_node
@@ -680,8 +674,7 @@ class TestConnectivity(TestCase):
         with known edge nodes."""
 
         # grid with known edge node connectivity
-        mpas_grid_xr = xr.open_dataset(self.mpas_filepath)
-        mpas_grid_ux = ux.Grid(mpas_grid_xr)
+        mpas_grid_ux = ux.open_grid(self.mpas_filepath)
         edge_nodes_expected = mpas_grid_ux._ds['Mesh2_edge_nodes'].values
 
         # arrange edge nodes in the same manner as Grid._build_edge_node_connectivity
@@ -708,8 +701,7 @@ class TestConnectivity(TestCase):
             self.ugrid_filepath_03
         ]
         for ug_file_name in ug_filename_list:
-            xr_ds = xr.open_dataset(ug_file_name)
-            tgrid = ux.Grid(xr_ds)
+            tgrid = ux.open_grid(ug_file_name)
 
             mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
@@ -744,8 +736,7 @@ class TestConnectivity(TestCase):
                                    original_face_nodes_connectivity[i]))
 
     def test_build_face_edges_connectivity_mpas(self):
-        xr_ds = xr.open_dataset(self.mpas_filepath)
-        tgrid = ux.Grid(xr_ds)
+        tgrid = ux.open_grid(self.mpas_filepath)
 
         mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
@@ -771,7 +762,7 @@ class TestConnectivity(TestCase):
             self.f0_deg, self.f1_deg, self.f2_deg, self.f3_deg, self.f4_deg,
             self.f5_deg, self.f6_deg
         ]
-        uds = ux.Grid(verts)
+        uds = ux.open_grid(verts)
         uds._build_face_edges_connectivity()
         n_face = len(uds._ds["Mesh2_face_edges"].values)
         n_node = uds.nMesh2_node
