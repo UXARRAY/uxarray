@@ -12,8 +12,8 @@ documentation to see the tentative whole API and let us know if you have any fee
 
 UxDataset
 =========
-The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``. Below is a list of explicitly added
-or overloaded features guaranteed to work on Unstructured Grids.
+The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``. Below is a list of
+features explicitly added to work on Unstructured Grids.
 
 
 Class
@@ -28,8 +28,8 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-   self._source_datasets
-   self._uxgrid
+   UxDataset._source_datasets
+   UxDataset._uxgrid
 
 
 
@@ -49,8 +49,8 @@ Methods
 
 UxDataArray
 ===========
-The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list of explicitly added
-or overloaded features guaranteed to work on Unstructured Grids.
+The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list of
+features explicitly added to work on Unstructured Grids.
 
 Class
 -----
@@ -65,7 +65,7 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
-   self._uxgrid
+   UxDataArray._uxgrid
 
 
 Methods
