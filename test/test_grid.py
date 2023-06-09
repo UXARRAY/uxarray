@@ -771,3 +771,26 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds.ds["Mesh2_face_nodes"].values))
+
+    def test_build_face_coordinates(self):
+        # Load the MPAS dataset
+        xrDS = xr.open_dataset(current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc")
+
+        # Create an instance of the class or object that contains the _build_face_coordinates method
+        grid = ux.Grid(xrDS)
+
+        # Get the expected center longitudes and latitudes from the MPAS dataset
+        expectValuesX = grid.ds["Mesh2_face_x"].values
+        expectValuesY = grid.ds["Mesh2_face_y"].values
+
+        # Call the _build_face_coordinates method
+        grid._build_face_coordinates(repopulate=True)
+
+        # Get the calculated center longitudes and latitudes from the grid object
+        calculatedFaceX = grid.Mesh2_face_x.values
+        calculatedFaceY = grid.Mesh2_face_y.values
+
+        # Assert that the calculated center longitudes and latitudes match the expected values
+        np.testing.assert_allclose(calculatedFaceX, expectValuesX)
+        np.testing.assert_allclose(calculatedFaceY, expectValuesY)
+

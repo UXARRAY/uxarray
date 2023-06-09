@@ -720,3 +720,35 @@ class Grid:
 
         # standardized attribute
         setattr(self, "nNodes_per_face", self.ds["nNodes_per_face"])
+
+    def _build_face_coordinates(self, repopulate=False):
+        """
+        Constructs the UGRID coordinate variables Mesh2_face_x and Mesh2_face_y,
+        representing the center longitude and latitude of each face, respectively.
+        """
+
+        # Exclude fill values from face nodes
+        validMask = np.all(self.Mesh2_face_nodes != INT_FILL_VALUE, axis=1)
+        faceNodesValid = self.Mesh2_face_nodes[validMask]
+
+        # Calculate the center longitudes and latitudes for each face
+        Mesh2_face_x = np.mean(self.Mesh2_node_x[faceNodesValid], axis=1)
+        Mesh2_face_y = np.mean(self.Mesh2_node_y[faceNodesValid], axis=1)
+
+        # Assign the coordinates to the internal dataset (self.ds) if needed
+        if "Mesh2_face_y" not in self.ds or repopulate:
+            self.ds["Mesh2_face_x"] = xr.DataArray(
+                Mesh2_face_x,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "center_longitude"}
+            )
+        if "Mesh2_face_y" not in self.ds or repopulate:
+            self.ds["Mesh2_face_y"] = xr.DataArray(
+                Mesh2_face_y,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "center_latitude"}
+            )
+
+        # Set the attributes in the class instance for accessibility if needed
+        setattr(self, "Mesh2_face_x", self.ds["Mesh2_face_x"])
+        setattr(self, "Mesh2_face_y", self.ds["Mesh2_face_y"])

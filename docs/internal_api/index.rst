@@ -21,6 +21,7 @@ Grid Methods
    grid.Grid.__init_grid_var_attrs__
    grid.Grid._build_edge_node_connectivity
    grid.Grid._build_face_edges_connectivity
+   grid.Grid._build_face_coordinates
    grid.Grid._populate_cartesian_xyz_coord
    grid.Grid._populate_lonlat_coord
    grid.Grid._build_nNodes_per_face
