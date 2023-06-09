@@ -183,6 +183,8 @@ class TestConstants(TestCase):
 class TestSparseMatrix(TestCase):
 
     def test_convert_face_node_conn_to_sparse_matrix(self):
+        """Tests _face_nodes_to_sparse_matrix() helper function to see if can
+        generate sparse matrix from face_nodes_conn that has Fill Values."""
         face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5],
                                     [3, 4, 1, 0], [0, 1, 2, INT_FILL_VALUE]])
 

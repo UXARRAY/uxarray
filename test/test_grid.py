@@ -750,6 +750,7 @@ class TestConnectivity(TestCase):
                            uds.ds["Mesh2_face_nodes"].values))
 
     def test_node_face_connectivity_from_verts(self):
+        """Test generating Grid.Mesh2_node_faces from array input."""
         node_latlon_degree = [[162., 30], [216., 30], [70., 30], [162., -30],
                               [216., -30], [70., -30]]
 
@@ -784,6 +785,7 @@ class TestConnectivity(TestCase):
             np.array_equal(vgrid.ds["Mesh2_node_faces"].values, expected))
 
     def test_node_face_connectivity_from_files(self):
+        """Test generating Grid.Mesh2_node_faces from file input."""
         grid_paths = [
             self.exodus_filepath, self.ugrid_filepath_01,
             self.ugrid_filepath_02, self.ugrid_filepath_03
@@ -796,13 +798,14 @@ class TestConnectivity(TestCase):
 
             # use the dictionary method to build the node_face_connectivity
             node_face_connectivity = {}
-            for i in range(grid_ux.nMesh2_face):
-                face_nodes = grid_ux.ds["Mesh2_face_nodes"].values[i]
-                for j in face_nodes:
-                    if j != ux.INT_FILL_VALUE:
-                        if j not in node_face_connectivity:
-                            node_face_connectivity[j] = []
-                        node_face_connectivity[j].append(i)
+            nNodes_per_face = grid_ux.nNodes_per_face.values
+            face_nodes = grid_ux.ds["Mesh2_face_nodes"].values
+            for face_idx, max_nodes in enumerate(nNodes_per_face):
+                cur_face_nodes = face_nodes[i, 0:max_nodes]
+                for j in cur_face_nodes:
+                    if j not in node_face_connectivity:
+                        node_face_connectivity[j] = []
+                    node_face_connectivity[j].append(i)
 
             # compare the two methods
             for i in range(grid_ux.nMesh2_node):
