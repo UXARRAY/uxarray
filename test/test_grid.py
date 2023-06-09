@@ -390,7 +390,7 @@ class TestFaceAreas(TestCase):
         verts_grid = ux.open_grid(faces_verts_ndarray,
                                   vertices=True,
                                   islatlon=True,
-                                  concave=False)
+                                  isconcave=False)
 
         face_verts_areas = verts_grid.face_areas
 
