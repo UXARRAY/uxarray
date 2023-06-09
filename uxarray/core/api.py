@@ -60,8 +60,8 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     Returns
     -------
 
-    object : uxarray.Grid
-        Dataset with the unstructured grid.
+    uxgrid : uxarray.Grid
+        Initialized Grid Object from Input Grid File 
 
     Examples
     --------
