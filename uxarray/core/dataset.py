@@ -64,12 +64,16 @@ class UxDataset(xr.Dataset):
 
     def __getitem__(self, key):
         """Override to make sure the result is an instance of
-        ``uxarray.UxDataArray``."""
+        ``uxarray.UxDataArray`` or ``uxarray.UxDataset``."""
 
         value = super().__getitem__(key)
 
         if isinstance(value, xr.DataArray):
             value = UxDataArray(value, uxgrid=self.uxgrid)
+        elif isinstance(value, xr.Dataset):
+            value = UxDataset(value,
+                              uxgrid=self.uxgrid,
+                              source_datasets=self.source_datasets)
 
         return value
 
