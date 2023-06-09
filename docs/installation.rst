@@ -62,7 +62,7 @@ Creating a Conda environment
 The UXarray source code includes a conda environment definition file
 (:code:`environment.yml`) in the :code:`/ci` folder under the root
 directory that can be used to create a development environment
-containing all of the packages required to build Uxarray. The
+containing all of the packages required to build UXarray. The
 following commands should work on Windows, Linux, and macOS to create
 and activate a new conda environment from that file::
 
