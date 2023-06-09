@@ -61,7 +61,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     -------
 
     uxgrid : uxarray.Grid
-        Initialized Grid Object from Input Grid File 
+        Initialized Grid Object from Input Grid File
 
     Examples
     --------
@@ -149,8 +149,8 @@ def open_dataset(grid_filename_or_obj: str,
     Returns
     -------
 
-    object : uxarray.UxDataset
-        Dataset with the unstructured grid.
+    uxds : uxarray.UxDataset
+        Dataset with linked `uxgrid` property of type `Grid`.
 
     Examples
     --------
