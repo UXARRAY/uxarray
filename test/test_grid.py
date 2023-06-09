@@ -801,11 +801,11 @@ class TestConnectivity(TestCase):
             nNodes_per_face = grid_ux.nNodes_per_face.values
             face_nodes = grid_ux.ds["Mesh2_face_nodes"].values
             for face_idx, max_nodes in enumerate(nNodes_per_face):
-                cur_face_nodes = face_nodes[i, 0:max_nodes]
+                cur_face_nodes = face_nodes[face_idx, 0:max_nodes]
                 for j in cur_face_nodes:
                     if j not in node_face_connectivity:
                         node_face_connectivity[j] = []
-                    node_face_connectivity[j].append(i)
+                    node_face_connectivity[j].append(face_idx)
 
             # compare the two methods
             for i in range(grid_ux.nMesh2_node):
