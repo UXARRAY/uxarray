@@ -199,8 +199,8 @@ class UxDataset(xr.Dataset):
                    **kwargs)
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
-        """Concise summary of a Dataset variables and attributes including grid
-        topology information stored in the ``uxgrid`` accessor.
+        """Concise summary of Dataset variables and attributes including grid
+        topology information stored in the ``uxgrid`` property.
 
         Parameters
         ----------
