@@ -27,7 +27,7 @@ class UxDataset(xr.Dataset):
     Other Parameters
     ----------------
     *args:
-        Arguments for the `xarray.Dataset` class
+        Arguments for the ``xarray.Dataset`` class
     **kwargs:
         Keyword arguments for the `xarray.Dataset` class
 
