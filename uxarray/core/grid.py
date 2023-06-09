@@ -1,4 +1,4 @@
-"""uxarray grid module."""
+"""uxarray.core.grid module."""
 import xarray as xr
 import numpy as np
 
@@ -15,48 +15,49 @@ from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class Grid:
-    """
+    """Unstructured grid topology definition.
+
+    Can be used standalone to explore an unstructured grid topology, or
+    can be seen as the property of `uxarray.UxDataset` and `uxarray.DataArray`
+    and makes them ustrudtured grid-aware data sets and arrays.
+
+    Parameters
+    ----------
+    input_obj : xarray.Dataset, ndarray, list, tuple, required
+        Input `xarray.Dataset` or vertex coordinates that form faces.
+
+    Other Parameters
+    ----------------
+    gridspec: bool, optional
+        Specifies gridspec
+    islatlon : bool, optional
+        Specify if the grid is lat/lon based
+    isconcave: bool, optional
+        Specify if this grid has concave elements (internal checks for this are possible)
+    use_dual: bool, optional
+        Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+
+    Raises
+    ------
+        RuntimeError
+            If specified file not found or recognized
+
     Examples
     ----------
 
-    Open an exodus file with Uxarray Grid object
+    >>> import uxarray as ux
 
-    >>> xarray_obj = xr.open_dataset("filename.g")
-    >>> mesh = ux.Grid(xarray_obj)
+    1. Open a grid file with `uxarray.open_grid()`:
 
-    Encode as the UGRID format
+    >>> uxgrid = ux.open_grid("filename.g")
 
-    >>> mesh.encode_as("ugrid")
+    2. Open an unstructured grid dataset file with
+    `uxarray.open_dataset()`, then access `Grid` info:
+
+    >>> uxds = ux.open_dataset("filename.g")
     """
 
     def __init__(self, input_obj, **kwargs):
-        """Initialize grid variables, decide if loading happens via file, verts
-        or gridspec.
-
-        Parameters
-        ----------
-        input_obj : xarray.Dataset, ndarray, list, tuple, required
-            Input xarray.Dataset or vertex coordinates that form faces.
-
-        Other Parameters
-        ----------------
-        gridspec: bool, optional
-            Specifies gridspec
-        vertices: bool, optional
-            Whether to create grid from vertices
-        islatlon : bool, optional
-            Specify if the grid is lat/lon based
-        isconcave: bool, optional
-            Specify if this grid has concave elements (internal checks for this are possible)
-        use_dual: bool, optional
-            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
-
-        Raises
-        ------
-            RuntimeError
-                If specified file not found or recognized
-        """
-
         # initialize internal variable names
         self.__init_grid_var_names__()
 
@@ -77,6 +78,7 @@ class Grid:
         # check if initializing from verts:
         if isinstance(input_obj, (list, tuple, np.ndarray)):
             input_obj = np.asarray(input_obj)
+            self.mesh_type = "From vertices"
             # grid with multiple faces
             if input_obj.ndim == 3:
                 self.__from_vert__(input_obj)
@@ -99,6 +101,11 @@ class Grid:
             self.__from_ds__(dataset=input_obj)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
+
+        # {"Standardized Name" : "Original Name"}
+        self._inverse_grid_var_names = {
+            v: k for k, v in self.grid_var_names.items()
+        }
 
         # construct nNodes_per_Face
         self._build_nNodes_per_face()
@@ -251,12 +258,25 @@ class Grid:
         original_grid_str = f"Original Grid Type: {self.mesh_type}\n"
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
+        # if self.grid_var_names["Mesh2_node_x"] in self._ds:
+        #     dims_str += f"  * nMesh2_node: {self.nMesh2_node}\n"
+        # if self.grid_var_names["Mesh2_face_nodes"] in self._ds:
+        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
+        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
+
         for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
-            dims_str += f"  * {key}: {value}\n"
+            if key in self._inverse_grid_var_names:
+                dims_str += f"  * {self._inverse_grid_var_names[key]}: {value}\n"
+
+        if "nMesh2_edge" in self._ds.dims:
+            dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
+
+        if "nMaxMesh2_face_edges" in self._ds.dims:
+            dims_str += f"  * nMaxMesh2_face_edges: {self.nMaxMesh2_face_edges}\n"
 
         coord_heading = "Grid Coordinate Variables:\n"
         coords_str = ""
-        if "Mesh2_node_x" in self._ds:
+        if self.grid_var_names["Mesh2_node_x"] in self._ds:
             coords_str += f"  * Mesh2_node_x: {self.Mesh2_node_x.shape}\n"
             coords_str += f"  * Mesh2_node_y: {self.Mesh2_node_y.shape}\n"
         if "Mesh2_face_x" in self._ds:
@@ -265,7 +285,7 @@ class Grid:
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
-        if "Mesh2_face_nodes" in self._ds:
+        if self.grid_var_names["Mesh2_face_nodes"] in self._ds:
             connectivity_str += f"  * Mesh2_face_nodes: {self.Mesh2_face_nodes.shape}\n"
         if "Mesh2_edge_nodes" in self._ds:
             connectivity_str += f"  * Mesh2_edge_nodes: {self.Mesh2_edge_nodes.shape}\n"
@@ -305,7 +325,7 @@ class Grid:
 
     @property
     def nMesh2_edge(self):
-        """UGRID Dimension ``nMesh2_face``, which represents the total number
+        """UGRID Dimension ``nMesh2_edge``, which represents the total number
         of edges."""
 
         if "Mesh2_edge_nodes" not in self._ds:
@@ -386,9 +406,15 @@ class Grid:
             return None
 
     @property
-    def Mesh2_node_z(self):
-        """UGRID Coordinate Variable ``Mesh2_node_z``, which contains the
-        latitude of each node.
+    def _Mesh2_node_z(self):
+        """Coordinate Variable ``_Mesh2_node_z``, which contains the level of
+        each node. It is only a placeholder for now as a protected attribute.
+        UXarray does not support this yet and only handles the 2D flexibile
+        meshes.
+
+        If we introduce handling of 3D meshes in the future, it might be only
+        levels, i.e. the same level(s) for all nodes, instead of separate
+        level for each node that ``_Mesh2_node_z`` suggests.
 
         Dimensions (``nMesh2_node``)
         """
@@ -549,7 +575,7 @@ class Grid:
         y = self.Mesh2_node_y.data
         # check if z dimension
         if self.Mesh2.topology_dimension > 2:
-            z = self.Mesh2_node_z.data
+            z = self._Mesh2_node_z.data
 
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float

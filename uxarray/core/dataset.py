@@ -12,6 +12,30 @@ from uxarray.core.grid import Grid
 
 
 class UxDataset(xr.Dataset):
+    """A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
+    Inherits from ``xarray.Dataset`` and has its own unstructured grid-aware
+    dataset operators and attributes through the ``uxgrid`` accessor.
+
+    Parameters
+    ----------
+    uxgrid : uxarray.Grid, optional
+        The `Grid` object that makes this array aware of the unstructured
+        grid topology it belongs to.
+
+        If `None`, it needs to be an instance of `uxarray.Grid`.
+
+    Other Parameters
+    ----------------
+    *args:
+        Arguments for the `xarray.Dataset` class
+    **kwargs:
+        Keyword arguments for the `xarray.Dataset` class
+
+    Notes
+    -----
+    See `xarray.Dataset <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html>`__
+    for further information about Datasets.
+    """
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = (
@@ -31,18 +55,16 @@ class UxDataset(xr.Dataset):
 
         if uxgrid is not None and not isinstance(uxgrid, Grid):
             raise RuntimeError(
-                "uxarray.core.UxDataset.__init__: uxgrid can be either None or "
-                "an instance of the uxarray.core.Grid class")
+                "uxarray.UxDataset.__init__: uxgrid can be either None or "
+                "an instance of the `uxarray.Grid` class")
         else:
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
 
     def __getitem__(self, key):
-        """Override to check if the result is an instance of xarray.DataArray.
-
-        If so, convert to UxDataArray.
-        """
+        """Override to make sure the result is an instance of
+        ``uxarray.UxDataArray``."""
 
         value = super().__getitem__(key)
 
@@ -52,20 +74,25 @@ class UxDataset(xr.Dataset):
         return value
 
     def __setitem__(self, key, value):
-        """Override to check if the value being set is an instance of
-        xarray.DataArray.
-
-        If so, convert to UxDataArray.
-        """
+        """Override to make sure the `value` is an instance of
+        ``uxarray.UxDataArray``."""
         if isinstance(value, xr.DataArray):
             value = UxDataArray(value, uxgrid=self.uxgrid)
-            # works with the value below also.
-            # value = value.to_dataarray()
 
         super().__setitem__(key, value)
 
     @property
     def source_datasets(self):
+        """Property to keep track of the source data sets used to instantiate
+        this ``uxarray.UxDataset``.
+
+        Can be used as metadata for diagnosis purposes.
+
+        Examples
+        --------
+        uxds = ux.open_dataset(grid_path, data_path)
+        uxds.source_datasets
+        """
         return self._source_datasets
 
     # a setter function
@@ -75,6 +102,14 @@ class UxDataset(xr.Dataset):
 
     @property
     def uxgrid(self):
+        """``uxarray.Grid`` property for ``uxarray.UxDataset`` to make it
+        unstructured grid-aware.
+
+        Examples
+        --------
+        uxds = ux.open_dataset(grid_path, data_path)
+        uxds.uxgrid
+        """
         return self._uxgrid
 
     # a setter function
@@ -83,6 +118,8 @@ class UxDataset(xr.Dataset):
         self._uxgrid = ugrid_obj
 
     def _calculate_binary_op(self, *args, **kwargs):
+        """Override to make the result a complete instance of
+        ``uxarray.UxDataset``."""
         ds = super()._calculate_binary_op(*args, **kwargs)
 
         if isinstance(ds, UxDataset):
@@ -96,20 +133,20 @@ class UxDataset(xr.Dataset):
         return ds
 
     def _construct_dataarray(self, name) -> UxDataArray:
-        """Override to check if the result is an instance of xarray.DataArray.
-
-        If so, convert to UxDataArray.
-        """
+        """Override to make the result an instance of
+        ``uxarray.UxDataArray``."""
         xarr = super()._construct_dataarray(name)
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
+        """Override to make the result an ``uxarray.UxDataset`` class."""
+
         return cls(xr.Dataset._construct_direct(*args, **kwargs))
 
     def _copy(self, **kwargs):
         """Override to make the result a complete instance of
-        uxarray.Dataset."""
+        ``uxarray.UxDataset``."""
         copied = super()._copy(**kwargs)
 
         deep = kwargs.get('deep', None)
@@ -124,6 +161,8 @@ class UxDataset(xr.Dataset):
         return copied
 
     def _replace(self, *args, **kwargs):
+        """Override to make the result a complete instance of
+        ``uxarray.UxDataset``."""
         ds = super()._replace(*args, **kwargs)
 
         if isinstance(ds, UxDataset):
@@ -138,7 +177,8 @@ class UxDataset(xr.Dataset):
 
     @classmethod
     def from_dataframe(cls, dataframe):
-        """Convert to a UxDataset instead of an xarray.Dataset."""
+        """Override to make the result a ``uxarray.UxDataset`` class."""
+
         return cls(
             {
                 col: ('index', dataframe[col].values)
@@ -148,21 +188,23 @@ class UxDataset(xr.Dataset):
 
     @classmethod
     def from_dict(cls, data, **kwargs):
-        """Convert to a UxDataset instead of an xarray.Dataset."""
+        """Override to make the result a ``uxarray.UxDataset`` class."""
+
         return cls({key: ('index', val) for key, val in data.items()},
                    coords={'index': range(len(next(iter(data.values()))))},
                    **kwargs)
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
-        """
-        Concise summary of a Dataset variables and attributes including
-        grid topology information stored in the (``uxgrid``) accessor
+        """Concise summary of a Dataset variables and attributes including grid
+        topology information stored in the ``uxgrid`` accessor.
+
         Parameters
         ----------
         buf : file-like, default: sys.stdout
             writable buffer
         show_attrs : bool
             Flag to select whether to show attributes
+
         See Also
         --------
         pandas.DataFrame.assign
@@ -235,8 +277,8 @@ class UxDataset(xr.Dataset):
         # call function to get area of all the faces as a np array
         face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
 
-        # TODO: Fix this requirement. It should be applicable to
-        # TODO: either all variables of dataset or a dataarray instead.
+        # TODO: Should we fix this requirement? Shouldn't it be applicable to
+        # TODO: all variables of dataset or a dataarray instead?
         var_key = list(self.keys())
         if len(var_key) > 1:
             # warning: print message
@@ -251,9 +293,8 @@ class UxDataset(xr.Dataset):
         return integral
 
     def to_array(self) -> UxDataArray:
-        """Override to check if the result is an instance of xarray.DataArray.
+        """Override to make the result an instance of
+        ``uxarray.UxDataArray``."""
 
-        If so, convert to UxDataArray.
-        """
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
