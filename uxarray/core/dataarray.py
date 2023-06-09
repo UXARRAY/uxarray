@@ -7,8 +7,9 @@ from uxarray.core.grid import Grid
 
 
 class UxDataArray(xr.DataArray):
-    """N-dimensional `xarray.DataArray`-like array. Inherits from
-    `xarray.DataArray` and has its own unstructured grid-aware array operators.
+    """N-dimensional ``xarray.DataArray``-like array. Inherits from
+    `xarray.DataArray` and has its own unstructured grid-aware array operators
+    and attributes through the ``uxgrid`` accessor.
 
     Parameters
     ----------
@@ -49,12 +50,12 @@ class UxDataArray(xr.DataArray):
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
-        """Override to make the result a `uxarray.UxDataArray` class."""
+        """Override to make the result a ``uxarray.UxDataArray`` class."""
         return cls(xr.DataArray._construct_direct(*args, **kwargs))
 
     def _copy(self, **kwargs):
         """Override to make the result a complete instance of
-        `uxarray.UxDataArray`."""
+        ``uxarray.UxDataArray``."""
         copied = super()._copy(**kwargs)
 
         deep = kwargs.get('deep', None)
@@ -70,7 +71,7 @@ class UxDataArray(xr.DataArray):
 
     def _replace(self, *args, **kwargs):
         """Override to make the result a complete instance of
-        `uxarray.UxDataArray`."""
+        ``uxarray.UxDataArray``."""
         da = super()._replace(*args, **kwargs)
 
         if isinstance(da, UxDataArray):
@@ -82,7 +83,7 @@ class UxDataArray(xr.DataArray):
 
     @property
     def uxgrid(self):
-        """`uxarray.Grid` property for `uxarray.UxDataArray` to make it
+        """``uxarray.Grid`` property for ``uxarray.UxDataArray`` to make it
         unstructured grid-aware.
 
         Examples
