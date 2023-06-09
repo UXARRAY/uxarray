@@ -264,6 +264,12 @@ class Grid:
             if key in self.inverse_grid_var_names:
                 dims_str += f"  * {self.inverse_grid_var_names[key]}: {value}\n"
 
+        if "nMesh2_edge" in self._ds.dims:
+            dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
+
+        if "nMaxMesh2_face_edges" in self._ds.dims:
+            dims_str += f"  * nMaxMesh2_face_edges: {self.nMaxMesh2_face_edges}\n"
+
         coord_heading = "Grid Coordinate Variables:\n"
         coords_str = ""
         if self.grid_var_names["Mesh2_node_x"] in self._ds:
