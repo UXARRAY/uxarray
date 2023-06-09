@@ -4,8 +4,8 @@
 Quick Installation
 ##################
 
-This quick installation guide is meant to provide a quick guide to get up and running with UXarray. For a more detailed
-guide, check out our Installation section.
+This quick installation guide is meant to provide a quick help to get up and running
+with UXarray. For a more detailed guide, check out our Installation section.
 
 Required Dependencies
 #####################
