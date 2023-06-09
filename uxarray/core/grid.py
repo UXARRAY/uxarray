@@ -406,7 +406,7 @@ class Grid:
             return None
 
     @property
-    def Mesh2_node_z(self):
+    def _Mesh2_node_z(self):
         """UGRID Coordinate Variable ``Mesh2_node_z``, which contains the
         latitude of each node.
 
@@ -569,7 +569,7 @@ class Grid:
         y = self.Mesh2_node_y.data
         # check if z dimension
         if self.Mesh2.topology_dimension > 2:
-            z = self.Mesh2_node_z.data
+            z = self._Mesh2_node_z.data
 
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float
