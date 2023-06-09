@@ -15,5 +15,5 @@ your own examples or suggesting one for us to create, please see the :doc:`contr
    :hidden:
 
    examples/001-working-with-unstructured-grids.ipynb
-   examples/002-access-grid-info.ipynb
+   examples/002-grid-topo.ipynb
    examples/003-area-calc.ipynb
