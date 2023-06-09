@@ -78,6 +78,7 @@ class Grid:
         # check if initializing from verts:
         if isinstance(input_obj, (list, tuple, np.ndarray)):
             input_obj = np.asarray(input_obj)
+            self.mesh_type = "From vertices"
             # grid with multiple faces
             if input_obj.ndim == 3:
                 self.__from_vert__(input_obj)
