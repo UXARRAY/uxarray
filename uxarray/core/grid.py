@@ -103,7 +103,7 @@ class Grid:
             raise RuntimeError("Dataset is not a valid input type.")
 
         # {"Standardized Name" : "Original Name"}
-        self.inverse_grid_var_names = {
+        self._inverse_grid_var_names = {
             v: k for k, v in self.grid_var_names.items()
         }
 
@@ -265,8 +265,8 @@ class Grid:
         #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
 
         for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
-            if key in self.inverse_grid_var_names:
-                dims_str += f"  * {self.inverse_grid_var_names[key]}: {value}\n"
+            if key in self._inverse_grid_var_names:
+                dims_str += f"  * {self._inverse_grid_var_names[key]}: {value}\n"
 
         if "nMesh2_edge" in self._ds.dims:
             dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
@@ -407,8 +407,14 @@ class Grid:
 
     @property
     def _Mesh2_node_z(self):
-        """UGRID Coordinate Variable ``Mesh2_node_z``, which contains the
-        latitude of each node.
+        """Coordinate Variable ``_Mesh2_node_z``, which contains the level of
+        each node. It is only a placeholder for now as a protected attribute.
+        UXarray does not support this yet and only handles the 2D flexibile
+        meshes.
+
+        If we introduce handling of 3D meshes in the future, it might be only
+        levels, i.e. the same level(s) for all nodes, instead of separate
+        level for each node that ``_Mesh2_node_z`` suggests.
 
         Dimensions (``nMesh2_node``)
         """
