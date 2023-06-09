@@ -77,13 +77,16 @@ class UxDataset(xr.Dataset):
 
         return value
 
-    def __setitem__(self, key, value):
-        """Override to make sure the `value` is an instance of
-        ``uxarray.UxDataArray``."""
-        if isinstance(value, xr.DataArray):
-            value = UxDataArray(value, uxgrid=self.uxgrid)
-
-        super().__setitem__(key, value)
+    # def __setitem__(self, key, value):
+    #     """Override to make sure the `value` is an instance of
+    #     ``uxarray.UxDataArray``."""
+    #     if isinstance(value, xr.DataArray):
+    #         value = UxDataArray(value, uxgrid=self.uxgrid)
+    #
+    #     if isinstance(value, UxDataArray):
+    #         value = value.to_dataarray()
+    #
+    #     super().__setitem__(key, value)
 
     @property
     def source_datasets(self):
