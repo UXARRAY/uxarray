@@ -69,12 +69,6 @@ Attributes
    UxDataArray.uxgrid
 
 
-Methods
--------
-.. autosummary::
-   :toctree: _autosummary
-
-
 
 Grid
 ===========
@@ -110,29 +104,26 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
-   parsed_attrs
-   Mesh2
-   nMesh2_node
-   nMesh2_face
-   nMesh2_edge
-   nMaxMesh2_face_nodes
-   nMaxMesh2_face_edges
-   nNodes_per_face
-   Mesh2_node_x
-   Mesh2_face_x
-   Mesh2_node_y
-   Mesh2_face_y
-   Mesh2_node_z
-   Mesh2_face_nodes
-   Mesh2_edge_nodes
-   Mesh2_face_edges
+   Grid.parsed_attrs
+   Grid.Mesh2
+   Grid.nMesh2_node
+   Grid.nMesh2_face
+   Grid.nMesh2_edge
+   Grid.nMaxMesh2_face_nodes
+   Grid.nMaxMesh2_face_edges
+   Grid.nNodes_per_face
+   Grid.Mesh2_node_x
+   Grid.Mesh2_face_x
+   Grid.Mesh2_node_y
+   Grid.Mesh2_face_y
+   Grid.Mesh2_face_nodes
+   Grid.Mesh2_edge_nodes
+   Grid.Mesh2_face_edges
 
 
 Helpers
 ===========
 
-Place into categories under utils eventually
-----------------
 .. currentmodule:: uxarray
 .. autosummary::
    :toctree: _autosummary

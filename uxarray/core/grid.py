@@ -101,6 +101,11 @@ class Grid:
         else:
             raise RuntimeError("Dataset is not a valid input type.")
 
+        # {"Standardized Name" : "Original Name"}
+        self.inverse_grid_var_names = {
+            v: k for k, v in self.grid_var_names.items()
+        }
+
         # construct nNodes_per_Face
         self._build_nNodes_per_face()
 
@@ -252,12 +257,25 @@ class Grid:
         original_grid_str = f"Original Grid Type: {self.mesh_type}\n"
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
+        # if self.grid_var_names["Mesh2_node_x"] in self._ds:
+        #     dims_str += f"  * nMesh2_node: {self.nMesh2_node}\n"
+        # if self.grid_var_names["Mesh2_face_nodes"] in self._ds:
+        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
+        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
+
         for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
-            dims_str += f"  * {key}: {value}\n"
+            if key in self.inverse_grid_var_names:
+                dims_str += f"  * {self.inverse_grid_var_names[key]}: {value}\n"
+
+        if "nMesh2_edge" in self._ds.dims:
+            dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
+
+        if "nMaxMesh2_face_edges" in self._ds.dims:
+            dims_str += f"  * nMaxMesh2_face_edges: {self.nMaxMesh2_face_edges}\n"
 
         coord_heading = "Grid Coordinate Variables:\n"
         coords_str = ""
-        if "Mesh2_node_x" in self._ds:
+        if self.grid_var_names["Mesh2_node_x"] in self._ds:
             coords_str += f"  * Mesh2_node_x: {self.Mesh2_node_x.shape}\n"
             coords_str += f"  * Mesh2_node_y: {self.Mesh2_node_y.shape}\n"
         if "Mesh2_face_x" in self._ds:
@@ -266,7 +284,7 @@ class Grid:
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
-        if "Mesh2_face_nodes" in self._ds:
+        if self.grid_var_names["Mesh2_face_nodes"] in self._ds:
             connectivity_str += f"  * Mesh2_face_nodes: {self.Mesh2_face_nodes.shape}\n"
         if "Mesh2_edge_nodes" in self._ds:
             connectivity_str += f"  * Mesh2_edge_nodes: {self.Mesh2_edge_nodes.shape}\n"
@@ -306,7 +324,7 @@ class Grid:
 
     @property
     def nMesh2_edge(self):
-        """UGRID Dimension ``nMesh2_face``, which represents the total number
+        """UGRID Dimension ``nMesh2_edge``, which represents the total number
         of edges."""
 
         if "Mesh2_edge_nodes" not in self._ds:

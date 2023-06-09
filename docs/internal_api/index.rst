@@ -24,13 +24,6 @@ Class
    UxDataset
 
 
-IO
-----------
-.. autosummary::
-   :toctree: _autosummary
-
-
-
 Attributes
 ----------
 .. autosummary::
@@ -54,10 +47,6 @@ Methods
 
 
 
-
-
-
-
 UxDataArray
 ===========
 The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list of explicitly added
@@ -77,8 +66,6 @@ Attributes
    :toctree: _autosummary
 
    self._uxgrid
-
-
 
 
 Methods
@@ -125,7 +112,6 @@ IO
    io._scrip._to_ugrid
 
 
-
 Methods
 -------
 .. autosummary::
@@ -150,6 +136,8 @@ Attributes
 
 Operators
 ---------
+.. autosummary::
+   :toctree: _autosummary
    Grid.__eq__
    Grid.__ne__
 
