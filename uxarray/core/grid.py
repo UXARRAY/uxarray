@@ -18,8 +18,8 @@ class Grid:
     """Unstructured grid topology definition.
 
     Can be used standalone to explore an unstructured grid topology, or
-    can be seen as the property of `uxarray.UxDataset` and `uxarray.DataArray`
-    and makes them ustrudtured grid-aware data sets and arrays.
+    can be seen as the property of ``uxarray.UxDataset`` and ``uxarray.DataArray``
+    and makes them unstructured grid-aware data sets and arrays.
 
     Parameters
     ----------
