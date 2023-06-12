@@ -245,14 +245,14 @@ def _set_global_attrs(in_ds, out_ds):
     # typically a random string used for tracking mesh provenance
     if 'mesh_id' in in_ds.attrs:
         out_ds.attrs['mesh_id'] = in_ds.mesh_id
-    else:
-        warnings.warn("Missing Required Attribute: 'mesh_id'")
+    # else:
+    #     warnings.warn("Missing Required Attribute: 'mesh_id'")
 
     # defines the version of the MPAS Mesh specification the mesh conforms to
     if 'mesh_spec' in in_ds.attrs:
         out_ds.attrs['mesh_spec'] = in_ds.mesh_spec
-    else:
-        warnings.warn("Missing Required Attribute: 'mesh_spec'")
+    # else:
+    #     warnings.warn("Missing Required Attribute: 'mesh_spec'")
 
     # defines if the mesh describes points that lie on the surface of a sphere or not
     if "on_a_sphere" in in_ds.attrs:
