@@ -15,19 +15,23 @@ Unstructured Grids
 ==================
 The "U" in UXarray stands for "Unstructured Grids". These types of grids differ from
 typical Structured Grids in terms of complexity, requiring additional overhead to
-store and represent the geometry and topology of the grid. However, these types of
+store and represent their geometry and topology. However, these types of
 grids are extremely flexible and scalable.
 
-UXarray uses the UGRID conventions to represent Unstructured Grids. These conventions
+UXarray uses the UGRID conventions as a
+foundation to represent Unstructured Grids. These conventions
 are intended to describe how these grids should be stored within a NetCDF file, with
 a particular focus on environmental and geoscience applications. We chose to use a
 single convention for our grid representation instead of having separate ones for each
 grid format, meaning that we encode all supported unstructured grid formats in the
 UGRID conventions at the data loading step.
 
-Specifically, we represented our two-dimensional Unstructured Grids using a 2D
-Flexible Mesh topology, which can contain a mix of triangles, quadrilaterals, or
+Specifically, our core functionality is build around two-dimension
+Unstructured Grids as defined by the 2D Flexible Mesh Topology in the
+UGRID conventions, which can contain a mix of triangles, quadrilaterals, or
 other geometric faces.
+
+
 
 
 
