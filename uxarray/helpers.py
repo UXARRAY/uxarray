@@ -9,6 +9,7 @@ import math
 from typing import Union
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.multi_precision_helpers import mp_dot, mp_cross
 
 config.DISABLE_JIT = False
 
@@ -785,43 +786,93 @@ def pt_within_gcr(pt, gcr_cart):
     bool
         True if the point is on the GCR (Lies between the two endpoints), False otherwise
     """
-    # First determine if the pt lies on the plane defined by the gcr
-    temp = np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt)
-    if not np.allclose(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE):
-        return False
+    # Convert the cartesian coordinates to lonlat coordinates, the node_xyz_to_lonlat_rad is already overloaded
+    # with gmpy2 data type
+    pt_lonlat = node_xyz_to_lonlat_rad(pt)
+    GCRv0_lonlat = node_xyz_to_lonlat_rad(gcr_cart[0])
+    GCRv1_lonlat = node_xyz_to_lonlat_rad(gcr_cart[1])
 
     # Check if the GCR is presented in the multiprecision format
     if np.any(np.logical_or(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(pt),
-                     np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(gcr_cart))):
-        pass
+                            np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(gcr_cart))):
+
+        # First determine if the pt lies on the plane defined by the gcr
+        res1 = (gmpy2.cmp(GCRv0_lonlat[0], gmpy2.const_pi()) >= 0 and gmpy2.cmp(GCRv0_lonlat[0],
+                                                                                  mpfr(
+                                                                                      '2') * gmpy2.const_pi() <= 0))
+        res2 = (gmpy2.cmp(GCRv1_lonlat[0], gmpy2.const_pi()) <= 0 and gmpy2.cmp(GCRv1_lonlat[0], mpfr('0') >= 0))
+        res2_1 = gmpy2.cmp(GCRv1_lonlat[0], gmpy2.const_pi()) <= 0
+        res2_2 = gmpy2.cmp(GCRv1_lonlat[0], mpfr('0')) >= 0
+
+        if gmpy2.cmp(mp_dot(mp_cross(gcr_cart[0], gcr_cart[1]), pt), mpfr('0')) != 0:
+            return False
+
+        # Special case:
+        # If the pt and the GCR are on the same longitude (the y coordinates are the same)
+        if gmpy2.cmp(GCRv0_lonlat[0], GCRv1_lonlat[0]) == 0 == gmpy2.cmp(GCRv0_lonlat[0], pt_lonlat[0]):
+            # Now use the latitude to determine if the pt falls between the interval
+            return is_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+
+        # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
+        # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
+        if gmpy2.cmp_abs(GCRv1_lonlat[0] - GCRv0_lonlat[0], gmpy2.const_pi()) > 0:
+
+            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+            # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is larger than the 180 degrees (pi radians)
+            # Need to redirect such that 180 --> x0 --> 365/0 --> x1 --> 180
+            if (gmpy2.cmp(GCRv0_lonlat[0], gmpy2.const_pi()) <= 0 and gmpy2.cmp(GCRv0_lonlat[0], mpfr('0') >= 0)) and (
+                    gmpy2.cmp(GCRv1_lonlat[0], gmpy2.const_pi()) >= 0 >= gmpy2.cmp(GCRv1_lonlat[0],
+                                                                                   gmpy2.mpfr('2') * gmpy2.const_pi())):
+                return is_between(gmpy2.const_pi(), pt_lonlat[0], mpfr('2') * gmpy2.const_pi()) or \
+                    is_between(mpfr('0'), pt_lonlat[0], gmpy2.const_pi())
+
+            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian Case 2: The
+            # anti-meridian case where 180 -->x0 --> 365/0 lon --> x1 --> 180 that doesn't require redirection.
+            elif (gmpy2.cmp(GCRv0_lonlat[0], gmpy2.const_pi()) >= 0 and gmpy2.cmp(GCRv0_lonlat[0],
+                                                                                  mpfr(
+                                                                                      '2') * gmpy2.const_pi() <= 0)) and (
+                    gmpy2.cmp(GCRv1_lonlat[0], gmpy2.const_pi()) <= 0 and gmpy2.cmp(GCRv1_lonlat[0], mpfr('0'))>= 0):
+                return is_between(GCRv0_lonlat[0], pt_lonlat[0], gmpy2.mpfr('2') * gmpy2.const_pi()) or is_between(
+                    gmpy2.mpfr('0'), pt_lonlat[0], GCRv1_lonlat[0])
+
+        # The non-anti-meridian case.
+        else:
+            return is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+
 
     else:
-        # Use the cartesian coordinates to determine if the gcr goes across the anti-meridian
+        # First determine if the pt lies on the plane defined by the gcr
+        if not np.allclose(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE):
+            return False
+
+        # Special case: If the gcr goes across the anti-meridian
         # If the pt and the GCR are on the same longitude (the y coordinates are the same)
-        if pt[1] == gcr_cart[0][1] and pt[1] == gcr_cart[1][1]:
+        if GCRv0_lonlat[0] == GCRv1_lonlat[0] == pt_lonlat[0]:
             # Now use the latitude to determine if the pt falls between the interval
-            return is_between(gcr_cart[0][2], pt[2], gcr_cart[1][2])
+            return is_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
 
-
-        # Convert the cartesian coordinates to lonlat coordinates
-        pt_lonlat = node_xyz_to_lonlat_rad(pt)
-        GCRv0_lonlat = node_xyz_to_lonlat_rad(gcr_cart[0])
-        GCRv1_lonlat = node_xyz_to_lonlat_rad(gcr_cart[1])
-
-        # The anti-meridian case where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
-        # Need to redirect such that 180 --> x0 --> 0 --> x1 --> 180
+        # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
+        # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
         if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi:
-            if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
-                return is_between(0, pt_lonlat[0], GCRv0_lonlat[0]) or is_between(GCRv1_lonlat[0], pt_lonlat[0], 2 * np.pi)
 
-        # The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 that doesn't require redirection.
-        elif 2*np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
-            return is_between(GCRv0_lonlat[0], pt_lonlat[0], 2 * np.pi) or is_between(0, pt_lonlat[0], GCRv1_lonlat[0])
+            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+            # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
+            # Need to redirect such that 180 --> x0 --> 0 --> x1 --> 180
+            if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
+                return is_between(0, pt_lonlat[0], GCRv0_lonlat[0]) or is_between(GCRv1_lonlat[0], pt_lonlat[0],
+                                                                                  2 * np.pi)
+
+            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+            # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 that doesn't require redirection.
+            elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
+                return is_between(GCRv0_lonlat[0], pt_lonlat[0], 2 * np.pi) or is_between(0, pt_lonlat[0],
+                                                                                          GCRv1_lonlat[0])
 
         # The non-anti-meridian case.
         else:
             is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
             return is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+
 
 def is_between(p: Union[float, gmpy2.mpfr], q: Union[float, gmpy2.mpfr], r: Union[float, gmpy2.mpfr]) -> bool:
     """Determines whether the number q is between p and r.

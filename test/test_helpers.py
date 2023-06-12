@@ -12,7 +12,7 @@ import time
 
 import uxarray as ux
 
-from uxarray.helpers import _replace_fill_values
+from uxarray.helpers import _replace_fill_values, node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.multi_precision_helpers import convert_to_multiprecision, set_global_precision, \
     decimal_digits_to_precision_bits
@@ -402,7 +402,7 @@ class TestIntersectionPoint(TestCase):
         # Point in radian : [0.43400375562899113, -0.49554509841586936]
         gcr_cart_1 = np.array([[-0.491, -0.706, 0.510], [-0.755, 0.655, -0.007]])
         pt_cart_within = np.array([0.6136726305712109, 0.28442243941920053, -0.365605190899831])
-        self.assertTrue(ux.helpers.pt_within_gcr(pt_cart_within, gcr_cart_1))
+        self.assertFalse(ux.helpers.pt_within_gcr(pt_cart_within, gcr_cart_1))
 
         # The following two case should work even swapping the GCR
         v1_rad = [0.1, 0]
@@ -415,4 +415,51 @@ class TestIntersectionPoint(TestCase):
         gcr_car_flipped = np.array([v2_cart, v1_cart])
         self.assertTrue(ux.helpers.pt_within_gcr(pt_cart, gcr_car_flipped))
 
-        # This testcase will test if the np
+    def test_pt_within_gcr_multiprecision(self):
+
+        set_global_precision(55)
+
+        # Test when the point and the GCR all have the same longitude
+        gcr_same_lon_cart = [ux.helpers.node_lonlat_rad_to_xyz([mpfr('0'), mpfr('1.5')]), ux.helpers.node_lonlat_rad_to_xyz([mpfr('0'), mpfr('-1.5')])]
+        pt_same_lon_in = ux.helpers.node_lonlat_rad_to_xyz([mpfr('0'), mpfr('0')])
+        self.assertTrue(ux.helpers.pt_within_gcr(pt_same_lon_in, gcr_same_lon_cart))
+
+        pt_same_lon_out = ux.helpers.node_lonlat_rad_to_xyz([mpfr('0'), mpfr('1.500000000000005')])
+        res = ux.helpers.pt_within_gcr(pt_same_lon_out, gcr_same_lon_cart)
+        self.assertFalse(res)
+
+        # And if we increase the digital place by one, it should be still be false in the multiprecision case
+        pt_same_lon_out_add_one_place = ux.helpers.node_lonlat_rad_to_xyz([mpfr('0'), mpfr('1.5000000000000005')])
+        res = ux.helpers.pt_within_gcr(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
+        self.assertFalse(res)
+
+        # Normal case
+        GCR_cart = np.array([node_lonlat_rad_to_xyz([mpfr('3.14'), mpfr('0')]), node_lonlat_rad_to_xyz([mpfr('6.28'), mpfr('0')])])
+        pt_cart_within = np.array(node_lonlat_rad_to_xyz([mpfr('6.27999999999999999'), mpfr('0')]))
+        res = ux.helpers.pt_within_gcr(pt_cart_within, GCR_cart)
+        self.assertTrue(res)
+
+
+        # Test other more complicate cases : The anti-meridian case
+        GCR_cart = np.array([node_lonlat_rad_to_xyz([mpfr('6.0'), mpfr('0')]), node_lonlat_rad_to_xyz([mpfr('1.0'), mpfr('0')])])
+        pt_cart_within = np.array(node_lonlat_rad_to_xyz([mpfr('6.00000000000000001'), mpfr('0')]))
+        res = ux.helpers.pt_within_gcr(pt_cart_within, GCR_cart)
+        self.assertTrue(res)
+
+        GCR_cart = np.array([node_lonlat_rad_to_xyz([mpfr('1.0'), mpfr('0')]), node_lonlat_rad_to_xyz([mpfr('6.0'), mpfr('0')])])
+        pt_cart_within = np.array(node_lonlat_rad_to_xyz([mpfr('5.999999999999999'), mpfr('0')]))
+        res = ux.helpers.pt_within_gcr(pt_cart_within, GCR_cart)
+        self.assertFalse(res)
+
+        # The following two case should work even swapping the GCR
+        v1_rad = [mpfr('0.1'), mpfr('0')]
+        v2_rad = [mpfr('2') * gmpy2.const_pi() - mpfr('0.000000000000001'), mpfr('0')]
+        v1_cart = ux.helpers.node_lonlat_rad_to_xyz(v1_rad)
+        v2_cart = ux.helpers.node_lonlat_rad_to_xyz(v2_rad)
+        gcr_cart = np.array([v1_cart, v2_cart])
+        pt_cart = ux.helpers.node_lonlat_rad_to_xyz([mpfr('0.00000000000000001'), mpfr('0')])
+        self.assertTrue(ux.helpers.pt_within_gcr(pt_cart, gcr_cart))
+        gcr_car_flipped = np.array([v2_cart, v1_cart])
+        self.assertTrue(ux.helpers.pt_within_gcr(pt_cart, gcr_car_flipped))
+
+        set_global_precision()

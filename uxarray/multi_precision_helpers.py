@@ -83,8 +83,8 @@ def convert_to_multiprecision(input_array,
     else:
 
         if ~np.all([
-                np.issubdtype(type(element), np.str_)
-                for element in flattened_array
+            np.issubdtype(type(element), np.str_)
+            for element in flattened_array
         ]):
             raise ValueError(
                 'The input array should be string when str_mode is True.')
@@ -218,3 +218,41 @@ def precision_bits_to_decimal_digits(precision):
     decimal_digits = int(math.floor(decimal_digits))
 
     return decimal_digits
+
+
+def mp_cross(v1, v2):
+    """Compute the cross product of two vectors in multiprecision.
+    Parameters
+    ----------
+    v1 : list/np.ndarray
+        The first vector
+    v2 : list/np.ndarray
+        The second vector
+
+    Returns
+    -------
+    cross_product : np.ndarray
+        The cross product of the two vectors"""
+    # Calculate the cross product of two vectors
+    x = v1[1] * v2[2] - v1[2] * v2[1]
+    y = v1[2] * v2[0] - v1[0] * v2[2]
+    z = v1[0] * v2[1] - v1[1] * v2[0]
+    return np.array([x, y, z])
+
+
+def mp_dot(v1, v2):
+    """Compute the dot product of two vectors in multiprecision.
+    Parameters
+    ----------
+    v1 : list/np.ndarray
+        The first vector
+    v2 : list/np.ndarray
+        The second vector
+
+    Returns
+    -------
+    dot_product : mpfr
+    The dot product of the two vectors
+    """
+    # Calculate the dot product of two vectors
+    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
