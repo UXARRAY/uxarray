@@ -19,7 +19,7 @@ class Grid:
 
     Can be used standalone to explore an unstructured grid topology, or
     can be seen as the property of ``uxarray.UxDataset`` and ``uxarray.DataArray``
-    and makes them unstructured grid-aware data sets and arrays.
+    to makes them unstructured grid-aware data sets and arrays.
 
     Parameters
     ----------
@@ -279,9 +279,13 @@ class Grid:
         if self.grid_var_names["Mesh2_node_x"] in self._ds:
             coords_str += f"  * Mesh2_node_x: {self.Mesh2_node_x.shape}\n"
             coords_str += f"  * Mesh2_node_y: {self.Mesh2_node_y.shape}\n"
+        if "Mesh2_node_cart_x" in self._ds:
+            coords_str += f"  * Mesh2_node_cart_x: {self.Mesh2_node_cart_x.shape}\n"
+            coords_str += f"  * Mesh2_node_cart_y: {self.Mesh2_node_cart_y.shape}\n"
+            coords_str += f"  * Mesh2_node_cart_z: {self.Mesh2_node_cart_z.shape}\n"
         if "Mesh2_face_x" in self._ds:
             coords_str += f"  * Mesh2_face_x: {self.Mesh2_face_x.shape}\n"
-            coords_str += f"  * Mesh2_face_y: {self.Mesh2_face_y.shape} \n"
+            coords_str += f"  * Mesh2_face_y: {self.Mesh2_face_y.shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
@@ -366,11 +370,22 @@ class Grid:
     @property
     def Mesh2_node_x(self):
         """UGRID Coordinate Variable ``Mesh2_node_x``, which contains the
-        longitude of each node.
+        longitude of each node in degrees.
 
         Dimensions (``nMesh2_node``)
         """
         return self._ds[self.grid_var_names["Mesh2_node_x"]]
+
+    @property
+    def Mesh2_node_cart_x(self):
+        """Coordinate Variable ``Mesh2_node_cart_x``, which contains the x
+        location in meters.
+
+        Dimensions (``nMesh2_node``)
+        """
+        if "Mesh2_node_cart_x" not in self._ds:
+            self._populate_cartesian_xyz_coord()
+        return self._ds['Mesh2_node_cart_x']
 
     @property
     def Mesh2_face_x(self):
@@ -392,6 +407,17 @@ class Grid:
         Dimensions (``nMesh2_node``)
         """
         return self._ds[self.grid_var_names["Mesh2_node_y"]]
+
+    @property
+    def Mesh2_node_cart_y(self):
+        """Coordinate Variable ``Mesh2_node_cart_y``, which contains the y
+        location in meters.
+
+        Dimensions (``nMesh2_node``)
+        """
+        if "Mesh2_node_cart_y" not in self._ds:
+            self._populate_cartesian_xyz_coord()
+        return self._ds['Mesh2_node_cart_y']
 
     @property
     def Mesh2_face_y(self):
@@ -422,6 +448,17 @@ class Grid:
             return self._ds[self.grid_var_names["Mesh2_node_z"]]
         else:
             return None
+
+    @property
+    def Mesh2_node_cart_z(self):
+        """Coordinate Variable ``Mesh2_node_cart_z``, which contains the z
+        location in meters.
+
+        Dimensions (``nMesh2_node``)
+        """
+        if "Mesh2_node_cart_z" not in self._ds:
+            self._populate_cartesian_xyz_coord()
+        return self._ds['Mesh2_node_cart_z']
 
     # connectivity properties
 
