@@ -99,15 +99,16 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 
 
 def open_dataset(grid_filename_or_obj: str,
-                 filename_or_obj: str,
+                 filename_or_obj: Optional[str] = None,
                  gridspec: Optional[str] = None,
                  vertices: Optional[list] = None,
                  islatlon: Optional[bool] = False,
                  isconcave: Optional[bool] = False,
                  use_dual: Optional[bool] = False,
                  **kwargs: Dict[str, Any]) -> UxDataset:
-    """Wraps ``xarray.open_dataset()``, given a grid topology definition with a
-    single dataset file or object with corresponding data.
+    """Wraps ``xarray.open_dataset()``, constructing a ``ux.UxDataset` from a
+    given grid topology defention with data defined from a single dataset file
+    or object.
 
     Parameters
     ----------
@@ -117,7 +118,7 @@ def open_dataset(grid_filename_or_obj: str,
         stores the unstructured grid definition that the dataset belongs to. It
         is read similar to ``filename_or_obj`` in ``xarray.open_dataset``.
 
-    filename_or_obj : string, required
+    filename_or_obj : string, optional
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set. It is the same ``filename_or_obj`` in
         ``xarray.open_dataset``.
@@ -161,7 +162,7 @@ def open_dataset(grid_filename_or_obj: str,
     >>> ux_ds = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
     """
 
-    ## Grid definition
+    # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        gridspec=gridspec,
                        vertices=vertices,
@@ -169,10 +170,16 @@ def open_dataset(grid_filename_or_obj: str,
                        isconcave=isconcave,
                        use_dual=use_dual)
 
-    ## UxDataset
-    ds = xr.open_dataset(filename_or_obj, decode_times=False,
-                         **kwargs)  # type: ignore
+    # Data variables
+    if filename_or_obj is None:
+        # no data variables provided, defaults to empty
+        # TODO: parse grid file for data variables
+        ds = xr.Dataset()
+    else:
+        ds = xr.open_dataset(filename_or_obj, decode_times=False,
+                             **kwargs)  # type: ignore
 
+    # UxDataset
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds
@@ -186,8 +193,9 @@ def open_mfdataset(grid_filename_or_obj: str,
                    isconcave: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
                    **kwargs: Dict[str, Any]) -> UxDataset:
-    """Wraps ``xarray.open_mfdataset()``, given a single grid topology file
-    with multiple dataset paths with corresponding data.
+    """Wraps ``xarray.open_mfdataset()``, constructing a ``ux.UxDataset` from a
+    given grid topology defention  with multiple dataset paths with
+    corresponding data.
 
     Parameters
     ----------
