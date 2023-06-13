@@ -2,11 +2,49 @@ Core (tier 1) functionality is indicated using regular text/list
 item style. \
 Secondary (tier 2) functionality is indicated using (*) in front.
 
-# class uxarray.Grid
+# 1. class ``UxDataset``
 
-Describes an unstructured grid via [Dataset
-Accessor](https://docs.xarray.dev/en/stable/internals/extending-xarray.html)
-to a ``xarray.Dataset`` object.
+The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``.
+
+## 1.1. IO
+
+- uxarray.open_dataset(grid_filename_or_obj, ...[, ...]) \
+  Open a single dataset, given a grid topology definition.
+
+- uxarray.open_mfdataset(grid_filename_or_obj, paths) \
+  Open multiple datasets, given a grid topology definition.
+
+## 1.2. Attributes
+
+- UXDataset.uxgrid: `uxarray.Grid` \
+  `uxarray.Grid` property to make `UxDataset` unstructured grid-aware
+
+- UxDataset.source_datasets: str \
+  Property to keep track of the source data sets used to instantiate this
+  `UxDataset`
+
+## 1.3. Methods
+
+- UxDataset.info() \
+  Concise summary of UxDataset variables and attributes.
+
+# 2. class ``UxDataArray``
+
+The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``.
+
+## 2.1. Attributes
+
+- UXDataArray.uxgrid: `uxarray.Grid` \
+  `uxarray.Grid` property to make `UxDataArray` unstructured grid-aware
+
+## 2.2. Methods
+
+This list will be populated soon...
+
+# 3. class uxarray.Grid
+
+Describes an unstructured grid as either a standalone `Grid` object or via
+`uxgrid` property to a ``uxarray.UxDataset`` or ``uxarray.UxDataArray`` object.
 
 ## uxarray.Grid Attributes
 
