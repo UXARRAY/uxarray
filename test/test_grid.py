@@ -299,7 +299,7 @@ class TestOperators(TestCase):
         assert self.grid_CSne30_01 != self.grid_RLL1deg
 
 
-class TestIntegrate(TestCase):
+class TestFaceAreas(TestCase):
 
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
@@ -350,18 +350,17 @@ class TestIntegrate(TestCase):
                                constants.UNIT_SPHERE_AREA,
                                decimal=3)
 
-    def test_integrate(self):
-        xr_psi = xr.open_dataset(dsfile_vortex_CSne30)
-        xr_v2 = xr.open_dataset(dsfile_var2_CSne30)
-
-        integral_psi = self.grid_CSne30.integrate(xr_psi)
-        integral_var2 = self.grid_CSne30.integrate(xr_v2)
-
-        nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
-        nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
-
-
-class TestFaceAreas(TestCase):
+    # TODO: Will depend on the decision for whether to provide integrate function
+    # from within `Grid` as well as UxDataset
+    # def test_integrate(self):
+    #     xr_psi = xr.open_dataset(dsfile_vortex_CSne30)
+    #     xr_v2 = xr.open_dataset(dsfile_var2_CSne30)
+    #
+    #     integral_psi = self.grid_CSne30.integrate(xr_psi)
+    #     integral_var2 = self.grid_CSne30.integrate(xr_v2)
+    #
+    #     nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
+    #     nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
 
     def test_compute_face_areas_geoflow_small(self):
         """Checks if the GeoFlow Small can generate a face areas output."""

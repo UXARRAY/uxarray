@@ -679,49 +679,51 @@ class Grid:
             self.compute_face_areas()
         return self._face_areas
 
-    def integrate(self, var_ds, quadrature_rule="triangular", order=4):
-        """Integrates a xarray.Dataset over all the faces of the given mesh.
-
-        Parameters
-        ----------
-        var_ds : Xarray dataset, required
-            Xarray dataset containing values to integrate on this grid
-        quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
-        order : int, optional
-            Order of quadrature rule. Defaults to 4.
-
-        Returns
-        -------
-        Calculated integral : float
-
-        Examples
-        --------
-        Open grid file only
-
-        >>> xr_grid = xr.open_dataset("grid.ug")
-        >>> grid = ux.Grid.(xr_grid)
-        >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
-
-        # Compute the integral
-        >>> integral_psi = grid.integrate(var_ds)
-        """
-        integral = 0.0
-
-        # call function to get area of all the faces as a np array
-        face_areas = self.compute_face_areas(quadrature_rule, order)
-
-        var_key = list(var_ds.keys())
-        if len(var_key) > 1:
-            # warning: print message
-            print(
-                "WARNING: The xarray dataset file has more than one variable, using the first variable for integration"
-            )
-        var_key = var_key[0]
-        face_vals = var_ds[var_key].to_numpy()
-        integral = np.dot(face_areas, face_vals)
-
-        return integral
+    # TODO: Make a decision on whether to provide Dataset- or DataArray-specific
+    # functions from within Grid
+    # def integrate(self, var_ds, quadrature_rule="triangular", order=4):
+    #     """Integrates a xarray.Dataset over all the faces of the given mesh.
+    #
+    #     Parameters
+    #     ----------
+    #     var_ds : Xarray dataset, required
+    #         Xarray dataset containing values to integrate on this grid
+    #     quadrature_rule : str, optional
+    #         Quadrature rule to use. Defaults to "triangular".
+    #     order : int, optional
+    #         Order of quadrature rule. Defaults to 4.
+    #
+    #     Returns
+    #     -------
+    #     Calculated integral : float
+    #
+    #     Examples
+    #     --------
+    #     Open grid file only
+    #
+    #     >>> xr_grid = xr.open_dataset("grid.ug")
+    #     >>> grid = ux.Grid.(xr_grid)
+    #     >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
+    #
+    #     # Compute the integral
+    #     >>> integral_psi = grid.integrate(var_ds)
+    #     """
+    #     integral = 0.0
+    #
+    #     # call function to get area of all the faces as a np array
+    #     face_areas = self.compute_face_areas(quadrature_rule, order)
+    #
+    #     var_key = list(var_ds.keys())
+    #     if len(var_key) > 1:
+    #         # warning: print message
+    #         print(
+    #             "WARNING: The xarray dataset file has more than one variable, using the first variable for integration"
+    #         )
+    #     var_key = var_key[0]
+    #     face_vals = var_ds[var_key].to_numpy()
+    #     integral = np.dot(face_areas, face_vals)
+    #
+    #     return integral
 
     def _build_edge_node_connectivity(self, repopulate=False):
         """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
