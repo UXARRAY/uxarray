@@ -878,24 +878,27 @@ class TestConnectivity(TestCase):
 
 class TestMeshLoader(TestCase):
 
-    def testFromDs(self):
+    def test_from_ds(self):
         exodus_filepath = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
 
         xrds_exodus = xr.open_dataset(exodus_filepath)
 
         # Create the grid with multi-precision off
         gridOff = ux.Grid(xrds_exodus)
-        resultsPrecisionOff = gridOff.__from_ds__(xrds_exodus, multi_precision=False)
+        resultsPrecisionOff = gridOff.__from_ds__(xrds_exodus,
+                                                  multi_precision=False)
 
         # Create the grid with multi-precision on
         gridOn = ux.Grid(xrds_exodus)
-        resultsPrecisionOn = gridOn.__from_ds__(xrds_exodus, multi_precision=True, precision=64)
+        resultsPrecisionOn = gridOn.__from_ds__(xrds_exodus,
+                                                multi_precision=True,
+                                                precision=128)
 
         # Check that the nodes are no longer equal
-        firstNodePrecisionOn = resultsPrecisionOn["nMesh2_node"].values[45]
-        firstNodePrecisionOff = resultsPrecisionOff["nMesh2_node"].values[45]
+        firstNodePrecisionOn = resultsPrecisionOn["Mesh2_node_y"].values[0]
+        firstNodePrecisionOff = resultsPrecisionOff["Mesh2_node_y"].values[0]
         self.assertNotEqual(firstNodePrecisionOn, firstNodePrecisionOff)
 
         # Check that the flags are set properly
         self.assertTrue(gridOn._multi_precision)
-        self.assertEqual(gridOn._precision, 64)
+        self.assertEqual(gridOn._precision, 128)

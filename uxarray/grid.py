@@ -377,7 +377,10 @@ class Grid:
                 })
 
     # load mesh from a file
-    def __from_ds__(self, dataset, multi_precision=False, precision=FLOAT_PRECISION_BITS):
+    def __from_ds__(self,
+                    dataset,
+                    multi_precision=False,
+                    precision=FLOAT_PRECISION_BITS):
         """Loads a mesh dataset."""
         # call reader as per mesh_type
         if self.mesh_type == "exo":
@@ -401,22 +404,19 @@ class Grid:
         self._multi_precision = multi_precision
         self._precision = precision
 
-        # loops through the dataset
+        # convert coordinates to hmpy2.mpfr format
         if self._multi_precision:
-            for varName, varData in dataset.data_vars.items():
-                # check if the variable data is of float, integer, or string type and convert it based on the type
-                if np.issubdtype(varData.dtype, np.floating):
-                    convertedData = convert_to_multiprecision(
-                        varData.values, str_mode=False, precision=self._precision)
-                    self.ds[varName] = (varData.dims, convertedData)
-                elif np.issubdtype(varData.dtype, np.integer):
-                    convertedData = convert_to_multiprecision(
-                        varData.values, str_mode=False, precision=self._precision)
-                    self.ds[varName] = (varData.dims, convertedData)
-                elif np.issubdtype(varData.dtype, np.str):
-                    convertedData = convert_to_multiprecision(
-                        varData.values, str_mode=True, precision=self._precision)
-                    self.ds[varName] = (varData.dims, convertedData)
+            if "Mesh2_node_y" in self.ds and "Mesh2_node_x" in self.ds:
+                y_coords = self.ds["Mesh2_node_y"].values
+                x_coords = self.ds["Mesh2_node_x"].values
+
+                converted_y_coords = convert_to_multiprecision(
+                    y_coords, str_mode=False, precision=self._precision)
+                converted_x_coords = convert_to_multiprecision(
+                    x_coords, str_mode=False, precision=self._precision)
+
+                self.ds["Mesh2_node_y"] = converted_y_coords
+                self.ds["Mesh2_node_x"] = converted_x_coords
 
         dataset.close()
 
