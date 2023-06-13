@@ -74,6 +74,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     :hidden:
     :caption: For users
 
+    ANNOUNCEMENT! <announcement>
     Installation <installation>
     Getting Started <quickstart>
     Usage Examples <examples>
