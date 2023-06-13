@@ -580,7 +580,6 @@ class Grid:
         interval_list = []
         pass
 
-
     def _build_edge_node_connectivity(self, repopulate=False):
         """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
         and stores it within the internal (``Grid.ds``) and through the
