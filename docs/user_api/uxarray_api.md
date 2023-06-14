@@ -2,119 +2,181 @@ Core (tier 1) functionality is indicated using regular text/list
 item style. \
 Secondary (tier 2) functionality is indicated using (*) in front.
 
-# 1. class ``UxDataset``
+# 1. class ``uxarray.UxDataset``
 
-The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``.
+The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``
+and A xarray.Dataset-like, and it is multi-dimensional, in
+memory, array database. It has the ``Grid`` object, ``uxgrid``, as a
+property to be unstructured grid-aware.
 
-## 1.1. IO
+## 1.1. UxDataset IO
 
-- uxarray.open_dataset(grid_filename_or_obj, ...[, ...]) \
+- uxarray.open_dataset(grid_filename_or_obj, [kwargs]) \
   Open a single dataset, given a grid topology definition.
 
 - uxarray.open_mfdataset(grid_filename_or_obj, paths) \
   Open multiple datasets, given a grid topology definition.
 
-## 1.2. Attributes
+## 1.2. UxDataset Attributes
 
-- UXDataset.uxgrid: `uxarray.Grid` \
-  `uxarray.Grid` property to make `UxDataset` unstructured grid-aware
+- UXDataset.uxgrid: ``uxarray.Grid`` \
+  ``uxarray.Grid`` property to make ``UxDataset`` unstructured grid-aware
 
 - UxDataset.source_datasets: str \
-  Property to keep track of the source data sets used to instantiate this
-  `UxDataset`
+  Property to keep track of the source data set files or object used to
+  instantiate this ``UxDataset`` (For diagnostics and reporting purposes).
 
-## 1.3. Methods
+## 1.3. UxDataset Methods
 
-- UxDataset.info() \
-  Concise summary of UxDataset variables and attributes.
+### 1.3.1. Implemented UxDataset Methods
 
-# 2. class ``UxDataArray``
+- UxDataset.info(self) \
+  Concise summary of UxDataset variables and attributes
 
-The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``.
+- np.float64 UxDataset.integrate(self, [quadrature_rule, order]) \
+  Integrate dataset variables over all the faces of the given mesh.
 
-## 2.1. Attributes
+### 1.3.2. Future UxDataset Methods
 
-- UXDataArray.uxgrid: `uxarray.Grid` \
-  `uxarray.Grid` property to make `UxDataArray` unstructured grid-aware
+- np.float64 UxDataset.integrate(self, [quadrature_rule, order, Grid region]) \
+  Integrate the dataset variables over a region, if specified.
 
-## 2.2. Methods
+- UxDataset UxDataset.regrid(self, uxarray.Grid target_grid, opts) \
+  Regrid the dataset to the target_grid (by default via 1st order FV).
 
-This list will be populated soon...
+- UxDataset UxDataset.zonal_mean(self, integer bin_count or bin_lats) \
+  Compute global zonal means over bincount latitudinal bands.
+
+- (*) UxDataset uxarray.UxDataset.composite(self, nodes) \
+  Produce composites of the DataArray at the specific locations via
+  stereographic projection.
+
+- (*) UxDataset UxDataset.snapshot(self, nodes) \
+  Produce snapshots of the DataArray at the specific locations via
+  stereographic projection.
+
+This list will be further populated ...
+
+# 2. class ``uxarray.UxDataArray``
+
+N-dimensional, ``xarray.DataArray``-like array. The
+``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. It has
+the ``Grid`` object, `uxgrid`, as a property to be unstructured grid-aware.
+
+## 2.1. UxDataArray Attributes
+
+### 2.1.1. Implemented UxDataArray Attributes
+
+- UXDataArray.uxgrid: ``uxarray.Grid`` \
+  ``uxarray.Grid`` property to make ``UxDataArray`` unstructured grid-aware
+
+### 2.1.2. Future UxDataArray Attributes
+
+- UxDataArray.type: enumeration {“vertexcentered”, “facecentered”,
+  “faceaverage”, “edgecentered”, “edgeorthogonal”, “edgeparallel”,
+  “cgll”, “dgll”} \
+  Where data is stored in this UxDataArray.
+
+- (*) UxDataArray.np: integer \
+  Polynomial order of data (when using UxDataArray.type = “cgll” or “dgll”)
+
+## 2.2. UxDataArray Methods
+
+### 2.2.1 Implemented UxDataArray Methods
+
+- UxDataArray.integrate(self, [quadrature_rule, order]) \
+  Integrate over all the faces of the given mesh.
+
+- ### 2.2.2 Future UxDataArray Methods
+
+- UxDataArray UxDataArray.divergence(self, UxDataArray other) \
+  Compute the divergence of the vector field defined by self and other.
+
+- UxDataArray UxDataArray.relative_vorticity(self, UxDataArray other) \
+  Compute the vertical component of the vorticity of the vector field defined
+  by self and other.
+
+- UxDataArray UxDataArray.laplacian(self) \
+  Compute the scalar Laplacian of the scalar field defined by self.
+
+- (UxDataArray, UxDataArray) UxDataArray.gradient(self) \
+  Compute the gradient of the scalar field defined by self in spherical
+  coordinates.
+
+- UxDataArray UxDataArray.scalardotgradient(self, UxDataArray v, UxDataArray q) \
+  Compute the dot product between a vector field (self, v) and the gradient
+  of a scalar field q.
+
+This list will be further populated ...
 
 # 3. class uxarray.Grid
 
-Describes an unstructured grid as either a standalone `Grid` object or via
-`uxgrid` property to a ``uxarray.UxDataset`` or ``uxarray.UxDataArray`` object.
+Describes an unstructured grid topology. It can be used standalone to explore
+an unstructured grid topology, or can be seen as the property of
+``uxarray.UxDataset`` and ``uxarray.DataArray`` to make them unstructured
+grid-aware data sets and arrays, respectively.
 
-## uxarray.Grid Attributes
+## 3.1. Grid IO
+- uxarray.open_grid(grid_filename_or_obj, gridspec, [kwargs]) \
+  Create a ``Grid`` object from a grid topology definition.
 
-- uxarray.Grid.ds: DataSet\
-  DataSet containing uxarray.Grid properties
-  `dims={nMesh2_node (total number of nodes),
-  nMesh2_face (number of faces),
-  MaxNumNodesPerFace (maximum number of nodes per face)}` \
-  `optional_dims={nMesh2_edge (number of edges, optional),
-  MaxNumFacesPerNode (max number of faces per node),Two, Three, Four}`
+## 3.2. Grid Attributes
 
-- (*) uxarray.Grid.islatlon: boolean \
+### 3.2.1. Implemented Grid Attributes
+
+- Grid.isconcave: boolean \
+  A flag indicating the grid contains concave faces. If this flag is set,
+  then alternative algorithms may be needed for some of the operations below.
+
+- Grid.islatlon: boolean \
   A flag indicating the grid is a latitude longitude grid.
 
-- (*) uxarray.Grid.isconcave: boolean \
-  A flag indicating the grid contains concave faces.  If
-  this flag is set then alternative algorithms may be needed
-  for some of the operations below.
+- Grid.Mesh2: np.float64 xarray.DataArray \
+  UGRID Attribute. Indicates the topology data of a 2D unstructured mesh (just
+  like the dummy variable "Mesh2" in the UGRID conventions).
 
-- (*) uxarray.Grid.edgedual: uxarray.Grid \
-  The edge dual grid.
+- Grid.Mesh2_node_x: np.float64 xarray.DataArray of size (nMesh2_node) \
+  UGRID Coordinate Variable. 2D longitude coordinate or 3D x coordinates for
+  nodes on the sphere in degrees.
 
-- uxarray.Grid.source_grid: string \
-  The source file for this uxarray.Grid's definition (For
-  diagnostics and reporting purposes).
+- Grid.Mesh2_node_y: np.float64 xarray.DataArray of size (nMesh2_node) \
+  UGRID Coordinate Variable. 2D latitude coordinate or 3D y coordinates for
+  nodes on the sphere in degrees.
 
-- uxarray.Grid.source_datasets: string \
-  The source file(s) for this uxarray.Grid's corresponding
-  data (For diagnostics and reporting purposes).
+- Grid.nMesh2_node: int
+  UGRID Dimension. Represents the total number of nodes.
 
-- (*) uxarray.Grid.vertexdual: uxarray.Grid \
-  The vertex dual grid.
+- Grid.parsed_attrs: dict
+  Dictionary of parsed attributes from the source grid.
 
-According to the UGRID specification, the UGRID file should
-contain a dummy variable with attribute cf_role and value
-“mesh_topology”.  This variable stores information on mesh
-topology, including relevant variable names.  The API will
-need to search for the variable containing this attribute
-and throw an error if it is missing.  Following the UGRID
-specification guide, the code below uses the name “Mesh2”
-for the dummy variable, but this could be different. The
-other names below are the ones used in the UGRID standards
-document, but they could be different.
-
-- uxarray.Grid.Mesh2_node_x: np.float64 DataArray of size (nMesh2_node) \
-  2D longitude coordinate or 3D x coordinates for nodes on the sphere.
-
-- uxarray.Grid.Mesh2_node_y: np.float64 DataArray of size (nMesh2_node) \
-  2D latitude coordinate or 3D y coordinates for nodes on the sphere.
-
-- uxarray.Grid.Mesh2_node_z: np.float64 DataArray of size (nMesh2_node) \
-  (optional)
-  3D z coordinates for nodes on the sphere.
-
-- (*) uxarray.Grid.Mesh2_node_coordinates: np.float64 DataArray of size
-  (nMesh2_node, Two or Three) \
-  Alternative storage mechanism for node information.
-
-- uxarray.Grid.Mesh2_face_nodes: integer DataArray of size
+- Grid.Mesh2_face_nodes: int xarray.DataArray of size
   (nMesh2_face, MaxNumNodesPerFace) \
-  A DataArray of indices for each face node, corresponding to coordinates
+  A xarray.DataArray of indices for each face node, corresponding to coordinates
   in uxarray.Grid.node_*.  Faces can have arbitrary length, with
   _FillValue=-1 used when faces have fewer nodes than MaxNumNodesPerFace.
   Nodes are in counter-clockwise order.
 
-- uxarray.Grid.Mesh2_edge_nodes: integer DataArray of size (nMesh2_edge, Two)
+- uxarray.Grid.Mesh2_edge_nodes: int xarray.DataArray of size (nMesh2_edge, Two)
   (optional) \
-  A DataArray of indices for each edge.  Nodes are in arbitrary order.
+  A xarray.DataArray of indices for each edge.  Nodes are in arbitrary order.
 
-- (*) uxarray.Grid.Mesh2_edge_types: integer DataArray of size (nMesh2_edge)
+- Grid.source_grid: str \
+  The source file or object for this Grid's definition (For diagnostics and
+  reporting purposes).
+
+- Grid.use_dual: boolean \
+  A flag indicating if the grid is a MPAS dual mesh.
+
+- Grid.vertices: boolean \
+  A flag indicating if the grid is built via vertices.
+
+- (*) uxarray.Grid.edge_dual: uxarray.Grid \
+  The edge dual grid.
+
+- (*) uxarray.Grid.vertex_dual: uxarray.Grid \
+  The vertex dual grid.
+
+- (*) uxarray.Grid.Mesh2_edge_types: int DataArray of size (nMesh2_edge)
   (optional; not in UGRID standard) \
   A DataArray indicating the type of edge (0 = great circle arc, 1 = line of
   constant latitude)
@@ -123,23 +185,23 @@ document, but they could be different.
   (optional; not in UGRID standard) \
   A DataArray providing face areas for each face.
 
-- (*) uxarray.Grid.Mesh2_imask: integer DataArray of size (nMesh2_face)
+- (*) uxarray.Grid.Mesh2_imask: int DataArray of size (nMesh2_face)
   (optional; not in UGRID standard) \
-  The integer mask for this grid (1 = face is active; 0 = face is inactive)
+  The int mask for this grid (1 = face is active; 0 = face is inactive)
 
-- uxarray.Grid.Mesh2_face_edges: integer DataArray of size (nMesh2_face,
+- uxarray.Grid.Mesh2_face_edges: int DataArray of size (nMesh2_face,
   MaxNumNodesPerFace) (optional) \
   A DataArray of indices indicating edges that are neighboring each face.
 
-- uxarray.Grid.Mesh2_face_links: integer DataArray of size (nMesh2_face,
+- uxarray.Grid.Mesh2_face_links: int DataArray of size (nMesh2_face,
   MaxNumNodesPerFace) (optional) \
   A DataArray of indices indicating faces that are neighboring each face.
 
-- uxarray.Grid.Mesh2_edge_faces: integer DataArray of size (nMesh2_edge,
+- uxarray.Grid.Mesh2_edge_faces: int DataArray of size (nMesh2_edge,
   Two) (optional) \
   A DataArray of indices indicating faces that are neighboring each edge.
 
-- uxarray.Grid.Mesh2_node_faces: integer DataArray of size (nMesh2_node,
+- uxarray.Grid.Mesh2_node_faces: int DataArray of size (nMesh2_node,
   MaxNumFacesPerNode) (optional) \
   A DataArray of indices indicating faces that are neighboring each node.
 
@@ -148,99 +210,59 @@ document, but they could be different.
   A DataArray of values indicating the latitude-longitude boundaries of
   each face.
 
-- (*) uxarray.Grid.Mesh2_overlapfaces_a: integer DataArray of size
+- (*) uxarray.Grid.Mesh2_overlapfaces_a: int DataArray of size
   (nMesh2_face) (optional; not in UGRID standard) \
   A DataArray of indices storing the indices of the parent face from
   grid A, available when this Grid is a supermesh.
 
-- (*) uxarray.Grid.Mesh2_overlapfaces_b: integer DataArray of size
+- (*) uxarray.Grid.Mesh2_overlapfaces_b: int DataArray of size
   (nMesh2_face) (optional; not in UGRID standard) \
   A DataArray of indices storing the indices of the parent face from
   grid B, available when this Grid is a supermesh.
 
-## uxarray.Grid  Functions
+### 3.2.2. Future Grid Attributes
 
-- uxarray.Grid.__init__(self, xarray dataset) \
-  Populate Grid object with Xarray dataset.  The routine will automatically
-  detect if it is a UGrid, SCRIP, Exodus, or shape file.
+- Grid.Mesh2_node_z: np.float64 xarray.DataArray of size (nMesh2_node) \
+  (optional)
+  3D z coordinates for nodes on the sphere.
 
-- (*) uxarray.Grid.__init__(self, string gridspec) \
-  Define a grid specified by gridspec string (analogous to the gridspec
-  used in ncremap for grid generation).
+## 3.3. Grid Methods
 
-- uxarray.Grid.__init__(self, np.float64.list vertices) \
-  Create a grid with one face with vertices specified by the given argument.
+### 3.3.1. Implemented Grid Methods
 
-- uxarray.Grid.encode_as(self, string grid_type) \
+- uxarray.Grid.__init__(self, input_obj) \
+  Populate Grid object with input_object that can be one of xarray.Dataset,
+  ndarray, list, or tuple.  The routine will automatically recognize if it is
+  a UGRID, MPAS, SCRIP, or Exodus, or shape file.
+
+- uxarray.Grid.encode_as(self, str grid_type) \
   Encode a `uxarray.Grid` as a `xarray.Dataset`in the specified grid type
   (UGRID, SCRIP, Exodus, or SHP).
 
-- uxarray.Grid.calculatefaceareas(self) \
-  Calculate the area of all faces.
+- uxarray.Grid.compute_face_areas(self, [quadrature_rule, order]) \
+  Calculate the areas of all faces.
+
+### 3.3.2. Future Grid Methods
+
+- (*) uxarray.Grid.__init__(self, str gridspec) \
+  Define a grid specified by gridspec str (analogous to the gridspec
+  used in ncremap for grid generation).
 
 - uxarray.Grid.build_node_face_connectivity(self) \
   Build the node-face connectivity array.
 
-- uxarray.Grid.build_edge_face_connectivity(self) \
+- Grid.build_edge_face_connectivity(self) \
   Build the edge-face connectivity array.
 
-- uxarray.Grid.buildlatlon_bounds(self) \
+- Grid.buildlatlon_bounds(self) \
   Build the array of latitude-longitude bounding boxes.
 
-- uxarray.Grid.validate(self) \
+- Grid.encode_as(self, str grid_type) \
+  Encode a `uxarray.Grid` as a `xarray.Dataset`in the MPAS grid type.
+
+- Grid.validate(self) \
   Validate that the grid conforms to the UGRID standards.
 
-## Additional xarray.DataArray Attributes
-
-- xarray.DataArray.grid: uxarray.Grid \
-  The grid associated with this xarray.DataArray.
-
-- xarray.type: enumeration {“vertexcentered”, “facecentered”,
-  “faceaverage”, “edgecentered”, “edgeorthogonal”, “edgeparallel”,
-  “cgll”, “dgll”} \
-  Where data is stored in this DataArray.
-
-- (*) xarray.np: integer \
-  Polynomial order of data (when using xarray.type = “cgll” or “dgll”)
-
-## Helper Functions
-
-- np.float64 uxarray.integrate(self, xarray.DataArray q,
-  uxarray.Grid region (optional)) \
-  Integrate the DataArray globally or over a specified region
-  (if specified).
-
-- xarray.DataSet uxarray.zonalmean(self, xarray.DataArray q,
-  integer bincount or binlats) \
-  Compute global zonal means over bincount latitudinal bands.
-
-- xarray.DataSet uxarray.regrid(self, xarray.DataArray q,
-  uxarray.Grid targetgrid, opts) \
-  Regrid the data to the target grid (by default via 1st order FV).
-
-- xarray.DataArray uxarray.divergence(xarray.DataArray u,
-  xarray.DataArray v) \
-  Compute the divergence of the vector field defined by u and v.
-
-- xarray.DataArray uxarray.relative_vorticity(xarray.DataArray u,
-  xarray.DataArray v) \
-  Compute the vertical component of the vorticity of the vector field defined by u and v.
-
-- xarray.DataArray uxarray.laplacian(xarray.DataArray q) \
-  Compute the scalar Laplacian of the scalar field q.
-
-- (xarray.DataArray, xarray.DataArray) uxarray.gradient(xarray.DataArray q) \
-  Compute the gradient of the scalar field q in spherical coordinates.
-
-- xarray.DataArray uxarray.scalardotgradient(xarray.DataArray u,
-  xarray.DataArray v, xarray.DataArray q) \
-  Compute the dot product between a vector field (u,v) and the gradient of a scalar field q.
-
-- (*) xarray.Grid uxarray.supermesh(uxarray.Grid a, uxarray.Grid b) \
-  Construct the supermesh, consisting of all face edges from Grids a and b.
-
-- (*) xarray.DataSet xarray.DataSet.snapshot(self, nodes) \
-  Produce snapshots of the DataArray at the specific locations via stereographic projection.
-
-- (*) xarray.DataSet xarray.DataSet.composite(self, nodes) \
-  Produce composites of the DataArray at the specific locations via stereographic projection.
+- (*) Grid Grid.supermesh(self, Grid other) \
+  Construct the supermesh, consisting of all face edges from Grids self and
+  other.
