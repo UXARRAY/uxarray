@@ -927,3 +927,13 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds.ds["Mesh2_face_nodes"].values))
+
+
+    def test_generate_Latlon_bounds_latitude_max(self):
+        """Generates a latlon_bounds Xarray from grid file."""
+        ug_filename_list = [            self.ugrid_filepath_01, self.ugrid_filepath_02,
+            self.ugrid_filepath_03]
+        for ug_file_name in ug_filename_list:
+            xr_ds = xr.open_dataset(ug_file_name)
+            tgrid1 = ux.Grid(xr_ds)
+            tgrid1.build_latlon_bounds()

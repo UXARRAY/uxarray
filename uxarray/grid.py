@@ -4,6 +4,7 @@ import xarray as xr
 import numpy as np
 import gmpy2
 from gmpy2 import mpfr, mpz
+import pandas as pd
 
 # reader and writer imports
 from ._exodus import _read_exodus, _encode_exodus
@@ -11,9 +12,11 @@ from ._ugrid import _read_ugrid, _encode_ugrid
 from ._shapefile import _read_shpfile
 from ._scrip import _read_scrip, _encode_scrip
 from ._mpas import _read_mpas
-from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, close_face_nodes
+from .helpers import get_all_face_area_from_coords, parse_grid_type, node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, \
+    close_face_nodes, get_GCR_GCR_intersections
 from .constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ, ERROR_TOLERANCE
-from .multi_precision_helpers import convert_to_multiprecision, unique_coordinates_multiprecision, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
+from .multi_precision_helpers import convert_to_multiprecision, unique_coordinates_multiprecision, \
+    precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
 
 
 class Grid:
@@ -102,8 +105,8 @@ class Grid:
                         dataset, str_mode=False, precision=self._precision)
                 # If the input are strings
                 elif np.all([
-                        np.issubdtype(type(element), np.str_)
-                        for element in dataset.ravel()
+                    np.issubdtype(type(element), np.str_)
+                    for element in dataset.ravel()
                 ]):
                     dataset = convert_to_multiprecision(
                         dataset, str_mode=True, precision=self._precision)
@@ -133,7 +136,7 @@ class Grid:
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(dataset, xr.Dataset):
             self.mesh_type = parse_grid_type(dataset)
-            #TODO: Support multiprecision for __from_ds__
+            # TODO: Support multiprecision for __from_ds__
             self.__from_ds__(dataset=dataset)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
@@ -261,8 +264,8 @@ class Grid:
         else:
             unique_verts, indices = np.unique(dataset.reshape(
                 -1, dataset.shape[-1]),
-                                              axis=0,
-                                              return_inverse=True)
+                axis=0,
+                return_inverse=True)
 
         # Nodes index that contain a fill value
         if self._multi_precision:
@@ -272,12 +275,12 @@ class Grid:
                     gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
                     for x in unique_verts[:, 0]
                 ],
-                         dtype=bool),
+                    dtype=bool),
                 np.array([
                     gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
                     for x in unique_verts[:, 1]
                 ],
-                         dtype=bool))
+                    dtype=bool))
 
             if dataset[0][0].size > 2:
                 fill_value_mask = np.logical_or(
@@ -285,17 +288,17 @@ class Grid:
                         gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
                         for x in unique_verts[:, 0]
                     ],
-                             dtype=bool),
+                        dtype=bool),
                     np.array([
                         gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
                         for x in unique_verts[:, 1]
                     ],
-                             dtype=bool),
+                        dtype=bool),
                     np.array([
                         gmpy2.cmp(x, INT_FILL_VALUE_MPZ) == 0
                         for x in unique_verts[:, 2]
                     ],
-                             dtype=bool))
+                        dtype=bool))
 
         else:
             fill_value_mask = np.logical_or(
@@ -324,7 +327,7 @@ class Grid:
                     for j in range(indices.size):
                         if gmpy2.cmp(mpz(
                                 indices[j]), mpz(idx)) > 0 and gmpy2.cmp(
-                                    mpz(indices[j]), INT_FILL_VALUE_MPZ) != 0:
+                            mpz(indices[j]), INT_FILL_VALUE_MPZ) != 0:
                             indices[j] -= 1
 
             else:
@@ -345,7 +348,7 @@ class Grid:
                                                    attrs={"units": z_units})
         else:
             self.ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] *
-                                                   0.0,
+                                                        0.0,
                                                    dims=["nMesh2_node"],
                                                    attrs={"units": z_units})
 
@@ -564,21 +567,6 @@ class Grid:
         integral = np.dot(face_areas, face_vals)
 
         return integral
-
-    def build_latlon_bounds(self):
-
-        # First make sure the Grid object has the Mesh2_face_edges
-
-        if "Mesh2_face_edges" not in self.ds.keys():
-            self._build_edge_node_connectivity()
-            self._build_face_edges_connectivity()
-
-        if "Mesh2_node_cart_x" not in self.ds.keys():
-            self._populate_cartesian_xyz_coord()
-
-        # The interval list that stores the intervals
-        interval_list = []
-        pass
 
     def _build_edge_node_connectivity(self, repopulate=False):
         """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
@@ -860,3 +848,150 @@ class Grid:
 
         # standardized attribute
         setattr(self, "nNodes_per_face", self.ds["nNodes_per_face"])
+
+    def build_latlon_bounds(self):
+
+        # First make sure the Grid object has the Mesh2_face_edges
+
+        if "Mesh2_face_edges" not in self.ds.keys():
+            self._build_edge_node_connectivity()
+            self._build_face_edges_connectivity()
+
+        if "Mesh2_node_cart_x" not in self.ds.keys():
+            self._populate_cartesian_xyz_coord()
+
+        # Use the pandas dataFrame to build interval tree
+        interval_dataframe = pd.DataFrame(columns=['start', 'end', 'face_id'])
+
+        # create a 3D array filled with FillValue
+        temp_latlon_array = np.full((self.ds["Mesh2_face_edges"].sizes["nMesh2_face"], 2, 2), INT_FILL_VALUE)
+
+        # loop over face nodes
+        for i, face_nodes in enumerate(self.ds["Mesh2_face_nodes"]):
+            # get the edges of the current face
+            face_edges_nodes = np.zeros((len(self.ds["Mesh2_face_edges"].values[i]), 2), dtype=INT_DTYPE)
+
+            # loop over edges and get their nodes
+            for j, edge_idx in enumerate(self.ds["Mesh2_face_edges"].values[i]):
+                if edge_idx == INT_FILL_VALUE:
+                    edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
+                else:
+                    edge_nodes = self.ds['Mesh2_edge_nodes'].values[edge_idx]
+
+                face_edges_nodes[j] = edge_nodes
+            # sort edge nodes in counter-clockwise order
+            starting_two_nodes_index = np.array([self.ds["Mesh2_face_nodes"][i][0], self.ds["Mesh2_face_nodes"][i][1]])
+            face_edges_nodes[0] = starting_two_nodes_index
+
+            for idx in range(1, len(face_edges_nodes)):
+                if face_edges_nodes[idx][0] == face_edges_nodes[idx - 1][1]:
+                    continue
+                else:
+                    # Swap the node index in this edge
+                    face_edges_nodes[idx][0], face_edges_nodes[idx][1] = face_edges_nodes[idx][1], \
+                        face_edges_nodes[idx][0]
+
+            # loop over edges and get their nodes
+            pass
+
+
+    def build_latlon_bounds(self):
+
+        # First make sure the Grid object has the Mesh2_face_edges
+
+        if "Mesh2_face_edges" not in self.ds.keys():
+            self._build_edge_node_connectivity()
+            self._build_face_edges_connectivity()
+
+        if "Mesh2_node_cart_x" not in self.ds.keys():
+            self._populate_cartesian_xyz_coord()
+
+        # Use the pandas dataFrame to build interval tree
+        interval_dataframe = pd.DataFrame(columns=['start', 'end', 'face_id'])
+
+        # create a 3D array filled with FillValue
+        temp_latlon_array = np.full((self.ds["Mesh2_face_edges"].sizes["nMesh2_face"], 2, 2), INT_FILL_VALUE)
+
+        # loop over face nodes
+        for i, face_nodes in enumerate(self.ds["Mesh2_face_nodes"]):
+            # get the edges of the current face
+            face_edges_nodes = np.zeros((len(self.ds["Mesh2_face_edges"].values[i]), 2), dtype=INT_DTYPE)
+
+            # loop over edges and get their nodes
+            for j, edge_idx in enumerate(self.ds["Mesh2_face_edges"].values[i]):
+                if edge_idx == INT_FILL_VALUE:
+                    edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
+                else:
+                    edge_nodes = self.ds['Mesh2_edge_nodes'].values[edge_idx]
+
+                face_edges_nodes[j] = edge_nodes
+            # sort edge nodes in counter-clockwise order
+            starting_two_nodes_index = np.array([self.ds["Mesh2_face_nodes"][i][0], self.ds["Mesh2_face_nodes"][i][1]])
+            face_edges_nodes[0] = starting_two_nodes_index
+
+            for idx in range(1, len(face_edges_nodes)):
+                if face_edges_nodes[idx][0] == face_edges_nodes[idx - 1][1]:
+                    continue
+                else:
+                    # Swap the node index in this edge
+                    face_edges_nodes[idx][0], face_edges_nodes[idx][1] = face_edges_nodes[idx][1], \
+                    face_edges_nodes[idx][0]
+
+            # loop over edges and get their nodes
+            pass
+
+    def __count_face_edge_intersection(self, face, ref_edge_cart):
+        """Helper function to count the total number of intersections points
+        between the reference edge and a face.
+        Parameters
+        ----------
+        face: xarray.DataArray, list, required
+        ref_edge_cart: 2D list, the reference edge that intersect with the face (stored in 3D xyz coordinates) [[x1, y1, z1], [x2, y2, z2]]
+        Returns:
+        num_intersection: number of intersections
+        -1: the ref_edge is parallel to one of the edge of the face and need to vary the ref_edge
+        """
+        v1 = ref_edge_cart[0]
+        v2 = ref_edge_cart[1]
+        intersection_set = set()
+        num_intersection = 0
+
+        if "Mesh2_node_cart_x" not in self.ds.keys():
+            self._populate_cartesian_xyz_coord()
+
+        for edge in face:
+            # Skip the dump edges
+            if edge[0] == INT_FILL_VALUE or edge[1] == INT_FILL_VALUE:
+                continue
+            # All the following calculation is based on the 3D XYZ coord
+
+            # read from the cartesian coordinate attribue
+            w1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]], self.ds["Mesh2_node_cart_y"].values[edge[0]], self.ds["Mesh2_node_cart_z"].values[edge[0]]]
+            w2 =  [self.ds["Mesh2_node_cart_x"].values[edge[1]], self.ds["Mesh2_node_cart_y"].values[edge[1]], self.ds["Mesh2_node_cart_z"].values[edge[1]]]
+
+            res = get_GCR_GCR_intersections(w1, w2, v1, v2)
+
+            # two vectors are intersected within range and not parralel
+            if (res != [0, 0, 0]) and (res != [-1, -1, -1]):
+                intersection_set.add(frozenset(np.round(res, decimals=12).tolist()))
+                num_intersection += 1
+            elif res[0] == 0 and res[1] == 0 and res[2] == 0:
+                # if two vectors are parallel
+                return -1
+
+        # If the intersection point number is 1, make sure the gcr is not going through a vertex of the face
+        # In this situation, the intersection number will be 0 because the gcr doesn't go across the face technically
+        if len(intersection_set) == 1:
+            intersection_pt = intersection_set.pop()
+            for edge in face:
+                if edge[0] == INT_FILL_VALUE or edge[1] == INT_FILL_VALUE:
+                    continue
+                w1 = [self.ds["Mesh2_node_cart_x"].values[edge[0]], self.ds["Mesh2_node_cart_y"].values[edge[0]],
+                      self.ds["Mesh2_node_cart_z"].values[edge[0]]]
+                w2 = [self.ds["Mesh2_node_cart_x"].values[edge[1]], self.ds["Mesh2_node_cart_y"].values[edge[1]],
+                      self.ds["Mesh2_node_cart_z"].values[edge[1]]]
+
+                if list(intersection_pt) == w1 or list(intersection_pt) == w2:
+                    return 0
+
+        return len(intersection_set)
