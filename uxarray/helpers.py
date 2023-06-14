@@ -758,9 +758,28 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
             np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(
                 np.hstack((gcr1_cart, gcr2_cart)))):
         # The two GCRs are in the mpfr format
-        pass
+        w0w1_norm = mp_cross(w0, w1)
+        v0v1_norm = mp_cross(v0, v1)
+
+        cross_norms = mp_cross(w0w1_norm, v0v1_norm)
+
+        if all(gmpy2.cmp(arr_val, gmpy2.mpfr('0')) == 0 for arr_val in cross_norms):
+            return np.array([gmpy2.mpfr('0'), gmpy2.mpfr('0'), gmpy2.mpfr('0')])
+
+        x1 = mp_cross(w0w1_norm, cross_norms)
+        x2 = -x1
+
+        # Find out whether X1 or X2 is within the interval [w0, w1]
+        if point_within_GCR(x1, [w0, w1]) and point_within_GCR(x1, [v0, v1]):
+            return x1
+        elif point_within_GCR(x2, [w0, w1]) and point_within_GCR(x2, [v0, v1]):
+            return x2
+        elif all(gmpy2.cmp(arr_val, gmpy2.mpfr('0')) == 0 for arr_val in x1):
+            return  [gmpy2.mpfr('0'), gmpy2.mpfr('0'), gmpy2.mpfr('0')]  # two vectors are parallel to each other
+        else:
+            return  [gmpy2.mpfr('-1'), gmpy2.mpfr('-1'), gmpy2.mpfr('-1')]  # Intersection out of the interval or
     else:
-        # Do the normal numpy calculation
+
         w0w1_norm = np.cross(w0, w1)
         v0v1_norm = np.cross(v0, v1)
 
@@ -772,13 +791,15 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
         x1 = np.cross(w0w1_norm, cross_norms)
         x2 = -x1
 
-        if np.all(np.isclose(x1, x2, atol=ERROR_TOLERANCE)):
-            return x1.reshape(1, -1)
-
-        mask = np.logical_and(point_within_GCR(x1, gcr1_cart),
-                              point_within_GCR(x1, gcr2_cart))
-
-        return np.array([x1, x2])[mask]
+        # Find out whether X1 or X2 is within the interval [w0, w1]
+        if point_within_GCR(x1, [w0, w1]) and point_within_GCR(x1, [v0, v1]):
+            return x1
+        elif point_within_GCR(x2, [w0, w1]) and point_within_GCR(x2, [v0, v1]):
+            return x2
+        elif np.all(x1 == 0):
+            return np.array([0, 0, 0])  # two vectors are parallel to each other
+        else:
+            return np.array([-1, -1, -1])  # Intersection out of the interval or
 
 
 def point_within_GCR(pt, gcr_cart):
