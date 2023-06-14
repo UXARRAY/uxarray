@@ -7,7 +7,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 
 config.DISABLE_JIT = False
 
@@ -474,12 +474,12 @@ def node_lonlat_rad_to_xyz(node_coord):
 
     Parameters
     ----------
-    node: list, python `float` or `gmpy2.mpfr`
+    node: list or np.array, python `float` or `gmpy2.mpfr`
         2D coordinates[longitude, latitude] in radiance
 
     Returns
     ----------
-    node_cartesian: list, python `float` or `gmpy2.mpfr`
+    node_cartesian: np.array, python `float` or `gmpy2.mpfr`
         the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -487,6 +487,8 @@ def node_lonlat_rad_to_xyz(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
+    if isinstance(node_coord, list):
+        node_coord = np.array(node_coord)
     if len(node_coord) != 2:
         raise RuntimeError(
             "Input array should have a length of 2: [longitude, latitude]")
@@ -495,19 +497,18 @@ def node_lonlat_rad_to_xyz(node_coord):
                 node_coord)):
         lon = node_coord[0]
         lat = node_coord[1]
-        return [
-            gmpy2.mul(gmpy2.cos(lon), gmpy2.cos(lat)),
-            gmpy2.mul(gmpy2.sin(lon), gmpy2.cos(lat)),
+        return np.array([
+            gmpy2.cos(lon) * gmpy2.cos(lat),
+            gmpy2.sin(lon) * gmpy2.cos(lat),
             gmpy2.sin(lat)
-        ]
+        ])
     else:
         lon = node_coord[0]
         lat = node_coord[1]
-        return [
-            np.cos(lon) * np.cos(lat),
-            np.sin(lon) * np.cos(lat),
-            np.sin(lat)
-        ]
+        return np.array(
+            [np.cos(lon) * np.cos(lat),
+             np.sin(lon) * np.cos(lat),
+             np.sin(lat)])
 
 
 def node_xyz_to_lonlat_rad(node_coord):
@@ -516,12 +517,12 @@ def node_xyz_to_lonlat_rad(node_coord):
 
     Parameters
     ----------
-    node_coord: list, python `float` or `gmpy2.mpfr`
+    node_coord: np.array or python list of `float` or gmpy2.mpfr
         3D Cartesian Coordinates [x, y, z] of the node
 
     Returns
     ----------
-    node_coord_rad: list, python `float` or `gmpy2.mpfr`
+    node_coord_rad: np.array of `float` or gmpy2.mpfr
         the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
 
     Raises
@@ -529,6 +530,11 @@ def node_xyz_to_lonlat_rad(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
+    if isinstance(node_coord, list):
+        node_coord = np.array(node_coord)
+    elif not isinstance(node_coord, np.ndarray):
+        raise TypeError(
+            "Input node_coord should be either a numpy array or a list.")
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     if np.any(
@@ -541,20 +547,19 @@ def node_xyz_to_lonlat_rad(node_coord):
             d_lat_rad = gmpy2.asin(dz)
 
             if gmpy2.cmp(d_lon_rad, mpfr('0.0')) < 0:
-                d_lon_rad += gmpy2.mul(mpfr('2.0'), gmpy2.const_pi())
+                d_lon_rad += mpfr('2.0') * gmpy2.const_pi()
         elif gmpy2.cmp(dz, mpfr('0.0')) > 0:
             d_lon_rad = mpfr('0.0')
-            d_lat_rad = gmpy2.mul(mpfr('0.5'), gmpy2.const_pi())
+            d_lat_rad = mpfr('0.5') * gmpy2.const_pi()
         else:
             d_lon_rad = mpfr('0.0')
-            d_lat_rad = gmpy2.mul(mpfr('-0.5'), gmpy2.const_pi())
+            d_lat_rad = mpfr('-0.5') * gmpy2.const_pi()
 
-        return [d_lon_rad, d_lat_rad]
+        return np.array([d_lon_rad, d_lat_rad])
     else:
-        reference_tolerance = 1.0e-12
         [dx, dy, dz] = normalize_in_place(node_coord)
 
-        if np.absolute(dz) < (1.0 - reference_tolerance):
+        if np.absolute(dz) < (1.0 - ERROR_TOLERANCE):
             d_lon_rad = math.atan2(dy, dx)
             d_lat_rad = np.arcsin(dz)
 
@@ -567,7 +572,7 @@ def node_xyz_to_lonlat_rad(node_coord):
             d_lon_rad = 0.0
             d_lat_rad = -0.5 * np.pi
 
-        return [d_lon_rad, d_lat_rad]
+        return np.array([d_lon_rad, d_lat_rad])
 
 
 def normalize_in_place(node):
@@ -577,12 +582,12 @@ def normalize_in_place(node):
 
     Parameters
     ----------
-    node: list, python `float` or gmpy2.mpfr
+    node: np.array or python list of `float` or gmpy2.mpfr
         3D Cartesian Coordinates [x, y, z]
 
     Returns
     ----------
-    normalized_node: list, python `float` or gmpy2.mpfr
+    normalized_node: np. array of `float` or gmpy2.mpfr
         the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -590,7 +595,12 @@ def normalize_in_place(node):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    if len(node) != 3:
+    if isinstance(node, list):
+        node = np.array(node)
+    elif not isinstance(node, np.ndarray):
+        raise TypeError("Input node should be either a numpy array or a list.")
+
+    if node.size != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
     if np.any(
@@ -602,10 +612,13 @@ def normalize_in_place(node):
         # Divide each element of the node by the norm using gmpy2
         normalized_node = [gmpy2.div(element, norm) for element in node]
 
-        # Convert the result back to numpy array
-        return np.array(normalized_node)
+        # Convert the result back to numpy array or list depending on the input type
+        if isinstance(node, np.ndarray):
+            return np.array(normalized_node)
+        else:
+            return normalized_node
     else:
-        return np.array(node) / np.linalg.norm(np.array(node), ord=2)
+        return node / np.linalg.norm(node, ord=2)
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
