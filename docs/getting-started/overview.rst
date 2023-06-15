@@ -18,7 +18,8 @@ typical Structured Grids in terms of complexity, requiring additional overhead t
 store and represent their geometry and topology. However, these types of
 grids are extremely flexible and scalable.
 
-UXarray uses the UGRID conventions as a
+UXarray uses the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_  
+conventions as a
 foundation to represent Unstructured Grids. These conventions
 are intended to describe how these grids should be stored within a NetCDF file, with
 a particular focus on environmental and geoscience applications. We chose to use a
