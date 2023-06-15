@@ -8,7 +8,7 @@ from uxarray.core.grid import Grid
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from
-    `xarray.DataArray` and has its own unstructured grid-aware array operators
+    ``xarray.DataArray`` and has its own unstructured grid-aware array operators
     and attributes through the ``uxgrid`` accessor.
 
     Parameters
