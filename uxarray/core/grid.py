@@ -469,6 +469,11 @@ class Grid:
 
         Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
         DataType ``INT_DTYPE``.
+
+        Faces can have arbitrary length, with _FillValue=-1 used when faces
+        have fewer nodes than MaxNumNodesPerFace.
+
+        Nodes are in counter-clockwise order.
         """
 
         return self._ds[self.grid_var_names["Mesh2_face_nodes"]]
@@ -480,6 +485,8 @@ class Grid:
 
         Dimensions (``nMesh2_edge``, ``Two``) and DataType
         ``INT_DTYPE``.
+
+        Nodes are in arbitrary order.
         """
         if "Mesh2_edge_nodes" not in self._ds:
             self._build_edge_node_connectivity()
