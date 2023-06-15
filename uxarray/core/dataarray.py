@@ -22,7 +22,7 @@ class UxDataArray(xr.DataArray):
     Other Parameters
     ----------------
     *args:
-        Arguments for the `xarray.DataArray` class
+        Arguments for the ``xarray.DataArray`` class
     **kwargs:
         Keyword arguments for the `xarray.DataArray` class
 
