@@ -372,13 +372,13 @@ class TestIntersectionPoint(TestCase):
             ux.helpers.point_within_GCR(pt_same_lon_in, gcr_same_lon_cart))
 
         pt_same_lon_out = ux.helpers.node_lonlat_rad_to_xyz(
-            [0, 1.500000000000005])
+            [0, 1.500000000000001])
         res = ux.helpers.point_within_GCR(pt_same_lon_out, gcr_same_lon_cart)
         self.assertFalse(res)
 
         # And if we increase the digital place by one, it should be true again
         pt_same_lon_out_add_one_place = ux.helpers.node_lonlat_rad_to_xyz(
-            [0, 1.5000000000000005])
+            [0, 1.5000000000000001])
         res = ux.helpers.point_within_GCR(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
         self.assertTrue(res)
 
@@ -429,7 +429,7 @@ class TestIntersectionPoint(TestCase):
 
     def test_pt_within_gcr_multiprecision(self):
 
-        set_global_precision(55)
+        set_global_precision(64)
 
         # Test when the point and the GCR all have the same longitude
         gcr_same_lon_cart = [
@@ -444,13 +444,13 @@ class TestIntersectionPoint(TestCase):
             ux.helpers.point_within_GCR(pt_same_lon_in, gcr_same_lon_cart))
 
         pt_same_lon_out = ux.helpers.node_lonlat_rad_to_xyz(
-            [mpfr('0'), mpfr('1.500000000000005')])
+            [mpfr('0'), mpfr('1.500000000000001')])
         res = ux.helpers.point_within_GCR(pt_same_lon_out, gcr_same_lon_cart)
         self.assertFalse(res)
 
         # And if we increase the digital place by one, it should be still be false in the multiprecision case
         pt_same_lon_out_add_one_place = ux.helpers.node_lonlat_rad_to_xyz(
-            [mpfr('0'), mpfr('1.5000000000000005')])
+            [mpfr('0'), mpfr('1.5000000000000001')])
         res = ux.helpers.point_within_GCR(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
         self.assertFalse(res)
 

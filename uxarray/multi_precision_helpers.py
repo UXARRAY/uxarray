@@ -150,13 +150,16 @@ def unique_coordinates_multiprecision(input_array_mpfr,
     unique_dict = {}
     current_index = 0
 
+    # The decimal digits of the precision
+    precision_width = precision_bits_to_decimal_digits(precision)
+
     for i in range(m):
         # We only need to check the first element of each row since the elements in the same row are the same type
         # (Either mpfr for valid coordinates or INT_FILL_VALUE_MPZ for fill values)
         if type(input_array_mpfr[i][0]) == gmpy2.mpfr:
-            format_string = "{0:+." + str(precision + 1) + "Uf}"
+            format_string = "{0:+." + str(precision_width) + "Uf}"
         elif type(input_array_mpfr[i][0]) == gmpy2.mpz:
-            format_string = "{:<+" + str(precision + 1) + "d}"
+            format_string = "{:<+" + str(precision_width) + "d}"
         else:
             raise ValueError(
                 'The input array should be in the mpfr/mpz type. You can use convert_to_multiprecision() '

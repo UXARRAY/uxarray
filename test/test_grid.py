@@ -937,3 +937,8 @@ class TestConnectivity(TestCase):
             xr_ds = xr.open_dataset(ug_file_name)
             tgrid1 = ux.Grid(xr_ds)
             tgrid1.build_latlon_bounds()
+
+class TestIntersection(TestCase):
+
+    def test__count_face_edge_intersection(self):
+        pass

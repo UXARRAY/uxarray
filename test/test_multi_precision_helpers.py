@@ -111,10 +111,10 @@ class TestMultiPrecision(TestCase):
                         self.assertTrue(gmpy2.cmp(val, INT_FILL_VALUE_MPZ) == 0)
 
     def test_unique_coordinates_multiprecision_normal_case(self):
-        """The input cartesian coordinates represents 8 vertices on a cube 7.
+        """The input cartesian coordinates represents 8 vertices on a cube
 
-        ---------6.
 
+            7---------6
           /|        /|
          / |       / |
         3---------2  |
