@@ -22,7 +22,7 @@ class UxDataset(xr.Dataset):
         The ``Grid`` object that makes this array aware of the unstructured
         grid topology it belongs to.
 
-        If `None`, it needs to be an instance of `uxarray.Grid`.
+        If ``None``, it needs to be an instance of ``uxarray.Grid``.
 
     Other Parameters
     ----------------
