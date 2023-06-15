@@ -19,7 +19,7 @@ class UxDataset(xr.Dataset):
     Parameters
     ----------
     uxgrid : uxarray.Grid, optional
-        The `Grid` object that makes this array aware of the unstructured
+        The ``Grid`` object that makes this array aware of the unstructured
         grid topology it belongs to.
 
         If `None`, it needs to be an instance of `uxarray.Grid`.
