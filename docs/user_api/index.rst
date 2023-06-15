@@ -13,8 +13,12 @@ documentation to see the tentative whole API and let us know if you have any fee
 
 UxDataset
 =========
-The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``. Below is a list of
-features explicitly added to work on Unstructured Grids.
+A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
+Inherits from ``xarray.Dataset`` and has its own unstructured grid-aware
+dataset operators and attributes through the ``uxgrid`` accessor.
+
+Below is a list of features explicitly added to `UxDataset` to work on
+Unstructured Grids:
 
 
 Class
@@ -51,8 +55,12 @@ Methods
 
 UxDataArray
 ===========
-The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list
-of features explicitly added to work on Unstructured Grids.
+N-dimensional ``xarray.DataArray``-like array. Inherits from `xarray.DataArray`
+and has its own unstructured grid-aware array operators and attributes through
+the ``uxgrid`` accessor.
+
+Below is a list of features explicitly added to `UxDataset` to work on
+Unstructured Grids:
 
 Class
 -----
@@ -73,6 +81,12 @@ Attributes
 
 Grid
 ===========
+Unstructured grid topology definition to store stores grid topology dimensions,
+coordinates, variables and provides grid-specific functions.
+
+Can be used standalone to explore an unstructured grid topology, or can be
+seen as the property of ``uxarray.UxDataset`` and ``uxarray.DataArray`` to make
+them unstructured grid-aware data sets and arrays.
 
 Class
 ----------
