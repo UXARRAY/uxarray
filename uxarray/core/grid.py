@@ -10,7 +10,8 @@ from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
-                                   node_lonlat_rad_to_xyz, close_face_nodes, _is_ugrid)
+                                   node_lonlat_rad_to_xyz, close_face_nodes,
+                                   _is_ugrid)
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -265,6 +266,7 @@ class Grid:
         # TODO: Add more checks
 
         return valid
+
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
