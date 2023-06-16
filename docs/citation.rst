@@ -2,17 +2,17 @@
 
 .. _citation:
 
-How to Cite Uxarray
+How to Cite UXarray
 ===================
 
-Cite Uxarray using the following text:
+Cite UXarray using the following text:
 
-**UXARRAY Organization. (Year).
-Uxarray (version \<version\>) [Software].
+**UXarray Organization. (Year).
+UXarray (version \<version\>) [Software].
 Project Raijin & Project SEATS. doi:10.5281/zenodo.<doi-part-per-version>.**
 
-Update the year, Uxarray version, and DOI part for UXarray version as appropriate. For example:
+Update the year, UXarray version, and DOI part for UXarray version as appropriate. For example:
 
-**UXARRAY Organization. (2021).
-Uxarray (version 0.0.2) [Software].
+**UXarray Organization. (2021).
+UXarray (version 0.0.2) [Software].
 Project Raijin & Project SEATS. doi:10.5281/zenodo.5658256.**
