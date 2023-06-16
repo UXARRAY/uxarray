@@ -992,9 +992,6 @@ class Grid:
             dims=["nMesh2_face"],
             attrs={"long_name": "number of non-fill value nodes for each face"})
 
-        # standardized attribute
-        setattr(self, "nNodes_per_face", self.ds["nNodes_per_face"])
-
     def _build_face_coordinates(self, repopulate=False):
         """Constructs the UGRID coordinate variables Mesh2_face_x and
         Mesh2_face_y, representing the center longitude and latitude of each
