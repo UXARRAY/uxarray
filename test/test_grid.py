@@ -795,8 +795,8 @@ class TestConnectivity(TestCase):
         grid = ux.Grid(xrDS)
 
         # Get the expected center longitudes and latitudes from the MPAS dataset
-        expectValuesX = grid.ds["Mesh2_face_x"].values
-        expectValuesY = grid.ds["Mesh2_face_y"].values
+        expectValuesX = grid._ds["Mesh2_face_x"].values
+        expectValuesY = grid._ds["Mesh2_face_y"].values
         # Call the _build_face_coordinates method
         grid._build_face_coordinates(repopulate=True)
 

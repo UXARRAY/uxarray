@@ -1010,17 +1010,13 @@ class Grid:
             Mesh2_face_y.append(np.mean(node_y[cur_face_nodes[0:n_nodes]]))
 
         # Assign the coordinates to the internal dataset (self.ds) if needed
-        if "Mesh2_face_y" not in self.ds or repopulate:
-            self.ds["Mesh2_face_x"] = xr.DataArray(
+        if "Mesh2_face_y" not in self._ds or repopulate:
+            self._ds["Mesh2_face_x"] = xr.DataArray(
                 Mesh2_face_x,
                 dims=["nMesh2_face"],
                 attrs={"standard_name": "center_longitude"})
-        if "Mesh2_face_y" not in self.ds or repopulate:
-            self.ds["Mesh2_face_y"] = xr.DataArray(
+        if "Mesh2_face_y" not in self._ds or repopulate:
+            self._ds["Mesh2_face_y"] = xr.DataArray(
                 Mesh2_face_y,
                 dims=["nMesh2_face"],
                 attrs={"standard_name": "center_latitude"})
-
-        # Set the attributes in the class instance for accessibility if needed
-        setattr(self, "Mesh2_face_x", self.ds["Mesh2_face_x"])
-        setattr(self, "Mesh2_face_y", self.ds["Mesh2_face_y"])
