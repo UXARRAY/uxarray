@@ -12,4 +12,4 @@
 
 - title: Working with MPAS Grids
   path: examples/004-working-with-mpas-grids.ipynb
-  thumbnail: _static/thumbnails/default.svg
+  thumbnail: _static/examples/mpas/c-grid.png
