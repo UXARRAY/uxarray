@@ -940,5 +940,11 @@ class TestConnectivity(TestCase):
 
 class TestIntersection(TestCase):
 
-    def test__count_face_edge_intersection(self):
+    def test_count_face_edge_intersection(self):
+
+        # The 0 latitude line go across the face (Two intersections)
+        face = [[170, 360], [170, 10], [10, 10], [10, 360]]
+        edge = [ux.helpers.node_lonlat_rad_to_xyz([0.5 * np.pi, 0]), ux.helpers.node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0])]
+        vgrid = ux.Grid(face, is_latlon=True)
+        res = vgrid.count_face_edge_intersection(0, edge)
         pass

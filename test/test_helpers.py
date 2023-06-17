@@ -503,3 +503,15 @@ class TestIntersectionPoint(TestCase):
         self.assertTrue(ux.helpers.point_within_GCR(pt_cart, gcr_car_flipped))
 
         set_global_precision()
+
+    def test_get_GCR_GCR_intersections(self):
+        GCR1_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(360)]), ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(10)])])
+        GCR2_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([0.5 * np.pi, 0]), ux.helpers.node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0])])
+        res = ux.helpers.get_GCR_GCR_intersections(GCR1_cart, GCR2_cart)
+        pass
+
+    def test_plot_vector(self):
+        # Example usage
+        vectors = [[ 3.01536896e-02 * 100,1.71010072e-01 * 100,-2.77555756e-17 * 100], [ 0., -0.,0.00999983 * 100], [ 0.00171007 * 100,-0.00030153 * 100, -0.]]  # Example vectors
+        ux.plot_vectors_on_sphere(vectors, labels=['w0w1norm', 'v1v0norm', 'crossnorm'])
+

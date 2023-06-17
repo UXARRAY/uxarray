@@ -940,7 +940,7 @@ class Grid:
             # loop over edges and get their nodes
             pass
 
-    def __count_face_edge_intersection(self, face_edge_nodes, ref_edge_cart):
+    def count_face_edge_intersection(self, face_id, ref_edge_cart):
         """Helper function to count the total number of intersection points
         between the reference edge and a face.
 
@@ -958,6 +958,35 @@ class Grid:
         -1 : int
             Indicates that the ref_edge is parallel to one of the edges of the face and the ref_edge needs to be varied.
         """
+        if "Mesh2_face_edges" not in self.ds.keys():
+            self._build_edge_node_connectivity()
+            self._build_face_edges_connectivity()
+
+        if "Mesh2_node_cart_x" not in self.ds.keys():
+            self._populate_cartesian_xyz_coord()
+
+        face_edge_nodes = np.zeros((len(self.ds["Mesh2_face_edges"].values[face_id]), 2), dtype=INT_DTYPE)
+
+        # loop over edges and get their nodes
+        for j, edge_idx in enumerate(self.ds["Mesh2_face_edges"].values[face_id]):
+            if edge_idx == INT_FILL_VALUE:
+                edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
+            else:
+                edge_nodes = self.ds['Mesh2_edge_nodes'].values[edge_idx]
+
+            face_edge_nodes[j] = edge_nodes
+        # sort edge nodes in counter-clockwise order
+        starting_two_nodes_index = np.array([self.ds["Mesh2_face_nodes"][face_id][0], self.ds["Mesh2_face_nodes"][face_id][1]])
+        face_edge_nodes[0] = starting_two_nodes_index
+
+        for idx in range(1, len(face_edge_nodes)):
+            if face_edge_nodes[idx][0] == face_edge_nodes[idx - 1][1]:
+                continue
+            else:
+                # Swap the node index in this edge
+                face_edge_nodes[idx][0], face_edge_nodes[idx][1] = face_edge_nodes[idx][1], \
+                    face_edge_nodes[idx][0]
+
 
         v1 = ref_edge_cart[0]
         v2 = ref_edge_cart[1]
@@ -984,7 +1013,17 @@ class Grid:
                 self.ds["Mesh2_node_cart_z"].values[edge[1]]
             ]
 
-            res = get_GCR_GCR_intersections(w1, w2, v1, v2)
+            w1_latlon = [
+                self.ds["Mesh2_node_x"].values[edge[0]],
+                self.ds["Mesh2_node_y"].values[edge[0]]
+            ]
+
+            w2_latlon = [
+                self.ds["Mesh2_node_x"].values[edge[1]],
+                self.ds["Mesh2_node_y"].values[edge[1]]
+            ]
+
+            res = get_GCR_GCR_intersections(np.array([w1, w2]), np.array([v1, v2]))
 
             # Check if two vectors are intersected within range and not parallel
             if not np.array_equal(res, np.array([0, 0, 0])) and not np.array_equal(res, np.array([-1, -1, -1])):

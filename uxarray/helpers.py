@@ -7,6 +7,9 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 from typing import Union
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 from uxarray.multi_precision_helpers import mp_dot, mp_cross
@@ -748,11 +751,13 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
         Cartesian coordinates of the intersection point(s)
     """
     # Check if the two GCRs are in the cartesian format (size of three)
-    if gcr1_cart.shape[0] != 3 or gcr2_cart.shape[0] != 3:
+    if gcr1_cart.shape[1] != 3 or gcr2_cart.shape[1] != 3:
         raise ValueError(
             "The two GCRs must be in the cartesian[x, y, z] format")
     w0, w1 = gcr1_cart
     v0, v1 = gcr2_cart
+    v0_latlon = node_xyz_to_lonlat_rad(v0)
+    v1_latlon = node_xyz_to_lonlat_rad(v1)
     # Check if the two GCRs are in the mpfr format (contains type of mpfr)
     if np.any(
             np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(
@@ -790,6 +795,9 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
 
         x1 = np.cross(w0w1_norm, cross_norms)
         x2 = -x1
+
+        x1_latlon = node_xyz_to_lonlat_rad(x1)
+        x2_latlon = node_xyz_to_lonlat_rad(x2)
 
         # Find out whether X1 or X2 is within the interval [w0, w1]
         if point_within_GCR(x1, [w0, w1]) and point_within_GCR(x1, [v0, v1]):
@@ -937,3 +945,37 @@ def is_between(p: Union[float, gmpy2.mpfr], q: Union[float, gmpy2.mpfr],
             r, q) <= 0 <= gmpy2.cmp(p, q)
     else:
         return p <= q <= r or r <= q <= p
+
+def plot_vectors_on_sphere(vectors_cart, labels):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Generate theta and phi values for the sphere
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    x = np.outer(np.cos(u), np.sin(v))
+    y = np.outer(np.sin(u), np.sin(v))
+    z = np.outer(np.ones(np.size(u)), np.cos(v))
+
+    # Plot the sphere
+    ax.plot_surface(x, y, z, color='b', alpha=0.1)
+
+    # Plot the vectors and labels
+    for i, vector in enumerate(vectors_cart):
+        x, y, z = vector
+        ax.quiver(0, 0, 0, x, y, z, color='r')
+        ax.text(x, y, z, labels[i], color='r')
+
+    # Set plot limits and labels
+    ax.set_xlim([-1, 1])
+    ax.set_ylim([-1, 1])
+    ax.set_zlim([-1, 1])
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    # Show the plot
+    plt.show()
+
+
+
