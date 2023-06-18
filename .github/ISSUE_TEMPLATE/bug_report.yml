@@ -1,0 +1,39 @@
+name: Bug Report
+description: Report a bug. For security vulnerabilities see Report a security vulnerability in the templates.
+title: "BUG: <Please write a comprehensive title after the 'BUG: ' prefix>"
+labels: bug
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      Thank you for taking the time to file a bug report. Before creating a new
+      issue, please make sure to take a few minutes to check the issue tracker
+      for existing issues about the bug.
+
+- type: textarea
+  attributes:
+    label: "What happened?"
+  validations:
+    required: true
+
+- type: textarea
+  attributes:
+    label: "What did you expect to happen?"
+  validations:
+    required: true
+
+- type: textarea
+  attributes:
+    label: "Can you provide a MCVE to repoduce the bug?"
+    description: >
+      A short MCVE (Minimum Complete Verifiable Example) that
+      that reproduces the problem/missing feature. It should be
+      self-contained, i.e., can be copy-pasted into the Python
+      interpreter or run as-is via `python myproblem.py`.
+    placeholder: |
+      import uxarray as ux
+      << your code here >>
+    render: python
+  validations:
+    required: false
