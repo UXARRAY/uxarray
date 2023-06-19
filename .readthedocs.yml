@@ -9,11 +9,9 @@ build:
   os: "ubuntu-20.04"
   tools:
     python: "mambaforge-4.10"
-
-python:
-  install:
-    - method: pip
-      path: .
+  jobs:
+    post_create_environment:
+      - pip install . --no-deps -vv
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
