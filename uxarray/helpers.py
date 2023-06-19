@@ -8,9 +8,8 @@ from numba import njit, config
 import math
 from typing import Union
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
+import numpy as np
+import plotly.graph_objs as go
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 from uxarray.multi_precision_helpers import mp_dot, mp_cross
 
@@ -786,7 +785,11 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
     else:
 
         w0w1_norm = np.cross(w0, w1)
+        orthogonal_basis = gram_schmidt([w0w1_norm, w0, w1])
+        w0w1norm_orthogonal = orthogonal_basis[0]
+        vector_plot([w0, w1, w0w1norm_orthogonal], labels=['w0', 'w1', 'w0w1norm'])
         v0v1_norm = np.cross(v0, v1)
+        # vector_plot([v0, v1, v0v1_norm], labels=['v0', 'v1', 'w0w1norm'])
 
         cross_norms = np.cross(w0w1_norm, v0v1_norm)
 
@@ -809,7 +812,14 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
         else:
             return np.array([-1, -1, -1])  # Intersection out of the interval or
 
-
+def gram_schmidt(vectors):
+    basis = []
+    for v in vectors:
+        for b in basis:
+            v -= np.dot(v, b) * b
+        if np.linalg.norm(v) > 1e-6:
+            basis.append(v / np.linalg.norm(v))
+    return basis
 def point_within_GCR(pt, gcr_cart):
     """Check if a point is on a given Great Circle Arc. The anti-meridian case
     is already considered.
@@ -946,36 +956,46 @@ def is_between(p: Union[float, gmpy2.mpfr], q: Union[float, gmpy2.mpfr],
     else:
         return p <= q <= r or r <= q <= p
 
-def plot_vectors_on_sphere(vectors_cart, labels):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
 
-    # Generate theta and phi values for the sphere
-    u = np.linspace(0, 2 * np.pi, 100)
-    v = np.linspace(0, np.pi, 100)
-    x = np.outer(np.cos(u), np.sin(v))
-    y = np.outer(np.sin(u), np.sin(v))
-    z = np.outer(np.ones(np.size(u)), np.cos(v))
 
-    # Plot the sphere
-    ax.plot_surface(x, y, z, color='b', alpha=0.1)
+def vector_plot(tvects, labels=None, is_vect=True, orig=[0, 0, 0]):
+    """Plot vectors using plotly."""
 
-    # Plot the vectors and labels
-    for i, vector in enumerate(vectors_cart):
-        x, y, z = vector
-        ax.quiver(0, 0, 0, x, y, z, color='r')
-        ax.text(x, y, z, labels[i], color='r')
+    if is_vect:
+        if not hasattr(orig[0], "__iter__"):
+            coords = [[orig, np.sum([orig, v], axis=0)] for v in tvects]
+        else:
+            coords = [[o, np.sum([o, v], axis=0)] for o, v in zip(orig, tvects)]
+    else:
+        coords = tvects
 
-    # Set plot limits and labels
-    ax.set_xlim([-1, 1])
-    ax.set_ylim([-1, 1])
-    ax.set_zlim([-1, 1])
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
+    data = []
+    for i, c in enumerate(coords):
+        X1, Y1, Z1 = zip(c[0])
+        X2, Y2, Z2 = zip(c[1])
+        vector = go.Scatter3d(x=[X1[0], X2[0]],
+                              y=[Y1[0], Y2[0]],
+                              z=[Z1[0], Z2[0]],
+                              marker=dict(size=[0, 5],
+                                          color=['blue'],
+                                          line=dict(width=5,
+                                                    color='DarkSlateGrey')),
+                              name='Vector' + str(i + 1))
+        data.append(vector)
 
-    # Show the plot
-    plt.show()
+        if labels is not None:
+            label = go.Scatter3d(x=[X2[0]],
+                                 y=[Y2[0]],
+                                 z=[Z2[0]],
+                                 text=[labels[i]],
+                                 mode='text',
+                                 name='Label' + str(i + 1))
+            data.append(label)
+
+    layout = go.Layout(margin=dict(l=4, r=4, b=4, t=4))
+    fig = go.Figure(data=data, layout=layout)
+    fig.show()
+
 
 
 

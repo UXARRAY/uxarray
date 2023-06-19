@@ -512,6 +512,10 @@ class TestIntersectionPoint(TestCase):
 
     def test_plot_vector(self):
         # Example usage
-        vectors = [[ 3.01536896e-02 * 100,1.71010072e-01 * 100,-2.77555756e-17 * 100], [ 0., -0.,0.00999983 * 100], [ 0.00171007 * 100,-0.00030153 * 100, -0.]]  # Example vectors
-        ux.plot_vectors_on_sphere(vectors, labels=['w0w1norm', 'v1v0norm', 'crossnorm'])
+        vectors = [ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(360)]), ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(10)]), [ 3.01536896e-02,1.71010072e-01,-2.77555756e-17] ] # Example vectors
+        ux.vector_plot(vectors, labels=['w0', 'w1', 'w0w1norm'])
+        vectors = [ux.helpers.node_lonlat_rad_to_xyz([0.5 * np.pi, 0]), ux.helpers.node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0]), [ 0., -0.,0.00999983] ] # Example vectors
+        ux.vector_plot(vectors, labels=['v0', 'v1', 'v0v1norm'])
+        # vectors = [[ 3.01536896e-02,1.71010072e-01,-2.77555756e-17], [ 0., -0.,0.00999983], [ 0.00171007,-0.00030153, -0.]]  # Example vectors
+        # ux.vector_plot(vectors, labels=['w0w1norm', 'v1v0norm', 'crossnorm'])
 
