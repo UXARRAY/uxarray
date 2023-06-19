@@ -54,6 +54,8 @@ extensions = [
     "nbsphinx",
 ]
 
+mathjax_path = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
     "pull": ("https://github.com/uxarray/uxarray/pull/%s", "PR"),
