@@ -54,7 +54,38 @@ extensions = [
     "nbsphinx",
 ]
 
-mathjax_path = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+mathjax_config = {
+    'tex2jax': {
+        'inlineMath': [['$', '$'], ['\\(', '\\)']],
+        'displayMath': [['$$', '$$'], ['\\[', '\\]']],
+        'processEscapes': True,
+    },
+    'HTML-CSS': {
+        'linebreaks': {
+            'automatic': True,
+            'width': 'container'
+        },
+        'fonts': {
+            'availableFonts': ['TeX'],
+            'preferredFont': 'TeX',
+            'webFont': 'TeX'
+        }
+    },
+    'CommonHTML': {
+        'linebreaks': {
+            'automatic': True,
+            'width': 'container'
+        }
+    },
+    'SVG': {
+        'linebreaks': {
+            'automatic': True,
+            'width': 'container'
+        }
+    }
+}
+
+mathjax_path = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
