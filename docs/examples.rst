@@ -2,6 +2,8 @@
 
 .. _examples:
 
+.. math::
+
 Usage Examples
 ==============
 
