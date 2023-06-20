@@ -358,7 +358,7 @@ class Grid:
         connectivity = indices.reshape(dataset.shape[:-1])
 
         if multi_precision:
-            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+            self._ds["Mesh2_face_nodes"] = xr.DataArray(
                 data=xr.DataArray(connectivity).astype(INT_DTYPE),
                 dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
                 attrs={
@@ -367,7 +367,7 @@ class Grid:
                     "start_index": 0
                 })
         else:
-            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+            self._ds["Mesh2_face_nodes"] = xr.DataArray(
                 data=xr.DataArray(connectivity).astype(INT_DTYPE),
                 dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
                 attrs={
