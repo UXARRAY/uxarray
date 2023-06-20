@@ -406,37 +406,28 @@ class Grid:
 
         # convert coordinates to hmpy2.mpfr format
         if self._multi_precision:
-            if self.islatlon:
-                if "Mesh2_node_y" in self.ds and "Mesh2_node_x" in self.ds:
-                    converted_y_cords = convert_to_multiprecision(
-                        self.ds["Mesh2_node_y"].values,
-                        str_mode=False,
-                        precision=self._precision)
-                    converted_x_cords = convert_to_multiprecision(
-                        self.ds["Mesh2_node_x"].values,
-                        str_mode=False,
-                        precision=self._precision)
+            if "Mesh2_node_y" in self.ds and "Mesh2_node_x" in self.ds:
+                converted_y_cords = convert_to_multiprecision(
+                    self.ds["Mesh2_node_y"].values,
+                    str_mode=False,
+                    precision=self._precision)
+                converted_x_cords = convert_to_multiprecision(
+                    self.ds["Mesh2_node_x"].values,
+                    str_mode=False,
+                    precision=self._precision)
 
-                    self.ds["Mesh2_node_y"] = converted_y_cords
-                    self.ds["Mesh2_node_x"] = converted_x_cords
-            elif not self.islatlon:
-                if "Mesh2_node_y" in self.ds and "Mesh2_node_x" in self.ds and "Mesh2_node_y" in self.ds:
-                    converted_y_cords = convert_to_multiprecision(
-                        self.ds["Mesh2_node_y"].values,
-                        str_mode=False,
-                        precision=self._precision)
-                    converted_x_cords = convert_to_multiprecision(
-                        self.ds["Mesh2_node_x"].values,
-                        str_mode=False,
-                        precision=self._precision)
+                self.ds["Mesh2_node_y"] = converted_y_cords
+                self.ds["Mesh2_node_x"] = converted_x_cords
+            if not self.islatlon:
+                if "Mesh2_node_z" in self.ds:
                     converted_z_cords = convert_to_multiprecision(
                         self.ds["Mesh2_node_z"].values,
                         str_mode=False,
                         precision=self._precision)
-
-                    self.ds["Mesh2_node_y"] = converted_y_cords
-                    self.ds["Mesh2_node_x"] = converted_x_cords
                     self.ds["Mesh2_node_z"] = converted_z_cords
+
+            self.ds["Mesh2_node_y"] = converted_y_cords
+            self.ds["Mesh2_node_x"] = converted_x_cords
 
         dataset.close()
 
