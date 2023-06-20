@@ -9,9 +9,9 @@
 
 UXarray aims to address the geoscience community need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
-data. UXarray will provide Xarray styled functions to better read in and use
+data. UXarray provides Xarray styled functions to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
-SCRIP, Exodus and shapefile formats.  This effort is a result of the
+MPAS, SCRIP, and Exodus formats.  This effort is a result of the
 collaboration between Project Raijin (NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
 Livermore National Laboratory). The UXarray team welcomes other community
@@ -26,11 +26,11 @@ under the `Issues` tab in the UXarray repository.
 # Why is the name "UXarray"?
 
 We have created UXarray based on [Xarray](https://docs.xarray.dev/en/stable/)
-(via composition of a Xarray dataset object), a Pangeo ecosystem package
+(via inheritance of Xarray Dataset and DataArray classes), a Pangeo ecosystem package
 commonly-used for structured grids recognition, to support reading and
 recognizing unstructured grid model outputs. We picked the name "UXarray"
-and preferred to capitalize the first two letters to emphasize it is Xarray
-for Unstructured grids.
+(pronounced "you-ex-array") and preferred to capitalize the first two letters to
+emphasize it builds upon Xarray for Unstructured grids.
 
 # UXarray Functionality
 
