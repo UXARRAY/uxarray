@@ -394,10 +394,9 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
-        if "Mesh2_face_x" in self._ds:
-            return self._ds["Mesh2_face_x"]
-        else:
-            return None
+        if "Mesh2_face_x" not in self._ds:
+            self._build_face_coordinates()
+        return self._ds['Mesh2_face_x']
 
     @property
     def Mesh2_node_y(self):
@@ -426,10 +425,9 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
-        if "Mesh2_face_y" in self._ds:
-            return self._ds["Mesh2_face_y"]
-        else:
-            return None
+        if "Mesh2_face_y" not in self._ds:
+            self._build_face_coordinates()
+        return self._ds['Mesh2_face_y']
 
     @property
     def _Mesh2_node_z(self):
@@ -1038,7 +1036,6 @@ class Grid:
             Mesh2_face_x.append(np.mean(node_x[cur_face_nodes[0:n_nodes]]))
             Mesh2_face_y.append(np.mean(node_y[cur_face_nodes[0:n_nodes]]))
 
-        # Assign the coordinates to the internal dataset (self.ds) if needed
         if "Mesh2_face_y" not in self._ds or repopulate:
             self._ds["Mesh2_face_x"] = xr.DataArray(
                 Mesh2_face_x,
@@ -1049,7 +1046,3 @@ class Grid:
                 Mesh2_face_y,
                 dims=["nMesh2_face"],
                 attrs={"standard_name": "center_latitude"})
-
-        # Set the attributes in the class instance for accessibility if needed
-        setattr(self, "Mesh2_face_x", self._ds["Mesh2_face_x"])
-        setattr(self, "Mesh2_face_y", self._ds["Mesh2_face_y"])
