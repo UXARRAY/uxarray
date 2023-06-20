@@ -2,7 +2,7 @@ import gmpy2
 from gmpy2 import mpfr, mpz
 import numpy as np
 import math
-from .constants import FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
+from uxarray.utils.constants import FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
 
 
 def convert_to_multiprecision(input_array,
