@@ -248,7 +248,7 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_node == 4)
 
         # Test the all numbers in the vgird.ds["Mesh2_face_nodes"] are less than 4
-        assert (np.all(vgrid.ds["Mesh2_face_nodes"] < 4))
+        assert (np.all(vgrid._ds["Mesh2_face_nodes"] < 4))
 
     def test_init_verts_different_input_datatype(self):
         """Create a uxarray grid from multiple face vertices with different
