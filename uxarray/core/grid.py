@@ -15,7 +15,7 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
                                    node_lonlat_rad_to_xyz, close_face_nodes)
 
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE, INT_FILL_VALUE_MPZ
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE, INT_FILL_VALUE_MPZ, FLOAT_PRECISION_BITS
 from uxarray.multi_precision_helpers import convert_to_multiprecision, unique_coordinates_multiprecision, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
 
 
