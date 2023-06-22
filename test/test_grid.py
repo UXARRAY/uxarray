@@ -785,3 +785,22 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds._ds["Mesh2_face_nodes"].values))
+
+    def test_build_antimeridian_faces(self):
+        uxgrid = ux.open_grid(self.mpas_filepath)
+
+        faces, edges = uxgrid._build_antimeridian_faces()
+
+        faces = np.array(faces)
+
+        n_nodes_per_face = uxgrid.nNodes_per_face.values[faces]
+
+        x = uxgrid.Mesh2_node_x.values
+        face_nodes = uxgrid.Mesh2_face_nodes.values[faces]
+
+        for face_node, n_node, idx in zip(face_nodes, n_nodes_per_face, faces):
+            edge = np.array(edges[idx])
+            x_face = x[face_node[:n_node]]
+            continue
+
+        pass

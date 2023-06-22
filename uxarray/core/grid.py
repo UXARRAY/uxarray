@@ -365,6 +365,12 @@ class Grid:
         """
         return self._ds["nNodes_per_face"]
 
+    @property
+    def nEdges_per_face(self):
+        if "nEdges_per_face" not in self._ds:
+            self._build_nEdges_per_face()
+        return self._ds['nEdges_per_face']
+
     # coordinate properties
 
     @property
@@ -991,3 +997,59 @@ class Grid:
             data=nNodes_per_face,
             dims=["nMesh2_face"],
             attrs={"long_name": "number of non-fill value nodes for each face"})
+
+    def _build_nEdges_per_face(self):
+
+        closed = np.ones((self.nMesh2_face, self.nMaxMesh2_face_edges + 1),
+                         dtype=INT_DTYPE) * INT_FILL_VALUE
+
+        closed[:, :-1] = self.Mesh2_face_edges.copy()
+
+        nEdges_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+        self._ds["nEdges_per_face"] = xr.DataArray(
+            data=nEdges_per_face,
+            dims=["nMesh2_face"],
+            attrs={"long_name": "number of non-fill value edges for each face"})
+
+    def _build_antimeridian_faces(self, bias="left"):
+
+        node_x = self.Mesh2_node_x.values
+        node_y = self.Mesh2_node_y.values
+
+        face_edges = self.Mesh2_face_edges.values
+
+        edge_nodes = self.Mesh2_edge_nodes.values
+
+        n_edges_per_face = self.nEdges_per_face.values
+
+        antimeridian_face_edges = []
+        antimeridian_faces = []
+
+        for cur_face_idx, (edge_indices, n_edges) in enumerate(
+                zip(face_edges, n_edges_per_face)):
+
+            edges = edge_nodes[edge_indices[:n_edges]]
+            edge_state = []
+
+            for cur_edge_idx, edge in enumerate(edges):
+                v0 = node_x[edge[0]]
+                v1 = node_x[edge[1]]
+
+                if abs(v0 - v1) >= 180:
+
+                    # v0 ---> v1
+                    if v0 <= 180.0 <= v1:
+                        edge_state.append(1)
+
+                    # v0 <--- v1
+                    elif v1 <= 180 <= v0:
+                        edge_state.append(-1)
+
+                else:
+                    edge_state.append(0)
+            if np.any(edge_state):
+                antimeridian_faces.append(cur_face_idx)
+            antimeridian_face_edges.append(edge_state)
+
+        return antimeridian_faces, antimeridian_face_edges
