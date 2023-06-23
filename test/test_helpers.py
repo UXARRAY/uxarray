@@ -192,3 +192,80 @@ class TestConstants(TestCase):
                                                    original_fill=-1,
                                                    new_fill=INT_FILL_VALUE,
                                                    new_dtype=np.int16)
+
+
+class TestIntersectionPoint(TestCase):
+
+    def test_pt_within_gcr(self):
+
+        # Test when the point and the GCR all have the same longitude
+        gcr_same_lon_cart = [
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 1.5]),
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, -1.5])
+        ]
+        pt_same_lon_in = ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 0.0])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCR(pt_same_lon_in,
+                                              gcr_same_lon_cart))
+
+        pt_same_lon_out = ux.utils.helpers.node_lonlat_rad_to_xyz(
+            [0.0, 1.500000000000001])
+        res = ux.utils.helpers.point_within_GCR(pt_same_lon_out,
+                                                gcr_same_lon_cart)
+        self.assertFalse(res)
+
+        # And if we increase the digital place by one, it should be true again
+        pt_same_lon_out_add_one_place = ux.utils.helpers.node_lonlat_rad_to_xyz(
+            [0.0, 1.5000000000000001])
+        res = ux.utils.helpers.point_within_GCR(pt_same_lon_out_add_one_place,
+                                                gcr_same_lon_cart)
+        self.assertTrue(res)
+
+        # Normal case
+        # GCR vertex0 in radian : [1.3003315590159483, -0.007004587172323237],
+        # GCR vertex1 in radian : [3.5997458123873827, -1.4893379576608758]
+        # Point in radian : [1.3005410084914981, -0.010444274637648326]
+        gcr_cart_2 = np.array([[0.267, 0.963, -0.007], [-0.073, -0.036,
+                                                        -0.997]])
+        pt_cart_within = np.array(
+            [0.25616109352676675, 0.9246590335292105, -0.010021496695000144])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCR(pt_cart_within, gcr_cart_2))
+
+        # Test other more complicate cases : The anti-meridian case
+
+        # GCR vertex0 in radian : [5.163808182822441, 0.6351384888657234],
+        # GCR vertex1 in radian : [0.8280410325693055, 0.42237025187091526]
+        # Point in radian : [0.12574759138415173, 0.770098701904903]
+        gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
+        pt_cart = np.array(
+            [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
+        self.assertTrue(ux.utils.helpers.point_within_GCR(pt_cart, gcr_cart))
+        # If we swap the gcr, it should still be true
+        gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
+                                                          0.593]])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCR(pt_cart, gcr_cart_flip))
+
+        # 2nd anti-meridian case
+        # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
+        # GCR vertex1 in radian : [2.4269979227622533, -0.007003212877856825]
+        # Point in radian : [0.43400375562899113, -0.49554509841586936]
+        gcr_cart_1 = np.array([[-0.491, -0.706, 0.510], [-0.755, 0.655,
+                                                         -0.007]])
+        pt_cart_within = np.array(
+            [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
+        self.assertFalse(
+            ux.utils.helpers.point_within_GCR(pt_cart_within, gcr_cart_1))
+
+        # The following two case should work even swapping the GCR
+        v1_rad = [0.1, 0.0]
+        v2_rad = [2 * np.pi - 0.1, 0.0]
+        v1_cart = ux.utils.helpers.node_lonlat_rad_to_xyz(v1_rad)
+        v2_cart = ux.utils.helpers.node_lonlat_rad_to_xyz(v2_rad)
+        gcr_cart = np.array([v1_cart, v2_cart])
+        pt_cart = ux.utils.helpers.node_lonlat_rad_to_xyz([0.01, 0.0])
+        self.assertTrue(ux.utils.helpers.point_within_GCR(pt_cart, gcr_cart))
+        gcr_car_flipped = np.array([v2_cart, v1_cart])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCR(pt_cart, gcr_car_flipped))

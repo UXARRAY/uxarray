@@ -6,7 +6,7 @@ from numba import njit, config
 import math
 from typing import List, Union
 
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 
 config.DISABLE_JIT = False
 
@@ -154,14 +154,13 @@ def calculate_face_area(x,
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
 
         if (coords_type == "spherical"):
-            node1 = node_lonlat_rad_to_xyz([np.deg2rad(x[0]),
-                                        np.deg2rad(y[0])])
+            node1 = node_lonlat_rad_to_xyz([np.deg2rad(x[0]), np.deg2rad(y[0])])
             node2 = node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[j + 1]),
-                     np.deg2rad(y[j + 1])])
+                [np.deg2rad(x[j + 1]),
+                 np.deg2rad(y[j + 1])])
             node3 = node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[j + 2]),
-                     np.deg2rad(y[j + 2])])
+                [np.deg2rad(x[j + 2]),
+                 np.deg2rad(y[j + 2])])
 
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
@@ -490,7 +489,10 @@ def node_lonlat_rad_to_xyz(node_coord):
             "Input array should have a length of 2: [longitude, latitude]")
     lon = node_coord[0]
     lat = node_coord[1]
-    return np.array([np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)])
+    return np.array(
+        [np.cos(lon) * np.cos(lat),
+         np.sin(lon) * np.cos(lat),
+         np.sin(lat)])
 
 
 @njit
@@ -514,7 +516,7 @@ def node_xyz_to_lonlat_rad(node_coord):
         The input array doesn't have the size of 3.
     """
     node_coord = np.asarray(node_coord)
-    if node_coord.shape[0] != 3 :
+    if node_coord.shape[0] != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     reference_tolerance = 1.0e-12
     [dx, dy, dz] = normalize_in_place(node_coord)
@@ -539,8 +541,8 @@ def node_xyz_to_lonlat_rad(node_coord):
 
 
 @njit
-
-def normalize_in_place(node: Union[np.ndarray, List[Union[float]]]) -> np.ndarray:
+def normalize_in_place(
+        node: Union[np.ndarray, List[Union[float]]]) -> np.ndarray:
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate
     the magnitude.
@@ -566,6 +568,7 @@ def normalize_in_place(node: Union[np.ndarray, List[Union[float]]]) -> np.ndarra
         return node / np.linalg.norm(node, ord=2)
     else:
         raise RuntimeError("Input node should be a 3D array.")
+
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the the current fill value (``original_fill``)
@@ -675,3 +678,80 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
 
     return closed
+
+
+def point_within_GCR(pt, gcr_cart):
+    """Check if a point is on a given Great Circle Arc. The anti-meridian case
+    is already considered.
+
+    Parameters
+    ----------
+    pt : np.ndarray of
+        Cartesian coordinates of the point
+    gcr_cart : np.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
+        Cartesian coordinates of the GCR
+
+    Returns
+    -------
+    bool
+        True if the point is on the GCR (Lies between the two endpoints), False otherwise
+    """
+    # Convert the cartesian coordinates to lonlat coordinates, the node_xyz_to_lonlat_rad is already overloaded
+    # with gmpy2 data type
+    pt_lonlat = node_xyz_to_lonlat_rad(pt)
+    GCRv0_lonlat = node_xyz_to_lonlat_rad(gcr_cart[0])
+    GCRv1_lonlat = node_xyz_to_lonlat_rad(gcr_cart[1])
+
+    if not np.allclose(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt),
+                       0,
+                       rtol=0,
+                       atol=ERROR_TOLERANCE):
+        return False
+
+    # Special case: If the gcr goes across the anti-meridian
+    # If the pt and the GCR are on the same longitude (the y coordinates are the same)
+    if GCRv0_lonlat[0] == GCRv1_lonlat[0] == pt_lonlat[0]:
+        # Now use the latitude to determine if the pt falls between the interval
+        return is_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+
+    # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
+    # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
+    if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi:
+
+        # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+        # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
+        # Need to redirect such that 180 --> x0 --> 0 --> x1 --> 180
+        if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
+            return is_between(0, pt_lonlat[0], GCRv0_lonlat[0]) or is_between(
+                GCRv1_lonlat[0], pt_lonlat[0], 2 * np.pi)
+
+        # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+        # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 that doesn't require redirection.
+        elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
+            return is_between(GCRv0_lonlat[0],
+                              pt_lonlat[0], 2 * np.pi) or is_between(
+                                  0, pt_lonlat[0], GCRv1_lonlat[0])
+
+    # The non-anti-meridian case.
+    else:
+        is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+        return is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+
+
+def is_between(p, q, r) -> bool:
+    """Determines whether the number q is between p and r.
+    Parameters
+    ----------
+    p : float
+        The lower bound.
+    q : float
+        The number to check.
+    r : float
+        The upper bound.
+    Returns
+    -------
+    bool
+        True if q is between p and r, False otherwise.
+    """
+
+    return p <= q <= r or r <= q <= p
