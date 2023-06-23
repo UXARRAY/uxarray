@@ -1014,41 +1014,43 @@ class Grid:
 
     def _build_antimeridian_faces(self, bias="left"):
 
-        node_x = self.Mesh2_node_x.values
+        pass
 
-        face_nodes = self.Mesh2_face_nodes.values
-
-        face_nodes_closed = close_face_nodes(self.Mesh2_face_nodes.values,
-                                             self.nMesh2_face,
-                                             self.nMaxMesh2_face_nodes)
-
-        n_nodes_per_face = self.nNodes_per_face.values + 1
-
-        face_x = np.ones((self.nMesh2_face, self.nMaxMesh2_face_nodes + 1),
-                         dtype=node_x.dtype) * 9999
-
-        for face_idx, (cur_face_nodes, n_nodes) in enumerate(
-                zip(face_nodes_closed, n_nodes_per_face)):
-            face_x[face_idx, 0:n_nodes] = node_x[cur_face_nodes[0:n_nodes]]
-
-        edge_lengths = np.diff(face_x)
-
-        # edges that originate in the left-hand-side [0, 180]
-        edge_length_flags_lhs = ((edge_lengths > 180) & (edge_lengths <= 360))
-
-        # edges that originate in the right-hand-side [180, 360]
-        edge_length_flags_rhs = ((edge_lengths < -180) & (edge_lengths > -360))
-
-        antimeridian_face_indices = np.argwhere(
-            np.any(edge_length_flags_rhs | edge_length_flags_lhs,
-                   axis=1)).squeeze().astype(INT_DTYPE)
-
-        face_x = face_x[antimeridian_face_indices]
-        edge_length_flags_rhs = edge_length_flags_rhs[antimeridian_face_indices]
-        edge_length_flags_lhs = edge_length_flags_lhs[antimeridian_face_indices]
-
-        for face_idx in antimeridian_face_indices:
-            pass
+        # node_x = self.Mesh2_node_x.values
+        #
+        # face_nodes = self.Mesh2_face_nodes.values
+        #
+        # face_nodes_closed = close_face_nodes(self.Mesh2_face_nodes.values,
+        #                                      self.nMesh2_face,
+        #                                      self.nMaxMesh2_face_nodes)
+        #
+        # n_nodes_per_face = self.nNodes_per_face.values + 1
+        #
+        # face_x = np.ones((self.nMesh2_face, self.nMaxMesh2_face_nodes + 1),
+        #                  dtype=node_x.dtype) * 9999
+        #
+        # for face_idx, (cur_face_nodes, n_nodes) in enumerate(
+        #         zip(face_nodes_closed, n_nodes_per_face)):
+        #     face_x[face_idx, 0:n_nodes] = node_x[cur_face_nodes[0:n_nodes]]
+        #
+        # edge_lengths = np.diff(face_x)
+        #
+        # # edges that originate in the left-hand-side [0, 180]
+        # edge_length_flags_lhs = ((edge_lengths > 180) & (edge_lengths <= 360))
+        #
+        # # edges that originate in the right-hand-side [180, 360]
+        # edge_length_flags_rhs = ((edge_lengths < -180) & (edge_lengths > -360))
+        #
+        # antimeridian_face_indices = np.argwhere(
+        #     np.any(edge_length_flags_rhs | edge_length_flags_lhs,
+        #            axis=1)).squeeze().astype(INT_DTYPE)
+        #
+        # face_x = face_x[antimeridian_face_indices]
+        # edge_length_flags_rhs = edge_length_flags_rhs[antimeridian_face_indices]
+        # edge_length_flags_lhs = edge_length_flags_lhs[antimeridian_face_indices]
+        #
+        # for face_idx in antimeridian_face_indices:
+        #     pass
 
         # # Case 1: 0.0 or 360.0 Causing Incorrect Wrapping
         # for face_idx, x in zip(antimeridian_face_indices, face_x):
