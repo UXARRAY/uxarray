@@ -12,7 +12,7 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
                                    node_lonlat_rad_to_xyz)
 
-from uxarray.core.connectivity import close_face_nodes
+from uxarray.core.connectivity import close_face_nodes, _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nEdges_per_face, _build_nNodes_per_face
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -110,7 +110,7 @@ class Grid:
         }
 
         # construct nNodes_per_Face
-        self._build_nNodes_per_face()
+        _build_nNodes_per_face(self)
 
     def __init_grid_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
@@ -335,7 +335,7 @@ class Grid:
         of edges."""
 
         if "Mesh2_edge_nodes" not in self._ds:
-            self._build_edge_node_connectivity(repopulate=True)
+            _build_edge_node_connectivity(self, repopulate=True)
 
         return self._ds['Mesh2_edge_nodes'].shape[0]
 
@@ -354,7 +354,7 @@ class Grid:
         """
 
         if "Mesh2_face_edges" not in self._ds:
-            self._build_face_edges_connectivity()
+            _build_face_edges_connectivity(self)
 
         return self._ds["Mesh2_face_edges"].shape[1]
 
@@ -370,7 +370,7 @@ class Grid:
     @property
     def nEdges_per_face(self):
         if "nEdges_per_face" not in self._ds:
-            self._build_nEdges_per_face()
+            _build_nEdges_per_face(self)
         return self._ds['nEdges_per_face']
 
     # coordinate properties
@@ -497,7 +497,7 @@ class Grid:
         Nodes are in arbitrary order.
         """
         if "Mesh2_edge_nodes" not in self._ds:
-            self._build_edge_node_connectivity()
+            _build_edge_node_connectivity(self)
 
         return self._ds['Mesh2_edge_nodes']
 
@@ -510,7 +510,7 @@ class Grid:
         DataType ``INT_DTYPE``.
         """
         if "Mesh2_face_edges" not in self._ds:
-            self._build_face_edges_connectivity()
+            _build_face_edges_connectivity(self)
 
         return self._ds["Mesh2_face_edges"]
 
@@ -740,116 +740,6 @@ class Grid:
     #
     #     return integral
 
-    def _build_edge_node_connectivity(self, repopulate=False):
-        """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
-        and stores it within the internal (``Grid._ds``) and through the
-        attribute (``Grid.Mesh2_edge_nodes``).
-
-        Additionally, the attributes (``inverse_indices``) and
-        (``fill_value_mask``) are stored for constructing other
-        connectivity variables.
-
-        Parameters
-        ----------
-        repopulate : bool, optional
-            Flag used to indicate if we want to overwrite the existed `Mesh2_edge_nodes` and generate a new
-            inverse_indices, default is False
-        """
-
-        # need to derive edge nodes
-        if "Mesh2_edge_nodes" not in self._ds or repopulate:
-            padded_face_nodes = close_face_nodes(self.Mesh2_face_nodes.values,
-                                                 self.nMesh2_face,
-                                                 self.nMaxMesh2_face_nodes)
-
-            # array of empty edge nodes where each entry is a pair of indices
-            edge_nodes = np.empty(
-                (self.nMesh2_face * self.nMaxMesh2_face_nodes, 2),
-                dtype=INT_DTYPE)
-
-            # first index includes starting node up to non-padded value
-            edge_nodes[:, 0] = padded_face_nodes[:, :-1].ravel()
-
-            # second index includes second node up to padded value
-            edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
-        else:
-            # If "Mesh2_edge_nodes" already exists, directly return the function call
-            return
-
-        # sorted edge nodes
-        edge_nodes.sort(axis=1)
-
-        # unique edge nodes
-        edge_nodes_unique, inverse_indices = np.unique(edge_nodes,
-                                                       return_inverse=True,
-                                                       axis=0)
-        # find all edge nodes that contain a fill value
-        fill_value_mask = np.logical_or(
-            edge_nodes_unique[:, 0] == INT_FILL_VALUE,
-            edge_nodes_unique[:, 1] == INT_FILL_VALUE)
-
-        # all edge nodes that do not contain a fill value
-        non_fill_value_mask = np.logical_not(fill_value_mask)
-        edge_nodes_unique = edge_nodes_unique[non_fill_value_mask]
-
-        # Update inverse_indices accordingly
-        indices_to_update = np.where(fill_value_mask)[0]
-
-        remove_mask = np.isin(inverse_indices, indices_to_update)
-        inverse_indices[remove_mask] = INT_FILL_VALUE
-
-        # Compute the indices where inverse_indices exceeds the values in indices_to_update
-        indexes = np.searchsorted(indices_to_update,
-                                  inverse_indices,
-                                  side='right')
-        # subtract the corresponding indexes from `inverse_indices`
-        for i in range(len(inverse_indices)):
-            if inverse_indices[i] != INT_FILL_VALUE:
-                inverse_indices[i] -= indexes[i]
-
-        # add Mesh2_edge_nodes to internal dataset
-        self._ds['Mesh2_edge_nodes'] = xr.DataArray(
-            edge_nodes_unique,
-            dims=["nMesh2_edge", "Two"],
-            attrs={
-                "cf_role":
-                    "edge_node_connectivity",
-                "_FillValue":
-                    INT_FILL_VALUE,
-                "long_name":
-                    "Maps every edge to the two nodes that it connects",
-                "start_index":
-                    INT_DTYPE(0),
-                "inverse_indices":
-                    inverse_indices,
-                "fill_value_mask":
-                    fill_value_mask
-            })
-
-    def _build_face_edges_connectivity(self):
-        """Constructs the UGRID connectivity variable (``Mesh2_face_edges``)
-        and stores it within the internal (``Grid._ds``) and through the
-        attribute (``Grid.Mesh2_face_edges``)."""
-        if ("Mesh2_edge_nodes" not in self._ds or
-                "inverse_indices" not in self._ds['Mesh2_edge_nodes'].attrs):
-            self._build_edge_node_connectivity(repopulate=True)
-
-        inverse_indices = self._ds['Mesh2_edge_nodes'].inverse_indices
-        inverse_indices = inverse_indices.reshape(self.nMesh2_face,
-                                                  self.nMaxMesh2_face_nodes)
-
-        self._ds["Mesh2_face_edges"] = xr.DataArray(
-            data=inverse_indices,
-            dims=["nMesh2_face", "nMaxMesh2_face_edges"],
-            attrs={
-                "cf_role":
-                    "face_edges_connectivity",
-                "start_index":
-                    INT_DTYPE(0),
-                "long_name":
-                    "Maps every edge to the two nodes that it connects",
-            })
-
     def _populate_cartesian_xyz_coord(self):
         """A helper function that populates the xyz attribute in
         UXarray.Grid._ds. This function is called when we need to use the
@@ -981,38 +871,6 @@ class Grid:
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
-
-    def _build_nNodes_per_face(self):
-        """Constructs ``nNodes_per_face``, which contains the number of non-
-        fill-value nodes for each face in ``Mesh2_face_nodes``"""
-
-        # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
-        closed = np.ones((self.nMesh2_face, self.nMaxMesh2_face_nodes + 1),
-                         dtype=INT_DTYPE) * INT_FILL_VALUE
-
-        closed[:, :-1] = self.Mesh2_face_nodes.copy()
-
-        nNodes_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
-
-        # add to internal dataset
-        self._ds["nNodes_per_face"] = xr.DataArray(
-            data=nNodes_per_face,
-            dims=["nMesh2_face"],
-            attrs={"long_name": "number of non-fill value nodes for each face"})
-
-    def _build_nEdges_per_face(self):
-
-        closed = np.ones((self.nMesh2_face, self.nMaxMesh2_face_edges + 1),
-                         dtype=INT_DTYPE) * INT_FILL_VALUE
-
-        closed[:, :-1] = self.Mesh2_face_edges.copy()
-
-        nEdges_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
-
-        self._ds["nEdges_per_face"] = xr.DataArray(
-            data=nEdges_per_face,
-            dims=["nMesh2_face"],
-            attrs={"long_name": "number of non-fill value edges for each face"})
 
     def _build_antimeridian_faces(self, bias="left"):
 

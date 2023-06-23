@@ -8,6 +8,8 @@ from pathlib import Path
 
 import uxarray as ux
 
+from uxarray.core.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nEdges_per_face, _build_nNodes_per_face
+
 try:
     import constants
 except ImportError:
@@ -681,7 +683,7 @@ class TestConnectivity(TestCase):
         edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
         # construct edge nodes
-        mpas_grid_ux._build_edge_node_connectivity(repopulate=True)
+        _build_edge_node_connectivity(mpas_grid_ux, repopulate=True)
         edge_nodes_output = mpas_grid_ux._ds['Mesh2_edge_nodes'].values
 
         self.assertTrue(np.array_equal(edge_nodes_expected, edge_nodes_output))
@@ -704,7 +706,7 @@ class TestConnectivity(TestCase):
 
             mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-            tgrid._build_face_edges_connectivity()
+            _build_face_edges_connectivity(tgrid)
             mesh2_face_edges = tgrid._ds.Mesh2_face_edges
             mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -739,7 +741,7 @@ class TestConnectivity(TestCase):
 
         mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-        tgrid._build_face_edges_connectivity()
+        _build_face_edges_connectivity(tgrid)
         mesh2_face_edges = tgrid._ds.Mesh2_face_edges
         mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -762,7 +764,7 @@ class TestConnectivity(TestCase):
             self.f5_deg, self.f6_deg
         ]
         uds = ux.open_grid(verts)
-        uds._build_face_edges_connectivity()
+        _build_face_edges_connectivity(uds)
         n_face = len(uds._ds["Mesh2_face_edges"].values)
         n_node = uds.nMesh2_node
         n_edge = len(uds._ds["Mesh2_edge_nodes"].values)

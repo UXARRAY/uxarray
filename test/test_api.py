@@ -128,3 +128,8 @@ class TestAPI(TestCase):
         # Check that the deep copy is a deep copy
         assert (v1_uxdata_array_copy_deep.uxgrid == v1_uxdata_array.uxgrid)
         assert (v1_uxdata_array_copy_deep.uxgrid is not v1_uxdata_array.uxgrid)
+
+    def test_to_gdf(self):
+        uxds = ux.open_dataset(self.gridfile_ne30, self.dsfile_var2_ne30)
+
+        gdf = uxds.to_gdf()

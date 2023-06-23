@@ -9,11 +9,12 @@ from typing import Optional, IO
 
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.grid import Grid
+from uxarray.core.connectivity import build_polygon_verts, get_antimeridian_face_indices
 
 from spatialpandas import GeoDataFrame
 from spatialpandas.geometry import MultiPolygonArray
 
-from shapely import Polygon
+from shapely import Polygon, MultiPolygon
 
 
 class UxDataset(xr.Dataset):
@@ -311,12 +312,36 @@ class UxDataset(xr.Dataset):
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
-    def to_gdf(self):
+    def to_gdf(self) -> GeoDataFrame:
 
-        # construct initial Shapely Polygons
+        # construct polygon vertices
+        polygon_verts = build_polygon_verts(self.uxgrid.Mesh2_node_x.values,
+                                            self.uxgrid.Mesh2_node_y.values,
+                                            self.uxgrid.Mesh2_face_nodes.values,
+                                            self.uxgrid.nMesh2_face,
+                                            self.uxgrid.nMaxMesh2_face_nodes,
+                                            self.uxgrid.nNodes_per_face.values)
+
+        # construct shapely polygons (optimize)
+        polygons = []
+        for cur_polygon_verts in polygon_verts:
+            polygons.append(Polygon(cur_polygon_verts))
+
+        polygon_array = MultiPolygon(polygons)
+
+        # locate antimeridian polygons
+        antimeridian_face_indices = get_antimeridian_face_indices(
+            self.uxgrid.Mesh2_node_x.values,
+            self.uxgrid.Mesh2_face_nodes.values, self.uxgrid.nMesh2_face,
+            self.uxgrid.nMaxMesh2_face_nodes,
+            self.uxgrid.nNodes_per_face.values)
 
         # split polygons across dateline
+        # TODO: helper function to detect, split, and map antimeridian polygons
 
-        # assign data variables
+        # construct an array for our GeoDataFrame's geometry
+        # TODO: geometry = MultiPolygonArray(polygons)
+
+        # assign and map data variables
 
         pass
