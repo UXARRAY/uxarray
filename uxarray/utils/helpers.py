@@ -4,6 +4,7 @@ from pathlib import PurePath
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
+from typing import List, Union
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
@@ -153,17 +154,14 @@ def calculate_face_area(x,
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
 
         if (coords_type == "spherical"):
-            node1 = np.array(
-                node_lonlat_rad_to_xyz([np.deg2rad(x[0]),
-                                        np.deg2rad(y[0])]))
-            node2 = np.array(
-                node_lonlat_rad_to_xyz(
+            node1 = node_lonlat_rad_to_xyz([np.deg2rad(x[0]),
+                                        np.deg2rad(y[0])])
+            node2 = node_lonlat_rad_to_xyz(
                     [np.deg2rad(x[j + 1]),
-                     np.deg2rad(y[j + 1])]))
-            node3 = np.array(
-                node_lonlat_rad_to_xyz(
+                     np.deg2rad(y[j + 1])])
+            node3 = node_lonlat_rad_to_xyz(
                     [np.deg2rad(x[j + 2]),
-                     np.deg2rad(y[j + 2])]))
+                     np.deg2rad(y[j + 2])])
 
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
@@ -473,12 +471,12 @@ def node_lonlat_rad_to_xyz(node_coord):
 
     Parameters
     ----------
-    node: float list
+    node: float list/np.array
         2D coordinates[longitude, latitude] in radiance
 
     Returns
     ----------
-    float list
+    float np.array
         the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -486,12 +484,13 @@ def node_lonlat_rad_to_xyz(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    if len(node_coord) != 2:
+    node_coord = np.asarray(node_coord)
+    if node_coord.shape[0] != 2:
         raise RuntimeError(
             "Input array should have a length of 2: [longitude, latitude]")
     lon = node_coord[0]
     lat = node_coord[1]
-    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+    return np.array([np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)])
 
 
 @njit
@@ -501,12 +500,12 @@ def node_xyz_to_lonlat_rad(node_coord):
 
     Parameters
     ----------
-    node_coord: float list
+    node_coord: float list/np.array
         3D Cartesian Coordinates [x, y, z] of the node
 
     Returns
     ----------
-    float list
+    float np.array
         the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
 
     Raises
@@ -514,7 +513,8 @@ def node_xyz_to_lonlat_rad(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    if len(node_coord) != 3:
+    node_coord = np.asarray(node_coord)
+    if node_coord.shape[0] != 3 :
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     reference_tolerance = 1.0e-12
     [dx, dy, dz] = normalize_in_place(node_coord)
@@ -539,19 +539,20 @@ def node_xyz_to_lonlat_rad(node_coord):
 
 
 @njit
-def normalize_in_place(node):
+
+def normalize_in_place(node: Union[np.ndarray, List[Union[float]]]) -> np.ndarray:
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate
     the magnitude.
 
     Parameters
     ----------
-    node: float list
+    node: np.array or python list of `float` or gmpy2.mpfr
         3D Cartesian Coordinates [x, y, z]
 
     Returns
     ----------
-    float list
+    normalized_node: np.array of `float` or gmpy2.mpfr
         the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -559,11 +560,12 @@ def normalize_in_place(node):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    if len(node) != 3:
-        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+    node = np.asarray(node)
 
-    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
-
+    if node.shape[0] == 3:
+        return node / np.linalg.norm(node, ord=2)
+    else:
+        raise RuntimeError("Input node should be a 3D array.")
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the the current fill value (``original_fill``)
