@@ -787,7 +787,8 @@ class TestConnectivity(TestCase):
                            uds._ds["Mesh2_face_nodes"].values))
 
     def test_build_antimeridian_faces(self):
-        uxgrid = ux.open_grid(self.mpas_filepath)
+        #uxgrid = ux.open_grid(self.mpas_filepath)
+        uxgrid = ux.open_grid(self.ugrid_filepath_01)
 
         faces, edges = uxgrid._build_antimeridian_faces()
 
