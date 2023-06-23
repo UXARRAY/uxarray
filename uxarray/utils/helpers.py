@@ -686,7 +686,7 @@ def point_within_GCR(pt, gcr_cart):
 
     Parameters
     ----------
-    pt : np.ndarray of
+    pt : np.ndarray of float
         Cartesian coordinates of the point
     gcr_cart : np.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
         Cartesian coordinates of the GCR
@@ -740,6 +740,7 @@ def point_within_GCR(pt, gcr_cart):
 
 def is_between(p, q, r) -> bool:
     """Determines whether the number q is between p and r.
+
     Parameters
     ----------
     p : float
@@ -748,6 +749,7 @@ def is_between(p, q, r) -> bool:
         The number to check.
     r : float
         The upper bound.
+
     Returns
     -------
     bool

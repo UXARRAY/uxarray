@@ -155,3 +155,5 @@ Helpers
    node_lonlat_rad_to_xyz
    normalize_in_place
    parse_grid_type
+   is_between
+   point_within_GCR

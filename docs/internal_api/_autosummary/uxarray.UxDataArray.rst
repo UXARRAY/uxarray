@@ -5,14 +5,14 @@
 
 .. autoclass:: UxDataArray
 
-   
+
    .. automethod:: __init__
 
-   
+
    .. rubric:: Methods
 
    .. autosummary::
-   
+
       ~UxDataArray.__init__
       ~UxDataArray.all
       ~UxDataArray.any
@@ -135,15 +135,15 @@
       ~UxDataArray.var
       ~UxDataArray.weighted
       ~UxDataArray.where
-   
-   
 
-   
-   
+
+
+
+
    .. rubric:: Attributes
 
    .. autosummary::
-   
+
       ~UxDataArray.T
       ~UxDataArray.attrs
       ~UxDataArray.chunks
@@ -169,5 +169,3 @@
       ~UxDataArray.values
       ~UxDataArray.variable
       ~UxDataArray.xindexes
-   
-   
