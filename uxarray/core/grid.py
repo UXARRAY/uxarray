@@ -10,7 +10,9 @@ from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
-                                   node_lonlat_rad_to_xyz, close_face_nodes)
+                                   node_lonlat_rad_to_xyz)
+
+from uxarray.core.connectivity import close_face_nodes
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 

@@ -97,3 +97,9 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
+
+    def to_gdf(self):
+
+        # convert to UxDataset and perform conversion
+
+        pass

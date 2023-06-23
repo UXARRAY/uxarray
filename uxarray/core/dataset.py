@@ -10,6 +10,11 @@ from typing import Optional, IO
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.grid import Grid
 
+from spatialpandas import GeoDataFrame
+from spatialpandas.geometry import MultiPolygonArray
+
+from shapely import Polygon
+
 
 class UxDataset(xr.Dataset):
     """A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
@@ -305,3 +310,13 @@ class UxDataset(xr.Dataset):
 
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def to_gdf(self):
+
+        # construct initial Shapely Polygons
+
+        # split polygons across dateline
+
+        # assign data variables
+
+        pass
