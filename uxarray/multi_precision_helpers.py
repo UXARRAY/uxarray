@@ -259,3 +259,18 @@ def mp_dot(v1, v2):
     """
     # Calculate the dot product of two vectors
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+
+def mp_norm(vector):
+    """Compute the norm of a vector in multiprecision.
+    Parameters
+    ----------
+    vector : list/np.ndarray
+        The vector
+
+    Returns
+    -------
+    norm : mpfr
+        The norm of the vector
+    """
+    norm_squared = gmpy2.fsum(mp_dot(v, v) for v in vector)
+    return gmpy2.sqrt(norm_squared)

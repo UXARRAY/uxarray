@@ -504,11 +504,27 @@ class TestIntersectionPoint(TestCase):
 
         set_global_precision()
 
-    def test_get_GCR_GCR_intersections(self):
+    def test_get_GCR_GCR_intersections_antimeridian(self):
         GCR1_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(360)]), ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(10)])])
         GCR2_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([0.5 * np.pi, 0]), ux.helpers.node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0])])
-        res = ux.helpers.get_GCR_GCR_intersections(GCR1_cart, GCR2_cart)
+        res_cart = ux.helpers.get_GCR_GCR_intersections(GCR1_cart, GCR2_cart)
+
+        # res_cart should be [0,0,0] since these two GCRs are parallel
+        self.assertTrue(np.array_equal(res_cart, np.array([0,0,0])))
+
+    def test_get_GCR_GCR_intersections_parallel(self):
+        GCR1_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([0.3 * np.pi, 0]), ux.helpers.node_lonlat_rad_to_xyz([0.5 * np.pi, 0])])
+        GCR2_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([0.5 * np.pi, 0]), ux.helpers.node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0])])
+        res_cart = ux.helpers.get_GCR_GCR_intersections(GCR1_cart, GCR2_cart)
+        self.assertTrue(np.allclose(res_cart, 0))
+
+    def test_get_GCR_GCR_intersections_perpendicular(self):
+        GCR1_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(0)]), ux.helpers.node_lonlat_rad_to_xyz([np.deg2rad(170), np.deg2rad(10)])])
+        GCR2_cart = np.array([ux.helpers.node_lonlat_rad_to_xyz([0.5 * np.pi, 0]), ux.helpers.node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0])])
+        res_cart = ux.helpers.get_GCR_GCR_intersections(GCR1_cart, GCR2_cart)
         pass
+
+
 
     def test_plot_vector(self):
         # Example usage

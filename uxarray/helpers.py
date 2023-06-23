@@ -11,7 +11,7 @@ import numpy as np
 import numpy as np
 import plotly.graph_objs as go
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
-from uxarray.multi_precision_helpers import mp_dot, mp_cross
+from uxarray.multi_precision_helpers import mp_dot, mp_cross, mp_norm
 
 config.DISABLE_JIT = False
 
@@ -783,20 +783,29 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
         else:
             return  [gmpy2.mpfr('-1'), gmpy2.mpfr('-1'), gmpy2.mpfr('-1')]  # Intersection out of the interval or
     else:
-
+        w0_latlon = node_xyz_to_lonlat_rad(w0)
+        w1_latlon = node_xyz_to_lonlat_rad(w1)
         w0w1_norm = np.cross(w0, w1)
-        orthogonal_basis = gram_schmidt([w0w1_norm, w0, w1])
-        w0w1norm_orthogonal = orthogonal_basis[0]
-        vector_plot([w0, w1, w0w1norm_orthogonal], labels=['w0', 'w1', 'w0w1norm'])
+        w_orthogonal_basis = gram_schmidt(np.array([w0w1_norm, w0, w1]))
+        w0w1norm_orthogonal = w_orthogonal_basis[0]
+
         v0v1_norm = np.cross(v0, v1)
-        # vector_plot([v0, v1, v0v1_norm], labels=['v0', 'v1', 'w0w1norm'])
+        v_orthogonal_basis = gram_schmidt(np.array([v0v1_norm, v0, v1]))
+        v0v1norm_orthogonal = v_orthogonal_basis[0]
 
-        cross_norms = np.cross(w0w1_norm, v0v1_norm)
+        # Clean up the results to avoid -0.0 notation
+        np.where(np.signbit(w0w1norm_orthogonal), 0, w0w1norm_orthogonal)
+        np.where(np.signbit(v0v1norm_orthogonal), 0, v0v1norm_orthogonal)
 
-        if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
+
+        cross_norms = np.cross(w0w1norm_orthogonal, v0v1norm_orthogonal)
+        cross_orthogonal_basis = gram_schmidt(np.array([cross_norms, w0w1norm_orthogonal, v0v1norm_orthogonal]))
+        crossnorms_orthogonal= cross_orthogonal_basis[0]
+
+        if np.allclose(crossnorms_orthogonal, 0, atol=ERROR_TOLERANCE):
             return np.array([0, 0, 0])
 
-        x1 = np.cross(w0w1_norm, cross_norms)
+        x1 = crossnorms_orthogonal
         x2 = -x1
 
         x1_latlon = node_xyz_to_lonlat_rad(x1)
@@ -813,13 +822,58 @@ def get_GCR_GCR_intersections(gcr1_cart, gcr2_cart):
             return np.array([-1, -1, -1])  # Intersection out of the interval or
 
 def gram_schmidt(vectors):
+    """
+    Apply the Gram-Schmidt process to orthogonalize a set of vectors.
+
+    Parameters
+    ----------
+    vectors : numpy.ndarray
+        The input vectors to be orthogonalized. Each vector should be represented as a row in the 2D array.
+
+    Returns
+    -------
+    numpy.ndarraygram_schmidt
+        An array containing the orthogonalized vectors forming an orthonormal basis.
+
+    Notes
+    -----
+    This function applies the Gram-Schmidt process to the input vectors to obtain an
+    orthonormal basis. If the vectors contain elements of type `gmpy2.mpfr` or `gmpy2.mpz`,
+    the dot product and norm calculations are performed using the `mp_dot` and `mp_norm`
+    functions for increased precision. Otherwise, the numpy functions `np.dot` and `np.linalg.norm`
+    are used.
+
+    If the input vectors do not meet the error tolerance criterion specified by `ERROR_TOLERANCE`,
+    they are considered linearly dependent and excluded from the orthogonal basis.
+
+    Examples
+    --------
+    >>> vectors = np.array([[1, 0, 0], [1, 1, 0], [1, 1, 1]])
+    >>> result = gram_schmidt(vectors)
+    >>> result
+    array([[1., 0., 0.],
+           [0., 1., 0.],
+           [0., 0., 1.]])
+
+    """
     basis = []
     for v in vectors:
-        for b in basis:
-            v -= np.dot(v, b) * b
-        if np.linalg.norm(v) > 1e-6:
-            basis.append(v / np.linalg.norm(v))
-    return basis
+        if np.any(np.vectorize(lambda x: isinstance(x, (gmpy2.mpfr, gmpy2.mpz)))(v)):
+            for b in basis:
+                v -= mp_dot(v, b) * b
+            if np.linalg.norm(v) > ERROR_TOLERANCE:
+                basis.append(v / mp_norm(v))
+        else:
+            norm_v = np.linalg.norm(v)
+            if norm_v > ERROR_TOLERANCE:
+                for b in basis:
+                    v -= np.dot(v, b) * b
+                basis.append(v / norm_v)
+            else:
+                return np.array([0, 0, 0])
+        return np.array(basis)
+
+
 def point_within_GCR(pt, gcr_cart):
     """Check if a point is on a given Great Circle Arc. The anti-meridian case
     is already considered.
