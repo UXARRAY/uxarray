@@ -23,3 +23,5 @@ dependencies:
     - sphinx-design
     - nbsphinx
     - matplotlib
+    - spatialpandas
+    - shapely
