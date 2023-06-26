@@ -4,6 +4,7 @@ import math
 import copy
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.helpers import node_xyz_to_lonlat_rad
 
 from shapely import Polygon
 
@@ -61,11 +62,26 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
 
 def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
                           nMesh2_face, nMaxMesh2_face_nodes, nNodes_per_face):
+    """Constructs the shell of each polygon derived from the closed off face
+    nodes.
+
+    Coordinates should be in degrees, with the longitude being in the
+    range [-180, 180].
+    """
+
+    # close face nodes to construct closed polygons
     closed_face_nodes = close_face_nodes(Mesh2_face_nodes, nMesh2_face,
                                          nMaxMesh2_face_nodes)
 
+    # additional node after closing our faces
+    nNodes_per_face += 1
+
+    if Mesh2_node_x.max() > 180:
+        Mesh2_node_x -= 180
+
     polygon_shells = []
-    for face_nodes, max_n_nodes in zip(Mesh2_face_nodes, nNodes_per_face):
+    for face_nodes, max_n_nodes in zip(closed_face_nodes, nNodes_per_face):
+
         polygon_x = Mesh2_node_x[face_nodes[0:max_n_nodes]]
         polygon_y = Mesh2_node_y[face_nodes[0:max_n_nodes]]
 

@@ -130,6 +130,20 @@ class TestAPI(TestCase):
         assert (v1_uxdata_array_copy_deep.uxgrid is not v1_uxdata_array.uxgrid)
 
     def test_to_gdf(self):
-        uxds = ux.open_dataset(self.gridfile_ne30, self.dsfile_var2_ne30)
+        #uxds = ux.open_dataset(self.gridfile_ne30, self.dsfile_var2_ne30)
+        # uxds = ux.open_dataset(self.gridfile_geoflow, self.geoflow_data_v1)
+
+        # Base data path
+        base_path = current_path / "meshfiles" / "exodus" / "mixed"
+
+        # Path to Grid file
+        grid_path = base_path / "mixed.exo"
+
+        # data_path = base_path + "outCSne30_var2.nc"
+
+        uxgrid = ux.open_grid(grid_path)
+
+        uxds = ux.UxDataset(uxgrid=uxgrid)
+        uxds
 
         gdf = uxds.to_gdf()

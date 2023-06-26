@@ -12,6 +12,7 @@ from uxarray.core.grid import Grid
 from uxarray.core.connectivity import split_antimeridian_polygons
 
 from spatialpandas import GeoDataFrame
+
 from spatialpandas.geometry import MultiPolygonArray
 
 from shapely import Polygon, MultiPolygon
@@ -322,17 +323,29 @@ class UxDataset(xr.Dataset):
         # coordinates representing the shell of each face as a polygon
         polygon_shells = self.uxgrid.polygon_shells
 
-        antimeridian_polygon_shells = [
-            polygon_shells[i] for i in antimeridian_faces
-        ]
-
+        # construct shapely Polygons
         polygons = [Polygon(shell) for shell in polygon_shells]
 
-        for face_idx in antimeridian_faces:
-            polygons[face_idx] = fix_polygon(polygons[face_idx])
+        # polygons = []
+        # for i in range(len(polygon_shells)):
+        #     if i in antimeridian_faces:
+        #         continue
+        #     polygons.append(Polygon(polygon_shells[i]))
 
-        geometry = MultiPolygonArray(polygons)
+        # correct antimeridian polygons
 
-        gdf = GeoDataFrame(geometry)
+        # for idx in antimeridian_faces:
+        #
+        #     polygons[idx] = fix_polygon(polygons[idx])
 
-        pass
+        polygons_corrected = [fix_polygon(P) for P in polygons]
+
+        # prepare geometry for GeoDataFrame
+        geometry = MultiPolygonArray(polygons_corrected)
+        #geometry = MultiPolygonArray(polygons)
+
+        # TODO: Data Variables for Shading Polygons
+
+        gdf = GeoDataFrame({"geometry": geometry})
+
+        return gdf
