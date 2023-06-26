@@ -25,3 +25,4 @@ dependencies:
     - matplotlib
     - spatialpandas
     - shapely
+    - antimeridian

@@ -14,3 +14,4 @@ dependencies:
   - xarray
   - shapely
   - spatialpandas
+  - antimeridian
