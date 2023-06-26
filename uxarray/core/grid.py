@@ -12,7 +12,7 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
                                    node_lonlat_rad_to_xyz)
 
-from uxarray.core.connectivity import close_face_nodes, _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nEdges_per_face, _build_nNodes_per_face
+from uxarray.core.connectivity import close_face_nodes, _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nEdges_per_face, _build_nNodes_per_face, _build_antimeridian_face_indices, _build_polygon_shells
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -66,6 +66,10 @@ class Grid:
         # initialize face_area variable
         self._face_areas = None
 
+        # initialize attributes
+        self._antimeridian_faces = None
+        self._polygon_shells = None
+
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -108,9 +112,6 @@ class Grid:
         self._inverse_grid_var_names = {
             v: k for k, v in self.grid_var_names.items()
         }
-
-        # construct nNodes_per_Face
-        _build_nNodes_per_face(self)
 
     def __init_grid_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
@@ -365,6 +366,8 @@ class Grid:
 
         Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
         """
+        if "nNodes_per_face" not in self._ds:
+            _build_nNodes_per_face(self)
         return self._ds["nNodes_per_face"]
 
     @property
@@ -513,6 +516,27 @@ class Grid:
             _build_face_edges_connectivity(self)
 
         return self._ds["Mesh2_face_edges"]
+
+    # other properties
+    @property
+    def antimeridian_faces(self):
+        if self._antimeridian_faces is None:
+            self._antimeridian_faces = _build_antimeridian_face_indices(
+                self.Mesh2_node_x.values, self.Mesh2_face_nodes.values,
+                self.nMesh2_face, self.nMaxMesh2_face_nodes,
+                self.nNodes_per_face.values)
+        return self._antimeridian_faces
+
+    @property
+    def polygon_shells(self):
+        if self._polygon_shells is None:
+            self._polygon_shells = _build_polygon_shells(
+                self.Mesh2_node_x.values, self.Mesh2_node_y.values,
+                self.Mesh2_face_nodes.values, self.nMesh2_face,
+                self.nMaxMesh2_face_nodes, self.nNodes_per_face.values)
+        return self._polygon_shells
+
+        return
 
     def copy(self):
         """Returns a deep copy of this grid."""

@@ -1,7 +1,11 @@
 import numpy as np
 import xarray as xr
+import math
+import copy
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+
+from shapely import Polygon
 
 
 def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
@@ -55,25 +59,25 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     return closed
 
 
-def build_polygon_verts(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
-                        nMesh2_face, nMaxMesh2_face_nodes, nNodes_per_face):
+def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
+                          nMesh2_face, nMaxMesh2_face_nodes, nNodes_per_face):
     closed_face_nodes = close_face_nodes(Mesh2_face_nodes, nMesh2_face,
                                          nMaxMesh2_face_nodes)
 
-    polygon_verts = []
+    polygon_shells = []
     for face_nodes, max_n_nodes in zip(Mesh2_face_nodes, nNodes_per_face):
         polygon_x = Mesh2_node_x[face_nodes[0:max_n_nodes]]
         polygon_y = Mesh2_node_y[face_nodes[0:max_n_nodes]]
 
-        cur_polygon_verts = np.array([polygon_x, polygon_y])
-        polygon_verts.append(cur_polygon_verts.T)
+        cur_polygon_shell = np.array([polygon_x, polygon_y])
+        polygon_shells.append(cur_polygon_shell.T)
 
-    return polygon_verts
+    return polygon_shells
 
 
-def get_antimeridian_face_indices(Mesh2_node_x, Mesh2_face_nodes, nMesh2_face,
-                                  nMaxMesh2_face_nodes, nNodes_per_face):
-
+def _build_antimeridian_face_indices(Mesh2_node_x, Mesh2_face_nodes,
+                                     nMesh2_face, nMaxMesh2_face_nodes,
+                                     nNodes_per_face):
     closed_face_nodes = close_face_nodes(Mesh2_face_nodes, nMesh2_face,
                                          nMaxMesh2_face_nodes)
 
@@ -98,6 +102,36 @@ def get_antimeridian_face_indices(Mesh2_node_x, Mesh2_face_nodes, nMesh2_face,
                axis=1)).squeeze().astype(INT_DTYPE)
 
     return indices
+
+
+def split_antimeridian_polygons(antimeridian_polygon_verts, antimeridian_faces):
+
+    antimeridian_polygon_shells = [
+        antimeridian_polygon_verts[i] for i in antimeridian_faces
+    ]
+    # antimeridian_polygons = [Polygon(shell) for shell in antimeridian_polygon_shells]
+
+    polygons_lhs = []
+    polygons_rhs = []
+
+    for polygon_shell in antimeridian_polygon_shells:
+        polygon_lhs = copy.deepcopy(polygon_shell)
+        polygon_rhs = copy.deepcopy(polygon_shell)
+
+    # left_polygons = []
+    # right_polygons = []
+    #
+    # for polygon_verts in antimeridian_polygon_verts:
+    #
+    #     for coord_index, lon in enumerate(polygon_verts[1:, 0], start=1):
+    #         lon_prev = polygon_verts[coord_index - 1, 0]
+    #         dlon = lon - lon_prev
+    #         direction = math.copysign(1, dlon)
+    #
+    #         if abs(dlon) > 180:
+    #             break
+
+    return None, None
 
 
 def _build_nNodes_per_face(grid):

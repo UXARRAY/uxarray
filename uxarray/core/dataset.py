@@ -9,12 +9,14 @@ from typing import Optional, IO
 
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.grid import Grid
-from uxarray.core.connectivity import build_polygon_verts, get_antimeridian_face_indices
+from uxarray.core.connectivity import split_antimeridian_polygons
 
 from spatialpandas import GeoDataFrame
 from spatialpandas.geometry import MultiPolygonArray
 
 from shapely import Polygon, MultiPolygon
+
+from antimeridian import fix_polygon
 
 
 class UxDataset(xr.Dataset):
@@ -314,34 +316,23 @@ class UxDataset(xr.Dataset):
 
     def to_gdf(self) -> GeoDataFrame:
 
-        # construct polygon vertices
-        polygon_verts = build_polygon_verts(self.uxgrid.Mesh2_node_x.values,
-                                            self.uxgrid.Mesh2_node_y.values,
-                                            self.uxgrid.Mesh2_face_nodes.values,
-                                            self.uxgrid.nMesh2_face,
-                                            self.uxgrid.nMaxMesh2_face_nodes,
-                                            self.uxgrid.nNodes_per_face.values)
+        # indices of faces that wrap around the antimeridian (0/360 lon)
+        antimeridian_faces = self.uxgrid.antimeridian_faces
 
-        # construct shapely polygons (optimize)
-        polygons = []
-        for cur_polygon_verts in polygon_verts:
-            polygons.append(Polygon(cur_polygon_verts))
+        # coordinates representing the shell of each face as a polygon
+        polygon_shells = self.uxgrid.polygon_shells
 
-        polygon_array = MultiPolygon(polygons)
+        antimeridian_polygon_shells = [
+            polygon_shells[i] for i in antimeridian_faces
+        ]
 
-        # locate antimeridian polygons
-        antimeridian_face_indices = get_antimeridian_face_indices(
-            self.uxgrid.Mesh2_node_x.values,
-            self.uxgrid.Mesh2_face_nodes.values, self.uxgrid.nMesh2_face,
-            self.uxgrid.nMaxMesh2_face_nodes,
-            self.uxgrid.nNodes_per_face.values)
+        polygons = [Polygon(shell) for shell in polygon_shells]
 
-        # split polygons across dateline
-        # TODO: helper function to detect, split, and map antimeridian polygons
+        for face_idx in antimeridian_faces:
+            polygons[face_idx] = fix_polygon(polygons[face_idx])
 
-        # construct an array for our GeoDataFrame's geometry
-        # TODO: geometry = MultiPolygonArray(polygons)
+        geometry = MultiPolygonArray(polygons)
 
-        # assign and map data variables
+        gdf = GeoDataFrame(geometry)
 
         pass
