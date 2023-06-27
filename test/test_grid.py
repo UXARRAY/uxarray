@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import numpy.testing as nt
 import xarray as xr
 import gmpy2
 from gmpy2 import mpfr
@@ -7,10 +8,8 @@ from gmpy2 import mpfr
 from unittest import TestCase
 from pathlib import Path
 
-import xarray as xr
 import uxarray as ux
 import uxarray.multi_precision_helpers as mph
-import numpy.testing as nt
 
 try:
     import constants
@@ -19,40 +18,44 @@ except ImportError:
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
+gridfile_CSne8 = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
+gridfile_RLL1deg = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+gridfile_RLL10deg_CSne4 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
+gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
+gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+
+dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
+dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+
+shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
+
 
 class TestGrid(TestCase):
-    ug_filename1 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-    ug_filename2 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
-    ug_filename3 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
-    xr_ds1 = xr.open_dataset(ug_filename1)
-    xr_ds2 = xr.open_dataset(ug_filename2)
-    xr_ds3 = xr.open_dataset(ug_filename3)
-    tgrid1 = ux.Grid(xr_ds1)
-    tgrid2 = ux.Grid(xr_ds2)
-    tgrid3 = ux.Grid(xr_ds3)
+    grid_CSne30 = ux.open_grid(gridfile_CSne30)
+    grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
+    grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
         types."""
 
-        self.tgrid1.encode_as("ugrid")
-        self.tgrid2.encode_as("ugrid")
-        self.tgrid3.encode_as("ugrid")
+        self.grid_CSne30.encode_as("ugrid")
+        self.grid_RLL1deg.encode_as("ugrid")
+        self.grid_RLL10deg_CSne4.encode_as("ugrid")
 
-        self.tgrid1.encode_as("exodus")
-        self.tgrid2.encode_as("exodus")
-        self.tgrid3.encode_as("exodus")
+        self.grid_CSne30.encode_as("exodus")
+        self.grid_RLL1deg.encode_as("exodus")
+        self.grid_RLL10deg_CSne4.encode_as("exodus")
 
     def test_open_non_mesh2_write_exodus(self):
         """Loads grid files of different formats using uxarray's open_dataset
         call."""
 
-        path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-        xr_grid = xr.open_dataset(path)
-        grid = ux.Grid(xr_grid)
+        grid_geoflow = ux.open_grid(gridfile_CSne30)
 
-        grid.encode_as("exodus")
+        grid_geoflow.encode_as("exodus")
 
     def test_init_verts(self):
         """Create a uxarray grid from multiple face vertices with duplicate
@@ -109,10 +112,10 @@ class TestGrid(TestCase):
 
         # Now consturct the grid using the faces_coords
         verts_cart = np.array(faces_coords)
-        vgrid = ux.Grid(verts_cart,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(verts_cart,
+                             vertices=True,
+                             islatlon=False,
+                             isconcave=False)
 
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 6)
@@ -124,10 +127,10 @@ class TestGrid(TestCase):
             np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
                       [135, 10]])
         ])
-        vgrid = ux.Grid(faces_verts_one,
-                        vertices=True,
-                        islatlon=True,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_one,
+                             vertices=True,
+                             islatlon=True,
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
@@ -137,10 +140,10 @@ class TestGrid(TestCase):
         faces_verts_single_face = np.array([[150, 10], [160, 20], [150, 30],
                                             [135, 30], [125, 20], [135, 10]])
 
-        vgrid = ux.Grid(faces_verts_single_face,
-                        vertices=True,
-                        islatlon=True,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_single_face,
+                             vertices=True,
+                             islatlon=True,
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
@@ -262,10 +265,11 @@ class TestGrid(TestCase):
             np.array([[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                       [85, 10]]),
         ])
-        vgrid = ux.Grid(faces_verts_ndarray,
-                        vertices=True,
-                        islatlon=True,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_ndarray,
+                             vertices=True,
+                             islatlon=True,
+                             isconcave=False)
+
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -278,10 +282,10 @@ class TestGrid(TestCase):
                              [100, 30], [105, 20]],
                             [[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                              [85, 10]]]
-        vgrid = ux.Grid(faces_verts_list,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_list,
+                             vertices=True,
+                             islatlon=False,
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -293,10 +297,10 @@ class TestGrid(TestCase):
             ((125, 20), (135, 30), (125, 60), (110, 60), (100, 30), (105, 20)),
             ((95, 10), (105, 20), (100, 30), (85, 30), (75, 20), (85, 10))
         ]
-        vgrid = ux.Grid(faces_verts_tuples,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_tuples,
+                             vertices=True,
+                             islatlon=False,
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
@@ -311,115 +315,122 @@ class TestGrid(TestCase):
                                      [[95, 10], [105, 20], [100, 30], [85, 30],
                                       [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
                                       [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]]
-        vgrid = ux.Grid(faces_verts_filled_values,
-                        vertices=True,
-                        islatlon=False,
-                        concave=False)
+        vgrid = ux.open_grid(faces_verts_filled_values,
+                             vertices=True,
+                             islatlon=False,
+                             isconcave=False)
         assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 12)
 
-    def test_init_grid_var_attrs(self):
-        """Tests to see if accessing variables through set attributes is equal
+    def test_grid_properties(self):
+        """Tests to see if accessing variables through set properties is equal
         to using the dict."""
 
         # Dataset with standard UGRID variable names
         # Coordinates
         xr.testing.assert_equal(
-            self.tgrid1.Mesh2_node_x,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_x"]])
+            self.grid_CSne30.Mesh2_node_x, self.grid_CSne30._ds[
+                self.grid_CSne30.grid_var_names["Mesh2_node_x"]])
         xr.testing.assert_equal(
-            self.tgrid1.Mesh2_node_y,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_node_y"]])
+            self.grid_CSne30.Mesh2_node_y, self.grid_CSne30._ds[
+                self.grid_CSne30.grid_var_names["Mesh2_node_y"]])
         # Variables
         xr.testing.assert_equal(
-            self.tgrid1.Mesh2_face_nodes,
-            self.tgrid1.ds[self.tgrid1.ds_var_names["Mesh2_face_nodes"]])
+            self.grid_CSne30.Mesh2_face_nodes, self.grid_CSne30._ds[
+                self.grid_CSne30.grid_var_names["Mesh2_face_nodes"]])
 
         # Dimensions
-        n_nodes = self.tgrid1.Mesh2_node_x.shape[0]
-        n_faces, n_face_nodes = self.tgrid1.Mesh2_face_nodes.shape
+        n_nodes = self.grid_CSne30.Mesh2_node_x.shape[0]
+        n_faces, n_face_nodes = self.grid_CSne30.Mesh2_face_nodes.shape
 
-        self.assertEqual(n_nodes, self.tgrid1.nMesh2_node)
-        self.assertEqual(n_faces, self.tgrid1.nMesh2_face)
-        self.assertEqual(n_face_nodes, self.tgrid1.nMaxMesh2_face_nodes)
+        self.assertEqual(n_nodes, self.grid_CSne30.nMesh2_node)
+        self.assertEqual(n_faces, self.grid_CSne30.nMesh2_face)
+        self.assertEqual(n_face_nodes, self.grid_CSne30.nMaxMesh2_face_nodes)
 
         # xr.testing.assert_equal(
         #     self.tgrid1.nMesh2_node,
-        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_node"]])
+        #     self.tgrid1._ds[self.tgrid1.grid_var_names["nMesh2_node"]])
         # xr.testing.assert_equal(
         #     self.tgrid1.nMesh2_face,
-        #     self.tgrid1.ds[self.tgrid1.ds_var_names["nMesh2_face"]])
+        #     self.tgrid1._ds[self.tgrid1.grid_var_names["nMesh2_face"]])
 
         # Dataset with non-standard UGRID variable names
-        path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-        xr_grid = xr.open_dataset(path)
-        grid = ux.Grid(xr_grid)
-        xr.testing.assert_equal(grid.Mesh2_node_x,
-                                grid.ds[grid.ds_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(grid.Mesh2_node_y,
-                                grid.ds[grid.ds_var_names["Mesh2_node_y"]])
-        # Variables
-        xr.testing.assert_equal(grid.Mesh2_face_nodes,
-                                grid.ds[grid.ds_var_names["Mesh2_face_nodes"]])
-        # Dimensions
-        n_nodes = grid.Mesh2_node_x.shape[0]
-        n_faces, n_face_nodes = grid.Mesh2_face_nodes.shape
+        grid_geoflow = ux.open_grid(gridfile_geoflow)
 
-        self.assertEqual(n_nodes, grid.nMesh2_node)
-        self.assertEqual(n_faces, grid.nMesh2_face)
-        self.assertEqual(n_face_nodes, grid.nMaxMesh2_face_nodes)
+        xr.testing.assert_equal(
+            grid_geoflow.Mesh2_node_x,
+            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_x"]])
+        xr.testing.assert_equal(
+            grid_geoflow.Mesh2_node_y,
+            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_y"]])
+        # Variables
+        xr.testing.assert_equal(
+            grid_geoflow.Mesh2_face_nodes,
+            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_face_nodes"]])
+        # Dimensions
+        n_nodes = grid_geoflow.Mesh2_node_x.shape[0]
+        n_faces, n_face_nodes = grid_geoflow.Mesh2_face_nodes.shape
+
+        self.assertEqual(n_nodes, grid_geoflow.nMesh2_node)
+        self.assertEqual(n_faces, grid_geoflow.nMesh2_face)
+        self.assertEqual(n_face_nodes, grid_geoflow.nMaxMesh2_face_nodes)
 
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
-        with self.assertRaises(RuntimeError):
-            shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
-            tgrid = ux.Grid(str(shp_filename))
+        with self.assertRaises(ValueError):
+            grid_shp = ux.open_grid(shp_filename)
 
     def test_read_scrip(self):
         """Reads a scrip file."""
 
-        scrip_8 = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
-        ug_30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-
         # Test read from scrip and from ugrid for grid class
-        xr_grid_s8 = xr.open_dataset(scrip_8)
-        ux_grid_s8 = ux.Grid(xr_grid_s8)  # tests from scrip
-
-        xr_grid_u30 = xr.open_dataset(ug_30)
-        ux_grid_u30 = ux.Grid(xr_grid_u30)  # tests from ugrid
+        grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
 
 
-class TestIntegrate(TestCase):
-    mesh_file30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-    data_file30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
-    data_file30_v2 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+class TestOperators(TestCase):
+    grid_CSne30_01 = ux.open_grid(gridfile_CSne30)
+    grid_CSne30_02 = ux.open_grid(gridfile_CSne30)
+    grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
+
+    def test_eq(self):
+        """Test Equals ('==') operator."""
+        assert self.grid_CSne30_01 == self.grid_CSne30_02
+
+    def test_ne(self):
+        """Test Not Equals ('!=') operator."""
+        assert self.grid_CSne30_01 != self.grid_RLL1deg
+
+
+class TestFaceAreas(TestCase):
+
+    grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
     def test_calculate_total_face_area_triangle(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
+
         verts = [[[0.57735027, -5.77350269e-01, -0.57735027],
                   [0.57735027, 5.77350269e-01, -0.57735027],
                   [-0.57735027, 5.77350269e-01, -0.57735027]]]
 
-        # load grid
-        vgrid = ux.Grid(verts, vertices=True, islatlon=False, concave=False)
+        grid_verts = ux.open_grid(verts,
+                                  vertices=True,
+                                  islatlon=False,
+                                  isconcave=False)
 
         #calculate area
-        area_gaussian = vgrid.calculate_total_face_area(
+        area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
 
-        area_triangular = vgrid.calculate_total_face_area(
+        area_triangular = grid_verts.calculate_total_face_area(
             quadrature_rule="triangular", order=4)
         nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
 
     def test_calculate_total_face_area_file(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
 
-        xr_grid = xr.open_dataset(str(self.mesh_file30))
-        grid = ux.Grid(xr_grid)
-
-        area = grid.calculate_total_face_area()
+        area = self.grid_CSne30.calculate_total_face_area()
 
         nt.assert_almost_equal(area, constants.MESH30_AREA, decimal=3)
 
@@ -428,9 +439,8 @@ class TestIntegrate(TestCase):
         sphere, with an expected total face area of 4pi."""
         mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
 
-        ds = xr.open_dataset(mpas_grid_path)
-        primal_grid = ux.Grid(ds, use_dual=False)
-        dual_grid = ux.Grid(ds, use_dual=True)
+        primal_grid = ux.open_grid(mpas_grid_path, use_dual=False)
+        dual_grid = ux.open_grid(mpas_grid_path, use_dual=True)
 
         primal_face_area = primal_grid.calculate_total_face_area()
         dual_face_area = dual_grid.calculate_total_face_area()
@@ -443,38 +453,31 @@ class TestIntegrate(TestCase):
                                constants.UNIT_SPHERE_AREA,
                                decimal=3)
 
-    def test_integrate(self):
-        xr_grid = xr.open_dataset(self.mesh_file30)
-        xr_psi = xr.open_dataset(self.data_file30)
-        xr_v2 = xr.open_dataset(self.data_file30_v2)
-
-        u_grid = ux.Grid(xr_grid)
-
-        integral_psi = u_grid.integrate(xr_psi)
-        integral_var2 = u_grid.integrate(xr_v2)
-
-        nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
-        nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
-
-
-class TestFaceAreas(TestCase):
+    # TODO: Will depend on the decision for whether to provide integrate function
+    # from within `Grid` as well as UxDataset
+    # def test_integrate(self):
+    #     xr_psi = xr.open_dataset(dsfile_vortex_CSne30)
+    #     xr_v2 = xr.open_dataset(dsfile_var2_CSne30)
+    #
+    #     integral_psi = self.grid_CSne30.integrate(xr_psi)
+    #     integral_var2 = self.grid_CSne30.integrate(xr_v2)
+    #
+    #     nt.assert_almost_equal(integral_psi, constants.PSI_INTG, decimal=3)
+    #     nt.assert_almost_equal(integral_var2, constants.VAR2_INTG, decimal=3)
 
     def test_compute_face_areas_geoflow_small(self):
         """Checks if the GeoFlow Small can generate a face areas output."""
-        geoflow_small_grid = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-        grid_1_ds = xr.open_dataset(geoflow_small_grid)
-        grid_1 = ux.Grid(grid_1_ds)
-        grid_1.compute_face_areas()
+        grid_geoflow = ux.open_grid(gridfile_geoflow)
 
-    # removed test until fix to tranposed face nodes
+        grid_geoflow.compute_face_areas()
+
+    # TODO: Add this test after fix to tranposed face nodes
     # def test_compute_face_areas_fesom(self):
     #     """Checks if the FESOM PI-Grid Output can generate a face areas
     #     output."""
+    #     grid_fesom = ux.open_grid(gridfile_fesom)
     #
-    #     fesom_grid_small = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
-    #     grid_2_ds = xr.open_dataset(fesom_grid_small)
-    #     grid_2 = ux.Grid(grid_2_ds)
-    #     grid_2.compute_face_areas()
+    #     grid_fesom.compute_face_areas()
 
     def test_verts_calc_area(self):
         faces_verts_ndarray = np.array([
@@ -486,10 +489,10 @@ class TestFaceAreas(TestCase):
                       [75, 20, 0], [85, 10, 0]]),
         ])
         # load our vertices into a UXarray Grid object
-        verts_grid = ux.Grid(faces_verts_ndarray,
-                             vertices=True,
-                             islatlon=True,
-                             concave=False)
+        verts_grid = ux.open_grid(faces_verts_ndarray,
+                                  vertices=True,
+                                  islatlon=True,
+                                  isconcave=False)
 
         face_verts_areas = verts_grid.face_areas
 
@@ -527,16 +530,18 @@ class TestPopulateCoordinates(TestCase):
         ]
 
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
-        vgrid = ux.Grid([verts_degree], islatlon=False)
+
+        vgrid = ux.open_grid(verts_degree, islatlon=False)
         vgrid._populate_cartesian_xyz_coord()
+
         for i in range(0, vgrid.nMesh2_node):
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_x"].values[i],
                                    cart_x[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_y"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_y"].values[i],
                                    cart_y[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_z"].values[i],
                                    cart_z[i],
                                    decimal=12)
 
@@ -566,15 +571,16 @@ class TestPopulateCoordinates(TestCase):
         ]
 
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
-        vgrid = ux.Grid([verts_cart], islatlon=False)
+
+        vgrid = ux.open_grid(verts_cart, islatlon=False)
         vgrid._populate_lonlat_coord()
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.nMesh2_node):
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_x"].values[i],
                                    lon_deg[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_y"].values[i],
                                    lat_deg[i],
                                    decimal=12)
 
@@ -586,13 +592,9 @@ class TestConnectivity(TestCase):
     ugrid_filepath_02 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
     ugrid_filepath_03 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
-    xrds_maps = xr.open_dataset(mpas_filepath)
-    xrds_exodus = xr.open_dataset(exodus_filepath)
-    xrds_ugrid = xr.open_dataset(ugrid_filepath_01)
-
-    grid_mpas = ux.Grid(xrds_maps)
-    grid_exodus = ux.Grid(xrds_exodus)
-    grid_ugrid = ux.Grid(xrds_ugrid)
+    grid_mpas = ux.open_grid(mpas_filepath)
+    grid_exodus = ux.open_grid(exodus_filepath)
+    grid_ugrid = ux.open_grid(ugrid_filepath_01)
 
     # used from constructing vertices
     f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10], [105, -20]]
@@ -724,12 +726,28 @@ class TestConnectivity(TestCase):
             assert grid.nNodes_per_face.min() >= min_dimension
             assert grid.nNodes_per_face.max() <= max_dimension
 
+    def test_build_nNodes_per_face(self):
+        """Tests the construction of the ``nNodes_per_face`` variable."""
+
+        # test on grid constructed from sample datasets
+        grids = [self.grid_mpas, self.grid_exodus, self.grid_ugrid]
+
+        for grid in grids:
+            # highest possible dimension dimension for a face
+            max_dimension = grid.nMaxMesh2_face_nodes
+
+            # face must be at least a triangle
+            min_dimension = 3
+
+            assert grid.nNodes_per_face.min() >= min_dimension
+            assert grid.nNodes_per_face.max() <= max_dimension
+
         # test on grid constructed from vertices
         verts = [
             self.f0_deg, self.f1_deg, self.f2_deg, self.f3_deg, self.f4_deg,
             self.f5_deg, self.f6_deg
         ]
-        grid_from_verts = ux.Grid(verts)
+        grid_from_verts = ux.open_grid(verts)
 
         # number of non-fill-value nodes per face
         expected_nodes_per_face = np.array([6, 3, 4, 6, 6, 4, 4], dtype=int)
@@ -744,8 +762,7 @@ class TestConnectivity(TestCase):
         ]
 
         for grid_path in grid_paths:
-            grid_xr = xr.open_dataset(grid_path)
-            grid_ux = ux.Grid(grid_xr)
+            grid_ux = ux.open_grid(grid_path)
 
             n_face = grid_ux.nMesh2_face
             n_node = grid_ux.nMesh2_node
@@ -759,9 +776,8 @@ class TestConnectivity(TestCase):
         with known edge nodes."""
 
         # grid with known edge node connectivity
-        mpas_grid_xr = xr.open_dataset(self.mpas_filepath)
-        mpas_grid_ux = ux.Grid(mpas_grid_xr)
-        edge_nodes_expected = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
+        mpas_grid_ux = ux.open_grid(self.mpas_filepath)
+        edge_nodes_expected = mpas_grid_ux._ds['Mesh2_edge_nodes'].values
 
         # arrange edge nodes in the same manner as Grid._build_edge_node_connectivity
         edge_nodes_expected.sort(axis=1)
@@ -769,7 +785,7 @@ class TestConnectivity(TestCase):
 
         # construct edge nodes
         mpas_grid_ux._build_edge_node_connectivity(repopulate=True)
-        edge_nodes_output = mpas_grid_ux.ds['Mesh2_edge_nodes'].values
+        edge_nodes_output = mpas_grid_ux._ds['Mesh2_edge_nodes'].values
 
         self.assertTrue(np.array_equal(edge_nodes_expected, edge_nodes_output))
 
@@ -787,14 +803,13 @@ class TestConnectivity(TestCase):
             self.ugrid_filepath_03
         ]
         for ug_file_name in ug_filename_list:
-            xr_ds = xr.open_dataset(ug_file_name)
-            tgrid = ux.Grid(xr_ds)
+            tgrid = ux.open_grid(ug_file_name)
 
-            mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
+            mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
             tgrid._build_face_edges_connectivity()
-            mesh2_face_edges = tgrid.ds.Mesh2_face_edges
-            mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
+            mesh2_face_edges = tgrid._ds.Mesh2_face_edges
+            mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
             # Assert if the mesh2_face_edges sizes are correct.
             self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
@@ -804,12 +819,12 @@ class TestConnectivity(TestCase):
 
             # Assert if the mesh2_edge_nodes sizes are correct.
             # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid.ds[
+            num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid._ds[
                 "Mesh2_node_x"].sizes["nMesh2_node"] - 2
             size = mesh2_edge_nodes.sizes["nMesh2_edge"]
             self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
 
-            original_face_nodes_connectivity = tgrid.ds.Mesh2_face_nodes.values
+            original_face_nodes_connectivity = tgrid._ds.Mesh2_face_nodes.values
 
             reverted_mesh2_edge_nodes = self._revert_edges_conn_to_face_nodes_conn(
                 edge_nodes_connectivity=mesh2_edge_nodes.values,
@@ -823,14 +838,13 @@ class TestConnectivity(TestCase):
                                    original_face_nodes_connectivity[i]))
 
     def test_build_face_edges_connectivity_mpas(self):
-        xr_ds = xr.open_dataset(self.mpas_filepath)
-        tgrid = ux.Grid(xr_ds)
+        tgrid = ux.open_grid(self.mpas_filepath)
 
-        mesh2_face_nodes = tgrid.ds["Mesh2_face_nodes"]
+        mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
         tgrid._build_face_edges_connectivity()
-        mesh2_face_edges = tgrid.ds.Mesh2_face_edges
-        mesh2_edge_nodes = tgrid.ds.Mesh2_edge_nodes
+        mesh2_face_edges = tgrid._ds.Mesh2_face_edges
+        mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
         # Assert if the mesh2_face_edges sizes are correct.
         self.assertEqual(mesh2_face_edges.sizes["nMesh2_face"],
@@ -840,7 +854,7 @@ class TestConnectivity(TestCase):
 
         # Assert if the mesh2_edge_nodes sizes are correct.
         # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid.ds[
+        num_edges = mesh2_face_edges.sizes["nMesh2_face"] + tgrid._ds[
             "Mesh2_node_x"].sizes["nMesh2_node"] - 2
         size = mesh2_edge_nodes.sizes["nMesh2_edge"]
         self.assertEqual(mesh2_edge_nodes.sizes["nMesh2_edge"], num_edges)
@@ -850,30 +864,30 @@ class TestConnectivity(TestCase):
             self.f0_deg, self.f1_deg, self.f2_deg, self.f3_deg, self.f4_deg,
             self.f5_deg, self.f6_deg
         ]
-        uds = ux.Grid(verts)
+        uds = ux.open_grid(verts)
         uds._build_face_edges_connectivity()
-        n_face = len(uds.ds["Mesh2_face_edges"].values)
+        n_face = len(uds._ds["Mesh2_face_edges"].values)
         n_node = uds.nMesh2_node
-        n_edge = len(uds.ds["Mesh2_edge_nodes"].values)
+        n_edge = len(uds._ds["Mesh2_edge_nodes"].values)
 
         self.assertEqual(7, n_face)
         self.assertEqual(21, n_node)
         self.assertEqual(28, n_edge)
 
         # We will utilize the edge_nodes_connectivity and face_edges_connectivity to generate the
-        # res_face_nodes_connectivity and compare it with the uds.ds["Mesh2_face_nodes"].values
-        edge_nodes_connectivity = uds.ds["Mesh2_edge_nodes"].values
-        face_edges_connectivity = uds.ds["Mesh2_face_edges"].values
-        face_nodes_connectivity = uds.ds["Mesh2_face_nodes"].values
+        # res_face_nodes_connectivity and compare it with the uds._ds["Mesh2_face_nodes"].values
+        edge_nodes_connectivity = uds._ds["Mesh2_edge_nodes"].values
+        face_edges_connectivity = uds._ds["Mesh2_face_edges"].values
+        face_nodes_connectivity = uds._ds["Mesh2_face_nodes"].values
 
         res_face_nodes_connectivity = self._revert_edges_conn_to_face_nodes_conn(
             edge_nodes_connectivity, face_edges_connectivity,
             face_nodes_connectivity)
 
-        # Compare the res_face_nodes_connectivity with the uds.ds["Mesh2_face_nodes"].values
+        # Compare the res_face_nodes_connectivity with the uds._ds["Mesh2_face_nodes"].values
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
-                           uds.ds["Mesh2_face_nodes"].values))
+                           uds._ds["Mesh2_face_nodes"].values))
 
 
 class TestMeshLoader(TestCase):
