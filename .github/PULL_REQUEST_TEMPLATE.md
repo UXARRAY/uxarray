@@ -18,14 +18,13 @@ import uxarray as ux
 grid_path = "/path/to/grid.nc"
 data_path = "/path/to/data.nc"
 
-uxds = ux.open_dataset(grid_path, data_path)
+uxgrid = ux.Grid(grid_path)
 
 # this is how you use this function
-some_output = uxds.some_function()
+some_output = uxgrid.some_function()
 
 # this is another way to use this function
-other_output = uxds.some_function(some_param = True)
-
+other_output = uxgrid.some_function(some_param = True)
 ```
 
 ## PR Checklist

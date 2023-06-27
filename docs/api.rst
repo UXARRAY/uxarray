@@ -5,10 +5,8 @@
 API Reference
 =============
 
-
-
-Below user API and internal API pages show already-implemented UXarray functionality.
-You can also check the draft `UXarray API
+Below user API and internal API pages show already-implemented Uxarray functionality.
+You can also check the draft `Uxarray API
 <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
 documentation to see the tentative whole API and let us know if you have any feedback!
 

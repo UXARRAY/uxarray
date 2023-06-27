@@ -2,13 +2,12 @@
 
 .. _examples:
 
-.. math::
-
 Usage Examples
 ==============
 
-Below is a list of usage examples showcasing how to use UXarray. If you are interested in contributing
-your own examples or suggesting one for us to create, please see the :doc:`contributing`.
+Here's some examples of how to use the uxarray. We are always planning to add
+more examples! If you are interested in contributing your own examples, please
+see the :doc:`contributing`.
 
 .. include:: notebook-examples.txt
 
@@ -16,11 +15,7 @@ your own examples or suggesting one for us to create, please see the :doc:`contr
    :maxdepth: 1
    :hidden:
 
-   examples/001-working-with-unstructured-grids.ipynb
-   examples/002-grid-topology.ipynb
+   examples/001-read-grid-data.ipynb
+   examples/002-access-grid-info.ipynb
    examples/003-area-calc.ipynb
-<<<<<<< HEAD
    examples/004-multiprecision-usage.ipynb
-=======
-   examples/004-working-with-mpas-grids.ipynb
->>>>>>> main

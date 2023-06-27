@@ -1,21 +1,15 @@
-- title: Working with Unstructured Grid Data
-  path: examples/001-working-with-unstructured-grids.ipynb
+- title: Reading In Grid Data
+  path: examples/001-read-grid-data.ipynb
   thumbnail: _static/thumbnails/default.svg
 
-- title: Grid Topology Overview
-  path: examples/002-grid-topology.ipynb
+- title: Accessing Grid Information
+  path: examples/002-access-grid-info.ipynb
   thumbnail: _static/thumbnails/default.svg
 
 - title: Face Area Calculations
   path: examples/003-area-calc.ipynb
   thumbnail: _static/thumbnails/default.svg
 
-<<<<<<< HEAD
 - title: Multiprecision Arithmetic Grid
   path: examples/004-multiprecision-usage.ipynb
   thumbnail: _static/thumbnails/default.svg
-=======
-- title: Working with MPAS Grids
-  path: examples/004-working-with-mpas-grids.ipynb
-  thumbnail: _static/examples/mpas/c-grid.png
->>>>>>> main

@@ -1,5 +1,5 @@
-from uxarray.io._mpas import _replace_padding, _replace_zeros, _to_zero_index
-from uxarray.io._mpas import _read_mpas
+from uxarray._mpas import _replace_padding, _replace_zeros, _to_zero_index
+from uxarray._mpas import _read_mpas, _primal_to_ugrid, _dual_to_ugrid
 import uxarray as ux
 import xarray as xr
 from unittest import TestCase
@@ -7,7 +7,7 @@ import numpy as np
 import os
 from pathlib import Path
 
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -29,8 +29,8 @@ class TestMPAS(TestCase):
 
     def test_mpas_to_grid(self):
         """Tests creation of Grid object from converted MPAS dataset."""
-        mpas_uxgrid_primal = ux.open_grid(self.mpas_grid_path, use_dual=False)
-        mpas_uxgrid_primal = ux.open_grid(self.mpas_grid_path, use_dual=True)
+        mpas_uxgrid_primal = ux.Grid(self.mpas_xr_ds, use_dual=False)
+        mpas_uxgrid_primal = ux.Grid(self.mpas_xr_ds, use_dual=True)
 
     def test_primal_to_ugrid_conversion(self):
         """Verifies that the Primal-Mesh was converted properly."""
@@ -100,8 +100,8 @@ class TestMPAS(TestCase):
         assert np.array_equal(verticesOnCell, gold_output)
 
     def test_set_attrs(self):
-        """Tests the execution of ``_set_global_attrs``, checking for
-        attributes being correctly stored in ``Grid._ds``"""
+        """Tests the execution of "_set_global_attrs", checking for attributes
+        being correctly stored in "Grid.ds"."""
 
         # full set of expected mpas attributes
         expected_attrs = [
@@ -123,4 +123,4 @@ class TestMPAS(TestCase):
 
         # check if all expected attributes are set
         for mpas_attr in expected_attrs:
-            assert mpas_attr in uxgrid._ds.attrs
+            assert mpas_attr in uxgrid.ds.attrs
