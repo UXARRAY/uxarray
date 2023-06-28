@@ -12,8 +12,16 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
                                    node_lonlat_rad_to_xyz)
 
-from uxarray.core.connectivity import close_face_nodes, _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nEdges_per_face, _build_nNodes_per_face, _build_antimeridian_face_indices, _build_polygon_shells
+from uxarray.core.connectivity import close_face_nodes, _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nNodes_per_face, _build_polygon_shells
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+
+from spatialpandas import GeoDataFrame
+
+from spatialpandas.geometry import MultiPolygonArray
+
+from shapely import Polygon
+
+import antimeridian
 
 
 class Grid:
@@ -67,8 +75,10 @@ class Grid:
         self._face_areas = None
 
         # initialize attributes
-        self._antimeridian_faces = None
         self._polygon_shells = None
+
+        # initialize cached gdf for repeated dataarray calls
+        self._gdf = None
 
         # TODO: fix when adding/exercising gridspec
 
@@ -370,12 +380,6 @@ class Grid:
             _build_nNodes_per_face(self)
         return self._ds["nNodes_per_face"]
 
-    @property
-    def nEdges_per_face(self):
-        if "nEdges_per_face" not in self._ds:
-            _build_nEdges_per_face(self)
-        return self._ds['nEdges_per_face']
-
     # coordinate properties
 
     @property
@@ -519,15 +523,6 @@ class Grid:
 
     # other properties
     @property
-    def antimeridian_faces(self):
-        if self._antimeridian_faces is None:
-            self._antimeridian_faces = _build_antimeridian_face_indices(
-                self.Mesh2_node_x.values, self.Mesh2_face_nodes.values,
-                self.nMesh2_face, self.nMaxMesh2_face_nodes,
-                self.nNodes_per_face.values)
-        return self._antimeridian_faces
-
-    @property
     def polygon_shells(self):
         if self._polygon_shells is None:
             self._polygon_shells = _build_polygon_shells(
@@ -535,8 +530,6 @@ class Grid:
                 self.Mesh2_face_nodes.values, self.nMesh2_face,
                 self.nMaxMesh2_face_nodes, self.nNodes_per_face.values)
         return self._polygon_shells
-
-        return
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -895,3 +888,30 @@ class Grid:
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
+
+    def to_gdf(self, override=False, cache=True):
+
+        # return cached gdf
+        if self._gdf is not None and not override:
+            return self._gdf
+
+        # obtain polygon shells for shapely polygon construction
+        polygon_shells = self.polygon_shells
+
+        # construct a list of shapely polygons
+        polygons = [Polygon(shell) for shell in polygon_shells]
+
+        # correct each polygon if it crosses the antimeridian
+        corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
+
+        # prepare geometry for GeoDataFrame
+        geometry = MultiPolygonArray(corrected_polygons)
+
+        # construct our GeoDataFrame with corrected polygons
+        gdf = GeoDataFrame({"geometry": geometry})
+
+        # cache instance of gdf
+        if cache:
+            self._gdf = gdf
+
+        return gdf

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.core.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nEdges_per_face, _build_nNodes_per_face
+from uxarray.core.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nNodes_per_face
 
 try:
     import constants
@@ -787,3 +787,12 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds._ds["Mesh2_face_nodes"].values))
+
+
+class TestGridGDF(TestCase):
+    mpas_filepath = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+
+    mpas_uxgrid = ux.open_grid(mpas_filepath)
+
+    def test_construction_and_return(self):
+        gdf = self.mpas_uxgrid.to_gdf()

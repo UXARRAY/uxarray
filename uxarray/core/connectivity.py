@@ -1,12 +1,7 @@
 import numpy as np
 import xarray as xr
-import math
-import copy
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.utils.helpers import node_xyz_to_lonlat_rad
-
-from shapely import Polygon
 
 
 def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
@@ -74,13 +69,14 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
                                          nMaxMesh2_face_nodes)
 
     # additional node after closing our faces
-    nNodes_per_face += 1
+    nNodes_per_face_closed = nNodes_per_face + 1
 
     if Mesh2_node_x.max() > 180:
-        Mesh2_node_x -= 180
+        Mesh2_node_x = (Mesh2_node_x + 180) % 360 - 180
 
     polygon_shells = []
-    for face_nodes, max_n_nodes in zip(closed_face_nodes, nNodes_per_face):
+    for face_nodes, max_n_nodes in zip(closed_face_nodes,
+                                       nNodes_per_face_closed):
 
         polygon_x = Mesh2_node_x[face_nodes[0:max_n_nodes]]
         polygon_y = Mesh2_node_y[face_nodes[0:max_n_nodes]]
@@ -89,65 +85,6 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
         polygon_shells.append(cur_polygon_shell.T)
 
     return polygon_shells
-
-
-def _build_antimeridian_face_indices(Mesh2_node_x, Mesh2_face_nodes,
-                                     nMesh2_face, nMaxMesh2_face_nodes,
-                                     nNodes_per_face):
-    closed_face_nodes = close_face_nodes(Mesh2_face_nodes, nMesh2_face,
-                                         nMaxMesh2_face_nodes)
-
-    face_x = np.ones((nMesh2_face, nMaxMesh2_face_nodes + 1),
-                     dtype=Mesh2_node_x.dtype) * 9999
-
-    for face_idx, (cur_face_nodes,
-                   n_nodes) in enumerate(zip(closed_face_nodes,
-                                             nNodes_per_face)):
-        face_x[face_idx, 0:n_nodes] = Mesh2_node_x[cur_face_nodes[0:n_nodes]]
-
-    edge_lengths = np.diff(face_x)
-
-    # edges that originate in the left-hand-side [0, 180]
-    edge_length_flags_lhs = ((edge_lengths > 180) & (edge_lengths <= 360))
-
-    # edges that originate in the right-hand-side [180, 360]
-    edge_length_flags_rhs = ((edge_lengths < -180) & (edge_lengths > -360))
-
-    indices = np.argwhere(
-        np.any(edge_length_flags_rhs | edge_length_flags_lhs,
-               axis=1)).squeeze().astype(INT_DTYPE)
-
-    return indices
-
-
-def split_antimeridian_polygons(antimeridian_polygon_verts, antimeridian_faces):
-
-    antimeridian_polygon_shells = [
-        antimeridian_polygon_verts[i] for i in antimeridian_faces
-    ]
-    # antimeridian_polygons = [Polygon(shell) for shell in antimeridian_polygon_shells]
-
-    polygons_lhs = []
-    polygons_rhs = []
-
-    for polygon_shell in antimeridian_polygon_shells:
-        polygon_lhs = copy.deepcopy(polygon_shell)
-        polygon_rhs = copy.deepcopy(polygon_shell)
-
-    # left_polygons = []
-    # right_polygons = []
-    #
-    # for polygon_verts in antimeridian_polygon_verts:
-    #
-    #     for coord_index, lon in enumerate(polygon_verts[1:, 0], start=1):
-    #         lon_prev = polygon_verts[coord_index - 1, 0]
-    #         dlon = lon - lon_prev
-    #         direction = math.copysign(1, dlon)
-    #
-    #         if abs(dlon) > 180:
-    #             break
-
-    return None, None
 
 
 def _build_nNodes_per_face(grid):
@@ -167,20 +104,6 @@ def _build_nNodes_per_face(grid):
         data=nNodes_per_face,
         dims=["nMesh2_face"],
         attrs={"long_name": "number of non-fill value nodes for each face"})
-
-
-def _build_nEdges_per_face(grid):
-    closed = np.ones((grid.nMesh2_face, grid.nMaxMesh2_face_edges + 1),
-                     dtype=INT_DTYPE) * INT_FILL_VALUE
-
-    closed[:, :-1] = grid.Mesh2_face_edges.copy()
-
-    nEdges_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
-
-    grid._ds["nEdges_per_face"] = xr.DataArray(
-        data=nEdges_per_face,
-        dims=["nMesh2_face"],
-        attrs={"long_name": "number of non-fill value edges for each face"})
 
 
 def _build_edge_node_connectivity(grid, repopulate=False):

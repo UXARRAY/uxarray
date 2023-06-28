@@ -9,15 +9,6 @@ from typing import Optional, IO
 
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.grid import Grid
-from uxarray.core.connectivity import split_antimeridian_polygons
-
-from spatialpandas import GeoDataFrame
-
-from spatialpandas.geometry import MultiPolygonArray
-
-from shapely import Polygon, MultiPolygon
-
-from antimeridian import fix_polygon
 
 
 class UxDataset(xr.Dataset):
@@ -314,38 +305,3 @@ class UxDataset(xr.Dataset):
 
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
-
-    def to_gdf(self) -> GeoDataFrame:
-
-        # indices of faces that wrap around the antimeridian (0/360 lon)
-        antimeridian_faces = self.uxgrid.antimeridian_faces
-
-        # coordinates representing the shell of each face as a polygon
-        polygon_shells = self.uxgrid.polygon_shells
-
-        # construct shapely Polygons
-        polygons = [Polygon(shell) for shell in polygon_shells]
-
-        # polygons = []
-        # for i in range(len(polygon_shells)):
-        #     if i in antimeridian_faces:
-        #         continue
-        #     polygons.append(Polygon(polygon_shells[i]))
-
-        # correct antimeridian polygons
-
-        # for idx in antimeridian_faces:
-        #
-        #     polygons[idx] = fix_polygon(polygons[idx])
-
-        polygons_corrected = [fix_polygon(P) for P in polygons]
-
-        # prepare geometry for GeoDataFrame
-        geometry = MultiPolygonArray(polygons_corrected)
-        #geometry = MultiPolygonArray(polygons)
-
-        # TODO: Data Variables for Shading Polygons
-
-        gdf = GeoDataFrame({"geometry": geometry})
-
-        return gdf
