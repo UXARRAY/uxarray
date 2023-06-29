@@ -898,10 +898,10 @@ class Grid:
         # obtain polygon shells for shapely polygon construction
         polygon_shells = self.polygon_shells
 
-        # construct a list of shapely polygons
+        # list of shapely Polygons representing each Face in our grid
         polygons = [Polygon(shell) for shell in polygon_shells]
 
-        # correct each polygon if it crosses the antimeridian
+        # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
         corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
 
         # prepare geometry for GeoDataFrame

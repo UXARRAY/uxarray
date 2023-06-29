@@ -16,7 +16,6 @@ class UxDataArray(xr.DataArray):
     uxgrid : uxarray.Grid, optional
         The `Grid` object that makes this array aware of the unstructured
         grid topology it belongs to.
-
         If `None`, it needs to be an instance of `uxarray.Grid`.
 
     Other Parameters
@@ -100,6 +99,26 @@ class UxDataArray(xr.DataArray):
 
     def to_gdf(self):
 
-        # convert to UxDataset and perform conversion
+        # data is multidimensional, must be a 1D slice
+        if self.data.ndim > 1:
+            raise ValueError(
+                "TODO: describe data must be a 1D slice (not multidimensional)")
 
-        pass
+        # data mapped to faces
+        if self.data.size == self.uxgrid.nMesh2_face:
+            gdf = self.uxgrid.to_gdf()
+            gdf[self.name] = self.data
+            return gdf
+
+        # data mapped to nodes
+        elif self.data.size == self.uxgrid.nMesh2_node:
+            gdf = self.uxgrid.to_gdf()
+            gdf[self.name] = self.data
+            # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
+            return gdf
+
+        # data not mapped to faces or nodes
+        else:
+            raise ValueError(
+                "TODO: describe that data dimension must match either nodes or faces (maybe edges?)"
+            )
