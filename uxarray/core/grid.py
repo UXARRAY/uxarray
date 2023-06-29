@@ -233,6 +233,16 @@ class Grid:
         # call reader as per mesh_type
         if self.mesh_type == "exo":
             self._ds = _read_exodus(dataset, self.grid_var_names)
+
+            # Assume Exodus was read as cartesian grid and that coordinates are not set by reader, call the latlon setter
+            self._populate_lonlat_coord()
+            if len(self._ds.coords) > 2:
+                # set coordinates
+                ds = self._ds.set_coords(
+                    ["Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z"])
+            else:
+                ds = self._ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
+
         elif self.mesh_type == "scrip":
             self._ds = _read_scrip(dataset)
         elif self.mesh_type == "ugrid":
@@ -969,7 +979,7 @@ class Grid:
             data=nodes_degree[:, 1],
             dims=["nMesh2_node"],
             attrs={
-                "standard_name": "lattitude",
+                "standard_name": "latitude",
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
