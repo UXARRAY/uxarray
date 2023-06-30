@@ -61,7 +61,7 @@ def _to_ugrid(in_ds, out_ds):
             unq_lat,
             dims=["nMesh2_node"],
             attrs={
-                "standard_name": "lattitude",
+                "standard_name": "latitude",
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
