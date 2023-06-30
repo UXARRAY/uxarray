@@ -920,11 +920,9 @@ class Grid:
         polygons = [Polygon(shell) for shell in polygon_shells]
 
         # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
-        corrected_polygons = [
-            antimeridian.fix_polygon(P, fix_winding=True) for P in polygons
-        ]
+        corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
 
-        # prepare geometry for GeoDataFrame
+        # prepare geometry for GeoDataz`Frame
         geometry = MultiPolygonArray(corrected_polygons)
 
         # construct our GeoDataFrame with corrected polygons

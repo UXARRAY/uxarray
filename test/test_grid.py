@@ -789,6 +789,10 @@ class TestConnectivity(TestCase):
                            uds._ds["Mesh2_face_nodes"].values))
 
 
+from shapely import Polygon
+import antimeridian
+
+
 class TestGridGDF(TestCase):
     mpas_filepath = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
 
@@ -796,3 +800,16 @@ class TestGridGDF(TestCase):
 
     def test_construction_and_return(self):
         gdf = self.mpas_uxgrid.to_gdf()
+
+    def test_poly(self):
+
+        shell = np.array([[-176.78115373, -18.58572933],
+                          [-173.71026732, -14.73835555],
+                          [-176.88248512, -12.82925277], [180., -15.7250416],
+                          [-176.78115373, -18.58572933]])
+
+        polygon = Polygon(shell)
+
+        corrected_poly = antimeridian.fix_polygon(polygon)
+
+        pass
