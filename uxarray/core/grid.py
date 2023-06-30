@@ -890,6 +890,24 @@ class Grid:
             })
 
     def to_gdf(self, override=False, cache=True):
+        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
+        column, containing a collection of Shapely Polygons or MultiPolygons
+        representing the geometry of the unstructured grid. Additionally, any
+        polygon that crosses the antimeridian is split into MultiPolygon across
+        the antimeridian.
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``gdf`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``gdf`` should be cached
+
+        Returns
+        -------
+        gdf : spatialpandas.GeoDataFrame
+            The output `GeoDataFrame` with a filled out "geometry" collumn
+        """
 
         # return cached gdf
         if self._gdf is not None and not override:
@@ -902,7 +920,9 @@ class Grid:
         polygons = [Polygon(shell) for shell in polygon_shells]
 
         # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
-        corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
+        corrected_polygons = [
+            antimeridian.fix_polygon(P, fix_winding=True) for P in polygons
+        ]
 
         # prepare geometry for GeoDataFrame
         geometry = MultiPolygonArray(corrected_polygons)

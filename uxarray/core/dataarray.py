@@ -98,11 +98,21 @@ class UxDataArray(xr.DataArray):
         self._uxgrid = ugrid_obj
 
     def to_gdf(self):
+        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
+        column, containing a collection of Shapely Polygons or MultiPolygons
+        representing the geometry of the unstructured grid, and a data column
+        representing a 1D slice of data mapped to each Polygon.
+
+        Parameters
+        Returns
+        -------
+        gdf : spatialpandas.GeoDataFrame
+            The output `GeoDataFrame` with a filled out "geometry" and 1D data column
+        """
 
         # data is multidimensional, must be a 1D slice
         if self.data.ndim > 1:
-            raise ValueError(
-                "TODO: describe data must be a 1D slice (not multidimensional)")
+            raise ValueError("Data Variable must be a 1-dimensional slice.")
 
         # data mapped to faces
         if self.data.size == self.uxgrid.nMesh2_face:
