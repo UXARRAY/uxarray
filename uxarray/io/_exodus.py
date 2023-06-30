@@ -62,7 +62,7 @@ def _read_exodus(ext_ds, grid_var_names):
                 data=ext_ds.coord[1],
                 dims=["nMesh2_node"],
                 attrs={
-                    "standard_name": "lattitude",
+                    "standard_name": "latitude",
                     "long_name": "latitude of mesh nodes",
                     "units": "degrees_north",
                 })
@@ -89,7 +89,7 @@ def _read_exodus(ext_ds, grid_var_names):
                 data=ext_ds.coordx,
                 dims=["nMesh2_node"],
                 attrs={
-                    "standard_name": "lattitude",
+                    "standard_name": "latitude",
                     "long_name": "latitude of mesh nodes",
                     "units": "degrees_north",
                 })
