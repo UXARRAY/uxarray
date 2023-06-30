@@ -152,3 +152,4 @@ Helpers
 
    utils.helpers._is_ugrid
    utils.helpers._replace_fill_values
+   utils.helpers._angle_of_2_vectors

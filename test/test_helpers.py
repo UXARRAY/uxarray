@@ -198,6 +198,26 @@ class TestIntersectionPoint(TestCase):
 
     def test_pt_within_gcr(self):
 
+        # The GCR that's eexactly 180 degrees will have Value Error raised
+        gcr_180degree_cart = [
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0, 0]),
+            ux.utils.helpers.node_lonlat_rad_to_xyz([np.pi, 0])
+        ]
+        pt_same_lon_in = ux.utils.helpers.node_lonlat_rad_to_xyz([0, 0])
+        with self.assertRaises(ValueError):
+            ux.utils.helpers.point_within_GCR(pt_same_lon_in,
+                                              gcr_180degree_cart)
+
+        gcr_180degree_cart = [
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, np.pi / 2]),
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, -np.pi / 2])
+        ]
+
+        pt_same_lon_in = ux.utils.helpers.node_lonlat_rad_to_xyz([0, 0])
+        with self.assertRaises(ValueError):
+            ux.utils.helpers.point_within_GCR(pt_same_lon_in,
+                                              gcr_180degree_cart)
+
         # Test when the point and the GCR all have the same longitude
         gcr_same_lon_cart = [
             ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 1.5]),

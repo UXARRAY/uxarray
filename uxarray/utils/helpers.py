@@ -702,6 +702,13 @@ def point_within_GCR(pt, gcr_cart):
     GCRv0_lonlat = node_xyz_to_lonlat_rad(gcr_cart[0])
     GCRv1_lonlat = node_xyz_to_lonlat_rad(gcr_cart[1])
 
+    # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
+    angle = _angle_of_2_vectors(gcr_cart[0], gcr_cart[1])
+    if np.allclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
+        raise ValueError(
+            "The input GCR is exactly 180 degree, this GCR can have multiple planes. Consider breaking the GCR "
+            "into two GCRs")
+
     if not np.allclose(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt),
                        0,
                        rtol=0,
@@ -757,3 +764,28 @@ def is_between(p, q, r) -> bool:
     """
 
     return p <= q <= r or r <= q <= p
+
+
+def _angle_of_2_vectors(u, v):
+    """Calculate the angle between two 3D vectors u and v in radians. Can be
+    used to calcualte the span of a GCR.
+
+    Parameters
+    ----------
+    u : numpy.array
+        The first 3D vector.
+    v : numpy.array
+        The second 3D vector.
+
+    Returns
+    -------
+    float
+        The angle between u and v in radians.
+    """
+    v_norm_times_u = np.linalg.norm(v) * u
+    u_norm_times_v = np.linalg.norm(u) * v
+    vec_minus = v_norm_times_u - u_norm_times_v
+    vec_sum = v_norm_times_u + u_norm_times_v
+    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus),
+                                   np.linalg.norm(vec_sum))
+    return angle_u_v_rad
