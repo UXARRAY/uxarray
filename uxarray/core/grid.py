@@ -884,7 +884,7 @@ class Grid:
             data=nodes_degree[:, 1],
             dims=["nMesh2_node"],
             attrs={
-                "standard_name": "lattitude",
+                "standard_name": "latitude",
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
