@@ -97,7 +97,7 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
-    def to_gdf(self):
+    def to_gdf(self, override=False, cache=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
@@ -116,13 +116,13 @@ class UxDataArray(xr.DataArray):
 
         # data mapped to faces
         if self.data.size == self.uxgrid.nMesh2_face:
-            gdf = self.uxgrid.to_gdf()
+            gdf = self.uxgrid.to_gdf(override=override, cache=cache)
             gdf[self.name] = self.data
             return gdf
 
         # data mapped to nodes
         elif self.data.size == self.uxgrid.nMesh2_node:
-            gdf = self.uxgrid.to_gdf()
+            gdf = self.uxgrid.to_gdf(override=override, cache=cache)
             gdf[self.name] = self.data
             # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
             return gdf
