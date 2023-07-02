@@ -112,7 +112,9 @@ class UxDataArray(xr.DataArray):
 
         # data is multidimensional, must be a 1D slice
         if self.data.ndim > 1:
-            raise ValueError("Data Variable must be a 1-dimensional slice.")
+            raise ValueError(
+                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.nMesh2_face} "
+                f"for face data or {self.uxgrid.nMesh2_face} for vertex data.")
 
         # data mapped to faces
         if self.data.size == self.uxgrid.nMesh2_face:
@@ -130,5 +132,6 @@ class UxDataArray(xr.DataArray):
         # data not mapped to faces or nodes
         else:
             raise ValueError(
-                "TODO: describe that data dimension must match either nodes or faces (maybe edges?)"
+                f"Data Variable with size {self.data.size} does not match the number of faces "
+                f"({self.uxgrid.nMesh2_face} or nodes ({self.uxgrid.nMesh2_node}."
             )

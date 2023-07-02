@@ -69,6 +69,12 @@ Class
 
    UxDataArray
 
+IO
+----------
+.. autosummary::
+   :toctree: _autosummary
+   UxDataArray.to_gdf
+
 
 Attributes
 ----------
@@ -101,6 +107,7 @@ IO
    :toctree: _autosummary
 
    open_grid
+   Grid.to_gdf
 
 
 Methods
