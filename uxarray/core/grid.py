@@ -12,7 +12,7 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
                                    node_lonlat_rad_to_xyz)
 
-from uxarray.core.connectivity import close_face_nodes, _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nNodes_per_face, _build_polygon_shells
+from uxarray.core.connectivity import close_face_nodes, _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nNodes_per_face, _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 from spatialpandas import GeoDataFrame
@@ -22,6 +22,10 @@ from spatialpandas.geometry import MultiPolygonArray
 from shapely import Polygon
 
 import antimeridian
+
+from matplotlib.collections import PolyCollection
+
+import cartopy.crs as ccrs
 
 
 class Grid:
@@ -76,8 +80,11 @@ class Grid:
 
         # initialize attributes
         self._polygon_shells = None
+        self._corrected_polygon_shells = None
+        self._original_to_corrected_indices = None
+        self._antimeridian_face_indices = None
 
-        # initialize cached gdf for repeated dataarray calls
+        # initialize cached gdf for repeated calls
         self._gdf = None
 
         # TODO: fix when adding/exercising gridspec
@@ -531,6 +538,24 @@ class Grid:
                 self.nMaxMesh2_face_nodes, self.nNodes_per_face.values)
         return self._polygon_shells
 
+    @property
+    def corrected_polygon_shells(self):
+        if self._corrected_polygon_shells is None:
+            self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
+                self.polygon_shells)
+        return self._corrected_polygon_shells
+
+    @property
+    def original_to_corrected_indices(self):
+        if self._original_to_corrected_indices is None:
+            self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
+                self.polygon_shells)
+        return self._original_to_corrected_indices
+
+    @property
+    def antimeridian_face_indices(self):
+        return None
+
     def copy(self):
         """Returns a deep copy of this grid."""
         return Grid(xr.Dataset(self._ds),
@@ -933,3 +958,8 @@ class Grid:
             self._gdf = gdf
 
         return gdf
+
+    def to_PolyCollection(self, transform=ccrs.PlateCarree()):
+        poly_collection = PolyCollection(self.corrected_polygon_shells,
+                                         transform=transform)
+        return poly_collection

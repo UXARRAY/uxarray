@@ -5,6 +5,8 @@ from typing import Optional
 
 from uxarray.core.grid import Grid
 
+import cartopy.crs as ccrs
+
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from
@@ -128,6 +130,36 @@ class UxDataArray(xr.DataArray):
             gdf[self.name] = self.data
             # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
             return gdf
+
+        # data not mapped to faces or nodes
+        else:
+            raise ValueError(
+                f"Data Variable with size {self.data.size} does not match the number of faces "
+                f"({self.uxgrid.nMesh2_face} or nodes ({self.uxgrid.nMesh2_node}."
+            )
+
+    def to_PolyCollection(self,
+                          transform=ccrs.PlateCarree(),
+                          override=False,
+                          cache=True):
+
+        # data is multidimensional, must be a 1D slice
+        if self.data.ndim > 1:
+            raise ValueError(
+                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.nMesh2_face} "
+                f"for face data or {self.uxgrid.nMesh2_face} for vertex data.")
+
+        # data mapped to faces
+        if self.data.size == self.uxgrid.nMesh2_face:
+            poly_collection = self.uxgrid.to_PolyCollection()
+            poly_collection.set_array(self.data)
+            return poly_collection
+
+        # data mapped to nodes
+        elif self.data.size == self.uxgrid.nMesh2_node:
+            poly_collection = self.uxgrid.to_PolyCollection()
+            # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
+            return poly_collection
 
         # data not mapped to faces or nodes
         else:

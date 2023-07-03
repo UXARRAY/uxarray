@@ -3,6 +3,10 @@ import xarray as xr
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
+from shapely import Polygon
+
+import antimeridian
+
 
 def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     """Closes (``Mesh2_face_nodes``) by inserting the first node index after
@@ -85,6 +89,44 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
         polygon_shells.append(cur_polygon_shell.T)
 
     return polygon_shells
+
+
+def _build_corrected_polygon_shells(polygon_shells):
+
+    polygon_shells = polygon_shells
+
+    # list of shapely Polygons representing each Face in our grid
+    polygons = [Polygon(shell) for shell in polygon_shells]
+
+    # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
+    corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
+
+    original_to_corrected = []
+    corrected_polygon_shells = []
+
+    for i, polygon in enumerate(corrected_polygons):
+
+        # Convert MultiPolygons into individual Polygon Vertices
+        if polygon.geom_type == "MultiPolygon":
+            for individual_polygon in polygon.geoms:
+                corrected_polygon_shells.append(
+                    np.array([
+                        individual_polygon.exterior.coords.xy[0],
+                        individual_polygon.exterior.coords.xy[1]
+                    ]).T)
+                original_to_corrected.append(i)
+
+        # Convert Shapely Polygon into Polygon Vertices
+        else:
+            corrected_polygon_shells.append(
+                np.array([
+                    polygon.exterior.coords.xy[0], polygon.exterior.coords.xy[1]
+                ]).T)
+            original_to_corrected.append(i)
+
+    original_to_corrected = np.array(original_to_corrected, dtype=INT_DTYPE)
+
+    return corrected_polygon_shells, original_to_corrected
 
 
 def _build_nNodes_per_face(grid):

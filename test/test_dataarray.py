@@ -31,3 +31,8 @@ class TestDataArrayGDF(TestCase):
         gdf = outCSne30_uxds['psi'].to_gdf()
 
         pass
+
+    def test_mpl_poly_collection(self):
+        outCSne30_uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        poly_collection = outCSne30_uxds['psi'].to_PolyCollection()
+        pass
