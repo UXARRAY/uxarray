@@ -5,8 +5,6 @@ from typing import Optional
 
 from uxarray.core.grid import Grid
 
-import cartopy.crs as ccrs
-
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from

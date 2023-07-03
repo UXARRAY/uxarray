@@ -25,8 +25,6 @@ import antimeridian
 
 from matplotlib.collections import PolyCollection
 
-import cartopy.crs as ccrs
-
 
 class Grid:
     """Unstructured grid topology definition.
@@ -959,7 +957,23 @@ class Grid:
 
         return gdf
 
-    def to_PolyCollection(self, transform=ccrs.PlateCarree()):
-        poly_collection = PolyCollection(self.corrected_polygon_shells,
-                                         transform=transform)
+    def to_PolyCollection(self):
+        """Constructs a ``matplotlib.collections.PolyCollection`` object with
+        polygons representing the geometry of the unstructured grid, with
+        polygons that cross the antimeridian split across the antimeridian.
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``gdf`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``gdf`` should be cached
+
+        Returns
+        -------
+        gdf : spatialpandas.GeoDataFrame
+            The output `GeoDataFrame` with a filled out "geometry" collumn
+        """
+
+        poly_collection = PolyCollection(self.corrected_polygon_shells)
         return poly_collection
