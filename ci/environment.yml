@@ -14,5 +14,6 @@ dependencies:
   - xarray
   - shapely
   - spatialpandas
+  - matplotlib
   - pip:
     - antimeridian
