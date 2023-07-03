@@ -74,6 +74,7 @@ IO
 .. autosummary::
    :toctree: _autosummary
    UxDataArray.to_gdf
+   UxDataArray.to_PolyCollection
 
 
 Attributes
@@ -108,6 +109,7 @@ IO
 
    open_grid
    Grid.to_gdf
+   Grid.to_PolyCollection
 
 
 Methods
