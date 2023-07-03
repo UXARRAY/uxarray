@@ -136,10 +136,7 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.nMesh2_face} or nodes ({self.uxgrid.nMesh2_node}."
             )
 
-    def to_PolyCollection(self,
-                          transform=ccrs.PlateCarree(),
-                          override=False,
-                          cache=True):
+    def to_PolyCollection(self, override=False, cache=True):
 
         # data is multidimensional, must be a 1D slice
         if self.data.ndim > 1:
