@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 import xarray as xr
 
+import uxarray.utils.constants
 from uxarray.core.grid import Grid
 
 from uxarray.core.dataset import UxDataset
@@ -261,3 +262,11 @@ def open_mfdataset(grid_filename_or_obj: str,
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
     return uxds
+
+
+def set_cache(cache_bool):
+    uxarray.utils.constants.CACHE = cache_bool
+
+
+def set_jit(jit_bool):
+    uxarray.utils.constants.JIT_BOOL = jit_bool
