@@ -82,8 +82,9 @@ class Grid:
         self._original_to_corrected_indices = None
         self._antimeridian_face_indices = None
 
-        # initialize cached gdf for repeated calls
+        # initialize cached objects for repeated calls
         self._gdf = None
+        self._polycollection = None
 
         # TODO: fix when adding/exercising gridspec
 
@@ -912,7 +913,7 @@ class Grid:
                 "units": "degrees_north",
             })
 
-    def to_gdf(self, override=False, cache=True):
+    def to_geodataframe(self, override=False, cache=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -957,7 +958,7 @@ class Grid:
 
         return gdf
 
-    def to_PolyCollection(self):
+    def to_polycollection(self, override=False, cache=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
         polygons that cross the antimeridian split across the antimeridian.
@@ -965,9 +966,9 @@ class Grid:
         Parameters
         ----------
         override : bool
-            Flag to recompute the ``gdf`` if one is already cached
+            Flag to recompute the ``PolyCollection`` if one is already cached
         cache : bool
-            Flag to indicate if the computed ``gdf`` should be cached
+            Flag to indicate if the computed ``PolyCollection`` should be cached
 
         Returns
         -------
@@ -975,5 +976,14 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
-        poly_collection = PolyCollection(self.corrected_polygon_shells)
-        return poly_collection
+        # return cached polycollection
+        if self._polycollection is not None and not override:
+            return self._polycollection
+
+        polycollection = PolyCollection(self.corrected_polygon_shells)
+
+        # cache instance of polycollection
+        if cache:
+            self._polycollection = polycollection
+
+        return polycollection

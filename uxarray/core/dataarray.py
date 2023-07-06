@@ -97,7 +97,7 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
-    def to_gdf(self, override=False, cache=True):
+    def to_geodataframe(self, override_grid=False, cache_grid=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
@@ -118,13 +118,13 @@ class UxDataArray(xr.DataArray):
 
         # data mapped to faces
         if self.data.size == self.uxgrid.nMesh2_face:
-            gdf = self.uxgrid.to_gdf(override=override, cache=cache)
+            gdf = self.uxgrid.to_geodataframe(override=override_grid, cache=cache_grid)
             gdf[self.name] = self.data
             return gdf
 
         # data mapped to nodes
         elif self.data.size == self.uxgrid.nMesh2_node:
-            gdf = self.uxgrid.to_gdf(override=override, cache=cache)
+            gdf = self.uxgrid.to_geodataframe(override=override_grid, cache=cache_grid)
             gdf[self.name] = self.data
             # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
             return gdf
@@ -136,7 +136,23 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.nMesh2_face} or nodes ({self.uxgrid.nMesh2_node}."
             )
 
-    def to_PolyCollection(self, override=False, cache=True):
+    def to_polycollection(self, override_grid=False, cache_grid=True):
+        """Constructs a ``matplotlib.collections.PolyCollection`` object with
+        polygons representing the geometry of the unstructured grid, with
+        polygons that cross the antimeridian split across the antimeridian.
+
+        Parameters
+        ----------
+        override_grid : bool
+            Flag to recompute the ``PolyCollection`` if one is already cached
+        cache_grid : bool
+            Flag to indicate if the computed ``PolyCollection`` should be cached
+
+        Returns
+        -------
+        gdf : spatialpandas.GeoDataFrame
+            The output `GeoDataFrame` with a filled out "geometry" collumn
+        """
 
         # data is multidimensional, must be a 1D slice
         if self.data.ndim > 1:
@@ -146,13 +162,13 @@ class UxDataArray(xr.DataArray):
 
         # data mapped to faces
         if self.data.size == self.uxgrid.nMesh2_face:
-            poly_collection = self.uxgrid.to_PolyCollection()
+            poly_collection = self.uxgrid.to_polycollection(override=override_grid, cache=cache_grid)
             poly_collection.set_array(self.data)
             return poly_collection
 
         # data mapped to nodes
         elif self.data.size == self.uxgrid.nMesh2_node:
-            poly_collection = self.uxgrid.to_PolyCollection()
+            poly_collection = self.uxgrid.to_polycollection(override=override_grid, cache=cache_grid)
             # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
             return poly_collection
 

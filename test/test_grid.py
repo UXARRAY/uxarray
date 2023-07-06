@@ -799,10 +799,10 @@ class TestGridGDF(TestCase):
     mpas_uxgrid = ux.open_grid(mpas_filepath)
 
     def test_construction_and_return(self):
-        gdf = self.mpas_uxgrid.to_gdf()
+        gdf = self.mpas_uxgrid.to_geodataframe()
 
     def test_mpl_poly(self):
-        poly_collection = self.mpas_uxgrid.to_PolyCollection()
+        poly_collection = self.mpas_uxgrid.to_polycollection()
 
     def test_corrected_polygon_shells(self):
         corrected_shells = self.mpas_uxgrid.corrected_polygon_shells
