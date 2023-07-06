@@ -118,13 +118,15 @@ class UxDataArray(xr.DataArray):
 
         # data mapped to faces
         if self.data.size == self.uxgrid.nMesh2_face:
-            gdf = self.uxgrid.to_geodataframe(override=override_grid, cache=cache_grid)
+            gdf = self.uxgrid.to_geodataframe(override=override_grid,
+                                              cache=cache_grid)
             gdf[self.name] = self.data
             return gdf
 
         # data mapped to nodes
         elif self.data.size == self.uxgrid.nMesh2_node:
-            gdf = self.uxgrid.to_geodataframe(override=override_grid, cache=cache_grid)
+            gdf = self.uxgrid.to_geodataframe(override=override_grid,
+                                              cache=cache_grid)
             gdf[self.name] = self.data
             # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
             return gdf
@@ -162,13 +164,15 @@ class UxDataArray(xr.DataArray):
 
         # data mapped to faces
         if self.data.size == self.uxgrid.nMesh2_face:
-            poly_collection = self.uxgrid.to_polycollection(override=override_grid, cache=cache_grid)
+            poly_collection = self.uxgrid.to_polycollection(
+                override=override_grid, cache=cache_grid)
             poly_collection.set_array(self.data)
             return poly_collection
 
         # data mapped to nodes
         elif self.data.size == self.uxgrid.nMesh2_node:
-            poly_collection = self.uxgrid.to_polycollection(override=override_grid, cache=cache_grid)
+            poly_collection = self.uxgrid.to_polycollection(
+                override=override_grid, cache=cache_grid)
             # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
             return poly_collection
 
