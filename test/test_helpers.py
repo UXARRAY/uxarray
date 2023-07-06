@@ -9,7 +9,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.utils.helpers import _replace_fill_values
+from uxarray.grid.utils import _replace_fill_values
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
@@ -38,13 +38,8 @@ class TestIntegrate(TestCase):
         face_nodes = np.array([[0, 1, 2]]).astype(INT_DTYPE)
         face_dimension = np.array([3], dtype=INT_DTYPE)
 
-        area = ux.get_all_face_area_from_coords(x,
-                                                y,
-                                                z,
-                                                face_nodes,
-                                                face_dimension,
-                                                3,
-                                                coords_type="cartesian")
+        area = ux.grid.area.get_all_face_area_from_coords(
+            x, y, z, face_nodes, face_dimension, 3, coords_type="cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=1)
 
@@ -56,20 +51,21 @@ class TestIntegrate(TestCase):
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
 
-        area = ux.calculate_face_area(x, y, z, "gaussian", 5, "cartesian")
+        area = ux.grid.area.calculate_face_area(x, y, z, "gaussian", 5,
+                                                "cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
 
     def test_quadrature(self):
         order = 1
-        dG, dW = ux.get_tri_quadratureDG(order)
+        dG, dW = ux.grid.area.get_tri_quadratureDG(order)
         G = np.array([[0.33333333, 0.33333333, 0.33333333]])
         W = np.array([1.0])
 
         np.testing.assert_array_almost_equal(G, dG)
         np.testing.assert_array_almost_equal(W, dW)
 
-        dG, dW = ux.get_gauss_quadratureDG(order)
+        dG, dW = ux.grid.area.get_gauss_quadratureDG(order)
 
         G = np.array([[0.5]])
         W = np.array([1.0])
@@ -90,7 +86,7 @@ class TestGridCenter(TestCase):
         scrip_center_lat = ds_scrip_CSne8['grid_center_lat']
 
         # Calculate the center_lat/lon using same dataset's corner_lat/lon
-        calc_center = ux.grid_center_lat_lon(ds_scrip_CSne8)
+        calc_center = ux.grid.coordinates.grid_center_lat_lon(ds_scrip_CSne8)
         calc_lat = calc_center[0]
         calc_lon = calc_center[1]
 
@@ -102,7 +98,7 @@ class TestGridCenter(TestCase):
 class TestCoordinatesConversion(TestCase):
 
     def test_normalize_in_place(self):
-        [x, y, z] = ux.utils.helpers.normalize_in_place(
+        [x, y, z] = ux.grid.coordinates.normalize_in_place(
             [random.random(), random.random(),
              random.random()])
 
@@ -110,15 +106,15 @@ class TestCoordinatesConversion(TestCase):
                              err_tolerance)
 
     def test_node_xyz_to_lonlat_rad(self):
-        [x, y, z] = ux.utils.helpers.normalize_in_place([
+        [x, y, z] = ux.grid.coordinates.normalize_in_place([
             random.uniform(-1, 1),
             random.uniform(-1, 1),
             random.uniform(-1, 1)
         ])
 
-        [lon, lat] = ux.utils.helpers.node_xyz_to_lonlat_rad([x, y, z])
+        [lon, lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
         [new_x, new_y,
-         new_z] = ux.utils.helpers.node_lonlat_rad_to_xyz([lon, lat])
+         new_z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
 
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
@@ -130,9 +126,10 @@ class TestCoordinatesConversion(TestCase):
             random.uniform(-0.5 * np.pi, 0.5 * np.pi)
         ]
 
-        [x, y, z] = ux.utils.helpers.node_lonlat_rad_to_xyz([lon, lat])
+        [x, y, z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
 
-        [new_lon, new_lat] = ux.utils.helpers.node_xyz_to_lonlat_rad([x, y, z])
+        [new_lon,
+         new_lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
 
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)

@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 import xarray as xr
 
-from uxarray.core.grid import Grid
+from uxarray.grid.grid import Grid
 
 from uxarray.core.dataset import UxDataset
 

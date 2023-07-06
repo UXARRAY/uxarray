@@ -8,7 +8,9 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.core.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nNodes_per_face
+from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity
+
+from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
 
 try:
     import constants
@@ -431,7 +433,7 @@ class TestPopulateCoordinates(TestCase):
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
 
         vgrid = ux.open_grid(verts_degree, islatlon=False)
-        vgrid._populate_cartesian_xyz_coord()
+        _populate_cartesian_xyz_coord(vgrid)
 
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_x"].values[i],
@@ -472,7 +474,7 @@ class TestPopulateCoordinates(TestCase):
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
 
         vgrid = ux.open_grid(verts_cart, islatlon=False)
-        vgrid._populate_lonlat_coord()
+        _populate_lonlat_coord(vgrid)
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.nMesh2_node):
@@ -787,10 +789,6 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds._ds["Mesh2_face_nodes"].values))
-
-
-from shapely import Polygon
-import antimeridian
 
 
 class TestGridGDF(TestCase):
