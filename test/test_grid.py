@@ -409,7 +409,8 @@ class TestGrid(TestCase):
         firstNodePrecisionOff_mpfr = gmpy2.mpfr(str(firstNodePrecisionOff))
 
         # Assert that the values are not equal
-        self.assertTrue(gmpy2.cmp(firstNodePrecisionOff_mpfr, firstNodePrecisionOn) != 0)
+        self.assertTrue(
+            gmpy2.cmp(firstNodePrecisionOff_mpfr, firstNodePrecisionOn) != 0)
 
         # Check that the flags are set properly
         self.assertTrue(gridOn._multi_precision)
