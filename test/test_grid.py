@@ -7,9 +7,7 @@ from gmpy2 import mpfr
 from unittest import TestCase
 from pathlib import Path
 
-import xarray as xr
 import uxarray as ux
-import uxarray.multi_precision_helpers as mph
 import numpy.testing as nt
 
 try:
@@ -388,6 +386,34 @@ class TestGrid(TestCase):
 
         xr_grid_u30 = xr.open_dataset(ug_30)
         ux_grid_u30 = ux.Grid(xr_grid_u30)  # tests from ugrid
+
+    def test_from_ds(self):
+        exodus_filepath = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+
+        xrds_exodus = xr.open_dataset(exodus_filepath)
+
+        # Create the grid with multi-precision off
+        gridOff = ux.Grid(xrds_exodus)
+
+        # Create the grid with multi-precision on
+        gridOn = ux.Grid(xrds_exodus)
+        resultsPrecisionOn = gridOn.__from_ds__(xrds_exodus,
+                                                multi_precision=True,
+                                                precision=128)
+
+        # Get the node values
+        firstNodePrecisionOn = resultsPrecisionOn["Mesh2_node_y"].values[0]
+        firstNodePrecisionOff = gridOff.ds["Mesh2_node_y"].values[0]
+
+        # Cast the floating-point value to mpfr
+        firstNodePrecisionOff_mpfr = gmpy2.mpfr(str(firstNodePrecisionOff))
+
+        # Assert that the values are not equal
+        self.assertTrue(gmpy2.cmp(firstNodePrecisionOff_mpfr, firstNodePrecisionOn) != 0)
+
+        # Check that the flags are set properly
+        self.assertTrue(gridOn._multi_precision)
+        self.assertEqual(gridOn._precision, 128)
 
 
 class TestIntegrate(TestCase):
@@ -874,31 +900,3 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds.ds["Mesh2_face_nodes"].values))
-
-
-class TestMeshLoader(TestCase):
-
-    def test_from_ds(self):
-        exodus_filepath = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
-
-        xrds_exodus = xr.open_dataset(exodus_filepath)
-
-        # Create the grid with multi-precision off
-        gridOff = ux.Grid(xrds_exodus)
-        resultsPrecisionOff = gridOff.__from_ds__(xrds_exodus,
-                                                  multi_precision=False)
-
-        # Create the grid with multi-precision on
-        gridOn = ux.Grid(xrds_exodus)
-        resultsPrecisionOn = gridOn.__from_ds__(xrds_exodus,
-                                                multi_precision=True,
-                                                precision=128)
-
-        # Check that the nodes are no longer equal
-        firstNodePrecisionOn = resultsPrecisionOn["Mesh2_node_y"].values[0]
-        firstNodePrecisionOff = resultsPrecisionOff["Mesh2_node_y"].values[0]
-        self.assertNotEqual(firstNodePrecisionOn, firstNodePrecisionOff)
-
-        # Check that the flags are set properly
-        self.assertTrue(gridOn._multi_precision)
-        self.assertEqual(gridOn._precision, 128)
