@@ -26,4 +26,4 @@ dependencies:
     - spatialpandas
     - shapely
     - pip:
-      - antimeridian
+      - antimeridian+https://github.com/gadomski/antimeridian.git

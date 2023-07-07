@@ -16,4 +16,4 @@ dependencies:
   - spatialpandas
   - matplotlib
   - pip:
-    - antimeridian
+    - antimeridian+https://github.com/gadomski/antimeridian.git
