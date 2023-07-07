@@ -143,24 +143,3 @@ Attributes
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
-
-
-Helpers
-===========
-
-.. currentmodule:: uxarray
-.. autosummary::
-   :toctree: _autosummary
-
-   calculate_face_area
-   calculate_spherical_triangle_jacobian
-   calculate_spherical_triangle_jacobian_barycentric
-   close_face_nodes
-   get_all_face_area_from_coords
-   get_gauss_quadratureDG
-   get_tri_quadratureDG
-   grid_center_lat_lon
-   node_xyz_to_lonlat_rad
-   node_lonlat_rad_to_xyz
-   normalize_in_place
-   parse_grid_type

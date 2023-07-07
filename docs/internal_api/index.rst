@@ -121,12 +121,7 @@ Methods
    __from_ds__
    __from_vert__
    __init_grid_var_attrs__
-   _build_edge_node_connectivity
-   _build_face_edges_connectivity
    _build_nNodes_per_face
-   _populate_cartesian_xyz_coord
-   _populate_lonlat_coord
-
 
 
 Attributes
@@ -142,13 +137,3 @@ Operators
    :toctree: _autosummary
    Grid.__eq__
    Grid.__ne__
-
-Helpers
-===========
-
-.. currentmodule:: uxarray
-.. autosummary::
-   :toctree: _autosummary
-
-   utils.helpers._is_ugrid
-   utils.helpers._replace_fill_values
