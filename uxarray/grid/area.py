@@ -1,7 +1,318 @@
 import numpy as np
 from numba import njit, config
 
+from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
+
+from pathlib import PurePath
+
 config.DISABLE_JIT = False
+
+
+@njit
+def calculate_face_area(x,
+                        y,
+                        z,
+                        quadrature_rule="gaussian",
+                        order=4,
+                        coords_type="spherical"):
+    """Calculate area of a face on sphere.
+
+    Parameters
+    ----------
+    x : list, required
+        x-coordinate of all the nodes forming the face
+
+    y : list, required
+        y-coordinate of all the nodes forming the face
+
+    z : list, required
+        z-coordinate of all the nodes forming the face
+
+    quadrature_rule : str, optional
+        triangular and Gaussian quadrature supported, expected values: "triangular" or "gaussian"
+
+    order: int, optional
+        Order of the quadrature rule. Default is 4.
+
+        Supported values:
+            - Gaussian Quadrature: 1 to 10
+            - Triangular: 1, 4, 8, 10 and 12
+
+    coords_type : str, optional
+        coordinate type, default is spherical, can be cartesian also.
+    """
+    area = 0.0  # set area to 0
+    order = order
+
+    if quadrature_rule == "gaussian":
+        dG, dW = get_gauss_quadratureDG(order)
+    elif quadrature_rule == "triangular":
+        dG, dW = get_tri_quadratureDG(order)
+    else:
+        raise ValueError(
+            "Invalid quadrature rule, specify gaussian or triangular")
+
+    num_nodes = len(x)
+
+    # num triangles is two less than the total number of nodes
+    num_triangles = num_nodes - 2
+
+    # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
+    # loop through all sub-triangles of face
+    for j in range(0, num_triangles):
+        node1 = np.array([x[0], y[0], z[0]], dtype=np.float64)
+        node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)
+        node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
+
+        if (coords_type == "spherical"):
+            node1 = np.array(
+                node_lonlat_rad_to_xyz([np.deg2rad(x[0]),
+                                        np.deg2rad(y[0])]))
+            node2 = np.array(
+                node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[j + 1]),
+                     np.deg2rad(y[j + 1])]))
+            node3 = np.array(
+                node_lonlat_rad_to_xyz(
+                    [np.deg2rad(x[j + 2]),
+                     np.deg2rad(y[j + 2])]))
+
+        for p in range(len(dW)):
+            if quadrature_rule == "gaussian":
+                for q in range(len(dW)):
+                    dA = dG[0][p]
+                    dB = dG[0][q]
+                    jacobian = calculate_spherical_triangle_jacobian(
+                        node1, node2, node3, dA, dB)
+                    area += dW[p] * dW[q] * jacobian
+            elif quadrature_rule == "triangular":
+                dA = dG[p][0]
+                dB = dG[p][1]
+                jacobian = calculate_spherical_triangle_jacobian_barycentric(
+                    node1, node2, node3, dA, dB)
+                area += dW[p] * jacobian
+
+    return area
+
+
+@njit
+def get_all_face_area_from_coords(x,
+                                  y,
+                                  z,
+                                  face_nodes,
+                                  face_geometry,
+                                  dim,
+                                  quadrature_rule="triangular",
+                                  order=4,
+                                  coords_type="spherical"):
+    """Given coords, connectivity and other area calculation params, this
+    routine loop over all faces and return an numpy array with areas of each
+    face.
+
+    Parameters
+    ----------
+    x : ndarray, required
+        x-coordinate of all the nodes
+
+    y : ndarray, required
+        y-coordinate of all the nodes
+
+    z : ndarray, required
+        z-coordinate of all the nodes
+
+    face_nodes : 2D ndarray, required
+         node ids of each face
+
+    dim : int, required
+         dimension
+
+    quadrature_rule : str, optional
+        "triangular" or "gaussian". Defaults to triangular
+
+    order : int, optional
+        count or order for Gaussian or spherical resp. Defaults to 4 for spherical.
+
+    coords_type : str, optional
+        coordinate type, default is spherical, can be cartesian also.
+
+    Returns
+    -------
+    area of all faces : ndarray
+    """
+
+    n_face, n_max_face_nodes = face_nodes.shape
+
+    # set initial area of each face to 0
+    area = np.zeros(n_face)
+
+    for face_idx, max_nodes in enumerate(face_geometry):
+        face_x = x[face_nodes[face_idx, 0:max_nodes]]
+        face_y = y[face_nodes[face_idx, 0:max_nodes]]
+
+        # check if z dimension
+
+        if dim > 2:
+            face_z = z[face_nodes[face_idx, 0:max_nodes]]
+        else:
+            face_z = face_x * 0.0
+
+        # After getting all the nodes of a face assembled call the  cal. face area routine
+        face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
+                                        order, coords_type)
+        # store current face area
+        area[face_idx] = face_area
+
+    return area
+
+
+@njit
+def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
+    """Calculate Jacobian of a spherical triangle. This is a helper function
+    for calculating face area.
+
+    Parameters
+    ----------
+    node1 : list, required
+        First node of the triangle
+
+    node2 : list, required
+        Second node of the triangle
+
+    node3 : list, required
+        Third node of the triangle
+
+    dA : float, required
+        quadrature point
+
+    dB : float, required
+        quadrature point
+
+    Returns
+    -------
+    jacobian : float
+    """
+    dF = np.array([
+        (1.0 - dB) * ((1.0 - dA) * node1[0] + dA * node2[0]) + dB * node3[0],
+        (1.0 - dB) * ((1.0 - dA) * node1[1] + dA * node2[1]) + dB * node3[1],
+        (1.0 - dB) * ((1.0 - dA) * node1[2] + dA * node2[2]) + dB * node3[2]
+    ])
+
+    dDaF = np.array([(1.0 - dB) * (node2[0] - node1[0]),
+                     (1.0 - dB) * (node2[1] - node1[1]),
+                     (1.0 - dB) * (node2[2] - node1[2])])
+
+    dDbF = np.array([
+        -(1.0 - dA) * node1[0] - dA * node2[0] + node3[0],
+        -(1.0 - dA) * node1[1] - dA * node2[1] + node3[1],
+        -(1.0 - dA) * node1[2] - dA * node2[2] + node3[2]
+    ])
+
+    dInvR = 1.0 / np.sqrt(dF[0] * dF[0] + dF[1] * dF[1] + dF[2] * dF[2])
+
+    dDaG = np.array([
+        dDaF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
+        (dDaF[1] * dF[1] + dDaF[2] * dF[2]),
+        dDaF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
+        (dDaF[0] * dF[0] + dDaF[2] * dF[2]),
+        dDaF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
+        (dDaF[0] * dF[0] + dDaF[1] * dF[1])
+    ])
+
+    dDbG = np.array([
+        dDbF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
+        (dDbF[1] * dF[1] + dDbF[2] * dF[2]),
+        dDbF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
+        (dDbF[0] * dF[0] + dDbF[2] * dF[2]),
+        dDbF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
+        (dDbF[0] * dF[0] + dDbF[1] * dF[1])
+    ])
+
+    dDenomTerm = dInvR * dInvR * dInvR
+
+    dDaG *= dDenomTerm
+    dDbG *= dDenomTerm
+
+    #  Cross product gives local Jacobian
+    nodeCross = np.cross(dDaG, dDbG)
+    dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] +
+                        nodeCross[1] * nodeCross[1] +
+                        nodeCross[2] * nodeCross[2])
+
+    return dJacobian
+
+
+@njit
+def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
+                                                      dB):
+    """Calculate Jacobian of a spherical triangle. This is a helper function
+    for calculating face area.
+
+    Parameters
+    ----------
+    node1 : list, required
+        First node of the triangle
+
+    node2 : list, required
+        Second node of the triangle
+
+    node3 : list, required
+        Third node of the triangle
+
+    dA : float, required
+        first component of barycentric coordinates of quadrature point
+
+    dB : float, required
+        second component of barycentric coordinates of quadrature point
+
+    Returns
+    -------
+    jacobian : float
+    """
+
+    dF = np.array([
+        dA * node1[0] + dB * node2[0] + (1.0 - dA - dB) * node3[0],
+        dA * node1[1] + dB * node2[1] + (1.0 - dA - dB) * node3[1],
+        dA * node1[2] + dB * node2[2] + (1.0 - dA - dB) * node3[2]
+    ])
+
+    dDaF = np.array(
+        [node1[0] - node3[0], node1[1] - node3[1], node1[2] - node3[2]])
+
+    dDbF = np.array(
+        [node2[0] - node3[0], node2[1] - node3[1], node2[2] - node3[2]])
+
+    dInvR = 1.0 / np.sqrt(dF[0] * dF[0] + dF[1] * dF[1] + dF[2] * dF[2])
+
+    dDaG = np.array([
+        dDaF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
+        (dDaF[1] * dF[1] + dDaF[2] * dF[2]),
+        dDaF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
+        (dDaF[0] * dF[0] + dDaF[2] * dF[2]),
+        dDaF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
+        (dDaF[0] * dF[0] + dDaF[1] * dF[1])
+    ])
+
+    dDbG = np.array([
+        dDbF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] *
+        (dDbF[1] * dF[1] + dDbF[2] * dF[2]),
+        dDbF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] *
+        (dDbF[0] * dF[0] + dDbF[2] * dF[2]),
+        dDbF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] *
+        (dDbF[0] * dF[0] + dDbF[1] * dF[1])
+    ])
+
+    dDenomTerm = dInvR * dInvR * dInvR
+
+    dDaG *= dDenomTerm
+    dDbG *= dDenomTerm
+
+    #  Cross product gives local Jacobian
+    nodeCross = np.cross(dDaG, dDbG)
+    dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] +
+                        nodeCross[1] * nodeCross[1] +
+                        nodeCross[2] * nodeCross[2])
+
+    return 0.5 * dJacobian
 
 
 @njit

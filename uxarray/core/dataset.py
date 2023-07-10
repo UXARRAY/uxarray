@@ -8,7 +8,7 @@ from collections.abc import Hashable
 from typing import Optional, IO
 
 from uxarray.core.dataarray import UxDataArray
-from uxarray.core.grid import Grid
+from uxarray.grid.grid import Grid
 
 
 class UxDataset(xr.Dataset):

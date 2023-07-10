@@ -3,7 +3,7 @@ import xarray as xr
 
 from typing import Optional
 
-from uxarray.core.grid import Grid
+from uxarray.grid.grid import Grid
 
 
 class UxDataArray(xr.DataArray):
