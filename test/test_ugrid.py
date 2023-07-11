@@ -65,6 +65,7 @@ class TestUgrid(TestCase):
         """Read an Exodus dataset and encode that as a UGRID format."""
 
         ux_grid = ux.open_grid(gridfile_exo_ne8)
+        ux_grid.encode_as("ugrid")
 
     def test_standardized_dtype_and_fill(self):
         """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
