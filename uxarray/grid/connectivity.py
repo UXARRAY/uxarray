@@ -82,13 +82,19 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
     for face_nodes, max_n_nodes in zip(closed_face_nodes,
                                        nNodes_per_face_closed):
 
-        polygon_x = Mesh2_node_x[face_nodes[0:max_n_nodes]]
-        polygon_y = Mesh2_node_y[face_nodes[0:max_n_nodes]]
+        polygon_x = np.empty_like(face_nodes, dtype=Mesh2_node_x.dtype)
+        polygon_y = np.empty_like(face_nodes, dtype=Mesh2_node_x.dtype)
+
+        polygon_x[0:max_n_nodes] = Mesh2_node_x[face_nodes[0:max_n_nodes]]
+        polygon_y[0:max_n_nodes] = Mesh2_node_y[face_nodes[0:max_n_nodes]]
+
+        polygon_x[max_n_nodes:] = polygon_x[0]
+        polygon_y[max_n_nodes:] = polygon_y[0]
 
         cur_polygon_shell = np.array([polygon_x, polygon_y])
         polygon_shells.append(cur_polygon_shell.T)
 
-    return polygon_shells
+    return np.array(polygon_shells)
 
 
 def _build_corrected_polygon_shells(polygon_shells):

@@ -19,7 +19,7 @@ from spatialpandas import GeoDataFrame
 
 from spatialpandas.geometry import MultiPolygonArray
 
-from shapely import Polygon
+from shapely import polygons as Polygons
 
 import antimeridian
 
@@ -809,7 +809,9 @@ class Grid:
         polygon_shells = self.polygon_shells
 
         # list of shapely Polygons representing each Face in our grid
-        polygons = [Polygon(shell) for shell in polygon_shells]
+        #polygons = [Polygon(shell) for shell in polygon_shells]
+
+        polygons = Polygons(polygon_shells)
 
         # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
         corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]

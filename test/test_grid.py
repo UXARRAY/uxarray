@@ -793,6 +793,9 @@ class TestConnectivity(TestCase):
                            uds._ds["Mesh2_face_nodes"].values))
 
 
+from shapely import polygons
+
+
 class TestGridGDF(TestCase):
     mpas_filepath = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
     outCSne30_filepath = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
@@ -805,6 +808,11 @@ class TestGridGDF(TestCase):
 
     def test_mpl_poly(self):
         poly_collection = self.mpas_uxgrid.to_polycollection()
+
+    def test_poly_array(self):
+        shells = self.mpas_uxgrid.polygon_shells
+        p_array = polygons(shells)
+        pass
 
     def test_corrected_polygon_shells(self):
         corrected_shells = self.mpas_uxgrid.corrected_polygon_shells
