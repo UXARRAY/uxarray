@@ -1,6 +1,4 @@
 import os
-import time
-
 import xarray as xr
 
 from unittest import TestCase
