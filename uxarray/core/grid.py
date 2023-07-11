@@ -551,6 +551,13 @@ class Grid:
             out_ds = _encode_ugrid(self._ds)
 
         elif grid_type == "exodus":
+
+            # NOTE: We assume that output exodus mesh will be cartesian and coordinate units will be 'm'
+            # If the units are rad or degree, the we must convert to m. Assume unit sphere.
+            if "Mesh2_node_cart_x" not in self._ds.keys():
+                self._populate_lonlat_coord()
+
+            # encode to exodus assumes that ds has Mesh2_node_cart_x, Mesh2_node_cart_y, Mesh2_node_cart_z
             out_ds = _encode_exodus(self._ds, self.grid_var_names)
 
         elif grid_type == "scrip":

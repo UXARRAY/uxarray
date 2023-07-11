@@ -207,14 +207,14 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
     c_data = []
     if dim == 2:
         c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_y"]].data.tolist()
+            ds[grid_var_names["Mesh2_node_cart_x"]].data.tolist(),
+            ds[grid_var_names["Mesh2_node_cart_y"]].data.tolist()
         ])
     elif dim == 3:
         c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_y"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_z"]].data.tolist()
+            ds[grid_var_names["Mesh2_node_cart_x"]].data.tolist(),
+            ds[grid_var_names["Mesh2_node_cart_y"]].data.tolist(),
+            ds[grid_var_names["Mesh2_node_cart_z"]].data.tolist()
         ])
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
