@@ -377,7 +377,10 @@ class Grid:
                 })
 
     # load mesh from a file
-    def __from_ds__(self, dataset):
+    def __from_ds__(self,
+                    dataset,
+                    multi_precision=False,
+                    precision=FLOAT_PRECISION_BITS):
         """Loads a mesh dataset."""
         # call reader as per mesh_type
         if self.mesh_type == "exo":
@@ -398,7 +401,38 @@ class Grid:
         else:
             raise RuntimeError("unknown mesh type")
 
+        # set precision flags
+        self._multi_precision = multi_precision
+        self._precision = precision
+
+        # convert coordinates to hmpy2.mpfr format
+        if self._multi_precision:
+            if "Mesh2_node_y" in self._ds and "Mesh2_node_x" in self._ds:
+                converted_y_cords = convert_to_multiprecision(
+                    self._ds["Mesh2_node_y"].values,
+                    str_mode=False,
+                    precision=self._precision)
+                converted_x_cords = convert_to_multiprecision(
+                    self._ds["Mesh2_node_x"].values,
+                    str_mode=False,
+                    precision=self._precision)
+
+                self._ds["Mesh2_node_y"] = converted_y_cords
+                self._ds["Mesh2_node_x"] = converted_x_cords
+            if not self.islatlon:
+                if "Mesh2_node_z" in self._ds:
+                    converted_z_cords = convert_to_multiprecision(
+                        self._ds["Mesh2_node_z"].values,
+                        str_mode=False,
+                        precision=self._precision)
+                    self._ds["Mesh2_node_z"] = converted_z_cords
+
+            self._ds["Mesh2_node_y"] = converted_y_cords
+            self._ds["Mesh2_node_x"] = converted_x_cords
+
         dataset.close()
+
+        return self._ds
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""

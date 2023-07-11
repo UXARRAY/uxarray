@@ -209,6 +209,35 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_face == 4)
         assert (vgrid.nMesh2_node == 4)
 
+    def test_from_ds(self):
+        exodus_filepath = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+
+        xrds_exodus = xr.open_dataset(exodus_filepath)
+
+        # Create the grid with multi-precision off
+        gridOff = ux.Grid(xrds_exodus)
+
+        # Create the grid with multi-precision on
+        gridOn = ux.Grid(xrds_exodus)
+        resultsPrecisionOn = gridOn.__from_ds__(xrds_exodus,
+                                                multi_precision=True,
+                                                precision=128)
+
+        # Get the node values
+        firstNodePrecisionOn = resultsPrecisionOn["Mesh2_node_y"].values[0]
+        firstNodePrecisionOff = gridOff._ds["Mesh2_node_y"].values[0]
+
+        # Cast the floating-point value to mpfr
+        firstNodePrecisionOff_mpfr = gmpy2.mpfr(str(firstNodePrecisionOff))
+
+        # Assert that the values are not equal
+        self.assertTrue(
+            gmpy2.cmp(firstNodePrecisionOff_mpfr, firstNodePrecisionOn) != 0)
+
+        # Check that the flags are set properly
+        self.assertTrue(gridOn._multi_precision)
+        self.assertEqual(gridOn._precision, 128)
+
     def test_init_verts_multi_precision_fill_values(self):
         # Set the desired precision
 
