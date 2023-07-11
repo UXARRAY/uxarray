@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 import xarray as xr
 
-import uxarray.utils.jit_attributes
+import uxarray.utils.constants
 from uxarray.core.grid import Grid
 
 from uxarray.core.dataset import UxDataset
@@ -266,9 +266,9 @@ def open_mfdataset(grid_filename_or_obj: str,
 
 def set_cache(cache_bool):
     """Allows Numba's JIT cache to be turned on and off."""
-    uxarray.utils.jit_attributes.cache = cache_bool
+    uxarray.utils.constants.CACHE = cache_bool
 
 
 def set_jit(jit_bool):
     """Allows Numba's JIT application to be turned on and off."""
-    uxarray.utils.jit_attributes.jit_bool = jit_bool
+    uxarray.utils.constants.JIT_BOOL = jit_bool

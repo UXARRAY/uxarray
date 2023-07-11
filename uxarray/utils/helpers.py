@@ -3,12 +3,12 @@ import xarray as xr
 from pathlib import PurePath
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
-from uxarray.utils.jit_attributes import cache, jit_bool
+from uxarray.utils.constants import CACHE, JIT_BOOL
 import math
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
-config.DISABLE_JIT = jit_bool
+config.DISABLE_JIT = JIT_BOOL
 
 
 def parse_grid_type(dataset):
@@ -97,7 +97,7 @@ def parse_grid_type(dataset):
 
 
 # Calculate the area of all faces.
-@njit(cache=cache)
+@njit(cache=CACHE)
 def calculate_face_area(x,
                         y,
                         z,
@@ -184,7 +184,7 @@ def calculate_face_area(x,
     return area
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def get_all_face_area_from_coords(x,
                                   y,
                                   z,
@@ -254,7 +254,7 @@ def get_all_face_area_from_coords(x,
     return area
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
@@ -330,7 +330,7 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     return dJacobian
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
                                                       dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
@@ -467,7 +467,7 @@ def grid_center_lat_lon(ds):
     return center_lat, center_lon
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D
     longitude/latitude to normalized 3D xyz.
@@ -495,7 +495,7 @@ def node_lonlat_rad_to_xyz(node_coord):
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
@@ -539,7 +539,7 @@ def node_xyz_to_lonlat_rad(node_coord):
     return [d_lon_rad, d_lat_rad]
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate

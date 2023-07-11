@@ -1,11 +1,11 @@
 import numpy as np
 from numba import njit, config
-from uxarray.utils.jit_attributes import cache, jit_bool
+from uxarray.utils.constants import CACHE, JIT_BOOL
 
-config.DISABLE_JIT = jit_bool
+config.DISABLE_JIT = JIT_BOOL
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def get_gauss_quadratureDG(nCount):
     """Gauss Quadrature Points for integration.
 
@@ -148,7 +148,7 @@ def get_gauss_quadratureDG(nCount):
     return dG, dW
 
 
-@njit(cache=cache)
+@njit(cache=CACHE)
 def get_tri_quadratureDG(nOrder):
     """Triangular Quadrature Points for integration.
 
