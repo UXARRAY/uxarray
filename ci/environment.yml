@@ -12,3 +12,5 @@ dependencies:
   - pytest-cov
   - scipy
   - xarray
+  - gmpy2
+  - mpmath

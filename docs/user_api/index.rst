@@ -155,3 +155,14 @@ Helpers
    node_lonlat_rad_to_xyz
    normalize_in_place
    parse_grid_type
+
+
+Multi-Precision
+-------------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   multi_precision_helpers.convert_to_multiprecision
+   multi_precision_helpers.unique_coordinates_multiprecision
+   multi_precision_helpers.decimal_digits_to_precision_bits
+   multi_precision_helpers.precision_bits_to_decimal_digits
