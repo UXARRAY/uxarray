@@ -405,7 +405,7 @@ class Grid:
         self._multi_precision = multi_precision
         self._precision = precision
 
-        # convert coordinates to hmpy2.mpfr format
+        # convert coordinates to gmpy2.mpfr format
         if self._multi_precision:
             if "Mesh2_node_y" in self._ds and "Mesh2_node_x" in self._ds:
                 converted_y_cords = convert_to_multiprecision(
