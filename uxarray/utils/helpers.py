@@ -7,7 +7,7 @@ from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
 import math
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 
 config.DISABLE_JIT = False
 
