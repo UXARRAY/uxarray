@@ -353,7 +353,7 @@ class Grid:
 
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
-        
+
         if self._multi_precision:
             self._ds["Mesh2_face_nodes"] = xr.DataArray(
                 data=xr.DataArray(connectivity).astype(INT_DTYPE),

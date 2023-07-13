@@ -190,4 +190,3 @@ Multi-Precision
    multi_precision_helpers.unique_coordinates_multiprecision
    multi_precision_helpers.decimal_digits_to_precision_bits
    multi_precision_helpers.precision_bits_to_decimal_digits
-   
