@@ -12,16 +12,16 @@ from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io.utils import parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
 
-from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nNodes_per_face, _build_polygon_shells, _build_corrected_polygon_shells
+from uxarray.grid.connectivity import (_build_edge_node_connectivity,
+                                       _build_face_edges_connectivity,
+                                       _build_nNodes_per_face)
+
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
-from spatialpandas import GeoDataFrame
-
-from spatialpandas.geometry import MultiPolygonArray
-
-from shapely import polygons as Polygons
-
-import antimeridian
+from uxarray.grid.geometry import (_build_polygon_shells,
+                                   _build_corrected_polygon_shells,
+                                   _build_antimeridian_face_indices,
+                                   _grid_to_polygon_geodataframe)
 
 from matplotlib.collections import PolyCollection
 
@@ -83,7 +83,10 @@ class Grid:
         self._antimeridian_face_indices = None
 
         # initialize cached objects for repeated calls
-        self._gdf = None
+        self._gdf_nodes = None
+        self._gdf_edges = None
+        self._gdf_polygons = None
+
         self._polycollection = None
 
         # TODO: fix when adding/exercising gridspec
@@ -553,7 +556,10 @@ class Grid:
 
     @property
     def antimeridian_face_indices(self):
-        return None
+        if self._antimeridian_face_indices is None:
+            self._antimeridian_face_indices = _build_antimeridian_face_indices(
+                self)
+        return self._original_to_corrected_indices
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -781,7 +787,7 @@ class Grid:
     #
     #     return integral
 
-    def to_geodataframe(self, override=False, cache=True):
+    def to_geodataframe(self, geometry="polygons", override=False, cache=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -801,30 +807,26 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
-        # return cached gdf
-        if self._gdf is not None and not override:
-            return self._gdf
-
-        # obtain polygon shells for shapely polygon construction
-        polygon_shells = self.polygon_shells
-
-        # list of shapely Polygons representing each Face in our grid
-        #polygons = [Polygon(shell) for shell in polygon_shells]
-
-        polygons = Polygons(polygon_shells)
-
-        # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
-        corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
-
-        # prepare geometry for GeoDataFrame
-        geometry = MultiPolygonArray(corrected_polygons)
-
-        # construct our GeoDataFrame with corrected polygons
-        gdf = GeoDataFrame({"geometry": geometry})
-
-        # cache instance of gdf
-        if cache:
-            self._gdf = gdf
+        if geometry == "polygons":
+            if self._gdf_polygons is not None and not override:
+                return self._gdf_polygons
+            gdf = _grid_to_polygon_geodataframe(self)
+            if cache:
+                self._gdf_polygons = gdf
+        elif geometry == "edges":
+            if self._gdf_edges is not None and not override:
+                return self._gdf_edges
+            gdf = None
+            if cache:
+                self._gdf_edges = gdf
+        elif geometry == "nodes":
+            if self._gdf_nodes is not None and not override:
+                return self._gdf_nodes
+            gdf = None
+            if cache:
+                self._gdf_nodes = gdf
+        else:
+            raise NameError
 
         return gdf
 
@@ -857,3 +859,6 @@ class Grid:
             self._polycollection = polycollection
 
         return polycollection
+
+    def to_linecollection(self):
+        pass
