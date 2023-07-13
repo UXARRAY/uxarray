@@ -19,8 +19,5 @@ your own examples or suggesting one for us to create, please see the :doc:`contr
    examples/001-working-with-unstructured-grids.ipynb
    examples/002-grid-topology.ipynb
    examples/003-area-calc.ipynb
-<<<<<<< HEAD
-   examples/004-multiprecision-usage.ipynb
-=======
    examples/004-working-with-mpas-grids.ipynb
->>>>>>> main
+   examples/005-multiprecision-usage.ipynb

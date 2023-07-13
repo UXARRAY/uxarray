@@ -151,8 +151,10 @@ class Grid:
                 self.source_grid = "From vertices"
             # grid with a single face
             elif dataset.ndim == 2:
-                input_obj = np.array([dataset])
-                self.__from_vert__(input_obj)
+                dataset = np.array([dataset])
+                self.__from_vert__(dataset,
+                                   multi_precision=multi_precision,
+                                   precision=precision)
                 self.source_grid = "From vertices"
             else:
                 raise RuntimeError(
@@ -196,7 +198,10 @@ class Grid:
             "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
         }
 
-    def __from_vert__(self, dataset):
+    def __from_vert__(self,
+                      dataset,
+                      multi_precision=False,
+                      precision=FLOAT_PRECISION_BITS):
         """Create a grid with faces constructed from vertices specified by the
         given argument.
 
@@ -315,6 +320,7 @@ class Grid:
 
             # Update indices accordingly
             if self._multi_precision:
+
                 for i, idx in enumerate(false_indices):
                     indices[indices == idx] = INT_FILL_VALUE_MPZ
                     for j in range(indices.size):
@@ -347,6 +353,7 @@ class Grid:
 
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
+        
         if self._multi_precision:
             self._ds["Mesh2_face_nodes"] = xr.DataArray(
                 data=xr.DataArray(connectivity).astype(INT_DTYPE),
