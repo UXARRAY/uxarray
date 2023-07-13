@@ -10,7 +10,7 @@ from pathlib import Path
 import uxarray as ux
 
 from uxarray.grid.utils import _replace_fill_values
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
     import constants

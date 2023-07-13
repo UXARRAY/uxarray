@@ -1,15 +1,13 @@
 """UXarray dataset module."""
 
 import os
+import numpy as np
+import xarray as xr
 
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-import numpy as np
-import xarray as xr
-
 from uxarray.grid.grid import Grid
-
 from uxarray.core.dataset import UxDataset
 
 

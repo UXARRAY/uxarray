@@ -1,7 +1,8 @@
 import xarray as xr
 import numpy as np
-from numba import njit, config
 import math
+
+from numba import njit, config
 
 config.DISABLE_JIT = False
 

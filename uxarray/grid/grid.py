@@ -8,12 +8,13 @@ from uxarray.io._mpas import _read_mpas
 from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
-
 from uxarray.io.utils import parse_grid_type
-from uxarray.grid.area import get_all_face_area_from_coords
 
-from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity, _build_nNodes_per_face
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.area import get_all_face_area_from_coords
+from uxarray.grid.connectivity import (_build_edge_node_connectivity,
+                                       _build_face_edges_connectivity,
+                                       _build_nNodes_per_face)
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class Grid:
