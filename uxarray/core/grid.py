@@ -348,7 +348,7 @@ class Grid:
         # Create connectivity array using indices of unique vertices
         connectivity = indices.reshape(dataset.shape[:-1])
         if self._multi_precision:
-            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+            self._ds["Mesh2_face_nodes"] = xr.DataArray(
                 data=xr.DataArray(connectivity).astype(INT_DTYPE),
                 dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
                 attrs={
@@ -357,7 +357,7 @@ class Grid:
                     "start_index": 0
                 })
         else:
-            self.ds["Mesh2_face_nodes"] = xr.DataArray(
+            self._ds["Mesh2_face_nodes"] = xr.DataArray(
                 data=xr.DataArray(connectivity).astype(INT_DTYPE),
                 dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
                 attrs={
@@ -1141,6 +1141,3 @@ class Grid:
             data=nNodes_per_face,
             dims=["nMesh2_face"],
             attrs={"long_name": "number of non-fill value nodes for each face"})
-
-        # standardized attribute
-        setattr(self, "nNodes_per_face", self.ds["nNodes_per_face"])

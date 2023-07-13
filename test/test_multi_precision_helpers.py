@@ -8,7 +8,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE, FLOAT_PRECISION_BITS, INT_FILL_VALUE_MPZ
 from uxarray.multi_precision_helpers import convert_to_multiprecision, unique_coordinates_multiprecision, precision_bits_to_decimal_digits, decimal_digits_to_precision_bits
 import math
 

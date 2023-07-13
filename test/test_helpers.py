@@ -14,7 +14,8 @@ import uxarray as ux
 
 from uxarray.utils.helpers import _replace_fill_values
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.multi_precision_helpers import convert_to_multiprecision, set_global_precision, decimal_digits_to_precision_bits
+from uxarray.multi_precision_helpers import convert_to_multiprecision, set_global_precision, \
+    decimal_digits_to_precision_bits
 from uxarray.utils.helpers import _replace_fill_values
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
@@ -124,7 +125,8 @@ class TestCoordinatesConversion(TestCase):
              '0.0000000000000000001'
          ]),
                                              precision=precision)
-        normalized = ux.helpers.normalize_in_place([x_mpfr, y_mpfr, z_mpfr])
+        normalized = ux.utils.helpers.normalize_in_place(
+            [x_mpfr, y_mpfr, z_mpfr])
         # Calculate the sum of squares using gmpy2.fsum()
         sum_of_squares = gmpy2.fsum(
             [gmpy2.square(value) for value in normalized])
@@ -159,8 +161,8 @@ class TestCoordinatesConversion(TestCase):
              '0.000000000000000000001'
          ]),
                                              precision=precision)
-        [lon_mpfr,
-         lat_mpfr] = ux.helpers.node_xyz_to_lonlat_rad([x_mpfr, y_mpfr, z_mpfr])
+        [lon_mpfr, lat_mpfr
+        ] = ux.utils.helpers.node_xyz_to_lonlat_rad([x_mpfr, y_mpfr, z_mpfr])
         self.assertAlmostEqual(lon_mpfr, 0, places=19)
         self.assertAlmostEqual(lat_mpfr, 0, places=19)
 
@@ -171,8 +173,8 @@ class TestCoordinatesConversion(TestCase):
              '0.0000000000000000000'
          ]),
                                              precision=precision)
-        [lon_mpfr,
-         lat_mpfr] = ux.helpers.node_xyz_to_lonlat_rad([x_mpfr, y_mpfr, z_mpfr])
+        [lon_mpfr, lat_mpfr
+        ] = ux.utils.helpers.node_xyz_to_lonlat_rad([x_mpfr, y_mpfr, z_mpfr])
         self.assertTrue(gmpy2.cmp(lon_mpfr, mpfr('0')) == 0)
         self.assertTrue(gmpy2.cmp(lat_mpfr, mpfr('0')) == 0)
 
@@ -200,7 +202,7 @@ class TestCoordinatesConversion(TestCase):
             ['0.000000000000000000001', '0.000000000000000000001']),
                                                          precision=precision)
         [x_mpfr, y_mpfr,
-         z_mpfr] = ux.helpers.node_lonlat_rad_to_xyz([lon_mpfr, lat_mpfr])
+         z_mpfr] = ux.utils.helpers.node_lonlat_rad_to_xyz([lon_mpfr, lat_mpfr])
         self.assertAlmostEqual(x_mpfr, 1, places=19)
         self.assertAlmostEqual(y_mpfr, 0, places=19)
         self.assertAlmostEqual(z_mpfr, 0, places=19)
@@ -210,7 +212,7 @@ class TestCoordinatesConversion(TestCase):
             ['0.0000000000000000000', '0.0000000000000000000']),
                                                          precision=precision)
         [x_mpfr, y_mpfr,
-         z_mpfr] = ux.helpers.node_lonlat_rad_to_xyz([lon_mpfr, lat_mpfr])
+         z_mpfr] = ux.utils.helpers.node_lonlat_rad_to_xyz([lon_mpfr, lat_mpfr])
         self.assertTrue(gmpy2.cmp(x_mpfr, mpfr('1')) == 0)
         self.assertTrue(gmpy2.cmp(y_mpfr, mpfr('0')) == 0)
         self.assertTrue(gmpy2.cmp(z_mpfr, mpfr('0')) == 0)
@@ -226,7 +228,7 @@ class TestCoordinatesConversion(TestCase):
         set_global_precision(precision)
 
         # The initial coordinates
-        [init_x, init_y, init_z] = ux.helpers.normalize_in_place([
+        [init_x, init_y, init_z] = ux.utils.helpers.normalize_in_place([
             mpfr('0.12345678910111213149'),
             mpfr('0.92345678910111213149'),
             mpfr('1.72345678910111213149')
@@ -235,10 +237,10 @@ class TestCoordinatesConversion(TestCase):
         new_y = init_y
         new_z = init_z
         for iter in range(1000):
-            [new_lon,
-             new_lat] = ux.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
-            [new_x, new_y,
-             new_z] = ux.helpers.node_lonlat_rad_to_xyz([new_lon, new_lat])
+            [new_lon, new_lat
+            ] = ux.utils.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
+            [new_x, new_y, new_z
+            ] = ux.utils.helpers.node_lonlat_rad_to_xyz([new_lon, new_lat])
             self.assertAlmostEqual(new_x, init_x, places=19)
             self.assertAlmostEqual(new_y, init_y, places=19)
             self.assertAlmostEqual(new_z, init_z, places=19)
@@ -252,10 +254,10 @@ class TestCoordinatesConversion(TestCase):
         new_lat = init_lat
         new_lon = init_lon
         for iter in range(1000):
-            [new_x, new_y,
-             new_z] = ux.helpers.node_lonlat_rad_to_xyz([new_lon, new_lat])
-            [new_lon,
-             new_lat] = ux.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
+            [new_x, new_y, new_z
+            ] = ux.utils.helpers.node_lonlat_rad_to_xyz([new_lon, new_lat])
+            [new_lon, new_lat
+            ] = ux.utils.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
             self.assertAlmostEqual(new_lon, init_lon, places=19)
             self.assertAlmostEqual(new_lat, init_lat, places=19)
 
@@ -274,11 +276,10 @@ class TestCoordinatesConversion(TestCase):
 
         start_time = time.time()
         for iter in range(run_time):
-            [new_x, new_y, new_z
-            ] = ux.helpers.node_lonlat_rad_to_xyz(np.deg2rad([new_lon,
-                                                              new_lat]))
-            [new_lon,
-             new_lat] = ux.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
+            [new_x, new_y, new_z] = ux.utils.helpers.node_lonlat_rad_to_xyz(
+                np.deg2rad([new_lon, new_lat]))
+            [new_lon, new_lat
+            ] = ux.utils.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
             [new_lon, new_lat] = np.rad2deg([new_lon, new_lat])
 
         end_time = time.time()
@@ -303,10 +304,10 @@ class TestCoordinatesConversion(TestCase):
         start_time = time.time()
 
         for iter in range(run_time):
-            [new_x, new_y, new_z] = ux.helpers.node_lonlat_rad_to_xyz(
+            [new_x, new_y, new_z] = ux.utils.helpers.node_lonlat_rad_to_xyz(
                 [gmpy2.radians(val) for val in [new_lon, new_lat]])
-            [new_lon,
-             new_lat] = ux.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
+            [new_lon, new_lat
+            ] = ux.utils.helpers.node_xyz_to_lonlat_rad([new_x, new_y, new_z])
             [new_lon,
              new_lat] = [gmpy2.degrees(val) for val in [new_lon, new_lat]]
         end_time = time.time()

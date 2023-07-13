@@ -13,6 +13,8 @@ import uxarray as ux
 import uxarray.multi_precision_helpers as mph
 import numpy.testing as nt
 
+from uxarray.utils.constants import INT_FILL_VALUE_MPZ
+
 try:
     import constants
 except ImportError:
@@ -228,7 +230,7 @@ class TestGrid(TestCase):
 
         # Generate the face nodes connectivity
         dumb_nodes = [
-            ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ
+            INT_FILL_VALUE_MPZ, INT_FILL_VALUE_MPZ, INT_FILL_VALUE_MPZ
         ]
         face_nodes_connectivity = np.array([
             np.array([nodes[0], nodes[1], nodes[2], dumb_nodes], dtype=object),
@@ -249,7 +251,7 @@ class TestGrid(TestCase):
         assert (vgrid.nMesh2_node == 4)
 
         # Test the all numbers in the vgird.ds["Mesh2_face_nodes"] are less than 4
-        assert (np.all(vgrid.ds["Mesh2_face_nodes"] < 4))
+        assert (np.all(vgrid._ds["Mesh2_face_nodes"] < 4))
 
     def test_init_verts_different_input_datatype(self):
         """Create a uxarray grid from multiple face vertices with different
@@ -421,7 +423,7 @@ class TestFaceAreas(TestCase):
                                   isconcave=False)
 
         # calculate area
-        area_gaussian = vgrid.calculate_total_face_area(
+        area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
 
@@ -579,13 +581,13 @@ class TestPopulateCoordinates(TestCase):
                         vertices=True)
         vgrid._populate_cartesian_xyz_coord()
         for i in range(0, vgrid.nMesh2_node):
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_x"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_x"].values[i],
                                    mpfr(cart_x[i]),
                                    decimal=14)
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_y"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_y"].values[i],
                                    mpfr(cart_y[i]),
                                    decimal=14)
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_cart_z"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_z"].values[i],
                                    mpfr(cart_z[i]),
                                    decimal=14)
 
@@ -660,10 +662,10 @@ class TestPopulateCoordinates(TestCase):
                         islatlon=False)
         vgrid._populate_lonlat_coord()
         for i in range(0, vgrid.nMesh2_node):
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_x"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_x"].values[i],
                                    mpfr(lon_deg[i]),
                                    decimal=13)
-            nt.assert_almost_equal(vgrid.ds["Mesh2_node_y"].values[i],
+            nt.assert_almost_equal(vgrid._ds["Mesh2_node_y"].values[i],
                                    mpfr(lat_deg[i]),
                                    decimal=13)
 
