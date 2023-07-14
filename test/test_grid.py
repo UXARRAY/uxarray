@@ -13,8 +13,6 @@ import uxarray as ux
 import uxarray.multi_precision_helpers as mph
 import numpy.testing as nt
 
-from uxarray.utils.constants import INT_FILL_VALUE_MPZ
-
 try:
     import constants
 except ImportError:
@@ -230,7 +228,7 @@ class TestGrid(TestCase):
 
         # Generate the face nodes connectivity
         dumb_nodes = [
-            INT_FILL_VALUE_MPZ, INT_FILL_VALUE_MPZ, INT_FILL_VALUE_MPZ
+            ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ, ux.INT_FILL_VALUE_MPZ
         ]
         face_nodes_connectivity = np.array([
             np.array([nodes[0], nodes[1], nodes[2], dumb_nodes], dtype=object),
