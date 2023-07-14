@@ -559,7 +559,7 @@ class Grid:
         if self._antimeridian_face_indices is None:
             self._antimeridian_face_indices = _build_antimeridian_face_indices(
                 self)
-        return self._original_to_corrected_indices
+        return self._antimeridian_face_indices
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -829,6 +829,9 @@ class Grid:
             raise NameError
 
         return gdf
+
+    def to_dataframe(self):
+        pass
 
     def to_polycollection(self, override=False, cache=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with

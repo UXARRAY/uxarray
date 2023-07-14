@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import pandas as pd
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
@@ -11,6 +12,35 @@ from spatialpandas.geometry import MultiPolygonArray
 from spatialpandas import GeoDataFrame
 
 import antimeridian
+
+
+def grid_to_polygons(grid):
+    # obtain polygon shells for shapely polygon construction
+    polygon_shells = grid.polygon_shells
+
+    # list of shapely Polygons representing each face in our grid
+    polygons = Polygons(polygon_shells)
+
+    # TODO: comment
+    if grid.antimeridian_face_indices is not None:
+
+        # TODO: comment
+        antimeridian_polygons = polygons[grid.antimeridian_face_indices]
+
+        # TODO: comment
+        corrected_polygons = [
+            antimeridian.fix_polygon(P) for P in antimeridian_polygons
+        ]
+
+        # TODO: comment, possibly optimize?
+        for i in reversed(grid.antimeridian_face_indices):
+            polygons[i] = corrected_polygons.pop()
+
+    return polygons
+
+
+def grid_to_edges(grid):
+    pass
 
 
 def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
@@ -51,6 +81,7 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
     return np.array(polygon_shells)
 
 
+# TODO: Update this one
 def _build_corrected_polygon_shells(polygon_shells):
 
     polygon_shells = polygon_shells
@@ -89,66 +120,30 @@ def _build_corrected_polygon_shells(polygon_shells):
     return corrected_polygon_shells, original_to_corrected
 
 
-def _build_nNodes_per_face(grid):
-    """Constructs ``nNodes_per_face``, which contains the number of non- fill-
-    value nodes for each face in ``Mesh2_face_nodes``"""
-
-    # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
-    closed = np.ones((grid.nMesh2_face, grid.nMaxMesh2_face_nodes + 1),
-                     dtype=INT_DTYPE) * INT_FILL_VALUE
-
-    closed[:, :-1] = grid.Mesh2_face_nodes.copy()
-
-    nNodes_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
-
-    # add to internal dataset
-    grid._ds["nNodes_per_face"] = xr.DataArray(
-        data=nNodes_per_face,
-        dims=["nMesh2_face"],
-        attrs={"long_name": "number of non-fill value nodes for each face"})
-
-
 def _build_antimeridian_face_indices(grid):
     antimeridian_face_indices = np.argwhere(
-        np.any(np.abs(np.diff(grid.polygon_shells[:, :, 0])) >= 180, axis=1))
+        np.any(np.abs(np.diff(grid.polygon_shells[:, :, 0])) >= 180,
+               axis=1)).squeeze()
     return antimeridian_face_indices
-
-
-def _grid_to_node_geodataframe(grid):
-    pass
-
-
-def _grid_to_edge_geodataframe(grid):
-    pass
 
 
 def _grid_to_polygon_geodataframe(grid):
 
-    # obtain polygon shells for shapely polygon construction
-    polygon_shells = grid.polygon_shells
-
-    # list of shapely Polygons representing each face in our grid
-    polygons = Polygons(polygon_shells)
-
-    # TODO: comment
-    if grid.antimeridian_face_indices is not None:
-
-        # TODO: comment
-        antimeridian_polygons = polygons[grid.antimeridian_face_indices]
-
-        # TODO: comment
-        corrected_polygons = [
-            antimeridian.fix_polygon(P[0]) for P in antimeridian_polygons
-        ]
-
-        # TODO: comment
-        for i in reversed(grid.antimeridian_face_indices):
-            polygons[i] = corrected_polygons.pop()
+    # obtain faces represented as polygons, corrected on the antimeridian
+    polygons = grid_to_polygons(grid)
 
     # prepare geometry for GeoDataFrame
     geometry = MultiPolygonArray(polygons)
 
-    # construct our GeoDataFrame with corrected polygons
     gdf = GeoDataFrame({"geometry": geometry})
 
     return gdf
+
+
+def _grid_to_edge_dataframe(grid):
+    polygons = grid_to_polygons(grid)
+
+    bounds = [P.boundary for P in polygons]
+
+    df = pd.DataFrame({"geometry": bounds})
+    pass
