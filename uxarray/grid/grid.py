@@ -300,7 +300,47 @@ class Grid:
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
             connectivity_heading + connectivity_str
 
-    # attribute properties
+    def __eq__(self, other):
+        """Two grids are equal if they have matching grid topology variables,
+        coordinates, and dims all of which are equal.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are equal : bool
+        """
+        if other is not None:
+            # Iterate over dict to set access attributes
+            for key, value in self.grid_var_names.items():
+                # Check if all grid variables are equal
+                if self._ds.data_vars is not None:
+                    if value in self._ds.data_vars:
+                        if not self._ds[value].equals(
+                                other._ds[other.grid_var_names[key]]):
+                            return False
+        else:
+            return False
+
+        return True
+
+    def __ne__(self, other):
+        """Two grids are not equal if they have differing grid topology
+        variables, coordinates, or dims.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are not equal : bool
+        """
+        return not self.__eq__(other)
 
     @property
     def parsed_attrs(self):
@@ -312,8 +352,6 @@ class Grid:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
         unstructured mesh."""
         return self._ds[self.grid_var_names["Mesh2"]]
-
-    # dimension properties
 
     @property
     def nMesh2_node(self):
@@ -366,8 +404,6 @@ class Grid:
         if "nNodes_per_face" not in self._ds:
             _build_nNodes_per_face(self)
         return self._ds["nNodes_per_face"]
-
-    # coordinate properties
 
     @property
     def Mesh2_node_x(self):
@@ -508,7 +544,13 @@ class Grid:
 
         return self._ds["Mesh2_face_edges"]
 
-    # other properties
+    @property
+    def face_areas(self):
+        """Declare face_areas as a property."""
+        # if self._face_areas is not None: it allows for using the cached result
+        if self._face_areas is None:
+            self.compute_face_areas()
+        return self._face_areas
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -637,57 +679,6 @@ class Grid:
             x, y, z, face_nodes, nNodes_per_face, dim, quadrature_rule, order,
             coords_type)
 
-        return self._face_areas
-
-    def __eq__(self, other):
-        """Two grids are equal if they have matching grid topology variables,
-        coordinates, and dims all of which are equal.
-
-        Parameters
-        ----------
-        other : uxarray.Grid
-            The second grid object to be compared with `self`
-
-        Returns
-        -------
-        If two grids are equal : bool
-        """
-        if other is not None:
-            # Iterate over dict to set access attributes
-            for key, value in self.grid_var_names.items():
-                # Check if all grid variables are equal
-                if self._ds.data_vars is not None:
-                    if value in self._ds.data_vars:
-                        if not self._ds[value].equals(
-                                other._ds[other.grid_var_names[key]]):
-                            return False
-        else:
-            return False
-
-        return True
-
-    def __ne__(self, other):
-        """Two grids are not equal if they have differing grid topology
-        variables, coordinates, or dims.
-
-        Parameters
-        ----------
-        other : uxarray.Grid
-            The second grid object to be compared with `self`
-
-        Returns
-        -------
-        If two grids are not equal : bool
-        """
-        return not self.__eq__(other)
-
-    # use the property keyword for declaration on face_areas property
-    @property
-    def face_areas(self):
-        """Declare face_areas as a property."""
-        # if self._face_areas is not None: it allows for using the cached result
-        if self._face_areas is None:
-            self.compute_face_areas()
         return self._face_areas
 
     # TODO: Make a decision on whether to provide Dataset- or DataArray-specific
