@@ -107,9 +107,6 @@ class Grid:
             v: k for k, v in self.grid_var_names.items()
         }
 
-        # construct nNodes_per_Face
-        self._build_nNodes_per_face()
-
     def __init_grid_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
         of xarray object.
@@ -363,6 +360,8 @@ class Grid:
 
         Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
         """
+        if "nNodes_per_face" not in self._ds:
+            self._build_nNodes_per_face()
         return self._ds["nNodes_per_face"]
 
     # coordinate properties
