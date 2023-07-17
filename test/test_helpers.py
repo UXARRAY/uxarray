@@ -9,7 +9,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.utils import _replace_fill_values
+from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:

@@ -135,30 +135,31 @@ Attributes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
 
-Helper Functions
+Helpers
 ===========
 
 Face Area
 ----------
 .. autosummary::
    :toctree: _autosummary
-   area.calculate_face_area
-   area.get_all_face_area_from_coords
-   area.calculate_spherical_triangle_jacobian
-   area.calculate_spherical_triangle_jacobian_barycentric
-   area.get_gauss_quadratureDG
-   area.get_tri_quadratureDG
+   grid.area.calculate_face_area
+   grid.area.get_all_face_area_from_coords
+   grid.area.calculate_spherical_triangle_jacobian
+   grid.area.calculate_spherical_triangle_jacobian_barycentric
+   grid.area.get_gauss_quadratureDG
+   grid.area.get_tri_quadratureDG
 
 Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
-   connectivity.close_face_nodes
+   grid.connectivity.close_face_nodes
 
 Coordinates
 -----------
 .. autosummary::
    :toctree: _autosummary
-   coordinates.node_lonlat_rad_to_xyz
-   coordinates.node_xyz_to_lonlat_rad
-   coordinates.normalize_in_place
+   grid.coordinates.node_lonlat_rad_to_xyz
+   grid.coordinates.node_xyz_to_lonlat_rad
+   grid.coordinates.normalize_in_place
+   grid.coordinates.grid_center_lat_lon

@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import PurePath
 from datetime import datetime
 
-from uxarray.grid.utils import _replace_fill_values
+from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 

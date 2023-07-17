@@ -3,8 +3,6 @@ from numba import njit, config
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 
-from pathlib import PurePath
-
 config.DISABLE_JIT = False
 
 
