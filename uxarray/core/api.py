@@ -275,7 +275,7 @@ def enable_jit_cache(enable_jit_cache):
     the code or because users have very limited disk space. Default is
     on
     """
-    uxarray.utils.constants.CACHE = enable_jit_cache
+    uxarray.utils.constants.ENABLE_JIT_CACHE = enable_jit_cache
 
 
 def enable_jit(enable_jit):
@@ -285,4 +285,4 @@ def enable_jit(enable_jit):
     generated to speed up the performance of the code on large files.
     Default is on
     """
-    uxarray.utils.constants.JIT_BOOL = enable_jit
+    uxarray.utils.constants.ENABLE_JIT = enable_jit
