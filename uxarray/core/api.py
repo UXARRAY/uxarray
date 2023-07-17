@@ -264,7 +264,7 @@ def open_mfdataset(grid_filename_or_obj: str,
     return uxds
 
 
-def set_cache(cache_bool):
+def enable_jit_cache(enable_jit_cache):
     """Allows Numba's JIT cache to be turned on and off.
 
     This cache variable lets @njit cache the machine code generated
@@ -275,14 +275,14 @@ def set_cache(cache_bool):
     the code or because users have very limited disk space. Default is
     on
     """
-    uxarray.utils.constants.CACHE = cache_bool
+    uxarray.utils.constants.CACHE = enable_jit_cache
 
 
-def set_jit(jit_bool):
+def enable_jit(enable_jit):
     """Allows Numba's JIT application to be turned on and off.
 
     This lets users choose whether they want machine code to be
     generated to speed up the performance of the code on large files.
     Default is on
     """
-    uxarray.utils.constants.JIT_BOOL = jit_bool
+    uxarray.utils.constants.JIT_BOOL = enable_jit

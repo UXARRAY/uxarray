@@ -35,8 +35,8 @@ IO
 
     open_dataset
     open_mfdataset
-    set_cache
-    set_jit
+    enable_jit_cache
+    enable_jit
 
 Attributes
 ----------
