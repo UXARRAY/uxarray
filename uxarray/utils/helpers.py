@@ -741,7 +741,6 @@ def point_within_GCR(pt, gcr_cart):
 
     # The non-anti-meridian case.
     else:
-        is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
         return is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
 
 
