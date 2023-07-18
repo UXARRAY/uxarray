@@ -61,6 +61,8 @@ Methods
    helpers.node_lonlat_rad_to_xyz
    helpers.normalize_in_place
    helpers.close_face_nodes
+   UxDataset.info
+   UxDataset.integrate
 
 Multi-Precision Helper Functions
 -------------------------------
@@ -71,9 +73,8 @@ Multi-Precision Helper Functions
    multi_precision_helpers.unique_coordinates_multiprecision
    multi_precision_helpers.decimal_digits_to_precision_bits
    multi_precision_helpers.precision_bits_to_decimal_digits
-=======
-    UxDataset.info
-    UxDataset.integrate
+
+
 
 
 UxDataArray
@@ -178,7 +179,6 @@ Helpers
    node_lonlat_rad_to_xyz
    normalize_in_place
    parse_grid_type
-=======
 
 
 Multi-Precision
