@@ -167,7 +167,8 @@ def open_dataset(grid_filename_or_obj: str,
                        vertices=vertices,
                        islatlon=islatlon,
                        isconcave=isconcave,
-                       use_dual=use_dual)
+                       use_dual=use_dual,
+                       **kwargs)
 
     ## UxDataset
     ds = xr.open_dataset(filename_or_obj, decode_times=False,
