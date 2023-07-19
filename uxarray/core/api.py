@@ -105,6 +105,7 @@ def open_dataset(grid_filename_or_obj: str,
                  islatlon: Optional[bool] = False,
                  isconcave: Optional[bool] = False,
                  use_dual: Optional[bool] = False,
+                 grid_kwargs: Optional[Dict[str, Any]] = None,
                  **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_dataset()``, given a grid topology definition with a
     single dataset file or object with corresponding data.
@@ -140,6 +141,12 @@ def open_dataset(grid_filename_or_obj: str,
     use_dual: bool, optional
             Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
+    grid_kwargs : Dict[str, Any]
+        Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
+        [xarray
+        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
+        for accepted keyword arguments.
+
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_dataset``. Refer to the
         [xarray
@@ -159,6 +166,7 @@ def open_dataset(grid_filename_or_obj: str,
 
     >>> import uxarray as ux
     >>> ux_ds = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
+    :param grid_kwargs:
     """
 
     ## Grid definition
@@ -168,7 +176,7 @@ def open_dataset(grid_filename_or_obj: str,
                        islatlon=islatlon,
                        isconcave=isconcave,
                        use_dual=use_dual,
-                       **kwargs)
+                       **grid_kwargs)
 
     ## UxDataset
     ds = xr.open_dataset(filename_or_obj, decode_times=False,
@@ -186,6 +194,7 @@ def open_mfdataset(grid_filename_or_obj: str,
                    islatlon: Optional[bool] = False,
                    isconcave: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
+                   grid_kwargs: Optional[Dict[str, Any]] = None,
                    **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_mfdataset()``, given a single grid topology file
     with multiple dataset paths with corresponding data.
@@ -218,7 +227,13 @@ def open_mfdataset(grid_filename_or_obj: str,
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
     use_dual: bool, optional
-            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+        Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+
+    grid_kwargs : Dict[str, Any]
+        Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
+        [xarray
+        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
+        for accepted keyword arguments.
 
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_mfdataset``. Refer to the
@@ -248,15 +263,16 @@ def open_mfdataset(grid_filename_or_obj: str,
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
-    ## Grid definition
+    # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        gridspec=gridspec,
                        vertices=vertices,
                        islatlon=islatlon,
                        isconcave=isconcave,
-                       use_dual=use_dual)
+                       use_dual=use_dual,
+                       **grid_kwargs)
 
-    ## UxDataset
+    # UxDataset
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
