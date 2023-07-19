@@ -1,10 +1,11 @@
 import numpy as np
 from numba import njit, config
+from uxarray.utils.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
-config.DISABLE_JIT = False
+config.DISABLE_JIT = not ENABLE_JIT
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def get_gauss_quadratureDG(nCount):
     """Gauss Quadrature Points for integration.
 
@@ -113,9 +114,9 @@ def get_gauss_quadratureDG(nCount):
         ]])
 
         dW = np.array([
-            0.0812743883615744, 0.1806481606948574, 0.2606106964029354,
-            0.3123470770400029, 0.3302393550012598, 0.3123470770400029,
-            0.2606106964029354, 0.1806481606948574, 0.0812743883615744
+            0.0277777777777778, 0.1654953615608055, 0.2745387125001617,
+            0.3464285109730464, 0.3715192743764172, 0.3464285109730464,
+            0.2745387125001617, 0.1654953615608055, 0.0277777777777778
         ])
 
     #Degree 10
@@ -147,7 +148,7 @@ def get_gauss_quadratureDG(nCount):
     return dG, dW
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def get_tri_quadratureDG(nOrder):
     """Triangular Quadrature Points for integration.
 
