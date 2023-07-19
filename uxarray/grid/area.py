@@ -1,9 +1,10 @@
 import numpy as np
 from numba import njit, config
+from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 
-config.DISABLE_JIT = False
+config.DISABLE_JIT = not ENABLE_JIT
 
 
 @njit
@@ -313,7 +314,10 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
     return 0.5 * dJacobian
 
 
-@njit
+config.DISABLE_JIT = not ENABLE_JIT
+
+
+@njit(cache=ENABLE_JIT_CACHE)
 def get_gauss_quadratureDG(nCount):
     """Gauss Quadrature Points for integration.
 
@@ -456,7 +460,7 @@ def get_gauss_quadratureDG(nCount):
     return dG, dW
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def get_tri_quadratureDG(nOrder):
     """Triangular Quadrature Points for integration.
 
