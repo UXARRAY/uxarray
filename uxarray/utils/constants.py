@@ -4,4 +4,4 @@ import numpy as np
 INT_DTYPE = np.intp
 INT_FILL_VALUE = np.iinfo(INT_DTYPE).min
 ENABLE_JIT_CACHE = True
-ENABLE_JIT = False
+ENABLE_JIT = True
