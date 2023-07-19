@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit, config
 from uxarray.utils.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
-config.DISABLE_JIT = ENABLE_JIT
+config.DISABLE_JIT = not ENABLE_JIT
 
 
 @njit(cache=ENABLE_JIT_CACHE)
