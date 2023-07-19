@@ -842,7 +842,7 @@ class Grid:
         RuntimeError
             If the Mesh object does not contain a 'Mesh2_face_nodes' variable.
         """
-        if "Mesh2_face_nodes" not in self.ds:
+        if "Mesh2_face_nodes" not in self._ds:
             raise RuntimeError(
                 "Currently, node_face_connectivity can only be built with Mesh2_face_nodes"
             )
@@ -850,7 +850,7 @@ class Grid:
         # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
         # indexes (similar to an adjacency matrix)
         face_indices, node_indices, non_filled_element_flags = _face_nodes_to_sparse_matrix(
-            self.ds["Mesh2_face_nodes"].values)
+            self.Mesh2_face_nodes.values)
         coo_matrix = sparse.coo_matrix(
             (non_filled_element_flags, (node_indices, face_indices)))
         csr_matrix = coo_matrix.tocsr()
@@ -883,7 +883,8 @@ class Grid:
                             len(node_face_connectivity[node_index]),
                             INT_FILL_VALUE,
                             dtype=INT_DTYPE))
-        self.ds["Mesh2_node_faces"] = xr.DataArray(
+
+        self._ds["Mesh2_node_faces"] = xr.DataArray(
             node_face_connectivity,
             dims=["nMesh2_node", "nMaxNumFacesPerNode"],
             attrs={

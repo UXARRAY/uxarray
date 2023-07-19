@@ -768,7 +768,7 @@ class TestConnectivity(TestCase):
         # Compare the res_face_nodes_connectivity with the uds._ds["Mesh2_face_nodes"].values
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
-                           uds.ds["Mesh2_face_nodes"].values))
+                           uds._ds["Mesh2_face_nodes"].values))
 
     def test_node_face_connectivity_from_verts(self):
         """Test generating Grid.Mesh2_node_faces from array input."""
@@ -803,7 +803,7 @@ class TestConnectivity(TestCase):
         ])
 
         self.assertTrue(
-            np.array_equal(vgrid.ds["Mesh2_node_faces"].values, expected))
+            np.array_equal(vgrid._ds["Mesh2_node_faces"].values, expected))
 
     def test_node_face_connectivity_from_files(self):
         """Test generating Grid.Mesh2_node_faces from file input."""
@@ -820,7 +820,7 @@ class TestConnectivity(TestCase):
             # use the dictionary method to build the node_face_connectivity
             node_face_connectivity = {}
             nNodes_per_face = grid_ux.nNodes_per_face.values
-            face_nodes = grid_ux.ds["Mesh2_face_nodes"].values
+            face_nodes = grid_ux._ds["Mesh2_face_nodes"].values
             for face_idx, max_nodes in enumerate(nNodes_per_face):
                 cur_face_nodes = face_nodes[face_idx, 0:max_nodes]
                 for j in cur_face_nodes:
@@ -830,11 +830,11 @@ class TestConnectivity(TestCase):
 
             # compare the two methods
             for i in range(grid_ux.nMesh2_node):
-                face_index_from_sparse_matrix = grid_ux.ds[
+                face_index_from_sparse_matrix = grid_ux._ds[
                     "Mesh2_node_faces"].values[i]
                 valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[
                     face_index_from_sparse_matrix !=
-                    grid_ux.ds["Mesh2_face_nodes"].attrs["_FillValue"]]
+                    grid_ux._ds["Mesh2_face_nodes"].attrs["_FillValue"]]
                 valid_face_index_from_sparse_matrix.sort()
                 face_index_from_dict = node_face_connectivity[i]
                 face_index_from_dict.sort()
