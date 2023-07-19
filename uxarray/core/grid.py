@@ -13,10 +13,10 @@ from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
                                    node_lonlat_rad_to_xyz, close_face_nodes,
-                                   _face_nodes_to_sparse_matrix, normalize_in_place)
+                                   _face_nodes_to_sparse_matrix,
+                                   normalize_in_place)
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
-
 
 
 class Grid:
@@ -830,7 +830,6 @@ class Grid:
                     fill_value_mask
             })
 
-
     def _build_node_faces_connectivity(self):
         """Builds the `Grid.Mesh2_node_faces`: integer DataArray of size
         (nMesh2_node, nMaxNumFacesPerNode) (optional) A DataArray of indices
@@ -894,7 +893,6 @@ class Grid:
                 "nMaxNumFacesPerNode": nMaxNumFacesPerNode,
                 "_FillValue": INT_FILL_VALUE
             })
-
 
     def _build_face_edges_connectivity(self):
         """Constructs the UGRID connectivity variable (``Mesh2_face_edges``)

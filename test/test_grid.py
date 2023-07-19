@@ -315,7 +315,6 @@ class TestFaceAreas(TestCase):
                                   islatlon=False,
                                   isconcave=False)
 
-
         #calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
@@ -858,4 +857,3 @@ class TestConnectivity(TestCase):
                 self.assertTrue(
                     np.array_equal(valid_face_index_from_sparse_matrix,
                                    face_index_from_dict))
-
