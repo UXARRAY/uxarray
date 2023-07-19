@@ -624,22 +624,6 @@ class TestConnectivity(TestCase):
             assert grid.nNodes_per_face.min() >= min_dimension
             assert grid.nNodes_per_face.max() <= max_dimension
 
-    def test_build_nNodes_per_face(self):
-        """Tests the construction of the ``nNodes_per_face`` variable."""
-
-        # test on grid constructed from sample datasets
-        grids = [self.grid_mpas, self.grid_exodus, self.grid_ugrid]
-
-        for grid in grids:
-            # highest possible dimension dimension for a face
-            max_dimension = grid.nMaxMesh2_face_nodes
-
-            # face must be at least a triangle
-            min_dimension = 3
-
-            assert grid.nNodes_per_face.min() >= min_dimension
-            assert grid.nNodes_per_face.max() <= max_dimension
-
         # test on grid constructed from vertices
         verts = [
             self.f0_deg, self.f1_deg, self.f2_deg, self.f3_deg, self.f4_deg,
