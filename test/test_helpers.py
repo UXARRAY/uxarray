@@ -202,7 +202,7 @@ class TestSparseMatrix(TestCase):
         face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5],
                                     [3, 4, 1, 0], [0, 1, 2, INT_FILL_VALUE]])
 
-        face_indices, nodes_indices, non_zero_flag = ux.helpers._face_nodes_to_sparse_matrix(
+        face_indices, nodes_indices, non_zero_flag = ux.utils.helpers._face_nodes_to_sparse_matrix(
             face_nodes_conn)
         expected_non_zero_flag = np.array(
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
