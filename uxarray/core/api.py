@@ -105,7 +105,7 @@ def open_dataset(grid_filename_or_obj: str,
                  islatlon: Optional[bool] = False,
                  isconcave: Optional[bool] = False,
                  use_dual: Optional[bool] = False,
-                 grid_kwargs: Optional[Dict[str, Any]] = None,
+                 grid_kwargs: Optional[Dict[str, Any]] = {},
                  **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_dataset()``, given a grid topology definition with a
     single dataset file or object with corresponding data.
@@ -194,7 +194,7 @@ def open_mfdataset(grid_filename_or_obj: str,
                    islatlon: Optional[bool] = False,
                    isconcave: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
-                   grid_kwargs: Optional[Dict[str, Any]] = None,
+                   grid_kwargs: Optional[Dict[str, Any]] = {},
                    **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_mfdataset()``, given a single grid topology file
     with multiple dataset paths with corresponding data.
