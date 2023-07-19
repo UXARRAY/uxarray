@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy.testing as nt
 
 import uxarray as ux
+import xarray as xr
+import numpy as np
 
 try:
     import constants
@@ -14,7 +16,6 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class TestAPI(TestCase):
-
     geoflow_data_path = current_path / "meshfiles" / "ugrid" / "geoflow-small"
     gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
     geoflow_data_v1 = geoflow_data_path / "v1.nc"
@@ -128,3 +129,7 @@ class TestAPI(TestCase):
         # Check that the deep copy is a deep copy
         assert (v1_uxdata_array_copy_deep.uxgrid == v1_uxdata_array.uxgrid)
         assert (v1_uxdata_array_copy_deep.uxgrid is not v1_uxdata_array.uxgrid)
+
+    def test_open_dataset_grid_kwargs(self):
+
+        pass
