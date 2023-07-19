@@ -6,7 +6,6 @@ dependencies:
   - numba
   - numpy
   - pathlib
-  - python
   - pytest
   - pytest-cov
   - scipy
