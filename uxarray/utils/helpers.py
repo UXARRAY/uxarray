@@ -8,7 +8,7 @@ import math
 
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
-config.DISABLE_JIT = ENABLE_JIT
+config.DISABLE_JIT = not ENABLE_JIT
 
 
 def parse_grid_type(dataset):
