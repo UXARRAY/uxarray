@@ -1,7 +1,7 @@
 from uxarray.io._ugrid import _is_ugrid
 
 
-def parse_grid_type(dataset):
+def _parse_grid_type(dataset):
     """Checks input and contents to determine grid type. Supports detection of
     UGrid, SCRIP, Exodus and shape file.
 

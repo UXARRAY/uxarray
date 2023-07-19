@@ -35,6 +35,10 @@ IO
 
     open_dataset
     open_mfdataset
+    enable_jit_cache
+    disable_jit_cache
+    enable_jit
+    disable_jit
 
 Attributes
 ----------
@@ -143,3 +147,35 @@ Attributes
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
+<<<<<<< HEAD
+=======
+
+Helpers
+===========
+
+Face Area
+----------
+.. autosummary::
+   :toctree: _autosummary
+   grid.area.calculate_face_area
+   grid.area.get_all_face_area_from_coords
+   grid.area.calculate_spherical_triangle_jacobian
+   grid.area.calculate_spherical_triangle_jacobian_barycentric
+   grid.area.get_gauss_quadratureDG
+   grid.area.get_tri_quadratureDG
+
+Connectivity
+------------
+.. autosummary::
+   :toctree: _autosummary
+   grid.connectivity.close_face_nodes
+
+Coordinates
+-----------
+.. autosummary::
+   :toctree: _autosummary
+   grid.coordinates.node_lonlat_rad_to_xyz
+   grid.coordinates.node_xyz_to_lonlat_rad
+   grid.coordinates.normalize_in_place
+   grid.coordinates.grid_center_lat_lon
+>>>>>>> philipc2/refactor

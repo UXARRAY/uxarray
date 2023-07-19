@@ -9,14 +9,16 @@ from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 
-from uxarray.io.utils import parse_grid_type
+from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
-
 from uxarray.grid.connectivity import (_build_edge_node_connectivity,
                                        _build_face_edges_connectivity,
                                        _build_nNodes_per_face)
 
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.coordinates import (_populate_lonlat_coord,
+                                      _populate_cartesian_xyz_coord)
+
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.geometry import (_build_polygon_shells,
                                    _build_corrected_polygon_shells,
@@ -122,7 +124,7 @@ class Grid:
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(input_obj, xr.Dataset):
-            self.mesh_type = parse_grid_type(input_obj)
+            self.mesh_type = _parse_grid_type(input_obj)
             self.__from_ds__(dataset=input_obj)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
@@ -322,7 +324,47 @@ class Grid:
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
             connectivity_heading + connectivity_str
 
-    # attribute properties
+    def __eq__(self, other):
+        """Two grids are equal if they have matching grid topology variables,
+        coordinates, and dims all of which are equal.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are equal : bool
+        """
+        if other is not None:
+            # Iterate over dict to set access attributes
+            for key, value in self.grid_var_names.items():
+                # Check if all grid variables are equal
+                if self._ds.data_vars is not None:
+                    if value in self._ds.data_vars:
+                        if not self._ds[value].equals(
+                                other._ds[other.grid_var_names[key]]):
+                            return False
+        else:
+            return False
+
+        return True
+
+    def __ne__(self, other):
+        """Two grids are not equal if they have differing grid topology
+        variables, coordinates, or dims.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are not equal : bool
+        """
+        return not self.__eq__(other)
 
     @property
     def parsed_attrs(self):
@@ -334,8 +376,6 @@ class Grid:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
         unstructured mesh."""
         return self._ds[self.grid_var_names["Mesh2"]]
-
-    # dimension properties
 
     @property
     def nMesh2_node(self):
@@ -389,8 +429,6 @@ class Grid:
             _build_nNodes_per_face(self)
         return self._ds["nNodes_per_face"]
 
-    # coordinate properties
-
     @property
     def Mesh2_node_x(self):
         """UGRID Coordinate Variable ``Mesh2_node_x``, which contains the
@@ -408,7 +446,7 @@ class Grid:
         Dimensions (``nMesh2_node``)
         """
         if "Mesh2_node_cart_x" not in self._ds:
-            self._populate_cartesian_xyz_coord()
+            _populate_cartesian_xyz_coord(self)
         return self._ds['Mesh2_node_cart_x']
 
     @property
@@ -440,7 +478,7 @@ class Grid:
         Dimensions (``nMesh2_node``)
         """
         if "Mesh2_node_cart_y" not in self._ds:
-            self._populate_cartesian_xyz_coord()
+            _populate_cartesian_xyz_coord(self)
         return self._ds['Mesh2_node_cart_y']
 
     @property
@@ -483,8 +521,6 @@ class Grid:
         if "Mesh2_node_cart_z" not in self._ds:
             self._populate_cartesian_xyz_coord()
         return self._ds['Mesh2_node_cart_z']
-
-    # connectivity properties
 
     @property
     def Mesh2_face_nodes(self):
@@ -560,6 +596,14 @@ class Grid:
             self._antimeridian_face_indices = _build_antimeridian_face_indices(
                 self)
         return self._antimeridian_face_indices
+
+    @property
+    def face_areas(self):
+        """Declare face_areas as a property."""
+        # if self._face_areas is not None: it allows for using the cached result
+        if self._face_areas is None:
+            self.compute_face_areas()
+        return self._face_areas
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -688,57 +732,6 @@ class Grid:
             x, y, z, face_nodes, nNodes_per_face, dim, quadrature_rule, order,
             coords_type)
 
-        return self._face_areas
-
-    def __eq__(self, other):
-        """Two grids are equal if they have matching grid topology variables,
-        coordinates, and dims all of which are equal.
-
-        Parameters
-        ----------
-        other : uxarray.Grid
-            The second grid object to be compared with `self`
-
-        Returns
-        -------
-        If two grids are equal : bool
-        """
-        if other is not None:
-            # Iterate over dict to set access attributes
-            for key, value in self.grid_var_names.items():
-                # Check if all grid variables are equal
-                if self._ds.data_vars is not None:
-                    if value in self._ds.data_vars:
-                        if not self._ds[value].equals(
-                                other._ds[other.grid_var_names[key]]):
-                            return False
-        else:
-            return False
-
-        return True
-
-    def __ne__(self, other):
-        """Two grids are not equal if they have differing grid topology
-        variables, coordinates, or dims.
-
-        Parameters
-        ----------
-        other : uxarray.Grid
-            The second grid object to be compared with `self`
-
-        Returns
-        -------
-        If two grids are not equal : bool
-        """
-        return not self.__eq__(other)
-
-    # use the property keyword for declaration on face_areas property
-    @property
-    def face_areas(self):
-        """Declare face_areas as a property."""
-        # if self._face_areas is not None: it allows for using the cached result
-        if self._face_areas is None:
-            self.compute_face_areas()
         return self._face_areas
 
     # TODO: Make a decision on whether to provide Dataset- or DataArray-specific

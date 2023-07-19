@@ -6,7 +6,7 @@ import sys
 from typing import Optional, IO
 
 from uxarray.core.dataarray import UxDataArray
-from uxarray.grid.grid import Grid
+from uxarray.grid import Grid
 
 
 class UxDataset(xr.Dataset):

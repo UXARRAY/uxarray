@@ -1,6 +1,8 @@
 import xarray as xr
 
-from uxarray.grid.grid import Grid
+from typing import Optional
+
+from uxarray.grid import Grid
 
 
 class UxDataArray(xr.DataArray):

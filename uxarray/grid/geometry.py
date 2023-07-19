@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.connectivity import close_face_nodes
 

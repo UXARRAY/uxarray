@@ -77,8 +77,6 @@ Methods
    _copy
    _replace
 
-
-
 Grid
 ===========
 
@@ -89,29 +87,6 @@ Class
 
    Grid
 
-
-IO
-----------
-.. autosummary::
-   :toctree: _autosummary
-
-   io._exodus._read_exodus
-   io._exodus._encode_exodus
-   io._exodus._get_element_type
-   io._mpas._dual_to_ugrid
-   io._mpas._primal_to_ugrid
-   io._mpas._replace_padding
-   io._mpas._replace_zeros
-   io._mpas._to_zero_index
-   io._mpas._set_global_attrs
-   io._mpas._read_mpas
-   io._ugrid._encode_ugrid
-   io._ugrid._read_ugrid
-   io._scrip._read_scrip
-   io._scrip._encode_scrip
-   io._scrip._to_ugrid
-
-
 Methods
 -------
 .. autosummary::
@@ -121,7 +96,12 @@ Methods
    __from_ds__
    __from_vert__
    __init_grid_var_attrs__
+<<<<<<< HEAD
    _build_nNodes_per_face
+=======
+
+
+>>>>>>> philipc2/refactor
 
 
 Attributes
@@ -137,3 +117,31 @@ Operators
    :toctree: _autosummary
    Grid.__eq__
    Grid.__ne__
+<<<<<<< HEAD
+=======
+
+Helpers
+===========
+
+Connectivity
+------------
+.. autosummary::
+   :toctree: _autosummary
+   grid.connectivity._replace_fill_values
+   grid.connectivity._build_nNodes_per_face
+   grid.connectivity._build_edge_node_connectivity
+   grid.connectivity._build_face_edges_connectivity
+
+Coordinates
+-----------
+.. autosummary::
+   :toctree: _autosummary
+   grid.coordinates._populate_cartesian_xyz_coord
+   grid.coordinates._populate_lonlat_coord
+
+IO
+---
+.. autosummary::
+   :toctree: _autosummary
+   io.utils._parse_grid_type
+>>>>>>> philipc2/refactor
