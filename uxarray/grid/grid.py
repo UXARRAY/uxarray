@@ -566,7 +566,8 @@ class Grid:
     # other properties
     @property
     def polygon_shells(self):
-        """A sequence of (x, y) numeric coordinate pairs representing the shell of each face represented as a polygon.
+        """A sequence of (x, y) numeric coordinate pairs representing the shell
+        of each face represented as a polygon.
 
         Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``)
         """
@@ -579,10 +580,12 @@ class Grid:
 
     @property
     def corrected_polygon_shells(self):
-        """A sequence of (x, y) numeric coordinate pairs representing the shell of each face represented as a polygon,
-        with polygons that cross the antimeridian split into two.
+        """A sequence of (x, y) numeric coordinate pairs representing the shell
+        of each face represented as a polygon, with polygons that cross the
+        antimeridian split into two.
 
-        Dimensions (``nMesh2_face`` + len(antimeridian_face_indices), ``nMaxMesh2_face_nodes``)
+        Dimensions (``nMesh2_face`` + len(antimeridian_face_indices),
+        ``nMaxMesh2_face_nodes``)
         """
         if self._corrected_polygon_shells is None:
             self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
@@ -599,7 +602,8 @@ class Grid:
 
     @property
     def antimeridian_face_indices(self):
-        """Index of each face that was corrected for crossing the antimeridian"""
+        """Index of each face that was corrected for crossing the
+        antimeridian."""
         if self._antimeridian_face_indices is None:
             self._antimeridian_face_indices = _build_antimeridian_face_indices(
                 self)
@@ -850,5 +854,3 @@ class Grid:
             self._polycollection = polycollection
 
         return polycollection
-
-

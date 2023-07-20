@@ -134,4 +134,3 @@ def _grid_to_polygon_geodataframe(grid):
     gdf = GeoDataFrame({"geometry": geometry})
 
     return gdf
-
