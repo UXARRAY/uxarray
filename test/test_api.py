@@ -131,5 +131,12 @@ class TestAPI(TestCase):
         assert (v1_uxdata_array_copy_deep.uxgrid is not v1_uxdata_array.uxgrid)
 
     def test_open_dataset_grid_kwargs(self):
+        """Drops ``Mesh2_face_nodes`` from the inputted grid file using
+        ``grid_kwargs``"""
 
-        pass
+        with self.assertRaises(KeyError):
+            # attempt to open a dataset after dropping face nodes should raise a KeyError
+            uxds = ux.open_dataset(
+                self.gridfile_ne30,
+                self.dsfile_var2_ne30,
+                grid_kwargs={"drop_variables": "Mesh2_face_nodes"})
