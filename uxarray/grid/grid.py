@@ -84,11 +84,8 @@ class Grid:
         self._original_to_corrected_indices = None
         self._antimeridian_face_indices = None
 
-        # initialize cached objects for repeated calls
-        self._gdf_nodes = None
-        self._gdf_edges = None
-        self._gdf_polygons = None
-
+        # initialize cached data structures
+        self._gdf = None
         self._polycollection = None
 
         # TODO: fix when adding/exercising gridspec
@@ -569,6 +566,10 @@ class Grid:
     # other properties
     @property
     def polygon_shells(self):
+        """A sequence of (x, y) numeric coordinate pairs representing the shell of each face represented as a polygon.
+
+        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``)
+        """
         if self._polygon_shells is None:
             self._polygon_shells = _build_polygon_shells(
                 self.Mesh2_node_x.values, self.Mesh2_node_y.values,
@@ -578,6 +579,11 @@ class Grid:
 
     @property
     def corrected_polygon_shells(self):
+        """A sequence of (x, y) numeric coordinate pairs representing the shell of each face represented as a polygon,
+        with polygons that cross the antimeridian split into two.
+
+        Dimensions (``nMesh2_face`` + len(antimeridian_face_indices), ``nMaxMesh2_face_nodes``)
+        """
         if self._corrected_polygon_shells is None:
             self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
                 self.polygon_shells)
@@ -585,6 +591,7 @@ class Grid:
 
     @property
     def original_to_corrected_indices(self):
+        """Index mapping each split polygon to its original index."""
         if self._original_to_corrected_indices is None:
             self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
                 self.polygon_shells)
@@ -592,6 +599,7 @@ class Grid:
 
     @property
     def antimeridian_face_indices(self):
+        """Index of each face that was corrected for crossing the antimeridian"""
         if self._antimeridian_face_indices is None:
             self._antimeridian_face_indices = _build_antimeridian_face_indices(
                 self)
@@ -780,7 +788,7 @@ class Grid:
     #
     #     return integral
 
-    def to_geodataframe(self, geometry="polygons", override=False, cache=True):
+    def to_geodataframe(self, override=False, cache=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -800,31 +808,18 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
-        if geometry == "polygons":
-            if self._gdf_polygons is not None and not override:
-                return self._gdf_polygons
-            gdf = _grid_to_polygon_geodataframe(self)
-            if cache:
-                self._gdf_polygons = gdf
-        elif geometry == "edges":
-            if self._gdf_edges is not None and not override:
-                return self._gdf_edges
-            gdf = None
-            if cache:
-                self._gdf_edges = gdf
-        elif geometry == "nodes":
-            if self._gdf_nodes is not None and not override:
-                return self._gdf_nodes
-            gdf = None
-            if cache:
-                self._gdf_nodes = gdf
-        else:
-            raise NameError
+        # use cached geodataframe
+        if self._gdf is not None and not override:
+            return self._gdf
+
+        # construct a geodataframe with the faces stored as polygons as the geometry
+        gdf = _grid_to_polygon_geodataframe(self)
+
+        # cache computed geodataframe
+        if cache:
+            self._gdf = gdf
 
         return gdf
-
-    def to_dataframe(self):
-        pass
 
     def to_polycollection(self, override=False, cache=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
@@ -844,17 +839,16 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
-        # return cached polycollection
+        # use cached polycollection
         if self._polycollection is not None and not override:
             return self._polycollection
 
         polycollection = PolyCollection(self.corrected_polygon_shells)
 
-        # cache instance of polycollection
+        # cache computed polycollection
         if cache:
             self._polycollection = polycollection
 
         return polycollection
 
-    def to_linecollection(self):
-        pass
+

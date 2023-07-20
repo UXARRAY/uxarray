@@ -798,9 +798,6 @@ class TestGridGDF(TestCase):
         p_array = polygons(shells)
         pass
 
-    def test_df_edges(self):
-        ux.grid.geometry._grid_to_edge_dataframe(self.outCSne30_uxgrid)
-
     def test_corrected_polygon_shells(self):
         corrected_shells = self.mpas_uxgrid.corrected_polygon_shells
         original_to_corrected = self.mpas_uxgrid.original_to_corrected_indices

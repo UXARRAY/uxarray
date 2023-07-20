@@ -39,10 +39,6 @@ def grid_to_polygons(grid):
     return polygons
 
 
-def grid_to_edges(grid):
-    pass
-
-
 def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
                           nMesh2_face, nMaxMesh2_face_nodes, nNodes_per_face):
     """Constructs the shell of each polygon derived from the closed off face
@@ -139,11 +135,3 @@ def _grid_to_polygon_geodataframe(grid):
 
     return gdf
 
-
-def _grid_to_edge_dataframe(grid):
-    polygons = grid_to_polygons(grid)
-
-    bounds = [P.boundary for P in polygons]
-
-    df = pd.DataFrame({"geometry": bounds})
-    pass
