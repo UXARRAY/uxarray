@@ -142,7 +142,7 @@ def open_dataset(grid_filename_or_obj: str,
     use_dual: bool, optional
             Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
-    grid_kwargs : Dict[str, Any]
+    grid_kwargs : Dict[str, Any], optional
         Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
         [xarray
         docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
@@ -170,7 +170,7 @@ def open_dataset(grid_filename_or_obj: str,
     :param grid_kwargs:
     """
 
-    ## Grid definition
+    # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        gridspec=gridspec,
                        vertices=vertices,
@@ -179,10 +179,9 @@ def open_dataset(grid_filename_or_obj: str,
                        use_dual=use_dual,
                        **grid_kwargs)
 
-    ## UxDataset
+    # UxDataset
     ds = xr.open_dataset(filename_or_obj, decode_times=False,
                          **kwargs)  # type: ignore
-
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds
@@ -230,7 +229,7 @@ def open_mfdataset(grid_filename_or_obj: str,
     use_dual: bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
-    grid_kwargs : Dict[str, Any]
+    grid_kwargs : Dict[str, Any], optional
         Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
         [xarray
         docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
@@ -275,7 +274,6 @@ def open_mfdataset(grid_filename_or_obj: str,
 
     # UxDataset
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
-
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
     return uxds
