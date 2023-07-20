@@ -7,7 +7,7 @@ from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 config.DISABLE_JIT = not ENABLE_JIT
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_face_area(x,
                         y,
                         z,
@@ -94,7 +94,7 @@ def calculate_face_area(x,
     return area
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def get_all_face_area_from_coords(x,
                                   y,
                                   z,
@@ -164,7 +164,7 @@ def get_all_face_area_from_coords(x,
     return area
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
@@ -240,7 +240,7 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     return dJacobian
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
                                                       dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function

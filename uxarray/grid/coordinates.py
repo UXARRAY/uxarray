@@ -4,10 +4,12 @@ import math
 
 from numba import njit, config
 
-config.DISABLE_JIT = False
+from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
+
+config.DISABLE_JIT = not ENABLE_JIT
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D
     longitude/latitude to normalized 3D xyz.
@@ -35,7 +37,7 @@ def node_lonlat_rad_to_xyz(node_coord):
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
@@ -79,7 +81,7 @@ def node_xyz_to_lonlat_rad(node_coord):
     return [d_lon_rad, d_lat_rad]
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def normalize_in_place(node):
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate

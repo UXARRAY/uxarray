@@ -20,9 +20,7 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
-
    UxDataset
-
 
 Attributes
 ----------
@@ -30,7 +28,6 @@ Attributes
    :toctree: _autosummary
    UxDataset._source_datasets
    UxDataset._uxgrid
-
 
 
 Methods
@@ -46,7 +43,6 @@ Methods
    _replace
 
 
-
 UxDataArray
 ===========
 The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list of
@@ -56,7 +52,6 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
-
    UxDataArray
 
 
@@ -64,7 +59,6 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    UxDataArray._uxgrid
 
 
@@ -72,7 +66,6 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-
    _construct_direct
    _copy
    _replace
@@ -84,27 +77,21 @@ Class
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    Grid
 
 Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-
    __init_grid_var_names__
    __from_ds__
    __from_vert__
    __init_grid_var_attrs__
 
-
-
-
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    Grid._Mesh2_node_z
 
 Operators
