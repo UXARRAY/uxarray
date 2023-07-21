@@ -1,8 +1,8 @@
 .. currentmodule:: uxarray
 
-########
+############
 Internal API
-########
+############
 
 This page shows already-implemented Uxarray internal API functions. You can also
 check the draft `UXarray API
@@ -20,12 +20,14 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset._source_datasets
    UxDataset._uxgrid
 
@@ -34,13 +36,14 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-   __getitem__
-   __setitem__
-   _calculate_binary_op
-   _construct_dataarray
-   _construct_direct
-   _copy
-   _replace
+
+   UxDataset.__getitem__
+   UxDataset.__setitem__
+   UxDataset._calculate_binary_op
+   UxDataset._construct_dataarray
+   UxDataset._construct_direct
+   UxDataset._copy
+   UxDataset._replace
 
 
 UxDataArray
@@ -52,6 +55,7 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray
 
 
@@ -59,6 +63,7 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray._uxgrid
 
 
@@ -66,9 +71,10 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-   _construct_direct
-   _copy
-   _replace
+
+   UxDataArray._construct_direct
+   UxDataArray._copy
+   UxDataArray._replace
 
 Grid
 ===========
@@ -77,27 +83,31 @@ Class
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid
 
 Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-   __init_grid_var_names__
-   __from_ds__
-   __from_vert__
-   __init_grid_var_attrs__
+
+   Grid.__init_grid_var_names__
+   Grid.__from_ds__
+   Grid.__from_vert__
+   Grid.__init_grid_var_attrs__
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid._Mesh2_node_z
 
 Operators
 ---------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.__eq__
    Grid.__ne__
 
@@ -108,6 +118,7 @@ Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    grid.connectivity._replace_fill_values
    grid.connectivity._build_nNodes_per_face
    grid.connectivity._build_edge_node_connectivity
@@ -117,6 +128,7 @@ Coordinates
 -----------
 .. autosummary::
    :toctree: _autosummary
+
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
 
@@ -124,4 +136,5 @@ IO
 ---
 .. autosummary::
    :toctree: _autosummary
+
    io.utils._parse_grid_type

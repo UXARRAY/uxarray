@@ -22,12 +22,14 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset
 
 IO
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    open_dataset
    open_mfdataset
 
@@ -35,6 +37,7 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset.uxgrid
    UxDataset.source_datasets
 
@@ -42,6 +45,7 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset.info
    UxDataset.integrate
 
@@ -59,6 +63,7 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray
 
 
@@ -66,6 +71,7 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray.uxgrid
 
 
@@ -83,12 +89,14 @@ Class
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid
 
 IO
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    open_grid
 
 
@@ -96,6 +104,7 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.encode_as
@@ -106,6 +115,7 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.Mesh2
    Grid.parsed_attrs
    Grid.nMesh2_node
@@ -129,6 +139,7 @@ Face Area
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    grid.area.calculate_face_area
    grid.area.get_all_face_area_from_coords
    grid.area.calculate_spherical_triangle_jacobian
@@ -140,12 +151,14 @@ Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    grid.connectivity.close_face_nodes
 
 Coordinates
 -----------
 .. autosummary::
    :toctree: _autosummary
+
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
@@ -155,6 +168,7 @@ Numba
 -----
 .. autosummary::
    :toctree: _autosummary
+
    utils.enable_jit_cache
    utils.disable_jit_cache
    utils.enable_jit
