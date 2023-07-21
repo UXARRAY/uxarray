@@ -20,3 +20,4 @@ your own examples or suggesting one for us to create, please see the :doc:`contr
    examples/002-grid-topology.ipynb
    examples/003-area-calc.ipynb
    examples/004-working-with-mpas-grids.ipynb
+   examples/005-multiprecision-usage.ipynb
