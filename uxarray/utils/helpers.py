@@ -3,11 +3,13 @@ import xarray as xr
 from pathlib import PurePath
 from .get_quadratureDG import get_gauss_quadratureDG, get_tri_quadratureDG
 from numba import njit, config
+from uxarray.utils.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 import math
+from typing import List, Union
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 
-config.DISABLE_JIT = False
+config.DISABLE_JIT = not ENABLE_JIT
 
 
 def parse_grid_type(dataset):
@@ -96,7 +98,7 @@ def parse_grid_type(dataset):
 
 
 # Calculate the area of all faces.
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_face_area(x,
                         y,
                         z,
@@ -153,17 +155,13 @@ def calculate_face_area(x,
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
 
         if (coords_type == "spherical"):
-            node1 = np.array(
-                node_lonlat_rad_to_xyz([np.deg2rad(x[0]),
-                                        np.deg2rad(y[0])]))
-            node2 = np.array(
-                node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[j + 1]),
-                     np.deg2rad(y[j + 1])]))
-            node3 = np.array(
-                node_lonlat_rad_to_xyz(
-                    [np.deg2rad(x[j + 2]),
-                     np.deg2rad(y[j + 2])]))
+            node1 = node_lonlat_rad_to_xyz([np.deg2rad(x[0]), np.deg2rad(y[0])])
+            node2 = node_lonlat_rad_to_xyz(
+                [np.deg2rad(x[j + 1]),
+                 np.deg2rad(y[j + 1])])
+            node3 = node_lonlat_rad_to_xyz(
+                [np.deg2rad(x[j + 2]),
+                 np.deg2rad(y[j + 2])])
 
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
@@ -183,7 +181,7 @@ def calculate_face_area(x,
     return area
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def get_all_face_area_from_coords(x,
                                   y,
                                   z,
@@ -253,7 +251,7 @@ def get_all_face_area_from_coords(x,
     return area
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
@@ -329,7 +327,7 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     return dJacobian
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
                                                       dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
@@ -466,19 +464,19 @@ def grid_center_lat_lon(ds):
     return center_lat, center_lon
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def node_lonlat_rad_to_xyz(node_coord):
     """Helper function to Convert the node coordinate from 2D
     longitude/latitude to normalized 3D xyz.
 
     Parameters
     ----------
-    node: float list
+    node: float list/np.array
         2D coordinates[longitude, latitude] in radiance
 
     Returns
     ----------
-    float list
+    float np.array
         the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -486,27 +484,31 @@ def node_lonlat_rad_to_xyz(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    if len(node_coord) != 2:
+    node_coord = np.asarray(node_coord)
+    if node_coord.shape[0] != 2:
         raise RuntimeError(
             "Input array should have a length of 2: [longitude, latitude]")
     lon = node_coord[0]
     lat = node_coord[1]
-    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+    return np.array(
+        [np.cos(lon) * np.cos(lat),
+         np.sin(lon) * np.cos(lat),
+         np.sin(lat)])
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def node_xyz_to_lonlat_rad(node_coord):
     """Calculate the latitude and longitude in radiance for a node represented
     in the [x, y, z] 3D Cartesian coordinates.
 
     Parameters
     ----------
-    node_coord: float list
+    node_coord: float list/np.array
         3D Cartesian Coordinates [x, y, z] of the node
 
     Returns
     ----------
-    float list
+    float np.array
         the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
 
     Raises
@@ -514,7 +516,8 @@ def node_xyz_to_lonlat_rad(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    if len(node_coord) != 3:
+    node_coord = np.asarray(node_coord)
+    if node_coord.shape[0] != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
     reference_tolerance = 1.0e-12
     [dx, dy, dz] = normalize_in_place(node_coord)
@@ -538,20 +541,21 @@ def node_xyz_to_lonlat_rad(node_coord):
     return [d_lon_rad, d_lat_rad]
 
 
-@njit
-def normalize_in_place(node):
+@njit(cache=ENABLE_JIT_CACHE)
+def normalize_in_place(
+        node: Union[np.ndarray, List[Union[float]]]) -> np.ndarray:
     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
     on the unit sphere. It uses the `np.linalg.norm` internally to calculate
     the magnitude.
 
     Parameters
     ----------
-    node: float list
+    node: np.array or python list of `float` or gmpy2.mpfr
         3D Cartesian Coordinates [x, y, z]
 
     Returns
     ----------
-    float list
+    normalized_node: np.array of `float` or gmpy2.mpfr
         the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -559,10 +563,12 @@ def normalize_in_place(node):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    if len(node) != 3:
-        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+    node = np.asarray(node)
 
-    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
+    if node.shape[0] == 3:
+        return node / np.linalg.norm(node, ord=2)
+    else:
+        raise RuntimeError("Input node should be a 3D array.")
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
@@ -673,3 +679,136 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
 
     return closed
+
+
+def point_within_GCA(pt, gca_cart):
+    """Check if a point lies on a given Great Circle Arc (GCA). The anti-
+    meridian case is also considered.
+
+    Parameters
+    ----------
+    pt : numpy.ndarray of float
+        Cartesian coordinates of the point.
+    gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
+        Cartesian coordinates of the Great Circle Arc (GCR).
+
+    Returns
+    -------
+    bool
+        True if the point lies between the two endpoints of the GCR, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        If the input GCR spans exactly 180 degrees (π radians), as this GCR can have multiple planes.
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    ValueError
+        If the input GCR spans more than 180 degrees (π radians).
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    Notes
+    -----
+    The function checks if the given point is on the Great Circle Arc by considering its cartesian coordinates and
+    accounting for the anti-meridian case.
+
+    The anti-meridian case occurs when the GCR crosses the anti-meridian (0 longitude).
+    In this case, the function handles scenarios where the GCA spans across more than 180 degrees, requiring specific operation.
+
+    The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
+
+    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
+    """
+    # Convert the cartesian coordinates to lonlat coordinates, the node_xyz_to_lonlat_rad is already overloaded
+    # with gmpy2 data type
+    pt_lonlat = node_xyz_to_lonlat_rad(pt)
+    GCRv0_lonlat = node_xyz_to_lonlat_rad(gca_cart[0])
+    GCRv1_lonlat = node_xyz_to_lonlat_rad(gca_cart[1])
+
+    # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
+    angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
+    if np.allclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
+        raise ValueError(
+            "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
+            "Consider breaking the Great Circle Arc"
+            "into two Great Circle Arcs")
+
+    if not np.allclose(np.dot(np.cross(gca_cart[0], gca_cart[1]), pt),
+                       0,
+                       rtol=0,
+                       atol=ERROR_TOLERANCE):
+        return False
+
+    # Special case: If the gcr goes across the anti-meridian
+    # If the pt and the GCR are on the same longitude (the y coordinates are the same)
+    if GCRv0_lonlat[0] == GCRv1_lonlat[0] == pt_lonlat[0]:
+        # Now use the latitude to determine if the pt falls between the interval
+        return is_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+
+    # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
+    # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
+    if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi:
+
+        # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+        # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
+        if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
+            raise ValueError(
+                "The input Great Circle Arc span is larger than 180 degree, please break it into two."
+            )
+
+        # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+        # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 lon
+        elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
+            return is_between(GCRv0_lonlat[0],
+                              pt_lonlat[0], 2 * np.pi) or is_between(
+                                  0, pt_lonlat[0], GCRv1_lonlat[0])
+
+    # The non-anti-meridian case.
+    else:
+        return is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+
+
+def is_between(p, q, r) -> bool:
+    """Determines whether the number q is between p and r.
+
+    Parameters
+    ----------
+    p : float
+        The lower bound.
+    q : float
+        The number to check.
+    r : float
+        The upper bound.
+
+    Returns
+    -------
+    bool
+        True if q is between p and r, False otherwise.
+    """
+
+    return p <= q <= r or r <= q <= p
+
+
+def _angle_of_2_vectors(u, v):
+    """Calculate the angle between two 3D vectors u and v in radians. Can be
+    used to calcualte the span of a GCR.
+
+    Parameters
+    ----------
+    u : numpy.array
+        The first 3D vector.
+    v : numpy.array
+        The second 3D vector.
+
+    Returns
+    -------
+    float
+        The angle between u and v in radians.
+    """
+    v_norm_times_u = np.linalg.norm(v) * u
+    u_norm_times_v = np.linalg.norm(u) * v
+    vec_minus = v_norm_times_u - u_norm_times_v
+    vec_sum = v_norm_times_u + u_norm_times_v
+    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus),
+                                   np.linalg.norm(vec_sum))
+    return angle_u_v_rad

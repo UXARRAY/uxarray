@@ -9,8 +9,8 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.helpers import _replace_fill_values
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.helpers import _replace_fill_values
+from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
     import constants
@@ -20,8 +20,9 @@ except ImportError:
 # Data files
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
-ne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
+gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
+
 err_tolerance = 1.0e-12
 
 
@@ -33,8 +34,10 @@ class TestIntegrate(TestCase):
         x = np.array([0.57735027, 0.57735027, -0.57735027])
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
+
         face_nodes = np.array([[0, 1, 2]]).astype(INT_DTYPE)
         face_dimension = np.array([3], dtype=INT_DTYPE)
+
         area = ux.get_all_face_area_from_coords(x,
                                                 y,
                                                 z,
@@ -42,6 +45,7 @@ class TestIntegrate(TestCase):
                                                 face_dimension,
                                                 3,
                                                 coords_type="cartesian")
+
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=1)
 
     def test_calculate_face_area(self):
@@ -51,7 +55,9 @@ class TestIntegrate(TestCase):
         x = np.array([0.57735027, 0.57735027, -0.57735027])
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
+
         area = ux.calculate_face_area(x, y, z, "gaussian", 5, "cartesian")
+
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
 
     def test_quadrature(self):
@@ -64,6 +70,7 @@ class TestIntegrate(TestCase):
         np.testing.assert_array_almost_equal(W, dW)
 
         dG, dW = ux.get_gauss_quadratureDG(order)
+
         G = np.array([[0.5]])
         W = np.array([1.0])
 
@@ -76,14 +83,14 @@ class TestGridCenter(TestCase):
     def test_grid_center(self):
         """Calculates if the calculated center point of a grid box is the same
         as a given value for the same dataset."""
-        ds_ne8 = xr.open_dataset(ne8)
+        ds_scrip_CSne8 = xr.open_dataset(gridfile_scrip_CSne8)
 
         # select actual center_lat/lon
-        scrip_center_lon = ds_ne8['grid_center_lon']
-        scrip_center_lat = ds_ne8['grid_center_lat']
+        scrip_center_lon = ds_scrip_CSne8['grid_center_lon']
+        scrip_center_lat = ds_scrip_CSne8['grid_center_lat']
 
         # Calculate the center_lat/lon using same dataset's corner_lat/lon
-        calc_center = ux.grid_center_lat_lon(ds_ne8)
+        calc_center = ux.grid_center_lat_lon(ds_scrip_CSne8)
         calc_lat = calc_center[0]
         calc_lon = calc_center[1]
 
@@ -95,20 +102,24 @@ class TestGridCenter(TestCase):
 class TestCoordinatesConversion(TestCase):
 
     def test_normalize_in_place(self):
-        [x, y, z] = ux.helpers.normalize_in_place(
+        [x, y, z] = ux.utils.helpers.normalize_in_place(
             [random.random(), random.random(),
              random.random()])
+
         self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
                              err_tolerance)
 
     def test_node_xyz_to_lonlat_rad(self):
-        [x, y, z] = ux.helpers.normalize_in_place([
+        [x, y, z] = ux.utils.helpers.normalize_in_place([
             random.uniform(-1, 1),
             random.uniform(-1, 1),
             random.uniform(-1, 1)
         ])
-        [lon, lat] = ux.helpers.node_xyz_to_lonlat_rad([x, y, z])
-        [new_x, new_y, new_z] = ux.helpers.node_lonlat_rad_to_xyz([lon, lat])
+
+        [lon, lat] = ux.utils.helpers.node_xyz_to_lonlat_rad([x, y, z])
+        [new_x, new_y,
+         new_z] = ux.utils.helpers.node_lonlat_rad_to_xyz([lon, lat])
+
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
         self.assertLessEqual(np.absolute(new_z - z), err_tolerance)
@@ -118,8 +129,11 @@ class TestCoordinatesConversion(TestCase):
             random.uniform(0, 2 * np.pi),
             random.uniform(-0.5 * np.pi, 0.5 * np.pi)
         ]
-        [x, y, z] = ux.helpers.node_lonlat_rad_to_xyz([lon, lat])
-        [new_lon, new_lat] = ux.helpers.node_xyz_to_lonlat_rad([x, y, z])
+
+        [x, y, z] = ux.utils.helpers.node_lonlat_rad_to_xyz([lon, lat])
+
+        [new_lon, new_lat] = ux.utils.helpers.node_xyz_to_lonlat_rad([x, y, z])
+
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
 
@@ -178,3 +192,100 @@ class TestConstants(TestCase):
                                                    original_fill=-1,
                                                    new_fill=INT_FILL_VALUE,
                                                    new_dtype=np.int16)
+
+
+class TestIntersectionPoint(TestCase):
+
+    def test_pt_within_gcr(self):
+
+        # The GCR that's eexactly 180 degrees will have Value Error raised
+        gcr_180degree_cart = [
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 0.0]),
+            ux.utils.helpers.node_lonlat_rad_to_xyz([np.pi, 0.0])
+        ]
+        pt_same_lon_in = ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 0.0])
+        with self.assertRaises(ValueError):
+            ux.utils.helpers.point_within_GCA(pt_same_lon_in,
+                                              gcr_180degree_cart)
+
+        gcr_180degree_cart = [
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, np.pi / 2.0]),
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, -np.pi / 2.0])
+        ]
+
+        pt_same_lon_in = ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 0.0])
+        with self.assertRaises(ValueError):
+            ux.utils.helpers.point_within_GCA(pt_same_lon_in,
+                                              gcr_180degree_cart)
+
+        # Test when the point and the GCR all have the same longitude
+        gcr_same_lon_cart = [
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 1.5]),
+            ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, -1.5])
+        ]
+        pt_same_lon_in = ux.utils.helpers.node_lonlat_rad_to_xyz([0.0, 0.0])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCA(pt_same_lon_in,
+                                              gcr_same_lon_cart))
+
+        pt_same_lon_out = ux.utils.helpers.node_lonlat_rad_to_xyz(
+            [0.0, 1.500000000000001])
+        res = ux.utils.helpers.point_within_GCA(pt_same_lon_out,
+                                                gcr_same_lon_cart)
+        self.assertFalse(res)
+
+        # And if we increase the digital place by one, it should be true again
+        pt_same_lon_out_add_one_place = ux.utils.helpers.node_lonlat_rad_to_xyz(
+            [0.0, 1.5000000000000001])
+        res = ux.utils.helpers.point_within_GCA(pt_same_lon_out_add_one_place,
+                                                gcr_same_lon_cart)
+        self.assertTrue(res)
+
+        # Normal case
+        # GCR vertex0 in radian : [1.3003315590159483, -0.007004587172323237],
+        # GCR vertex1 in radian : [3.5997458123873827, -1.4893379576608758]
+        # Point in radian : [1.3005410084914981, -0.010444274637648326]
+        gcr_cart_2 = np.array([[0.267, 0.963, -0.007], [-0.073, -0.036,
+                                                        -0.997]])
+        pt_cart_within = np.array(
+            [0.25616109352676675, 0.9246590335292105, -0.010021496695000144])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCA(pt_cart_within, gcr_cart_2))
+
+        # Test other more complicate cases : The anti-meridian case
+
+        # GCR vertex0 in radian : [5.163808182822441, 0.6351384888657234],
+        # GCR vertex1 in radian : [0.8280410325693055, 0.42237025187091526]
+        # Point in radian : [0.12574759138415173, 0.770098701904903]
+        gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
+        pt_cart = np.array(
+            [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
+        self.assertTrue(ux.utils.helpers.point_within_GCA(pt_cart, gcr_cart))
+        # If we swap the gcr, it should still be true
+        gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
+                                                          0.593]])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCA(pt_cart, gcr_cart_flip))
+
+        # 2nd anti-meridian case
+        # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
+        # GCR vertex1 in radian : [2.4269979227622533, -0.007003212877856825]
+        # Point in radian : [0.43400375562899113, -0.49554509841586936]
+        gcr_cart_1 = np.array([[-0.491, -0.706, 0.510], [-0.755, 0.655,
+                                                         -0.007]])
+        pt_cart_within = np.array(
+            [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
+        self.assertFalse(
+            ux.utils.helpers.point_within_GCA(pt_cart_within, gcr_cart_1))
+
+        # The following two case should work even swapping the GCR
+        v1_rad = [0.1, 0.0]
+        v2_rad = [2 * np.pi - 0.1, 0.0]
+        v1_cart = ux.utils.helpers.node_lonlat_rad_to_xyz(v1_rad)
+        v2_cart = ux.utils.helpers.node_lonlat_rad_to_xyz(v2_rad)
+        gcr_cart = np.array([v1_cart, v2_cart])
+        pt_cart = ux.utils.helpers.node_lonlat_rad_to_xyz([0.01, 0.0])
+        self.assertTrue(ux.utils.helpers.point_within_GCA(pt_cart, gcr_cart))
+        gcr_car_flipped = np.array([v2_cart, v1_cart])
+        self.assertTrue(
+            ux.utils.helpers.point_within_GCA(pt_cart, gcr_car_flipped))
