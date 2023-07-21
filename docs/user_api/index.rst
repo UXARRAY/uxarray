@@ -160,4 +160,4 @@ Helpers
    normalize_in_place
    parse_grid_type
    is_between
-   point_within_GCR
+   point_within_GCA

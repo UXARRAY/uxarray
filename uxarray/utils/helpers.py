@@ -681,36 +681,59 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
     return closed
 
 
-def point_within_GCR(pt, gcr_cart):
-    """Check if a point is on a given Great Circle Arc. The anti-meridian case
-    is already considered.
+def point_within_GCA(pt, gca_cart):
+    """Check if a point lies on a given Great Circle Arc (GCA). The anti-
+    meridian case is also considered.
 
     Parameters
     ----------
-    pt : np.ndarray of float
-        Cartesian coordinates of the point
-    gcr_cart : np.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
-        Cartesian coordinates of the GCR
+    pt : numpy.ndarray of float
+        Cartesian coordinates of the point.
+    gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
+        Cartesian coordinates of the Great Circle Arc (GCR).
 
     Returns
     -------
     bool
-        True if the point is on the GCR (Lies between the two endpoints), False otherwise
+        True if the point lies between the two endpoints of the GCR, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        If the input GCR spans exactly 180 degrees (π radians), as this GCR can have multiple planes.
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    ValueError
+        If the input GCR spans more than 180 degrees (π radians).
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    Notes
+    -----
+    The function checks if the given point is on the Great Circle Arc by considering its cartesian coordinates and
+    accounting for the anti-meridian case.
+
+    The anti-meridian case occurs when the GCR crosses the anti-meridian (0 longitude).
+    In this case, the function handles scenarios where the GCA spans across more than 180 degrees, requiring specific operation.
+
+    The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
+
+    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
     """
     # Convert the cartesian coordinates to lonlat coordinates, the node_xyz_to_lonlat_rad is already overloaded
     # with gmpy2 data type
     pt_lonlat = node_xyz_to_lonlat_rad(pt)
-    GCRv0_lonlat = node_xyz_to_lonlat_rad(gcr_cart[0])
-    GCRv1_lonlat = node_xyz_to_lonlat_rad(gcr_cart[1])
+    GCRv0_lonlat = node_xyz_to_lonlat_rad(gca_cart[0])
+    GCRv1_lonlat = node_xyz_to_lonlat_rad(gca_cart[1])
 
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
-    angle = _angle_of_2_vectors(gcr_cart[0], gcr_cart[1])
+    angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
     if np.allclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
         raise ValueError(
-            "The input GCR is exactly 180 degree, this GCR can have multiple planes. Consider breaking the GCR "
-            "into two GCRs")
+            "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
+            "Consider breaking the Great Circle Arc"
+            "into two Great Circle Arcs")
 
-    if not np.allclose(np.dot(np.cross(gcr_cart[0], gcr_cart[1]), pt),
+    if not np.allclose(np.dot(np.cross(gca_cart[0], gca_cart[1]), pt),
                        0,
                        rtol=0,
                        atol=ERROR_TOLERANCE):
@@ -728,13 +751,13 @@ def point_within_GCR(pt, gcr_cart):
 
         # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
         # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
-        # Need to redirect such that 180 --> x0 --> 0 --> x1 --> 180
         if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
-            return is_between(0, pt_lonlat[0], GCRv0_lonlat[0]) or is_between(
-                GCRv1_lonlat[0], pt_lonlat[0], 2 * np.pi)
+            raise ValueError(
+                "The input Great Circle Arc span is larger than 180 degree, please break it into two."
+            )
 
         # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
-        # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 that doesn't require redirection.
+        # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 lon
         elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
             return is_between(GCRv0_lonlat[0],
                               pt_lonlat[0], 2 * np.pi) or is_between(
