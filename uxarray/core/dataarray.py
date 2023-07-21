@@ -1,4 +1,5 @@
 import xarray as xr
+import numpy as np
 
 from typing import Optional
 
@@ -106,7 +107,7 @@ class UxDataArray(xr.DataArray):
         Returns
         -------
         gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" and 1D data column
+            The output `GeoDataFrame` with a filled out "geometry" and 1D data column representing the geometry of the unstructured grid
         """
 
         # data is multidimensional, must be a 1D slice
@@ -122,13 +123,11 @@ class UxDataArray(xr.DataArray):
             gdf[self.name] = self.data
             return gdf
 
-        # data mapped to nodes
+        # TODO: Mapping Node Data to Each Polygon
         elif self.data.size == self.uxgrid.nMesh2_node:
-            gdf = self.uxgrid.to_geodataframe(override=override_grid,
-                                              cache=cache_grid)
-            gdf[self.name] = self.data
-            # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
-            return gdf
+            raise ValueError(
+                f"Data Variable with size {self.data.size} mapped on the nodes of each polygon"
+                f"not supported yet.")
 
         # data not mapped to faces or nodes
         else:
@@ -151,8 +150,9 @@ class UxDataArray(xr.DataArray):
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" collumn
+        poly_collection : matplotlib.collections.PolyCollection
+            The output `PolyCollection` of polygons representing the geometry of the unstructured grid paired with
+            a data variable.
         """
 
         # data is multidimensional, must be a 1D slice
@@ -165,15 +165,23 @@ class UxDataArray(xr.DataArray):
         if self.data.size == self.uxgrid.nMesh2_face:
             poly_collection = self.uxgrid.to_polycollection(
                 override=override_grid, cache=cache_grid)
-            poly_collection.set_array(self.data)
+
+            # map data with antimeridian polygons
+            if self.uxgrid.corrected_polygon_shells is not None:
+                data = self.data[self.uxgrid.original_to_corrected_indices]
+
+            # no antimeridian polygons
+            else:
+                data = self.data
+
+            poly_collection.set_array(data)
             return poly_collection
 
         # data mapped to nodes
         elif self.data.size == self.uxgrid.nMesh2_node:
-            poly_collection = self.uxgrid.to_polycollection(
-                override=override_grid, cache=cache_grid)
-            # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
-            return poly_collection
+            raise ValueError(
+                f"Data Variable with size {self.data.size} mapped on the nodes of each polygon"
+                f"not supported yet.")
 
         # data not mapped to faces or nodes
         else:

@@ -1,9 +1,7 @@
 import numpy as np
-import xarray as xr
-import pandas as pd
+import antimeridian
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-
 from uxarray.grid.connectivity import close_face_nodes
 
 from shapely import polygons as Polygons
@@ -11,28 +9,30 @@ from shapely import Polygon
 from spatialpandas.geometry import MultiPolygonArray
 from spatialpandas import GeoDataFrame
 
-import antimeridian
+from matplotlib.collections import PolyCollection
 
 
 def grid_to_polygons(grid):
+    """Constructs an array of Shapely Polygons representing each face, with
+    antimeridian polygons split according to the GeoJSON standards."""
     # obtain polygon shells for shapely polygon construction
     polygon_shells = grid.polygon_shells
 
     # list of shapely Polygons representing each face in our grid
     polygons = Polygons(polygon_shells)
 
-    # TODO: comment
+    # handle antimeridian polygons, if any
     if grid.antimeridian_face_indices is not None:
 
-        # TODO: comment
+        # obtain each antimeridian polygon
         antimeridian_polygons = polygons[grid.antimeridian_face_indices]
 
-        # TODO: comment
+        # correct each antimeridian polygon
         corrected_polygons = [
             antimeridian.fix_polygon(P) for P in antimeridian_polygons
         ]
 
-        # TODO: comment, possibly optimize?
+        # insert correct polygon back into original array
         for i in reversed(grid.antimeridian_face_indices):
             polygons[i] = corrected_polygons.pop()
 
@@ -42,7 +42,7 @@ def grid_to_polygons(grid):
 def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
                           nMesh2_face, nMaxMesh2_face_nodes, nNodes_per_face):
     """Constructs the shell of each polygon derived from the closed off face
-    nodes.
+    nodes, which can be used to construct Shapely Polygons.
 
     Coordinates should be in degrees, with the longitude being in the
     range [-180, 180].
@@ -118,8 +118,11 @@ def _build_corrected_polygon_shells(polygon_shells):
 
 def _build_antimeridian_face_indices(grid):
     antimeridian_face_indices = np.argwhere(
-        np.any(np.abs(np.diff(grid.polygon_shells[:, :, 0])) >= 180,
-               axis=1)).squeeze()
+        np.any(np.abs(np.diff(grid.polygon_shells[:, :, 0])) >= 180, axis=1))
+    if antimeridian_face_indices.shape[0] == 1:
+        antimeridian_face_indices = antimeridian_face_indices[0]
+    else:
+        antimeridian_face_indices = antimeridian_face_indices.squeeze()
     return antimeridian_face_indices
 
 
@@ -134,3 +137,8 @@ def _grid_to_polygon_geodataframe(grid):
     gdf = GeoDataFrame({"geometry": geometry})
 
     return gdf
+
+
+def _grid_to_matplotlib_polycollection(grid):
+
+    return PolyCollection(grid.corrected_polygon_shells)
