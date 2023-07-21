@@ -28,22 +28,22 @@ IO
 ----------
 .. autosummary::
    :toctree: _autosummary
-    open_dataset
-    open_mfdataset
+   open_dataset
+   open_mfdataset
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-    UxDataset.uxgrid
-    UxDataset.source_datasets
+   UxDataset.uxgrid
+   UxDataset.source_datasets
 
 Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-    UxDataset.info
-    UxDataset.integrate
+   UxDataset.info
+   UxDataset.integrate
 
 
 UxDataArray
