@@ -1,1 +1,1 @@
-from .numba import *
+from .numba_settings import *
