@@ -7,14 +7,14 @@
 
 
 
-UXarray aims to address the geoscience community need for tools that enable
+UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
-data. UXarray provides Xarray styled functions to better read in and use
+data. UXarray provides Xarray-styled functionality to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
-MPAS, SCRIP, and Exodus formats.  This effort is a result of the
+MPAS, SCRIP, and Exodus formats. This effort is a result of the
 collaboration between Project Raijin (NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
-Livermore National Laboratory). The UXarray team welcomes other community
+Livermore National Laboratory). The UXarray team welcomes community
 members to become part of this collaboration at any level of contribution.
 
 UXarray is implemented in pure Python and does not explicitly contain or require
