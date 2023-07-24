@@ -12,6 +12,8 @@ from uxarray.utils.helpers import (get_all_face_area_from_coords,
                                    parse_grid_type, node_xyz_to_lonlat_rad,
                                    node_lonlat_rad_to_xyz, close_face_nodes)
 from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from scipy.spatial import Delaunay, Voronoi, voronoi_plot_2d
+import matplotlib.pyplot as plt
 
 
 class Grid:
@@ -990,3 +992,39 @@ class Grid:
             data=nNodes_per_face,
             dims=["nMesh2_face"],
             attrs={"long_name": "number of non-fill value nodes for each face"})
+
+    def build_edge_from_nodes(self, grid_type='delaunay'):
+        """Constructs edges from given node points using either delaunay
+        triangulation or voronoi diagram."""
+        x = self.Mesh2_node_x.data
+        y = self.Mesh2_node_y.data
+
+        points = np.column_stack((x, y))
+
+        if "Mesh2_face_nodes" in self._ds.variables:
+            self._ds = self._ds.drop_vars("Mesh2_face_nodes")
+
+        if grid_type == 'delaunay':
+            # Perform Delaunay triangulation
+            grid = Delaunay(points)
+
+            face_nodes = []
+            for simplex in grid.simplices:
+                face_nodes.append(simplex)
+            self._ds["Mesh2_face_nodes"] = ([
+                "nMesh2_face", "nMaxMesh2_face_nodes"
+            ], face_nodes)
+            print(self._ds["Mesh2_face_nodes"])
+        elif grid_type == 'voronoi':
+            # Perform Voronoi diagram construction
+            grid = Voronoi(points)
+
+            face_nodes = []
+            for ridge_vertices in grid.ridge_vertices:
+                if -1 not in ridge_vertices:  # Ignore infinite regions
+                    face_nodes.append(ridge_vertices)
+            self._ds["Mesh2_face_nodes"] = ([
+                "nMesh2_face", "nMaxMesh2_face_nodes"
+            ], face_nodes)
+        else:
+            raise ValueError("Invalid grid_type. Use 'delaunay' or 'voronoi'.")

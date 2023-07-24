@@ -284,6 +284,14 @@ class TestGrid(TestCase):
         # Test read from scrip and from ugrid for grid class
         grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
 
+    def test_build_edge_from_nodes(self):
+        ugrid = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
+        mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+        exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+        scrip = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
+        grid_CSne8 = ux.open_grid(exodus)
+        grid_CSne8.build_edge_from_nodes(grid_type='delaunay')
+
 
 class TestOperators(TestCase):
     grid_CSne30_01 = ux.open_grid(gridfile_CSne30)
