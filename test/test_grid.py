@@ -8,6 +8,11 @@ from pathlib import Path
 
 import uxarray as ux
 
+from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity, \
+    build_edge_from_nodes
+
+from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
+
 try:
     import constants
 except ImportError:
@@ -290,7 +295,7 @@ class TestGrid(TestCase):
         exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
         scrip = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
         grid_CSne8 = ux.open_grid(exodus)
-        grid_CSne8.build_edge_from_nodes(grid_type='delaunay')
+        build_edge_from_nodes(grid_CSne8, grid_type='voronoi')
 
 
 class TestOperators(TestCase):
@@ -437,7 +442,7 @@ class TestPopulateCoordinates(TestCase):
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
 
         vgrid = ux.open_grid(verts_degree, islatlon=False)
-        vgrid._populate_cartesian_xyz_coord()
+        _populate_cartesian_xyz_coord(vgrid)
 
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_x"].values[i],
@@ -478,7 +483,7 @@ class TestPopulateCoordinates(TestCase):
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
 
         vgrid = ux.open_grid(verts_cart, islatlon=False)
-        vgrid._populate_lonlat_coord()
+        _populate_lonlat_coord(vgrid)
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.nMesh2_node):
@@ -673,7 +678,7 @@ class TestConnectivity(TestCase):
         edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
         # construct edge nodes
-        mpas_grid_ux._build_edge_node_connectivity(repopulate=True)
+        _build_edge_node_connectivity(mpas_grid_ux, repopulate=True)
         edge_nodes_output = mpas_grid_ux._ds['Mesh2_edge_nodes'].values
 
         self.assertTrue(np.array_equal(edge_nodes_expected, edge_nodes_output))
@@ -696,7 +701,7 @@ class TestConnectivity(TestCase):
 
             mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-            tgrid._build_face_edges_connectivity()
+            _build_face_edges_connectivity(tgrid)
             mesh2_face_edges = tgrid._ds.Mesh2_face_edges
             mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -731,7 +736,7 @@ class TestConnectivity(TestCase):
 
         mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-        tgrid._build_face_edges_connectivity()
+        _build_face_edges_connectivity(tgrid)
         mesh2_face_edges = tgrid._ds.Mesh2_face_edges
         mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -754,7 +759,7 @@ class TestConnectivity(TestCase):
             self.f5_deg, self.f6_deg
         ]
         uds = ux.open_grid(verts)
-        uds._build_face_edges_connectivity()
+        _build_face_edges_connectivity(uds)
         n_face = len(uds._ds["Mesh2_face_edges"].values)
         n_node = uds.nMesh2_node
         n_edge = len(uds._ds["Mesh2_edge_nodes"].values)
