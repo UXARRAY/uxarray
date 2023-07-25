@@ -23,9 +23,8 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.geometry import (_build_polygon_shells,
                                    _build_corrected_polygon_shells,
                                    _build_antimeridian_face_indices,
-                                   _grid_to_polygon_geodataframe)
-
-from matplotlib.collections import PolyCollection
+                                   _grid_to_polygon_geodataframe,
+                                   _grid_to_matplotlib_polycollection)
 
 
 class Grid:
@@ -86,7 +85,8 @@ class Grid:
 
         # initialize cached data structures
         self._gdf = None
-        self._polycollection = None
+        self._poly_collection = None
+        # todo: add line collection
 
         # TODO: fix when adding/exercising gridspec
 
@@ -842,13 +842,35 @@ class Grid:
         """
 
         # use cached polycollection
-        if self._polycollection is not None and not override:
-            return self._polycollection
+        if self._poly_collection is not None and not override:
+            return self._poly_collection
 
-        polycollection = PolyCollection(self.corrected_polygon_shells)
+        poly_collection = _grid_to_matplotlib_polycollection(self)
 
         # cache computed polycollection
         if cache:
-            self._polycollection = polycollection
+            self._poly_collection = poly_collection
 
-        return polycollection
+        return poly_collection
+
+    def to_linecollection(self, override=False, cache=True):
+        """Constructs a ``matplotlib.collections.LineCollection`` object with.
+
+        .... todo
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``PolyCollection`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``PolyCollection`` should be cached
+
+        Returns
+        -------
+        line_collection : matplotlib.collections.LineCollection
+            todo
+        """
+
+        line_collection = None
+
+        return line_collection

@@ -12,8 +12,6 @@ from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face
 
 from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
 
-from spatialpandas.geometry import MultiPolygon
-
 try:
     import constants
 except ImportError:
@@ -775,42 +773,3 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds._ds["Mesh2_face_nodes"].values))
-
-
-from shapely import polygons
-
-
-class TestGridGDF(TestCase):
-    mpas_filepath = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
-    outCSne30_filepath = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-
-    mpas_uxgrid = ux.open_grid(mpas_filepath)
-    outCSne30_uxgrid = ux.open_grid(outCSne30_filepath)
-
-    def test_construction_and_return(self):
-        gdf = self.mpas_uxgrid.to_geodataframe()
-
-    def test_mpl_poly(self):
-        poly_collection = self.mpas_uxgrid.to_polycollection()
-
-    def test_poly_array(self):
-        shells = self.mpas_uxgrid.polygon_shells
-        p_array = polygons(shells)
-        pass
-
-    def test_corrected_polygon_shells(self):
-        corrected_shells = self.mpas_uxgrid.corrected_polygon_shells
-        original_to_corrected = self.mpas_uxgrid.original_to_corrected_indices
-        pass
-
-    def test_point_on_antimeridian(self):
-        expected = MultiPolygon([[[
-            -180.0, 87.00000000000009, -180.0, 87.00000000000009, 0.0, 90.0,
-            90.0, 87.00000000000009, 135.0, 85.76122797743554, 180.0,
-            87.00000000000009, 180.0, 90.0, -180.0, 90.0, -180.0,
-            87.00000000000009
-        ]]])
-
-        gdf = self.outCSne30_uxgrid.to_geodataframe()
-
-        assert expected == gdf['geometry'][4965]

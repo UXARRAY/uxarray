@@ -9,8 +9,6 @@ check the draft `UXarray API
 <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
 documentation to see the tentative whole API and let us know if you have any feedback!
 
-
-
 UxDataset
 =========
 A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
@@ -19,7 +17,6 @@ dataset operators and attributes through the ``uxgrid`` accessor.
 
 Below is a list of features explicitly added to `UxDataset` to work on
 Unstructured Grids:
-
 
 Class
 -----
@@ -32,28 +29,24 @@ IO
 .. autosummary::
    :toctree: _autosummary
 
-    open_dataset
-    open_mfdataset
-    enable_jit_cache
-    disable_jit_cache
-    enable_jit
-    disable_jit
+   open_dataset
+   open_mfdataset
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
 
-    UxDataset.uxgrid
-    UxDataset.source_datasets
+   UxDataset.uxgrid
+   UxDataset.source_datasets
 
 Methods
 -------
 .. autosummary::
    :toctree: _autosummary
 
-    UxDataset.info
-    UxDataset.integrate
+   UxDataset.info
+   UxDataset.integrate
 
 
 UxDataArray
@@ -152,6 +145,7 @@ Attributes
    Grid.antimeridian_face_indices
 
 
+
 Helpers
 ===========
 
@@ -159,6 +153,7 @@ Face Area
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    grid.area.calculate_face_area
    grid.area.get_all_face_area_from_coords
    grid.area.calculate_spherical_triangle_jacobian
@@ -170,12 +165,14 @@ Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    grid.connectivity.close_face_nodes
 
 Coordinates
 -----------
 .. autosummary::
    :toctree: _autosummary
+
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
@@ -186,3 +183,13 @@ Geometry
 .. autosummary::
    :toctree: _autosummary
    grid.geometry.grid_to_polygons
+
+
+Numba
+-----
+.. autosummary::
+   :toctree: _autosummary
+   utils.enable_jit_cache
+   utils.disable_jit_cache
+   utils.enable_jit
+   utils.disable_jit
