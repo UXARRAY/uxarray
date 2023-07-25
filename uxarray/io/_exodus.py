@@ -8,7 +8,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 # Exodus Number is one-based.
-def _read_exodus(ext_ds, grid_var_names):
+def _read_exodus(ext_ds):
     """Exodus file reader.
 
     Parameters: xarray.Dataset, required

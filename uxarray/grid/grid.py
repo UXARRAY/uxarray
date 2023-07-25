@@ -231,6 +231,34 @@ class Grid:
                 "start_index": 0
             })
 
+    @classmethod
+    def from_dataset(cls, dataset, latlon=True, use_dual=False):
+        if not isinstance(dataset, xr.Dataset):
+            raise ValueError
+
+        # determine grid/mesh specification
+        mesh_spec = _parse_grid_type(dataset)
+
+        if mesh_spec == "Exodus":
+            grid_ds, var_encoding = _read_exodus(dataset)
+        elif mesh_spec == "Scrip":
+            grid_ds, var_encoding = _read_scrip(dataset)
+        elif mesh_spec == "UGRID":
+            grid_ds, var_encoding = _read_ugrid(dataset)
+        elif mesh_spec == "MPAS":
+            grid_ds, var_encoding = _read_mpas(dataset, use_dual=use_dual)
+        elif mesh_spec == "Shapefile":
+            # TODO: Not supported, add appropriate exception
+            raise ValueError
+        else:
+            pass
+
+        pass
+
+    @classmethod
+    def from_vertices(cls, vertices, latlon=True):
+        pass
+
     # load mesh from a file
     def __from_ds__(self, dataset):
         """Loads a mesh dataset."""
