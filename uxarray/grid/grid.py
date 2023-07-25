@@ -594,7 +594,7 @@ class Grid:
 
     @property
     def original_to_corrected_indices(self):
-        """Index mapping each split polygon to its original index."""
+        """Indices mapping each split polygon to its original index."""
         if self._original_to_corrected_indices is None:
             self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
                 self.polygon_shells)
@@ -602,8 +602,7 @@ class Grid:
 
     @property
     def antimeridian_face_indices(self):
-        """Index of each face that was corrected for crossing the
-        antimeridian."""
+        """Index of each face that crosses the antimeridian."""
         if self._antimeridian_face_indices is None:
             self._antimeridian_face_indices = _build_antimeridian_face_indices(
                 self)
@@ -796,8 +795,7 @@ class Grid:
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
-        polygon that crosses the antimeridian is split into MultiPolygon across
-        the antimeridian.
+        polygon that crosses the antimeridian is split into MultiPolygons.
 
         Parameters
         ----------
@@ -828,7 +826,7 @@ class Grid:
     def to_polycollection(self, override=False, cache=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
-        polygons that cross the antimeridian split across the antimeridian.
+        polygons that cross the antimeridian split.
 
         Parameters
         ----------
@@ -839,8 +837,8 @@ class Grid:
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" collumn
+        polycollection : matplotlib.collections.PolyCollection
+            The output `PolyCollection` containing faces represented as polygons
         """
 
         # use cached polycollection

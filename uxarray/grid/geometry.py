@@ -15,6 +15,19 @@ import antimeridian
 
 
 def grid_to_polygons(grid):
+    """Constructs an array of ``Shapely`` polygons representing the geometry of
+    the unstructrued grid, with corrected antimeridian polygons.
+
+     Parameters
+    ----------
+    grid : uxarray.Grid
+        Grid Object
+
+    Returns
+    -------
+    polygons : np.ndarray
+        Array containing Shapely Polygons
+    """
     # obtain polygon shells for shapely polygon construction
     polygon_shells = grid.polygon_shells
 
@@ -79,6 +92,22 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
 
 # TODO: Update this one
 def _build_corrected_polygon_shells(polygon_shells):
+    """Constructs ``Grid.corrected_polygon_shells`` and
+    ``Grid.original_to_corrected), representing the polygon shells, with
+    antimeridian polygons split.
+
+     Parameters
+    ----------
+    grid : uxarray.Grid
+        Grid Object
+
+    Returns
+    -------
+    corrected_polygon_shells : np.ndarray
+        Array containing Shapely Polygons
+    original_to_corrected : np.ndarray
+        Array containing Shapely Polygons
+    """
 
     polygon_shells = polygon_shells
 
@@ -117,6 +146,19 @@ def _build_corrected_polygon_shells(polygon_shells):
 
 
 def _build_antimeridian_face_indices(grid):
+    """Constructs ``Grid.antimeridian_face_indices``, which represent the
+    indicies of faces that cross the antimeridian.
+
+     Parameters
+    ----------
+    grid : uxarray.Grid
+        Grid Object
+
+    Returns
+    -------
+    antimeridian_face_indices : np.ndarray
+        Array containing Shapely Polygons
+    """
     antimeridian_face_indices = np.argwhere(
         np.any(np.abs(np.diff(grid.polygon_shells[:, :, 0])) >= 180,
                axis=1)).squeeze()

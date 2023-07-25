@@ -25,7 +25,6 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
-
    UxDataset
 
 IO
@@ -77,8 +76,8 @@ IO
 ----------
 .. autosummary::
    :toctree: _autosummary
-   UxDataArray.to_gdf
-   UxDataArray.to_PolyCollection
+   UxDataArray.to_geodataframe
+   UxDataArray.to_polycollection
 
 
 Attributes
@@ -112,8 +111,8 @@ IO
    :toctree: _autosummary
 
    open_grid
-   Grid.to_gdf
-   Grid.to_PolyCollection
+   Grid.to_geodataframe
+   Grid.to_polycollection
 
 
 Methods
@@ -147,8 +146,11 @@ Attributes
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
-<<<<<<< HEAD
-=======
+   Grid.polygon_shells
+   Grid.corrected_polygon_shells
+   Grid.original_to_corrected_indices
+   Grid.antimeridian_face_indices
+
 
 Helpers
 ===========
@@ -178,4 +180,9 @@ Coordinates
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
    grid.coordinates.grid_center_lat_lon
->>>>>>> philipc2/refactor
+
+Geometry
+-----------
+.. autosummary::
+   :toctree: _autosummary
+   grid.geometry.grid_to_polygons

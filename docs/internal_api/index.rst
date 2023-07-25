@@ -96,12 +96,6 @@ Methods
    __from_ds__
    __from_vert__
    __init_grid_var_attrs__
-<<<<<<< HEAD
-   _build_nNodes_per_face
-=======
-
-
->>>>>>> philipc2/refactor
 
 
 Attributes
@@ -117,8 +111,7 @@ Operators
    :toctree: _autosummary
    Grid.__eq__
    Grid.__ne__
-<<<<<<< HEAD
-=======
+
 
 Helpers
 ===========
@@ -144,4 +137,12 @@ IO
 .. autosummary::
    :toctree: _autosummary
    io.utils._parse_grid_type
->>>>>>> philipc2/refactor
+
+Geometry
+--------
+.. autosummary::
+   :toctree: _autosummary
+   grid.geometry._build_polygon_shells
+   grid.geometry._build_corrected_polygon_shells
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._grid_to_polygon_geodataframe

@@ -113,29 +113,25 @@ class UxDataArray(xr.DataArray):
         if self.data.ndim > 1:
             raise ValueError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.nMesh2_face} "
-                f"for face data or {self.uxgrid.nMesh2_face} for vertex data.")
+                f"for face-centered data.")
 
-        # data mapped to faces
+        # face-centered data
         if self.data.size == self.uxgrid.nMesh2_face:
             gdf = self.uxgrid.to_geodataframe(override=override_grid,
                                               cache=cache_grid)
             gdf[self.name] = self.data
             return gdf
 
-        # data mapped to nodes
+        # node-centered data
         elif self.data.size == self.uxgrid.nMesh2_node:
-            gdf = self.uxgrid.to_geodataframe(override=override_grid,
-                                              cache=cache_grid)
-            gdf[self.name] = self.data
-            # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
-            return gdf
+            raise ValueError(
+                "Mapping node-centered data to faces not currently supported")
 
         # data not mapped to faces or nodes
         else:
             raise ValueError(
                 f"Data Variable with size {self.data.size} does not match the number of faces "
-                f"({self.uxgrid.nMesh2_face} or nodes ({self.uxgrid.nMesh2_node}."
-            )
+                f"({self.uxgrid.nMesh2_face}.")
 
     def to_polycollection(self, override_grid=False, cache_grid=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
@@ -151,33 +147,30 @@ class UxDataArray(xr.DataArray):
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" collumn
+        polycollection : matplotlib.collections.PolyCollection
+            The output `PolyCollection` containing faces represented as polygons and data
         """
 
         # data is multidimensional, must be a 1D slice
         if self.data.ndim > 1:
             raise ValueError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.nMesh2_face} "
-                f"for face data or {self.uxgrid.nMesh2_face} for vertex data.")
+                f"for face-centered data.")
 
-        # data mapped to faces
+        # face-centered data
         if self.data.size == self.uxgrid.nMesh2_face:
             poly_collection = self.uxgrid.to_polycollection(
                 override=override_grid, cache=cache_grid)
             poly_collection.set_array(self.data)
             return poly_collection
 
-        # data mapped to nodes
+        # node-centered data
         elif self.data.size == self.uxgrid.nMesh2_node:
-            poly_collection = self.uxgrid.to_polycollection(
-                override=override_grid, cache=cache_grid)
-            # TODO: implement method for getting data to be mapped to faces (mean, other interpolation?)
-            return poly_collection
+            raise ValueError(
+                "Mapping node-centered data to faces not currently supported")
 
         # data not mapped to faces or nodes
         else:
             raise ValueError(
                 f"Data Variable with size {self.data.size} does not match the number of faces "
-                f"({self.uxgrid.nMesh2_face} or nodes ({self.uxgrid.nMesh2_node}."
-            )
+                f"({self.uxgrid.nMesh2_face}.")
