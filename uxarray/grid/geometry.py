@@ -66,6 +66,7 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
     # additional node after closing our faces
     nNodes_per_face_closed = nNodes_per_face + 1
 
+    # longitude should be between [-180, 180]
     if Mesh2_node_x.max() > 180:
         Mesh2_node_x = (Mesh2_node_x + 180) % 360 - 180
 
@@ -102,9 +103,9 @@ def _build_corrected_polygon_shells(polygon_shells):
     Returns
     -------
     corrected_polygon_shells : np.ndarray
-        Array containing Shapely Polygons
-    original_to_corrected : np.ndarray
-        Array containing Shapely Polygons
+        Array containing polygon shells, with antimeridian polygons split
+    corrected_shells_to_original_faces : np.ndarray
+        Indices
     """
 
     polygon_shells = polygon_shells
@@ -115,7 +116,7 @@ def _build_corrected_polygon_shells(polygon_shells):
     # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
     corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
 
-    original_to_corrected = []
+    corrected_shells_to_original_faces = []
     corrected_polygon_shells = []
 
     for i, polygon in enumerate(corrected_polygons):
@@ -128,7 +129,7 @@ def _build_corrected_polygon_shells(polygon_shells):
                         individual_polygon.exterior.coords.xy[0],
                         individual_polygon.exterior.coords.xy[1]
                     ]).T)
-                original_to_corrected.append(i)
+                corrected_shells_to_original_faces.append(i)
 
         # Convert Shapely Polygon into Polygon Vertices
         else:
@@ -136,11 +137,12 @@ def _build_corrected_polygon_shells(polygon_shells):
                 np.array([
                     polygon.exterior.coords.xy[0], polygon.exterior.coords.xy[1]
                 ]).T)
-            original_to_corrected.append(i)
+            corrected_shells_to_original_faces.append(i)
 
-    original_to_corrected = np.array(original_to_corrected, dtype=INT_DTYPE)
+    original_to_corrected = np.array(corrected_shells_to_original_faces,
+                                     dtype=INT_DTYPE)
 
-    return corrected_polygon_shells, original_to_corrected
+    return corrected_polygon_shells, corrected_shells_to_original_faces
 
 
 def _build_antimeridian_face_indices(grid):

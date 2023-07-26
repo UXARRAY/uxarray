@@ -28,7 +28,6 @@ IO
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    open_dataset
    open_mfdataset
 
@@ -36,7 +35,6 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    UxDataset.uxgrid
    UxDataset.source_datasets
 
@@ -44,7 +42,6 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-
    UxDataset.info
    UxDataset.integrate
 
@@ -62,7 +59,6 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
-
    UxDataArray
 
 IO
@@ -77,7 +73,6 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    UxDataArray.uxgrid
 
 
@@ -95,14 +90,12 @@ Class
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    Grid
 
 IO
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    open_grid
    Grid.to_geodataframe
    Grid.to_polycollection
@@ -112,7 +105,6 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
-
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.encode_as
@@ -141,6 +133,7 @@ Attributes
    Grid.Mesh2_face_edges
    Grid.polygon_shells
    Grid.corrected_polygon_shells
+   Grid.corrected_shells_to_original_faces
    Grid.original_to_corrected_indices
    Grid.antimeridian_face_indices
 
@@ -165,7 +158,6 @@ Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
-
    grid.connectivity.close_face_nodes
 
 Coordinates

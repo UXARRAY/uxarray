@@ -80,14 +80,12 @@ class Grid:
         # initialize attributes
         self._polygon_shells = None
         self._corrected_polygon_shells = None
-        self._original_to_corrected_indices = None
+        self._corrected_shells_to_original_faces = None
         self._antimeridian_face_indices = None
 
         # initialize cached data structures
         self._gdf = None
         self._poly_collection = None
-        # todo: add line collection
-
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -588,17 +586,17 @@ class Grid:
         ``nMaxMesh2_face_nodes``)
         """
         if self._corrected_polygon_shells is None:
-            self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
+            self._corrected_polygon_shells, self._corrected_shells_to_original_faces = _build_corrected_polygon_shells(
                 self.polygon_shells)
         return self._corrected_polygon_shells
 
     @property
-    def original_to_corrected_indices(self):
+    def corrected_shells_to_original_faces(self):
         """Indices mapping each split polygon to its original index."""
-        if self._original_to_corrected_indices is None:
-            self._corrected_polygon_shells, self._original_to_corrected_indices = _build_corrected_polygon_shells(
+        if self._corrected_shells_to_original_faces is None:
+            self._corrected_polygon_shells, self._corrected_shells_to_original_faces = _build_corrected_polygon_shells(
                 self.polygon_shells)
-        return self._original_to_corrected_indices
+        return self._corrected_shells_to_original_faces
 
     @property
     def antimeridian_face_indices(self):
@@ -852,25 +850,3 @@ class Grid:
             self._poly_collection = poly_collection
 
         return poly_collection
-
-    def to_linecollection(self, override=False, cache=True):
-        """Constructs a ``matplotlib.collections.LineCollection`` object with.
-
-        .... todo
-
-        Parameters
-        ----------
-        override : bool
-            Flag to recompute the ``PolyCollection`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``PolyCollection`` should be cached
-
-        Returns
-        -------
-        line_collection : matplotlib.collections.LineCollection
-            todo
-        """
-
-        line_collection = None
-
-        return line_collection

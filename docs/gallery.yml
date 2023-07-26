@@ -13,3 +13,7 @@
 - title: Working with MPAS Grids
   path: examples/004-working-with-mpas-grids.ipynb
   thumbnail: _static/examples/mpas/c-grid.png
+
+- title: Title
+  path: examples/005-faces-to-polygons.ipynb
+  thumbnail: _static/thumbnails/default.svg
