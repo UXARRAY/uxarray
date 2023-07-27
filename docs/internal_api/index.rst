@@ -20,12 +20,14 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset._source_datasets
    UxDataset._uxgrid
 
@@ -34,6 +36,7 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset.__getitem__
    UxDataset.__setitem__
    UxDataset._calculate_binary_op

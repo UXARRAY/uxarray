@@ -22,12 +22,14 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset
 
 IO
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    open_dataset
    open_mfdataset
 
@@ -35,6 +37,7 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset.uxgrid
    UxDataset.source_datasets
 
@@ -42,6 +45,7 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset.info
    UxDataset.integrate
 
@@ -59,12 +63,14 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray
 
 IO
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
 
