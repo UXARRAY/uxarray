@@ -101,7 +101,7 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
-   Grid._Mesh2_node_z
+   Grid._node_z
 
 Operators
 ---------

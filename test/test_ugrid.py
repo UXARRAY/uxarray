@@ -32,11 +32,9 @@ class TestUgrid(TestCase):
         uxgrid_RLL1deg = ux.open_grid(str(gridfile_RLL1deg))
         uxgrid_RLL10deg_ne4 = ux.open_grid(str(gridfile_RLL10deg_ne4))
 
-        nt.assert_equal(uxgrid_ne30.Mesh2_node_x.size,
-                        constants.NNODES_outCSne30)
-        nt.assert_equal(uxgrid_RLL1deg.Mesh2_node_x.size,
-                        constants.NNODES_outRLL1deg)
-        nt.assert_equal(uxgrid_RLL10deg_ne4.Mesh2_node_x.size,
+        nt.assert_equal(uxgrid_ne30.node_x.size, constants.NNODES_outCSne30)
+        nt.assert_equal(uxgrid_RLL1deg.node_x.size, constants.NNODES_outRLL1deg)
+        nt.assert_equal(uxgrid_RLL10deg_ne4.node_x.size,
                         constants.NNODES_ov_RLL10deg_CSne4)
 
     def test_read_ugrid_opendap(self):
@@ -54,10 +52,9 @@ class TestUgrid(TestCase):
 
         else:
 
-            assert isinstance(getattr(uxgrid_url, "Mesh2_node_x"), xr.DataArray)
-            assert isinstance(getattr(uxgrid_url, "Mesh2_node_y"), xr.DataArray)
-            assert isinstance(getattr(uxgrid_url, "Mesh2_face_nodes"),
-                              xr.DataArray)
+            assert isinstance(getattr(uxgrid_url, "node_x"), xr.DataArray)
+            assert isinstance(getattr(uxgrid_url, "node_y"), xr.DataArray)
+            assert isinstance(getattr(uxgrid_url, "face_nodes"), xr.DataArray)
 
     def test_encode_ugrid(self):
         """Read an Exodus dataset and encode that as a UGRID format."""
@@ -66,8 +63,8 @@ class TestUgrid(TestCase):
         ux_grid.encode_as("ugrid")
 
     def test_standardized_dtype_and_fill(self):
-        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
-        and expected fill value as set in constants.py."""
+        """Test to see if face_nodes uses the expected integer datatype and
+        expected fill value as set in constants.py."""
 
         ug_filename1 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
         ug_filename2 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
@@ -80,24 +77,24 @@ class TestUgrid(TestCase):
         # check for correct dtype and fill value
         grids_with_fill = [ux_grid2]
         for grid in grids_with_fill:
-            assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
-            assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
-            assert INT_FILL_VALUE in grid.Mesh2_face_nodes.values
+            assert grid.face_nodes.dtype == INT_DTYPE
+            assert grid.face_nodes._FillValue == INT_FILL_VALUE
+            assert INT_FILL_VALUE in grid.face_nodes.values
 
         grids_without_fill = [ux_grid1, ux_grid3]
         for grid in grids_without_fill:
-            assert grid.Mesh2_face_nodes.dtype == INT_DTYPE
-            assert grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
+            assert grid.face_nodes.dtype == INT_DTYPE
+            assert grid.face_nodes._FillValue == INT_FILL_VALUE
 
     def test_standardized_dtype_and_fill_dask(self):
-        """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
-        and expected fill value as set in constants.py.
+        """Test to see if face_nodes uses the expected integer datatype and
+        expected fill value as set in constants.py.
 
         with dask chunking
         """
         ug_filename = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
         ux_grid = ux.open_grid(ug_filename)
 
-        assert ux_grid.Mesh2_face_nodes.dtype == INT_DTYPE
-        assert ux_grid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
-        assert INT_FILL_VALUE in ux_grid.Mesh2_face_nodes.values
+        assert ux_grid.face_nodes.dtype == INT_DTYPE
+        assert ux_grid.face_nodes._FillValue == INT_FILL_VALUE
+        assert INT_FILL_VALUE in ux_grid.face_nodes.values

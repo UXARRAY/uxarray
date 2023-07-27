@@ -141,64 +141,64 @@ grid-aware data sets and arrays, respectively.
 - Grid.vertices: boolean \
   A flag indicating if the grid is built via vertices.
 
-- Grid.Mesh2: np.float64 xarray.DataArray \
+- Grid.Grid2D: np.float64 xarray.DataArray \
   UGRID Attribute. Indicates the topology data of a 2D unstructured mesh (just
-  like the dummy variable "Mesh2" in the UGRID conventions).
+  like the dummy variable "Grid2D" in the UGRID conventions).
 
-- Grid.Mesh2_face_x: np.float64 xarray.DataArray of size (nMesh2_face) \
+- Grid.face_x: np.float64 xarray.DataArray of size (n_face) \
   UGRID Coordinate Variable. 2D longitude coordinate of face centers in degrees.
 
-- Grid.Mesh2_face_y: np.float64 xarray.DataArray of size (nMesh2_face) \
+- Grid.face_y: np.float64 xarray.DataArray of size (n_face) \
   UGRID Coordinate Variable. 2D latitude coordinate of face centers in degrees.
 
-- Grid.Mesh2_node_x: np.float64 xarray.DataArray of size (nMesh2_node) \
+- Grid.node_x: np.float64 xarray.DataArray of size (n_node) \
   UGRID Coordinate Variable. 2D longitude coordinate for nodes on the sphere in
   degrees.
 
-- Grid.Mesh2_node_y: np.float64 xarray.DataArray of size (nMesh2_node) \
+- Grid.node_y: np.float64 xarray.DataArray of size (n_node) \
   UGRID Coordinate Variable. 2D latitude coordinates for nodes on the sphere in
   degrees.
 
-- Grid.Mesh2_node_cart_x: np.float64 xarray.DataArray of size (nMesh2_node) \
+- Grid.node_cart_x: np.float64 xarray.DataArray of size (n_node) \
   Coordinate Variable. x coordinates for nodes in meters.
 
-- Grid.Mesh2_node_cart_y: np.float64 xarray.DataArray of size (nMesh2_node) \
+- Grid.node_cart_y: np.float64 xarray.DataArray of size (n_node) \
   Coordinate Variable. y coordinates for nodes in meters.
 
-- Grid.Mesh2_node_cart_z: np.float64 xarray.DataArray of size (nMesh2_node) \
+- Grid.node_cart_z: np.float64 xarray.DataArray of size (n_node) \
   Coordinate Variable. z coordinates for nodes in meters.
 
-- Grid.nMaxMesh2_face_nodes: int
+- Grid.nMax_face_nodes: int
   UGRID Dimension. Represents the maximum number of nodes that a face may contain.
 
-- Grid.nMaxMesh2_face_edges: int
+- Grid.nMax_face_edges: int
   Dimension. Represents the maximum number of edges per face.
 
-- Grid.nMesh2_edge: int
+- Grid.n_edge: int
   UGRID Dimension. Represents the total number of edges.
 
-- Grid.nMesh2_face: int
+- Grid.n_face: int
   UGRID Dimension. Represents the total number of faces.
 
-- Grid.nMesh2_node: int
+- Grid.n_node: int
   UGRID Dimension. Represents the total number of nodes.
 
 - Grid.nNodes_per_face: int
   Dimension. Represents the number of non-fill-value nodes per face.
 
-- Grid.Mesh2_edge_nodes: int xarray.DataArray of size (nMesh2_edge, Two)
+- Grid.edge_nodes: int xarray.DataArray of size (n_edge, Two)
   (optional) \
   UGRID Connectivity Variable. Maps every edge to the two nodes that it connects
 
-- Grid.Mesh2_face_edges: int xarray.DataArray of size (nMesh2_face,
-  nMaxMesh2_face_nodes) (optional) \
+- Grid.face_edges: int xarray.DataArray of size (n_face,
+  nMax_face_nodes) (optional) \
   UGRID Connectivity Variable. Maps every face to its edges.
 
-- Grid.Mesh2_face_nodes: int xarray.DataArray of size
-  (nMesh2_face, MaxNumNodesPerFace) \
+- Grid.face_nodes: int xarray.DataArray of size
+  (n_face, MaxNumNodesPerFace) \
   UGRID Connectivity Variable. Maps each face to its corner nodes.
 
-- Grid.face_areas: np.float64 xarray.DataArray of size (nMesh2_face) \
+- Grid.face_areas: np.float64 xarray.DataArray of size (n_face) \
   Provides areas for each face.
 
 - Grid.parsed_attrs: dict
@@ -206,7 +206,7 @@ grid-aware data sets and arrays, respectively.
 
 ### 3.2.2. Future Grid Attributes
 
-- Grid.Mesh2_node_z: np.float64 xarray.DataArray of size (nMesh2_node) \
+- Grid.node_z: np.float64 xarray.DataArray of size (n_node) \
   (optional)
   3D z coordinates for nodes on the sphere.
 
@@ -216,39 +216,39 @@ grid-aware data sets and arrays, respectively.
 - (*) Grid.vertex_dual: Grid \
   The vertex dual grid.
 
-- (*) Grid.Mesh2_edge_types: int DataArray of size (nMesh2_edge)
+- (*) Grid.edge_types: int DataArray of size (n_edge)
   (optional; not in UGRID standard) \
   A DataArray indicating the type of edge (0 = great circle arc, 1 = line of
   constant latitude)
 
-- (*) Grid.Mesh2_imask: int DataArray of size (nMesh2_face)
+- (*) Grid.imask: int DataArray of size (n_face)
   (optional; not in UGRID standard) \
   The int mask for this grid (1 = face is active; 0 = face is inactive)
 
-- Grid.Mesh2_face_links: int DataArray of size (nMesh2_face,
+- Grid.face_links: int DataArray of size (n_face,
   MaxNumNodesPerFace) (optional) \
   A DataArray of indices indicating faces that are neighboring each face.
 
-- Grid.Mesh2_edge_faces: int DataArray of size (nMesh2_edge,
+- Grid.edge_faces: int DataArray of size (n_edge,
   Two) (optional) \
   A DataArray of indices indicating faces that are neighboring each edge.
 
-- Grid.Mesh2_node_faces: int DataArray of size (nMesh2_node,
+- Grid.node_faces: int DataArray of size (n_node,
   MaxNumFacesPerNode) (optional) \
   A DataArray of indices indicating faces that are neighboring each node.
 
-- (*) Grid.Mesh2_latlon_bounds: np.float64 DataArray of size
-  (nMesh2_face, Four) (optional; not in UGRID standard) \
+- (*) Grid.latlon_bounds: np.float64 DataArray of size
+  (n_face, Four) (optional; not in UGRID standard) \
   A DataArray of values indicating the latitude-longitude boundaries of
   each face.
 
-- (*) Grid.Mesh2_overlapfaces_a: int DataArray of size
-  (nMesh2_face) (optional; not in UGRID standard) \
+- (*) Grid.overlapfaces_a: int DataArray of size
+  (n_face) (optional; not in UGRID standard) \
   A DataArray of indices storing the indices of the parent face from
   grid A, available when this Grid is a supermesh.
 
-- (*) Grid.Mesh2_overlapfaces_b: int DataArray of size
-  (nMesh2_face) (optional; not in UGRID standard) \
+- (*) Grid.overlapfaces_b: int DataArray of size
+  (n_face) (optional; not in UGRID standard) \
   A DataArray of indices storing the indices of the parent face from
   grid B, available when this Grid is a supermesh.
 

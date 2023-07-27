@@ -49,7 +49,7 @@ class TestAPI(TestCase):
         uxds_var2_ne30 = ux.open_dataset(self.gridfile_ne30,
                                          self.dsfile_var2_ne30)
 
-        nt.assert_equal(uxds_var2_ne30.uxgrid.Mesh2_node_x.size,
+        nt.assert_equal(uxds_var2_ne30.uxgrid.node_x.size,
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)
@@ -65,7 +65,7 @@ class TestAPI(TestCase):
         uxds_mf_ne30 = ux.open_mfdataset(self.gridfile_ne30,
                                          self.dsfiles_mf_ne30)
 
-        nt.assert_equal(uxds_mf_ne30.uxgrid.Mesh2_node_x.size,
+        nt.assert_equal(uxds_mf_ne30.uxgrid.node_x.size,
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_mf_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)
@@ -131,12 +131,11 @@ class TestAPI(TestCase):
         assert (v1_uxdata_array_copy_deep.uxgrid is not v1_uxdata_array.uxgrid)
 
     def test_open_dataset_grid_kwargs(self):
-        """Drops ``Mesh2_face_nodes`` from the inputted grid file using
+        """Drops ``face_nodes`` from the inputted grid file using
         ``grid_kwargs``"""
 
         with self.assertRaises(KeyError):
             # attempt to open a dataset after dropping face nodes should raise a KeyError
-            uxds = ux.open_dataset(
-                self.gridfile_ne30,
-                self.dsfile_var2_ne30,
-                grid_kwargs={"drop_variables": "Mesh2_face_nodes"})
+            uxds = ux.open_dataset(self.gridfile_ne30,
+                                   self.dsfile_var2_ne30,
+                                   grid_kwargs={"drop_variables": "face_nodes"})

@@ -18,60 +18,57 @@ def _primal_to_ugrid(in_ds, out_ds):
     """
 
     # set mesh topology
-    out_ds["Mesh2"] = xr.DataArray(
+    out_ds["Grid2D"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
             "long_name": "Topology data of unstructured mesh",
             "topology_dimension": 2,
-            "node_coordinates": "Mesh2_node_x Mesh2_node_y",
-            "node_dimension": "nMesh2_node",
-            "face_node_connectivity": "Mesh2_face_nodes",
-            "face_dimension": "nMesh2_face"
+            "node_coordinates": "node_x node_y",
+            "node_dimension": "n_node",
+            "face_node_connectivity": "face_nodes",
+            "face_dimension": "n_face"
         })
 
     # corners of primal-mesh cells (in degrees)
     lonVertex = np.rad2deg(in_ds['lonVertex'].values)
     latVertex = np.rad2deg(in_ds['latVertex'].values)
 
-    out_ds['Mesh2_node_x'] = xr.DataArray(
-        lonVertex,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of mesh nodes",
-            "units": "degrees_east",
-        })
+    out_ds['node_x'] = xr.DataArray(lonVertex,
+                                    dims=["n_node"],
+                                    attrs={
+                                        "standard_name": "longitude",
+                                        "long_name": "longitude of mesh nodes",
+                                        "units": "degrees_east",
+                                    })
 
-    out_ds['Mesh2_node_y'] = xr.DataArray(
-        latVertex,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of mesh nodes",
-            "units": "degrees_north",
-        })
+    out_ds['node_y'] = xr.DataArray(latVertex,
+                                    dims=["n_node"],
+                                    attrs={
+                                        "standard_name": "latitude",
+                                        "long_name": "latitude of mesh nodes",
+                                        "units": "degrees_north",
+                                    })
 
     # centers of primal-mesh cells (in degrees)
     lonCell = np.rad2deg(in_ds['lonCell'].values)
     latCell = np.rad2deg(in_ds['latCell'].values)
 
-    out_ds['Mesh2_face_x'] = xr.DataArray(
+    out_ds['face_x'] = xr.DataArray(
         lonCell,
-        dims=["nMesh2_face"],
+        dims=["n_face"],
         attrs={
             "standard_name": "longitude",
             "long_name": "longitude of center nodes",
             "units": "degrees_east",
         })
 
-    out_ds['Mesh2_face_y'] = xr.DataArray(
-        latCell,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of center nodes",
-            "units": "degrees_north",
-        })
+    out_ds['face_y'] = xr.DataArray(latCell,
+                                    dims=["n_face"],
+                                    attrs={
+                                        "standard_name": "latitude",
+                                        "long_name": "latitude of center nodes",
+                                        "units": "degrees_north",
+                                    })
 
     # vertex indices that surround each primal-mesh cell
     verticesOnCell = np.array(in_ds['verticesOnCell'].values, dtype=INT_DTYPE)
@@ -87,14 +84,13 @@ def _primal_to_ugrid(in_ds, out_ds):
     # convert to zero-indexed
     verticesOnCell = _to_zero_index(verticesOnCell)
 
-    out_ds["Mesh2_face_nodes"] = xr.DataArray(
-        data=verticesOnCell,
-        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-        attrs={
-            "cf_role": "face_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "start_index": INT_DTYPE(0)
-        })
+    out_ds["face_nodes"] = xr.DataArray(data=verticesOnCell,
+                                        dims=["n_face", "nMax_face_nodes"],
+                                        attrs={
+                                            "cf_role": "face_node_connectivity",
+                                            "_FillValue": INT_FILL_VALUE,
+                                            "start_index": INT_DTYPE(0)
+                                        })
 
     # vertex indices that saddle a given edge
     verticesOnEdge = np.array(in_ds['verticesOnEdge'].values, dtype=INT_DTYPE)
@@ -105,13 +101,12 @@ def _primal_to_ugrid(in_ds, out_ds):
     # convert to zero-indexed
     verticesOnEdge = _to_zero_index(verticesOnEdge)
 
-    out_ds["Mesh2_edge_nodes"] = xr.DataArray(
-        data=verticesOnEdge,
-        dims=["nMesh2_edge", "Two"],
-        attrs={
-            "cf_role": "edge_node_connectivity",
-            "start_index": INT_DTYPE(0)
-        })
+    out_ds["edge_nodes"] = xr.DataArray(data=verticesOnEdge,
+                                        dims=["n_edge", "Two"],
+                                        attrs={
+                                            "cf_role": "edge_node_connectivity",
+                                            "start_index": INT_DTYPE(0)
+                                        })
 
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
@@ -130,60 +125,57 @@ def _dual_to_ugrid(in_ds, out_ds):
     """
 
     # set mesh topology
-    out_ds["Mesh2"] = xr.DataArray(
+    out_ds["Grid2D"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
             "long_name": "Topology data of unstructured mesh",
             "topology_dimension": 2,
-            "node_coordinates": "Mesh2_node_x Mesh2_node_y",
-            "node_dimension": "nMesh2_node",
-            "face_node_connectivity": "Mesh2_face_nodes",
-            "face_dimension": "nMesh2_face"
+            "node_coordinates": "node_x node_y",
+            "node_dimension": "n_node",
+            "face_node_connectivity": "face_nodes",
+            "face_dimension": "n_face"
         })
 
     # corners of dual-mesh cells (in degrees)
     lonCell = np.rad2deg(in_ds['lonCell'].values)
     latCell = np.rad2deg(in_ds['latCell'].values)
 
-    out_ds['Mesh2_node_x'] = xr.DataArray(
-        lonCell,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of mesh nodes",
-            "units": "degrees_east",
-        })
+    out_ds['node_x'] = xr.DataArray(lonCell,
+                                    dims=["n_node"],
+                                    attrs={
+                                        "standard_name": "longitude",
+                                        "long_name": "longitude of mesh nodes",
+                                        "units": "degrees_east",
+                                    })
 
-    out_ds['Mesh2_node_y'] = xr.DataArray(
-        latCell,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of mesh nodes",
-            "units": "degrees_north",
-        })
+    out_ds['node_y'] = xr.DataArray(latCell,
+                                    dims=["n_node"],
+                                    attrs={
+                                        "standard_name": "latitude",
+                                        "long_name": "latitude of mesh nodes",
+                                        "units": "degrees_north",
+                                    })
 
     # centers of dual-mesh cells (in degrees)
     lonVertex = np.rad2deg(in_ds['lonVertex'].values)
     latVertex = np.rad2deg(in_ds['latVertex'].values)
 
-    out_ds['Mesh2_face_x'] = xr.DataArray(
+    out_ds['face_x'] = xr.DataArray(
         lonVertex,
-        dims=["nMesh2_face"],
+        dims=["n_face"],
         attrs={
             "standard_name": "longitude",
             "long_name": "longitude of center nodes",
             "units": "degrees_east",
         })
 
-    out_ds['Mesh2_face_y'] = xr.DataArray(
-        latVertex,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of center nodes",
-            "units": "degrees_north",
-        })
+    out_ds['face_y'] = xr.DataArray(latVertex,
+                                    dims=["n_face"],
+                                    attrs={
+                                        "standard_name": "latitude",
+                                        "long_name": "latitude of center nodes",
+                                        "units": "degrees_north",
+                                    })
 
     # vertex indices that surround each dual-mesh cell
     cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=INT_DTYPE)
@@ -194,14 +186,13 @@ def _dual_to_ugrid(in_ds, out_ds):
     # convert to zero-indexed
     _to_zero_index(cellsOnVertex)
 
-    out_ds["Mesh2_face_nodes"] = xr.DataArray(
-        data=cellsOnVertex,
-        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-        attrs={
-            "cf_role": "face_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "start_index": INT_DTYPE(0)
-        })
+    out_ds["face_nodes"] = xr.DataArray(data=cellsOnVertex,
+                                        dims=["n_face", "nMax_face_nodes"],
+                                        attrs={
+                                            "cf_role": "face_node_connectivity",
+                                            "_FillValue": INT_FILL_VALUE,
+                                            "start_index": INT_DTYPE(0)
+                                        })
 
     # vertex indices that saddle a given edge
     cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=INT_DTYPE)
@@ -212,13 +203,12 @@ def _dual_to_ugrid(in_ds, out_ds):
     # convert to zero-indexed
     _to_zero_index(cellsOnEdge)
 
-    out_ds["Mesh2_edge_nodes"] = xr.DataArray(
-        data=cellsOnEdge,
-        dims=["nMesh2_edge", "Two"],
-        attrs={
-            "cf_role": "edge_node_connectivity",
-            "start_index": INT_DTYPE(0)
-        })
+    out_ds["edge_nodes"] = xr.DataArray(data=cellsOnEdge,
+                                        dims=["n_edge", "Two"],
+                                        attrs={
+                                            "cf_role": "edge_node_connectivity",
+                                            "start_index": INT_DTYPE(0)
+                                        })
 
     # set global attributes
     _set_global_attrs(in_ds, out_ds)

@@ -39,21 +39,18 @@ class TestMPAS(TestCase):
         ds = _read_mpas(self.mpas_xr_ds, use_dual=False)
 
         # check for correct dimensions
-        expected_ugrid_dims = [
-            'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
-        ]
+        expected_ugrid_dims = ['n_node', "n_face", "nMax_face_nodes"]
         for dim in expected_ugrid_dims:
             assert dim in ds.sizes
 
         # check for correct length of coordinates
-        assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
-        assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
+        assert len(ds['node_x']) == len(ds['node_y'])
+        assert len(ds['face_x']) == len(ds['face_y'])
 
         # check for correct shape of face nodes
-        nMesh2_face = ds.sizes['nMesh2_face']
-        nMaxMesh2_face_nodes = ds.sizes['nMaxMesh2_face_nodes']
-        assert ds['Mesh2_face_nodes'].shape == (nMesh2_face,
-                                                nMaxMesh2_face_nodes)
+        n_face = ds.sizes['n_face']
+        nMax_face_nodes = ds.sizes['nMax_face_nodes']
+        assert ds['face_nodes'].shape == (n_face, nMax_face_nodes)
 
     def test_dual_to_ugrid_conversion(self):
         """Verifies that the Dual-Mesh was converted properly."""
@@ -62,19 +59,17 @@ class TestMPAS(TestCase):
         ds = _read_mpas(self.mpas_xr_ds, use_dual=True)
 
         # check for correct dimensions
-        expected_ugrid_dims = [
-            'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
-        ]
+        expected_ugrid_dims = ['n_node', "n_face", "nMax_face_nodes"]
         for dim in expected_ugrid_dims:
             assert dim in ds.sizes
 
         # check for correct length of coordinates
-        assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
-        assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
+        assert len(ds['node_x']) == len(ds['node_y'])
+        assert len(ds['face_x']) == len(ds['face_y'])
 
         # check for correct shape of face nodes
-        nMesh2_face = ds.sizes['nMesh2_face']
-        assert ds['Mesh2_face_nodes'].shape == (nMesh2_face, 3)
+        n_face = ds.sizes['n_face']
+        assert ds['face_nodes'].shape == (n_face, 3)
 
     def test_add_fill_values(self):
         """Test _add_fill_values() implementation, output should be both be

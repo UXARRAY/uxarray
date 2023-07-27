@@ -116,21 +116,21 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
-   Grid.Mesh2
+   Grid.Grid2D
    Grid.parsed_attrs
-   Grid.nMesh2_node
-   Grid.nMesh2_face
-   Grid.nMesh2_edge
-   Grid.nMaxMesh2_face_nodes
-   Grid.nMaxMesh2_face_edges
+   Grid.n_node
+   Grid.n_face
+   Grid.n_edge
+   Grid.nMax_face_nodes
+   Grid.nMax_face_edges
    Grid.nNodes_per_face
-   Grid.Mesh2_node_x
-   Grid.Mesh2_node_y
-   Grid.Mesh2_face_x
-   Grid.Mesh2_face_y
-   Grid.Mesh2_face_nodes
-   Grid.Mesh2_edge_nodes
-   Grid.Mesh2_face_edges
+   Grid.node_x
+   Grid.node_y
+   Grid.face_x
+   Grid.face_y
+   Grid.face_nodes
+   Grid.edge_nodes
+   Grid.face_edges
 
 Helpers
 ===========
