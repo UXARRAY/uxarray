@@ -1,15 +1,7 @@
 import numpy as np
-import antimeridian
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.connectivity import close_face_nodes
-
-from shapely import polygons as Polygons
-from shapely import Polygon
-from spatialpandas.geometry import MultiPolygonArray
-from spatialpandas import GeoDataFrame
-
-from matplotlib.collections import PolyCollection
 
 
 def grid_to_polygons(grid):
@@ -26,6 +18,11 @@ def grid_to_polygons(grid):
     polygons : np.ndarray
         Array containing Shapely Polygons
     """
+
+    # import optional dependencies
+    import antimeridian
+    from shapely import polygons as Polygons
+
     # obtain polygon shells for shapely polygon construction
     polygon_shells = grid.polygon_shells
 
@@ -108,7 +105,9 @@ def _build_corrected_polygon_shells(polygon_shells):
         Indices
     """
 
-    polygon_shells = polygon_shells
+    # import optional dependencies
+    import antimeridian
+    from shapely import Polygon
 
     # list of shapely Polygons representing each Face in our grid
     polygons = [Polygon(shell) for shell in polygon_shells]
@@ -169,6 +168,9 @@ def _build_antimeridian_face_indices(grid):
 
 
 def _grid_to_polygon_geodataframe(grid):
+    # import optional dependencies
+    from spatialpandas.geometry import MultiPolygonArray
+    from spatialpandas import GeoDataFrame
 
     # obtain faces represented as polygons, corrected on the antimeridian
     polygons = grid_to_polygons(grid)
@@ -182,5 +184,7 @@ def _grid_to_polygon_geodataframe(grid):
 
 
 def _grid_to_matplotlib_polycollection(grid):
+    # import optional dependencies
+    from matplotlib.collections import PolyCollection
 
     return PolyCollection(grid.corrected_polygon_shells)
