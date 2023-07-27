@@ -22,27 +22,6 @@ grid_files = [gridfile_CSne8, gridfile_geoflow]
 data_files = [datafile_CSne30, datafile_geoflow]
 
 
-class TestConversionMethods:
-
-    def test_to_geodataframe_grid(self):
-        for grid_file in grid_files:
-            uxgrid = ux.open_grid(grid_file)
-            gdf = uxgrid.to_geodataframe()
-        pass
-
-    def test_to_geodataframe_dataarray(self):
-        pass
-
-    def test_to_polycollection_grid(self):
-        for grid_file in grid_files:
-            uxgrid = ux.open_grid(grid_file)
-            poly_collection = uxgrid.to_polycollection()
-        pass
-
-    def test_to_polycollection_dataarray(self):
-        pass
-
-
 class TestAntimeridian:
 
     def test_crossing(self):

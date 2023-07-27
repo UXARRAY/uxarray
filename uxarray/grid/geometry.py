@@ -160,6 +160,8 @@ def _build_antimeridian_face_indices(grid):
     """
     antimeridian_face_indices = np.argwhere(
         np.any(np.abs(np.diff(grid.polygon_shells[:, :, 0])) >= 180, axis=1))
+
+    # convert output into a 1D array
     if antimeridian_face_indices.shape[0] == 1:
         antimeridian_face_indices = antimeridian_face_indices[0]
     else:
@@ -168,6 +170,8 @@ def _build_antimeridian_face_indices(grid):
 
 
 def _grid_to_polygon_geodataframe(grid):
+    """Constructs and returns a ``spatialpandas.GeoDataFrame``"""
+
     # import optional dependencies
     from spatialpandas.geometry import MultiPolygonArray
     from spatialpandas import GeoDataFrame
@@ -178,12 +182,15 @@ def _grid_to_polygon_geodataframe(grid):
     # prepare geometry for GeoDataFrame
     geometry = MultiPolygonArray(polygons)
 
+    # assign geometry
     gdf = GeoDataFrame({"geometry": geometry})
 
     return gdf
 
 
 def _grid_to_matplotlib_polycollection(grid):
+    """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
+
     # import optional dependencies
     from matplotlib.collections import PolyCollection
 
