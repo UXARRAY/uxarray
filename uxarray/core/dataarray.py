@@ -167,7 +167,7 @@ class UxDataArray(xr.DataArray):
 
             # map data with antimeridian polygons
             if self.uxgrid.corrected_polygon_shells is not None:
-                data = self.data[self.uxgrid.original_to_corrected_indices]
+                data = self.data[self.uxgrid.corrected_shells_to_original_faces]
 
             # no antimeridian polygons
             else:
