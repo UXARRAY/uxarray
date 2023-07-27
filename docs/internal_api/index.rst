@@ -52,6 +52,7 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray
 
 
@@ -59,6 +60,7 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray._uxgrid
 
 
@@ -66,6 +68,7 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
+
    UxDataArray._construct_direct
    UxDataArray._copy
    UxDataArray._replace
@@ -77,12 +80,14 @@ Class
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid
 
 Methods
 -------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.__init_grid_var_names__
    Grid.__from_ds__
    Grid.__from_vert__
@@ -98,12 +103,14 @@ Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid._Mesh2_node_z
 
 Operators
 ---------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.__eq__
    Grid.__ne__
 
@@ -115,6 +122,7 @@ Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    grid.connectivity._replace_fill_values
    grid.connectivity._build_nNodes_per_face
    grid.connectivity._build_edge_node_connectivity
@@ -124,6 +132,7 @@ Coordinates
 -----------
 .. autosummary::
    :toctree: _autosummary
+
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
 
@@ -131,12 +140,14 @@ IO
 ---
 .. autosummary::
    :toctree: _autosummary
+
    io.utils._parse_grid_type
 
 Geometry
 --------
 .. autosummary::
    :toctree: _autosummary
+
    grid.geometry._build_polygon_shells
    grid.geometry._build_corrected_polygon_shells
    grid.geometry._build_antimeridian_face_indices

@@ -90,12 +90,14 @@ Class
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid
 
 IO
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    open_grid
    Grid.to_geodataframe
    Grid.to_polycollection
@@ -105,6 +107,7 @@ Methods
 -------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.encode_as
@@ -158,6 +161,7 @@ Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    grid.connectivity.close_face_nodes
 
 Coordinates
@@ -174,6 +178,7 @@ Geometry
 -----------
 .. autosummary::
    :toctree: _autosummary
+
    grid.geometry.grid_to_polygons
 
 
@@ -181,6 +186,7 @@ Numba
 -----
 .. autosummary::
    :toctree: _autosummary
+
    utils.enable_jit_cache
    utils.disable_jit_cache
    utils.enable_jit
