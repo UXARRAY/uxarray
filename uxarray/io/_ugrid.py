@@ -23,6 +23,7 @@ def _read_ugrid(xr_ds, var_names_dict):
 
     if len(coord_names) == 1:
         var_names_dict["node_x"] = coord_names[0]
+        # Trying to set this = to node_x and doing the same causes key errors, not sure why?
 
     elif len(coord_names) == 2:
         var_names_dict["node_x"] = coord_names[0]
