@@ -254,10 +254,11 @@ class TestIntersectionPoint(TestCase):
         pt_cart = np.array(
             [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
         self.assertTrue(point_within_GCA(pt_cart, gcr_cart))
-        # If we swap the gcr, it should still be true
+        # If we swap the gcr, it should throw a value error since it's larger than 180 degree
         gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
                                                           0.593]])
-        self.assertTrue(point_within_GCA(pt_cart, gcr_cart_flip))
+        with self.assertRaises(ValueError):
+            point_within_GCA(pt_cart, gcr_cart_flip)
 
         # 2nd anti-meridian case
         # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
@@ -269,15 +270,15 @@ class TestIntersectionPoint(TestCase):
             [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
         self.assertFalse(point_within_GCA(pt_cart_within, gcr_cart_1))
 
-        # The following two case should work even swapping the GCR
+        # The first case should not work and the second should work
         v1_rad = [0.1, 0.0]
         v2_rad = [2 * np.pi - 0.1, 0.0]
         v1_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v1_rad)
         v2_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v2_rad)
         gcr_cart = np.array([v1_cart, v2_cart])
         pt_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.01, 0.0])
-        self.assertTrue(
-            ux.grid.lines.helpers.point_within_GCA(pt_cart, gcr_cart))
+        with self.assertRaises(ValueError):
+            point_within_GCA(pt_cart, gcr_cart)
         gcr_car_flipped = np.array([v2_cart, v1_cart])
         self.assertTrue(
-            ux.grid.lines.helpers.point_within_GCA(pt_cart, gcr_car_flipped))
+            point_within_GCA(pt_cart, gcr_car_flipped))
