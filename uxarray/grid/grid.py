@@ -789,7 +789,10 @@ class Grid:
     #
     #     return integral
 
-    def to_geodataframe(self, override=False, cache=True):
+    def to_geodataframe(self,
+                        override=False,
+                        cache=True,
+                        correct_antimeridian_polygons=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -813,7 +816,7 @@ class Grid:
             return self._gdf
 
         # construct a geodataframe with the faces stored as polygons as the geometry
-        gdf = _grid_to_polygon_geodataframe(self)
+        gdf = _grid_to_polygon_geodataframe(self, correct_antimeridian_polygons)
 
         # cache computed geodataframe
         if cache:
@@ -821,7 +824,10 @@ class Grid:
 
         return gdf
 
-    def to_polycollection(self, override=False, cache=True):
+    def to_polycollection(self,
+                          override=False,
+                          cache=True,
+                          correct_antimeridian_polygons=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
         polygons that cross the antimeridian split.

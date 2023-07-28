@@ -97,13 +97,24 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
-    def to_geodataframe(self, override_grid=False, cache_grid=True):
+    def to_geodataframe(self,
+                        override_grid=False,
+                        cache_grid=True,
+                        correct_antimeridian_polygons=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
         representing a 1D slice of data mapped to each Polygon.
 
         Parameters
+        override_grid : bool
+            Flag to recompute the ``GeoDataFrame`` if one is already cached
+        cache_grid : bool
+            Flag to indicate if the computed ``GeoDataFrame`` should be cached
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
+
+
         Returns
         -------
         gdf : spatialpandas.GeoDataFrame
@@ -118,8 +129,10 @@ class UxDataArray(xr.DataArray):
 
         # face-centered data
         if self.data.size == self.uxgrid.nMesh2_face:
-            gdf = self.uxgrid.to_geodataframe(override=override_grid,
-                                              cache=cache_grid)
+            gdf = self.uxgrid.to_geodataframe(
+                override=override_grid,
+                cache=cache_grid,
+                correct_antimeridian_polygons=correct_antimeridian_polygons)
             gdf[self.name] = self.data
             return gdf
 
@@ -135,7 +148,10 @@ class UxDataArray(xr.DataArray):
                 f"Data Variable with size {self.data.size} does not match the number of faces "
                 f"({self.uxgrid.nMesh2_face}.")
 
-    def to_polycollection(self, override_grid=False, cache_grid=True):
+    def to_polycollection(self,
+                          override_grid=False,
+                          cache_grid=True,
+                          correct_antimeridian_polygons=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
         polygons that cross the antimeridian split across the antimeridian.
@@ -146,6 +162,8 @@ class UxDataArray(xr.DataArray):
             Flag to recompute the ``PolyCollection`` if one is already cached
         cache_grid : bool
             Flag to indicate if the computed ``PolyCollection`` should be cached
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
 
         Returns
         -------

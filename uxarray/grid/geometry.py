@@ -4,7 +4,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.connectivity import close_face_nodes
 
 
-def grid_to_polygons(grid):
+def grid_to_polygons(grid, correct_antimeridian_polygons=True):
     """Constructs an array of Shapely Polygons representing each face, with
     antimeridian polygons split according to the GeoJSON standards.
 
@@ -12,6 +12,8 @@ def grid_to_polygons(grid):
     ----------
     grid : uxarray.Grid
         Grid Object
+    correct_antimeridian_polygons: bool, Optional
+        Parameter to select whether to correct and split antimeridian polygons
 
     Returns
     -------
@@ -30,7 +32,7 @@ def grid_to_polygons(grid):
     polygons = Polygons(polygon_shells)
 
     # handle antimeridian polygons, if any
-    if grid.antimeridian_face_indices is not None:
+    if grid.antimeridian_face_indices is not None and correct_antimeridian_polygons:
 
         # obtain each antimeridian polygon
         antimeridian_polygons = polygons[grid.antimeridian_face_indices]
@@ -169,7 +171,7 @@ def _build_antimeridian_face_indices(grid):
     return antimeridian_face_indices
 
 
-def _grid_to_polygon_geodataframe(grid):
+def _grid_to_polygon_geodataframe(grid, correct_antimeridian_polygons=True):
     """Constructs and returns a ``spatialpandas.GeoDataFrame``"""
 
     # import optional dependencies
@@ -177,7 +179,7 @@ def _grid_to_polygon_geodataframe(grid):
     from spatialpandas import GeoDataFrame
 
     # obtain faces represented as polygons, corrected on the antimeridian
-    polygons = grid_to_polygons(grid)
+    polygons = grid_to_polygons(grid, correct_antimeridian_polygons)
 
     # prepare geometry for GeoDataFrame
     geometry = MultiPolygonArray(polygons)
