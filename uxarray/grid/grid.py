@@ -804,6 +804,8 @@ class Grid:
             Flag to recompute the ``gdf`` if one is already cached
         cache : bool
             Flag to indicate if the computed ``gdf`` should be cached
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
 
         Returns
         -------
