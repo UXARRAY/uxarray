@@ -1,6 +1,5 @@
 import numpy as np
 import xarray as xr
-import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay, Voronoi
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -266,27 +265,27 @@ def build_edge_from_nodes(self, grid_type='delaunay', plot=False):
     else:
         raise ValueError("Invalid grid_type. Use 'delaunay' or 'voronoi'.")
 
-    if plot:
-        # Example data
-        x = self.Mesh2_node_x.data
-        y = self.Mesh2_node_y.data
+    # if plot:
+    # # Example data
+    # x = self.Mesh2_node_x.data
+    # y = self.Mesh2_node_y.data
 
-        # Array of connections
-        connections = self._ds["Mesh2_face_nodes"]
+    # # Array of connections
+    # connections = self._ds["Mesh2_face_nodes"]
 
-        # Plot the lines connecting the points
-        for connection in connections:
-            connection = np.append(connection, connection[0])
-            x_points = x[connection]
-            y_points = y[connection]
-            plt.plot(x_points, y_points, color='blue')
+    # # Plot the lines connecting the points
+    # for connection in connections:
+    # connection = np.append(connection, connection[0])
+    # x_points = x[connection]
+    # y_points = y[connection]
+    # plt.plot(x_points, y_points, color='blue')
 
-        # Plot the individual points
-        plt.scatter(x, y, color='red', marker='o', label='Points')
+    # # Plot the individual points
+    # plt.scatter(x, y, color='red', marker='o', label='Points')
 
-        # Add labels and title
-        plt.xlabel('X-axis')
-        plt.ylabel('Y-axis')
-        plt.title('Lines Connecting Points')
-        plt.legend()
-        plt.show()
+    # # Add labels and title
+    # plt.xlabel('X-axis')
+    # plt.ylabel('Y-axis')
+    # plt.title('Lines Connecting Points')
+    # plt.legend()
+    # plt.show()
