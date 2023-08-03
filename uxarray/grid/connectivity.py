@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay, Voronoi
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
