@@ -279,7 +279,7 @@ def build_edge_from_nodes(self, grid_type='delaunay', plot=False):
             connection = np.append(connection, connection[0])
             x_points = x[connection]
             y_points = y[connection]
-            plt.plot(x_points, y_points)
+            plt.plot(x_points, y_points, color='blue')
 
         # Plot the individual points
         plt.scatter(x, y, color='red', marker='o', label='Points')
