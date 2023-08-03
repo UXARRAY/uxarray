@@ -34,7 +34,6 @@ shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
 
 
 class TestGrid(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
@@ -294,8 +293,10 @@ class TestGrid(TestCase):
         mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
         exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
         scrip = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
-        grid_CSne8 = ux.open_grid(exodus)
-        build_edge_from_nodes(grid_CSne8, grid_type='voronoi')
+        face_nodes_connectivity = np.array(
+            [np.array([[10, 12], [10, 30], [20, 12]])])
+        gridOpen = ux.open_grid(face_nodes_connectivity)
+        build_edge_from_nodes(gridOpen, grid_type='delaunay')
 
 
 class TestOperators(TestCase):
@@ -313,7 +314,6 @@ class TestOperators(TestCase):
 
 
 class TestFaceAreas(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
     def test_calculate_total_face_area_triangle(self):
@@ -328,7 +328,7 @@ class TestFaceAreas(TestCase):
                                   islatlon=False,
                                   isconcave=False)
 
-        #calculate area
+        # calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)

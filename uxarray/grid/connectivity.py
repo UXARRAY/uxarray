@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+from matplotlib import pyplot as plt
 from scipy.spatial import Delaunay, Voronoi
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -238,7 +239,7 @@ def build_edge_from_nodes(self, grid_type='delaunay'):
     triangulation or voronoi diagram."""
     x = self.Mesh2_node_x.data
     y = self.Mesh2_node_y.data
-
+    print(x, y)
     points = np.column_stack((x, y))
 
     if "Mesh2_face_nodes" in self._ds.variables:
@@ -253,6 +254,8 @@ def build_edge_from_nodes(self, grid_type='delaunay'):
             face_nodes.append(simplex)
         self._ds["Mesh2_face_nodes"] = (["nMesh2_face",
                                          "nMaxMesh2_face_nodes"], face_nodes)
+        plt.triplot(x, y, grid.simplices, color='red', alpha=0.5)
+        plt.plot(x, y, markersize=1, color='red', alpha=0.5)
     elif grid_type == 'voronoi':
         # Perform Voronoi diagram construction
         grid = Voronoi(points)
@@ -265,3 +268,7 @@ def build_edge_from_nodes(self, grid_type='delaunay'):
                                          "nMaxMesh2_face_nodes"], face_nodes)
     else:
         raise ValueError("Invalid grid_type. Use 'delaunay' or 'voronoi'.")
+
+    manager = plt.get_current_fig_manager()
+    manager.window.showMaximized()
+    plt.show()
