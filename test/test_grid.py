@@ -294,9 +294,9 @@ class TestGrid(TestCase):
         exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
         scrip = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
         face_nodes_connectivity = np.array(
-            [np.array([[10, 12], [10, 30], [20, 12]])])
+            [np.array([[0, 0], [0, 10], [10, 0], [10, 10]])])
         gridOpen = ux.open_grid(face_nodes_connectivity)
-        build_edge_from_nodes(gridOpen, grid_type='delaunay')
+        build_edge_from_nodes(gridOpen, grid_type='delaunay', plot=False)
 
 
 class TestOperators(TestCase):

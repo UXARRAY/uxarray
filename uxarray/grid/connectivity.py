@@ -234,12 +234,11 @@ def _build_face_edges_connectivity(grid):
         })
 
 
-def build_edge_from_nodes(self, grid_type='delaunay'):
+def build_edge_from_nodes(self, grid_type='delaunay', plot=False):
     """Constructs edges from given node points using either delaunay
     triangulation or voronoi diagram."""
     x = self.Mesh2_node_x.data
     y = self.Mesh2_node_y.data
-    print(x, y)
     points = np.column_stack((x, y))
 
     if "Mesh2_face_nodes" in self._ds.variables:
@@ -254,8 +253,6 @@ def build_edge_from_nodes(self, grid_type='delaunay'):
             face_nodes.append(simplex)
         self._ds["Mesh2_face_nodes"] = (["nMesh2_face",
                                          "nMaxMesh2_face_nodes"], face_nodes)
-        plt.triplot(x, y, grid.simplices, color='red', alpha=0.5)
-        plt.plot(x, y, markersize=1, color='red', alpha=0.5)
     elif grid_type == 'voronoi':
         # Perform Voronoi diagram construction
         grid = Voronoi(points)
@@ -269,6 +266,27 @@ def build_edge_from_nodes(self, grid_type='delaunay'):
     else:
         raise ValueError("Invalid grid_type. Use 'delaunay' or 'voronoi'.")
 
-    manager = plt.get_current_fig_manager()
-    manager.window.showMaximized()
-    plt.show()
+    if plot:
+        # Example data
+        x = self.Mesh2_node_x.data
+        y = self.Mesh2_node_y.data
+
+        # Array of connections
+        connections = self._ds["Mesh2_face_nodes"]
+
+        # Plot the lines connecting the points
+        for connection in connections:
+            connection = np.append(connection, connection[0])
+            x_points = x[connection]
+            y_points = y[connection]
+            plt.plot(x_points, y_points)
+
+        # Plot the individual points
+        plt.scatter(x, y, color='red', marker='o', label='Points')
+
+        # Add labels and title
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Lines Connecting Points')
+        plt.legend()
+        plt.show()
