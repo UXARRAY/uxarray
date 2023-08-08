@@ -566,6 +566,7 @@ class Grid:
 
         return self._ds["Mesh2_node_faces"]
 
+    @property
     def face_areas(self):
         """Declare face_areas as a property."""
         # if self._face_areas is not None: it allows for using the cached result
