@@ -127,8 +127,7 @@ Connectivity
 .. autosummary::
    :toctree: _autosummary
 
-   utils.helpers._is_ugrid
-   utils.helpers._face_nodes_to_sparse_matrix
+   grid.connectivity._face_nodes_to_sparse_matrix
    grid.connectivity._replace_fill_values
    grid.connectivity._build_nNodes_per_face
    grid.connectivity._build_edge_node_connectivity
