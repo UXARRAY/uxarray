@@ -1,16 +1,14 @@
 """UXarray dataset module."""
 
 import os
+import numpy as np
+import xarray as xr
 
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-import numpy as np
-import xarray as xr
-
-import uxarray.utils.constants
-from uxarray.core.grid import Grid
-
+import uxarray.constants
+from uxarray.grid import Grid
 from uxarray.core.dataset import UxDataset
 
 
@@ -106,6 +104,7 @@ def open_dataset(grid_filename_or_obj: str,
                  islatlon: Optional[bool] = False,
                  isconcave: Optional[bool] = False,
                  use_dual: Optional[bool] = False,
+                 grid_kwargs: Optional[Dict[str, Any]] = {},
                  **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_dataset()``, given a grid topology definition with a
     single dataset file or object with corresponding data.
@@ -141,6 +140,12 @@ def open_dataset(grid_filename_or_obj: str,
     use_dual: bool, optional
             Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
+    grid_kwargs : Dict[str, Any], optional
+        Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
+        [xarray
+        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
+        for accepted keyword arguments.
+
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_dataset``. Refer to the
         [xarray
@@ -160,20 +165,21 @@ def open_dataset(grid_filename_or_obj: str,
 
     >>> import uxarray as ux
     >>> ux_ds = ux.open_dataset("grid_filename.g", "grid_filename_vortex.nc")
+    :param grid_kwargs:
     """
 
-    ## Grid definition
+    # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        gridspec=gridspec,
                        vertices=vertices,
                        islatlon=islatlon,
                        isconcave=isconcave,
-                       use_dual=use_dual)
+                       use_dual=use_dual,
+                       **grid_kwargs)
 
-    ## UxDataset
+    # UxDataset
     ds = xr.open_dataset(filename_or_obj, decode_times=False,
                          **kwargs)  # type: ignore
-
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds
@@ -186,6 +192,7 @@ def open_mfdataset(grid_filename_or_obj: str,
                    islatlon: Optional[bool] = False,
                    isconcave: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
+                   grid_kwargs: Optional[Dict[str, Any]] = {},
                    **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_mfdataset()``, given a single grid topology file
     with multiple dataset paths with corresponding data.
@@ -218,7 +225,13 @@ def open_mfdataset(grid_filename_or_obj: str,
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
     use_dual: bool, optional
-            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+        Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+
+    grid_kwargs : Dict[str, Any], optional
+        Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
+        [xarray
+        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
+        for accepted keyword arguments.
 
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_mfdataset``. Refer to the
@@ -248,65 +261,17 @@ def open_mfdataset(grid_filename_or_obj: str,
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
-    ## Grid definition
+    # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        gridspec=gridspec,
                        vertices=vertices,
                        islatlon=islatlon,
                        isconcave=isconcave,
-                       use_dual=use_dual)
+                       use_dual=use_dual,
+                       **grid_kwargs)
 
-    ## UxDataset
+    # UxDataset
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
-
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
     return uxds
-
-
-def enable_jit_cache():
-    """Allows Numba's JIT cache to be turned on.
-
-    This cache variable lets @njit cache the machine code generated
-    between runs, allowing for faster run times due to the fact that the
-    code doesn't need to regenerate the machine code every run time. Our
-    use case here was to study performance, in regular usage one might
-    never turn off caching as it will only help if frequently modifying
-    the code or because users have very limited disk space. The default
-    is on (True)
-    """
-    uxarray.utils.constants.ENABLE_JIT_CACHE = True
-
-
-def disable_jit_cache():
-    """Allows Numba's JIT cache to be turned on off.
-
-    This cache variable lets @njit cache the machine code generated
-    between runs, allowing for faster run times due to the fact that the
-    code doesn't need to regenerate the machine code every run time. Our
-    use case here was to study performance, in regular usage one might
-    never turn off caching as it will only help if frequently modifying
-    the code or because users have very limited disk space. The default
-    is on (True)
-    """
-    uxarray.utils.constants.ENABLE_JIT_CACHE = False
-
-
-def enable_jit():
-    """Allows Numba's JIT application to be turned on.
-
-    This lets users choose whether they want machine code to be
-    generated to speed up the performance of the code on large files.
-    The default is on (True)
-    """
-    uxarray.utils.constants.ENABLE_JIT = True
-
-
-def disable_jit():
-    """Allows Numba's JIT application to be turned off.
-
-    This lets users choose whether they want machine code to be
-    generated to speed up the performance of the code on large files.
-    The default is on (True)
-    """
-    uxarray.utils.constants.ENABLE_JIT = False
