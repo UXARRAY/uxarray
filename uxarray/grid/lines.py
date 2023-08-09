@@ -99,7 +99,9 @@ def point_within_GCA(pt, gca_cart):
         # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
         # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 lon
         elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
-            return in_between(GCRv0_lonlat[0], pt_lonlat[0], 2 * np.pi) or in_between(0, pt_lonlat[0], GCRv1_lonlat[0])
+            return in_between(GCRv0_lonlat[0],
+                              pt_lonlat[0], 2 * np.pi) or in_between(
+                                  0, pt_lonlat[0], GCRv1_lonlat[0])
 
     # The non-anti-meridian case.
     else:
