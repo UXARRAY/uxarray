@@ -107,6 +107,7 @@ IO
    open_grid
    Grid.to_geodataframe
    Grid.to_polycollection
+   Grid.to_shapely_polygons
 
 
 Methods
@@ -119,6 +120,7 @@ Methods
    Grid.encode_as
    Grid.integrate
    Grid.copy
+
 
 Attributes
 ----------
@@ -178,14 +180,7 @@ Coordinates
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
-   grid.coordinates.grid_center_lat_lon
 
-Geometry
------------
-.. autosummary::
-   :toctree: _autosummary
-
-   grid.geometry.grid_to_polygons
 
 
 Numba

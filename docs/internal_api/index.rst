@@ -95,11 +95,6 @@ Methods
    Grid.__from_ds__
    Grid.__from_vert__
    Grid.__init_grid_var_attrs__
-   Grid.__init_grid_var_names__
-   Grid.__from_ds__
-   Grid.__from_vert__
-   Grid.__init_grid_var_attrs__
-
 
 
 Attributes

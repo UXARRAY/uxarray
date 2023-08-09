@@ -24,7 +24,8 @@ from uxarray.grid.geometry import (_build_polygon_shells,
                                    _build_corrected_polygon_shells,
                                    _build_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
-                                   _grid_to_matplotlib_polycollection)
+                                   _grid_to_matplotlib_polycollection,
+                                   _grid_to_polygons)
 
 
 class Grid:
@@ -80,7 +81,7 @@ class Grid:
         # initialize attributes
         self._polygon_shells = None
         self._corrected_polygon_shells = None
-        self._corrected_shells_to_original_faces = None
+        self.__corrected_shells_to_original_faces = None
         self._antimeridian_face_indices = None
 
         # initialize cached data structures
@@ -801,9 +802,9 @@ class Grid:
         Parameters
         ----------
         override : bool
-            Flag to recompute the ``gdf`` if one is already cached
+            Flag to recompute the ``GeoDataFrame`` if one is already cached
         cache : bool
-            Flag to indicate if the computed ``gdf`` should be cached
+            Flag to indicate if the computed ``GeoDataFrame`` should be cached
         correct_antimeridian_polygons: bool, Optional
             Parameter to select whether to correct and split antimeridian polygons
 
@@ -858,3 +859,20 @@ class Grid:
             self._poly_collection = poly_collection
 
         return poly_collection
+
+    def to_shapely_polygons(self, correct_antimeridian_polygons=True):
+        """Constructs an array of Shapely Polygons representing each face, with
+        antimeridian polygons split according to the GeoJSON standards.
+
+         Parameters
+        ----------
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
+
+        Returns
+        -------
+        polygons : np.ndarray
+            Array containing Shapely Polygons
+        """
+        polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
+        return polygons

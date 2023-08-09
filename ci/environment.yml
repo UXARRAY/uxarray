@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - dask
+  - matplotlib-base
   - netcdf4
   - numba
   - numpy
@@ -11,9 +12,8 @@ dependencies:
   - pytest
   - pytest-cov
   - scipy
-  - xarray
   - shapely
   - spatialpandas
-  - matplotlib
+  - xarray
   - pip:
     - antimeridian

@@ -17,12 +17,11 @@ dependencies:
     - ipykernel
     - ipython
     - jupyter_client
-    - matplotlib
     - sphinx-book-theme
     - myst-nb
     - sphinx-design
     - nbsphinx
-    - matplotlib
+    - matplotlib-base
     - spatialpandas
     - shapely
     - pip:

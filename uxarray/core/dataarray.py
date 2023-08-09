@@ -108,9 +108,9 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         override_grid : bool
-            Flag to recompute the ``GeoDataFrame`` if one is already cached
+            Flag to recompute the ``GeoDataFrame`` representing the grid geometry if one is already cached
         cache_grid : bool
-            Flag to indicate if the computed ``GeoDataFrame`` should be cached
+            Flag to indicate if the computed ``GeoDataFrame`` representing the grid geometry should be cached
         correct_antimeridian_polygons: bool, Optional
             Parameter to select whether to correct and split antimeridian polygons
 
@@ -159,9 +159,9 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         override_grid : bool
-            Flag to recompute the ``PolyCollection`` if one is already cached
+            Flag to recompute the ``PolyCollection`` representing the grid geometry if one is already cached
         cache_grid : bool
-            Flag to indicate if the computed ``PolyCollection`` should be cached
+            Flag to indicate if the computed ``PolyCollection`` representing the grid geometry should be cached
         correct_antimeridian_polygons: bool, Optional
             Parameter to select whether to correct and split antimeridian polygons
 
@@ -181,11 +181,14 @@ class UxDataArray(xr.DataArray):
         # face-centered data
         if self.data.size == self.uxgrid.nMesh2_face:
             poly_collection = self.uxgrid.to_polycollection(
-                override=override_grid, cache=cache_grid)
+                override=override_grid,
+                cache=cache_grid,
+                correct_antimeridian_polygons=correct_antimeridian_polygons)
 
             # map data with antimeridian polygons
             if self.uxgrid.corrected_polygon_shells is not None:
-                data = self.data[self.uxgrid.corrected_shells_to_original_faces]
+                data = self.data[
+                    self.uxgrid._corrected_shells_to_original_faces]
 
             # no antimeridian polygons
             else:

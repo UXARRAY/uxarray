@@ -4,7 +4,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.connectivity import close_face_nodes
 
 
-def grid_to_polygons(grid, correct_antimeridian_polygons=True):
+def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     """Constructs an array of Shapely Polygons representing each face, with
     antimeridian polygons split according to the GeoJSON standards.
 
@@ -103,7 +103,7 @@ def _build_corrected_polygon_shells(polygon_shells):
     -------
     corrected_polygon_shells : np.ndarray
         Array containing polygon shells, with antimeridian polygons split
-    corrected_shells_to_original_faces : np.ndarray
+    _corrected_shells_to_original_faces : np.ndarray
         Indices
     """
 
@@ -117,7 +117,7 @@ def _build_corrected_polygon_shells(polygon_shells):
     # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
     corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
 
-    corrected_shells_to_original_faces = []
+    _corrected_shells_to_original_faces = []
     corrected_polygon_shells = []
 
     for i, polygon in enumerate(corrected_polygons):
@@ -130,7 +130,7 @@ def _build_corrected_polygon_shells(polygon_shells):
                         individual_polygon.exterior.coords.xy[0],
                         individual_polygon.exterior.coords.xy[1]
                     ]).T)
-                corrected_shells_to_original_faces.append(i)
+                _corrected_shells_to_original_faces.append(i)
 
         # Convert Shapely Polygon into Polygon Vertices
         else:
@@ -138,12 +138,12 @@ def _build_corrected_polygon_shells(polygon_shells):
                 np.array([
                     polygon.exterior.coords.xy[0], polygon.exterior.coords.xy[1]
                 ]).T)
-            corrected_shells_to_original_faces.append(i)
+            _corrected_shells_to_original_faces.append(i)
 
-    original_to_corrected = np.array(corrected_shells_to_original_faces,
+    original_to_corrected = np.array(_corrected_shells_to_original_faces,
                                      dtype=INT_DTYPE)
 
-    return corrected_polygon_shells, corrected_shells_to_original_faces
+    return corrected_polygon_shells, _corrected_shells_to_original_faces
 
 
 def _build_antimeridian_face_indices(grid):
@@ -179,7 +179,7 @@ def _grid_to_polygon_geodataframe(grid, correct_antimeridian_polygons=True):
     from spatialpandas import GeoDataFrame
 
     # obtain faces represented as polygons, corrected on the antimeridian
-    polygons = grid_to_polygons(grid, correct_antimeridian_polygons)
+    polygons = _grid_to_polygons(grid, correct_antimeridian_polygons)
 
     # prepare geometry for GeoDataFrame
     geometry = MultiPolygonArray(polygons)

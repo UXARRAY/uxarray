@@ -1,4 +1,4 @@
-from uxarray.grid.grid import Grid
+from uxarray.grid import Grid
 
 from uxarray.constants import (INT_DTYPE, INT_FILL_VALUE)
 from uxarray.grid import Grid
