@@ -10,7 +10,7 @@ from pathlib import Path
 import uxarray as ux
 
 from uxarray.grid.connectivity import _replace_fill_values
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.grid.lines import point_within_GCA
@@ -25,6 +25,8 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
 gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
+
+err_tolerance = 1.0e-12
 
 
 class TestIntegrate(TestCase):
@@ -104,7 +106,7 @@ class TestCoordinatesConversion(TestCase):
              random.random()])
 
         self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
-                             ERROR_TOLERANCE)
+                             err_tolerance)
 
     def test_node_xyz_to_lonlat_rad(self):
         [x, y, z] = ux.grid.coordinates.normalize_in_place([
@@ -117,9 +119,9 @@ class TestCoordinatesConversion(TestCase):
         [new_x, new_y,
          new_z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
 
-        self.assertLessEqual(np.absolute(new_x - x), ERROR_TOLERANCE)
-        self.assertLessEqual(np.absolute(new_y - y), ERROR_TOLERANCE)
-        self.assertLessEqual(np.absolute(new_z - z), ERROR_TOLERANCE)
+        self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
+        self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
+        self.assertLessEqual(np.absolute(new_z - z), err_tolerance)
 
     def test_node_latlon_rad_to_xyz(self):
         [lon, lat] = [
@@ -132,8 +134,8 @@ class TestCoordinatesConversion(TestCase):
         [new_lon,
          new_lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
 
-        self.assertLessEqual(np.absolute(new_lon - lon), ERROR_TOLERANCE)
-        self.assertLessEqual(np.absolute(new_lat - lat), ERROR_TOLERANCE)
+        self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
+        self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
 
 
 class TestConstants(TestCase):

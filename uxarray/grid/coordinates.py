@@ -105,7 +105,7 @@ def normalize_in_place(node):
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-    return np.asarray(node) / np.linalg.norm(np.array(node), ord=2)
+    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
 
 
 def grid_center_lat_lon(ds):
