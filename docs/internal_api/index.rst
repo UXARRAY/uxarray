@@ -148,6 +148,7 @@ UGRID
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    io._ugrid._read_ugrid
    io._ugrid._encode_ugrid
    io._ugrid._standardize_fill_value
@@ -157,6 +158,7 @@ MPAS
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    io._mpas._read_mpas
    io._mpas._primal_to_ugrid
    io._mpas._dual_to_ugrid
@@ -170,6 +172,7 @@ EXODUS II
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    io._exodus._read_exodus
    io._exodus._encode_exodus
    io._exodus._get_element_type
@@ -178,6 +181,7 @@ SCRIP
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    io._scrip._to_ugrid
    io._scrip._read_scrip
    io._scrip._encode_scrip
@@ -187,4 +191,5 @@ Shapefile
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    io._shapefile._read_shpfile
