@@ -1,4 +1,3 @@
-import numpy
 import xarray as xr
 import numpy as np
 import math
@@ -22,7 +21,7 @@ def node_lonlat_rad_to_xyz(node_coord):
 
     Returns
     ----------
-    float numpy.array
+    float list
         the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
 
     Raises
@@ -30,16 +29,12 @@ def node_lonlat_rad_to_xyz(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    node_coord = np.asarray(node_coord, dtype=np.float64)
-    if node_coord.size != 2:
+    if len(node_coord) != 2:
         raise RuntimeError(
             "Input array should have a length of 2: [longitude, latitude]")
     lon = node_coord[0]
     lat = node_coord[1]
-    return np.array(
-        [np.cos(lon) * np.cos(lat),
-         np.sin(lon) * np.cos(lat),
-         np.sin(lat)])
+    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
 
 
 @njit(cache=ENABLE_JIT_CACHE)
@@ -54,7 +49,7 @@ def node_xyz_to_lonlat_rad(node_coord):
 
     Returns
     ----------
-    float np.array
+    float list
         the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
 
     Raises
@@ -62,9 +57,9 @@ def node_xyz_to_lonlat_rad(node_coord):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    node_coord = np.asarray(node_coord, dtype=np.float64)
-    if node_coord.size != 3:
+    if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+
     [dx, dy, dz] = normalize_in_place(node_coord)
     dx /= np.absolute(dx * dx + dy * dy + dz * dz)
     dy /= np.absolute(dx * dx + dy * dy + dz * dz)
@@ -83,7 +78,7 @@ def node_xyz_to_lonlat_rad(node_coord):
         d_lon_rad = 0.0
         d_lat_rad = -0.5 * np.pi
 
-    return np.array([d_lon_rad, d_lat_rad])
+    return [d_lon_rad, d_lat_rad]
 
 
 @njit(cache=ENABLE_JIT_CACHE)
@@ -107,11 +102,10 @@ def normalize_in_place(node):
     RuntimeError
         The input array doesn't have the size of 3.
     """
-    node = np.asarray(node, dtype=np.float64)
-    if node.size != 3:
+    if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-    return node / np.linalg.norm(np.array(node), ord=2)
+    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
 
 
 def grid_center_lat_lon(ds):

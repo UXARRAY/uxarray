@@ -5,6 +5,17 @@ from uxarray.grid.coordinates import node_xyz_to_lonlat_rad
 from uxarray.constants import ERROR_TOLERANCE
 
 
+def convert_to_list_if_needed(obj):
+    if not isinstance(obj, list):
+        if isinstance(obj, np.ndarray):
+            # Convert the NumPy array to a list using .tolist()
+            obj = obj.tolist()
+        else:
+            # If not a list or NumPy array, return the object as-is
+            obj = [obj]
+    return obj
+
+
 def point_within_GCA(pt, gca_cart):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
@@ -45,9 +56,15 @@ def point_within_GCA(pt, gca_cart):
     """
     # Convert the cartesian coordinates to lonlat coordinates, the node_xyz_to_lonlat_rad is already overloaded
     # with gmpy2 data type
-    pt_lonlat = node_xyz_to_lonlat_rad(pt)
-    GCRv0_lonlat = node_xyz_to_lonlat_rad(gca_cart[0])
-    GCRv1_lonlat = node_xyz_to_lonlat_rad(gca_cart[1])
+    pt_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(pt))
+    GCRv0_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(
+        gca_cart[0]))
+    GCRv1_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(
+        gca_cart[1]))
+
+    # Convert the list to np.float64
+    gca_cart[0] = np.array(gca_cart[0], dtype=np.float64)
+    gca_cart[1] = np.array(gca_cart[1], dtype=np.float64)
 
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])

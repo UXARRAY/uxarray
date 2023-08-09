@@ -140,22 +140,6 @@ Face Area
 .. autosummary::
    :toctree: _autosummary
 
-<<<<<<< HEAD
-   calculate_face_area
-   calculate_spherical_triangle_jacobian
-   calculate_spherical_triangle_jacobian_barycentric
-   close_face_nodes
-   get_all_face_area_from_coords
-   get_gauss_quadratureDG
-   get_tri_quadratureDG
-   grid_center_lat_lon
-   node_xyz_to_lonlat_rad
-   node_lonlat_rad_to_xyz
-   normalize_in_place
-   parse_grid_type
-   is_between
-   point_within_GCA
-=======
    grid.area.calculate_face_area
    grid.area.get_all_face_area_from_coords
    grid.area.calculate_spherical_triangle_jacobian
@@ -180,6 +164,14 @@ Coordinates
    grid.coordinates.normalize_in_place
    grid.coordinates.grid_center_lat_lon
 
+Lines
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.lines.is_between
+   grid.lines.point_within_GCA
+
 Numba
 -----
 .. autosummary::
@@ -189,4 +181,3 @@ Numba
    utils.disable_jit_cache
    utils.enable_jit
    utils.disable_jit
->>>>>>> main

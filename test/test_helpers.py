@@ -280,5 +280,4 @@ class TestIntersectionPoint(TestCase):
         with self.assertRaises(ValueError):
             point_within_GCA(pt_cart, gcr_cart)
         gcr_car_flipped = np.array([v2_cart, v1_cart])
-        self.assertTrue(
-            point_within_GCA(pt_cart, gcr_car_flipped))
+        self.assertTrue(point_within_GCA(pt_cart, gcr_car_flipped))
