@@ -7,7 +7,7 @@ import numpy as np
 import os
 from pathlib import Path
 
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
