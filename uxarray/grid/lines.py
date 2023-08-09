@@ -54,8 +54,7 @@ def point_within_GCA(pt, gca_cart):
 
     Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
     """
-    # Convert the cartesian coordinates to lonlat coordinates, the node_xyz_to_lonlat_rad is already overloaded
-    # with gmpy2 data type
+    # Convert the cartesian coordinates to lonlat coordinates
     pt_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(pt))
     GCRv0_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(
         gca_cart[0]))
@@ -84,7 +83,7 @@ def point_within_GCA(pt, gca_cart):
     # If the pt and the GCR are on the same longitude (the y coordinates are the same)
     if GCRv0_lonlat[0] == GCRv1_lonlat[0] == pt_lonlat[0]:
         # Now use the latitude to determine if the pt falls between the interval
-        return is_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+        return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
 
     # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
     # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
@@ -100,16 +99,14 @@ def point_within_GCA(pt, gca_cart):
         # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
         # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 lon
         elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
-            return is_between(GCRv0_lonlat[0],
-                              pt_lonlat[0], 2 * np.pi) or is_between(
-                                  0, pt_lonlat[0], GCRv1_lonlat[0])
+            return in_between(GCRv0_lonlat[0], pt_lonlat[0], 2 * np.pi) or in_between(0, pt_lonlat[0], GCRv1_lonlat[0])
 
     # The non-anti-meridian case.
     else:
-        return is_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+        return in_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
 
 
-def is_between(p, q, r) -> bool:
+def in_between(p, q, r) -> bool:
     """Determines whether the number q is between p and r.
 
     Parameters

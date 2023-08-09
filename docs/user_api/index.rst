@@ -169,7 +169,7 @@ Lines
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines.is_between
+   grid.lines.in_between
    grid.lines.point_within_GCA
 
 Numba
