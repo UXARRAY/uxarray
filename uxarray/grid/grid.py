@@ -79,9 +79,6 @@ class Grid:
         self._face_areas = None
 
         # initialize attributes
-        self._polygon_shells = None
-        self._corrected_polygon_shells = None
-        self.__corrected_shells_to_original_faces = None
         self._antimeridian_face_indices = None
 
         # initialize cached data structures
