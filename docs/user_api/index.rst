@@ -142,10 +142,6 @@ Attributes
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
-   Grid.polygon_shells
-   Grid.corrected_polygon_shells
-   Grid.corrected_shells_to_original_faces
-   Grid.original_to_corrected_indices
    Grid.antimeridian_face_indices
 
 
