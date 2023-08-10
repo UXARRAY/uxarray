@@ -13,7 +13,7 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.lines import point_within_GCA
+from uxarray.grid.lines import point_within_GCA, _angle_of_2_vectors
 
 try:
     import constants
@@ -281,3 +281,16 @@ class TestIntersectionPoint(TestCase):
             point_within_GCA(pt_cart, gcr_cart)
         gcr_car_flipped = np.array([v2_cart, v1_cart])
         self.assertTrue(point_within_GCA(pt_cart, gcr_car_flipped))
+
+
+class TestVectorsAngel(TestCase):
+
+    def test_angle_of_2_vectors(self):
+        # Test the angle between two vectors
+        v1 = np.array([1.0, 0.0, 0.0])
+        v2 = np.array([0.0, 1.0, 0.0])
+        self.assertAlmostEqual(_angle_of_2_vectors(v1, v2), np.pi / 2.0)
+
+        v1 = np.array([1.0, 0.0, 0.0])
+        v2 = np.array([1.0, 0.0, 0.0])
+        self.assertAlmostEqual(_angle_of_2_vectors(v1, v2), 0.0)
