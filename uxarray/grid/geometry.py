@@ -109,7 +109,7 @@ def _build_corrected_polygon_shells(polygon_shells):
     corrected_polygon_shells : np.ndarray
         Array containing polygon shells, with antimeridian polygons split
     _corrected_shells_to_original_faces : np.ndarray
-        Indices
+        Original indices used to map the corrected polygon shells to their entries in face nodes
     """
 
     # import optional dependencies
