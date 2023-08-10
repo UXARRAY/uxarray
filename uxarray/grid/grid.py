@@ -239,7 +239,7 @@ class Grid:
             self._ds = _read_exodus(dataset, self.grid_var_names)
 
             # Assume Exodus was read as cartesian grid and that coordinates are not set by reader, call the latlon setter
-            self._populate_lonlat_coord()
+            _populate_lonlat_coord(self)
             if len(self._ds.coords) > 2:
                 # set coordinates
                 ds = self._ds.set_coords(
@@ -603,7 +603,7 @@ class Grid:
             # NOTE: We assume that output exodus mesh will be cartesian and coordinate units will be 'm'
             # If the units are rad or degree, the we must convert to m. Assume unit sphere.
             if "Mesh2_node_cart_x" not in self._ds.keys():
-                self._populate_lonlat_coord()
+                _populate_cartesian_xyz_coord(self)
 
             # encode to exodus assumes that ds has Mesh2_node_cart_x, Mesh2_node_cart_y, Mesh2_node_cart_z
             out_ds = _encode_exodus(self._ds, self.grid_var_names)

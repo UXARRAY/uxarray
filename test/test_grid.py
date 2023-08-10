@@ -56,7 +56,13 @@ class TestGrid(TestCase):
 
         grid_geoflow = ux.open_grid(gridfile_CSne30)
 
-        grid_geoflow.encode_as("exodus")
+        exods = grid_geoflow.encode_as("exodus")
+        # Remove the _FillValue attribute from the variable's attributes
+        if '_FillValue' in grid_geoflow._ds['Mesh2_face_nodes'].attrs:
+            del grid_geoflow._ds['Mesh2_face_nodes'].attrs['_FillValue']
+
+        print(grid_geoflow._ds.Mesh2_face_nodes)
+        exods.to_netcdf("grid_geoflow.exo")
 
     def test_init_verts(self):
         """Create a uxarray grid from multiple face vertices with duplicate

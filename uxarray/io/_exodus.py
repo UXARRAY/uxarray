@@ -204,17 +204,21 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
     # get orig dimension from Mesh2 attribute topology dimension
     dim = ds[grid_var_names["Mesh2"]].topology_dimension
 
+    if "Mesh2_node_cart_x" not in ds.keys():
+        raise RuntimeError(
+            "The grid must have cartesian coordinates to encode to exodus.")
+
     c_data = []
     if dim == 2:
         c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_cart_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_cart_y"]].data.tolist()
+            ds["Mesh2_node_cart_x"].data.tolist(),
+            ds["Mesh2_node_cart_y"].data.tolist()
         ])
     elif dim == 3:
         c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_cart_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_cart_y"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_cart_z"]].data.tolist()
+            ds["Mesh2_node_cart_x"].data.tolist(),
+            ds["Mesh2_node_cart_y"].data.tolist(),
+            ds["Mesh2_node_cart_z"].data.tolist()
         ])
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
