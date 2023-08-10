@@ -61,7 +61,6 @@ class TestGrid(TestCase):
         if '_FillValue' in grid_geoflow._ds['Mesh2_face_nodes'].attrs:
             del grid_geoflow._ds['Mesh2_face_nodes'].attrs['_FillValue']
 
-        print(grid_geoflow._ds.Mesh2_face_nodes)
         exods.to_netcdf("grid_geoflow.exo")
 
     def test_init_verts(self):
