@@ -564,42 +564,6 @@ class Grid:
 
     # other properties
     @property
-    def polygon_shells(self):
-        """A sequence of (x, y) numeric coordinate pairs representing the shell
-        of each face represented as a polygon.
-
-        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``)
-        """
-        if self._polygon_shells is None:
-            self._polygon_shells = _build_polygon_shells(
-                self.Mesh2_node_x.values, self.Mesh2_node_y.values,
-                self.Mesh2_face_nodes.values, self.nMesh2_face,
-                self.nMaxMesh2_face_nodes, self.nNodes_per_face.values)
-        return self._polygon_shells
-
-    @property
-    def corrected_polygon_shells(self):
-        """A sequence of (x, y) numeric coordinate pairs representing the shell
-        of each face represented as a polygon, with polygons that cross the
-        antimeridian split into two.
-
-        Dimensions (``nMesh2_face`` + len(antimeridian_face_indices),
-        ``nMaxMesh2_face_nodes``)
-        """
-        if self._corrected_polygon_shells is None:
-            self._corrected_polygon_shells, self._corrected_shells_to_original_faces = _build_corrected_polygon_shells(
-                self.polygon_shells)
-        return self._corrected_polygon_shells
-
-    @property
-    def corrected_shells_to_original_faces(self):
-        """Indices mapping each split polygon to its original index."""
-        if self._corrected_shells_to_original_faces is None:
-            self._corrected_polygon_shells, self._corrected_shells_to_original_faces = _build_corrected_polygon_shells(
-                self.polygon_shells)
-        return self._corrected_shells_to_original_faces
-
-    @property
     def antimeridian_face_indices(self):
         """Index of each face that crosses the antimeridian."""
         if self._antimeridian_face_indices is None:
@@ -846,19 +810,22 @@ class Grid:
         -------
         polycollection : matplotlib.collections.PolyCollection
             The output `PolyCollection` containing faces represented as polygons
+        corrected_to_original_faces: list
+            TODO:
         """
 
         # use cached polycollection
         if self._poly_collection is not None and not override:
             return self._poly_collection
 
-        poly_collection = _grid_to_matplotlib_polycollection(self)
+        poly_collection, corrected_to_original_faces = _grid_to_matplotlib_polycollection(
+            self)
 
         # cache computed polycollection
         if cache:
             self._poly_collection = poly_collection
 
-        return poly_collection
+        return poly_collection, corrected_to_original_faces
 
     def to_shapely_polygons(self, correct_antimeridian_polygons=True):
         """Constructs an array of Shapely Polygons representing each face, with
