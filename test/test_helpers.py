@@ -89,7 +89,7 @@ class TestGridCenter(TestCase):
         scrip_center_lat = ds_scrip_CSne8['grid_center_lat']
 
         # Calculate the center_lat/lon using same dataset's corner_lat/lon
-        calc_center = ux.grid.coordinates.grid_center_lat_lon(ds_scrip_CSne8)
+        calc_center = ux.io._scrip.grid_center_lat_lon(ds_scrip_CSne8)
         calc_lat = calc_center[0]
         calc_lon = calc_center[1]
 
