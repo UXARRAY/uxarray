@@ -98,8 +98,8 @@ class UxDataArray(xr.DataArray):
         self._uxgrid = ugrid_obj
 
     def to_geodataframe(self,
-                        override_geometry=False,
-                        cache_geometry=True,
+                        override=False,
+                        cache=True,
                         correct_antimeridian_polygons=True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -107,9 +107,9 @@ class UxDataArray(xr.DataArray):
         representing a 1D slice of data mapped to each Polygon.
 
         Parameters
-        override_geometry: bool
+        override: bool
             Flag to recompute the ``GeoDataFrame`` stored under the ``uxgrid`` if one is already cached
-        cache_geometry: bool
+        cache: bool
             Flag to indicate if the computed ``GeoDataFrame`` stored under the ``uxgrid`` accessor should be cached
         correct_antimeridian_polygons: bool, Optional
             Parameter to select whether to correct and split antimeridian polygons
@@ -129,8 +129,8 @@ class UxDataArray(xr.DataArray):
         # face-centered data
         if self.data.size == self.uxgrid.nMesh2_face:
             gdf = self.uxgrid.to_geodataframe(
-                override=override_geometry,
-                cache=cache_geometry,
+                override=override,
+                cache=cache,
                 correct_antimeridian_polygons=correct_antimeridian_polygons)
             gdf[self.name] = self.data
             return gdf
@@ -148,8 +148,8 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.nMesh2_face}.")
 
     def to_polycollection(self,
-                          override_geometry=False,
-                          cache_geometry=True,
+                          override=False,
+                          cache=True,
                           correct_antimeridian_polygons=True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
@@ -157,9 +157,9 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        override_geometry : bool
+        override : bool
             Flag to recompute the ``PolyCollection`` stored under the ``uxgrid`` if one is already cached
-        cache_geometry : bool
+        cache : bool
             Flag to indicate if the computed ``PolyCollection`` stored under the ``uxgrid`` accessor should be cached
         correct_antimeridian_polygons: bool, Optional
             Parameter to select whether to correct and split antimeridian polygons
@@ -180,8 +180,8 @@ class UxDataArray(xr.DataArray):
         # face-centered data
         if self.data.size == self.uxgrid.nMesh2_face:
             poly_collection, corrected_to_original_faces = self.uxgrid.to_polycollection(
-                override=override_geometry,
-                cache=cache_geometry,
+                override=override,
+                cache=cache,
                 correct_antimeridian_polygons=correct_antimeridian_polygons)
 
             # map data with antimeridian polygons

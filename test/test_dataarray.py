@@ -96,7 +96,7 @@ class TestGeometryConversions(TestCase):
         # with caching, they point to the same area in memory
         assert gdf_start is gdf_next
 
-        gdf_end = uxds['psi'].to_geodataframe(override_geometry=True)
+        gdf_end = uxds['psi'].to_geodataframe(override=True)
 
         # override will recompute the grid
         assert gdf_start is not gdf_end
