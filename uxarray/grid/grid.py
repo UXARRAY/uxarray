@@ -8,10 +8,24 @@ from uxarray.io._mpas import _read_mpas
 from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
-from uxarray.utils.helpers import (get_all_face_area_from_coords,
-                                   parse_grid_type, node_xyz_to_lonlat_rad,
-                                   node_lonlat_rad_to_xyz, close_face_nodes)
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+
+from uxarray.io.utils import _parse_grid_type
+from uxarray.grid.area import get_all_face_area_from_coords
+from uxarray.grid.connectivity import (_build_edge_node_connectivity,
+                                       _build_face_edges_connectivity,
+                                       _build_nNodes_per_face)
+
+from uxarray.grid.coordinates import (_populate_lonlat_coord,
+                                      _populate_cartesian_xyz_coord)
+
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+
+from uxarray.grid.geometry import (_build_polygon_shells,
+                                   _build_corrected_polygon_shells,
+                                   _build_antimeridian_face_indices,
+                                   _grid_to_polygon_geodataframe,
+                                   _grid_to_matplotlib_polycollection,
+                                   _grid_to_polygons)
 
 
 class Grid:
@@ -64,6 +78,12 @@ class Grid:
         # initialize face_area variable
         self._face_areas = None
 
+        # initialize attributes
+        self._antimeridian_face_indices = None
+
+        # initialize cached data structures
+        self._gdf = None
+        self._poly_collection = None
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -97,7 +117,7 @@ class Grid:
         # check if initializing from string
         # TODO: re-add gridspec initialization when implemented
         elif isinstance(input_obj, xr.Dataset):
-            self.mesh_type = parse_grid_type(input_obj)
+            self.mesh_type = _parse_grid_type(input_obj)
             self.__from_ds__(dataset=input_obj)
         else:
             raise RuntimeError("Dataset is not a valid input type.")
@@ -106,9 +126,6 @@ class Grid:
         self._inverse_grid_var_names = {
             v: k for k, v in self.grid_var_names.items()
         }
-
-        # construct nNodes_per_Face
-        self._build_nNodes_per_face()
 
     def __init_grid_var_names__(self):
         """Populates a dictionary for storing uxarray's internal representation
@@ -300,7 +317,47 @@ class Grid:
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
             connectivity_heading + connectivity_str
 
-    # attribute properties
+    def __eq__(self, other):
+        """Two grids are equal if they have matching grid topology variables,
+        coordinates, and dims all of which are equal.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are equal : bool
+        """
+        if other is not None:
+            # Iterate over dict to set access attributes
+            for key, value in self.grid_var_names.items():
+                # Check if all grid variables are equal
+                if self._ds.data_vars is not None:
+                    if value in self._ds.data_vars:
+                        if not self._ds[value].equals(
+                                other._ds[other.grid_var_names[key]]):
+                            return False
+        else:
+            return False
+
+        return True
+
+    def __ne__(self, other):
+        """Two grids are not equal if they have differing grid topology
+        variables, coordinates, or dims.
+
+        Parameters
+        ----------
+        other : uxarray.Grid
+            The second grid object to be compared with `self`
+
+        Returns
+        -------
+        If two grids are not equal : bool
+        """
+        return not self.__eq__(other)
 
     @property
     def parsed_attrs(self):
@@ -312,8 +369,6 @@ class Grid:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
         unstructured mesh."""
         return self._ds[self.grid_var_names["Mesh2"]]
-
-    # dimension properties
 
     @property
     def nMesh2_node(self):
@@ -333,7 +388,7 @@ class Grid:
         of edges."""
 
         if "Mesh2_edge_nodes" not in self._ds:
-            self._build_edge_node_connectivity(repopulate=True)
+            _build_edge_node_connectivity(self, repopulate=True)
 
         return self._ds['Mesh2_edge_nodes'].shape[0]
 
@@ -352,7 +407,7 @@ class Grid:
         """
 
         if "Mesh2_face_edges" not in self._ds:
-            self._build_face_edges_connectivity()
+            _build_face_edges_connectivity(self)
 
         return self._ds["Mesh2_face_edges"].shape[1]
 
@@ -363,9 +418,9 @@ class Grid:
 
         Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
         """
+        if "nNodes_per_face" not in self._ds:
+            _build_nNodes_per_face(self)
         return self._ds["nNodes_per_face"]
-
-    # coordinate properties
 
     @property
     def Mesh2_node_x(self):
@@ -384,7 +439,7 @@ class Grid:
         Dimensions (``nMesh2_node``)
         """
         if "Mesh2_node_cart_x" not in self._ds:
-            self._populate_cartesian_xyz_coord()
+            _populate_cartesian_xyz_coord(self)
         return self._ds['Mesh2_node_cart_x']
 
     @property
@@ -416,7 +471,7 @@ class Grid:
         Dimensions (``nMesh2_node``)
         """
         if "Mesh2_node_cart_y" not in self._ds:
-            self._populate_cartesian_xyz_coord()
+            _populate_cartesian_xyz_coord(self)
         return self._ds['Mesh2_node_cart_y']
 
     @property
@@ -460,8 +515,6 @@ class Grid:
             self._populate_cartesian_xyz_coord()
         return self._ds['Mesh2_node_cart_z']
 
-    # connectivity properties
-
     @property
     def Mesh2_face_nodes(self):
         """UGRID Connectivity Variable ``Mesh2_face_nodes``, which maps each
@@ -489,7 +542,7 @@ class Grid:
         Nodes are in arbitrary order.
         """
         if "Mesh2_edge_nodes" not in self._ds:
-            self._build_edge_node_connectivity()
+            _build_edge_node_connectivity(self)
 
         return self._ds['Mesh2_edge_nodes']
 
@@ -502,9 +555,26 @@ class Grid:
         DataType ``INT_DTYPE``.
         """
         if "Mesh2_face_edges" not in self._ds:
-            self._build_face_edges_connectivity()
+            _build_face_edges_connectivity(self)
 
         return self._ds["Mesh2_face_edges"]
+
+    # other properties
+    @property
+    def antimeridian_face_indices(self):
+        """Index of each face that crosses the antimeridian."""
+        if self._antimeridian_face_indices is None:
+            self._antimeridian_face_indices = _build_antimeridian_face_indices(
+                self)
+        return self._antimeridian_face_indices
+
+    @property
+    def face_areas(self):
+        """Declare face_areas as a property."""
+        # if self._face_areas is not None: it allows for using the cached result
+        if self._face_areas is None:
+            self.compute_face_areas()
+        return self._face_areas
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -635,57 +705,6 @@ class Grid:
 
         return self._face_areas
 
-    def __eq__(self, other):
-        """Two grids are equal if they have matching grid topology variables,
-        coordinates, and dims all of which are equal.
-
-        Parameters
-        ----------
-        other : uxarray.Grid
-            The second grid object to be compared with `self`
-
-        Returns
-        -------
-        If two grids are equal : bool
-        """
-        if other is not None:
-            # Iterate over dict to set access attributes
-            for key, value in self.grid_var_names.items():
-                # Check if all grid variables are equal
-                if self._ds.data_vars is not None:
-                    if value in self._ds.data_vars:
-                        if not self._ds[value].equals(
-                                other._ds[other.grid_var_names[key]]):
-                            return False
-        else:
-            return False
-
-        return True
-
-    def __ne__(self, other):
-        """Two grids are not equal if they have differing grid topology
-        variables, coordinates, or dims.
-
-        Parameters
-        ----------
-        other : uxarray.Grid
-            The second grid object to be compared with `self`
-
-        Returns
-        -------
-        If two grids are not equal : bool
-        """
-        return not self.__eq__(other)
-
-    # use the property keyword for declaration on face_areas property
-    @property
-    def face_areas(self):
-        """Declare face_areas as a property."""
-        # if self._face_areas is not None: it allows for using the cached result
-        if self._face_areas is None:
-            self.compute_face_areas()
-        return self._face_areas
-
     # TODO: Make a decision on whether to provide Dataset- or DataArray-specific
     # functions from within Grid
     # def integrate(self, var_ds, quadrature_rule="triangular", order=4):
@@ -732,262 +751,92 @@ class Grid:
     #
     #     return integral
 
-    def _build_edge_node_connectivity(self, repopulate=False):
-        """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``)
-        and stores it within the internal (``Grid._ds``) and through the
-        attribute (``Grid.Mesh2_edge_nodes``).
-
-        Additionally, the attributes (``inverse_indices``) and
-        (``fill_value_mask``) are stored for constructing other
-        connectivity variables.
+    def to_geodataframe(self,
+                        override=False,
+                        cache=True,
+                        correct_antimeridian_polygons=True):
+        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
+        column, containing a collection of Shapely Polygons or MultiPolygons
+        representing the geometry of the unstructured grid. Additionally, any
+        polygon that crosses the antimeridian is split into MultiPolygons.
 
         Parameters
         ----------
-        repopulate : bool, optional
-            Flag used to indicate if we want to overwrite the existed `Mesh2_edge_nodes` and generate a new
-            inverse_indices, default is False
+        override : bool
+            Flag to recompute the ``GeoDataFrame`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``GeoDataFrame`` should be cached
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
+
+        Returns
+        -------
+        gdf : spatialpandas.GeoDataFrame
+            The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
-        # need to derive edge nodes
-        if "Mesh2_edge_nodes" not in self._ds or repopulate:
-            padded_face_nodes = close_face_nodes(self.Mesh2_face_nodes.values,
-                                                 self.nMesh2_face,
-                                                 self.nMaxMesh2_face_nodes)
+        # use cached geodataframe
+        if self._gdf is not None and not override:
+            return self._gdf
 
-            # array of empty edge nodes where each entry is a pair of indices
-            edge_nodes = np.empty(
-                (self.nMesh2_face * self.nMaxMesh2_face_nodes, 2),
-                dtype=INT_DTYPE)
+        # construct a geodataframe with the faces stored as polygons as the geometry
+        gdf = _grid_to_polygon_geodataframe(self, correct_antimeridian_polygons)
 
-            # first index includes starting node up to non-padded value
-            edge_nodes[:, 0] = padded_face_nodes[:, :-1].ravel()
+        # cache computed geodataframe
+        if cache:
+            self._gdf = gdf
 
-            # second index includes second node up to padded value
-            edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
-        else:
-            # If "Mesh2_edge_nodes" already exists, directly return the function call
-            return
+        return gdf
 
-        # sorted edge nodes
-        edge_nodes.sort(axis=1)
+    def to_polycollection(self,
+                          override=False,
+                          cache=True,
+                          correct_antimeridian_polygons=True):
+        """Constructs a ``matplotlib.collections.PolyCollection`` object with
+        polygons representing the geometry of the unstructured grid, with
+        polygons that cross the antimeridian split.
 
-        # unique edge nodes
-        edge_nodes_unique, inverse_indices = np.unique(edge_nodes,
-                                                       return_inverse=True,
-                                                       axis=0)
-        # find all edge nodes that contain a fill value
-        fill_value_mask = np.logical_or(
-            edge_nodes_unique[:, 0] == INT_FILL_VALUE,
-            edge_nodes_unique[:, 1] == INT_FILL_VALUE)
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``PolyCollection`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``PolyCollection`` should be cached
 
-        # all edge nodes that do not contain a fill value
-        non_fill_value_mask = np.logical_not(fill_value_mask)
-        edge_nodes_unique = edge_nodes_unique[non_fill_value_mask]
-
-        # Update inverse_indices accordingly
-        indices_to_update = np.where(fill_value_mask)[0]
-
-        remove_mask = np.isin(inverse_indices, indices_to_update)
-        inverse_indices[remove_mask] = INT_FILL_VALUE
-
-        # Compute the indices where inverse_indices exceeds the values in indices_to_update
-        indexes = np.searchsorted(indices_to_update,
-                                  inverse_indices,
-                                  side='right')
-        # subtract the corresponding indexes from `inverse_indices`
-        for i in range(len(inverse_indices)):
-            if inverse_indices[i] != INT_FILL_VALUE:
-                inverse_indices[i] -= indexes[i]
-
-        # add Mesh2_edge_nodes to internal dataset
-        self._ds['Mesh2_edge_nodes'] = xr.DataArray(
-            edge_nodes_unique,
-            dims=["nMesh2_edge", "Two"],
-            attrs={
-                "cf_role":
-                    "edge_node_connectivity",
-                "_FillValue":
-                    INT_FILL_VALUE,
-                "long_name":
-                    "Maps every edge to the two nodes that it connects",
-                "start_index":
-                    INT_DTYPE(0),
-                "inverse_indices":
-                    inverse_indices,
-                "fill_value_mask":
-                    fill_value_mask
-            })
-
-    def _build_face_edges_connectivity(self):
-        """Constructs the UGRID connectivity variable (``Mesh2_face_edges``)
-        and stores it within the internal (``Grid._ds``) and through the
-        attribute (``Grid.Mesh2_face_edges``)."""
-        if ("Mesh2_edge_nodes" not in self._ds or
-                "inverse_indices" not in self._ds['Mesh2_edge_nodes'].attrs):
-            self._build_edge_node_connectivity(repopulate=True)
-
-        inverse_indices = self._ds['Mesh2_edge_nodes'].inverse_indices
-        inverse_indices = inverse_indices.reshape(self.nMesh2_face,
-                                                  self.nMaxMesh2_face_nodes)
-
-        self._ds["Mesh2_face_edges"] = xr.DataArray(
-            data=inverse_indices,
-            dims=["nMesh2_face", "nMaxMesh2_face_edges"],
-            attrs={
-                "cf_role":
-                    "face_edges_connectivity",
-                "start_index":
-                    INT_DTYPE(0),
-                "long_name":
-                    "Maps every edge to the two nodes that it connects",
-            })
-
-    def _populate_cartesian_xyz_coord(self):
-        """A helper function that populates the xyz attribute in
-        UXarray.Grid._ds. This function is called when we need to use the
-        cartesian coordinates for each node to do the calculation but the input
-        data only has the "Mesh2_node_x" and "Mesh2_node_y" in degree.
-
-        Note
-        ----
-        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
-        corresponding units as stated below:
-
-        Mesh2_node_x
-         unit:  "degree_east" for longitude
-        Mesh2_node_y
-         unit:  "degrees_north" for latitude
-        Mesh2_node_z
-         unit:  "m"
-        Mesh2_node_cart_x
-         unit:  "m"
-        Mesh2_node_cart_y
-         unit:  "m"
-        Mesh2_node_cart_z
-         unit:  "m"
+        Returns
+        -------
+        polycollection : matplotlib.collections.PolyCollection
+            The output `PolyCollection` containing faces represented as polygons
+        corrected_to_original_faces: list
+            Original indices used to map the corrected polygon shells to their entries in face nodes
         """
 
-        # Check if the cartesian coordinates are already populated
-        if "Mesh2_node_cart_x" in self._ds.keys():
-            return
+        # use cached polycollection
+        if self._poly_collection is not None and not override:
+            return self._poly_collection
 
-        # check for units and create Mesh2_node_cart_x/y/z set to self._ds
-        nodes_lon_rad = np.deg2rad(self.Mesh2_node_x.values)
-        nodes_lat_rad = np.deg2rad(self.Mesh2_node_y.values)
-        nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
-        nodes_cart = np.asarray(
-            list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
+        poly_collection, corrected_to_original_faces = _grid_to_matplotlib_polycollection(
+            self)
 
-        self._ds["Mesh2_node_cart_x"] = xr.DataArray(
-            data=nodes_cart[:, 0],
-            dims=["nMesh2_node"],
-            attrs={
-                "standard_name": "cartesian x",
-                "units": "m",
-            })
-        self._ds["Mesh2_node_cart_y"] = xr.DataArray(
-            data=nodes_cart[:, 1],
-            dims=["nMesh2_node"],
-            attrs={
-                "standard_name": "cartesian y",
-                "units": "m",
-            })
-        self._ds["Mesh2_node_cart_z"] = xr.DataArray(
-            data=nodes_cart[:, 2],
-            dims=["nMesh2_node"],
-            attrs={
-                "standard_name": "cartesian z",
-                "units": "m",
-            })
+        # cache computed polycollection
+        if cache:
+            self._poly_collection = poly_collection
 
-    def _populate_lonlat_coord(self):
-        """Helper function that populates the longitude and latitude and store
-        it into the Mesh2_node_x and Mesh2_node_y. This is called when the
-        input data has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in
-        meters. Since we want "Mesh2_node_x" and "Mesh2_node_y" always have the
-        "degree" units. For more details, please read the following.
+        return poly_collection, corrected_to_original_faces
 
-        Raises
-        ------
-            RuntimeError
-                Mesh2_node_x/y/z are not represented in the cartesian format with the unit 'm'/'meters' when calling this function"
+    def to_shapely_polygons(self, correct_antimeridian_polygons=True):
+        """Constructs an array of Shapely Polygons representing each face, with
+        antimeridian polygons split according to the GeoJSON standards.
 
-        Note
-        ----
-        In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
-        corresponding units as stated below:
+         Parameters
+        ----------
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
 
-        Mesh2_node_x
-         unit:  "degree_east" for longitude
-        Mesh2_node_y
-         unit:  "degrees_north" for latitude
-        Mesh2_node_z
-         unit:  "m"
-        Mesh2_node_cart_x
-         unit:  "m"
-        Mesh2_node_cart_y
-         unit:  "m"
-        Mesh2_node_cart_z
-         unit:  "m"
+        Returns
+        -------
+        polygons : np.ndarray
+            Array containing Shapely Polygons
         """
-
-        # Check if the "Mesh2_node_x" is already in longitude
-        if "degree" in self._ds.Mesh2_node_x.units:
-            return
-
-        # Check if the input Mesh2_node_xyz" are represented in the cartesian format with the unit "m"
-        if ("m" not in self._ds.Mesh2_node_x.units) or ("m" not in self._ds.Mesh2_node_y.units) \
-                or ("m" not in self._ds.Mesh2_node_z.units):
-            raise RuntimeError(
-                "Expected: Mesh2_node_x/y/z should be represented in the cartesian format with the "
-                "unit 'm' when calling this function")
-
-        # Put the cartesian coordinates inside the proper data structure
-        self._ds["Mesh2_node_cart_x"] = xr.DataArray(
-            data=self._ds["Mesh2_node_x"].values)
-        self._ds["Mesh2_node_cart_y"] = xr.DataArray(
-            data=self._ds["Mesh2_node_y"].values)
-        self._ds["Mesh2_node_cart_z"] = xr.DataArray(
-            data=self._ds["Mesh2_node_z"].values)
-
-        # convert the input cartesian values into the longitude latitude degree
-        nodes_cart = np.stack(
-            (self._ds["Mesh2_node_x"].values, self._ds["Mesh2_node_y"].values,
-             self._ds["Mesh2_node_z"].values),
-            axis=1).tolist()
-        nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
-        nodes_degree = np.rad2deg(nodes_rad)
-        self._ds["Mesh2_node_x"] = xr.DataArray(
-            data=nodes_degree[:, 0],
-            dims=["nMesh2_node"],
-            attrs={
-                "standard_name": "longitude",
-                "long_name": "longitude of mesh nodes",
-                "units": "degrees_east",
-            })
-        self._ds["Mesh2_node_y"] = xr.DataArray(
-            data=nodes_degree[:, 1],
-            dims=["nMesh2_node"],
-            attrs={
-                "standard_name": "lattitude",
-                "long_name": "latitude of mesh nodes",
-                "units": "degrees_north",
-            })
-
-    def _build_nNodes_per_face(self):
-        """Constructs ``nNodes_per_face``, which contains the number of non-
-        fill-value nodes for each face in ``Mesh2_face_nodes``"""
-
-        # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
-        closed = np.ones((self.nMesh2_face, self.nMaxMesh2_face_nodes + 1),
-                         dtype=INT_DTYPE) * INT_FILL_VALUE
-
-        closed[:, :-1] = self.Mesh2_face_nodes.copy()
-
-        nNodes_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
-
-        # add to internal dataset
-        self._ds["nNodes_per_face"] = xr.DataArray(
-            data=nNodes_per_face,
-            dims=["nMesh2_face"],
-            attrs={"long_name": "number of non-fill value nodes for each face"})
+        polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
+        return polygons
