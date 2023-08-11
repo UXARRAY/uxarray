@@ -125,7 +125,7 @@ Connectivity
    grid.connectivity._build_nNodes_per_face
    grid.connectivity._build_edge_node_connectivity
    grid.connectivity._build_face_edges_connectivity
-   
+
 Geometry
 --------
 .. autosummary::
