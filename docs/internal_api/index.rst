@@ -96,6 +96,7 @@ Methods
    Grid.__from_vert__
    Grid.__init_grid_var_attrs__
 
+
 Attributes
 ----------
 .. autosummary::
@@ -112,7 +113,6 @@ Operators
    Grid.__ne__
 
 
-
 Helpers
 ===========
 
@@ -125,6 +125,16 @@ Connectivity
    grid.connectivity._build_nNodes_per_face
    grid.connectivity._build_edge_node_connectivity
    grid.connectivity._build_face_edges_connectivity
+   
+Geometry
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.geometry._build_polygon_shells
+   grid.geometry._build_corrected_polygon_shells
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._grid_to_polygon_geodataframe
 
 Coordinates
 -----------
