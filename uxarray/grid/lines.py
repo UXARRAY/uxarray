@@ -22,7 +22,7 @@ def point_within_GCA(pt, gca_cart):
 
     Parameters
     ----------
-    pt : pt : numpy.ndarray (float)
+    pt : numpy.ndarray (float)
         Cartesian coordinates of the point.
     gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
         Cartesian coordinates of the Great Circle Arc (GCR).
