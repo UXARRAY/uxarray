@@ -5,7 +5,7 @@ from uxarray.grid.coordinates import node_xyz_to_lonlat_rad
 from uxarray.constants import ERROR_TOLERANCE
 
 
-def convert_to_list_if_needed(obj):
+def _to_list(obj):
     if not isinstance(obj, list):
         if isinstance(obj, np.ndarray):
             # Convert the NumPy array to a list using .tolist()
@@ -22,7 +22,7 @@ def point_within_GCA(pt, gca_cart):
 
     Parameters
     ----------
-    pt : numpy.ndarray of float
+    pt : pt : numpy.ndarray (float)
         Cartesian coordinates of the point.
     gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
         Cartesian coordinates of the Great Circle Arc (GCR).
@@ -55,11 +55,9 @@ def point_within_GCA(pt, gca_cart):
     Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
     """
     # Convert the cartesian coordinates to lonlat coordinates
-    pt_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(pt))
-    GCRv0_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(
-        gca_cart[0]))
-    GCRv1_lonlat = node_xyz_to_lonlat_rad(convert_to_list_if_needed(
-        gca_cart[1]))
+    pt_lonlat = node_xyz_to_lonlat_rad(_to_list(pt))
+    GCRv0_lonlat = node_xyz_to_lonlat_rad(_to_list(gca_cart[0]))
+    GCRv1_lonlat = node_xyz_to_lonlat_rad(_to_list(gca_cart[1]))
 
     # Convert the list to np.float64
     gca_cart[0] = np.array(gca_cart[0], dtype=np.float64)
@@ -135,9 +133,9 @@ def _angle_of_2_vectors(u, v):
 
     Parameters
     ----------
-    u : numpy.array
+    u : numpy.ndarray (float)
         The first 3D vector.
-    v : numpy.array
+    v : numpy.ndarray (float)
         The second 3D vector.
 
     Returns

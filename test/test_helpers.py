@@ -13,7 +13,7 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.lines import point_within_GCA, _angle_of_2_vectors
+from uxarray.grid.lines import point_within_GCA, _angle_of_2_vectors, in_between
 
 try:
     import constants
@@ -281,6 +281,14 @@ class TestIntersectionPoint(TestCase):
             point_within_GCA(pt_cart, gcr_cart)
         gcr_car_flipped = np.array([v2_cart, v1_cart])
         self.assertTrue(point_within_GCA(pt_cart, gcr_car_flipped))
+
+
+class TestOperators(TestCase):
+
+    def test_in_between(self):
+        # Test the in_between operator
+        self.assertTrue(in_between(0, 1, 2))
+        self.assertTrue(in_between(-1, -1.5, -2))
 
 
 class TestVectorsAngel(TestCase):
