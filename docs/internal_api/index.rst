@@ -123,6 +123,16 @@ Connectivity
    grid.connectivity._build_edge_node_connectivity
    grid.connectivity._build_face_edges_connectivity
 
+Geometry
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.geometry._build_polygon_shells
+   grid.geometry._build_corrected_polygon_shells
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._grid_to_polygon_geodataframe
+
 Coordinates
 -----------
 .. autosummary::
@@ -138,15 +148,59 @@ Lines
 
    grid.lines._angle_of_2_vectors
 
-IO
-==
 
-Ugrid
+Grid Parsing and Encoding
+=========================
+
+UGRID
 -----
 .. autosummary::
    :toctree: _autosummary
 
+   io._ugrid._read_ugrid
+   io._ugrid._encode_ugrid
+   io._ugrid._standardize_fill_value
    io._ugrid._is_ugrid
+
+MPAS
+----
+.. autosummary::
+   :toctree: _autosummary
+
+   io._mpas._read_mpas
+   io._mpas._primal_to_ugrid
+   io._mpas._dual_to_ugrid
+   io._mpas._set_global_attrs
+   io._mpas._replace_padding
+   io._mpas._replace_zeros
+   io._mpas.__to_zero_index
+
+
+Exodus
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   io._exodus._read_exodus
+   io._exodus._encode_exodus
+   io._exodus._get_element_type
+
+SCRIP
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   io._scrip._to_ugrid
+   io._scrip._read_scrip
+   io._scrip._encode_scrip
+
+
+Shapefile
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   io._shapefile._read_shpfile
 
 Utils
 -----
@@ -154,13 +208,3 @@ Utils
    :toctree: _autosummary
 
    io.utils._parse_grid_type
-
-Geometry
---------
-.. autosummary::
-   :toctree: _autosummary
-
-   grid.geometry._build_polygon_shells
-   grid.geometry._build_corrected_polygon_shells
-   grid.geometry._build_antimeridian_face_indices
-   grid.geometry._grid_to_polygon_geodataframe
