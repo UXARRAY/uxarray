@@ -66,12 +66,19 @@ Class
 
    UxDataArray
 
+IO
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.to_geodataframe
+   UxDataArray.to_polycollection
+
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    UxDataArray.uxgrid
 
 
@@ -98,6 +105,9 @@ IO
    :toctree: _autosummary
 
    open_grid
+   Grid.to_geodataframe
+   Grid.to_polycollection
+   Grid.to_shapely_polygons
 
 
 Methods
@@ -110,6 +120,7 @@ Methods
    Grid.encode_as
    Grid.integrate
    Grid.copy
+
 
 Attributes
 ----------
@@ -131,6 +142,9 @@ Attributes
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
+   Grid.antimeridian_face_indices
+
+
 
 Helpers
 ===========
@@ -162,7 +176,8 @@ Coordinates
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
-   grid.coordinates.grid_center_lat_lon
+
+
 
 Numba
 -----

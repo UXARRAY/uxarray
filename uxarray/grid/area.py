@@ -4,6 +4,8 @@ from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 
+from pathlib import PurePath
+
 config.DISABLE_JIT = not ENABLE_JIT
 
 
@@ -312,9 +314,6 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA,
                         nodeCross[2] * nodeCross[2])
 
     return 0.5 * dJacobian
-
-
-config.DISABLE_JIT = not ENABLE_JIT
 
 
 @njit(cache=ENABLE_JIT_CACHE)

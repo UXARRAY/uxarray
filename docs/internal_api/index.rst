@@ -96,6 +96,7 @@ Methods
    Grid.__from_vert__
    Grid.__init_grid_var_attrs__
 
+
 Attributes
 ----------
 .. autosummary::
@@ -110,6 +111,7 @@ Operators
 
    Grid.__eq__
    Grid.__ne__
+
 
 Helpers
 ===========
@@ -138,3 +140,13 @@ IO
    :toctree: _autosummary
 
    io.utils._parse_grid_type
+
+Geometry
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.geometry._build_polygon_shells
+   grid.geometry._build_corrected_polygon_shells
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._grid_to_polygon_geodataframe
