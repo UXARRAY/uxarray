@@ -4,7 +4,7 @@ import math
 
 from numba import njit, config
 
-from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
+from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT, ERROR_TOLERANCE
 
 config.DISABLE_JIT = not ENABLE_JIT
 
@@ -59,13 +59,13 @@ def node_xyz_to_lonlat_rad(node_coord):
     """
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-    reference_tolerance = 1.0e-12
+
     [dx, dy, dz] = normalize_in_place(node_coord)
     dx /= np.absolute(dx * dx + dy * dy + dz * dz)
     dy /= np.absolute(dx * dx + dy * dy + dz * dz)
     dz /= np.absolute(dx * dx + dy * dy + dz * dz)
 
-    if np.absolute(dz) < (1.0 - reference_tolerance):
+    if np.absolute(dz) < (1.0 - ERROR_TOLERANCE):
         d_lon_rad = math.atan2(dy, dx)
         d_lat_rad = np.arcsin(dz)
 
@@ -104,55 +104,7 @@ def normalize_in_place(node):
     """
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-
-    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
-
-
-def grid_center_lat_lon(ds):
-    """Using scrip file variables ``grid_corner_lat`` and ``grid_corner_lon``,
-    calculates the ``grid_center_lat`` and ``grid_center_lon``.
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset that contains ``grid_corner_lat`` and ``grid_corner_lon``
-        data variables
-
-    Returns
-    -------
-    center_lon : :class:`numpy.ndarray`
-        The calculated center longitudes of the grid box based on the corner
-        points
-    center_lat : :class:`numpy.ndarray`
-        The calculated center latitudes of the grid box based on the corner
-        points
-    """
-
-    # Calculate and create grid center lat/lon
-    scrip_corner_lon = ds['grid_corner_lon']
-    scrip_corner_lat = ds['grid_corner_lat']
-
-    # convert to radians
-    rad_corner_lon = np.deg2rad(scrip_corner_lon)
-    rad_corner_lat = np.deg2rad(scrip_corner_lat)
-
-    # get nodes per face
-    nodes_per_face = rad_corner_lat.shape[1]
-
-    # geographic center of each cell
-    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon),
-               axis=1) / nodes_per_face
-    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon),
-               axis=1) / nodes_per_face
-    z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
-
-    center_lon = np.rad2deg(np.arctan2(y, x))
-    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
-
-    # Make negative lons positive
-    center_lon[center_lon < 0] += 360
-
-    return center_lat, center_lon
+    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
 
 
 def _populate_cartesian_xyz_coord(grid):
