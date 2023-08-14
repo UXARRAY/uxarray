@@ -12,7 +12,6 @@ from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 
 from uxarray.io.utils import _parse_grid_type
-
 from uxarray.grid.area import get_all_face_area_from_coords
 
 from uxarray.grid.connectivity import (_build_edge_node_connectivity,
@@ -26,6 +25,13 @@ from uxarray.grid.coordinates import (normalize_in_place,
                                       _populate_cartesian_xyz_coord)
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+
+from uxarray.grid.geometry import (_build_polygon_shells,
+                                   _build_corrected_polygon_shells,
+                                   _build_antimeridian_face_indices,
+                                   _grid_to_polygon_geodataframe,
+                                   _grid_to_matplotlib_polycollection,
+                                   _grid_to_polygons)
 
 
 class Grid:
@@ -78,6 +84,12 @@ class Grid:
         # initialize face_area variable
         self._face_areas = None
 
+        # initialize attributes
+        self._antimeridian_face_indices = None
+
+        # initialize cached data structures
+        self._gdf = None
+        self._poly_collection = None
         # TODO: fix when adding/exercising gridspec
 
         # unpack kwargs
@@ -553,6 +565,15 @@ class Grid:
 
         return self._ds["Mesh2_face_edges"]
 
+    # other properties
+    @property
+    def antimeridian_face_indices(self):
+        """Index of each face that crosses the antimeridian."""
+        if self._antimeridian_face_indices is None:
+            self._antimeridian_face_indices = _build_antimeridian_face_indices(
+                self)
+        return self._antimeridian_face_indices
+
     @property
     def Mesh2_node_faces(self):
         """UGRID Connectivity Variable ``Mesh2_node_faces``, which maps every
@@ -748,3 +769,93 @@ class Grid:
     #     integral = np.dot(face_areas, face_vals)
     #
     #     return integral
+
+    def to_geodataframe(self,
+                        override=False,
+                        cache=True,
+                        correct_antimeridian_polygons=True):
+        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
+        column, containing a collection of Shapely Polygons or MultiPolygons
+        representing the geometry of the unstructured grid. Additionally, any
+        polygon that crosses the antimeridian is split into MultiPolygons.
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``GeoDataFrame`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``GeoDataFrame`` should be cached
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
+
+        Returns
+        -------
+        gdf : spatialpandas.GeoDataFrame
+            The output `GeoDataFrame` with a filled out "geometry" collumn
+        """
+
+        # use cached geodataframe
+        if self._gdf is not None and not override:
+            return self._gdf
+
+        # construct a geodataframe with the faces stored as polygons as the geometry
+        gdf = _grid_to_polygon_geodataframe(self, correct_antimeridian_polygons)
+
+        # cache computed geodataframe
+        if cache:
+            self._gdf = gdf
+
+        return gdf
+
+    def to_polycollection(self,
+                          override=False,
+                          cache=True,
+                          correct_antimeridian_polygons=True):
+        """Constructs a ``matplotlib.collections.PolyCollection`` object with
+        polygons representing the geometry of the unstructured grid, with
+        polygons that cross the antimeridian split.
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``PolyCollection`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``PolyCollection`` should be cached
+
+        Returns
+        -------
+        polycollection : matplotlib.collections.PolyCollection
+            The output `PolyCollection` containing faces represented as polygons
+        corrected_to_original_faces: list
+            Original indices used to map the corrected polygon shells to their entries in face nodes
+        """
+
+        # use cached polycollection
+        if self._poly_collection is not None and not override:
+            return self._poly_collection
+
+        poly_collection, corrected_to_original_faces = _grid_to_matplotlib_polycollection(
+            self)
+
+        # cache computed polycollection
+        if cache:
+            self._poly_collection = poly_collection
+
+        return poly_collection, corrected_to_original_faces
+
+    def to_shapely_polygons(self, correct_antimeridian_polygons=True):
+        """Constructs an array of Shapely Polygons representing each face, with
+        antimeridian polygons split according to the GeoJSON standards.
+
+         Parameters
+        ----------
+        correct_antimeridian_polygons: bool, Optional
+            Parameter to select whether to correct and split antimeridian polygons
+
+        Returns
+        -------
+        polygons : np.ndarray
+            Array containing Shapely Polygons
+        """
+        polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
+        return polygons

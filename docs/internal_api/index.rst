@@ -15,7 +15,6 @@ UxDataset
 The ``uxarray.UxDataset`` class inherits from ``xarray.Dataset``. Below is a list of
 features explicitly added to work on Unstructured Grids.
 
-
 Class
 -----
 .. autosummary::
@@ -30,7 +29,6 @@ Attributes
 
    UxDataset._source_datasets
    UxDataset._uxgrid
-
 
 Methods
 -------
@@ -58,14 +56,12 @@ Class
 
    UxDataArray
 
-
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataArray._uxgrid
-
 
 Methods
 -------
@@ -75,6 +71,7 @@ Methods
    UxDataArray._construct_direct
    UxDataArray._copy
    UxDataArray._replace
+
 
 Grid
 ===========
@@ -104,6 +101,7 @@ Methods
    _populate_lonlat_coord
 
 
+
 Attributes
 ----------
 .. autosummary::
@@ -119,8 +117,9 @@ Operators
    Grid.__eq__
    Grid.__ne__
 
+
 Helpers
-===========
+=======
 
 Connectivity
 ------------
@@ -141,9 +140,36 @@ Coordinates
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
 
+Lines
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.lines._angle_of_2_vectors
+
 IO
----
+==
+
+Ugrid
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   io._ugrid._is_ugrid
+
+Utils
+-----
 .. autosummary::
    :toctree: _autosummary
 
    io.utils._parse_grid_type
+
+Geometry
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.geometry._build_polygon_shells
+   grid.geometry._build_corrected_polygon_shells
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._grid_to_polygon_geodataframe

@@ -12,6 +12,9 @@ import uxarray as ux
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
+from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
+from uxarray.grid.lines import point_within_GCA, _angle_of_2_vectors, in_between
+
 try:
     import constants
 except ImportError:
@@ -86,7 +89,7 @@ class TestGridCenter(TestCase):
         scrip_center_lat = ds_scrip_CSne8['grid_center_lat']
 
         # Calculate the center_lat/lon using same dataset's corner_lat/lon
-        calc_center = ux.grid.coordinates.grid_center_lat_lon(ds_scrip_CSne8)
+        calc_center = ux.io._scrip.grid_center_lat_lon(ds_scrip_CSne8)
         calc_lat = calc_center[0]
         calc_lon = calc_center[1]
 
@@ -211,3 +214,112 @@ class TestSparseMatrix(TestCase):
         nt.assert_array_equal(non_zero_flag, expected_non_zero_flag)
         nt.assert_array_equal(face_indices, expected_face_indices)
         nt.assert_array_equal(nodes_indices, expected_nodes_indices)
+
+class TestIntersectionPoint(TestCase):
+
+    def test_pt_within_gcr(self):
+
+        # The GCR that's eexactly 180 degrees will have Value Error raised
+        gcr_180degree_cart = [
+            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0]),
+            ux.grid.coordinates.node_lonlat_rad_to_xyz([np.pi, 0.0])
+        ]
+        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
+        with self.assertRaises(ValueError):
+            point_within_GCA(pt_same_lon_in, gcr_180degree_cart)
+
+        gcr_180degree_cart = [
+            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, np.pi / 2.0]),
+            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, -np.pi / 2.0])
+        ]
+
+        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
+        with self.assertRaises(ValueError):
+            point_within_GCA(pt_same_lon_in, gcr_180degree_cart)
+
+        # Test when the point and the GCR all have the same longitude
+        gcr_same_lon_cart = [
+            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 1.5]),
+            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, -1.5])
+        ]
+        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
+        self.assertTrue(point_within_GCA(pt_same_lon_in, gcr_same_lon_cart))
+
+        pt_same_lon_out = ux.grid.coordinates.node_lonlat_rad_to_xyz(
+            [0.0, 1.500000000000001])
+        res = point_within_GCA(pt_same_lon_out, gcr_same_lon_cart)
+        self.assertFalse(res)
+
+        # And if we increase the digital place by one, it should be true again
+        pt_same_lon_out_add_one_place = ux.grid.coordinates.node_lonlat_rad_to_xyz(
+            [0.0, 1.5000000000000001])
+        res = point_within_GCA(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
+        self.assertTrue(res)
+
+        # Normal case
+        # GCR vertex0 in radian : [1.3003315590159483, -0.007004587172323237],
+        # GCR vertex1 in radian : [3.5997458123873827, -1.4893379576608758]
+        # Point in radian : [1.3005410084914981, -0.010444274637648326]
+        gcr_cart_2 = np.array([[0.267, 0.963, -0.007], [-0.073, -0.036,
+                                                        -0.997]])
+        pt_cart_within = np.array(
+            [0.25616109352676675, 0.9246590335292105, -0.010021496695000144])
+        self.assertTrue(point_within_GCA(pt_cart_within, gcr_cart_2))
+
+        # Test other more complicate cases : The anti-meridian case
+
+        # GCR vertex0 in radian : [5.163808182822441, 0.6351384888657234],
+        # GCR vertex1 in radian : [0.8280410325693055, 0.42237025187091526]
+        # Point in radian : [0.12574759138415173, 0.770098701904903]
+        gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
+        pt_cart = np.array(
+            [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
+        self.assertTrue(point_within_GCA(pt_cart, gcr_cart))
+        # If we swap the gcr, it should throw a value error since it's larger than 180 degree
+        gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
+                                                          0.593]])
+        with self.assertRaises(ValueError):
+            point_within_GCA(pt_cart, gcr_cart_flip)
+
+        # 2nd anti-meridian case
+        # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
+        # GCR vertex1 in radian : [2.4269979227622533, -0.007003212877856825]
+        # Point in radian : [0.43400375562899113, -0.49554509841586936]
+        gcr_cart_1 = np.array([[-0.491, -0.706, 0.510], [-0.755, 0.655,
+                                                         -0.007]])
+        pt_cart_within = np.array(
+            [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
+        self.assertFalse(point_within_GCA(pt_cart_within, gcr_cart_1))
+
+        # The first case should not work and the second should work
+        v1_rad = [0.1, 0.0]
+        v2_rad = [2 * np.pi - 0.1, 0.0]
+        v1_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v1_rad)
+        v2_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v2_rad)
+        gcr_cart = np.array([v1_cart, v2_cart])
+        pt_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.01, 0.0])
+        with self.assertRaises(ValueError):
+            point_within_GCA(pt_cart, gcr_cart)
+        gcr_car_flipped = np.array([v2_cart, v1_cart])
+        self.assertTrue(point_within_GCA(pt_cart, gcr_car_flipped))
+
+
+class TestOperators(TestCase):
+
+    def test_in_between(self):
+        # Test the in_between operator
+        self.assertTrue(in_between(0, 1, 2))
+        self.assertTrue(in_between(-1, -1.5, -2))
+
+
+class TestVectorsAngel(TestCase):
+
+    def test_angle_of_2_vectors(self):
+        # Test the angle between two vectors
+        v1 = np.array([1.0, 0.0, 0.0])
+        v2 = np.array([0.0, 1.0, 0.0])
+        self.assertAlmostEqual(_angle_of_2_vectors(v1, v2), np.pi / 2.0)
+
+        v1 = np.array([1.0, 0.0, 0.0])
+        v2 = np.array([1.0, 0.0, 0.0])
+        self.assertAlmostEqual(_angle_of_2_vectors(v1, v2), 0.0)
