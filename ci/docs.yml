@@ -17,6 +17,7 @@ dependencies:
     - ipykernel
     - ipython
     - jupyter_client
+    - scikit-learn
     - sphinx-book-theme
     - myst-nb
     - sphinx-design
