@@ -148,28 +148,12 @@ Lines
 
    grid.lines._angle_of_2_vectors
 
-IO
-==
-
-Ugrid
------
-.. autosummary::
-   :toctree: _autosummary
-
-   io._ugrid._is_ugrid
-
-Utils
------
-.. autosummary::
-   :toctree: _autosummary
-
-   io.utils._parse_grid_type
 
 Grid Parsing and Encoding
-===========
+=========================
 
 UGRID
-------------
+-----
 .. autosummary::
    :toctree: _autosummary
 
@@ -179,7 +163,7 @@ UGRID
    io._ugrid._is_ugrid
 
 MPAS
-------------
+----
 .. autosummary::
    :toctree: _autosummary
 
@@ -193,7 +177,7 @@ MPAS
 
 
 EXODUS II
-------------
+---------
 .. autosummary::
    :toctree: _autosummary
 
@@ -202,7 +186,7 @@ EXODUS II
    io._exodus._get_element_type
 
 SCRIP
-------------
+-----
 .. autosummary::
    :toctree: _autosummary
 
@@ -212,8 +196,15 @@ SCRIP
 
 
 Shapefile
-------------
+---------
 .. autosummary::
    :toctree: _autosummary
 
    io._shapefile._read_shpfile
+
+Utils
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   io.utils._parse_grid_type
