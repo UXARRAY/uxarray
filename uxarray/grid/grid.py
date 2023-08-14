@@ -371,156 +371,144 @@ class Grid:
         return self._ds[self.grid_var_names["Mesh2"]]
 
     @property
-    def nMesh2_node(self):
-        """UGRID Dimension ``nMesh2_node``, which represents the total number
-        of nodes."""
+    def n_node(self):
+        """UGRID Dimension ``n_node``, which represents the total number of
+        nodes."""
+        # TODO: VAR DICT
         return self._ds[self.grid_var_names["Mesh2_node_x"]].shape[0]
 
     @property
-    def nMesh2_face(self):
-        """UGRID Dimension ``nMesh2_face``, which represents the total number
-        of faces."""
+    def n_face(self):
+        """UGRID Dimension ``n_face``, which represents the total number of
+        faces."""
+        # TODO: VAR DICT
         return self._ds[self.grid_var_names["Mesh2_face_nodes"]].shape[0]
 
     @property
-    def nMesh2_edge(self):
-        """UGRID Dimension ``nMesh2_edge``, which represents the total number
-        of edges."""
+    def n_edge(self):
+        """UGRID Dimension ``n_edge``, which represents the total number of
+        edges."""
 
-        if "Mesh2_edge_nodes" not in self._ds:
+        if "edge_nodes" not in self._ds:
             _build_edge_node_connectivity(self, repopulate=True)
 
-        return self._ds['Mesh2_edge_nodes'].shape[0]
+        return self._ds['edge_nodes'].shape[0]
 
     @property
-    def nMaxMesh2_face_nodes(self):
-        """UGRID Dimension ``nMaxMesh2_face_nodes``, which represents the
-        maximum number of faces nodes that a face may contain."""
-        return self.Mesh2_face_nodes.shape[1]
+    def n_max_face_nodes(self):
+        """UGRID Dimension ``n_max_face_nodes``, which represents the maximum
+        number of faces nodes that a face may contain."""
+        return self.face_nodes.shape[1]
 
     @property
-    def nMaxMesh2_face_edges(self):
-        """Dimension ``nMaxMesh2_face_edges``, which represents the maximum
-        number of edges per face.
+    def n_max_face_edges(self):
+        """Dimension ``n_max_face_edges``, which represents the maximum number
+        of edges per face.
 
-        Equivalent to ``nMaxMesh2_face_nodes``
+        Equivalent to ``n_max_face_nodes``
         """
 
-        if "Mesh2_face_edges" not in self._ds:
+        if "face_edges" not in self._ds:
             _build_face_edges_connectivity(self)
 
-        return self._ds["Mesh2_face_edges"].shape[1]
+        return self._ds["face_edges"].shape[1]
 
     @property
-    def nNodes_per_face(self):
-        """Dimension Variable ``nNodes_per_face``, which contains the number of
-        non-fill-value nodes per face.
+    def n_nodes_per_face(self):
+        """Dimension Variable ``n_nodes_per_face``, which contains the number
+        of non-fill-value nodes per face.
 
-        Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
+        Dimensions (``n_node``) and DataType ``INT_DTYPE``.
         """
-        if "nNodes_per_face" not in self._ds:
+        if "n_nodes_per_face" not in self._ds:
             _build_nNodes_per_face(self)
-        return self._ds["nNodes_per_face"]
+        return self._ds["n_nodes_per_face"]
+
+    # corner nodes (lat/lon)
+    @property
+    def node_lon(self):
+        """UGRID Coordinate Variable ``node_lon``, which contains the longitude
+        of each node in degrees.
+
+        Dimensions (``n_node``)
+        """
+        return self._ds[self.grid_var_names["node_lon"]]
 
     @property
-    def Mesh2_node_x(self):
-        """UGRID Coordinate Variable ``Mesh2_node_x``, which contains the
-        longitude of each node in degrees.
+    def node_lat(self):
+        """UGRID Coordinate Variable ``node_lat``, which contains the latitude
+        of each node.
 
-        Dimensions (``nMesh2_node``)
+        Dimensions (``n_node``)
         """
-        return self._ds[self.grid_var_names["Mesh2_node_x"]]
+        return self._ds[self.grid_var_names["node_lat"]]
+
+    # corner nodes (cartesian x/y/z)
 
     @property
-    def Mesh2_node_cart_x(self):
-        """Coordinate Variable ``Mesh2_node_cart_x``, which contains the x
-        location in meters.
+    def node_x(self):
+        """Coordinate Variable ``node_x``, which contains the x location in
+        meters.
 
-        Dimensions (``nMesh2_node``)
+        Dimensions (``n_node``)
         """
-        if "Mesh2_node_cart_x" not in self._ds:
+        if "node_x" not in self._ds:
             _populate_cartesian_xyz_coord(self)
-        return self._ds['Mesh2_node_cart_x']
+        return self._ds['node_x']
 
     @property
-    def Mesh2_face_x(self):
-        """UGRID Coordinate Variable ``Mesh2_face_x``, which contains the
-        longitude of each face center.
+    def node_y(self):
+        """Coordinate Variable ``node_y``, which contains the y location in
+        meters.
 
-        Dimensions (``nMesh2_face``)
+        Dimensions (``n_node``)
         """
-        if "Mesh2_face_x" in self._ds:
-            return self._ds["Mesh2_face_x"]
-        else:
-            return None
-
-    @property
-    def Mesh2_node_y(self):
-        """UGRID Coordinate Variable ``Mesh2_node_y``, which contains the
-        latitude of each node.
-
-        Dimensions (``nMesh2_node``)
-        """
-        return self._ds[self.grid_var_names["Mesh2_node_y"]]
-
-    @property
-    def Mesh2_node_cart_y(self):
-        """Coordinate Variable ``Mesh2_node_cart_y``, which contains the y
-        location in meters.
-
-        Dimensions (``nMesh2_node``)
-        """
-        if "Mesh2_node_cart_y" not in self._ds:
+        if "node_y" not in self._ds:
             _populate_cartesian_xyz_coord(self)
-        return self._ds['Mesh2_node_cart_y']
+        return self._ds['node_y']
 
     @property
-    def Mesh2_face_y(self):
-        """UGRID Coordinate Variable ``Mesh2_face_y``, which contains the
-        latitude of each face center.
+    def node_z(self):
+        """Coordinate Variable ``node_z``, which contains the z location in
+        meters TODO ~~~~
 
-        Dimensions (``nMesh2_face``)
+        Dimensions (``n_node``)
         """
-        if "Mesh2_face_y" in self._ds:
-            return self._ds["Mesh2_face_y"]
+        if "node_z" not in self._ds:
+            _populate_cartesian_xyz_coord(self)
+        return self._ds['node_z']
+
+    # face centers (lat/lon)
+    @property
+    def face_lon(self):
+        """UGRID Coordinate Variable ``face_lon``, which contains the longitude
+        of each face center.
+
+        Dimensions (``n_face``)
+        """
+        if "face_lon" in self._ds:
+            return self._ds["face_lon"]
         else:
             return None
 
     @property
-    def _Mesh2_node_z(self):
-        """Coordinate Variable ``_Mesh2_node_z``, which contains the level of
-        each node. It is only a placeholder for now as a protected attribute.
-        UXarray does not support this yet and only handles the 2D flexibile
-        meshes.
+    def face_lat(self):
+        """UGRID Coordinate Variable ``face_lat``, which contains the longitude
+        of each face center.
 
-        If we introduce handling of 3D meshes in the future, it might be only
-        levels, i.e. the same level(s) for all nodes, instead of separate
-        level for each node that ``_Mesh2_node_z`` suggests.
-
-        Dimensions (``nMesh2_node``)
+        Dimensions (``n_face``)
         """
-        if self.grid_var_names["Mesh2_node_z"] in self._ds:
-            return self._ds[self.grid_var_names["Mesh2_node_z"]]
+        if "face_lon" in self._ds:
+            return self._ds["face_lon"]
         else:
             return None
 
     @property
-    def Mesh2_node_cart_z(self):
-        """Coordinate Variable ``Mesh2_node_cart_z``, which contains the z
-        location in meters.
+    def face_nodes(self):
+        """UGRID Connectivity Variable ``face_nodes``, which maps each face to
+        its corner nodes.
 
-        Dimensions (``nMesh2_node``)
-        """
-        if "Mesh2_node_cart_z" not in self._ds:
-            self._populate_cartesian_xyz_coord()
-        return self._ds['Mesh2_node_cart_z']
-
-    @property
-    def Mesh2_face_nodes(self):
-        """UGRID Connectivity Variable ``Mesh2_face_nodes``, which maps each
-        face to its corner nodes.
-
-        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
+        Dimensions (``n_face``, ``n_max_face_nodes``) and
         DataType ``INT_DTYPE``.
 
         Faces can have arbitrary length, with _FillValue=-1 used when faces
@@ -529,35 +517,35 @@ class Grid:
         Nodes are in counter-clockwise order.
         """
 
-        return self._ds[self.grid_var_names["Mesh2_face_nodes"]]
+        return self._ds[self.grid_var_names["face_nodes"]]
 
     @property
-    def Mesh2_edge_nodes(self):
-        """UGRID Connectivity Variable ``Mesh2_edge_nodes``, which maps every
-        edge to the two nodes that it connects.
+    def edge_nodes(self):
+        """UGRID Connectivity Variable ``edge_nodes``, which maps every edge to
+        the two nodes that it connects.
 
-        Dimensions (``nMesh2_edge``, ``Two``) and DataType
+        Dimensions (``n_edge``, ``Two``) and DataType
         ``INT_DTYPE``.
 
         Nodes are in arbitrary order.
         """
-        if "Mesh2_edge_nodes" not in self._ds:
+        if "edge_nodes" not in self._ds:
             _build_edge_node_connectivity(self)
 
-        return self._ds['Mesh2_edge_nodes']
+        return self._ds['edge_nodes']
 
     @property
-    def Mesh2_face_edges(self):
-        """UGRID Connectivity Variable ``Mesh2_face_edges``, which maps every
-        face to its edges.
+    def face_edges(self):
+        """UGRID Connectivity Variable ``face_edges``, which maps every face to
+        its edges.
 
-        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
-        DataType ``INT_DTYPE``.
+        Dimensions (``n_face``, ``n_max_face_nodes``) and DataType
+        ``INT_DTYPE``.
         """
-        if "Mesh2_face_edges" not in self._ds:
+        if "face_edges" not in self._ds:
             _build_face_edges_connectivity(self)
 
-        return self._ds["Mesh2_face_edges"]
+        return self._ds["face_edges"]
 
     # other properties
     @property
@@ -614,8 +602,8 @@ class Grid:
             out_ds = _encode_exodus(self._ds, self.grid_var_names)
 
         elif grid_type == "scrip":
-            out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
-                                   self.Mesh2_node_y, self.face_areas)
+            out_ds = _encode_scrip(self.face_nodes, self.node_x, self.node_y,
+                                   self.face_areas)
         else:
             raise RuntimeError("The grid type not supported: ", grid_type)
 
@@ -663,7 +651,7 @@ class Grid:
 
         >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
 
-        Get area of all faces in the same order as listed in grid._ds.Mesh2_face_nodes
+        Get area of all faces in the same order as listed in grid._ds.face_nodes
 
         >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
@@ -674,22 +662,24 @@ class Grid:
 
         # area of a face call needs the units for coordinate conversion if spherical grid is used
         coords_type = "spherical"
-        if not "degree" in self.Mesh2_node_x.units:
+        if not "degree" in self.node_x.units:
             coords_type = "cartesian"
 
-        face_nodes = self.Mesh2_face_nodes.data
+        face_nodes = self.face_nodes.data
         nNodes_per_face = self.nNodes_per_face.data
+        # TODO: MESH2 ATTRIBUTE
         dim = self.Mesh2.attrs['topology_dimension']
 
         # initialize z
-        z = np.zeros((self.nMesh2_node))
+        z = np.zeros((self.n_node))
 
         # call func to cal face area of all nodes
-        x = self.Mesh2_node_x.data
-        y = self.Mesh2_node_y.data
+        x = self.node_x.data
+        y = self.node_y.data
         # check if z dimension
+        # TODO: MESH2 ATTRIBUTE
         if self.Mesh2.topology_dimension > 2:
-            z = self._Mesh2_node_z.data
+            z = self._node_z.data
 
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float
