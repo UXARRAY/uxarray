@@ -1,9 +1,7 @@
 import xarray as xr
 import numpy as np
 
-from uxarray.helpers import grid_center_lat_lon
-
-from uxarray.helpers import _replace_fill_values
+from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -62,7 +60,7 @@ def _to_ugrid(in_ds, out_ds):
             unq_lat,
             dims=["nMesh2_node"],
             attrs={
-                "standard_name": "lattitude",
+                "standard_name": "latitude",
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
             })
@@ -230,3 +228,50 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
 
     return ds
+
+
+def grid_center_lat_lon(ds):
+    """Using scrip file variables ``grid_corner_lat`` and ``grid_corner_lon``,
+    calculates the ``grid_center_lat`` and ``grid_center_lon``.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset that contains ``grid_corner_lat`` and ``grid_corner_lon``
+        data variables
+
+    Returns
+    -------
+    center_lon : :class:`numpy.ndarray`
+        The calculated center longitudes of the grid box based on the corner
+        points
+    center_lat : :class:`numpy.ndarray`
+        The calculated center latitudes of the grid box based on the corner
+        points
+    """
+
+    # Calculate and create grid center lat/lon
+    scrip_corner_lon = ds['grid_corner_lon']
+    scrip_corner_lat = ds['grid_corner_lat']
+
+    # convert to radians
+    rad_corner_lon = np.deg2rad(scrip_corner_lon)
+    rad_corner_lat = np.deg2rad(scrip_corner_lat)
+
+    # get nodes per face
+    nodes_per_face = rad_corner_lat.shape[1]
+
+    # geographic center of each cell
+    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon),
+               axis=1) / nodes_per_face
+    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon),
+               axis=1) / nodes_per_face
+    z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
+
+    center_lon = np.rad2deg(np.arctan2(y, x))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+
+    # Make negative lons positive
+    center_lon[center_lon < 0] += 360
+
+    return center_lat, center_lon

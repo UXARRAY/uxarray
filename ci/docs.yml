@@ -2,11 +2,11 @@ name: uxarray-docs
 channels:
     - conda-forge
 dependencies:
-    - python=3.9
+    - python
     - dask
     - netcdf4
     - numba
-    - numpy
+    - numpy<=1.24
     - pathlib
     - pre_commit
     - pytest
@@ -17,8 +17,12 @@ dependencies:
     - ipykernel
     - ipython
     - jupyter_client
-    - matplotlib-base
     - sphinx-book-theme
     - myst-nb
     - sphinx-design
     - nbsphinx
+    - matplotlib-base
+    - spatialpandas
+    - shapely
+    - pip:
+      - antimeridian
