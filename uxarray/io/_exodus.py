@@ -201,20 +201,15 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
         np.array(qa_records, dtype='str')),
                                         dims=["four", "num_qa_rec"])
 
-    # get orig dimension from Mesh2 attribute topology dimension
-    dim = ds[grid_var_names["Mesh2"]].topology_dimension
+    # Set the dim to 3 as we will always have x/y/z for cartesian grid
+    # Note: Don't get orig dimension from Mesh2 attribute topology dimension
+    dim = 3
 
-    if "Mesh2_node_cart_x" not in ds.keys():
+    if "Mesh2_node_cart_z" not in ds.keys():
         raise RuntimeError(
-            "The grid must have cartesian coordinates to encode to exodus.")
-
-    c_data = []
-    if dim == 2:
-        c_data = xr.DataArray([
-            ds["Mesh2_node_cart_x"].data.tolist(),
-            ds["Mesh2_node_cart_y"].data.tolist()
-        ])
-    elif dim == 3:
+            "The grid must have x/y/z cartesian coordinates to encode to exodus."
+        )
+    else:
         c_data = xr.DataArray([
             ds["Mesh2_node_cart_x"].data.tolist(),
             ds["Mesh2_node_cart_y"].data.tolist(),

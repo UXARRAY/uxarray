@@ -253,12 +253,21 @@ class Grid:
 
             # Assume Exodus was read as cartesian grid and that coordinates are not set by reader, call the latlon setter
             _populate_lonlat_coord(self)
-            if len(self._ds.coords) > 2:
-                # set coordinates
-                ds = self._ds.set_coords(
-                    ["Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z"])
-            else:
-                ds = self._ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
+
+            # set coordinates
+            # there is leftover cartesian z-coordinate from Exodus mesh
+            # set them to zero
+            self._ds["Mesh2_node_z"] = xr.DataArray(
+                data=np.zeros(self._ds["Mesh2_node_x"].shape),
+                dims=["nMesh2_node"],
+                attrs={
+                    "standard_name": "elevation",
+                    "long_name": "elevation",
+                    "units": "m",
+                })
+
+            ds = self._ds.set_coords(
+                ["Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z"])
 
         elif self.mesh_type == "scrip":
             self._ds = _read_scrip(dataset)
