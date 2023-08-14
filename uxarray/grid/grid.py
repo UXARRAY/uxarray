@@ -27,6 +27,8 @@ from uxarray.grid.geometry import (_build_polygon_shells,
                                    _grid_to_matplotlib_polycollection,
                                    _grid_to_polygons)
 
+from uxarray.grid.neighbors import _corner_nodes_to_balltree
+
 
 class Grid:
     """Unstructured grid topology definition.
@@ -81,13 +83,13 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
 
-        # initialize cached data structures
+        # initialize cached data structures (visualization)
         self._gdf = None
         self._poly_collection = None
-        # TODO: fix when adding/exercising gridspec
 
-        # unpack kwargs
-        # sets default values for all kwargs to None
+        self._corner_node_balltree_internal = None
+
+        # unpack kwargs with default values set to None
         kwargs_list = [
             'gridspec', 'vertices', 'islatlon', 'isconcave', 'source_grid',
             'use_dual'
@@ -575,6 +577,15 @@ class Grid:
         if self._face_areas is None:
             self.compute_face_areas()
         return self._face_areas
+
+    @property
+    def _corner_node_balltree(self):
+        """TODO: Docstring
+        """
+        if self._corner_node_balltree_internal is None:
+            self._corner_node_balltree_internal = _corner_nodes_to_balltree(
+                self)
+        return self._corner_node_balltree_internal
 
     def copy(self):
         """Returns a deep copy of this grid."""

@@ -12,6 +12,8 @@ from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face
 
 from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
 
+from uxarray.grid.neighbors import _corner_nodes_to_balltree
+
 try:
     import constants
 except ImportError:
@@ -773,3 +775,14 @@ class TestConnectivity(TestCase):
         self.assertTrue(
             np.array_equal(res_face_nodes_connectivity,
                            uds._ds["Mesh2_face_nodes"].values))
+
+
+class TestBallTree(TestCase):
+
+    grid_files = [gridfile_CSne8, gridfile_geoflow]
+
+    def test_construction_from_corner_nodes(self):
+
+        for grid_file in self.grid_files:
+            grid = ux.open_grid(grid_file)
+            tree = _corner_nodes_to_balltree(grid)

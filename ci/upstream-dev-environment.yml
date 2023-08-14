@@ -8,4 +8,5 @@ dependencies:
   - pathlib
   - pytest
   - pytest-cov
+  - scikit-learn
   - scipy
