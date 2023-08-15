@@ -104,7 +104,9 @@ def normalize_in_place(node):
     """
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
+    node_array = np.asarray(node)
+    normalized_node = node_array / np.linalg.norm(node_array, ord=2)
+    return normalized_node
 
 
 def _populate_cartesian_xyz_coord(grid):

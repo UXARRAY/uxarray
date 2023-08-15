@@ -1,4 +1,5 @@
 import numpy as np
+from uxarray.constants import ERROR_TOLERANCE
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
@@ -58,3 +59,46 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     grid_var[fill_val_idx] = new_fill
 
     return grid_var
+
+
+def gram_schmidt(vectors):
+    """Apply the Gram-Schmidt process to orthogonalize a set of vectors.
+
+    Parameters
+    ----------
+    vectors : numpy.ndarray
+        The input vectors to be orthogonalized. Each vector should be represented as a row in the 2D array.
+
+    Returns
+    -------
+    numpy.ndarray
+        An array containing the orthogonalized vectors forming an orthonormal basis.
+
+    Notes
+    -----
+    This function applies the Gram-Schmidt process to the input vectors to obtain an
+    orthonormal basis.
+    are used.
+
+    If the input vectors do not meet the error tolerance criterion specified by `ERROR_TOLERANCE`,
+    they are considered linearly dependent and excluded from the orthogonal basis.
+
+    Examples
+    --------
+    >>> vectors = np.array([[1, 0, 0], [1, 1, 0], [1, 1, 1]])
+    >>> result = gram_schmidt(vectors)
+    >>> result
+    array([[1., 0., 0.],
+           [0., 1., 0.],
+           [0., 0., 1.]])
+    """
+    basis = []
+    for v in vectors:
+        norm_v = np.linalg.norm(v)
+        if norm_v > ERROR_TOLERANCE:
+            for b in basis:
+                v -= np.dot(v, b) * b
+            basis.append(v / norm_v)
+        else:
+            return np.array([0, 0, 0])
+    return np.array(basis)

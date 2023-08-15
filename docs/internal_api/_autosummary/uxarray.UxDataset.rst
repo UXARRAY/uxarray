@@ -5,14 +5,14 @@
 
 .. autoclass:: UxDataset
 
-   
+
    .. automethod:: __init__
 
-   
+
    .. rubric:: Methods
 
    .. autosummary::
-   
+
       ~UxDataset.__init__
       ~UxDataset.all
       ~UxDataset.any
@@ -142,15 +142,15 @@
       ~UxDataset.var
       ~UxDataset.weighted
       ~UxDataset.where
-   
-   
 
-   
-   
+
+
+
+
    .. rubric:: Attributes
 
    .. autosummary::
-   
+
       ~UxDataset.attrs
       ~UxDataset.chunks
       ~UxDataset.chunksizes
@@ -169,5 +169,3 @@
       ~UxDataset.uxgrid
       ~UxDataset.variables
       ~UxDataset.xindexes
-   
-   
