@@ -9,3 +9,7 @@ dependencies:
   - pytest
   - pytest-cov
   - scipy
+  - shapely
+  - spatialpandas
+  - pip:
+    - antimeridian
