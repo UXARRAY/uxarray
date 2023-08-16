@@ -179,6 +179,14 @@ Coordinates
 
 
 
+Lines
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.lines.in_between
+   grid.lines.point_within_GCA
+
 Numba
 -----
 .. autosummary::

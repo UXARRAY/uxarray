@@ -87,7 +87,7 @@ the ``Grid`` object, `uxgrid`, as a property to be unstructured grid-aware.
 - UxDataArray.integrate(self, [quadrature_rule, order]) \
   Integrate over all the faces of the given mesh.
 
-- ### 2.2.2 Future UxDataArray Methods
+### 2.2.2 Future UxDataArray Methods
 
 - UxDataArray UxDataArray.divergence(self, UxDataArray other) \
   Compute the divergence of the vector field defined by self and other.
