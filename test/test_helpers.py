@@ -215,6 +215,7 @@ class TestSparseMatrix(TestCase):
         nt.assert_array_equal(face_indices, expected_face_indices)
         nt.assert_array_equal(nodes_indices, expected_nodes_indices)
 
+
 class TestIntersectionPoint(TestCase):
 
     def test_pt_within_gcr(self):
