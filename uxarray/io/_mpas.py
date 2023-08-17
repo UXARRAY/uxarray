@@ -380,4 +380,5 @@ def _read_mpas(ext_ds, use_dual=False):
     else:
         _primal_to_ugrid(ext_ds, ds)
 
-    return ds
+    # TODO: Return Original Variable Mapping to UGRID
+    return ds, None

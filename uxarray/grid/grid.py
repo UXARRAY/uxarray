@@ -8,6 +8,7 @@ from uxarray.io._mpas import _read_mpas
 from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
+from uxarray.io._connectivity import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
@@ -71,7 +72,8 @@ class Grid:
     >>> uxds = ux.open_dataset("filename.g")
     """
 
-    def __init__(self, input_obj, **kwargs):
+    def __init__(self, grid_ds, grid_spec, **kwargs):
+
         # initialize internal variable names
         self.__init_grid_var_names__()
 
@@ -84,43 +86,12 @@ class Grid:
         # initialize cached data structures
         self._gdf = None
         self._poly_collection = None
-        # TODO: fix when adding/exercising gridspec
 
-        # unpack kwargs
-        # sets default values for all kwargs to None
-        kwargs_list = [
-            'gridspec', 'vertices', 'islatlon', 'isconcave', 'source_grid',
-            'use_dual'
-        ]
-        for key in kwargs_list:
-            setattr(self, key, kwargs.get(key, None))
+        # internal xarray dataset for storing grid variables
+        self._ds = grid_ds
 
-        # check if initializing from verts:
-        if isinstance(input_obj, (list, tuple, np.ndarray)):
-            input_obj = np.asarray(input_obj)
-            self.mesh_type = "From vertices"
-            # grid with multiple faces
-            if input_obj.ndim == 3:
-                self.__from_vert__(input_obj)
-                self.source_grid = "From vertices"
-            # grid with a single face
-            elif input_obj.ndim == 2:
-                input_obj = np.array([input_obj])
-                self.__from_vert__(input_obj)
-                self.source_grid = "From vertices"
-            else:
-                raise RuntimeError(
-                    f"Invalid Input Dimension: {input_obj.ndim}. Expected dimension should be "
-                    f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
-                    f"one face is passed in.")
-
-        # check if initializing from string
-        # TODO: re-add gridspec initialization when implemented
-        elif isinstance(input_obj, xr.Dataset):
-            self.mesh_type = _parse_grid_type(input_obj)
-            self.__from_ds__(dataset=input_obj)
-        else:
-            raise RuntimeError("Dataset is not a valid input type.")
+        # source grid specification
+        self.grid_spec = grid_spec
 
         # {"Standardized Name" : "Original Name"}
         self._inverse_grid_var_names = {
@@ -146,161 +117,59 @@ class Grid:
             "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
         }
 
-    def __from_vert__(self, dataset):
-        """Create a grid with faces constructed from vertices specified by the
-        given argument.
-
-        Parameters
-        ----------
-        dataset : ndarray, list, tuple, required
-            Input vertex coordinates that form our face(s)
-        """
-        self._ds = xr.Dataset()
-        self._ds["Mesh2"] = xr.DataArray(
-            attrs={
-                "cf_role": "mesh_topology",
-                "long_name": "Topology data of unstructured mesh",
-                "topology_dimension": -1,
-                "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
-                "node_dimension": "nMesh2_node",
-                "face_node_connectivity": "Mesh2_face_nodes",
-                "face_dimension": "nMesh2_face"
-            })
-
-        self._ds.Mesh2.attrs['topology_dimension'] = dataset.ndim
-
-        if self.islatlon is not None and self.islatlon is False:
-            x_units = 'm'
-            y_units = 'm'
-            z_units = 'm'
-        else:
-            x_units = "degrees_east"
-            y_units = "degrees_north"
-            z_units = "elevation"
-
-        x_coord = dataset[:, :, 0].flatten()
-        y_coord = dataset[:, :, 1].flatten()
-
-        if dataset[0][0].size > 2:
-            z_coord = dataset[:, :, 2].flatten()
-        else:
-            z_coord = x_coord * 0.0
-
-        # Identify unique vertices and their indices
-        unique_verts, indices = np.unique(dataset.reshape(
-            -1, dataset.shape[-1]),
-                                          axis=0,
-                                          return_inverse=True)
-
-        # Nodes index that contain a fill value
-        fill_value_mask = np.logical_or(unique_verts[:, 0] == INT_FILL_VALUE,
-                                        unique_verts[:, 1] == INT_FILL_VALUE)
-        if dataset[0][0].size > 2:
-            fill_value_mask = np.logical_or(
-                unique_verts[:, 0] == INT_FILL_VALUE,
-                unique_verts[:, 1] == INT_FILL_VALUE,
-                unique_verts[:, 2] == INT_FILL_VALUE)
-
-        # Get the indices of all the False values in fill_value_mask
-        false_indices = np.where(fill_value_mask == True)[0]
-
-        # Check if any False values were found
-        indices = indices.astype(INT_DTYPE)
-        if false_indices.size > 0:
-
-            # Remove the rows corresponding to False values in unique_verts
-            unique_verts = np.delete(unique_verts, false_indices, axis=0)
-
-            # Update indices accordingly
-            for i, idx in enumerate(false_indices):
-                indices[indices == idx] = INT_FILL_VALUE
-                indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
-
-        # Create coordinate DataArrays
-        self._ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
-                                                dims=["nMesh2_node"],
-                                                attrs={"units": x_units})
-        self._ds["Mesh2_node_y"] = xr.DataArray(data=unique_verts[:, 1],
-                                                dims=["nMesh2_node"],
-                                                attrs={"units": y_units})
-        if dataset.shape[-1] > 2:
-            self._ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
-                                                    dims=["nMesh2_node"],
-                                                    attrs={"units": z_units})
-        else:
-            self._ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] *
-                                                    0.0,
-                                                    dims=["nMesh2_node"],
-                                                    attrs={"units": z_units})
-
-        # Create connectivity array using indices of unique vertices
-        connectivity = indices.reshape(dataset.shape[:-1])
-        self._ds["Mesh2_face_nodes"] = xr.DataArray(
-            data=xr.DataArray(connectivity).astype(INT_DTYPE),
-            dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-            attrs={
-                "cf_role": "face_node_connectivity",
-                "_FillValue": INT_FILL_VALUE,
-                "start_index": 0
-            })
-
     @classmethod
-    def from_dataset(cls, dataset, latlon=True, use_dual=False):
+    def from_dataset(cls, dataset, use_dual=False):
         if not isinstance(dataset, xr.Dataset):
+            # TODO: Error Message
             raise ValueError
 
         # determine grid/mesh specification
-        mesh_spec = _parse_grid_type(dataset)
+        grid_spec = _parse_grid_type(dataset)
 
-        if mesh_spec == "Exodus":
+        if grid_spec == "Exodus":
             grid_ds, var_encoding = _read_exodus(dataset)
-        elif mesh_spec == "Scrip":
+        elif grid_spec == "Scrip":
             grid_ds, var_encoding = _read_scrip(dataset)
-        elif mesh_spec == "UGRID":
+        elif grid_spec == "UGRID":
             grid_ds, var_encoding = _read_ugrid(dataset)
-        elif mesh_spec == "MPAS":
+        elif grid_spec == "MPAS":
             grid_ds, var_encoding = _read_mpas(dataset, use_dual=use_dual)
-        elif mesh_spec == "Shapefile":
+        elif grid_spec == "Shapefile":
             # TODO: Not supported, add appropriate exception
             raise ValueError
         else:
             pass
 
-        pass
+        return cls(grid_ds, grid_spec)
 
     @classmethod
-    def from_vertices(cls, vertices, latlon=True):
-        pass
+    def from_face_vertices(cls, face_vertices, latlon=True):
+        """TODO: Better Name & Docstring"""
+        if not isinstance(face_vertices, (list, tuple, np.ndarray)):
+            # TODO: Error Message
+            raise ValueError
 
-    # load mesh from a file
-    def __from_ds__(self, dataset):
-        """Loads a mesh dataset."""
-        # call reader as per mesh_type
-        if self.mesh_type == "exo":
-            self._ds = _read_exodus(dataset, self.grid_var_names)
-        elif self.mesh_type == "scrip":
-            self._ds = _read_scrip(dataset)
-        elif self.mesh_type == "ugrid":
-            self._ds, self.grid_var_names = _read_ugrid(dataset,
-                                                        self.grid_var_names)
-        elif self.mesh_type == "shp":
-            self._ds = _read_shpfile(dataset)
-        elif self.mesh_type == "mpas":
-            # select whether to use the dual mesh
-            if self.use_dual is not None:
-                self._ds = _read_mpas(dataset, self.use_dual)
-            else:
-                self._ds = _read_mpas(dataset)
+        face_vertices = np.asarray(face_vertices)
+
+        if face_vertices.ndim == 3:
+            grid_ds = _read_face_vertices(face_vertices, latlon)
+
+        elif face_vertices.ndim == 2:
+            grid_ds = _read_face_vertices(np.array([face_vertices]), latlon)
+
         else:
-            raise RuntimeError("unknown mesh type")
+            raise RuntimeError(
+                f"Invalid Input Dimension: {face_vertices.ndim}. Expected dimension should be "
+                f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
+                f"one face is passed in.")
 
-        dataset.close()
+        return cls(grid_ds, grid_spec="Face Vertices")
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
         prefix = "<uxarray.Grid>\n"
-        original_grid_str = f"Original Grid Type: {self.mesh_type}\n"
+        original_grid_str = f"Original Grid Type: {self.grid_spec}\n"
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
         # if self.grid_var_names["Mesh2_node_x"] in self._ds:

@@ -141,8 +141,8 @@ def _read_scrip(ext_ds):
             "Variables not in recognized SCRIP form. Please refer to",
             "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
             "for more information on SCRIP Grid file formatting")
-
-    return ds
+    # TODO: Original Variable Names
+    return ds, None
 
 
 def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
