@@ -2,6 +2,7 @@ name: uxarray_upstream_build
 channels:
   - conda-forge
 dependencies:
+  - matplotlib-base
   - netcdf4
   - numba
   - numpy
@@ -9,3 +10,7 @@ dependencies:
   - pytest
   - pytest-cov
   - scipy
+  - shapely
+  - spatialpandas
+  - pip:
+    - antimeridian

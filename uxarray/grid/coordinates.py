@@ -4,7 +4,7 @@ import math
 
 from numba import njit, config
 
-from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
+from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT, ERROR_TOLERANCE
 
 config.DISABLE_JIT = not ENABLE_JIT
 
@@ -59,13 +59,13 @@ def node_xyz_to_lonlat_rad(node_coord):
     """
     if len(node_coord) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-    reference_tolerance = 1.0e-12
+
     [dx, dy, dz] = normalize_in_place(node_coord)
     dx /= np.absolute(dx * dx + dy * dy + dz * dz)
     dy /= np.absolute(dx * dx + dy * dy + dz * dz)
     dz /= np.absolute(dx * dx + dy * dy + dz * dz)
 
-    if np.absolute(dz) < (1.0 - reference_tolerance):
+    if np.absolute(dz) < (1.0 - ERROR_TOLERANCE):
         d_lon_rad = math.atan2(dy, dx)
         d_lat_rad = np.arcsin(dz)
 
@@ -104,8 +104,7 @@ def normalize_in_place(node):
     """
     if len(node) != 3:
         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-
-    return np.array(node) / np.linalg.norm(np.array(node), ord=2)
+    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
 
 
 def _populate_cartesian_xyz_coord(grid):
