@@ -778,20 +778,27 @@ class TestClassMethods(TestCase):
 
     gridfile_ugrid = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
-    gridfile_exodus = None
-    gridfile_scrip = None
+    gridfile_exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+    gridfile_scrip = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
 
     def test_from_dataset(self):
 
         # UGRID
+        xrds = xr.open_dataset(self.gridfile_ugrid)
+        uxgrid = ux.Grid.from_dataset(xrds)
 
         # MPAS
         xrds = xr.open_dataset(self.gridfile_mpas)
-        uxgrid = ux.Grid.from_dataset(xrds)
+        uxgrid = ux.Grid.from_dataset(xrds, use_dual=False)
+        uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
 
         # Exodus
+        xrds = xr.open_dataset(self.gridfile_exodus)
+        uxgrid = ux.Grid.from_dataset(xrds)
 
         # SCRIP
+        xrds = xr.open_dataset(self.gridfile_scrip)
+        uxgrid = ux.Grid.from_dataset(xrds)
 
         pass
 

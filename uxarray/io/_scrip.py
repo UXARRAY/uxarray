@@ -3,6 +3,7 @@ import numpy as np
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.utils import _get_ugrid_var_vame_dict
 
 
 def _to_ugrid(in_ds, out_ds):
@@ -19,6 +20,8 @@ def _to_ugrid(in_ds, out_ds):
         file to be returned by ``_populate_scrip_data``, used as an empty placeholder file
         to store reassigned SCRIP variables in UGRID conventions
     """
+
+    ugrid_mapping = _get_ugrid_var_vame_dict()
 
     if in_ds['grid_area'].all():
 
@@ -69,6 +72,11 @@ def _to_ugrid(in_ds, out_ds):
         out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
         out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
 
+        ugrid_mapping['Mesh2_face_x'] = "grid_center_lon"
+        ugrid_mapping['Mesh2_face_y'] = "grid_center_lat"
+
+        ugrid_mapping['nMesh2_face'] = in_ds['grid_center_lon'].dims[0]
+
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(unq_inv,
                                           original_fill=-1,
@@ -93,7 +101,7 @@ def _to_ugrid(in_ds, out_ds):
     else:
         raise Exception("Structured scrip files are not yet supported")
 
-    return out_ds
+    return ugrid_mapping
 
 
 def _read_scrip(ext_ds):
@@ -122,7 +130,7 @@ def _read_scrip(ext_ds):
 
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
-        _to_ugrid(ext_ds, ds)
+        unq_inv = _to_ugrid(ext_ds, ds)
 
         # Add necessary UGRID attributes to new dataset
         ds["Mesh2"] = xr.DataArray(
@@ -142,7 +150,7 @@ def _read_scrip(ext_ds):
             "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
             "for more information on SCRIP Grid file formatting")
     # TODO: Original Variable Names
-    return ds, None
+    return ds, unq_inv
 
 
 def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):

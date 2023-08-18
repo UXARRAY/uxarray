@@ -72,10 +72,10 @@ class Grid:
     >>> uxds = ux.open_dataset("filename.g")
     """
 
-    def __init__(self, grid_ds, grid_spec, **kwargs):
+    def __init__(self, grid_ds, grid_spec, ugrid_mapping=None, **kwargs):
 
-        # initialize internal variable names
-        self.__init_grid_var_names__()
+        # TODO: streamlined approach
+        self._ugrid_mapping = ugrid_mapping
 
         # initialize face_area variable
         self._face_areas = None
@@ -93,29 +93,11 @@ class Grid:
         # source grid specification
         self.grid_spec = grid_spec
 
-        # {"Standardized Name" : "Original Name"}
-        self._inverse_grid_var_names = {
-            v: k for k, v in self.grid_var_names.items()
-        }
-
-    def __init_grid_var_names__(self):
-        """Populates a dictionary for storing uxarray's internal representation
-        of xarray object.
-
-        Note ugrid conventions are flexible with names of variables, see:
-        http://ugrid-conventions.github.io/ugrid-conventions/
-        """
-        self.grid_var_names = {
-            "Mesh2": "Mesh2",
-            "Mesh2_node_x": "Mesh2_node_x",
-            "Mesh2_node_y": "Mesh2_node_y",
-            "Mesh2_node_z": "Mesh2_node_z",
-            "Mesh2_face_nodes": "Mesh2_face_nodes",
-            # initialize dims
-            "nMesh2_node": "nMesh2_node",
-            "nMesh2_face": "nMesh2_face",
-            "nMaxMesh2_face_nodes": "nMaxMesh2_face_nodes"
-        }
+        # TODO: Still need?
+        # # {"Standardized Name" : "Original Name"}
+        # self._inverse_grid_var_names = {
+        #     v: k for k, v in self.grid_var_names.items()
+        # }
 
     @classmethod
     def from_dataset(cls, dataset, use_dual=False):
@@ -127,20 +109,20 @@ class Grid:
         grid_spec = _parse_grid_type(dataset)
 
         if grid_spec == "Exodus":
-            grid_ds, var_encoding = _read_exodus(dataset)
+            grid_ds, ugrid_mapping = _read_exodus(dataset)
         elif grid_spec == "Scrip":
-            grid_ds, var_encoding = _read_scrip(dataset)
+            grid_ds, ugrid_mapping = _read_scrip(dataset)
         elif grid_spec == "UGRID":
-            grid_ds, var_encoding = _read_ugrid(dataset)
+            grid_ds, ugrid_mapping = _read_ugrid(dataset)
         elif grid_spec == "MPAS":
-            grid_ds, var_encoding = _read_mpas(dataset, use_dual=use_dual)
+            grid_ds, ugrid_mapping = _read_mpas(dataset, use_dual=use_dual)
         elif grid_spec == "Shapefile":
             # TODO: Not supported, add appropriate exception
             raise ValueError
         else:
             pass
 
-        return cls(grid_ds, grid_spec)
+        return cls(grid_ds, grid_spec, ugrid_mapping)
 
     @classmethod
     def from_face_vertices(cls, face_vertices, latlon=True):
@@ -167,6 +149,7 @@ class Grid:
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
+        # TODO: Make work without grid var names
 
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.grid_spec}\n"
@@ -190,7 +173,7 @@ class Grid:
 
         coord_heading = "Grid Coordinate Variables:\n"
         coords_str = ""
-        if self.grid_var_names["Mesh2_node_x"] in self._ds:
+        if "Mesh2_node_x" in self._ds:
             coords_str += f"  * Mesh2_node_x: {self.Mesh2_node_x.shape}\n"
             coords_str += f"  * Mesh2_node_y: {self.Mesh2_node_y.shape}\n"
         if "Mesh2_node_cart_x" in self._ds:
@@ -203,7 +186,7 @@ class Grid:
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
-        if self.grid_var_names["Mesh2_face_nodes"] in self._ds:
+        if "Mesh2_face_nodes" in self._ds:
             connectivity_str += f"  * Mesh2_face_nodes: {self.Mesh2_face_nodes.shape}\n"
         if "Mesh2_edge_nodes" in self._ds:
             connectivity_str += f"  * Mesh2_edge_nodes: {self.Mesh2_edge_nodes.shape}\n"
@@ -227,6 +210,7 @@ class Grid:
         -------
         If two grids are equal : bool
         """
+        # TODO: deprecate grid var names
         if other is not None:
             # Iterate over dict to set access attributes
             for key, value in self.grid_var_names.items():
@@ -261,23 +245,24 @@ class Grid:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
-    @property
-    def Mesh2(self):
-        """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
-        unstructured mesh."""
-        return self._ds[self.grid_var_names["Mesh2"]]
+    # TODO: Still need?
+    # @property
+    # def Mesh2(self):
+    #     """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
+    #     unstructured mesh."""
+    #     return self._ds[self.grid_var_names["Mesh2"]]
 
     @property
     def nMesh2_node(self):
         """UGRID Dimension ``nMesh2_node``, which represents the total number
         of nodes."""
-        return self._ds[self.grid_var_names["Mesh2_node_x"]].shape[0]
+        return self._ds["Mesh2_node_x"].shape[0]
 
     @property
     def nMesh2_face(self):
         """UGRID Dimension ``nMesh2_face``, which represents the total number
         of faces."""
-        return self._ds[self.grid_var_names["Mesh2_face_nodes"]].shape[0]
+        return self._ds["Mesh2_face_nodes"].shape[0]
 
     @property
     def nMesh2_edge(self):
@@ -326,7 +311,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
-        return self._ds[self.grid_var_names["Mesh2_node_x"]]
+        return self._ds["Mesh2_node_x"]
 
     @property
     def Mesh2_node_cart_x(self):
@@ -358,7 +343,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
-        return self._ds[self.grid_var_names["Mesh2_node_y"]]
+        return self._ds["Mesh2_node_y"]
 
     @property
     def Mesh2_node_cart_y(self):
@@ -383,23 +368,24 @@ class Grid:
         else:
             return None
 
-    @property
-    def _Mesh2_node_z(self):
-        """Coordinate Variable ``_Mesh2_node_z``, which contains the level of
-        each node. It is only a placeholder for now as a protected attribute.
-        UXarray does not support this yet and only handles the 2D flexibile
-        meshes.
-
-        If we introduce handling of 3D meshes in the future, it might be only
-        levels, i.e. the same level(s) for all nodes, instead of separate
-        level for each node that ``_Mesh2_node_z`` suggests.
-
-        Dimensions (``nMesh2_node``)
-        """
-        if self.grid_var_names["Mesh2_node_z"] in self._ds:
-            return self._ds[self.grid_var_names["Mesh2_node_z"]]
-        else:
-            return None
+    # TODO: Deprecate?
+    # @property
+    # def _Mesh2_node_z(self):
+    #     """Coordinate Variable ``_Mesh2_node_z``, which contains the level of
+    #     each node. It is only a placeholder for now as a protected attribute.
+    #     UXarray does not support this yet and only handles the 2D flexibile
+    #     meshes.
+    #
+    #     If we introduce handling of 3D meshes in the future, it might be only
+    #     levels, i.e. the same level(s) for all nodes, instead of separate
+    #     level for each node that ``_Mesh2_node_z`` suggests.
+    #
+    #     Dimensions (``nMesh2_node``)
+    #     """
+    #     if self.grid_var_names["Mesh2_node_z"] in self._ds:
+    #         return self._ds[self.grid_var_names["Mesh2_node_z"]]
+    #     else:
+    #         return None
 
     @property
     def Mesh2_node_cart_z(self):
@@ -426,7 +412,7 @@ class Grid:
         Nodes are in counter-clockwise order.
         """
 
-        return self._ds[self.grid_var_names["Mesh2_face_nodes"]]
+        return self._ds["Mesh2_face_nodes"]
 
     @property
     def Mesh2_edge_nodes(self):

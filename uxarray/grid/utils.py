@@ -58,3 +58,36 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     grid_var[fill_val_idx] = new_fill
 
     return grid_var
+
+
+def _get_ugrid_var_vame_dict():
+    """Populates a dictionary for storing uxarray's internal representation of
+    xarray object.
+
+    Note ugrid conventions are flexible with names of variables, see:
+    http://ugrid-conventions.github.io/ugrid-conventions/
+    """
+
+    ugrid_var_names = {
+
+        # dimensions
+        "nMesh2_node": None,
+        "nMesh2_edge": None,
+        "nMesh2_face": None,
+        "nMaxMesh2_face_nodes": None,
+
+        # coordinates
+        "Mesh2_node_x": None,
+        "Mesh2_node_y": None,
+        "Mesh2_edge_x": None,
+        "Mesh2_edge_y": None,
+        "Mesh2_face_x": None,
+        "Mesh2_face_y": None,
+
+        # connectivity
+        "Mesh2_face_nodes": None,
+        "Mesh2_edge_nodes": None,
+        "Mesh2_face_edges": None,
+    }
+
+    return ugrid_var_names
