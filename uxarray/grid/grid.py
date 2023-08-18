@@ -72,32 +72,24 @@ class Grid:
     >>> uxds = ux.open_dataset("filename.g")
     """
 
-    def __init__(self, grid_ds, grid_spec, ugrid_mapping=None, **kwargs):
+    def __init__(self, grid_ds, grid_spec="UGRID", ugrid_mapping=None):
 
         # TODO: streamlined approach
         self._ugrid_mapping = ugrid_mapping
 
-        # initialize face_area variable
-        self._face_areas = None
-
-        # initialize attributes
-        self._antimeridian_face_indices = None
-
-        # initialize cached data structures
-        self._gdf = None
-        self._poly_collection = None
+        # source grid specification
+        self.grid_spec = grid_spec
 
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
 
-        # source grid specification
-        self.grid_spec = grid_spec
+        # initialize attributes
+        self._antimeridian_face_indices = None
+        self._face_areas = None
 
-        # TODO: Still need?
-        # # {"Standardized Name" : "Original Name"}
-        # self._inverse_grid_var_names = {
-        #     v: k for k, v in self.grid_var_names.items()
-        # }
+        # initialize cached data structures
+        self._gdf = None
+        self._poly_collection = None
 
     @classmethod
     def from_dataset(cls, dataset, use_dual=False):
@@ -162,8 +154,9 @@ class Grid:
         #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
 
         for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
-            if key in self._inverse_grid_var_names:
-                dims_str += f"  * {self._inverse_grid_var_names[key]}: {value}\n"
+            dims_str += f"  * {key}: {value}\n"
+            # if key in self._inverse_grid_var_names:
+            #     dims_str += f"  * {self._inverse_grid_var_names[key]}: {value}\n"
 
         if "nMesh2_edge" in self._ds.dims:
             dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
