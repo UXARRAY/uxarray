@@ -71,22 +71,21 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
+    # construct Grid from dataset
+    if isinstance(grid_filename_or_obj, xr.Dataset):
+        uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
+    # construct Grid from path
+    elif isinstance(grid_filename_or_obj, str):
+        grid_ds = xr.open_dataset(grid_filename_or_obj,
+                                  decode_times=False,
+                                  **kwargs)
+
+        uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+
     # Grid definition
     if isinstance(grid_filename_or_obj,
                   (list, tuple, np.ndarray, xr.DataArray)):
         uxgrid = Grid(grid_filename_or_obj,
-                      gridspec=gridspec,
-                      vertices=vertices,
-                      islatlon=islatlon,
-                      isconcave=isconcave,
-                      source_grid=str(grid_filename_or_obj),
-                      use_dual=use_dual)
-    else:
-        grid_ds = xr.open_dataset(grid_filename_or_obj,
-                                  decode_times=False,
-                                  **kwargs)  # type: ignore
-
-        uxgrid = Grid(grid_ds,
                       gridspec=gridspec,
                       vertices=vertices,
                       islatlon=islatlon,
