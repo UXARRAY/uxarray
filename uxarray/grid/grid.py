@@ -815,16 +815,48 @@ class Grid:
         XY[:, [0, 1]] = XY[:, [1, 0]]
 
         # perform query
-        d, ind = self._corner_node_balltree.query(XY, k, return_distance,
-                                                  dualtree, breadth_first,
-                                                  sort_results)
-        # convert distance to degrees
+        if return_distance:
+            d, ind = self._corner_node_balltree.query(XY, k, return_distance,
+                                                      dualtree, breadth_first,
+                                                      sort_results)
+            # convert distance to degrees
+            if not use_radians:
+                d = np.rad2deg(d)
+
+            return d, ind
+        else:
+            ind = self._corner_node_balltree.query(XY, k, return_distance,
+                                                   dualtree, breadth_first,
+                                                   sort_results)
+
+            return ind
+
+    def query_radius_nodes(self,
+                           XY,
+                           r,
+                           return_distance=False,
+                           count_only=False,
+                           sort_results=False,
+                           use_radians=False):
+
+        if r < 0.0:
+            raise ValueError  # TODO
+
+        XY = np.asarray(XY)
+
+        # balltree expects units in radians for query
         if not use_radians:
-            d = np.rad2deg(d)
+            XY = np.deg2rad(XY)
 
-        return d, ind
+        # expand if only a single node pair is provided
+        if XY.ndim == 1:
+            XY = np.expand_dims(XY, axis=0)
 
-    def query_radius_nodes(self,):
+        # swap X and Y for query
+        XY[:, [0, 1]] = XY[:, [1, 0]]
+
+        # TODO: query with radius
+
         pass
 
     def to_geodataframe(self,
