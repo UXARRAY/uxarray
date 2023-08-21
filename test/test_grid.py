@@ -785,4 +785,9 @@ class TestBallTree(TestCase):
 
         for grid_file in self.grid_files:
             grid = ux.open_grid(grid_file)
-            tree = _corner_nodes_to_balltree(grid)
+            #tree = _corner_nodes_to_balltree(grid)
+
+            #dist, ind = tree.query([[0.0, 0.0]], k=3)
+            grid.query_nodes([0, 10])
+
+            pass

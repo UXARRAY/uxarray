@@ -21,10 +21,10 @@ def _corner_nodes_to_balltree(grid):
     """
 
     # pairs of lat/lon coordinates in radians with shape [n_nodes, 2]
-    X = np.vstack((deg2rad(grid.Mesh2_node_y.values),
-                   deg2rad(grid.Mesh2_node_x.values))).T
+    XY = np.vstack((deg2rad(grid.Mesh2_node_y.values),
+                    deg2rad(grid.Mesh2_node_x.values))).T
 
     # construct Ball Tree using haversine distance calculations
-    tree = BallTree(X, metric='haversine')
+    tree = BallTree(XY, metric='haversine')
 
     return tree

@@ -762,6 +762,45 @@ class Grid:
     #
     #     return integral
 
+    def query_nodes(self,
+                    XY,
+                    k=1,
+                    return_distance=True,
+                    dualtree=False,
+                    breadth_first=False,
+                    sort_results=True,
+                    use_radians=False):
+        """TODO: Docstring"""
+
+        if k < 1 or k > self.nMesh2_node:
+            raise ValueError  # TODO
+
+        XY = np.asarray(XY)
+
+        # balltree expects units in radians for query
+        if not use_radians:
+            XY = np.deg2rad(XY)
+
+        # expand if only a single node pair is provided
+        if XY.ndim == 1:
+            XY = np.expand_dims(XY, axis=0)
+
+        # swap X and Y for query
+        XY[:, [0, 1]] = XY[:, [1, 0]]
+
+        # perform query
+        d, ind = self._corner_node_balltree.query(XY, k, return_distance,
+                                                  dualtree, breadth_first,
+                                                  sort_results)
+        # convert distance to degrees
+        if not use_radians:
+            d = np.rad2deg(d)
+
+        return d, ind
+
+    def query_radius_nodes(self,):
+        pass
+
     def to_geodataframe(self,
                         override=False,
                         cache=True,
