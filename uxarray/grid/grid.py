@@ -252,6 +252,25 @@ class Grid:
         # call reader as per mesh_type
         if self.mesh_type == "exo":
             self._ds = _read_exodus(dataset, self.grid_var_names)
+
+            # Assume Exodus was read as cartesian grid and that coordinates are not set by reader, call the latlon setter
+            _populate_lonlat_coord(self)
+
+            # set coordinates
+            # there is leftover cartesian z-coordinate from Exodus mesh
+            # set them to zero
+            self._ds["Mesh2_node_z"] = xr.DataArray(
+                data=np.zeros(self._ds["Mesh2_node_x"].shape),
+                dims=["nMesh2_node"],
+                attrs={
+                    "standard_name": "elevation",
+                    "long_name": "elevation",
+                    "units": "m",
+                })
+
+            ds = self._ds.set_coords(
+                ["Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z"])
+
         elif self.mesh_type == "scrip":
             self._ds = _read_scrip(dataset)
         elif self.mesh_type == "ugrid":
@@ -622,6 +641,13 @@ class Grid:
             out_ds = _encode_ugrid(self._ds)
 
         elif grid_type == "exodus":
+
+            # NOTE: We assume that output exodus mesh will be cartesian and coordinate units will be 'm'
+            # If the units are rad or degree, the we must convert to m. Assume unit sphere.
+            if "Mesh2_node_cart_x" not in self._ds.keys():
+                _populate_cartesian_xyz_coord(self)
+
+            # encode to exodus assumes that ds has Mesh2_node_cart_x, Mesh2_node_cart_y, Mesh2_node_cart_z
             out_ds = _encode_exodus(self._ds, self.grid_var_names)
 
         elif grid_type == "scrip":
