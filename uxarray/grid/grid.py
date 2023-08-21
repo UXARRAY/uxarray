@@ -796,7 +796,32 @@ class Grid:
                     breadth_first=False,
                     sort_results=True,
                     use_radians=False):
-        """TODO: Docstring"""
+        """TODO: Docstring
+
+        Parameters
+        ----------
+        XY :
+            TODO
+        k: scalar, int
+            TODO
+        return_distance :
+            TODO
+        dualtree :
+            TODO
+        breadth_first :
+            TODO
+        sort_results :
+            TODO
+        use_radians :
+            TODO
+
+        Returns
+        -------
+        d :
+            TODO
+        ind :
+            TODO
+        """
 
         if k < 1 or k > self.nMesh2_node:
             raise ValueError  # TODO
@@ -814,20 +839,27 @@ class Grid:
         # swap X and Y for query
         XY[:, [0, 1]] = XY[:, [1, 0]]
 
-        # perform query
+        # perform query with distance
         if return_distance:
             d, ind = self._corner_node_balltree.query(XY, k, return_distance,
                                                       dualtree, breadth_first,
                                                       sort_results)
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
+
             # convert distance to degrees
             if not use_radians:
                 d = np.rad2deg(d)
 
             return d, ind
+
+        # perform query without distance
         else:
             ind = self._corner_node_balltree.query(XY, k, return_distance,
                                                    dualtree, breadth_first,
                                                    sort_results)
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
 
             return ind
 
@@ -838,6 +870,30 @@ class Grid:
                            count_only=False,
                            sort_results=False,
                            use_radians=False):
+        """TODO: Docstring
+
+         Parameters
+         ----------
+         XY :
+             TODO
+         r: scalar, float
+             TODO
+         return_distance :
+             TODO
+         count_only :
+             TODO
+         sort_results :
+             TODO
+         use_radians :
+             TODO
+
+         Returns
+         -------
+         d :
+             TODO
+         ind :
+             TODO
+         """
 
         if r < 0.0:
             raise ValueError  # TODO
