@@ -88,7 +88,6 @@ Methods
 .. autosummary::
    :toctree: _autosummary
 
-<<<<<<< HEAD
    __init_grid_var_names__
    __from_ds__
    __from_vert__
