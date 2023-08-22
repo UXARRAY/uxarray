@@ -4,21 +4,38 @@ from scipy.spatial import cKDTree
 from netCDF4 import Dataset
 
 
+def create_kd_tree(coords):
+    kd_tree = cKDTree(coords)
+    return kd_tree
+
+
 def generate_nearest_neighbor_map(source, target):
+    """Creates the nearest_neighbor map for transferring data from a source
+    mesh to a target mesh.
+
+    The mesh files should encompass the same area
+    """
     source_faces = source.nMesh2_face
     target_faces = target.nMesh2_face
+
+    # Finds the number of source faces inside one face of the target mesh
     face_number = math.ceil(source_faces / target_faces)
+    # If the face_number is 0 this means the target faces are smaller than source and only one nearest neighbor is
+    # needed
+    if face_number == 0:
+        face_number = 1
+
+    # Get the source coordinates for the kd_tree
     source_coordinates = np.array(
         [source.Mesh2_face_x.data, source.Mesh2_face_y.data])
     source_coordinates = source_coordinates.T  # Transpose the array to have the shape (N, D)
-    source_kd_tree = cKDTree(source_coordinates)
+    source_kd_tree = create_kd_tree(source_coordinates)
 
-    # Target Grid
+    # Get the target coordinates for the query
     target_coordinates = np.array(
         [target.Mesh2_face_x.data, target.Mesh2_face_y.data])
     target_coordinates = target_coordinates.reshape(
         -1, 2)  # Reshape to (N, 2) for the face centroids
-    target_kd_tree = cKDTree(target_coordinates)
 
     # Find the nearest neighbors in the source mesh for each centroid in the target mesh
     _, indices = source_kd_tree.query(target_coordinates, k=face_number)
@@ -45,6 +62,14 @@ def generate_nearest_neighbor_map(source, target):
 
 def remap_variable(mapping_file, source_mesh_file, target_mesh_file,
                    variable_to_remap):
+    """Remaps the target mesh file using a nearest neighbor map previously
+    created.
+
+    Takes in a variable to remap and transfer that data from the source
+    file to the target file. The source file must have some data to
+    remap
+    """
+
     # Read the mapping file
     with Dataset(mapping_file, "r") as nc_map:
         mapping_column = nc_map.variables["column"][:]
@@ -69,4 +94,9 @@ def remap_variable(mapping_file, source_mesh_file, target_mesh_file,
             depth_target[target_index] = np.mean(depths)
 
         # Save the updated depth values to the target mesh file
+        # TODO: By editing the file I believe this causes the tests to fail on GitHub due to not having permission
+        #  to make changes
         target_nc.variables[variable_to_remap][:] = depth_target
+
+        # TODO: Figure out how accurate the data transfer is and if this is a viable and accurate way to do it, or
+        #  if there is another way we should be approaching this that is more precise
