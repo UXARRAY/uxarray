@@ -2,6 +2,8 @@
 import xarray as xr
 import numpy as np
 
+from typing import Any, Dict, Optional, Union
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -789,77 +791,81 @@ class Grid:
     #     return integral
 
     def query_nodes(self,
-                    XY,
-                    k=1,
-                    return_distance=True,
-                    dualtree=False,
-                    breadth_first=False,
-                    sort_results=True,
-                    use_radians=False):
+                    xy: Union[np.ndarray, list, tuple],
+                    k: Optional[int] = 1,
+                    return_distance: Optional[bool] = True,
+                    dualtree: Optional[bool] = False,
+                    breadth_first: Optional[bool] = False,
+                    sort_results: Optional[bool] = True,
+                    use_radians: Optional[bool] = False):
         """TODO: Docstring
 
         Parameters
         ----------
-        XY :
+        xy : array_like
             TODO
-        k: scalar, int
+        k: int, optional
             TODO
-        return_distance :
+        return_distance : bool, optional
             TODO
-        dualtree :
+        dualtree : bool, optional
             TODO
-        breadth_first :
+        breadth_first : bool, optional
             TODO
-        sort_results :
+        sort_results : bool, optional
             TODO
-        use_radians :
+        use_radians : bool, optional
             TODO
 
         Returns
         -------
-        d :
+        d : np.ndarray
             TODO
-        ind :
+        ind : np.ndarray
             TODO
         """
 
         if k < 1 or k > self.nMesh2_node:
             raise ValueError  # TODO
 
-        XY = np.asarray(XY)
+        xy = np.asarray(xy)
+
+        # expand if only a single node pair is provided
+        if xy.ndim == 1:
+            xy = np.expand_dims(xy, axis=0)
+
+        # expected shape is [n_pairs, 2]
+        if xy.shape[1] == 3:
+            raise ValueError  # TODO, caterisian case
+
+        if xy.shape[1] != 2:
+            raise ValueError  # TODO, all others
+
+        # swap X and Y for query
+        xy[:, [0, 1]] = xy[:, [1, 0]]
 
         # balltree expects units in radians for query
         if not use_radians:
-            XY = np.deg2rad(XY)
-
-        # expand if only a single node pair is provided
-        if XY.ndim == 1:
-            XY = np.expand_dims(XY, axis=0)
-
-        # swap X and Y for query
-        XY[:, [0, 1]] = XY[:, [1, 0]]
+            xy = np.deg2rad(xy)
 
         # perform query with distance
         if return_distance:
-            d, ind = self._corner_node_balltree.query(XY, k, return_distance,
+            d, ind = self._corner_node_balltree.query(xy, k, return_distance,
                                                       dualtree, breadth_first,
                                                       sort_results)
 
-            ind = np.asarray(ind, dtype=INT_DTYPE)
-
-            # convert distance to degrees
-            if not use_radians:
-                d = np.rad2deg(d)
+            ind = np.asarray(ind, dtype=INT_DTYPE).squeeze()
+            d = np.asarray(d).squeeze()
 
             return d, ind
 
         # perform query without distance
         else:
-            ind = self._corner_node_balltree.query(XY, k, return_distance,
+            ind = self._corner_node_balltree.query(xy, k, return_distance,
                                                    dualtree, breadth_first,
                                                    sort_results)
 
-            ind = np.asarray(ind, dtype=INT_DTYPE)
+            ind = np.asarray(ind, dtype=INT_DTYPE).squeeze()
 
             return ind
 
@@ -898,18 +904,25 @@ class Grid:
         if r < 0.0:
             raise ValueError  # TODO
 
-        XY = np.asarray(XY)
+        xy = np.asarray(xy)
+
+        # expand if only a single node pair is provided
+        if xy.ndim == 1:
+            xy = np.expand_dims(xy, axis=0)
+
+        # expected shape is [n_pairs, 2]
+        if xy.shape[1] == 3:
+            raise ValueError  # TODO, caterisian case
+
+        if xy.shape[1] != 2:
+            raise ValueError  # TODO, all others
+
+        # swap X and Y for query
+        xy[:, [0, 1]] = xy[:, [1, 0]]
 
         # balltree expects units in radians for query
         if not use_radians:
-            XY = np.deg2rad(XY)
-
-        # expand if only a single node pair is provided
-        if XY.ndim == 1:
-            XY = np.expand_dims(XY, axis=0)
-
-        # swap X and Y for query
-        XY[:, [0, 1]] = XY[:, [1, 0]]
+            xy = np.deg2rad(xy)
 
         # TODO: query with radius
 

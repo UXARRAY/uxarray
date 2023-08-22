@@ -790,9 +790,23 @@ class TestBallTree(TestCase):
 
         for grid_file in self.grid_files:
             grid = ux.open_grid(grid_file)
-            #tree = _corner_nodes_to_balltree(grid)
-
-            #dist, ind = tree.query([[0.0, 0.0]], k=3)
-            grid.query_nodes([0, 10])
+            tree = _corner_nodes_to_balltree(grid)
 
             pass
+
+    def test_antimeridian_distance(self):
+        """Verifies nearest neighbor search across Antimeridian."""
+
+        # single triangle with point on antimeridian
+        verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+
+        uxgrid = ux.open_grid(verts)
+
+        # point on antimeridian, other side of grid
+        d, ind = uxgrid.query_nodes([180.0, 0.0])
+
+        # distance across antimeridian is approx zero
+        assert np.isclose(d, 0.0)
+
+        # index should point to the 0th (x, y) pair (-180, 0.0)
+        assert ind == 0
