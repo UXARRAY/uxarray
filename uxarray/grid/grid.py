@@ -855,7 +855,14 @@ class Grid:
                                                       sort_results)
 
             ind = np.asarray(ind, dtype=INT_DTYPE).squeeze()
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
             d = np.asarray(d).squeeze()
+
+            # only one pair was queried
+            if xy.shape[0] == 1:
+                ind = ind.squeeze()
+                d = d.squeeze()
 
             return d, ind
 
@@ -865,7 +872,10 @@ class Grid:
                                                    dualtree, breadth_first,
                                                    sort_results)
 
-            ind = np.asarray(ind, dtype=INT_DTYPE).squeeze()
+            ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if xy.shape[0] == 1:
+                ind = ind.squeeze()
 
             return ind
 
