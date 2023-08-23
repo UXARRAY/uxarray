@@ -247,11 +247,6 @@ def _build_node_faces_connectivity(grid):
     RuntimeError
         If the Mesh object does not contain a 'Mesh2_face_nodes' variable.
     """
-    if "Mesh2_face_nodes" not in grid._ds:
-        raise RuntimeError(
-            "Currently, node_face_connectivity can only be built with Mesh2_face_nodes"
-        )
-
     # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
     # indexes (similar to an adjacency matrix)
     face_indices, node_indices, non_filled_element_flags = _face_nodes_to_sparse_matrix(
