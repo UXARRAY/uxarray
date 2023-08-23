@@ -29,7 +29,7 @@ from uxarray.grid.geometry import (_build_polygon_shells,
                                    _grid_to_matplotlib_polycollection,
                                    _grid_to_polygons)
 
-from uxarray.grid.neighbors import _corner_nodes_to_balltree
+from uxarray.grid.neighbors import (CornerNodeBallTree, CenterNodeBallTree)
 
 
 class Grid:
@@ -89,7 +89,9 @@ class Grid:
         self._gdf = None
         self._poly_collection = None
 
-        self._corner_node_balltree_internal = None
+        # initialize cached data structures (nearest neighbors)
+        self._corner_node_balltree = None
+        self._center_node_balltree = None
 
         # unpack kwargs with default values set to None
         kwargs_list = [
@@ -600,13 +602,20 @@ class Grid:
         return self._face_areas
 
     @property
-    def _corner_node_balltree(self):
+    def corner_node_balltree(self):
         """TODO: Docstring
         """
-        if self._corner_node_balltree_internal is None:
-            self._corner_node_balltree_internal = _corner_nodes_to_balltree(
-                self)
-        return self._corner_node_balltree_internal
+        if self._corner_node_balltree is None:
+            self._corner_node_balltree = CornerNodeBallTree(self)
+        return self._corner_node_balltree
+
+    @property
+    def center_node_balltree(self):
+        """TODO: Docstring
+        """
+        if self._center_node_balltree is None:
+            self._center_node_balltree = CenterNodeBallTree(self)
+        return self._center_node_balltree
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -789,154 +798,6 @@ class Grid:
     #     integral = np.dot(face_areas, face_vals)
     #
     #     return integral
-
-    def query_nodes(self,
-                    xy: Union[np.ndarray, list, tuple],
-                    k: Optional[int] = 1,
-                    return_distance: Optional[bool] = True,
-                    dualtree: Optional[bool] = False,
-                    breadth_first: Optional[bool] = False,
-                    sort_results: Optional[bool] = True,
-                    use_radians: Optional[bool] = False):
-        """TODO: Docstring
-
-        Parameters
-        ----------
-        xy : array_like
-            TODO
-        k: int, optional
-            TODO
-        return_distance : bool, optional
-            TODO
-        dualtree : bool, optional
-            TODO
-        breadth_first : bool, optional
-            TODO
-        sort_results : bool, optional
-            TODO
-        use_radians : bool, optional
-            TODO
-
-        Returns
-        -------
-        d : np.ndarray
-            TODO
-        ind : np.ndarray
-            TODO
-        """
-
-        if k < 1 or k > self.nMesh2_node:
-            raise ValueError  # TODO
-
-        xy = np.asarray(xy)
-
-        # expand if only a single node pair is provided
-        if xy.ndim == 1:
-            xy = np.expand_dims(xy, axis=0)
-
-        # expected shape is [n_pairs, 2]
-        if xy.shape[1] == 3:
-            raise ValueError  # TODO, caterisian case
-
-        if xy.shape[1] != 2:
-            raise ValueError  # TODO, all others
-
-        # swap X and Y for query
-        xy[:, [0, 1]] = xy[:, [1, 0]]
-
-        # balltree expects units in radians for query
-        if not use_radians:
-            xy = np.deg2rad(xy)
-
-        # perform query with distance
-        if return_distance:
-            d, ind = self._corner_node_balltree.query(xy, k, return_distance,
-                                                      dualtree, breadth_first,
-                                                      sort_results)
-
-            ind = np.asarray(ind, dtype=INT_DTYPE).squeeze()
-
-            ind = np.asarray(ind, dtype=INT_DTYPE)
-            d = np.asarray(d).squeeze()
-
-            # only one pair was queried
-            if xy.shape[0] == 1:
-                ind = ind.squeeze()
-                d = d.squeeze()
-
-            return d, ind
-
-        # perform query without distance
-        else:
-            ind = self._corner_node_balltree.query(xy, k, return_distance,
-                                                   dualtree, breadth_first,
-                                                   sort_results)
-
-            ind = np.asarray(ind, dtype=INT_DTYPE)
-
-            if xy.shape[0] == 1:
-                ind = ind.squeeze()
-
-            return ind
-
-    def query_radius_nodes(self,
-                           XY,
-                           r,
-                           return_distance=False,
-                           count_only=False,
-                           sort_results=False,
-                           use_radians=False):
-        """TODO: Docstring
-
-         Parameters
-         ----------
-         XY :
-             TODO
-         r: scalar, float
-             TODO
-         return_distance :
-             TODO
-         count_only :
-             TODO
-         sort_results :
-             TODO
-         use_radians :
-             TODO
-
-         Returns
-         -------
-         d :
-             TODO
-         ind :
-             TODO
-         """
-
-        if r < 0.0:
-            raise ValueError  # TODO
-
-        xy = np.asarray(xy)
-
-        # expand if only a single node pair is provided
-        if xy.ndim == 1:
-            xy = np.expand_dims(xy, axis=0)
-
-        # expected shape is [n_pairs, 2]
-        if xy.shape[1] == 3:
-            raise ValueError  # TODO, caterisian case
-
-        if xy.shape[1] != 2:
-            raise ValueError  # TODO, all others
-
-        # swap X and Y for query
-        xy[:, [0, 1]] = xy[:, [1, 0]]
-
-        # balltree expects units in radians for query
-        if not use_radians:
-            xy = np.deg2rad(xy)
-
-        # TODO: query with radius
-
-        pass
 
     def to_geodataframe(self,
                         override=False,

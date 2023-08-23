@@ -12,7 +12,7 @@ from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face
 
 from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
 
-from uxarray.grid.neighbors import _corner_nodes_to_balltree
+from uxarray.grid.neighbors import CornerNodeBallTree, CenterNodeBallTree
 
 try:
     import constants
@@ -790,11 +790,11 @@ class TestBallTree(TestCase):
 
         for grid_file in self.grid_files:
             grid = ux.open_grid(grid_file)
-            tree = _corner_nodes_to_balltree(grid)
+            tree = CornerNodeBallTree(grid)
 
             pass
 
-    def test_antimeridian_distance(self):
+    def test_antimeridian_distance_corner_nodes(self):
         """Verifies nearest neighbor search across Antimeridian."""
 
         # single triangle with point on antimeridian
@@ -803,7 +803,7 @@ class TestBallTree(TestCase):
         uxgrid = ux.open_grid(verts)
 
         # point on antimeridian, other side of grid
-        d, ind = uxgrid.query_nodes([180.0, 0.0])
+        d, ind = uxgrid.corner_node_balltree.query([180.0, 0.0])
 
         # distance across antimeridian is approx zero
         assert np.isclose(d, 0.0)
