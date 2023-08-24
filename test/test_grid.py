@@ -805,8 +805,8 @@ class TestConnectivity(TestCase):
                     face_nodes_conn_lonlat[i,
                                            j] = node_lonlat_degree[node_index]
 
-        # Now we don't need the face_nodes_conn_index anymore.
-        del face_nodes_conn_index
+        # Now we don't need the face_nodes_conn_index anymore. But calling del face_nodes_conn_index will result in
+        # Failing CI for macos and ubuntu (windows is fine). So we just do nothing about it here
 
         vgrid = ux.Grid(face_nodes_conn_lonlat,
                         vertices=True,
