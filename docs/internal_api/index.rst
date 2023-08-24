@@ -88,10 +88,10 @@ Methods
 .. autosummary::
    :toctree: _autosummary
 
-   __init_grid_var_names__
-   __from_ds__
-   __from_vert__
-   __init_grid_var_attrs__
+   Grid.__init_grid_var_names__
+   Grid.__from_ds__
+   Grid.__from_vert__
+   Grid.__init_grid_var_attrs__
 
 
 
@@ -124,6 +124,7 @@ Connectivity
    grid.connectivity._build_nNodes_per_face
    grid.connectivity._build_edge_node_connectivity
    grid.connectivity._build_face_edges_connectivity
+   grid.connectivity._build_node_faces_connectivity
 
 Geometry
 --------

@@ -781,9 +781,17 @@ class TestConnectivity(TestCase):
 
     def test_node_face_connectivity_from_verts(self):
         """Test generating Grid.Mesh2_node_faces from array input."""
-        node_latlon_degree = [[162., 30], [216., 30], [70., 30], [162., -30],
+
+        # We used the following codes to generate the testing face_nodes_connectivity in lonlat,
+        # The index of the nodes here is just for generation purpose and ensure the topology.
+        # These information will not be used in the Grid.
+        # The input will be re-ordered inside the `Grid.build_face_nodes_connectivity` while the topology is the same.
+        # When checking with the expectation, we need to make sure the `Grid._node_face_connectivity` coheres
+        # with the `Grid._face_nodes_connectivity`.
+        node_lonlat_degree = [[162., 30], [216., 30], [70., 30], [162., -30],
                               [216., -30], [70., -30]]
 
+        # This is the face_nodes_conn_index is only for data generation purpose and it will not be used in the Grid.
         face_nodes_conn_index = np.array([[3, 4, 5, ux.INT_FILL_VALUE],
                                           [3, 0, 2, 5], [3, 4, 1, 0],
                                           [0, 1, 2, ux.INT_FILL_VALUE]])
@@ -795,12 +803,17 @@ class TestConnectivity(TestCase):
             for j, node_index in enumerate(face_nodes_conn_index_row):
                 if node_index != ux.INT_FILL_VALUE:
                     face_nodes_conn_lonlat[i,
-                                           j] = node_latlon_degree[node_index]
+                                           j] = node_lonlat_degree[node_index]
+
+        # Now we don't need the face_nodes_conn_index anymore.
+        del face_nodes_conn_index
 
         vgrid = ux.Grid(face_nodes_conn_lonlat,
                         vertices=True,
                         islatlon=True,
                         concave=False)
+
+        # We eyeballed the `Grid._face_nodes_connectivity` and wrote the following expected result
         expected = np.array([
             np.array([0, 1, ux.INT_FILL_VALUE]),
             np.array([1, 3, ux.INT_FILL_VALUE]),

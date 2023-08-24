@@ -2,8 +2,6 @@
 import xarray as xr
 import numpy as np
 
-from scipy import sparse
-
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
