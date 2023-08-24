@@ -157,18 +157,18 @@ BallTree Data Structures
 .. autosummary::
    :toctree: _autosummary
 
-   CornerNodeBallTree
-   CenterNodeBallTree
+   grid.CornerNodeBallTree
+   grid.CenterNodeBallTree
 
 Query Methods
 -------------
 .. autosummary::
    :toctree: _autosummary
 
-   CornerNodeBallTree.query
-   CornerNodeBallTree.query_radius
-   CenterNodeBallTree.query
-   CenterNodeBallTree.query_radius
+   grid.CornerNodeBallTree.query
+   grid.CornerNodeBallTree.query_radius
+   grid.CenterNodeBallTree.query
+   grid.CenterNodeBallTree.query_radius
 
 
 Helpers
