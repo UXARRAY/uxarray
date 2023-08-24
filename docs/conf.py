@@ -25,6 +25,8 @@ try:
 except ImportError:
     from mock import Mock as MagicMock
 
+import matplotlib.pyplot
+
 
 class Mock(MagicMock):
 
@@ -51,6 +53,39 @@ extensions = [
     "sphinx_design",
     "nbsphinx",
 ]
+
+mathjax_config = {
+    'tex2jax': {
+        'inlineMath': [['$', '$'], ['\\(', '\\)']],
+        'displayMath': [['$$', '$$'], ['\\[', '\\]']],
+        'processEscapes': True,
+    },
+    'HTML-CSS': {
+        'linebreaks': {
+            'automatic': True,
+            'width': 'container'
+        },
+        'fonts': {
+            'availableFonts': ['TeX'],
+            'preferredFont': 'TeX',
+            'webFont': 'TeX'
+        }
+    },
+    'CommonHTML': {
+        'linebreaks': {
+            'automatic': True,
+            'width': 'container'
+        }
+    },
+    'SVG': {
+        'linebreaks': {
+            'automatic': True,
+            'width': 'container'
+        }
+    }
+}
+
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),

@@ -1,7 +1,7 @@
-import xarray as xr
 import numpy as np
-from uxarray.utils.helpers import _replace_fill_values
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+
+from uxarray.grid.connectivity import _replace_fill_values
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _read_ugrid(xr_ds, var_names_dict):
@@ -113,3 +113,19 @@ def _standardize_fill_values(ds, var_names_dict):
             '_FillValue'] = INT_FILL_VALUE
 
     return ds
+
+
+def _is_ugrid(ds):
+    """Check mesh topology and dimension."""
+    standard_name = lambda v: v is not None
+    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
+    # return type KeysView
+    node_coords_dv = ds.filter_by_attrs(node_coordinates=standard_name)
+    face_conn_dv = ds.filter_by_attrs(face_node_connectivity=standard_name)
+    topo_dim_dv = ds.filter_by_attrs(topology_dimension=standard_name)
+    mesh_topo_dv = ds.filter_by_attrs(cf_role="mesh_topology")
+    if len(mesh_topo_dv) != 0 and len(topo_dim_dv) != 0 and len(
+            face_conn_dv) != 0 and len(node_coords_dv) != 0:
+        return True
+    else:
+        return False

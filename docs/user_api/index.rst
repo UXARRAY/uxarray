@@ -9,8 +9,6 @@ check the draft `UXarray API
 <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
 documentation to see the tentative whole API and let us know if you have any feedback!
 
-
-
 UxDataset
 =========
 A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
@@ -19,7 +17,6 @@ dataset operators and attributes through the ``uxgrid`` accessor.
 
 Below is a list of features explicitly added to `UxDataset` to work on
 Unstructured Grids:
-
 
 Class
 -----
@@ -33,24 +30,24 @@ IO
 .. autosummary::
    :toctree: _autosummary
 
-    open_dataset
-    open_mfdataset
+   open_dataset
+   open_mfdataset
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
 
-    UxDataset.uxgrid
-    UxDataset.source_datasets
+   UxDataset.uxgrid
+   UxDataset.source_datasets
 
 Methods
 -------
 .. autosummary::
    :toctree: _autosummary
 
-    UxDataset.info
-    UxDataset.integrate
+   UxDataset.info
+   UxDataset.integrate
 
 
 UxDataArray
@@ -69,12 +66,19 @@ Class
 
    UxDataArray
 
+IO
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.to_geodataframe
+   UxDataArray.to_polycollection
+
 
 Attributes
 ----------
 .. autosummary::
    :toctree: _autosummary
-
    UxDataArray.uxgrid
 
 
@@ -101,6 +105,9 @@ IO
    :toctree: _autosummary
 
    open_grid
+   Grid.to_geodataframe
+   Grid.to_polycollection
+   Grid.to_shapely_polygons
 
 
 Methods
@@ -113,6 +120,7 @@ Methods
    Grid.encode_as
    Grid.integrate
    Grid.copy
+
 
 Attributes
 ----------
@@ -134,24 +142,57 @@ Attributes
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
+   Grid.antimeridian_face_indices
+
 
 
 Helpers
 ===========
 
-.. currentmodule:: uxarray
+Face Area
+----------
 .. autosummary::
    :toctree: _autosummary
 
-   calculate_face_area
-   calculate_spherical_triangle_jacobian
-   calculate_spherical_triangle_jacobian_barycentric
-   close_face_nodes
-   get_all_face_area_from_coords
-   get_gauss_quadratureDG
-   get_tri_quadratureDG
-   grid_center_lat_lon
-   node_xyz_to_lonlat_rad
-   node_lonlat_rad_to_xyz
-   normalize_in_place
-   parse_grid_type
+   grid.area.calculate_face_area
+   grid.area.get_all_face_area_from_coords
+   grid.area.calculate_spherical_triangle_jacobian
+   grid.area.calculate_spherical_triangle_jacobian_barycentric
+   grid.area.get_gauss_quadratureDG
+   grid.area.get_tri_quadratureDG
+
+Connectivity
+------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.connectivity.close_face_nodes
+
+Coordinates
+-----------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.coordinates.node_lonlat_rad_to_xyz
+   grid.coordinates.node_xyz_to_lonlat_rad
+   grid.coordinates.normalize_in_place
+
+
+
+Lines
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.lines.in_between
+   grid.lines.point_within_GCA
+
+Numba
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   utils.enable_jit_cache
+   utils.disable_jit_cache
+   utils.enable_jit
+   utils.disable_jit
