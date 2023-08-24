@@ -145,7 +145,30 @@ Attributes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
    Grid.antimeridian_face_indices
+   Grid.corner_node_balltree
+   Grid.center_node_balltree
 
+
+Nearest Neighbors
+=================
+
+BallTree Data Structures
+------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   CornerNodeBallTree
+   CenterNodeBallTree
+
+Query Methods
+-------------
+.. autosummary::
+   :toctree: _autosummary
+
+   CornerNodeBallTree.query
+   CenterNodeBallTree.query_radius
+   CornerNodeBallTree.query
+   CornerNodeBallTree.query_radius
 
 
 Helpers
@@ -178,7 +201,6 @@ Coordinates
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
-
 
 
 Lines
