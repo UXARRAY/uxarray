@@ -166,9 +166,9 @@ Query Methods
    :toctree: _autosummary
 
    CornerNodeBallTree.query
-   CenterNodeBallTree.query_radius
-   CornerNodeBallTree.query
    CornerNodeBallTree.query_radius
+   CenterNodeBallTree.query
+   CenterNodeBallTree.query_radius
 
 
 Helpers
