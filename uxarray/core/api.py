@@ -4,7 +4,7 @@ import os
 import numpy as np
 import xarray as xr
 
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Dict, Optional, Union
 
 import uxarray.constants
@@ -15,8 +15,8 @@ from uxarray.core.dataset import UxDataset
 def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
                                           list, tuple],
               gridspec: Optional[str] = None,
-              vertices: Optional[list] = None,
-              islatlon: Optional[bool] = False,
+              face_vertices: Optional[list] = None,
+              latlon: Optional[bool] = False,
               isconcave: Optional[bool] = False,
               use_dual: Optional[bool] = False,
               **kwargs: Dict[str, Any]) -> Grid:
@@ -41,7 +41,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     gridspec: str, optional
         Specifies gridspec
 
-    vertices: bool, optional
+    face_vertices: bool, optional
         Whether to create grid from vertices
 
     source_grid: str, optional
@@ -74,24 +74,21 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     # construct Grid from dataset
     if isinstance(grid_filename_or_obj, xr.Dataset):
         uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
+
     # construct Grid from path
-    elif isinstance(grid_filename_or_obj, str):
+    elif isinstance(grid_filename_or_obj, (str, Path, PurePath)):
         grid_ds = xr.open_dataset(grid_filename_or_obj,
                                   decode_times=False,
                                   **kwargs)
 
         uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
 
-    # Grid definition
-    if isinstance(grid_filename_or_obj,
-                  (list, tuple, np.ndarray, xr.DataArray)):
-        uxgrid = Grid(grid_filename_or_obj,
-                      gridspec=gridspec,
-                      vertices=vertices,
-                      islatlon=islatlon,
-                      isconcave=isconcave,
-                      source_grid=str(grid_filename_or_obj),
-                      use_dual=use_dual)
+    elif isinstance(grid_filename_or_obj,
+                    (list, tuple, np.ndarray, xr.DataArray)):
+        uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon)
+
+    else:
+        raise ValueError  # TODO: invalid input
 
     return uxgrid
 
@@ -99,8 +96,8 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 def open_dataset(grid_filename_or_obj: str,
                  filename_or_obj: str,
                  gridspec: Optional[str] = None,
-                 vertices: Optional[list] = None,
-                 islatlon: Optional[bool] = False,
+                 face_vertices: Optional[list] = None,
+                 latlon: Optional[bool] = False,
                  isconcave: Optional[bool] = False,
                  use_dual: Optional[bool] = False,
                  grid_kwargs: Optional[Dict[str, Any]] = {},
@@ -170,8 +167,8 @@ def open_dataset(grid_filename_or_obj: str,
     # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        gridspec=gridspec,
-                       vertices=vertices,
-                       islatlon=islatlon,
+                       face_vertices=face_vertices,
+                       latlon=latlon,
                        isconcave=isconcave,
                        use_dual=use_dual,
                        **grid_kwargs)
@@ -187,8 +184,8 @@ def open_dataset(grid_filename_or_obj: str,
 def open_mfdataset(grid_filename_or_obj: str,
                    paths: Union[str, os.PathLike],
                    gridspec: Optional[str] = None,
-                   vertices: Optional[list] = None,
-                   islatlon: Optional[bool] = False,
+                   face_vertices: Optional[list] = None,
+                   latlon: Optional[bool] = False,
                    isconcave: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
                    grid_kwargs: Optional[Dict[str, Any]] = {},
@@ -263,8 +260,8 @@ def open_mfdataset(grid_filename_or_obj: str,
     # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        gridspec=gridspec,
-                       vertices=vertices,
-                       islatlon=islatlon,
+                       face_vertices=face_vertices,
+                       latlon=latlon,
                        isconcave=isconcave,
                        use_dual=use_dual,
                        **grid_kwargs)

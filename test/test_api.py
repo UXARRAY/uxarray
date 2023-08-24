@@ -53,10 +53,6 @@ class TestAPI(TestCase):
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)
-        nt.assert_equal(uxds_var2_ne30.uxgrid.source_grid,
-                        str(self.gridfile_ne30))
-        nt.assert_equal(uxds_var2_ne30.source_datasets,
-                        str(self.dsfile_var2_ne30))
 
     def test_open_mf_dataset(self):
         """Loads multiple datasets with their grid topology file using
@@ -69,9 +65,6 @@ class TestAPI(TestCase):
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_mf_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)
-        nt.assert_equal(uxds_mf_ne30.uxgrid.source_grid,
-                        str(self.gridfile_ne30))
-        nt.assert_equal(uxds_mf_ne30.source_datasets, self.dsfiles_mf_ne30)
 
     def test_open_grid(self):
         """Loads only a grid topology file using uxarray's open_grid call."""

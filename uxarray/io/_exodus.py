@@ -5,6 +5,7 @@ from datetime import datetime
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.utils import _get_ugrid_var_vame_dict
 
 
 # Exodus Number is one-based.
@@ -16,6 +17,7 @@ def _read_exodus(ext_ds):
     """
 
     # TODO: UGRID Variable Mapping
+    var_names_dict = _get_ugrid_var_vame_dict()
 
     # Not loading specific variables.
     # as there is no way to know number of face types etc. without loading
@@ -151,10 +153,10 @@ def _read_exodus(ext_ds):
     else:
         ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
 
-    return ds
+    return ds, var_names_dict
 
 
-def _encode_exodus(ds, grid_var_names, outfile=None):
+def _encode_exodus(ds, outfile=None):
     """Encodes an Exodus file.
 
     Parameters
@@ -214,32 +216,29 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
                                         dims=["four", "num_qa_rec"])
 
     # get orig dimension from Mesh2 attribute topology dimension
-    dim = ds[grid_var_names["Mesh2"]].topology_dimension
+    dim = ds["Mesh2"].topology_dimension
 
     c_data = []
     if dim == 2:
         c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_y"]].data.tolist()
+            ds["Mesh2_node_x"].data.tolist(), ds["Mesh2_node_y"].data.tolist()
         ])
     elif dim == 3:
         c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_y"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_z"]].data.tolist()
+            ds["Mesh2_node_x"].data.tolist(), ds["Mesh2_node_y"].data.tolist(),
+            ds["Mesh2_node_z"].data.tolist()
         ])
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
 
     # process face nodes, this array holds num faces at corresponding location
     # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
-    num_el_all_blks = np.zeros(ds[grid_var_names["nMaxMesh2_face_nodes"]].size,
-                               "i8")
+    num_el_all_blks = np.zeros(ds["nMaxMesh2_face_nodes"].size, "i8")
     # this list stores connectivity without filling
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds[grid_var_names["Mesh2_face_nodes"]].astype(INT_DTYPE).data:
+    for row in ds["Mesh2_face_nodes"].astype(INT_DTYPE).data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
@@ -255,8 +254,7 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
             conn_nofill.append(list_node)
         elif arr[0].size == 0:
             # increment the number of faces for this "nMaxMesh2_face_nodes" face
-            num_el_all_blks[ds[grid_var_names["nMaxMesh2_face_nodes"]].size -
-                            1] += 1
+            num_el_all_blks[ds["nMaxMesh2_face_nodes"].size - 1] += 1
             # get integer list nodes
             list_node = list(map(int, row.tolist()))
             conn_nofill.append(list_node)

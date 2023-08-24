@@ -203,16 +203,11 @@ class Grid:
         -------
         If two grids are equal : bool
         """
-        # TODO: deprecate grid var names
         if other is not None:
-            # Iterate over dict to set access attributes
-            for key, value in self.grid_var_names.items():
-                # Check if all grid variables are equal
-                if self._ds.data_vars is not None:
-                    if value in self._ds.data_vars:
-                        if not self._ds[value].equals(
-                                other._ds[other.grid_var_names[key]]):
-                            return False
+            if isinstance(other, Grid):
+                if xr.testing.assert_equal(self._ds, other._ds):
+                    return True
+
         else:
             return False
 
@@ -454,13 +449,10 @@ class Grid:
 
     def copy(self):
         """Returns a deep copy of this grid."""
-        return Grid(xr.Dataset(self._ds),
-                    gridspec=self.gridspec,
-                    vertices=self.vertices,
-                    islatlon=self.islatlon,
-                    isconcave=self.isconcave,
-                    source_grid=self.source_grid,
-                    use_dual=self.use_dual)
+
+        return Grid(self._ds,
+                    grid_spec=self.grid_spec,
+                    ugrid_mapping=self._ugrid_mapping)
 
     def encode_as(self, grid_type):
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
@@ -483,13 +475,13 @@ class Grid:
             If provided grid type or file type is unsupported.
         """
 
-        if grid_type == "ugrid":
+        if grid_type == "UGRID":
             out_ds = _encode_ugrid(self._ds)
 
-        elif grid_type == "exodus":
-            out_ds = _encode_exodus(self._ds, self.grid_var_names)
+        elif grid_type == "Exodus":
+            out_ds = _encode_exodus(self._ds)
 
-        elif grid_type == "scrip":
+        elif grid_type == "SCRIP":
             out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
                                    self.Mesh2_node_y, self.face_areas)
         else:
@@ -555,7 +547,8 @@ class Grid:
 
         face_nodes = self.Mesh2_face_nodes.data
         nNodes_per_face = self.nNodes_per_face.data
-        dim = self.Mesh2.attrs['topology_dimension']
+        dim = self.Mesh2.attrs[
+            'topology_dimension']  # TODO: do we need Mesh2????
 
         # initialize z
         z = np.zeros((self.nMesh2_node))
@@ -564,7 +557,7 @@ class Grid:
         x = self.Mesh2_node_x.data
         y = self.Mesh2_node_y.data
         # check if z dimension
-        if self.Mesh2.topology_dimension > 2:
+        if self.Mesh2.topology_dimension > 2:  # TODO: do we need Mesh2????
             z = self._Mesh2_node_z.data
 
         # Note: x, y, z are np arrays of type float
