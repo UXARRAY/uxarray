@@ -69,6 +69,8 @@ class CornerNodeBallTree:
                 ind = ind.squeeze()
                 d = d.squeeze()
 
+            d = np.rad2deg(d)
+
             return d, ind
 
         # perform query without distance
@@ -86,7 +88,7 @@ class CornerNodeBallTree:
     def query_radius(self,
                      xy,
                      r,
-                     return_distance=False,
+                     return_distance=True,
                      count_only=False,
                      sort_results=False,
                      use_radians=False):
@@ -118,11 +120,39 @@ class CornerNodeBallTree:
         if r < 0.0:
             raise ValueError  # TODO
 
+        r = np.deg2rad(r)
         xy = _prepare_xy_for_query(xy, use_radians)
 
-        # TODO: query with radius
+        if count_only:
+            count = self.tree.query_radius(xy, r, return_distance, count_only,
+                                           sort_results)
 
-        pass
+            return count
+
+        if not count_only and not return_distance:
+            ind = self.tree.query_radius(xy, r, return_distance, count_only,
+                                         sort_results)
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if xy.shape[0] == 1:
+                ind = ind.squeeze()
+
+            return ind
+
+        else:
+            ind, d = self.tree.query_radius(xy, r, return_distance, count_only,
+                                            sort_results)
+
+            # TODO: index
+            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+
+            if xy.shape[0] == 1:
+                ind = ind.squeeze()
+
+            d = np.rad2deg(d[0])
+
+            return ind, d
 
 
 class CenterNodeBallTree:

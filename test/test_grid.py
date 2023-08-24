@@ -803,10 +803,23 @@ class TestBallTree(TestCase):
         uxgrid = ux.open_grid(verts)
 
         # point on antimeridian, other side of grid
-        d, ind = uxgrid.corner_node_balltree.query([180.0, 0.0])
+        d, ind = uxgrid.corner_node_balltree.query([180.0, 0.0], k=3)
 
         # distance across antimeridian is approx zero
         assert np.isclose(d, 0.0)
 
         # index should point to the 0th (x, y) pair (-180, 0.0)
         assert ind == 0
+
+    def test_antimeridian_distance_corner_nodes(self):
+        """Verifies nearest neighbor search across Antimeridian."""
+
+        # single triangle with point on antimeridian
+        verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+
+        uxgrid = ux.open_grid(verts)
+
+        # point on antimeridian, other side of grid
+        d, ind = uxgrid.corner_node_balltree.query_radius([180.0, 0.0], r=90.01)
+
+        pass
