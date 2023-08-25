@@ -298,6 +298,14 @@ class Grid:
         # Test if the file is a valid ugrid file format or not
         valid = _is_ugrid(self._ds)
 
+        # check if the grid has duplicate nodes
+        if valid:
+            check_duplicate_nodes = np.unique(
+                np.vstack((self.Mesh2_node_x, self.Mesh2_node_y)),
+                axis=0).shape[0] == self.nMesh2_node
+
+            print(check_duplicate_nodes)
+
         # TODO: Add more checks
 
         return valid
