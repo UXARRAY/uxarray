@@ -12,7 +12,7 @@ class BallTree:
     """Custom BallTree datastructure written around the
     ``sklearn.neighbors.BallTree`` implementation for use with either the
     corner (``Mesh2_node_x``, ``Mesh2_node_y``) or center (``Mesh2_face_x``,
-    ``Mesh2_face_y``) of the inputted unstructured grid.
+    ``Mesh2_face_y``) nodes of the inputted unstructured grid.
 
     Notes
     -----
@@ -127,7 +127,7 @@ class BallTree:
                      return_distance: Optional[bool] = True,
                      count_only: Optional[bool] = False,
                      sort_results: Optional[bool] = False):
-        """Queries the tree for neighbors within a radius ``r``"".
+        """Queries the tree for neighbors within a radius ``r``.
 
         Parameters
         ----------

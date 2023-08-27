@@ -152,7 +152,7 @@ Attributes
 Nearest Neighbors
 =================
 
-BallTree Data Structures
+BallTree Data Structure
 ------------------------
 .. autosummary::
    :toctree: _autosummary
