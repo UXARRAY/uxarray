@@ -27,6 +27,7 @@ gridfile_RLL10deg_CSne4 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CS
 gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
@@ -784,24 +785,28 @@ class TestConnectivity(TestCase):
 
 class TestBallTree(TestCase):
 
-    corner_grid_files = [gridfile_CSne30]
-    center_grid_files = [
-        current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
-    ]
+    corner_grid_files = [gridfile_CSne30, gridfile_mpas]
+    center_grid_files = [gridfile_mpas]
 
     def test_construction_from_corner_nodes(self):
+        """Tests the construction of the ball tree on corner nodes and performs
+        a sample query."""
 
         for grid_file in self.corner_grid_files:
             uxgrid = ux.open_grid(grid_file)
 
+            # performs a sample query
             d, ind = uxgrid.corner_node_balltree.query([3.0, 3.0], k=3)
 
     def test_construction_from_center_nodes(self):
+        """Tests the construction of the ball tree on center nodes and performs
+        a sample query."""
 
         for grid_file in self.center_grid_files:
             uxgrid = ux.open_grid(grid_file)
 
-            d, ind = uxgrid.corner_node_balltree.query([-180, 0.0], k=3)
+            # performs a sample query
+            d, ind = uxgrid.center_node_balltree.query([3.0, 3.0], k=3)
 
     def test_antimeridian_distance_corner_nodes(self):
         """Verifies nearest neighbor search across Antimeridian."""
@@ -820,13 +825,13 @@ class TestBallTree(TestCase):
         # index should point to the 0th (x, y) pair (-180, 0.0)
         assert ind == 0
 
-    def test_antimeridian_distance_corner_nodes_radius(self):
-        """Verifies nearest neighbor search across Antimeridian."""
+        # point on antimeridian, other side of grid, slightly larger than 90 due to floating point calcs
+        d, ind = uxgrid.corner_node_balltree.query_radius([-180, 0.0], r=90.01)
 
-        # single triangle with point on antimeridian
-        verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+        expected_d = np.array([0.0, 90.0, 90.0])
 
-        uxgrid = ux.open_grid(verts)
+        assert np.allclose(a=d, b=expected_d, atol=1e-03)
 
-        # point on antimeridian, other side of grid
-        d, ind = uxgrid.corner_node_balltree.query_radius([180.0, 0.0], r=90.01)
+    def test_antimeridian_distance_corner_nodes(self):
+        """TODO: Write addition tests once construction and representation of face centers is implemented."""
+        pass

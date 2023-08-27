@@ -89,7 +89,7 @@ class Grid:
         self._gdf = None
         self._poly_collection = None
 
-        # initialize cached data structures (nearest neighbors)
+        # initialize cached data structures (nearest neighbor operations)
         self._corner_node_balltree = None
         self._center_node_balltree = None
 
@@ -603,16 +603,18 @@ class Grid:
 
     @property
     def corner_node_balltree(self):
-        """TODO: Docstring
-        """
+        """BallTree data structured constructed from corner nodes
+        (``Mesh2_node_x``, ``Mesh2_node_y``) used for nearest-neighbor
+        calculation."""
         if self._corner_node_balltree is None:
             self._corner_node_balltree = BallTree(self, node_type='corner')
         return self._corner_node_balltree
 
     @property
     def center_node_balltree(self):
-        """TODO: Docstring
-        """
+        """BallTree data structured constructed from center nodes
+        (``Mesh2_face_x``, ``Mesh2_face_y``) used for nearest-neighbor
+        calculation."""
         if self._center_node_balltree is None:
             self._center_node_balltree = BallTree(self, node_type='center')
         return self._center_node_balltree
