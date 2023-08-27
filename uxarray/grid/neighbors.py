@@ -1,21 +1,35 @@
 import numpy as np
 from numpy import deg2rad
 
-from sklearn.neighbors import BallTree
+from sklearn.neighbors import BallTree as SKBallTree
 from typing import Any, Dict, Optional, Union
 
 from uxarray.constants import INT_DTYPE
 
 
-class CornerNodeBallTree:
+class BallTree:
 
-    def __init__(self, grid):
+    def __init__(self, grid, node_type='corner'):
 
-        XY = np.vstack((deg2rad(grid.Mesh2_node_y.values),
-                        deg2rad(grid.Mesh2_node_x.values))).T
+        if node_type == "corner":
 
-        self.n_node = grid.nMesh2_node
-        self.tree = BallTree(XY, metric='haversine')
+            XY = np.vstack((deg2rad(grid.Mesh2_node_y.values),
+                            deg2rad(grid.Mesh2_node_x.values))).T
+
+            self.n_elements = grid.nMesh2_node
+            self.tree = SKBallTree(XY, metric='haversine')
+
+        elif node_type == "center":
+
+            # requires center nodes
+            if grid.Mesh2_face_x is None or grid.Mesh2_face_y is None:
+                raise ValueError
+
+            XY = np.vstack((deg2rad(grid.Mesh2_face_y.values),
+                            deg2rad(grid.Mesh2_face_x.values))).T
+
+            self.n_elements = grid.nMesh2_face
+            self.tree = SKBallTree(XY, metric='haversine')
 
     def query(self,
               xy: Union[np.ndarray, list, tuple],
@@ -52,7 +66,7 @@ class CornerNodeBallTree:
             TODO
         """
 
-        if k < 1 or k > self.n_node:
+        if k < 1 or k > self.n_elements:
             raise ValueError  # TODO
 
         xy = _prepare_xy_for_query(xy, use_radians)
@@ -153,98 +167,6 @@ class CornerNodeBallTree:
             d = np.rad2deg(d[0])
 
             return ind, d
-
-
-class CenterNodeBallTree:
-
-    def __init__(self, grid):
-
-        # requires center nodes
-        if grid.Mesh2_face_x is None or grid.Mesh2_face_y is None:
-            raise ValueError
-
-        XY = np.vstack((deg2rad(grid.Mesh2_face_y.values),
-                        deg2rad(grid.Mesh2_face_x.values))).T
-
-        self.n_face = grid.nMesh2_face
-        self.tree = BallTree(XY, metric='haversine')
-
-    def query(self,
-              xy: Union[np.ndarray, list, tuple],
-              k: Optional[int] = 1,
-              use_radians: Optional[bool] = False,
-              return_distance: Optional[bool] = True,
-              dualtree: Optional[bool] = False,
-              breadth_first: Optional[bool] = False,
-              sort_results: Optional[bool] = True):
-        """TODO: Docstring
-
-        Parameters
-        ----------
-        xy : array_like
-            TODO
-        k: int, optional
-            TODO
-        return_distance : bool, optional
-            TODO
-        dualtree : bool, optional
-            TODO
-        breadth_first : bool, optional
-            TODO
-        sort_results : bool, optional
-            TODO
-        use_radians : bool, optional
-            TODO
-
-        Returns
-        -------
-        d : np.ndarray
-            TODO
-        ind : np.ndarray
-            TODO
-        """
-        pass
-
-    def query_radius(self,
-                     xy,
-                     r,
-                     return_distance=False,
-                     count_only=False,
-                     sort_results=False,
-                     use_radians=False):
-        """TODO: Docstring
-
-         Parameters
-         ----------
-         XY :
-             TODO
-         r: scalar, float
-             TODO
-         return_distance :
-             TODO
-         count_only :
-             TODO
-         sort_results :
-             TODO
-         use_radians :
-             TODO
-
-         Returns
-         -------
-         d :
-             TODO
-         ind :
-             TODO
-         """
-
-        if r < 0.0:
-            raise ValueError  # TODO
-
-        xy = _prepare_xy_for_query(xy, use_radians)
-
-        # TODO: query with radius
-
-        pass
 
 
 def _prepare_xy_for_query(xy, use_radians):

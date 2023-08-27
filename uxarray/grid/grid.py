@@ -29,7 +29,7 @@ from uxarray.grid.geometry import (_build_polygon_shells,
                                    _grid_to_matplotlib_polycollection,
                                    _grid_to_polygons)
 
-from uxarray.grid.neighbors import (CornerNodeBallTree, CenterNodeBallTree)
+from uxarray.grid.neighbors import BallTree
 
 
 class Grid:
@@ -606,7 +606,7 @@ class Grid:
         """TODO: Docstring
         """
         if self._corner_node_balltree is None:
-            self._corner_node_balltree = CornerNodeBallTree(self)
+            self._corner_node_balltree = BallTree(self, node_type='corner')
         return self._corner_node_balltree
 
     @property
@@ -614,7 +614,7 @@ class Grid:
         """TODO: Docstring
         """
         if self._center_node_balltree is None:
-            self._center_node_balltree = CenterNodeBallTree(self)
+            self._center_node_balltree = BallTree(self, node_type='center')
         return self._center_node_balltree
 
     def copy(self):

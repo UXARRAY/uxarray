@@ -1,3 +1,3 @@
 from .grid import Grid
 
-from .neighbors import CornerNodeBallTree, CenterNodeBallTree
+from .neighbors import BallTree

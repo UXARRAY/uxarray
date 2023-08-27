@@ -12,7 +12,7 @@ from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face
 
 from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
 
-from uxarray.grid.neighbors import CornerNodeBallTree, CenterNodeBallTree
+from uxarray.grid.neighbors import BallTree
 
 try:
     import constants
@@ -784,15 +784,24 @@ class TestConnectivity(TestCase):
 
 class TestBallTree(TestCase):
 
-    grid_files = [gridfile_CSne8, gridfile_geoflow]
+    corner_grid_files = [gridfile_CSne30]
+    center_grid_files = [
+        current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+    ]
 
     def test_construction_from_corner_nodes(self):
 
-        for grid_file in self.grid_files:
-            grid = ux.open_grid(grid_file)
-            tree = CornerNodeBallTree(grid)
+        for grid_file in self.corner_grid_files:
+            uxgrid = ux.open_grid(grid_file)
 
-            pass
+            d, ind = uxgrid.corner_node_balltree.query([3.0, 3.0], k=3)
+
+    def test_construction_from_center_nodes(self):
+
+        for grid_file in self.center_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+
+            d, ind = uxgrid.corner_node_balltree.query([-180, 0.0], k=3)
 
     def test_antimeridian_distance_corner_nodes(self):
         """Verifies nearest neighbor search across Antimeridian."""
@@ -803,7 +812,7 @@ class TestBallTree(TestCase):
         uxgrid = ux.open_grid(verts)
 
         # point on antimeridian, other side of grid
-        d, ind = uxgrid.corner_node_balltree.query([180.0, 0.0], k=3)
+        d, ind = uxgrid.corner_node_balltree.query([180.0, 0.0], k=1)
 
         # distance across antimeridian is approx zero
         assert np.isclose(d, 0.0)
@@ -811,7 +820,7 @@ class TestBallTree(TestCase):
         # index should point to the 0th (x, y) pair (-180, 0.0)
         assert ind == 0
 
-    def test_antimeridian_distance_corner_nodes(self):
+    def test_antimeridian_distance_corner_nodes_radius(self):
         """Verifies nearest neighbor search across Antimeridian."""
 
         # single triangle with point on antimeridian
@@ -821,5 +830,3 @@ class TestBallTree(TestCase):
 
         # point on antimeridian, other side of grid
         d, ind = uxgrid.corner_node_balltree.query_radius([180.0, 0.0], r=90.01)
-
-        pass
