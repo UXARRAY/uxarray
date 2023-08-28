@@ -194,6 +194,28 @@ class TestConstants(TestCase):
                                                    new_dtype=np.int16)
 
 
+class TestSparseMatrix(TestCase):
+
+    def test_convert_face_node_conn_to_sparse_matrix(self):
+        """Tests _face_nodes_to_sparse_matrix() helper function to see if can
+        generate sparse matrix from face_nodes_conn that has Fill Values."""
+        face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5],
+                                    [3, 4, 1, 0], [0, 1, 2, INT_FILL_VALUE]])
+
+        face_indices, nodes_indices, non_zero_flag = ux.grid.connectivity._face_nodes_to_sparse_matrix(
+            face_nodes_conn)
+        expected_non_zero_flag = np.array(
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+        expected_face_indices = np.array(
+            [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
+        expected_nodes_indices = np.array(
+            [3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
+
+        nt.assert_array_equal(non_zero_flag, expected_non_zero_flag)
+        nt.assert_array_equal(face_indices, expected_face_indices)
+        nt.assert_array_equal(nodes_indices, expected_nodes_indices)
+
+
 class TestIntersectionPoint(TestCase):
 
     def test_pt_within_gcr(self):

@@ -19,8 +19,8 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
-
    UxDataset
+
 
 Attributes
 ----------
@@ -94,6 +94,7 @@ Methods
    Grid.__init_grid_var_attrs__
 
 
+
 Attributes
 ----------
 .. autosummary::
@@ -118,10 +119,12 @@ Connectivity
 .. autosummary::
    :toctree: _autosummary
 
+   grid.connectivity._face_nodes_to_sparse_matrix
    grid.connectivity._replace_fill_values
    grid.connectivity._build_nNodes_per_face
    grid.connectivity._build_edge_node_connectivity
    grid.connectivity._build_face_edges_connectivity
+   grid.connectivity._build_node_faces_connectivity
 
 Geometry
 --------
