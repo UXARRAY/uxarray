@@ -120,8 +120,6 @@ Methods
    Grid.encode_as
    Grid.integrate
    Grid.copy
-   Grid.query_nodes
-   Grid.query_radius_nodes
 
 
 Attributes
