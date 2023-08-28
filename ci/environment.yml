@@ -9,6 +9,7 @@ dependencies:
   - numpy
   - pathlib
   - pre_commit
+  - pyarrow<13.0.0
   - pytest
   - pytest-cov
   - scipy
