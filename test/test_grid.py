@@ -784,14 +784,15 @@ class TestConnectivity(TestCase):
 
         # We used the following codes to generate the testing face_nodes_connectivity in lonlat,
         # The index of the nodes here is just for generation purpose and ensure the topology.
-        # These information will not be used in the Grid.
-        # The input will be re-ordered inside the `Grid.build_face_nodes_connectivity` while the topology is the same.
-        # When checking with the expectation, we need to make sure the `Grid._node_face_connectivity` coheres
-        # with the `Grid._face_nodes_connectivity`.
-        node_lonlat_degree = [[162., 30], [216., 30], [70., 30], [162., -30],
-                              [216., -30], [70., -30]]
+        # This nodes list is only for vertices creation purposes and the nodes' order will not be used the
+        # same in the Grid object; i.e. the Grid object instantiation will instead use the below
+        # `face_nodes_conn_lonlat_degree`  connectivity variable and determine the actual node orders by itself.
+        face_nodes_conn_lonlat_degree = [[162., 30], [216., 30], [70., 30],
+                                         [162., -30], [216., -30], [70., -30]]
 
-        # This is the face_nodes_conn_index is only for data generation purpose and it will not be used in the Grid.
+        # This index variable will only be used to determine the face-node lon-lat values that are
+        # represented by `face_nodes_conn_lonlat`  below, which is the actual data that is used
+        # by `Grid.__from_vert__()` during the creation of the grid topology.
         face_nodes_conn_index = np.array([[3, 4, 5, ux.INT_FILL_VALUE],
                                           [3, 0, 2, 5], [3, 4, 1, 0],
                                           [0, 1, 2, ux.INT_FILL_VALUE]])
@@ -802,11 +803,11 @@ class TestConnectivity(TestCase):
         for i, face_nodes_conn_index_row in enumerate(face_nodes_conn_index):
             for j, node_index in enumerate(face_nodes_conn_index_row):
                 if node_index != ux.INT_FILL_VALUE:
-                    face_nodes_conn_lonlat[i,
-                                           j] = node_lonlat_degree[node_index]
+                    face_nodes_conn_lonlat[
+                        i, j] = face_nodes_conn_lonlat_degree[node_index]
 
-        # Now we don't need the face_nodes_conn_index anymore. But calling del face_nodes_conn_index will result in
-        # Failing CI for macos and ubuntu (windows is fine). So we just do nothing about it here
+        # Now we don't need the face_nodes_conn_index anymore.
+        del face_nodes_conn_index
 
         vgrid = ux.Grid(face_nodes_conn_lonlat,
                         vertices=True,
