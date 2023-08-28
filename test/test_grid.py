@@ -782,6 +782,88 @@ class TestConnectivity(TestCase):
             np.array_equal(res_face_nodes_connectivity,
                            uds._ds["Mesh2_face_nodes"].values))
 
+    def test_node_face_connectivity_from_verts(self):
+        """Test generating Grid.Mesh2_node_faces from array input."""
+
+        # We used the following codes to generate the testing face_nodes_connectivity in lonlat,
+        # The index of the nodes here is just for generation purpose and ensure the topology.
+        # This nodes list is only for vertices creation purposes and the nodes' order will not be used the
+        # same in the Grid object; i.e. the Grid object instantiation will instead use the below
+        # `face_nodes_conn_lonlat_degree`  connectivity variable and determine the actual node orders by itself.
+        face_nodes_conn_lonlat_degree = [[162., 30], [216., 30], [70., 30],
+                                         [162., -30], [216., -30], [70., -30]]
+
+        # This index variable will only be used to determine the face-node lon-lat values that are
+        # represented by `face_nodes_conn_lonlat`  below, which is the actual data that is used
+        # by `Grid.__from_vert__()` during the creation of the grid topology.
+        face_nodes_conn_index = np.array([[3, 4, 5, ux.INT_FILL_VALUE],
+                                          [3, 0, 2, 5], [3, 4, 1, 0],
+                                          [0, 1, 2, ux.INT_FILL_VALUE]])
+        face_nodes_conn_lonlat = np.full(
+            (face_nodes_conn_index.shape[0], face_nodes_conn_index.shape[1], 2),
+            ux.INT_FILL_VALUE)
+
+        for i, face_nodes_conn_index_row in enumerate(face_nodes_conn_index):
+            for j, node_index in enumerate(face_nodes_conn_index_row):
+                if node_index != ux.INT_FILL_VALUE:
+                    face_nodes_conn_lonlat[
+                        i, j] = face_nodes_conn_lonlat_degree[node_index]
+
+        # Now we don't need the face_nodes_conn_index anymore.
+        del face_nodes_conn_index
+
+        vgrid = ux.Grid(face_nodes_conn_lonlat,
+                        vertices=True,
+                        islatlon=True,
+                        concave=False)
+
+        # We eyeballed the `Grid._face_nodes_connectivity` and wrote the following expected result
+        expected = np.array([
+            np.array([0, 1, ux.INT_FILL_VALUE]),
+            np.array([1, 3, ux.INT_FILL_VALUE]),
+            np.array([0, 1, 2]),
+            np.array([1, 2, 3]),
+            np.array([0, 2, ux.INT_FILL_VALUE]),
+            np.array([2, 3, ux.INT_FILL_VALUE])
+        ])
+
+        self.assertTrue(np.array_equal(vgrid.Mesh2_node_faces.values, expected))
+
+    def test_node_face_connectivity_from_files(self):
+        """Test generating Grid.Mesh2_node_faces from file input."""
+        grid_paths = [
+            self.exodus_filepath, self.ugrid_filepath_01,
+            self.ugrid_filepath_02, self.ugrid_filepath_03
+        ]
+
+        for grid_path in grid_paths:
+            grid_xr = xr.open_dataset(grid_path)
+            grid_ux = ux.Grid(grid_xr)
+
+        # use the dictionary method to build the node_face_connectivity
+        node_face_connectivity = {}
+        nNodes_per_face = grid_ux.nNodes_per_face.values
+        face_nodes = grid_ux._ds["Mesh2_face_nodes"].values
+        for face_idx, max_nodes in enumerate(nNodes_per_face):
+            cur_face_nodes = face_nodes[face_idx, 0:max_nodes]
+            for j in cur_face_nodes:
+                if j not in node_face_connectivity:
+                    node_face_connectivity[j] = []
+                node_face_connectivity[j].append(face_idx)
+
+        # compare the two methods
+        for i in range(grid_ux.nMesh2_node):
+            face_index_from_sparse_matrix = grid_ux.Mesh2_node_faces.values[i]
+            valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[
+                face_index_from_sparse_matrix !=
+                grid_ux.Mesh2_node_faces.attrs["_FillValue"]]
+            valid_face_index_from_sparse_matrix.sort()
+            face_index_from_dict = node_face_connectivity[i]
+            face_index_from_dict.sort()
+            self.assertTrue(
+                np.array_equal(valid_face_index_from_sparse_matrix,
+                               face_index_from_dict))
+
 
 class TestBallTree(TestCase):
 
