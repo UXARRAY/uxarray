@@ -9,6 +9,7 @@ dependencies:
   - numpy
   - pathlib
   - pre_commit
+  - pyarrow<13.0.0   # pin due to CI faliures on macOS & ubuntu
   - pytest
   - pytest-cov
   - scipy
