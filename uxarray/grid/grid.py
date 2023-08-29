@@ -2,6 +2,8 @@
 import xarray as xr
 import numpy as np
 
+from typing import Any, Dict, Optional, Union
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -76,7 +78,10 @@ class Grid:
     >>> uxds = ux.open_dataset("filename.g")
     """
 
-    def __init__(self, grid_ds, grid_spec="UGRID", ugrid_mapping=None):
+    def __init__(self,
+                 grid_ds: xr.Dataset,
+                 grid_spec: Optional[str] = "UGRID",
+                 ugrid_mapping: Optional[bool] = None):
 
         # TODO: streamlined approach
         self._ugrid_mapping = ugrid_mapping
@@ -96,7 +101,9 @@ class Grid:
         self._poly_collection = None
 
     @classmethod
-    def from_dataset(cls, dataset, use_dual=False):
+    def from_dataset(cls,
+                     dataset: xr.Dataset,
+                     use_dual: Optional[bool] = False):
         if not isinstance(dataset, xr.Dataset):
             # TODO: Error Message
             raise ValueError
@@ -121,7 +128,9 @@ class Grid:
         return cls(grid_ds, grid_spec, ugrid_mapping)
 
     @classmethod
-    def from_face_vertices(cls, face_vertices, latlon=True):
+    def from_face_vertices(cls,
+                           face_vertices: Union[list, tuple, np.ndarray],
+                           latlon: Optional[bool] = True):
         """TODO: Better Name & Docstring"""
         if not isinstance(face_vertices, (list, tuple, np.ndarray)):
             # TODO: Error Message
@@ -194,7 +203,7 @@ class Grid:
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
             connectivity_heading + connectivity_str
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Two grids are equal if they have matching grid topology variables,
         coordinates, and dims all of which are equal.
 
@@ -221,7 +230,7 @@ class Grid:
 
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         """Two grids are not equal if they have differing grid topology
         variables, coordinates, or dims.
 
@@ -237,31 +246,31 @@ class Grid:
         return not self.__eq__(other)
 
     @property
-    def parsed_attrs(self):
+    def parsed_attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
     # TODO: deprecate
     @property
-    def Mesh2(self):
+    def Mesh2(self) -> xr.DataArray:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
         unstructured mesh."""
         return self._ds["Mesh2"]
 
     @property
-    def nMesh2_node(self):
+    def nMesh2_node(self) -> int:
         """UGRID Dimension ``nMesh2_node``, which represents the total number
         of nodes."""
         return self._ds.dims["nMesh2_node"]
 
     @property
-    def nMesh2_face(self):
+    def nMesh2_face(self) -> int:
         """UGRID Dimension ``nMesh2_face``, which represents the total number
         of faces."""
         return self._ds["Mesh2_face_nodes"].shape[0]
 
     @property
-    def nMesh2_edge(self):
+    def nMesh2_edge(self) -> int:
         """UGRID Dimension ``nMesh2_edge``, which represents the total number
         of edges."""
 
@@ -271,13 +280,13 @@ class Grid:
         return self._ds['Mesh2_edge_nodes'].shape[0]
 
     @property
-    def nMaxMesh2_face_nodes(self):
+    def nMaxMesh2_face_nodes(self) -> int:
         """UGRID Dimension ``nMaxMesh2_face_nodes``, which represents the
         maximum number of nodes that a face may contain."""
         return self.Mesh2_face_nodes.shape[1]
 
     @property
-    def nMaxMesh2_face_edges(self):
+    def nMaxMesh2_face_edges(self) -> xr.DataArray:
         """Dimension ``nMaxMesh2_face_edges``, which represents the maximum
         number of edges per face.
 
@@ -290,7 +299,7 @@ class Grid:
         return self._ds["Mesh2_face_edges"].shape[1]
 
     @property
-    def nNodes_per_face(self):
+    def nNodes_per_face(self) -> xr.DataArray:
         """Dimension Variable ``nNodes_per_face``, which contains the number of
         non-fill-value nodes per face.
 
@@ -301,7 +310,7 @@ class Grid:
         return self._ds["nNodes_per_face"]
 
     @property
-    def Mesh2_node_x(self):
+    def Mesh2_node_x(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_node_x``, which contains the
         longitude of each node in degrees.
 
@@ -312,7 +321,7 @@ class Grid:
         return self._ds["Mesh2_node_x"]
 
     @property
-    def Mesh2_node_cart_x(self):
+    def Mesh2_node_cart_x(self) -> xr.DataArray:
         """Coordinate Variable ``Mesh2_node_cart_x``, which contains the x
         location in meters.
 
@@ -324,7 +333,7 @@ class Grid:
         return self._ds['Mesh2_node_cart_x']
 
     @property
-    def Mesh2_face_x(self):
+    def Mesh2_face_x(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_face_x``, which contains the
         longitude of each face center.
 
@@ -336,7 +345,7 @@ class Grid:
             return None
 
     @property
-    def Mesh2_node_y(self):
+    def Mesh2_node_y(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_node_y``, which contains the
         latitude of each node.
 
@@ -348,7 +357,7 @@ class Grid:
         return self._ds["Mesh2_node_y"]
 
     @property
-    def Mesh2_node_cart_y(self):
+    def Mesh2_node_cart_y(self) -> xr.DataArray:
         """Coordinate Variable ``Mesh2_node_cart_y``, which contains the y
         location in meters.
 
@@ -359,7 +368,7 @@ class Grid:
         return self._ds['Mesh2_node_cart_y']
 
     @property
-    def Mesh2_face_y(self):
+    def Mesh2_face_y(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_face_y``, which contains the
         latitude of each face center.
 
@@ -371,7 +380,7 @@ class Grid:
             return None
 
     @property
-    def Mesh2_node_cart_z(self):
+    def Mesh2_node_cart_z(self) -> xr.DataArray:
         """Coordinate Variable ``Mesh2_node_cart_z``, which contains the z
         location in meters.
 
@@ -382,7 +391,7 @@ class Grid:
         return self._ds['Mesh2_node_cart_z']
 
     @property
-    def Mesh2_face_nodes(self):
+    def Mesh2_face_nodes(self) -> xr.DataArray:
         """UGRID Connectivity Variable ``Mesh2_face_nodes``, which maps each
         face to its corner nodes.
 
@@ -398,7 +407,7 @@ class Grid:
         return self._ds["Mesh2_face_nodes"]
 
     @property
-    def Mesh2_edge_nodes(self):
+    def Mesh2_edge_nodes(self) -> xr.DataArray:
         """UGRID Connectivity Variable ``Mesh2_edge_nodes``, which maps every
         edge to the two nodes that it connects.
 
@@ -413,7 +422,7 @@ class Grid:
         return self._ds['Mesh2_edge_nodes']
 
     @property
-    def Mesh2_face_edges(self):
+    def Mesh2_face_edges(self) -> xr.DataArray:
         """UGRID Connectivity Variable ``Mesh2_face_edges``, which maps every
         face to its edges.
 
@@ -426,7 +435,7 @@ class Grid:
         return self._ds["Mesh2_face_edges"]
 
     @property
-    def Mesh2_node_faces(self):
+    def Mesh2_node_faces(self) -> xr.DataArray:
         """UGRID Connectivity Variable ``Mesh2_node_faces``, which maps every
         node to its faces.
 
@@ -440,7 +449,7 @@ class Grid:
 
     # other properties
     @property
-    def antimeridian_face_indices(self):
+    def antimeridian_face_indices(self) -> np.ndarray:
         """Index of each face that crosses the antimeridian."""
         if self._antimeridian_face_indices is None:
             self._antimeridian_face_indices = _build_antimeridian_face_indices(
@@ -448,7 +457,7 @@ class Grid:
         return self._antimeridian_face_indices
 
     @property
-    def face_areas(self):
+    def face_areas(self) -> np.ndarray:
         """Declare face_areas as a property."""
         # if self._face_areas is not None: it allows for using the cached result
         if self._face_areas is None:
@@ -462,7 +471,7 @@ class Grid:
                     grid_spec=self.grid_spec,
                     ugrid_mapping=self._ugrid_mapping)
 
-    def encode_as(self, grid_type):
+    def encode_as(self, grid_type: str) -> xr.Dataset:
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
         in the `grid_type` argument.
 
@@ -497,7 +506,9 @@ class Grid:
 
         return out_ds
 
-    def calculate_total_face_area(self, quadrature_rule="triangular", order=4):
+    def calculate_total_face_area(self,
+                                  quadrature_rule: Optional[str] = "triangular",
+                                  order: Optional[int] = 4) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
 
@@ -519,9 +530,9 @@ class Grid:
         return np.sum(face_areas)
 
     def compute_face_areas(self,
-                           quadrature_rule="triangular",
-                           order=4,
-                           latlon=True):
+                           quadrature_rule: Optional[str] = "triangular",
+                           order: Optional[int] = 4,
+                           latlon: Optional[bool] = True):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -634,9 +645,9 @@ class Grid:
     #     return integral
 
     def to_geodataframe(self,
-                        override=False,
-                        cache=True,
-                        correct_antimeridian_polygons=True):
+                        override: Optional[bool] = False,
+                        cache: Optional[bool] = True,
+                        correct_antimeridian_polygons: Optional[bool] = True):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -671,9 +682,9 @@ class Grid:
         return gdf
 
     def to_polycollection(self,
-                          override=False,
-                          cache=True,
-                          correct_antimeridian_polygons=True):
+                          override: Optional[bool] = False,
+                          cache: Optional[bool] = True,
+                          correct_antimeridian_polygons: Optional[bool] = True):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
         polygons that cross the antimeridian split.
@@ -706,7 +717,9 @@ class Grid:
 
         return poly_collection, corrected_to_original_faces
 
-    def to_shapely_polygons(self, correct_antimeridian_polygons=True):
+    def to_shapely_polygons(self,
+                            correct_antimeridian_polygons: Optional[bool] = True
+                           ):
         """Constructs an array of Shapely Polygons representing each face, with
         antimeridian polygons split according to the GeoJSON standards.
 
