@@ -11,11 +11,15 @@ from uxarray.io._scrip import _read_scrip, _encode_scrip
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
+
 from uxarray.grid.connectivity import (_build_edge_node_connectivity,
                                        _build_face_edges_connectivity,
-                                       _build_nNodes_per_face)
+                                       _build_nNodes_per_face,
+                                       _build_node_faces_connectivity,
+                                       _face_nodes_to_sparse_matrix)
 
-from uxarray.grid.coordinates import (_populate_lonlat_coord,
+from uxarray.grid.coordinates import (normalize_in_place,
+                                      _populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -445,7 +449,7 @@ class Grid:
     @property
     def nMaxMesh2_face_nodes(self):
         """UGRID Dimension ``nMaxMesh2_face_nodes``, which represents the
-        maximum number of faces nodes that a face may contain."""
+        maximum number of nodes that a face may contain."""
         return self.Mesh2_face_nodes.shape[1]
 
     @property
@@ -617,6 +621,19 @@ class Grid:
             self._antimeridian_face_indices = _build_antimeridian_face_indices(
                 self)
         return self._antimeridian_face_indices
+
+    @property
+    def Mesh2_node_faces(self):
+        """UGRID Connectivity Variable ``Mesh2_node_faces``, which maps every
+        node to its faces.
+
+        Dimensions (``nMesh2_node``, ``nMaxNumFacesPerNode``) and
+        DataType ``INT_DTYPE``.
+        """
+        if "Mesh2_node_faces" not in self._ds:
+            _build_node_faces_connectivity(self)
+
+        return self._ds["Mesh2_node_faces"]
 
     @property
     def face_areas(self):
