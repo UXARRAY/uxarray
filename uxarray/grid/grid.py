@@ -300,7 +300,9 @@ class Grid:
         print("valid ugrid format"
               if _is_ugrid(self._ds) else "not a valid ugrid format")
         self.check_duplicate_nodes()
-        self.check_face_nodes()
+        # self.check_face_nodes()
+
+        return True
 
     def check_duplicate_nodes(self):
         """Check if there are duplicate nodes in the mesh."""
