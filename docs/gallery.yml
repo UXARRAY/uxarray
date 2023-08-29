@@ -14,6 +14,6 @@
   path: examples/004-working-with-mpas-grids.ipynb
   thumbnail: _static/examples/mpas/c-grid.png
 
-- title: Visualization with HoloViz
+- title: Conversion to GeoDataFrame & Visualization with HoloViz
   path: examples/005-viz-with-holoviz.ipynb
   thumbnail: _static/examples/mpas/c-grid.png
