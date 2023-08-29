@@ -41,7 +41,7 @@ class TestGrid(TestCase):
     def test_validate(self):
         """Test to check the validate function."""
         ug_30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-        xr_dataset = xr.open_dataset(gridfile_fesom)
+        xr_dataset = xr.open_dataset(ug_30)
         grid = ux.Grid(xr_dataset)
         assert (grid.validate())
 

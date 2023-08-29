@@ -22,7 +22,7 @@ from uxarray.grid.coordinates import (normalize_in_place,
                                       _populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.geometry import (_build_polygon_shells,
                                    _build_corrected_polygon_shells,
@@ -304,9 +304,32 @@ class Grid:
         print("valid ugrid format"
               if _is_ugrid(self._ds) else "not a valid ugrid format")
         self.check_duplicate_nodes()
-        # self.check_face_nodes()
+        self.check_connectivity()
+        # check face area
+        areas = self.face_areas
+        # Check if area of any face is close to zero
+        if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
+            print("At least one face area is close to zero.")
+        else:
+            print("No face area is close to zero.")
 
         return True
+
+    def check_connectivity(self):
+        """Check if the mesh connectivity is valid."""
+
+        # Check if all nodes are referenced by at least one element
+        nodes_in_conn = np.unique(self.Mesh2_face_nodes.values.flatten())
+
+        # assert that size of unique nodes in connectivity is equal to the number of nodes
+        if (nodes_in_conn.size == self.nMesh2_node):
+            print("All nodes are referenced by at least one element.")
+        else:
+            print("WARNING: Some nodes may not referenced by any element.")
+
+        # UGRID does not impose that element connectivity is consistent
+        # (e.g., shared nodes are the same)
+        # TODO: Add check for this
 
     def check_duplicate_nodes(self):
         """Check if there are duplicate nodes in the mesh."""
