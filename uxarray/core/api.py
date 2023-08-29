@@ -85,7 +85,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 
     elif isinstance(grid_filename_or_obj,
                     (list, tuple, np.ndarray, xr.DataArray)):
-        uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon)
+        uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon=latlon)
 
     else:
         raise ValueError  # TODO: invalid input

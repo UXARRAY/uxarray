@@ -72,21 +72,32 @@ def _read_face_vertices(face_vertices, latlon):
             indices[indices == idx] = INT_FILL_VALUE
             indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
 
-    # Create coordinate DataArrays
-    grid_ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
-                                           dims=["nMesh2_node"],
-                                           attrs={"units": x_units})
-    grid_ds["Mesh2_node_y"] = xr.DataArray(data=unique_verts[:, 1],
-                                           dims=["nMesh2_node"],
-                                           attrs={"units": y_units})
-    if face_vertices.shape[-1] > 2:
-        grid_ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 2],
+    if latlon:
+        grid_ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
                                                dims=["nMesh2_node"],
-                                               attrs={"units": z_units})
+                                               attrs={"units": x_units})
+        grid_ds["Mesh2_node_y"] = xr.DataArray(data=unique_verts[:, 1],
+                                               dims=["nMesh2_node"],
+                                               attrs={"units": y_units})
     else:
-        grid_ds["Mesh2_node_z"] = xr.DataArray(data=unique_verts[:, 1] * 0.0,
-                                               dims=["nMesh2_node"],
-                                               attrs={"units": z_units})
+        grid_ds["Mesh2_node_cart_x"] = xr.DataArray(data=unique_verts[:, 0],
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": x_units})
+
+        grid_ds["Mesh2_node_cart_y"] = xr.DataArray(data=unique_verts[:, 1],
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": y_units})
+
+        if face_vertices.shape[-1] > 2:
+            grid_ds["Mesh2_node_cart_z"] = xr.DataArray(
+                data=unique_verts[:, 2],
+                dims=["nMesh2_node"],
+                attrs={"units": z_units})
+        else:
+            grid_ds["Mesh2_node_cart_z"] = xr.DataArray(
+                data=unique_verts[:, 1] * 0.0,
+                dims=["nMesh2_node"],
+                attrs={"units": z_units})
 
     # Create connectivity array using indices of unique vertices
     connectivity = indices.reshape(face_vertices.shape[:-1])

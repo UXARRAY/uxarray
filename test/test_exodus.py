@@ -19,6 +19,7 @@ class TestExodus(TestCase):
         """Read an exodus file and writes a exodus file."""
 
         uxgrid = ux.open_grid(self.exo_filename)
+        pass
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a 1 face exodus

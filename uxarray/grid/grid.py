@@ -12,11 +12,15 @@ from uxarray.io._connectivity import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
+
 from uxarray.grid.connectivity import (_build_edge_node_connectivity,
                                        _build_face_edges_connectivity,
-                                       _build_nNodes_per_face)
+                                       _build_nNodes_per_face,
+                                       _build_node_faces_connectivity,
+                                       _face_nodes_to_sparse_matrix)
 
-from uxarray.grid.coordinates import (_populate_lonlat_coord,
+from uxarray.grid.coordinates import (normalize_in_place,
+                                      _populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -203,11 +207,15 @@ class Grid:
         -------
         If two grids are equal : bool
         """
-        if other is not None:
-            if isinstance(other, Grid):
-                if xr.testing.assert_equal(self._ds, other._ds):
-                    return True
 
+        if other is not None:
+            # Iterate over dict to set access attributes
+            for key, value in self._ugrid_mapping.items():
+                # Check if all grid variables are equal
+                if self._ds.data_vars is not None:
+                    if value in self._ds.data_vars:
+                        if not self._ds[value].equals(other._ds[key]):
+                            return False
         else:
             return False
 
@@ -233,18 +241,18 @@ class Grid:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
-    # TODO: Still need?
-    # @property
-    # def Mesh2(self):
-    #     """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
-    #     unstructured mesh."""
-    #     return self._ds[self.grid_var_names["Mesh2"]]
+    # TODO: deprecate
+    @property
+    def Mesh2(self):
+        """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
+        unstructured mesh."""
+        return self._ds["Mesh2"]
 
     @property
     def nMesh2_node(self):
         """UGRID Dimension ``nMesh2_node``, which represents the total number
         of nodes."""
-        return self._ds["Mesh2_node_x"].shape[0]
+        return self._ds.dims["nMesh2_node"]
 
     @property
     def nMesh2_face(self):
@@ -265,7 +273,7 @@ class Grid:
     @property
     def nMaxMesh2_face_nodes(self):
         """UGRID Dimension ``nMaxMesh2_face_nodes``, which represents the
-        maximum number of faces nodes that a face may contain."""
+        maximum number of nodes that a face may contain."""
         return self.Mesh2_face_nodes.shape[1]
 
     @property
@@ -299,6 +307,8 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
+        if "Mesh2_node_x" not in self._ds:
+            _populate_lonlat_coord(self)
         return self._ds["Mesh2_node_x"]
 
     @property
@@ -310,6 +320,7 @@ class Grid:
         """
         if "Mesh2_node_cart_x" not in self._ds:
             _populate_cartesian_xyz_coord(self)
+
         return self._ds['Mesh2_node_cart_x']
 
     @property
@@ -331,6 +342,9 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
+        if "Mesh2_node_y" not in self._ds:
+            _populate_lonlat_coord(self)
+
         return self._ds["Mesh2_node_y"]
 
     @property
@@ -355,25 +369,6 @@ class Grid:
             return self._ds["Mesh2_face_y"]
         else:
             return None
-
-    # TODO: Deprecate?
-    # @property
-    # def _Mesh2_node_z(self):
-    #     """Coordinate Variable ``_Mesh2_node_z``, which contains the level of
-    #     each node. It is only a placeholder for now as a protected attribute.
-    #     UXarray does not support this yet and only handles the 2D flexibile
-    #     meshes.
-    #
-    #     If we introduce handling of 3D meshes in the future, it might be only
-    #     levels, i.e. the same level(s) for all nodes, instead of separate
-    #     level for each node that ``_Mesh2_node_z`` suggests.
-    #
-    #     Dimensions (``nMesh2_node``)
-    #     """
-    #     if self.grid_var_names["Mesh2_node_z"] in self._ds:
-    #         return self._ds[self.grid_var_names["Mesh2_node_z"]]
-    #     else:
-    #         return None
 
     @property
     def Mesh2_node_cart_z(self):
@@ -429,6 +424,19 @@ class Grid:
             _build_face_edges_connectivity(self)
 
         return self._ds["Mesh2_face_edges"]
+
+    @property
+    def Mesh2_node_faces(self):
+        """UGRID Connectivity Variable ``Mesh2_node_faces``, which maps every
+        node to its faces.
+
+        Dimensions (``nMesh2_node``, ``nMaxNumFacesPerNode``) and
+        DataType ``INT_DTYPE``.
+        """
+        if "Mesh2_node_faces" not in self._ds:
+            _build_node_faces_connectivity(self)
+
+        return self._ds["Mesh2_node_faces"]
 
     # other properties
     @property
@@ -510,7 +518,10 @@ class Grid:
 
         return np.sum(face_areas)
 
-    def compute_face_areas(self, quadrature_rule="triangular", order=4):
+    def compute_face_areas(self,
+                           quadrature_rule="triangular",
+                           order=4,
+                           latlon=True):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -541,24 +552,26 @@ class Grid:
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
         # area of a face call needs the units for coordinate conversion if spherical grid is used
-        coords_type = "spherical"
-        if not "degree" in self.Mesh2_node_x.units:
+        # coords_type = "spherical"
+        # if not "degree" in self.Mesh2_node_x.units:
+        #     coords_type = "cartesian"
+
+        if latlon:
+            x = self.Mesh2_node_x.data
+            y = self.Mesh2_node_y.data
+            z = np.zeros(self.nMesh2_node)
+            coords_type = "spherical"  # TODO: should really be called latlon?
+        else:
+            x = self.Mesh2_node_cart_x.data
+            y = self.Mesh2_node_cart_y.data
+            y = self.Mesh2_node_cart_z.data
             coords_type = "cartesian"
 
-        face_nodes = self.Mesh2_face_nodes.data
+        # TODO: we dont really need this, but keep for now
+        dim = 3
+
         nNodes_per_face = self.nNodes_per_face.data
-        dim = self.Mesh2.attrs[
-            'topology_dimension']  # TODO: do we need Mesh2????
-
-        # initialize z
-        z = np.zeros((self.nMesh2_node))
-
-        # call func to cal face area of all nodes
-        x = self.Mesh2_node_x.data
-        y = self.Mesh2_node_y.data
-        # check if z dimension
-        if self.Mesh2.topology_dimension > 2:  # TODO: do we need Mesh2????
-            z = self._Mesh2_node_z.data
+        face_nodes = self.Mesh2_face_nodes.data
 
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float

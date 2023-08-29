@@ -42,13 +42,13 @@ class TestGrid(TestCase):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
         types."""
 
-        self.grid_CSne30.encode_as("ugrid")
-        self.grid_RLL1deg.encode_as("ugrid")
-        self.grid_RLL10deg_CSne4.encode_as("ugrid")
+        self.grid_CSne30.encode_as("UGRID")
+        self.grid_RLL1deg.encode_as("UGRID")
+        self.grid_RLL10deg_CSne4.encode_as("UGRID")
 
-        self.grid_CSne30.encode_as("exodus")
-        self.grid_RLL1deg.encode_as("exodus")
-        self.grid_RLL10deg_CSne4.encode_as("exodus")
+        self.grid_CSne30.encode_as("Exodus")
+        self.grid_RLL1deg.encode_as("Exodus")
+        self.grid_RLL10deg_CSne4.encode_as("Exodus")
 
     def test_open_non_mesh2_write_exodus(self):
         """Loads grid files of different formats using uxarray's open_dataset
@@ -56,7 +56,12 @@ class TestGrid(TestCase):
 
         grid_geoflow = ux.open_grid(gridfile_CSne30)
 
-        grid_geoflow.encode_as("exodus")
+        exods = grid_geoflow.encode_as("Exodus")
+        # Remove the _FillValue attribute from the variable's attributes
+        if '_FillValue' in grid_geoflow._ds['Mesh2_face_nodes'].attrs:
+            del grid_geoflow._ds['Mesh2_face_nodes'].attrs['_FillValue']
+
+        exods.to_netcdf("grid_geoflow.exo")
 
     def test_init_verts(self):
         """Create a uxarray grid from multiple face vertices with duplicate
@@ -113,42 +118,30 @@ class TestGrid(TestCase):
 
         # Now consturct the grid using the faces_coords
         verts_cart = np.array(faces_coords)
-        vgrid = ux.open_grid(verts_cart,
-                             vertices=True,
-                             islatlon=False,
-                             isconcave=False)
+        vgrid = ux.open_grid(verts_cart, latlon=False)
 
-        assert (vgrid.source_grid == "From vertices")
         assert (vgrid.nMesh2_face == 6)
         assert (vgrid.nMesh2_node == 8)
-        vgrid.encode_as("ugrid")
+        vgrid.encode_as("UGRID")
 
         # Test the case when user created a nested one-face grid
         faces_verts_one = np.array([
             np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20],
                       [135, 10]])
         ])
-        vgrid = ux.open_grid(faces_verts_one,
-                             vertices=True,
-                             islatlon=True,
-                             isconcave=False)
-        assert (vgrid.source_grid == "From vertices")
+        vgrid = ux.open_grid(faces_verts_one, latlon=True)
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
-        vgrid.encode_as("ugrid")
+        vgrid.encode_as("UGRID")
 
         # Test the case when user created a one-face grid
         faces_verts_single_face = np.array([[150, 10], [160, 20], [150, 30],
                                             [135, 30], [125, 20], [135, 10]])
 
-        vgrid = ux.open_grid(faces_verts_single_face,
-                             vertices=True,
-                             islatlon=True,
-                             isconcave=False)
-        assert (vgrid.source_grid == "From vertices")
+        vgrid = ux.open_grid(faces_verts_single_face, latlon=True)
         assert (vgrid.nMesh2_face == 1)
         assert (vgrid.nMesh2_node == 6)
-        vgrid.encode_as("ugrid")
+        vgrid.encode_as("UGRID")
 
     def test_init_verts_different_input_datatype(self):
         """Create a uxarray grid from multiple face vertices with different
@@ -166,15 +159,10 @@ class TestGrid(TestCase):
             np.array([[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                       [85, 10]]),
         ])
-        vgrid = ux.open_grid(faces_verts_ndarray,
-                             vertices=True,
-                             islatlon=True,
-                             isconcave=False)
-
-        assert (vgrid.source_grid == "From vertices")
+        vgrid = ux.open_grid(faces_verts_ndarray, latlon=True)
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
-        vgrid.encode_as("ugrid")
+        vgrid.encode_as("UGRID")
 
         # Test initializing Grid from list
         faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30],
@@ -183,14 +171,10 @@ class TestGrid(TestCase):
                              [100, 30], [105, 20]],
                             [[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                              [85, 10]]]
-        vgrid = ux.open_grid(faces_verts_list,
-                             vertices=True,
-                             islatlon=False,
-                             isconcave=False)
-        assert (vgrid.source_grid == "From vertices")
+        vgrid = ux.open_grid(faces_verts_list, latlon=False)
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
-        vgrid.encode_as("ugrid")
+        vgrid.encode_as("UGRID")
 
         # Test initializing Grid from tuples
         faces_verts_tuples = [
@@ -198,14 +182,10 @@ class TestGrid(TestCase):
             ((125, 20), (135, 30), (125, 60), (110, 60), (100, 30), (105, 20)),
             ((95, 10), (105, 20), (100, 30), (85, 30), (75, 20), (85, 10))
         ]
-        vgrid = ux.open_grid(faces_verts_tuples,
-                             vertices=True,
-                             islatlon=False,
-                             isconcave=False)
-        assert (vgrid.source_grid == "From vertices")
+        vgrid = ux.open_grid(faces_verts_tuples, latlon=False)
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
-        vgrid.encode_as("ugrid")
+        vgrid.encode_as("UGRID")
 
     def test_init_verts_fill_values(self):
         faces_verts_filled_values = [[[150, 10], [160, 20], [150, 30],
@@ -216,11 +196,10 @@ class TestGrid(TestCase):
                                      [[95, 10], [105, 20], [100, 30], [85, 30],
                                       [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
                                       [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]]
-        vgrid = ux.open_grid(faces_verts_filled_values,
-                             vertices=True,
-                             islatlon=False,
-                             isconcave=False)
-        assert (vgrid.source_grid == "From vertices")
+        vgrid = ux.open_grid(
+            faces_verts_filled_values,
+            latlon=False,
+        )
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 12)
 
@@ -230,16 +209,13 @@ class TestGrid(TestCase):
 
         # Dataset with standard UGRID variable names
         # Coordinates
-        xr.testing.assert_equal(
-            self.grid_CSne30.Mesh2_node_x, self.grid_CSne30._ds[
-                self.grid_CSne30.grid_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(
-            self.grid_CSne30.Mesh2_node_y, self.grid_CSne30._ds[
-                self.grid_CSne30.grid_var_names["Mesh2_node_y"]])
+        xr.testing.assert_equal(self.grid_CSne30.Mesh2_node_x,
+                                self.grid_CSne30._ds["Mesh2_node_x"])
+        xr.testing.assert_equal(self.grid_CSne30.Mesh2_node_y,
+                                self.grid_CSne30._ds["Mesh2_node_y"])
         # Variables
-        xr.testing.assert_equal(
-            self.grid_CSne30.Mesh2_face_nodes, self.grid_CSne30._ds[
-                self.grid_CSne30.grid_var_names["Mesh2_face_nodes"]])
+        xr.testing.assert_equal(self.grid_CSne30.Mesh2_face_nodes,
+                                self.grid_CSne30._ds["Mesh2_face_nodes"])
 
         # Dimensions
         n_nodes = self.grid_CSne30.Mesh2_node_x.shape[0]
@@ -259,16 +235,13 @@ class TestGrid(TestCase):
         # Dataset with non-standard UGRID variable names
         grid_geoflow = ux.open_grid(gridfile_geoflow)
 
-        xr.testing.assert_equal(
-            grid_geoflow.Mesh2_node_x,
-            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_x"]])
-        xr.testing.assert_equal(
-            grid_geoflow.Mesh2_node_y,
-            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_node_y"]])
+        xr.testing.assert_equal(grid_geoflow.Mesh2_node_x,
+                                grid_geoflow._ds["Mesh2_node_x"])
+        xr.testing.assert_equal(grid_geoflow.Mesh2_node_y,
+                                grid_geoflow._ds["Mesh2_node_y"])
         # Variables
-        xr.testing.assert_equal(
-            grid_geoflow.Mesh2_face_nodes,
-            grid_geoflow._ds[grid_geoflow.grid_var_names["Mesh2_face_nodes"]])
+        xr.testing.assert_equal(grid_geoflow.Mesh2_face_nodes,
+                                grid_geoflow._ds["Mesh2_face_nodes"])
         # Dimensions
         n_nodes = grid_geoflow.Mesh2_node_x.shape[0]
         n_faces, n_face_nodes = grid_geoflow.Mesh2_face_nodes.shape
@@ -390,10 +363,7 @@ class TestFaceAreas(TestCase):
                       [75, 20, 0], [85, 10, 0]]),
         ])
         # load our vertices into a UXarray Grid object
-        verts_grid = ux.open_grid(faces_verts_ndarray,
-                                  vertices=True,
-                                  islatlon=True,
-                                  isconcave=False)
+        verts_grid = ux.open_grid(faces_verts_ndarray, latlon=True)
 
         face_verts_areas = verts_grid.face_areas
 
@@ -432,17 +402,17 @@ class TestPopulateCoordinates(TestCase):
 
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
 
-        vgrid = ux.open_grid(verts_degree, islatlon=False)
-        _populate_cartesian_xyz_coord(vgrid)
+        vgrid = ux.open_grid(verts_degree, latlon=True)
+        #_populate_cartesian_xyz_coord(vgrid)
 
         for i in range(0, vgrid.nMesh2_node):
-            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_x"].values[i],
+            nt.assert_almost_equal(vgrid.Mesh2_node_cart_x.values[i],
                                    cart_x[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_y"].values[i],
+            nt.assert_almost_equal(vgrid.Mesh2_node_cart_y.values[i],
                                    cart_y[i],
                                    decimal=12)
-            nt.assert_almost_equal(vgrid._ds["Mesh2_node_cart_z"].values[i],
+            nt.assert_almost_equal(vgrid.Mesh2_node_cart_z.values[i],
                                    cart_z[i],
                                    decimal=12)
 
@@ -473,7 +443,7 @@ class TestPopulateCoordinates(TestCase):
 
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
 
-        vgrid = ux.open_grid(verts_cart, islatlon=False)
+        vgrid = ux.open_grid(verts_cart, latlon=False)
         _populate_lonlat_coord(vgrid)
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
@@ -774,6 +744,89 @@ class TestConnectivity(TestCase):
             np.array_equal(res_face_nodes_connectivity,
                            uds._ds["Mesh2_face_nodes"].values))
 
+    def test_node_face_connectivity_from_verts(self):
+        """Test generating Grid.Mesh2_node_faces from array input."""
+
+        # We used the following codes to generate the testing face_nodes_connectivity in lonlat,
+        # The index of the nodes here is just for generation purpose and ensure the topology.
+        # This nodes list is only for vertices creation purposes and the nodes' order will not be used the
+        # same in the Grid object; i.e. the Grid object instantiation will instead use the below
+        # `face_nodes_conn_lonlat_degree`  connectivity variable and determine the actual node orders by itself.
+        face_nodes_conn_lonlat_degree = [[162., 30], [216., 30], [70., 30],
+                                         [162., -30], [216., -30], [70., -30]]
+
+        # This index variable will only be used to determine the face-node lon-lat values that are
+        # represented by `face_nodes_conn_lonlat`  below, which is the actual data that is used
+        # by `Grid.__from_vert__()` during the creation of the grid topology.
+        face_nodes_conn_index = np.array([[3, 4, 5, ux.INT_FILL_VALUE],
+                                          [3, 0, 2, 5], [3, 4, 1, 0],
+                                          [0, 1, 2, ux.INT_FILL_VALUE]])
+        face_nodes_conn_lonlat = np.full(
+            (face_nodes_conn_index.shape[0], face_nodes_conn_index.shape[1], 2),
+            ux.INT_FILL_VALUE)
+
+        for i, face_nodes_conn_index_row in enumerate(face_nodes_conn_index):
+            for j, node_index in enumerate(face_nodes_conn_index_row):
+                if node_index != ux.INT_FILL_VALUE:
+                    face_nodes_conn_lonlat[
+                        i, j] = face_nodes_conn_lonlat_degree[node_index]
+
+        # Now we don't need the face_nodes_conn_index anymore.
+        del face_nodes_conn_index
+
+        vgrid = ux.Grid.from_face_vertices(
+            face_nodes_conn_lonlat,
+            latlon=True,
+        )
+
+        # We eyeballed the `Grid._face_nodes_connectivity` and wrote the following expected result
+        expected = np.array([
+            np.array([0, 1, ux.INT_FILL_VALUE]),
+            np.array([1, 3, ux.INT_FILL_VALUE]),
+            np.array([0, 1, 2]),
+            np.array([1, 2, 3]),
+            np.array([0, 2, ux.INT_FILL_VALUE]),
+            np.array([2, 3, ux.INT_FILL_VALUE])
+        ])
+
+        self.assertTrue(np.array_equal(vgrid.Mesh2_node_faces.values, expected))
+
+    def test_node_face_connectivity_from_files(self):
+        """Test generating Grid.Mesh2_node_faces from file input."""
+        grid_paths = [
+            self.exodus_filepath, self.ugrid_filepath_01,
+            self.ugrid_filepath_02, self.ugrid_filepath_03
+        ]
+
+        for grid_path in grid_paths:
+            grid_xr = xr.open_dataset(grid_path)
+            grid_ux = ux.Grid.from_dataset(grid_xr)
+
+            # use the dictionary method to build the node_face_connectivity
+            node_face_connectivity = {}
+            nNodes_per_face = grid_ux.nNodes_per_face.values
+            face_nodes = grid_ux._ds["Mesh2_face_nodes"].values
+            for face_idx, max_nodes in enumerate(nNodes_per_face):
+                cur_face_nodes = face_nodes[face_idx, 0:max_nodes]
+                for j in cur_face_nodes:
+                    if j not in node_face_connectivity:
+                        node_face_connectivity[j] = []
+                    node_face_connectivity[j].append(face_idx)
+
+            # compare the two methods
+            for i in range(grid_ux.nMesh2_node):
+                face_index_from_sparse_matrix = grid_ux.Mesh2_node_faces.values[
+                    i]
+                valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[
+                    face_index_from_sparse_matrix !=
+                    grid_ux.Mesh2_node_faces.attrs["_FillValue"]]
+                valid_face_index_from_sparse_matrix.sort()
+                face_index_from_dict = node_face_connectivity[i]
+                face_index_from_dict.sort()
+                self.assertTrue(
+                    np.array_equal(valid_face_index_from_sparse_matrix,
+                                   face_index_from_dict))
+
 
 class TestClassMethods(TestCase):
 
@@ -804,4 +857,13 @@ class TestClassMethods(TestCase):
         pass
 
     def test_from_face_vertices(self):
+        single_face_latlon = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+        uxgrid = ux.Grid.from_face_vertices(single_face_latlon, latlon=True)
+
+        multi_face_latlon = [[(0.0, 90.0), (-180, 0.0), (0.0, -90)],
+                             [(0.0, 90.0), (180, 0.0), (0.0, -90)]]
+        uxgrid = ux.Grid.from_face_vertices(multi_face_latlon, latlon=True)
+
+        single_face_cart = [(0.0,)]
+
         pass
