@@ -296,19 +296,25 @@ class Grid:
         """
         # If the mesh file is loaded correctly, we have the underlying file format as UGRID
         # Test if the file is a valid ugrid file format or not
-        valid = _is_ugrid(self._ds)
+        print("Validating the mesh...")
+        print("valid ugrid format"
+              if _is_ugrid(self._ds) else "not a valid ugrid format")
+        self.check_duplicate_nodes()
+        self.check_face_nodes()
 
-        # check if the grid has duplicate nodes
-        if valid:
-            check_duplicate_nodes = np.unique(
-                np.vstack((self.Mesh2_node_x, self.Mesh2_node_y)),
-                axis=0).shape[0] == self.nMesh2_node
-
-            print(check_duplicate_nodes)
-
-        # TODO: Add more checks
-
-        return valid
+    def check_duplicate_nodes(self):
+        """Check if there are duplicate nodes in the mesh."""
+        coords1 = np.column_stack(
+            (np.vstack(self.Mesh2_node_x), np.vstack(self.Mesh2_node_y)))
+        unique_nodes, indices = np.unique(coords1, axis=0, return_index=True)
+        duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
+        if duplicate_indices.size > 0:
+            print("WARNING: Duplicate nodes found in the mesh. # ",
+                  duplicate_indices.size, " nodes are duplicates.")
+            return True
+        else:
+            print("No duplicate nodes found in the mesh.")
+            return False
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
