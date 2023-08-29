@@ -27,5 +27,7 @@ dependencies:
     - shapely
     - hvplot
     - holoviews
+    - geoviews
+    - cartopy
     - pip:
       - antimeridian
