@@ -16,4 +16,4 @@
 
 - title: Conversion to GeoDataFrame & Visualization with HoloViz
   path: examples/005-viz-with-holoviz.ipynb
-  thumbnail: _static/examples/mpas/c-grid.png
+  thumbnail: _static/thumbnails/005-thumbnail.png
