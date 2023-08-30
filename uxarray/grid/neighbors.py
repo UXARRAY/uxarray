@@ -25,8 +25,8 @@ class BallTree:
         # construct tree from corner nodes
         if node_type == "corner":
 
-            xy = np.vstack((deg2rad(grid.Mesh2_node_y.values),
-                            deg2rad(grid.Mesh2_node_x.values))).T
+            latlon = np.vstack((deg2rad(grid.Mesh2_node_y.values),
+                                deg2rad(grid.Mesh2_node_x.values))).T
 
             self.n_elements = grid.nMesh2_node
 
@@ -43,13 +43,13 @@ class BallTree:
             if grid.Mesh2_face_x is None or grid.Mesh2_face_y is None:
                 raise ValueError
 
-            XY = np.vstack((deg2rad(grid.Mesh2_face_y.values),
-                            deg2rad(grid.Mesh2_face_x.values))).T
+            latlon = np.vstack((deg2rad(grid.Mesh2_face_y.values),
+                                deg2rad(grid.Mesh2_face_x.values))).T
 
             self.n_elements = grid.nMesh2_face
 
         # construct tree
-        self.tree = SKBallTree(xy, metric=metric)
+        self.tree = SKBallTree(latlon, metric=metric)
 
     def query(self,
               xy: Union[np.ndarray, list, tuple],
