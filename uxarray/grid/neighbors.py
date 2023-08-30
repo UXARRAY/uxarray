@@ -9,7 +9,7 @@ from uxarray.constants import INT_DTYPE
 
 
 class BallTree:
-    """Custom BallTree datastructure written around the
+    """Custom BallTree data structure written around the
     ``sklearn.neighbors.BallTree`` implementation for use with either the
     corner (``Mesh2_node_x``, ``Mesh2_node_y``) or center (``Mesh2_face_x``,
     ``Mesh2_face_y``) nodes of the inputted unstructured grid.
