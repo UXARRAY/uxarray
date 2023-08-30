@@ -94,8 +94,7 @@ class Grid:
         self._poly_collection = None
 
         # initialize cached data structures (nearest neighbor operations)
-        self._corner_node_balltree = None
-        self._center_node_balltree = None
+        self._ball_tree = None
 
         # unpack kwargs with default values set to None
         kwargs_list = [
@@ -619,22 +618,14 @@ class Grid:
         return self._face_areas
 
     @property
-    def corner_node_balltree(self):
-        """BallTree data structure constructed from corner nodes
-        (``Mesh2_node_x``, ``Mesh2_node_y``) used for nearest-neighbor
-        calculation."""
-        if self._corner_node_balltree is None:
-            self._corner_node_balltree = BallTree(self, node_type='corner')
-        return self._corner_node_balltree
-
-    @property
-    def center_node_balltree(self):
-        """BallTree data structure constructed from center nodes
-        (``Mesh2_face_x``, ``Mesh2_face_y``) used for nearest-neighbor
-        calculation."""
-        if self._center_node_balltree is None:
-            self._center_node_balltree = BallTree(self, node_type='center')
-        return self._center_node_balltree
+    def ball_tree(self):
+        """BallTree data structure which allows for nearest neighbor queries (k
+        nearest or within some radius) on either the corner nodes
+        (``Mesh2_node_x``, ``Mesh2_node_y``) or face centers (``Mesh2_face_x``,
+        ``Mesh2_face_y``)."""
+        if self._ball_tree is None:
+            self._ball_tree = BallTree(self, distance_metric='haversine')
+        return self._ball_tree
 
     def copy(self):
         """Returns a deep copy of this grid."""

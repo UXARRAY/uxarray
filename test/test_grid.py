@@ -840,29 +840,30 @@ class TestConnectivity(TestCase):
             grid_xr = xr.open_dataset(grid_path)
             grid_ux = ux.Grid(grid_xr)
 
-        # use the dictionary method to build the node_face_connectivity
-        node_face_connectivity = {}
-        nNodes_per_face = grid_ux.nNodes_per_face.values
-        face_nodes = grid_ux._ds["Mesh2_face_nodes"].values
-        for face_idx, max_nodes in enumerate(nNodes_per_face):
-            cur_face_nodes = face_nodes[face_idx, 0:max_nodes]
-            for j in cur_face_nodes:
-                if j not in node_face_connectivity:
-                    node_face_connectivity[j] = []
-                node_face_connectivity[j].append(face_idx)
+            # use the dictionary method to build the node_face_connectivity
+            node_face_connectivity = {}
+            nNodes_per_face = grid_ux.nNodes_per_face.values
+            face_nodes = grid_ux._ds["Mesh2_face_nodes"].values
+            for face_idx, max_nodes in enumerate(nNodes_per_face):
+                cur_face_nodes = face_nodes[face_idx, 0:max_nodes]
+                for j in cur_face_nodes:
+                    if j not in node_face_connectivity:
+                        node_face_connectivity[j] = []
+                    node_face_connectivity[j].append(face_idx)
 
-        # compare the two methods
-        for i in range(grid_ux.nMesh2_node):
-            face_index_from_sparse_matrix = grid_ux.Mesh2_node_faces.values[i]
-            valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[
-                face_index_from_sparse_matrix !=
-                grid_ux.Mesh2_node_faces.attrs["_FillValue"]]
-            valid_face_index_from_sparse_matrix.sort()
-            face_index_from_dict = node_face_connectivity[i]
-            face_index_from_dict.sort()
-            self.assertTrue(
-                np.array_equal(valid_face_index_from_sparse_matrix,
-                               face_index_from_dict))
+            # compare the two methods
+            for i in range(grid_ux.nMesh2_node):
+                face_index_from_sparse_matrix = grid_ux.Mesh2_node_faces.values[
+                    i]
+                valid_face_index_from_sparse_matrix = face_index_from_sparse_matrix[
+                    face_index_from_sparse_matrix !=
+                    grid_ux.Mesh2_node_faces.attrs["_FillValue"]]
+                valid_face_index_from_sparse_matrix.sort()
+                face_index_from_dict = node_face_connectivity[i]
+                face_index_from_dict.sort()
+                self.assertTrue(
+                    np.array_equal(valid_face_index_from_sparse_matrix,
+                                   face_index_from_dict))
 
 
 class TestBallTree(TestCase):
@@ -878,7 +879,9 @@ class TestBallTree(TestCase):
             uxgrid = ux.open_grid(grid_file)
 
             # performs a sample query
-            d, ind = uxgrid.corner_node_balltree.query([3.0, 3.0], k=3)
+            d, ind = uxgrid.ball_tree.query([3.0, 3.0],
+                                            k=3,
+                                            tree_type="corner nodes")
 
     def test_construction_from_center_nodes(self):
         """Tests the construction of the ball tree on center nodes and performs
@@ -888,7 +891,9 @@ class TestBallTree(TestCase):
             uxgrid = ux.open_grid(grid_file)
 
             # performs a sample query
-            d, ind = uxgrid.center_node_balltree.query([3.0, 3.0], k=3)
+            d, ind = uxgrid.ball_tree.query([3.0, 3.0],
+                                            k=3,
+                                            tree_type="face centers")
 
     def test_antimeridian_distance_corner_nodes(self):
         """Verifies nearest neighbor search across Antimeridian."""
@@ -899,7 +904,9 @@ class TestBallTree(TestCase):
         uxgrid = ux.open_grid(verts)
 
         # point on antimeridian, other side of grid
-        d, ind = uxgrid.corner_node_balltree.query([180.0, 0.0], k=1)
+        d, ind = uxgrid.ball_tree.query([180.0, 0.0],
+                                        k=1,
+                                        tree_type="corner nodes")
 
         # distance across antimeridian is approx zero
         assert np.isclose(d, 0.0)
@@ -908,7 +915,9 @@ class TestBallTree(TestCase):
         assert ind == 0
 
         # point on antimeridian, other side of grid, slightly larger than 90 due to floating point calcs
-        d, ind = uxgrid.corner_node_balltree.query_radius([-180, 0.0], r=90.01)
+        d, ind = uxgrid.ball_tree.query_radius([-180, 0.0],
+                                               r=90.01,
+                                               tree_type="corner nodes")
 
         expected_d = np.array([0.0, 90.0, 90.0])
 
