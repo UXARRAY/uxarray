@@ -20,16 +20,15 @@ class BallTree:
     for further information about the wrapped data structure.
     """
 
-    def __init__(self, grid, node_type='corner'):
+    def __init__(self, grid, node_type='corner', metric='haversine'):
 
         # construct tree from corner nodes
         if node_type == "corner":
 
-            XY = np.vstack((deg2rad(grid.Mesh2_node_y.values),
+            xy = np.vstack((deg2rad(grid.Mesh2_node_y.values),
                             deg2rad(grid.Mesh2_node_x.values))).T
 
             self.n_elements = grid.nMesh2_node
-            self.tree = SKBallTree(XY, metric='haversine')
 
         # construct tree from center nodes
         elif node_type == "center":
@@ -48,7 +47,9 @@ class BallTree:
                             deg2rad(grid.Mesh2_face_x.values))).T
 
             self.n_elements = grid.nMesh2_face
-            self.tree = SKBallTree(XY, metric='haversine')
+
+        # construct tree
+        self.tree = SKBallTree(xy, metric=metric)
 
     def query(self,
               xy: Union[np.ndarray, list, tuple],
