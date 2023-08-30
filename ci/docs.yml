@@ -29,5 +29,6 @@ dependencies:
     - holoviews
     - geoviews
     - cartopy
+    - pandas<2.10
     - pip:
       - antimeridian

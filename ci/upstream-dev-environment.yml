@@ -6,6 +6,7 @@ dependencies:
   - netcdf4
   - numba
   - numpy
+  - pandas<2.10
   - pathlib
   - pyarrow<13.0.0   # pin due to CI faliures on macOS & ubuntu
   - pytest
