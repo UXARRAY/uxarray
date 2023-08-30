@@ -620,7 +620,7 @@ class Grid:
 
     @property
     def corner_node_balltree(self):
-        """BallTree data structured constructed from corner nodes
+        """BallTree data structure constructed from corner nodes
         (``Mesh2_node_x``, ``Mesh2_node_y``) used for nearest-neighbor
         calculation."""
         if self._corner_node_balltree is None:
@@ -629,7 +629,7 @@ class Grid:
 
     @property
     def center_node_balltree(self):
-        """BallTree data structured constructed from center nodes
+        """BallTree data structure constructed from center nodes
         (``Mesh2_face_x``, ``Mesh2_face_y``) used for nearest-neighbor
         calculation."""
         if self._center_node_balltree is None:
