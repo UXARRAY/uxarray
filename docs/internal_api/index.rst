@@ -83,25 +83,6 @@ Class
 
    Grid
 
-Methods
--------
-.. autosummary::
-   :toctree: _autosummary
-
-   Grid.__init_grid_var_names__
-   Grid.__from_ds__
-   Grid.__from_vert__
-   Grid.__init_grid_var_attrs__
-
-
-
-Attributes
-----------
-.. autosummary::
-   :toctree: _autosummary
-
-   Grid._Mesh2_node_z
-
 Operators
 ---------
 .. autosummary::
@@ -143,6 +124,8 @@ Coordinates
 
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
+   grid.coordinates._get_lonlat_from_xyz
+   grid.coordinates._get_xyz_from_lonlat
 
 Lines
 -----
@@ -204,6 +187,12 @@ Shapefile
    :toctree: _autosummary
 
    io._shapefile._read_shpfile
+
+Connectivity
+------------
+.. autosummary::
+   :toctree: _autosummary
+   io._read_face_vertices
 
 Utils
 -----

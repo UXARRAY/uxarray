@@ -14,10 +14,7 @@ from uxarray.core.dataset import UxDataset
 
 def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
                                           list, tuple],
-              gridspec: Optional[str] = None,
-              face_vertices: Optional[list] = None,
               latlon: Optional[bool] = False,
-              isconcave: Optional[bool] = False,
               use_dual: Optional[bool] = False,
               **kwargs: Dict[str, Any]) -> Grid:
     """Creates a ``uxarray.Grid`` object from a grid topology definition.
@@ -32,23 +29,14 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
         ``xr.DataArray``, ``np.ndarray``, ``list``, or ``tuple`` as a vertices
         object to define the grid.
 
-    islatlon : bool, optional
+    latlon : bool, optional
             Specify if the grid is lat/lon based
-
-    isconcave: bool, optional
-        Specify if this grid has concave elements (internal checks for this are possible)
-
-    gridspec: str, optional
-        Specifies gridspec
-
-    face_vertices: bool, optional
-        Whether to create grid from vertices
 
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
     use_dual: bool, optional
-            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+        Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_dataset``. Refer to the
@@ -95,10 +83,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 
 def open_dataset(grid_filename_or_obj: str,
                  filename_or_obj: str,
-                 gridspec: Optional[str] = None,
-                 face_vertices: Optional[list] = None,
                  latlon: Optional[bool] = False,
-                 isconcave: Optional[bool] = False,
                  use_dual: Optional[bool] = False,
                  grid_kwargs: Optional[Dict[str, Any]] = {},
                  **kwargs: Dict[str, Any]) -> UxDataset:
@@ -118,23 +103,14 @@ def open_dataset(grid_filename_or_obj: str,
         stores the actual data set. It is the same ``filename_or_obj`` in
         ``xarray.open_dataset``.
 
-    islatlon : bool, optional
+    ilatlon : bool, optional
             Specify if the grid is lat/lon based
-
-    isconcave: bool, optional
-        Specify if this grid has concave elements (internal checks for this are possible)
-
-    gridspec: str, optional
-        Specifies gridspec
-
-    vertices: bool, optional
-        Whether to create grid from vertices
 
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
     use_dual: bool, optional
-            Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+        Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
     grid_kwargs : Dict[str, Any], optional
         Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
@@ -166,10 +142,7 @@ def open_dataset(grid_filename_or_obj: str,
 
     # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
-                       gridspec=gridspec,
-                       face_vertices=face_vertices,
                        latlon=latlon,
-                       isconcave=isconcave,
                        use_dual=use_dual,
                        **grid_kwargs)
 
@@ -183,10 +156,7 @@ def open_dataset(grid_filename_or_obj: str,
 
 def open_mfdataset(grid_filename_or_obj: str,
                    paths: Union[str, os.PathLike],
-                   gridspec: Optional[str] = None,
-                   face_vertices: Optional[list] = None,
                    latlon: Optional[bool] = False,
-                   isconcave: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
                    grid_kwargs: Optional[Dict[str, Any]] = {},
                    **kwargs: Dict[str, Any]) -> UxDataset:
@@ -205,17 +175,8 @@ def open_mfdataset(grid_filename_or_obj: str,
         Either a string glob in the form "path/to/my/files/*.nc" or an explicit
         list of files to open. It is the same ``paths`` in ``xarray.open_mfdataset``.
 
-    islatlon : bool, optional
+    latlon : bool, optional
             Specify if the grid is lat/lon based
-
-    isconcave: bool, optional
-        Specify if this grid has concave elements (internal checks for this are possible)
-
-    gridspec: str, optional
-        Specifies gridspec
-
-    vertices: bool, optional
-        Whether to create grid from vertices
 
     source_grid: str, optional
         Path or URL to the source grid file. For diagnostic/reporting purposes only.
@@ -259,10 +220,7 @@ def open_mfdataset(grid_filename_or_obj: str,
 
     # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
-                       gridspec=gridspec,
-                       face_vertices=face_vertices,
                        latlon=latlon,
-                       isconcave=isconcave,
                        use_dual=use_dual,
                        **grid_kwargs)
 

@@ -44,26 +44,14 @@ class Grid:
 
     Parameters
     ----------
-    input_obj : xarray.Dataset, ndarray, list, tuple, required
-        Input ``xarray.Dataset`` or vertex coordinates that form faces.
+    grid_ds : xr.Dataset
+        ``xarray.Dataset`` encoded in the UGRID conventions
 
-    Other Parameters
-    ----------------
-    gridspec: bool, optional
-        Specifies gridspec
-    islatlon : bool, optional
-        Specify if the grid is lat/lon based
-    isconcave: bool, optional
-        Specify if this grid has concave elements (internal checks for this are possible)
-    use_dual: bool, optional
-        Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
+    grid_spec : str, default="UGRID"
+        Original unstructrued grid format (i.e. UGRID, MPAS, etc.)
 
-    Raises
-    ------
-        RuntimeError
-            If specified file not found or recognized
-
-    Examples
+    ugrid_mapping : dict, default=None
+        mapping of ugrid dimensions and variables to source dataset's conventions
     ----------
 
     >>> import uxarray as ux
@@ -83,7 +71,7 @@ class Grid:
                  grid_spec: Optional[str] = "UGRID",
                  ugrid_mapping: Optional[bool] = None):
 
-        # TODO: streamlined approach
+        # mapping of ugrid dimensions and variables to source dataset's conventions
         self._ugrid_mapping = ugrid_mapping
 
         # source grid specification
@@ -104,9 +92,17 @@ class Grid:
     def from_dataset(cls,
                      dataset: xr.Dataset,
                      use_dual: Optional[bool] = False):
+        """Constructs a ``Grid`` object from an ``xarray.Dataset``.
+
+        Parameters
+        ----------
+        dataset : xr.Dataset
+            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
+        use_dual : bool, default=False
+            When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        """
         if not isinstance(dataset, xr.Dataset):
-            # TODO: Error Message
-            raise ValueError
+            raise ValueError("Input must be an xarray.Dataset")
 
         # determine grid/mesh specification
         grid_spec = _parse_grid_type(dataset)
@@ -120,10 +116,9 @@ class Grid:
         elif grid_spec == "MPAS":
             grid_ds, ugrid_mapping = _read_mpas(dataset, use_dual=use_dual)
         elif grid_spec == "Shapefile":
-            # TODO: Not supported, add appropriate exception
-            raise ValueError
+            raise ValueError("Shapefiles not yet supported")
         else:
-            pass
+            raise ValueError("Unsupported Grid Format")
 
         return cls(grid_ds, grid_spec, ugrid_mapping)
 
@@ -131,10 +126,18 @@ class Grid:
     def from_face_vertices(cls,
                            face_vertices: Union[list, tuple, np.ndarray],
                            latlon: Optional[bool] = True):
-        """TODO: Better Name & Docstring"""
+        """Constructs a ``Grid`` object from user-defined face vertices.
+
+        Parameters
+        ----------
+        face_vertices : list, tuple, np.ndarray]
+            array-like input containing the face vertices to construct the grid from
+        latlon : bool, default=True
+            Indicates whether the inputted vertices are in lat/lon, with units in degrees
+        """
         if not isinstance(face_vertices, (list, tuple, np.ndarray)):
-            # TODO: Error Message
-            raise ValueError
+            raise ValueError(
+                "Input must be either a list, tuple, or np.ndarray")
 
         face_vertices = np.asarray(face_vertices)
 
@@ -154,8 +157,6 @@ class Grid:
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
-        # TODO: Make work without grid var names
-
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.grid_spec}\n"
         dims_heading = "Grid Dimensions:\n"

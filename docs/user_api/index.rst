@@ -105,6 +105,8 @@ IO
    :toctree: _autosummary
 
    open_grid
+   Grid.from_dataset
+   Grid.from_face_vertices
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_shapely_polygons
@@ -127,6 +129,7 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
+   Grid.grid_spec
    Grid.Mesh2
    Grid.parsed_attrs
    Grid.nMesh2_node
@@ -143,6 +146,7 @@ Attributes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
    Grid.antimeridian_face_indices
+
 
 
 
