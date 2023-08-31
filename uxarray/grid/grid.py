@@ -617,14 +617,19 @@ class Grid:
             self.compute_face_areas()
         return self._face_areas
 
-    @property
-    def ball_tree(self):
-        """BallTree data structure which allows for nearest neighbor queries (k
-        nearest or within some radius) on either the corner nodes
+    def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
+        """Get the BallTree data structure of this Grid that allows for nearest
+        neighbor queries (k nearest or within some radius) on either the nodes
         (``Mesh2_node_x``, ``Mesh2_node_y``) or face centers (``Mesh2_face_x``,
         ``Mesh2_face_y``)."""
         if self._ball_tree is None:
-            self._ball_tree = BallTree(self, distance_metric='haversine')
+            self._ball_tree = BallTree(self,
+                                       tree_type=tree_type,
+                                       distance_metric='haversine')
+        else:
+            if tree_type != self._ball_tree.tree_type:
+                self._ball_tree.tree_type = tree_type
+
         return self._ball_tree
 
     def copy(self):
