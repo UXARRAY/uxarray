@@ -1,6 +1,7 @@
 name: uxarray-docs
 channels:
     - conda-forge
+    - pyviz
 dependencies:
     - python
     - dask
@@ -24,5 +25,10 @@ dependencies:
     - matplotlib-base
     - spatialpandas
     - shapely
+    - hvplot
+    - holoviews
+    - geoviews
+    - cartopy
+    - pandas<2.1.0
     - pip:
       - antimeridian
