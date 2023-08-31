@@ -118,6 +118,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.encode_as
+   Grid.get_ball_tree
    Grid.integrate
    Grid.copy
 
@@ -151,7 +152,7 @@ Nearest Neighbors
 =================
 
 BallTree Data Structure
-------------------------
+-----------------------
 .. autosummary::
    :toctree: _autosummary
 

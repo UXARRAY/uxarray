@@ -871,19 +871,18 @@ class TestBallTree(TestCase):
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_files = [gridfile_mpas]
 
-    def test_construction_from_corner_nodes(self):
-        """Tests the construction of the ball tree on corner nodes and performs
-        a sample query."""
+    def test_construction_from_nodes(self):
+        """Tests the construction of the ball tree on nodes and performs a
+        sample query."""
 
         for grid_file in self.corner_grid_files:
             uxgrid = ux.open_grid(grid_file)
 
             # performs a sample query
-            d, ind = uxgrid.ball_tree.query([3.0, 3.0],
-                                            k=3,
-                                            tree_type="corner nodes")
+            d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([3.0, 3.0],
+                                                                   k=3)
 
-    def test_construction_from_center_nodes(self):
+    def test_construction_from_face_centers(self):
         """Tests the construction of the ball tree on center nodes and performs
         a sample query."""
 
@@ -891,11 +890,23 @@ class TestBallTree(TestCase):
             uxgrid = ux.open_grid(grid_file)
 
             # performs a sample query
-            d, ind = uxgrid.ball_tree.query([3.0, 3.0],
-                                            k=3,
-                                            tree_type="face centers")
+            d, ind = uxgrid.get_ball_tree(tree_type="face centers").query(
+                [3.0, 3.0], k=3)
 
-    def test_antimeridian_distance_corner_nodes(self):
+    def test_construction_from_both_sequentially(self):
+        """Tests the construction of the ball tree on center nodes and performs
+        a sample query."""
+
+        for grid_file in self.center_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+
+            # performs a sample query
+            d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([3.0, 3.0],
+                                                                   k=3)
+            d_centers, ind_centers = uxgrid.get_ball_tree(
+                tree_type="face centers").query([3.0, 3.0], k=3)
+
+    def test_antimeridian_distance_nodes(self):
         """Verifies nearest neighbor search across Antimeridian."""
 
         # single triangle with point on antimeridian
@@ -904,9 +915,8 @@ class TestBallTree(TestCase):
         uxgrid = ux.open_grid(verts)
 
         # point on antimeridian, other side of grid
-        d, ind = uxgrid.ball_tree.query([180.0, 0.0],
-                                        k=1,
-                                        tree_type="corner nodes")
+        d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([180.0, 0.0],
+                                                               k=1)
 
         # distance across antimeridian is approx zero
         assert np.isclose(d, 0.0)
@@ -915,14 +925,13 @@ class TestBallTree(TestCase):
         assert ind == 0
 
         # point on antimeridian, other side of grid, slightly larger than 90 due to floating point calcs
-        d, ind = uxgrid.ball_tree.query_radius([-180, 0.0],
-                                               r=90.01,
-                                               tree_type="corner nodes")
+        d, ind = uxgrid.get_ball_tree(tree_type="nodes").query_radius(
+            [-180, 0.0], r=90.01)
 
         expected_d = np.array([0.0, 90.0, 90.0])
 
         assert np.allclose(a=d, b=expected_d, atol=1e-03)
 
-    def test_antimeridian_distance_corner_nodes(self):
+    def test_antimeridian_distance_face_centers(self):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
         pass

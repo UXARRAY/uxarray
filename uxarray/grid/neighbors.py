@@ -20,57 +20,79 @@ class BallTree:
     for further information about the wrapped data structures.
     """
 
-    def __init__(self, grid, distance_metric='haversine'):
+    def __init__(self,
+                 grid,
+                 tree_type: Optional[str] = "nodes",
+                 distance_metric='haversine'):
 
         # maintain a reference to the source grid
         self._source_grid = grid
-
-        self._corner_node_ball_tree = None
-        self._face_center_ball_tree = None
-
-        self.n_node = grid.nMesh2_node
-        self.n_face = grid.nMesh2_face
-
         self.distance_metric = distance_metric
+        self._tree_type = tree_type
 
-    @property
-    def corner_node_ball_tree(self):
-        """Internal``sklearn.neighbors.BallTree`` constructed from corner
-        nodes."""
-        if self._corner_node_ball_tree is None:
-            latlon = np.vstack(
-                (deg2rad(self._source_grid.Mesh2_node_y.values),
-                 deg2rad(self._source_grid.Mesh2_node_x.values))).T
-            self._corner_node_ball_tree = SKBallTree(
-                latlon, metric=self.distance_metric)
-        return self._corner_node_ball_tree
+        self._tree_from_nodes = None
+        self._tree_from_face_centers = None
 
-    @property
-    def face_center_ball_tree(self):
+        # set up appropriate reference to tree
+        if tree_type == "nodes":
+            self._tree_from_nodes = self._build_from_nodes()
+            self._n_elements = self._source_grid.nMesh2_node
+        elif tree_type == "face centers":
+            self._tree_from_face_centers = self._build_from_face_centers()
+            self._n_elements = self._source_grid.nMesh2_face
+        else:
+            raise ValueError
+
+    def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
-        if self._face_center_ball_tree is None:
+        if self._tree_from_face_centers is None:
             if self._source_grid.Mesh2_face_x is None:
                 raise ValueError
+
             latlon = np.vstack(
                 (deg2rad(self._source_grid.Mesh2_face_y.values),
                  deg2rad(self._source_grid.Mesh2_face_x.values))).T
 
-            self._face_center_ball_tree = SKBallTree(
+            self._tree_from_face_centers = SKBallTree(
                 latlon, metric=self.distance_metric)
-        return self._face_center_ball_tree
+
+        return self._tree_from_face_centers
+
+    def _build_from_nodes(self):
+        """Internal``sklearn.neighbors.BallTree`` constructed from corner
+        nodes."""
+        if self._tree_from_nodes is None:
+            latlon = np.vstack(
+                (deg2rad(self._source_grid.Mesh2_node_y.values),
+                 deg2rad(self._source_grid.Mesh2_node_x.values))).T
+            self._tree_from_nodes = SKBallTree(latlon,
+                                               metric=self.distance_metric)
+
+        return self._tree_from_nodes
+
+    def _current_tree(self):
+
+        _tree = None
+
+        if self._tree_type == "nodes":
+            _tree = self._tree_from_nodes
+        elif self._tree_type == "face centers":
+            _tree = self._tree_from_face_centers
+        else:
+            raise TypeError
+
+        return _tree
 
     def query(self,
               xy: Union[np.ndarray, list, tuple],
               k: Optional[int] = 1,
-              tree_type: Optional[str] = "corner nodes",
-              use_radians: Optional[bool] = False,
+              xy_in_radians: Optional[bool] = False,
               return_distance: Optional[bool] = True,
               dualtree: Optional[bool] = False,
               breadth_first: Optional[bool] = False,
               sort_results: Optional[bool] = True):
-        """Queries the tree defined by ``tree_type`` ("corner nodes" or "face
-        centers") for the ``k`` nearest neighbors.
+        """Queries the tree for the ``k`` nearest neighbors.
 
         Parameters
         ----------
@@ -78,9 +100,7 @@ class BallTree:
             coordinate pairs in degrees (lon, lat) to query
         k: int, default=1
             The number of nearest neighbors to return
-        tree_type: str, default="corner nodes"
-            Specifies which tree to use, "corner nodes" or "face centers"
-        use_radians : bool, optional
+        xy_in_radians : bool, optional
             if True, queries assuming xy are inputted in radians, not degrees
         return_distance : bool, optional
             Indicates whether distances should be returned
@@ -99,61 +119,42 @@ class BallTree:
             Index array that keeps the indices of the k-nearest neighbors to the entries from xy in each row
         """
 
-        # set up appropriate reference to tree
-        if tree_type == "corner nodes":
-            _tree = self.corner_node_ball_tree
-            _n_elements = self.n_node
-        elif tree_type == "face centers":
-            _tree = self.face_center_ball_tree
-            _n_elements = self.n_face
-        else:
-            raise ValueError
-
-        if k < 1 or k > _n_elements:
+        if k < 1 or k > self._n_elements:
             raise AssertionError(
                 f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({_n_elements}).")
+                f"the tree ({self._n_elements}).")
 
-        xy = _prepare_xy_for_query(xy, use_radians)
+        xy = _prepare_xy_for_query(xy, xy_in_radians)
+
+        d, ind = self._current_tree().query(xy, k, return_distance, dualtree,
+                                            breadth_first, sort_results)
+
+        ind = np.asarray(ind, dtype=INT_DTYPE)
+
+        if xy.shape[0] == 1:
+            ind = ind.squeeze()
 
         # perform query with distance
         if return_distance:
-            d, ind = _tree.query(xy, k, return_distance, dualtree,
-                                 breadth_first, sort_results)
-
-            ind = np.asarray(ind, dtype=INT_DTYPE)
-
             # only one pair was queried
             if xy.shape[0] == 1:
-                ind = ind.squeeze()
                 d = d.squeeze()
 
-            d = np.rad2deg(d)
+            if not xy_in_radians:
+                d = np.rad2deg(d)
 
             return d, ind
 
-        # perform query without distance
-        else:
-            ind = _tree.query(xy, k, return_distance, dualtree, breadth_first,
-                              sort_results)
-
-            ind = np.asarray(ind, dtype=INT_DTYPE)
-
-            if xy.shape[0] == 1:
-                ind = ind.squeeze()
-
-            return ind
+        return ind
 
     def query_radius(self,
                      xy: Union[np.ndarray, list, tuple],
                      r: Optional[int] = 1.0,
-                     tree_type: Optional[str] = "corner nodes",
-                     use_radians: Optional[bool] = False,
+                     xy_in_radians: Optional[bool] = False,
                      return_distance: Optional[bool] = True,
                      count_only: Optional[bool] = False,
                      sort_results: Optional[bool] = False):
-        """Queries the tree defined by ``tree_type`` ("corner nodes" or "face
-        centers") for all neighbors within a radius ``r``.
+        """Queries the tree for all neighbors within a radius ``r``.
 
         Parameters
         ----------
@@ -161,9 +162,7 @@ class BallTree:
            coordinate pairs in degrees (lon, lat) to query
         r: distance in degrees within which neighbors are returned
             r can be a single value , or an array of values of shape x.shape[:-1] if different radii are desired for each point.
-        tree_type: str, default="corner nodes"
-            Specifies which tree to use, "corner nodes" or "face centers"
-        use_radians : bool, default=True
+        xy_in_radians : bool, default=True
             if True, queries assuming xy are inputted in radians, not degrees
         return_distance : bool, default=False
             Indicates whether distances should be returned
@@ -180,50 +179,56 @@ class BallTree:
             Index array that keeps the indices of all neighbors within some radius to the entries from xy in each row
         """
 
-        # set up appropriate reference to tree
-        if tree_type == "corner nodes":
-            _tree = self._corner_node_ball_tree
-        elif tree_type == "face centers":
-            _n_elements = self.n_face
-        else:
-            raise ValueError
-
         if r < 0.0:
             raise AssertionError(
                 f"The value of r must be greater than or equal to zero.")
 
         r = np.deg2rad(r)
-        xy = _prepare_xy_for_query(xy, use_radians)
+        xy = _prepare_xy_for_query(xy, xy_in_radians)
 
         if count_only:
-            count = _tree.query_radius(xy, r, return_distance, count_only,
-                                       sort_results)
+            count = self._current_tree().query_radius(xy, r, return_distance,
+                                                      count_only, sort_results)
 
             return count
 
-        if not count_only and not return_distance:
-            ind = self.tree.query_radius(xy, r, return_distance, count_only,
-                                         sort_results)
-
-            ind = np.asarray(ind, dtype=INT_DTYPE)
-
-            if xy.shape[0] == 1:
-                ind = ind.squeeze()
-
-            return ind
-
         else:
-            ind, d = _tree.query_radius(xy, r, return_distance, count_only,
-                                        sort_results)
+
+            ind, d = self._current_tree().query_radius(xy, r, return_distance,
+                                                       count_only, sort_results)
 
             ind = np.asarray(ind[0], dtype=INT_DTYPE)
 
             if xy.shape[0] == 1:
                 ind = ind.squeeze()
 
-            d = np.rad2deg(d[0])
+            if return_distance:
+                if not xy_in_radians:
+                    d = np.rad2deg(d[0])
 
-            return d, ind
+                return d, ind
+
+            return ind
+
+    @property
+    def tree_type(self):
+        return self._tree_type
+
+    @tree_type.setter
+    def tree_type(self, value):
+        self._tree_type = value
+
+        # set up appropriate reference to tree
+        if self._tree_type == "nodes":
+            if self._tree_from_nodes is None:
+                self._tree_from_nodes = self._build_from_nodes()
+            self._n_elements = self._source_grid.nMesh2_node
+        elif self._tree_type == "face centers":
+            if self._tree_from_face_centers is None:
+                self._tree_from_face_centers = self._build_from_face_centers()
+            self._n_elements = self._source_grid.nMesh2_face
+        else:
+            raise ValueError
 
 
 def _prepare_xy_for_query(xy, use_radians):
