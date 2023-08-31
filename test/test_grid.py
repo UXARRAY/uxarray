@@ -893,6 +893,19 @@ class TestBallTree(TestCase):
             d, ind = uxgrid.get_ball_tree(tree_type="face centers").query(
                 [3.0, 3.0], k=3)
 
+    def test_construction_from_both_sequentially(self):
+        """Tests the construction of the ball tree on center nodes and performs
+        a sample query."""
+
+        for grid_file in self.center_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+
+            # performs a sample query
+            d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([3.0, 3.0],
+                                                                   k=3)
+            d_centers, ind_centers = uxgrid.get_ball_tree(
+                tree_type="face centers").query([3.0, 3.0], k=3)
+
     def test_antimeridian_distance_nodes(self):
         """Verifies nearest neighbor search across Antimeridian."""
 

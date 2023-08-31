@@ -28,7 +28,7 @@ class BallTree:
         # maintain a reference to the source grid
         self._source_grid = grid
         self.distance_metric = distance_metric
-        self.tree_type = tree_type
+        self._tree_type = tree_type
 
         self._tree_from_nodes = None
         self._tree_from_face_centers = None
@@ -75,9 +75,9 @@ class BallTree:
 
         _tree = None
 
-        if self.tree_type == "nodes":
+        if self._tree_type == "nodes":
             _tree = self._tree_from_nodes
-        elif self.tree_type == "face centers":
+        elif self._tree_type == "face centers":
             _tree = self._tree_from_face_centers
         else:
             raise TypeError
@@ -209,6 +209,26 @@ class BallTree:
                 return d, ind
 
             return ind
+
+    @property
+    def tree_type(self):
+        return self._tree_type
+
+    @tree_type.setter
+    def tree_type(self, value):
+        self._tree_type = value
+
+        # set up appropriate reference to tree
+        if self._tree_type == "nodes":
+            if self._tree_from_nodes is None:
+                self._tree_from_nodes = self._build_from_nodes()
+            self._n_elements = self._source_grid.nMesh2_node
+        elif self._tree_type == "face centers":
+            if self._tree_from_face_centers is None:
+                self._tree_from_face_centers = self._build_from_face_centers()
+            self._n_elements = self._source_grid.nMesh2_face
+        else:
+            raise ValueError
 
 
 def _prepare_xy_for_query(xy, use_radians):

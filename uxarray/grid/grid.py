@@ -627,7 +627,7 @@ class Grid:
                                        tree_type=tree_type,
                                        distance_metric='haversine')
         else:
-            if tree_type != self._ball_tree.tree_type:
+            if tree_type != self._ball_tree._tree_type:
                 self._ball_tree.tree_type = tree_type
 
         return self._ball_tree
