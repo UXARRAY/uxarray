@@ -34,6 +34,8 @@ from uxarray.grid.geometry import (_build_polygon_shells,
                                    _grid_to_matplotlib_polycollection,
                                    _grid_to_polygons)
 
+from uxarray.grid.neighbors import BallTree
+
 
 class Grid:
     """Unstructured grid topology definition.
@@ -84,9 +86,12 @@ class Grid:
         self._antimeridian_face_indices = None
         self._face_areas = None
 
-        # initialize cached data structures
+        # initialize cached data structures (visualization)
         self._gdf = None
         self._poly_collection = None
+        
+        # initialize cached data structures (nearest neighbor operations)
+        self._ball_tree = None
 
     @classmethod
     def from_dataset(cls,
@@ -464,6 +469,33 @@ class Grid:
         if self._face_areas is None:
             self.compute_face_areas()
         return self._face_areas
+
+    def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
+        """Get the BallTree data structure of this Grid that allows for nearest
+        neighbor queries (k nearest or within some radius) on either the nodes
+        (``Mesh2_node_x``, ``Mesh2_node_y``) or face centers (``Mesh2_face_x``,
+        ``Mesh2_face_y``).
+
+        Parameters
+        ----------
+        tree_type : str, default="nodes"
+            Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
+            Centers of each face
+
+        Returns
+        -------
+        self._ball_tree : grid.Neighbors.BallTree
+            BallTree instance
+        """
+        if self._ball_tree is None:
+            self._ball_tree = BallTree(self,
+                                       tree_type=tree_type,
+                                       distance_metric='haversine')
+        else:
+            if tree_type != self._ball_tree._tree_type:
+                self._ball_tree.tree_type = tree_type
+
+        return self._ball_tree
 
     def copy(self):
         """Returns a deep copy of this grid."""
