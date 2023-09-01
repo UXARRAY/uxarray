@@ -89,7 +89,7 @@ class Grid:
         # initialize cached data structures (visualization)
         self._gdf = None
         self._poly_collection = None
-        
+
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
 

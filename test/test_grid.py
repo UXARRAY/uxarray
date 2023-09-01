@@ -868,9 +868,9 @@ class TestClassMethods(TestCase):
         uxgrid = ux.Grid.from_face_vertices(multi_face_latlon, latlon=True)
 
         single_face_cart = [(0.0,)]
-        
-        
-        class TestBallTree(TestCase):
+
+
+class TestBallTree(TestCase):
 
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_files = [gridfile_mpas]
@@ -938,3 +938,4 @@ class TestClassMethods(TestCase):
 
     def test_antimeridian_distance_face_centers(self):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
+        pass
