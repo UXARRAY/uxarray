@@ -158,11 +158,11 @@ class BallTree:
 
         Parameters
         ----------
-        XY : array_like
+        xy : array_like
            coordinate pairs in degrees (lon, lat) to query
         r: distance in degrees within which neighbors are returned
             r can be a single value , or an array of values of shape x.shape[:-1] if different radii are desired for each point.
-        xy_in_radians : bool, default=True
+        xy_in_radians : bool, optional
             if True, queries assuming xy are inputted in radians, not degrees
         return_distance : bool, default=False
             Indicates whether distances should be returned
