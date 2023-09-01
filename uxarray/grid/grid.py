@@ -2,6 +2,8 @@
 import xarray as xr
 import numpy as np
 
+from typing import Any, Dict, Optional, Union
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -30,6 +32,8 @@ from uxarray.grid.geometry import (_build_polygon_shells,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
                                    _grid_to_polygons)
+
+from uxarray.grid.neighbors import BallTree
 
 
 class Grid:
@@ -85,13 +89,14 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
 
-        # initialize cached data structures
+        # initialize cached data structures (visualization)
         self._gdf = None
         self._poly_collection = None
-        # TODO: fix when adding/exercising gridspec
 
-        # unpack kwargs
-        # sets default values for all kwargs to None
+        # initialize cached data structures (nearest neighbor operations)
+        self._ball_tree = None
+
+        # unpack kwargs with default values set to None
         kwargs_list = [
             'gridspec', 'vertices', 'islatlon', 'isconcave', 'source_grid',
             'use_dual'
@@ -611,6 +616,33 @@ class Grid:
         if self._face_areas is None:
             self.compute_face_areas()
         return self._face_areas
+
+    def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
+        """Get the BallTree data structure of this Grid that allows for nearest
+        neighbor queries (k nearest or within some radius) on either the nodes
+        (``Mesh2_node_x``, ``Mesh2_node_y``) or face centers (``Mesh2_face_x``,
+        ``Mesh2_face_y``).
+
+        Parameters
+        ----------
+        tree_type : str, default="nodes"
+            Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
+            Centers of each face
+
+        Returns
+        -------
+        self._ball_tree : grid.Neighbors.BallTree
+            BallTree instance
+        """
+        if self._ball_tree is None:
+            self._ball_tree = BallTree(self,
+                                       tree_type=tree_type,
+                                       distance_metric='haversine')
+        else:
+            if tree_type != self._ball_tree._tree_type:
+                self._ball_tree.tree_type = tree_type
+
+        return self._ball_tree
 
     def copy(self):
         """Returns a deep copy of this grid."""
