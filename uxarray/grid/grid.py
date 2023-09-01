@@ -621,7 +621,19 @@ class Grid:
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``Mesh2_node_x``, ``Mesh2_node_y``) or face centers (``Mesh2_face_x``,
-        ``Mesh2_face_y``)."""
+        ``Mesh2_face_y``).
+
+        Parameters
+        ----------
+        tree_type : str, default="nodes"
+            Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
+            Centers of each face
+
+        Returns
+        -------
+        self._ball_tree : grid.Neighbors.BallTree
+            BallTree instance
+        """
         if self._ball_tree is None:
             self._ball_tree = BallTree(self,
                                        tree_type=tree_type,

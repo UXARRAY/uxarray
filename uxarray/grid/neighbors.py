@@ -14,6 +14,16 @@ class BallTree:
     corner (``Mesh2_node_x``, ``Mesh2_node_y``) or center (``Mesh2_face_x``,
     ``Mesh2_face_y``) nodes of the inputted unstructured grid.
 
+    Parameters
+    ----------
+    grid : ux.Grid
+        Source grid used to construct the BallTree
+    tree_type : str, default="nodes"
+            Identifies which tree to construct or select, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
+            Centers of each face
+    distance_metric : str, default="haversine"
+        Distance metric used to construct the BallTree
+
     Notes
     -----
     See `sklearn.neighbors.BallTree <https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.BallTree.html>`__
