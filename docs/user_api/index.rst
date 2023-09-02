@@ -118,6 +118,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.encode_as
+   Grid.get_ball_tree
    Grid.integrate
    Grid.copy
 
@@ -143,7 +144,27 @@ Attributes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
    Grid.antimeridian_face_indices
+   Grid.corner_node_balltree
+   Grid.center_node_balltree
 
+
+Nearest Neighbors
+=================
+
+BallTree Data Structure
+-----------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.BallTree
+
+Query Methods
+-------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.BallTree.query
+   grid.BallTree.query_radius
 
 
 Helpers
@@ -176,7 +197,6 @@ Coordinates
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
-
 
 
 Lines
