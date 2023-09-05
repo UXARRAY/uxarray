@@ -4,6 +4,9 @@ import numpy as np
 from typing import Optional
 
 from uxarray.grid import Grid
+from uxarray.regrid.accessor import UxDataArrayRegridAccessor
+
+from xarray.core.utils import UncachedAccessor
 
 
 class UxDataArray(xr.DataArray):
@@ -46,6 +49,8 @@ class UxDataArray(xr.DataArray):
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
+
+    regrid = UncachedAccessor(UxDataArrayRegridAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):

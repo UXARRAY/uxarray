@@ -1,4 +1,9 @@
-from uxarray.grid import Grid
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from uxarray.grid import Grid
+
 import numpy as np
 
 
