@@ -243,7 +243,7 @@ def _encode_exodus(ds, outfile=None):
     else:
         c_data = xr.DataArray([
             ds["Mesh2_node_cart_x"].data.tolist(),
-            ds["Mesh2_node_cart_z"].data.tolist(),
+            ds["Mesh2_node_cart_y"].data.tolist(),
             ds["Mesh2_node_cart_z"].data.tolist()
         ])
 
