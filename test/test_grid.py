@@ -935,3 +935,35 @@ class TestBallTree(TestCase):
     def test_antimeridian_distance_face_centers(self):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
         pass
+
+
+from uxarray.regrid import nearest_neighbor
+
+
+class TestNearestNeighborRegrid(TestCase):
+
+    def test_regrid_to_same_grid_corner_nodes(self):
+        # single triangle with point on antimeridian
+        source_verts = np.array([(0.0, 90.0), (-180, 0.0), (0.0, -90)])
+        source_data_single_dim = [1.0, 2.0, 3.0]
+        source_grid = ux.open_grid(source_verts)
+        destination_grid = ux.open_grid(source_verts)
+
+        destination_data = nearest_neighbor(source_grid,
+                                            destination_grid,
+                                            source_data_single_dim,
+                                            destination_data_mapping="nodes")
+
+        np.array_equal(source_data_single_dim, destination_data)
+
+        source_data_multi_dim = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0],
+                                          [7.0, 8.0, 9.0]])
+
+        destination_data = nearest_neighbor(source_grid,
+                                            destination_grid,
+                                            source_data_multi_dim,
+                                            destination_data_mapping="nodes")
+
+        np.array_equal(source_data_multi_dim, destination_data)
+
+        pass

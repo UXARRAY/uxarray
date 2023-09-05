@@ -11,7 +11,9 @@ def nearest_neighbor(source_grid: Grid,
                      source_data: np.ndarray,
                      destination_data_mapping: str = "nodes",
                      coord_type: str = "lonlat") -> np.ndarray:
-    """Nearest Neighbor Remapping between two grids.
+    """Nearest Neighbor Remapping between two grids, mapping data that resides
+    on either the corner nodes or face centers on the source grid to the corner
+    nodes or face centers of the destination grid..
 
     Parameters
     ---------
@@ -22,7 +24,7 @@ def nearest_neighbor(source_grid: Grid,
     source_data : np.ndarray
         Data variable to regrid
     destination_data_mapping : str, default="nodes"
-        Location of where to map data
+        Location of where to map data, either "nodes" or "face centers"
 
     Returns
     -------
@@ -32,37 +34,57 @@ def nearest_neighbor(source_grid: Grid,
 
     # TODO: implementation in latlon, consider cartesiain once KDtree is implemented
 
-    if source_data.size[-1] == source_grid.nMesh2_node:
+    # ensure array is an np.ndarray
+    source_data = np.asarray(source_data)
+
+    n_elements = source_data.shape[-1]
+
+    if n_elements == source_grid.nMesh2_node:
         source_data_mapping = "nodes"
-    elif source_data.size[-1] == source_grid.nMesh2_face:
+    elif n_elements == source_grid.nMesh2_face:
         source_data_mapping = "face centers"
     else:
-        raise ValueError
+        raise ValueError(
+            f"Invalid source_data shape. The final dimension should be either match the number of corner "
+            f"nodes ({source_grid.nMesh2_node}) or face centers ({source_grid.nMesh2_face}) in the "
+            f"source grid, but received: {source_data.shape}")
 
-    _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
-
-    # regrid a variable that originates on each node
-    if source_data_mapping == "nodes":
-
+    if coord_type == "lonlat":
+        # get destination coordinate pairs
         if destination_data_mapping == "nodes":
-            x, y = destination_grid.Mesh2_node_x.values, destination_grid.Mesh2_node_y.values,
+            lon, lat = destination_grid.Mesh2_node_x.values, destination_grid.Mesh2_node_y.values
 
         elif destination_data_mapping == "face centers":
-            x, y = destination_grid.Mesh2_face_x.values, destination_grid.Mesh2_face_y.values,
-            pass
+            lon, lat = destination_grid.Mesh2_face_x.values, destination_grid.Mesh2_face_y.values
+        else:
+            raise ValueError(
+                f"Invalid destination_data_mapping. Expected 'nodes' or 'face centers', "
+                f"but received: {destination_data_mapping}")
 
-        # TODO: rest of algorithm
-        xy = np.vstack(x, y).T
+        # specify whether to query on the corner nodes or face centers based on source grid
+        _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
 
-        d, ind = _source_tree.query(xy)
+        # prepare coordinates for query
+        lonlat = np.vstack([lon, lat]).T
 
-    # regrid a variable that originates on each face center
-    if source_data_mapping == "face centers":
+        _, nearest_neighbor_indices = _source_tree.query(lonlat, k=1)
 
-        if destination_data_mapping == "nodes":
-            pass
-        elif destination_data_mapping == "face centers":
-            pass
+        # data values from source data to destination data using nearest neighbor indices
+        destination_data = source_data[nearest_neighbor_indices]
 
-    # TODO: generalize for higher dimensional data
-    destination_data = source_data[ind]
+        # case for 1D slice of data
+        if destination_data.ndim > 1:
+            destination_data = destination_data.squeeze()
+
+        return destination_data
+
+    elif coord_type == "cartesian":
+        # TODO: once a cartesian balltree/kdtree is implemented, implement this
+        raise ValueError(
+            f"Nearest Neighbor Regridding using Cartesian coordinates is not yet supported"
+        )
+
+    else:
+        raise ValueError(
+            f"Invalid coord_type. Expected either 'lonlat' or 'artesian', but received {coord_type}"
+        )
