@@ -608,7 +608,7 @@ class Grid:
         else:
             x = self.Mesh2_node_cart_x.data
             y = self.Mesh2_node_cart_y.data
-            y = self.Mesh2_node_cart_z.data
+            z = self.Mesh2_node_cart_z.data
             coords_type = "cartesian"
 
         # TODO: we dont really need this, but keep for now
