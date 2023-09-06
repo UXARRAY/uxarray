@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import xarray as xr
 import numpy as np
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from uxarray.grid import Grid
-from uxarray.regrid.accessor import UxDataArrayRegridAccessor
 
-from xarray.core.utils import UncachedAccessor
+if TYPE_CHECKING:
+    from uxarray.core.dataarray import UxDataArray
+    from uxarray.core.dataset import UxDataset
+
+from uxarray.regrid.nearest_neighbor import _nearest_neighbor_uxda
 
 
 class UxDataArray(xr.DataArray):
@@ -49,8 +54,6 @@ class UxDataArray(xr.DataArray):
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
-
-    regrid = UncachedAccessor(UxDataArrayRegridAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -211,3 +214,12 @@ class UxDataArray(xr.DataArray):
             raise ValueError(
                 f"Data Variable with size {self.data.size} does not match the number of faces "
                 f"({self.uxgrid.nMesh2_face}.")
+
+    def nearest_neighbor_regrid(self,
+                                destination_obj: Union[Grid, UxDataArray,
+                                                       UxDataset],
+                                destination_data_mapping: str = "nodes",
+                                coord_type: str = "lonlat"):
+
+        return _nearest_neighbor_uxda(self, destination_obj,
+                                      destination_data_mapping, coord_type)

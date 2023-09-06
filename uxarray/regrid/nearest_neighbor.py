@@ -1,16 +1,18 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
+    from uxarray.core.dataset import UxDataset
+    from uxarray.core.dataarray import UxDataArray
 
 import numpy as np
 
+import uxarray.core.dataarray
+import uxarray.core.dataset
+from uxarray.grid import Grid
 
-# node to node              node_xy -> node_xy              what tree we need to query
-# node to face              node_xy -> face_xy
-# face to node              face_xy -> node_xy
-# face to face              face_xy -> face_xy
+
 def nearest_neighbor(source_grid: Grid,
                      destination_grid: Grid,
                      source_data: np.ndarray,
@@ -75,10 +77,14 @@ def nearest_neighbor(source_grid: Grid,
         _, nearest_neighbor_indices = _source_tree.query(lonlat, k=1)
 
         # data values from source data to destination data using nearest neighbor indices
-        destination_data = source_data[nearest_neighbor_indices]
+        if nearest_neighbor_indices.ndim > 1:
+            nearest_neighbor_indices = nearest_neighbor_indices.squeeze()
+
+        # support arbitrary dimension data using Ellipsis "..."
+        destination_data = source_data[..., nearest_neighbor_indices]
 
         # case for 1D slice of data
-        if destination_data.ndim > 1:
+        if source_data.ndim == 1:
             destination_data = destination_data.squeeze()
 
         return destination_data
@@ -93,3 +99,45 @@ def nearest_neighbor(source_grid: Grid,
         raise ValueError(
             f"Invalid coord_type. Expected either 'lonlat' or 'artesian', but received {coord_type}"
         )
+
+
+def _nearest_neighbor_uxda(source_uxda: UxDataArray,
+                           destination_obj: Union[Grid, UxDataArray, UxDataset],
+                           destination_data_mapping: str = "nodes",
+                           coord_type: str = "lonlat"):
+    """TODO: """
+
+    # prepare dimensions
+    if destination_data_mapping == "nodes":
+        destination_dim = "n_node"
+    else:
+        destination_dim = "n_face"
+
+    destination_dims = list(source_uxda.dims)
+    destination_dims[-1] = destination_dim
+
+    if isinstance(destination_obj, Grid):
+        destination_grid = destination_obj
+    elif isinstance(
+            destination_obj,
+        (uxarray.core.dataarray.UxDataArray, uxarray.core.dataset.UxDataset)):
+        destination_grid = destination_obj.uxgrid
+    else:
+        raise ValueError("TODO: Invalid Input")
+
+    # perform regridding
+    destination_data = nearest_neighbor(source_uxda.uxgrid, destination_grid,
+                                        source_uxda.data,
+                                        destination_data_mapping, coord_type)
+    # construct data array for regridded variable
+    uxda_regrid = uxarray.core.dataarray.UxDataArray(data=destination_data,
+                                                     name=source_uxda.name,
+                                                     dims=destination_dims,
+                                                     uxgrid=destination_obj)
+    # return UxDataset
+    if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
+        destination_obj[source_uxda.name] = uxda_regrid
+        return destination_obj
+    # return UxDataArray
+    else:
+        return uxda_regrid
