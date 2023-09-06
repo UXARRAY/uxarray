@@ -935,3 +935,12 @@ class TestBallTree(TestCase):
     def test_antimeridian_distance_face_centers(self):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
         pass
+
+
+class TestGridFromVertices(TestCase):
+
+    def test_spherical_voronoi(self):
+        verts = [(0, 0), (45, 45), (-30, 150), (60, -30), (-75, -120), (90, 0),
+                 (-90, 90), (30, -60)]
+        grid_from_verts = ux.open_grid(verts)
+        grid_from_verts.from_vertices(method="spherical_voronoi")

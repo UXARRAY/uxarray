@@ -35,6 +35,8 @@ from uxarray.grid.geometry import (_build_polygon_shells,
 
 from uxarray.grid.neighbors import BallTree
 
+from scipy.spatial import SphericalVoronoi
+
 
 class Grid:
     """Unstructured grid topology definition.
@@ -915,3 +917,55 @@ class Grid:
         """
         polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
         return polygons
+
+    def from_vertices(self, method="spherical_voronoi"):
+        """Create a grid and related information from just vertices, using
+        either Spherical Voronoi or Delaunay Triangulation.
+
+        Parameters
+        ----------
+        method : string, optional
+            Method used to construct a grid from only vertices
+        """
+
+        x = self.Mesh2_node_x.data
+        y = self.Mesh2_node_y.data
+        verts = np.column_stack((x, y))
+
+        if not verts:
+            raise ValueError("No vertices provided")
+
+        if method == "spherical_voronoi":
+            if len(verts) < 4:
+                raise ValueError(
+                    "At least 4 vertices needed for Spherical Voronoi")
+
+            # Normalize longitude values to the range [-180, 180] degrees
+            normalized_verts = []
+            for lon, lat in verts:
+                if -180 <= lon <= 180:
+                    normalized_verts.append((lon, lat))
+                else:
+                    normalized_verts.append((lon - 360, lat))
+
+            # Convert the normalized vertices back to a NumPy array
+            normalized_verts = np.array(normalized_verts)
+
+            # Perform Spherical Voronoi Construction
+            grid = SphericalVoronoi(normalized_verts)
+
+            # Handle special cases near the antimeridian and poles if necessary
+            # (e.g., split Voronoi cells that cross the antimeridian)
+
+            # TODO: Assign Mesh2 values to the grid
+
+        elif method == "delaunay_triangulation":
+            if len(verts) < 3:
+                raise ValueError(
+                    "At least 3 vertices needed for Delaunay Triangulation")
+
+            # TODO: Add support for delaunay_triangulation
+            pass
+
+        else:
+            raise ValueError("Invalid method")
