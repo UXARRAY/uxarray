@@ -133,11 +133,16 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     uxda_remap = uxarray.core.dataarray.UxDataArray(data=destination_data,
                                                     name=source_uxda.name,
                                                     dims=destination_dims,
-                                                    uxgrid=destination_obj)
-    # return UxDataset
+                                                    uxgrid=destination_grid)
+    # add remapped variable to existing UxDataset
     if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
         destination_obj[source_uxda.name] = uxda_remap
         return destination_obj
-    # return UxDataArray
+    # construct a UxDataset from remapped variable and existing variable
+    elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
+        uxds = destination_obj.to_dataset()
+        uxds[source_uxda.name] = uxda_remap
+        return uxds
+    # return UxDataArray with remapped variable
     else:
         return uxda_remap

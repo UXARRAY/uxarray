@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
+import uxarray.core.dataset
 
 
 class UxDataArray(xr.DataArray):
@@ -214,6 +215,10 @@ class UxDataArray(xr.DataArray):
             raise ValueError(
                 f"Data Variable with size {self.data.size} does not match the number of faces "
                 f"({self.uxgrid.nMesh2_face}.")
+
+    def to_dataset(self) -> UxDataset:
+        xrds = super().to_dataset()
+        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
     def nearest_neighbor_remap(self,
                                destination_obj: Union[Grid, UxDataArray,
