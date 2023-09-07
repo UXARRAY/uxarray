@@ -3,10 +3,16 @@ import xarray as xr
 
 import sys
 
+from html import escape
+
 from typing import Optional, IO
+
+from xarray.core.options import OPTIONS
 
 from uxarray.core.dataarray import UxDataArray
 from uxarray.grid import Grid
+
+from uxarray.utils.formatting_html import dataset_repr
 
 
 class UxDataset(xr.Dataset):
@@ -74,6 +80,11 @@ class UxDataset(xr.Dataset):
                               source_datasets=self.source_datasets)
 
         return value
+
+    def _repr_html_(self) -> str:
+        if OPTIONS["display_style"] == "text":
+            return f"<pre>{escape(repr(self))}</pre>"
+        return dataset_repr(self)
 
     # def __setitem__(self, key, value):
     #     """Override to make sure the `value` is an instance of
