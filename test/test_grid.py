@@ -865,6 +865,12 @@ class TestConnectivity(TestCase):
                     np.array_equal(valid_face_index_from_sparse_matrix,
                                    face_index_from_dict))
 
+    def test_face_centers(self):
+        uxgrid = ux.open_grid(gridfile_CSne8)
+        face_x = uxgrid.Mesh2_face_x
+        face_y = uxgrid.Mesh2_face_y
+        pass
+
 
 class TestBallTree(TestCase):
 

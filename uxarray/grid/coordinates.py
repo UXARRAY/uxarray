@@ -238,3 +238,32 @@ def _populate_lonlat_coord(grid):
             "long_name": "latitude of mesh nodes",
             "units": "degrees_north",
         })
+
+
+def _populate_lonlat_face_centers(grid):
+
+    polygons = grid.to_shapely_polygons()
+
+    face_x = []
+    face_y = []
+    for polygon in polygons:
+        face_x.append(polygon.centroid.x)
+        face_y.append(polygon.centroid.y)
+
+    grid._ds['Mesh2_face_x'] = xr.DataArray(
+        np.asarray(face_x),
+        dims=["nMesh2_face"],
+        attrs={
+            "standard_name": "longitude",
+            "long_name": "longitude of center nodes",
+            "units": "degrees_east",
+        })
+
+    grid._ds['Mesh2_face_y'] = xr.DataArray(
+        np.asarray(face_y),
+        dims=["nMesh2_face"],
+        attrs={
+            "standard_name": "latitude",
+            "long_name": "latitude of center nodes",
+            "units": "degrees_north",
+        })

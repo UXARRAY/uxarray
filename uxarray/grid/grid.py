@@ -22,7 +22,8 @@ from uxarray.grid.connectivity import (_build_edge_node_connectivity,
 
 from uxarray.grid.coordinates import (normalize_in_place,
                                       _populate_lonlat_coord,
-                                      _populate_cartesian_xyz_coord)
+                                      _populate_cartesian_xyz_coord,
+                                      _populate_lonlat_face_centers)
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
@@ -477,10 +478,9 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
-        if "Mesh2_face_x" in self._ds:
-            return self._ds["Mesh2_face_x"]
-        else:
-            return None
+        if "Mesh2_face_x" not in self._ds:
+            _populate_lonlat_face_centers(self)
+        return self._ds["Mesh2_face_x"]
 
     @property
     def Mesh2_node_y(self):
@@ -489,7 +489,9 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
-        return self._ds[self.grid_var_names["Mesh2_node_y"]]
+        if "Mesh2_face_y" not in self._ds:
+            _populate_lonlat_face_centers(self)
+        return self._ds["Mesh2_face_y"]
 
     @property
     def Mesh2_node_cart_y(self):
