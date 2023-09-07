@@ -314,7 +314,9 @@ class Grid:
         areas = self.face_areas
         # Check if area of any face is close to zero
         if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
-            print("At least one face area is close to zero.")
+            print(
+                "At least one face area is close to zero. Mesh may contain inverted elements"
+            )
         else:
             print("No face area is close to zero.")
 
@@ -668,8 +670,16 @@ class Grid:
         """Declare face_areas as a property."""
         # if self._face_areas is not None: it allows for using the cached result
         if self._face_areas is None:
-            self.compute_face_areas()
+            self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_areas
+
+    @property
+    def face_jacobian(self):
+        """Declare face_jacobian as a property."""
+        # if self._face_jacobian is not None: it allows for using the cached result
+        if self._face_jacobian is None:
+            self._face_areas, self._face_jacobian = self.compute_face_areas()
+        return self._face_jacobian
 
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -767,7 +777,8 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas = self.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(
+            quadrature_rule, order)
 
         return np.sum(face_areas)
 
@@ -828,11 +839,19 @@ class Grid:
                    for arr in (x, y, z))
 
         # call function to get area of all the faces as a np array
-        self._face_areas = get_all_face_area_from_coords(
+        self._face_areas, self._face_jacobian = get_all_face_area_from_coords(
             x, y, z, face_nodes, nNodes_per_face, dim, quadrature_rule, order,
             coords_type)
 
-        return self._face_areas
+        min_jacobian = np.min(self._face_jacobian)
+        max_jacobian = np.max(self._face_jacobian)
+
+        if np.any(self._face_jacobian < 0):
+            raise ValueError(
+                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".
+                format(min_jacobian, max_jacobian))
+
+        return self._face_areas, self._face_jacobian
 
     # TODO: Make a decision on whether to provide Dataset- or DataArray-specific
     # functions from within Grid
@@ -866,7 +885,7 @@ class Grid:
     #     integral = 0.0
     #
     #     # call function to get area of all the faces as a np array
-    #     face_areas = self.compute_face_areas(quadrature_rule, order)
+    #     face_areas, face_jacobian = self.compute_face_areas(quadrature_rule, order)
     #
     #     var_key = list(var_ds.keys())
     #     if len(var_key) > 1:

@@ -41,7 +41,7 @@ class TestIntegrate(TestCase):
         face_nodes = np.array([[0, 1, 2]]).astype(INT_DTYPE)
         face_dimension = np.array([3], dtype=INT_DTYPE)
 
-        area = ux.grid.area.get_all_face_area_from_coords(
+        area, jacobian = ux.grid.area.get_all_face_area_from_coords(
             x, y, z, face_nodes, face_dimension, 3, coords_type="cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=1)
@@ -54,8 +54,8 @@ class TestIntegrate(TestCase):
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
 
-        area = ux.grid.area.calculate_face_area(x, y, z, "gaussian", 5,
-                                                "cartesian")
+        area, jacobian = ux.grid.area.calculate_face_area(
+            x, y, z, "gaussian", 5, "cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
 
