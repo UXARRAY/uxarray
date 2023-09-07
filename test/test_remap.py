@@ -15,11 +15,15 @@ gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
 
+
 class TestNearestNeighborRemap(TestCase):
-""" Tests for nearest neighbor remapping. """
+    """Tests for nearest neighbor remapping."""
 
     def test_remap_to_same_grid_corner_nodes(self):
-        """ Test remapping to the same grid. Corner nodes case. """
+        """Test remapping to the same dummy 3-vertex grid.
+
+        Corner nodes case.
+        """
         # single triangle with point on antimeridian
         source_verts = np.array([(0.0, 90.0), (-180, 0.0), (0.0, -90)])
         source_data_single_dim = [1.0, 2.0, 3.0]
@@ -45,13 +49,14 @@ class TestNearestNeighborRemap(TestCase):
 
         pass
 
-
     def test_nn_remap(self):
-        """ Test nearest neighbor remapping. 
-        Steps: 
-        1. Open a grid and a dataset, 
+        """Test nearest neighbor remapping.
+
+        Steps:
+        1. Open a grid and a dataset,
         2. Open the grid to remap dataset in 1
-        3. Remap the dataset in 1 to the grid in 2"""
+        3. Remap the dataset in 1 to the grid in 2
+        """
         # TODO; write better test
         uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
