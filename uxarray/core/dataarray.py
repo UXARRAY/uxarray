@@ -216,10 +216,10 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.nMesh2_face}.")
 
     def nearest_neighbor_remap(self,
-                                destination_obj: Union[Grid, UxDataArray,
-                                                       UxDataset],
-                                destination_data_mapping: str = "nodes",
-                                coord_type: str = "lonlat"):
+                               destination_obj: Union[Grid, UxDataArray,
+                                                      UxDataset],
+                               destination_data_mapping: str = "nodes",
+                               coord_type: str = "lonlat"):
 
         return _nearest_neighbor_uxda(self, destination_obj,
                                       destination_data_mapping, coord_type)

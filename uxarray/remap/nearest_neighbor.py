@@ -131,9 +131,9 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
                                         destination_data_mapping, coord_type)
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(data=destination_data,
-                                                     name=source_uxda.name,
-                                                     dims=destination_dims,
-                                                     uxgrid=destination_obj)
+                                                    name=source_uxda.name,
+                                                    dims=destination_dims,
+                                                    uxgrid=destination_obj)
     # return UxDataset
     if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
         destination_obj[source_uxda.name] = uxda_remap
