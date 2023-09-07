@@ -91,29 +91,34 @@ class TestNearestNeighborRemap(TestCase):
         remap_uxda_to_uxda = source_uxds['v1'].nearest_neighbor_remap(
             destination_uxds['psi'])
 
+        # Dataset with two vars: original "psi" and remapped "v1"
         assert isinstance(remap_uxda_to_uxda, UxDataset)
         assert len(remap_uxda_to_uxda.data_vars) == 2
 
         remap_uxda_to_uxds = source_uxds['v1'].nearest_neighbor_remap(
             destination_uxds)
 
+        # Dataset with two vars: original "psi" and remapped "v1"
         assert isinstance(remap_uxda_to_uxds, UxDataset)
         assert len(remap_uxda_to_uxds.data_vars) == 2
 
         remap_uxds_to_grid = source_uxds.nearest_neighbor_remap(
             destination_uxds.uxgrid)
 
+        # Dataset with three vars: remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_grid, UxDataset)
         assert len(remap_uxds_to_grid.data_vars) == 3
 
         remap_uxds_to_uxda = source_uxds.nearest_neighbor_remap(
             destination_uxds['psi'])
 
+        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_uxda, UxDataset)
         assert len(remap_uxds_to_uxda.data_vars) == 4
 
         remap_uxds_to_uxds = source_uxds.nearest_neighbor_remap(
             destination_uxds)
 
+        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_uxds, UxDataset)
         assert len(remap_uxds_to_uxds.data_vars) == 4
