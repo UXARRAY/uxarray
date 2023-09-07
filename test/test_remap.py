@@ -8,12 +8,19 @@ from pathlib import Path
 
 import uxarray as ux
 
+from uxarray.core.dataset import UxDataset
+from uxarray.core.dataarray import UxDataArray
+
 from uxarray.remap import nearest_neighbor
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
+dsfile_v2_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v2.nc"
+dsfile_v3_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v3.nc"
 
 
 class TestNearestNeighborRemap(TestCase):
@@ -65,3 +72,48 @@ class TestNearestNeighborRemap(TestCase):
         uxda = uxds['v1']
         out_da = uxda.nearest_neighbor_remap(destination_obj=uxgrid)
         pass
+
+    def test_remap_return_types(self):
+        """Tests the return type of the `UxDataset` and `UxDataArray`
+        implementations of Nearest Neighbor Remapping."""
+        source_data_paths = [
+            dsfile_v1_geoflow, dsfile_v2_geoflow, dsfile_v3_geoflow
+        ]
+        source_uxds = ux.open_mfdataset(gridfile_geoflow, source_data_paths)
+        destination_uxds = ux.open_dataset(gridfile_CSne30,
+                                           dsfile_vortex_CSne30)
+
+        remap_uxda_to_grid = source_uxds['v1'].nearest_neighbor_remap(
+            destination_uxds.uxgrid)
+
+        assert isinstance(remap_uxda_to_grid, UxDataArray)
+
+        remap_uxda_to_uxda = source_uxds['v1'].nearest_neighbor_remap(
+            destination_uxds['psi'])
+
+        assert isinstance(remap_uxda_to_uxda, UxDataset)
+        assert len(remap_uxda_to_uxda.data_vars) == 2
+
+        remap_uxda_to_uxds = source_uxds['v1'].nearest_neighbor_remap(
+            destination_uxds)
+
+        assert isinstance(remap_uxda_to_uxds, UxDataset)
+        assert len(remap_uxda_to_uxds.data_vars) == 2
+
+        remap_uxds_to_grid = source_uxds.nearest_neighbor_remap(
+            destination_uxds.uxgrid)
+
+        assert isinstance(remap_uxds_to_grid, UxDataset)
+        assert len(remap_uxds_to_grid.data_vars) == 3
+
+        remap_uxds_to_uxda = source_uxds.nearest_neighbor_remap(
+            destination_uxds['psi'])
+
+        assert isinstance(remap_uxds_to_uxda, UxDataset)
+        assert len(remap_uxds_to_uxda.data_vars) == 4
+
+        remap_uxds_to_uxds = source_uxds.nearest_neighbor_remap(
+            destination_uxds)
+
+        assert isinstance(remap_uxds_to_uxds, UxDataset)
+        assert len(remap_uxds_to_uxds.data_vars) == 4

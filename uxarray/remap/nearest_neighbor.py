@@ -138,11 +138,37 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
         destination_obj[source_uxda.name] = uxda_remap
         return destination_obj
+
     # construct a UxDataset from remapped variable and existing variable
     elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
         uxds = destination_obj.to_dataset()
         uxds[source_uxda.name] = uxda_remap
         return uxds
+
     # return UxDataArray with remapped variable
     else:
         return uxda_remap
+
+
+def _nearest_neighbor_uxds(source_uxds: UxDataset,
+                           destination_obj: Union[Grid, UxDataArray, UxDataset],
+                           destination_data_mapping: str = "nodes",
+                           coord_type: str = "lonlat"):
+
+    if isinstance(destination_obj, Grid):
+        destination_uxds = uxarray.core.dataset.UxDataset(
+            uxgrid=destination_obj)
+    elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
+        destination_uxds = destination_obj.to_dataset()
+    elif isinstance(destination_obj, uxarray.core.dataset.UxDataset):
+        destination_uxds = destination_obj
+    else:
+        raise ValueError
+
+    for var_name in source_uxds.data_vars:
+        destination_uxds = _nearest_neighbor_uxda(source_uxds[var_name],
+                                                  destination_uxds,
+                                                  destination_data_mapping,
+                                                  coord_type)
+
+    return destination_uxds

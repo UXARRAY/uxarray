@@ -3,10 +3,16 @@ import xarray as xr
 
 import sys
 
-from typing import Optional, IO
+from typing import TYPE_CHECKING, Optional, IO, Union
+
+if TYPE_CHECKING:
+    from uxarray.core.dataarray import UxDataArray
+    from uxarray.core.dataset import UxDataset
 
 from uxarray.core.dataarray import UxDataArray
 from uxarray.grid import Grid
+
+from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxds
 
 
 class UxDataset(xr.Dataset):
@@ -303,3 +309,11 @@ class UxDataset(xr.Dataset):
 
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def nearest_neighbor_remap(self,
+                               destination_obj,
+                               destination_data_mapping: str = "nodes",
+                               coord_type: str = "lonlat"):
+
+        return _nearest_neighbor_uxds(self, destination_obj,
+                                      destination_data_mapping, coord_type)
