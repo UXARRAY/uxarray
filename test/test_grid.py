@@ -937,12 +937,12 @@ class TestBallTree(TestCase):
         pass
 
 
-from uxarray.regrid import nearest_neighbor
+from uxarray.remap import nearest_neighbor
 
 
-class TestNearestNeighborRegrid(TestCase):
+class TestNearestNeighborRemap(TestCase):
 
-    def test_regrid_to_same_grid_corner_nodes(self):
+    def test_remap_to_same_grid_corner_nodes(self):
         # single triangle with point on antimeridian
         source_verts = np.array([(0.0, 90.0), (-180, 0.0), (0.0, -90)])
         source_data_single_dim = [1.0, 2.0, 3.0]

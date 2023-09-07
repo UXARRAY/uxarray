@@ -101,12 +101,12 @@ class TestGeometryConversions(TestCase):
         # override will recompute the grid
         assert gdf_start is not gdf_end
 
-    def test_nn_regrid(self):
+    def test_nn_remap(self):
         # TODO; write better test
         uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
         uxgrid = ux.open_grid(gridfile_ne30)
 
         uxda = uxds['v1']
-        out_da = uxda.nearest_neighbor_regrid(destination_obj=uxgrid)
+        out_da = uxda.nearest_neighbor_remap(destination_obj=uxgrid)
         pass

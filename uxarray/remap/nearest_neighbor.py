@@ -27,9 +27,9 @@ def nearest_neighbor(source_grid: Grid,
     source_grid : Grid
         Source grid that data is mapped to
     destination_grid : Grid
-        Destination grid to regrid data to
+        Destination grid to remap data to
     source_data : np.ndarray
-        Data variable to regrid
+        Data variable to remaps
     destination_data_mapping : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
 
@@ -92,7 +92,7 @@ def nearest_neighbor(source_grid: Grid,
     elif coord_type == "cartesian":
         # TODO: once a cartesian balltree/kdtree is implemented, implement this
         raise ValueError(
-            f"Nearest Neighbor Regridding using Cartesian coordinates is not yet supported"
+            f"Nearest Neighbor Remapping using Cartesian coordinates is not yet supported"
         )
 
     else:
@@ -125,19 +125,19 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     else:
         raise ValueError("TODO: Invalid Input")
 
-    # perform regridding
+    # perform remapping
     destination_data = nearest_neighbor(source_uxda.uxgrid, destination_grid,
                                         source_uxda.data,
                                         destination_data_mapping, coord_type)
-    # construct data array for regridded variable
-    uxda_regrid = uxarray.core.dataarray.UxDataArray(data=destination_data,
+    # construct data array for remapping variable
+    uxda_remap = uxarray.core.dataarray.UxDataArray(data=destination_data,
                                                      name=source_uxda.name,
                                                      dims=destination_dims,
                                                      uxgrid=destination_obj)
     # return UxDataset
     if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
-        destination_obj[source_uxda.name] = uxda_regrid
+        destination_obj[source_uxda.name] = uxda_remap
         return destination_obj
     # return UxDataArray
     else:
-        return uxda_regrid
+        return uxda_remap

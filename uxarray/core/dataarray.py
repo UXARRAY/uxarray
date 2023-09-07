@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
 
-from uxarray.regrid.nearest_neighbor import _nearest_neighbor_uxda
+from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 
 
 class UxDataArray(xr.DataArray):
@@ -215,7 +215,7 @@ class UxDataArray(xr.DataArray):
                 f"Data Variable with size {self.data.size} does not match the number of faces "
                 f"({self.uxgrid.nMesh2_face}.")
 
-    def nearest_neighbor_regrid(self,
+    def nearest_neighbor_remap(self,
                                 destination_obj: Union[Grid, UxDataArray,
                                                        UxDataset],
                                 destination_data_mapping: str = "nodes",
