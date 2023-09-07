@@ -918,12 +918,14 @@ class Grid:
         polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
         return polygons
 
-    def from_vertices(self, method="spherical_voronoi"):
+    def from_vertices(self, radius=1, method="spherical_voronoi"):
         """Create a grid and related information from just vertices, using
         either Spherical Voronoi or Delaunay Triangulation.
 
         Parameters
         ----------
+        radius : int, optional
+            Provides a radius for the voronoi diagram
         method : string, optional
             Method used to construct a grid from only vertices
         """
@@ -932,11 +934,11 @@ class Grid:
         y = self.Mesh2_node_y.data
         verts = np.column_stack((x, y))
 
-        if not verts:
+        if verts.size == 0:
             raise ValueError("No vertices provided")
 
         if method == "spherical_voronoi":
-            if len(verts) < 4:
+            if verts.shape[0] < 4:
                 raise ValueError(
                     "At least 4 vertices needed for Spherical Voronoi")
 
@@ -952,6 +954,7 @@ class Grid:
             normalized_verts = np.array(normalized_verts)
 
             # Perform Spherical Voronoi Construction
+            center = np.array([0, 0])
             grid = SphericalVoronoi(normalized_verts)
 
             # Handle special cases near the antimeridian and poles if necessary
@@ -960,7 +963,7 @@ class Grid:
             # TODO: Assign Mesh2 values to the grid
 
         elif method == "delaunay_triangulation":
-            if len(verts) < 3:
+            if verts.shape[0] < 3:
                 raise ValueError(
                     "At least 3 vertices needed for Delaunay Triangulation")
 
