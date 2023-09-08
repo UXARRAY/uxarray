@@ -489,9 +489,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
-        if "Mesh2_face_y" not in self._ds:
-            _populate_lonlat_face_centers(self)
-        return self._ds["Mesh2_face_y"]
+        return self._ds[self.grid_var_names["Mesh2_node_y"]]
 
     @property
     def Mesh2_node_cart_y(self):
@@ -506,15 +504,14 @@ class Grid:
 
     @property
     def Mesh2_face_y(self):
-        """UGRID Coordinate Variable ``Mesh2_face_y``, which contains the
+        """UGRID Coordinate Variable ``Mesh2_faceyx``, which contains the
         latitude of each face center.
 
         Dimensions (``nMesh2_face``)
         """
-        if "Mesh2_face_y" in self._ds:
-            return self._ds["Mesh2_face_y"]
-        else:
-            return None
+        if "Mesh2_face_y" not in self._ds:
+            _populate_lonlat_face_centers(self)
+        return self._ds["Mesh2_face_y"]
 
     @property
     def _Mesh2_node_z(self):
