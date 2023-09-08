@@ -10,7 +10,7 @@ import uxarray as ux
 
 from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity
 
-from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
+from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord, _populate_lonlat_face_centers
 
 from uxarray.grid.neighbors import BallTree
 
@@ -865,11 +865,16 @@ class TestConnectivity(TestCase):
                     np.array_equal(valid_face_index_from_sparse_matrix,
                                    face_index_from_dict))
 
-    def test_face_centers(self):
+    def test_face_center_error(self):
         uxgrid = ux.open_grid(gridfile_CSne8)
-        face_x = uxgrid.Mesh2_face_x
-        face_y = uxgrid.Mesh2_face_y
-        pass
+        uxgrid._ds['Mesh2_node_x'] -= 180
+        face_x_gold, face_y_gold = uxgrid.Mesh2_face_x.values, uxgrid.Mesh2_face_y.values
+        face_x_gold -= 180
+        _populate_lonlat_face_centers(uxgrid)
+        face_x_test, face_y_test = uxgrid.Mesh2_face_x.values, uxgrid.Mesh2_face_y.values
+
+        abs_error_x = np.abs(face_x_gold - face_x_test)
+        abs_error_y = np.abs(face_y_gold - face_y_test)
 
 
 class TestBallTree(TestCase):
