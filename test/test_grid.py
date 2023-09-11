@@ -36,7 +36,6 @@ shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
 
 
 class TestGrid(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
@@ -312,7 +311,6 @@ class TestOperators(TestCase):
 
 
 class TestFaceAreas(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
     def test_calculate_total_face_area_triangle(self):
@@ -327,7 +325,7 @@ class TestFaceAreas(TestCase):
                                   islatlon=False,
                                   isconcave=False)
 
-        #calculate area
+        # calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -867,7 +865,6 @@ class TestConnectivity(TestCase):
 
 
 class TestBallTree(TestCase):
-
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_files = [gridfile_mpas]
 
@@ -940,7 +937,9 @@ class TestBallTree(TestCase):
 class TestGridFromVertices(TestCase):
 
     def test_spherical_voronoi(self):
-        verts = [(0, 0), (45, 45), (-30, 150), (60, -30), (-75, -120), (90, 0),
-                 (-90, 90), (30, -60)]
+        verts = np.array([[0, 0, 1], [0, 0, -1], [1, 0, 0], [0, 1, 0],
+                          [0, -1, 0], [-1, 0, 0]])
         grid_from_verts = ux.open_grid(verts)
+        print(grid_from_verts._ds["Mesh2_node_z"])
         grid_from_verts.from_vertices(method="spherical_voronoi")
+        print(grid_from_verts._ds["Mesh2_node_cart_x"])

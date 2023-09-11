@@ -918,21 +918,20 @@ class Grid:
         polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
         return polygons
 
-    def from_vertices(self, radius=1, method="spherical_voronoi"):
+    def from_vertices(self, method="spherical_voronoi"):
         """Create a grid and related information from just vertices, using
         either Spherical Voronoi or Delaunay Triangulation.
 
         Parameters
         ----------
-        radius : int, optional
-            Provides a radius for the voronoi diagram
         method : string, optional
             Method used to construct a grid from only vertices
         """
 
-        x = self.Mesh2_node_x.data
-        y = self.Mesh2_node_y.data
-        verts = np.column_stack((x, y))
+        x = self._ds["Mesh2_node_x"]
+        y = self._ds["Mesh2_node_y"]
+        z = self._ds["Mesh2_node_z"]
+        verts = np.column_stack((x, y, z))
 
         if verts.size == 0:
             raise ValueError("No vertices provided")
@@ -943,24 +942,49 @@ class Grid:
                     "At least 4 vertices needed for Spherical Voronoi")
 
             # Normalize longitude values to the range [-180, 180] degrees
-            normalized_verts = []
-            for lon, lat in verts:
-                if -180 <= lon <= 180:
-                    normalized_verts.append((lon, lat))
-                else:
-                    normalized_verts.append((lon - 360, lat))
+            # normalized_verts = []
+            # for lon, lat in verts:
+            # if -180 <= lon <= 180:
+            # normalized_verts.append((lon, lat))
+            # else:
+            # normalized_verts.append((lon - 360, lat))
 
             # Convert the normalized vertices back to a NumPy array
-            normalized_verts = np.array(normalized_verts)
+            # normalized_verts = np.array(normalized_verts)
+
+            # Calculate the maximum distance from the origin to any generator point
+            radius = np.max(np.linalg.norm(verts, axis=1))
 
             # Perform Spherical Voronoi Construction
-            center = np.array([0, 0])
-            grid = SphericalVoronoi(normalized_verts)
+            grid = SphericalVoronoi(verts, radius)
 
-            # Handle special cases near the antimeridian and poles if necessary
-            # (e.g., split Voronoi cells that cross the antimeridian)
+            # Assign the nodes
+            node_x = grid.vertices[:, 0]
+            node_y = grid.vertices[:, 1]
+            node_z = grid.vertices[:, 2]
+
+            # Assign the face centers
+            face_x = verts[:, 0]
+            face_y = verts[:, 1]
+            face_z = verts[:, 2]
 
             # TODO: Assign Mesh2 values to the grid
+            x_units = "degrees_east"
+            y_units = "degrees_north"
+            z_units = "elevation"
+
+            self._ds["Mesh2_node_x"] = xr.DataArray(data=node_x,
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": x_units})
+            self._ds["Mesh2_node_y"] = xr.DataArray(data=node_y,
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": y_units})
+            self._ds["Mesh2_node_z"] = xr.DataArray(data=node_z,
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": z_units})
+
+            # TODO: Handle special cases near the antimeridian and poles if necessary
+            #  (e.g., split Voronoi cells that cross the antimeridian)
 
         elif method == "delaunay_triangulation":
             if verts.shape[0] < 3:
