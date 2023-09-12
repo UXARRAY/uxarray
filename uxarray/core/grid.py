@@ -993,55 +993,34 @@ class Grid:
         """Constructs the UGRID coordinate variables Mesh2_face_x and
         Mesh2_face_y, representing the center longitude and latitude of each
         face, respectively."""
-        node_x = self.Mesh2_node_x.values
-        node_y = self.Mesh2_node_y.values
+        node_x = self.Mesh2_node_cart_x.values
+        node_y = self.Mesh2_node_cart_y.values
+        node_z = self.Mesh2_node_cart_z.values
         face_nodes = self.Mesh2_face_nodes.values
 
         nNodes_per_face = self.nNodes_per_face.values
 
-        Mesh2_face_x = []
-        Mesh2_face_y = []
+        mesh2_face_x = []
+        mesh2_face_y = []
+        mesh2_face_z = []
 
         for cur_face_nodes, n_nodes in zip(face_nodes, nNodes_per_face):
-            Mesh2_face_x.append(np.mean(node_x[cur_face_nodes[0:n_nodes]]))
-            Mesh2_face_y.append(np.mean(node_y[cur_face_nodes[0:n_nodes]]))
-
-        # Assign the coordinates to the internal dataset (self.ds) if needed
-        if "Mesh2_face_y" not in self._ds or repopulate:
-            self._ds["Mesh2_face_x"] = xr.DataArray(
-                Mesh2_face_x,
-                dims=["nMesh2_face"],
-                attrs={"standard_name": "center_longitude"})
-        if "Mesh2_face_y" not in self._ds or repopulate:
-            self._ds["Mesh2_face_y"] = xr.DataArray(
-                Mesh2_face_y,
-                dims=["nMesh2_face"],
-                attrs={"standard_name": "center_latitude"})
-
-    def _build_face_coordinates(self, repopulate=False):
-        """Constructs the UGRID coordinate variables Mesh2_face_x and
-        Mesh2_face_y, representing the center longitude and latitude of each
-        face, respectively."""
-        node_x = self.Mesh2_node_x.values
-        node_y = self.Mesh2_node_y.values
-        face_nodes = self.Mesh2_face_nodes.values
-
-        nNodes_per_face = self.nNodes_per_face.values
-
-        Mesh2_face_x = []
-        Mesh2_face_y = []
-
-        for cur_face_nodes, n_nodes in zip(face_nodes, nNodes_per_face):
-            Mesh2_face_x.append(np.mean(node_x[cur_face_nodes[0:n_nodes]]))
-            Mesh2_face_y.append(np.mean(node_y[cur_face_nodes[0:n_nodes]]))
+            mesh2_face_x.append(np.mean(node_x[cur_face_nodes[0:n_nodes]]))
+            mesh2_face_y.append(np.mean(node_y[cur_face_nodes[0:n_nodes]]))
+            mesh2_face_z.append(np.mean(node_z[cur_face_nodes[0:n_nodes]]))
 
         if "Mesh2_face_y" not in self._ds or repopulate:
             self._ds["Mesh2_face_x"] = xr.DataArray(
-                Mesh2_face_x,
+                mesh2_face_x,
                 dims=["nMesh2_face"],
-                attrs={"standard_name": "center_longitude"})
+                attrs={"standard_name": "degrees_east"})
         if "Mesh2_face_y" not in self._ds or repopulate:
             self._ds["Mesh2_face_y"] = xr.DataArray(
-                Mesh2_face_y,
+                mesh2_face_y,
                 dims=["nMesh2_face"],
-                attrs={"standard_name": "center_latitude"})
+                attrs={"standard_name": "degrees_north"})
+        if "Mesh2_face_z" not in self._ds or repopulate:
+            self._ds["Mesh2_face_z"] = xr.DataArray(
+                mesh2_face_z,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "elevation"})

@@ -7,6 +7,7 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
+from uxarray import node_lonlat_rad_to_xyz
 
 try:
     import constants
@@ -776,18 +777,35 @@ class TestConnectivity(TestCase):
                                "mesh.QU.1920km.151026.nc")
 
         # Create an instance of the class or object that contains the _build_face_coordinates method
-        grid = ux.Grid(xrDS)
+        grid = ux.Grid(xrDS, islatlon=False)
+        grid._populate_cartesian_xyz_coord()
 
-        # Get the expected center longitudes and latitudes from the MPAS dataset
-        expectValuesX = grid._ds["Mesh2_face_x"].values
-        expectValuesY = grid._ds["Mesh2_face_y"].values
+        # Get and convert latlon to cartesian coordinates
+        face_lon_rad = np.deg2rad(grid.Mesh2_face_x.values)
+        face_lat_rad = np.deg2rad(grid.Mesh2_face_y.values)
+        nodes_rad = np.stack((face_lon_rad, face_lat_rad), axis=1)
+        nodes_cart = np.asarray(
+            list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
+
         # Call the _build_face_coordinates method
         grid._build_face_coordinates(repopulate=True)
 
-        # Get the calculated center longitudes and latitudes from the grid object
-        calculatedFaceX = grid.Mesh2_face_x.values
-        calculatedFaceY = grid.Mesh2_face_y.values
+        # Get the calculated values
+        calculated_face_x = grid.Mesh2_face_x.values
 
-        # Assert that the calculated center longitudes and latitudes match the expected values
-        # np.testing.assert_allclose(calculatedFaceX, expectValuesX)
-        # np.testing.assert_allclose(calculatedFaceY, expectValuesY)
+        # Assert that the calculated values match the expected values
+        print(calculated_face_x[:10])
+        print(nodes_cart[:10, 0])
+
+        # Calculate and print the average and max absolute differences
+        absolute_differences = np.abs(calculated_face_x - nodes_cart[:, 0])
+        average_difference = np.mean(absolute_differences)
+        max_difference = np.max(absolute_differences)
+
+        print(f"Average Absolute Difference: {average_difference}")
+        print(f"Max Absolute Difference: {max_difference}")
+
+        tolerance = 1e-6  # Adjust the tolerance as needed
+        np.testing.assert_allclose(calculated_face_x,
+                                   nodes_cart[:, 0],
+                                   rtol=tolerance)
