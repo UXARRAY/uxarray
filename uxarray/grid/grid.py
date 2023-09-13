@@ -135,7 +135,7 @@ class Grid:
 
         Parameters
         ----------
-        face_vertices : list, tuple, np.ndarray]
+        face_vertices : list, tuple, np.ndarray
             array-like input containing the face vertices to construct the grid from
         latlon : bool, default=True
             Indicates whether the inputted vertices are in lat/lon, with units in degrees
