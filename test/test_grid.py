@@ -940,6 +940,12 @@ class TestGridFromVertices(TestCase):
         verts = np.array([[0, 0, 1], [0, 0, -1], [1, 0, 0], [0, 1, 0],
                           [0, -1, 0], [-1, 0, 0]])
         grid_from_verts = ux.open_grid(verts)
-        print(grid_from_verts._ds["Mesh2_node_z"])
+        # Voronoi Diagram Test
         grid_from_verts.from_vertices(method="spherical_voronoi")
-        print(grid_from_verts._ds["Mesh2_node_cart_x"])
+
+    def test_delaunay_triangulation(self):
+        verts = np.array([[0, 0, 1], [0, 0, -1], [1, 0, 0], [0, 1, 0],
+                          [0, -1, 0], [-1, 0, 0]])
+        grid_from_verts = ux.open_grid(verts)
+        # Delaunay Triangulation Test
+        grid_from_verts.from_vertices(method="delaunay_triangulation")
