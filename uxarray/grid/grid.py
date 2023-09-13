@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Union
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
-from uxarray.io._ugrid import _read_ugrid, _encode_ugrid
+from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugrid
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io._connectivity import _read_face_vertices
@@ -52,7 +52,7 @@ class Grid:
     grid_spec : str, default="UGRID"
         Original unstructrued grid format (i.e. UGRID, MPAS, etc.)
 
-    ugrid_mapping : dict, default=None
+    ugrid_dim_map : dict, default=None
         mapping of ugrid dimensions and variables to source dataset's conventions
     ----------
 
@@ -70,11 +70,19 @@ class Grid:
 
     def __init__(self,
                  grid_ds: xr.Dataset,
-                 grid_spec: Optional[str] = "UGRID",
-                 ugrid_mapping: Optional[bool] = None):
+                 grid_spec: Optional[str] = None,
+                 ugrid_dim_map: Optional[dict] = None):
+
+        # source grid spec not provided
+        if grid_spec is None:
+            if _validate_minimum_ugrid(grid_ds):
+                grid_spec = "UGRID"
+                ugrid_dim_map = None  # TODO
+            else:
+                raise ValueError  # TODO
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
-        self._ugrid_mapping = ugrid_mapping
+        self._ugrid_dim_map = ugrid_dim_map
 
         # source grid specification
         self.grid_spec = grid_spec
@@ -113,19 +121,19 @@ class Grid:
         grid_spec = _parse_grid_type(dataset)
 
         if grid_spec == "Exodus":
-            grid_ds, ugrid_mapping = _read_exodus(dataset)
+            grid_ds, ugrid_dim_map = _read_exodus(dataset)
         elif grid_spec == "Scrip":
-            grid_ds, ugrid_mapping = _read_scrip(dataset)
+            grid_ds, ugrid_dim_map = _read_scrip(dataset)
         elif grid_spec == "UGRID":
-            grid_ds, ugrid_mapping = _read_ugrid(dataset)
+            grid_ds, ugrid_dim_map = _read_ugrid(dataset)
         elif grid_spec == "MPAS":
-            grid_ds, ugrid_mapping = _read_mpas(dataset, use_dual=use_dual)
+            grid_ds, ugrid_dim_map = _read_mpas(dataset, use_dual=use_dual)
         elif grid_spec == "Shapefile":
             raise ValueError("Shapefiles not yet supported")
         else:
             raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, grid_spec, ugrid_mapping)
+        return cls(grid_ds, grid_spec, ugrid_dim_map)
 
     @classmethod
     def from_face_vertices(cls,
@@ -223,18 +231,13 @@ class Grid:
         If two grids are equal : bool
         """
 
-        if other is not None:
-            # Iterate over dict to set access attributes
-            for key, value in self._ugrid_mapping.items():
-                # Check if all grid variables are equal
-                if self._ds.data_vars is not None:
-                    if value in self._ds.data_vars:
-                        if not self._ds[value].equals(other._ds[key]):
-                            return False
-        else:
+        try:
+            if self._ds == other._ds:
+                return True
+            else:
+                return False
+        except:
             return False
-
-        return True
 
     def __ne__(self, other) -> bool:
         """Two grids are not equal if they have differing grid topology
@@ -502,7 +505,7 @@ class Grid:
 
         return Grid(self._ds,
                     grid_spec=self.grid_spec,
-                    ugrid_mapping=self._ugrid_mapping)
+                    ugrid_dim_map=self._ugrid_dim_map)
 
     def encode_as(self, grid_type: str) -> xr.Dataset:
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied

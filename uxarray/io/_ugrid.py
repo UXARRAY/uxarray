@@ -1,7 +1,7 @@
 import numpy as np
 
 from uxarray.grid.connectivity import _replace_fill_values
-from uxarray.grid.utils import _get_ugrid_var_vame_dict
+from uxarray.grid.utils import _get_ugrid_dim_map
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -12,7 +12,7 @@ def _read_ugrid(xr_ds):
     Returns: ugrid aware xarray.Dataset
     """
 
-    var_names_dict = _get_ugrid_var_vame_dict()
+    ugrid_dim_map = _get_ugrid_dim_map()
 
     # TODO: Standardized UGRID Variable Names (Mesh2_node_x, etc)
 
@@ -29,34 +29,24 @@ def _read_ugrid(xr_ds):
     # map and rename coordinates
     coord_names = xr_ds["Mesh2"].node_coordinates.split()
     if len(coord_names) == 1:
-        var_names_dict["Mesh2_node_x"] = coord_names[0]
         xr_ds = xr_ds.rename({coord_names[0]: "Mesh2_node_x"})
     elif len(coord_names) == 2:
-        var_names_dict["Mesh2_node_x"] = coord_names[0]
-        var_names_dict["Mesh2_node_y"] = coord_names[1]
         xr_ds = xr_ds.rename({
             coord_names[0]: "Mesh2_node_x",
             coord_names[1]: "Mesh2_node_y"
         })
-    elif len(coord_names) == 3:
-        var_names_dict["Mesh2_node_x"] = coord_names[0]
-        var_names_dict["Mesh2_node_y"] = coord_names[1]
-        var_names_dict["Mesh2_node_z"] = coord_names[
-            2]  # TODO: remove Mesh2_node_z
-
     # map and rename dimensions
     coord_dim_name = xr_ds["Mesh2_node_x"].dims
-    var_names_dict["nMesh2_node"] = coord_dim_name[0]
+    ugrid_dim_map["nMesh2_node"] = coord_dim_name[0]
     xr_ds = xr_ds.rename({coord_dim_name[0]: "nMesh2_node"})
 
     face_node_names = xr_ds["Mesh2"].face_node_connectivity.split()
 
     face_node_name = face_node_names[0]
-    var_names_dict["Mesh2_face_nodes"] = xr_ds[face_node_name].name
     xr_ds = xr_ds.rename({xr_ds[face_node_name].name: "Mesh2_face_nodes"})
 
-    var_names_dict["nMesh2_face"] = xr_ds["Mesh2_face_nodes"].dims[0]
-    var_names_dict["nMaxMesh2_face_nodes"] = xr_ds["Mesh2_face_nodes"].dims[1]
+    ugrid_dim_map["nMesh2_face"] = xr_ds["Mesh2_face_nodes"].dims[0]
+    ugrid_dim_map["nMaxMesh2_face_nodes"] = xr_ds["Mesh2_face_nodes"].dims[1]
 
     xr_ds = xr_ds.rename({
         xr_ds["Mesh2_face_nodes"].dims[0]: "nMesh2_face",
@@ -73,9 +63,9 @@ def _read_ugrid(xr_ds):
             ])
 
     # standardize fill values and data type for face nodes
-    xr_ds = _standardize_fill_values(xr_ds, var_names_dict)
+    xr_ds = _standardize_fill_values(xr_ds)
 
-    return xr_ds, var_names_dict
+    return xr_ds, ugrid_dim_map
 
 
 def _encode_ugrid(ds):
@@ -90,15 +80,13 @@ def _encode_ugrid(ds):
     return ds
 
 
-def _standardize_fill_values(ds, var_names_dict):
+def _standardize_fill_values(ds):
     """Standardizes the fill values and data type of index variables.
 
     Parameters
     ----------
     ds : xarray.Dataset
         Input Dataset
-    ds_vars_dict : dict
-        UGRID Variable Name Dictionary
 
     Returns
     ----------
@@ -147,3 +135,10 @@ def _is_ugrid(ds):
         return True
     else:
         return False
+
+
+def _validate_minimum_ugrid(grid_ds):
+    """Checks whether a given ``grid_ds`` meets the requirements for a minimum
+    unstructured grid encoded in the UGRID conventions, containing a set of (x,
+    y) latlon coordinates and face node connectivity."""
+    return "Mesh2_node_x" in grid_ds and "Mesh2_node_y" in grid_ds and "Mesh2_face_nodes" in grid_ds

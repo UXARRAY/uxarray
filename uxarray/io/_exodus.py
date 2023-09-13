@@ -5,7 +5,7 @@ from datetime import datetime
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.utils import _get_ugrid_var_vame_dict
+from uxarray.grid.utils import _get_ugrid_dim_map
 from uxarray.grid.coordinates import _get_lonlat_from_xyz, _get_xyz_from_lonlat
 
 
@@ -18,7 +18,7 @@ def _read_exodus(ext_ds):
     """
 
     # TODO: UGRID Variable Mapping
-    var_names_dict = _get_ugrid_var_vame_dict()
+    ugrid_dim_map = _get_ugrid_dim_map()
 
     # Not loading specific variables.
     # as there is no way to know number of face types etc. without loading
@@ -172,7 +172,7 @@ def _read_exodus(ext_ds):
     # set lon/lat coordinates
     ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
 
-    return ds, var_names_dict
+    return ds, ugrid_dim_map
 
 
 def _encode_exodus(ds, outfile=None):

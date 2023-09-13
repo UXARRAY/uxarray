@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.utils import _get_ugrid_var_vame_dict
+from uxarray.grid.utils import _get_ugrid_dim_map
 
 
 def _primal_to_ugrid(in_ds, out_ds):
@@ -18,9 +18,9 @@ def _primal_to_ugrid(in_ds, out_ds):
         conventions
     """
 
-    ugrid_mapping = _get_ugrid_var_vame_dict()
+    ugrid_mapping = _get_ugrid_dim_map()
 
-    # set mesh topology
+    # set mesh topologys
     out_ds["Mesh2"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
@@ -149,7 +149,7 @@ def _dual_to_ugrid(in_ds, out_ds):
         conventions
     """
 
-    ugrid_mapping = _get_ugrid_var_vame_dict()
+    ugrid_mapping = _get_ugrid_dim_map()
 
     # set mesh topology
     out_ds["Mesh2"] = xr.DataArray(

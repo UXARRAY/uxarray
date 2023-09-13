@@ -3,7 +3,7 @@ import numpy as np
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.utils import _get_ugrid_var_vame_dict
+from uxarray.grid.utils import _get_ugrid_dim_map
 
 
 def _to_ugrid(in_ds, out_ds):
@@ -21,7 +21,7 @@ def _to_ugrid(in_ds, out_ds):
         to store reassigned SCRIP variables in UGRID conventions
     """
 
-    ugrid_mapping = _get_ugrid_var_vame_dict()
+    ugrid_mapping = _get_ugrid_dim_map()
 
     if in_ds['grid_area'].all():
 
