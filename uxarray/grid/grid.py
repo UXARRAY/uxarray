@@ -38,11 +38,15 @@ from uxarray.grid.neighbors import BallTree
 
 
 class Grid:
-    """Unstructured grid topology definition.
+    """Represents a two-dimensional unstructured grid encoded following the
+    UGRID conventions and provides grid-specific functionality.
 
-    Can be used standalone to explore an unstructured grid topology, or
-    can be seen as the property of ``uxarray.UxDataset`` and ``uxarray.DataArray``
-    to make them unstructured grid-aware data sets and arrays.
+    Can be used standalone to work with unstructured grids, or can be paired with either a ``ux.UxDataArray`` or
+    ``ux.UxDataset`` and accessed through the ``.uxgrid`` attribute.
+
+    For constructing a grid from non-UGRID datasets or other types of supported data, see our ``ux.open_grid`` method or
+    specific class methods (``Grid.from_dataset``, ``Grid.from_face_verticies``, etc.)
+
 
     Parameters
     ----------
@@ -50,22 +54,27 @@ class Grid:
         ``xarray.Dataset`` encoded in the UGRID conventions
 
     grid_spec : str, default="UGRID"
-        Original unstructrued grid format (i.e. UGRID, MPAS, etc.)
+        Original unstructured grid format (i.e. UGRID, MPAS, etc.)
 
     ugrid_dim_map : dict, default=None
-        mapping of ugrid dimensions and variables to source dataset's conventions
+        mapping of ugrid dimensions to the source dataset's conventions
+    ----------
+    Examples
     ----------
 
     >>> import uxarray as ux
+    >>> grid_path = "/path/to/grid.nc"
+    >>> data_path = "/path/to/data.nc"
 
     1. Open a grid file with `uxarray.open_grid()`:
 
-    >>> uxgrid = ux.open_grid("filename.g")
+    >>> uxgrid = ux.open_grid(grid_path)
 
     2. Open an unstructured grid dataset file with
-    `uxarray.open_dataset()`, then access `Grid` info:
+    `uxarray.open_dataset()`, then access the ``Grid``.:
 
-    >>> uxds = ux.open_dataset("filename.g")
+    >>> uxds = ux.open_dataset(grid_path, data_path)
+    >>> uxds.uxgrid
     """
 
     def __init__(self,
