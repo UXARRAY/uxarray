@@ -21,7 +21,7 @@ def _to_ugrid(in_ds, out_ds):
         to store reassigned SCRIP variables in UGRID conventions
     """
 
-    ugrid_mapping = _get_ugrid_dim_map()
+    ugrid_dim_map = _get_ugrid_dim_map()
 
     if in_ds['grid_area'].all():
 
@@ -72,10 +72,7 @@ def _to_ugrid(in_ds, out_ds):
         out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
         out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
 
-        ugrid_mapping['Mesh2_face_x'] = "grid_center_lon"
-        ugrid_mapping['Mesh2_face_y'] = "grid_center_lat"
-
-        ugrid_mapping['nMesh2_face'] = in_ds['grid_center_lon'].dims[0]
+        ugrid_dim_map['nMesh2_face'] = in_ds['grid_center_lon'].dims[0]
 
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(unq_inv,
@@ -101,7 +98,7 @@ def _to_ugrid(in_ds, out_ds):
     else:
         raise Exception("Structured scrip files are not yet supported")
 
-    return ugrid_mapping
+    return ugrid_dim_map
 
 
 def _read_scrip(ext_ds):

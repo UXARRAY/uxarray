@@ -15,21 +15,17 @@ from uxarray.io._connectivity import _read_face_vertices
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
 
-from uxarray.grid.connectivity import (_build_edge_node_connectivity,
-                                       _build_face_edges_connectivity,
-                                       _build_nNodes_per_face,
-                                       _build_node_faces_connectivity,
-                                       _face_nodes_to_sparse_matrix)
+from uxarray.grid.connectivity import (
+    _build_edge_node_connectivity,
+    _build_face_edges_connectivity,
+    _build_nNodes_per_face,
+    _build_node_faces_connectivity,
+)
 
-from uxarray.grid.coordinates import (normalize_in_place,
-                                      _populate_lonlat_coord,
+from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-
-from uxarray.grid.geometry import (_build_polygon_shells,
-                                   _build_corrected_polygon_shells,
-                                   _build_antimeridian_face_indices,
+from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
                                    _grid_to_polygons)
@@ -58,7 +54,7 @@ class Grid:
 
     ugrid_dim_map : dict, default=None
         mapping of ugrid dimensions to the source dataset's conventions
-    ----------
+
     Examples
     ----------
 
@@ -240,6 +236,7 @@ class Grid:
         If two grids are equal : bool
         """
 
+        # TODO: fix failing case where grids are the same, but one has more variables constructed
         try:
             if self._ds == other._ds:
                 return True

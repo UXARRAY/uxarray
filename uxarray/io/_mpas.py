@@ -18,7 +18,7 @@ def _primal_to_ugrid(in_ds, out_ds):
         conventions
     """
 
-    ugrid_mapping = _get_ugrid_dim_map()
+    ugrid_dim_map = _get_ugrid_dim_map()
 
     # set mesh topologys
     out_ds["Mesh2"] = xr.DataArray(
@@ -54,10 +54,7 @@ def _primal_to_ugrid(in_ds, out_ds):
             "units": "degrees_north",
         })
 
-    ugrid_mapping['Mesh2_node_x'] = "lonVertex"
-    ugrid_mapping['Mesh2_node_y'] = "latVertex"
-
-    ugrid_mapping['nMesh2_node'] = in_ds['lonVertex'].dims[0]
+    ugrid_dim_map['nMesh2_node'] = in_ds['lonVertex'].dims[0]
 
     # centers of primal-mesh cells (in degrees)
     lonCell = np.rad2deg(in_ds['lonCell'].values)
@@ -80,9 +77,6 @@ def _primal_to_ugrid(in_ds, out_ds):
             "long_name": "latitude of center nodes",
             "units": "degrees_north",
         })
-
-    ugrid_mapping['Mesh2_face_x'] = "lonCell"
-    ugrid_mapping['Mesh2_face_y'] = "latCell"
 
     # vertex indices that surround each primal-mesh cell
     verticesOnCell = np.array(in_ds['verticesOnCell'].values, dtype=INT_DTYPE)
@@ -107,9 +101,8 @@ def _primal_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_mapping['Mesh2_face_nodes'] = "verticesOnCell"
-    ugrid_mapping['nMesh2_face'] = in_ds['verticesOnCell'].dims[0]
-    ugrid_mapping['nMaxMesh2_face_nodes'] = in_ds['verticesOnCell'].dims[1]
+    ugrid_dim_map['nMesh2_face'] = in_ds['verticesOnCell'].dims[0]
+    ugrid_dim_map['nMaxMesh2_face_nodes'] = in_ds['verticesOnCell'].dims[1]
 
     # vertex indices that saddle a given edge
     verticesOnEdge = np.array(in_ds['verticesOnEdge'].values, dtype=INT_DTYPE)
@@ -128,13 +121,12 @@ def _primal_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_mapping['Mesh2_edge_nodes'] = "verticesOnEdge"
-    ugrid_mapping['nMesh2_edge'] = in_ds['verticesOnEdge'].dims[0]
+    ugrid_dim_map['nMesh2_edge'] = in_ds['verticesOnEdge'].dims[0]
 
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
 
-    return ugrid_mapping
+    return ugrid_dim_map
 
 
 def _dual_to_ugrid(in_ds, out_ds):
@@ -149,7 +141,7 @@ def _dual_to_ugrid(in_ds, out_ds):
         conventions
     """
 
-    ugrid_mapping = _get_ugrid_dim_map()
+    ugrid_dim_map = _get_ugrid_dim_map()
 
     # set mesh topology
     out_ds["Mesh2"] = xr.DataArray(
@@ -185,10 +177,7 @@ def _dual_to_ugrid(in_ds, out_ds):
             "units": "degrees_north",
         })
 
-    ugrid_mapping['Mesh2_node_x'] = "lonCell"
-    ugrid_mapping['Mesh2_node_y'] = "latCell"
-
-    ugrid_mapping['nMesh2_node'] = in_ds['latCell'].dims[0]
+    ugrid_dim_map['nMesh2_node'] = in_ds['latCell'].dims[0]
 
     # centers of dual-mesh cells (in degrees)
     lonVertex = np.rad2deg(in_ds['lonVertex'].values)
@@ -212,9 +201,6 @@ def _dual_to_ugrid(in_ds, out_ds):
             "units": "degrees_north",
         })
 
-    ugrid_mapping['Mesh2_face_x'] = "lonVertex"
-    ugrid_mapping['Mesh2_face_y'] = "latVertex"
-
     # vertex indices that surround each dual-mesh cell
     cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=INT_DTYPE)
 
@@ -233,9 +219,8 @@ def _dual_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_mapping['Mesh2_face_nodes'] = "cellsOnVertex"
-    ugrid_mapping['nMesh2_face'] = in_ds['cellsOnVertex'].dims[0]
-    ugrid_mapping['nMaxMesh2_face_nodes'] = in_ds['cellsOnVertex'].dims[1]
+    ugrid_dim_map['nMesh2_face'] = in_ds['cellsOnVertex'].dims[0]
+    ugrid_dim_map['nMaxMesh2_face_nodes'] = in_ds['cellsOnVertex'].dims[1]
 
     # vertex indices that saddle a given edge
     cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=INT_DTYPE)
@@ -254,13 +239,12 @@ def _dual_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_mapping['Mesh2_edge_nodes'] = "cellsOnEdge"
-    ugrid_mapping['nMesh2_edge'] = in_ds['cellsOnEdge'].dims[0]
+    ugrid_dim_map['nMesh2_edge'] = in_ds['cellsOnEdge'].dims[0]
 
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
 
-    return ugrid_mapping
+    return ugrid_dim_map
 
 
 def _set_global_attrs(in_ds, out_ds):
