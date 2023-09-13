@@ -103,7 +103,7 @@ def open_dataset(grid_filename_or_obj: str,
         stores the actual data set. It is the same ``filename_or_obj`` in
         ``xarray.open_dataset``.
 
-    ilatlon : bool, optional
+    latlon : bool, optional
             Specify if the grid is lat/lon based
 
     source_grid: str, optional
