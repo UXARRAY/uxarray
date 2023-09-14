@@ -928,7 +928,7 @@ class Grid:
             Method used to construct a grid from only vertices
         """
 
-        # Assign values for the SphericalVoronoi call
+        # Assign values for the construction
         x = self._ds["Mesh2_node_x"]
         y = self._ds["Mesh2_node_y"]
         z = self._ds["Mesh2_node_z"]
@@ -943,16 +943,16 @@ class Grid:
         if verts.size == 0:
             raise ValueError("No vertices provided")
 
-        if verts.shape[0] < 4:
-            raise ValueError("At least 4 vertices needed for Spherical Voronoi")
-
-        # Calculate the maximum distance from the origin to any generator point
-        radius = np.max(np.linalg.norm(verts, axis=1))
-
-        # Perform Spherical Voronoi Construction
-        grid = SphericalVoronoi(verts, radius)
-
         if method == "spherical_voronoi":
+            if verts.shape[0] < 4:
+                raise ValueError(
+                    "At least 4 vertices needed for Spherical Voronoi")
+
+            # Calculate the maximum distance from the origin to any generator point
+            radius = np.max(np.linalg.norm(verts, axis=1))
+
+            # Perform Spherical Voronoi Construction
+            grid = SphericalVoronoi(verts, radius)
             # Assign the nodes
             node_x = grid.vertices[:, 0]
             node_y = grid.vertices[:, 1]
@@ -983,70 +983,35 @@ class Grid:
             #  (e.g., split Voronoi cells that cross the antimeridian)
 
         elif method == "delaunay_triangulation":
-            # Perform Delaunay Triangulation on each Voronoi cell
-            delaunay_triangles = []
+            if verts.shape[0] < 3:
+                raise ValueError(
+                    "At least 3 vertices needed for Delaunay Triangulation")
 
-            perturbation = 1e-6  # Small perturbation won't need this once the Delaunay part about 3D is figured out
+            # Perform Stereographic Projection and filter out points with NaN values
+            projected_points = []
+            for point in verts:
+                x, y, z = point
+                x_on_plane = x / (1 - z)
+                y_on_plane = y / (1 - z)
+                if not np.isnan(x_on_plane) and not np.isnan(y_on_plane):
+                    projected_points.append([x_on_plane, y_on_plane])
 
-            for region in grid.regions:
-                if -1 not in region and len(region) > 2:
+            # Perform Delaunay Triangulation on the projected points
+            tri = Delaunay(projected_points)
 
-                    vertices = grid.vertices[region]
-                    # Add perturbation to each vertex, to let Delaunay run
-                    # due to it expecting a 2D input, it encounters an error
-                    # if all x or y or z coordinates are the exact same
-                    vertices += perturbation * np.random.rand(*vertices.shape)
+            tri_indices_on_plane = tri.simplices
 
-                    # Use Scipy's Delaunay function to create Delaunay triangles
-                    # for each individual Spherical Voronoi Region
-                    # This returns an array of 4 instead of 3, because it is supposed to be 2D not 3D
-                    # Need to find a way to make it 2D, maybe by removing the plane it lies on. It has
-                    # to have the perturbation because it has all the same x or y or z coordinates in
-                    # each region, meaning it lies on a plane, so in theory removing that coordinate could
-                    # fix it by making it 2D and finding the proper triangles
-                    tri = Delaunay(vertices)
-                    delaunay_triangles.extend(tri.simplices)
+            # Access the original sphere points using the connectivity information
+            triangles_on_sphere = []
+            for indices in tri_indices_on_plane:
+                triangle_on_sphere = [verts[i] for i in indices]
+                triangles_on_sphere.append(triangle_on_sphere)
+
+            # Testing purposes only
+            print("Triangles on the Sphere:")
+            for triangle in triangles_on_sphere:
+                print(triangle)
             # TODO: Assign all Mesh2 Values
-
-            # Initialize empty lists to store values
-            all_node_x = []
-            all_node_y = []
-            all_node_z = []
-
-            # Loop through each Delaunay triangle
-            for region in grid.regions:
-                if -1 not in region and len(region) > 2:
-                    # Get the Delaunay triangles for this region
-                    triangles = [
-                        delaunay_triangles[idx]
-                        for idx in range(len(delaunay_triangles))
-                    ]
-                    for triangle_indices in triangles:
-                        # Get the Voronoi point indices
-                        triangle_indices_voronoi = [
-                            region[idx] for idx in triangle_indices
-                        ]
-                        # Use these indices to access the Voronoi points
-                        triangle_voronoi = grid.vertices[
-                            triangle_indices_voronoi]
-                        node_x = triangle_voronoi[:, 0]
-                        node_y = triangle_voronoi[:, 1]
-                        node_z = triangle_voronoi[:, 2]
-                        # Append the values to the lists
-                        all_node_x.extend(node_x)
-                        all_node_y.extend(node_y)
-                        all_node_z.extend(node_z)
-
-            # Assign the values
-            self._ds["Mesh2_node_x"] = xr.DataArray(data=all_node_x,
-                                                    dims=["nMesh2_node"],
-                                                    attrs={"units": x_units})
-            self._ds["Mesh2_node_y"] = xr.DataArray(data=all_node_y,
-                                                    dims=["nMesh2_node"],
-                                                    attrs={"units": y_units})
-            self._ds["Mesh2_node_z"] = xr.DataArray(data=all_node_z,
-                                                    dims=["nMesh2_node"],
-                                                    attrs={"units": z_units})
 
         else:
             raise ValueError("Invalid method")
