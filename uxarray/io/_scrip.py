@@ -3,7 +3,6 @@ import numpy as np
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.utils import _get_ugrid_dim_map
 
 
 def _to_ugrid(in_ds, out_ds):
@@ -21,7 +20,7 @@ def _to_ugrid(in_ds, out_ds):
         to store reassigned SCRIP variables in UGRID conventions
     """
 
-    ugrid_dim_map = _get_ugrid_dim_map()
+    source_dims_dict = {}
 
     if in_ds['grid_area'].all():
 
@@ -72,8 +71,6 @@ def _to_ugrid(in_ds, out_ds):
         out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
         out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
 
-        ugrid_dim_map['nMesh2_face'] = in_ds['grid_center_lon'].dims[0]
-
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(unq_inv,
                                           original_fill=-1,
@@ -98,7 +95,10 @@ def _to_ugrid(in_ds, out_ds):
     else:
         raise Exception("Structured scrip files are not yet supported")
 
-    return ugrid_dim_map
+    # populate source dims
+    source_dims_dict[in_ds['grid_center_lon'].dims[0]] = "nMesh2_face"
+
+    return source_dims_dict
 
 
 def _read_scrip(ext_ds):

@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Union
 import uxarray.constants
 from uxarray.grid import Grid
 from uxarray.core.dataset import UxDataset
+from uxarray.core.utils import _map_dims_to_ugrid
 
 
 def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
@@ -149,6 +150,8 @@ def open_dataset(grid_filename_or_obj: str,
     # UxDataset
     ds = xr.open_dataset(filename_or_obj, decode_times=False,
                          **kwargs)  # type: ignore
+
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds

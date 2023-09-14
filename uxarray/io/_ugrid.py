@@ -12,7 +12,7 @@ def _read_ugrid(xr_ds):
     Returns: ugrid aware xarray.Dataset
     """
 
-    ugrid_dim_map = _get_ugrid_dim_map()
+    source_dims_dict = {}
 
     # TODO: Standardized UGRID Variable Names (Mesh2_node_x, etc)
 
@@ -37,16 +37,13 @@ def _read_ugrid(xr_ds):
         })
     # map and rename dimensions
     coord_dim_name = xr_ds["Mesh2_node_x"].dims
-    ugrid_dim_map["nMesh2_node"] = coord_dim_name[0]
+
     xr_ds = xr_ds.rename({coord_dim_name[0]: "nMesh2_node"})
 
     face_node_names = xr_ds["Mesh2"].face_node_connectivity.split()
 
     face_node_name = face_node_names[0]
     xr_ds = xr_ds.rename({xr_ds[face_node_name].name: "Mesh2_face_nodes"})
-
-    ugrid_dim_map["nMesh2_face"] = xr_ds["Mesh2_face_nodes"].dims[0]
-    ugrid_dim_map["nMaxMesh2_face_nodes"] = xr_ds["Mesh2_face_nodes"].dims[1]
 
     xr_ds = xr_ds.rename({
         xr_ds["Mesh2_face_nodes"].dims[0]: "nMesh2_face",
@@ -65,7 +62,12 @@ def _read_ugrid(xr_ds):
     # standardize fill values and data type for face nodes
     xr_ds = _standardize_fill_values(xr_ds)
 
-    return xr_ds, ugrid_dim_map
+    # populate source dimensions
+    source_dims_dict[coord_dim_name[0]] = "nMesh2_node"
+    source_dims_dict[xr_ds["Mesh2_face_nodes"].dims[0]] = "nMesh2_face"
+    source_dims_dict[xr_ds["Mesh2_face_nodes"].dims[1]] = "nMaxMesh2_face_nodes"
+
+    return xr_ds, source_dims_dict
 
 
 def _encode_ugrid(ds):

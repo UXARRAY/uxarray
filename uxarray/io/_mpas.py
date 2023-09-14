@@ -18,7 +18,7 @@ def _primal_to_ugrid(in_ds, out_ds):
         conventions
     """
 
-    ugrid_dim_map = _get_ugrid_dim_map()
+    source_dims_dict = {}
 
     # set mesh topologys
     out_ds["Mesh2"] = xr.DataArray(
@@ -53,8 +53,6 @@ def _primal_to_ugrid(in_ds, out_ds):
             "long_name": "latitude of mesh nodes",
             "units": "degrees_north",
         })
-
-    ugrid_dim_map['nMesh2_node'] = in_ds['lonVertex'].dims[0]
 
     # centers of primal-mesh cells (in degrees)
     lonCell = np.rad2deg(in_ds['lonCell'].values)
@@ -101,9 +99,6 @@ def _primal_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_dim_map['nMesh2_face'] = in_ds['verticesOnCell'].dims[0]
-    ugrid_dim_map['nMaxMesh2_face_nodes'] = in_ds['verticesOnCell'].dims[1]
-
     # vertex indices that saddle a given edge
     verticesOnEdge = np.array(in_ds['verticesOnEdge'].values, dtype=INT_DTYPE)
 
@@ -121,12 +116,16 @@ def _primal_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_dim_map['nMesh2_edge'] = in_ds['verticesOnEdge'].dims[0]
-
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
 
-    return ugrid_dim_map
+    # populate source dims
+    source_dims_dict['lonVertex'] = 'nMesh2_node'
+    source_dims_dict[in_ds['verticesOnCell'].dims[0]] = 'nMesh2_face'
+    source_dims_dict[in_ds['verticesOnCell'].dims[1]] = 'nMaxMesh2_face_nodes'
+    source_dims_dict[in_ds['verticesOnEdge'].dims[0]] = "nMesh2_edge"
+
+    return source_dims_dict
 
 
 def _dual_to_ugrid(in_ds, out_ds):
@@ -141,7 +140,7 @@ def _dual_to_ugrid(in_ds, out_ds):
         conventions
     """
 
-    ugrid_dim_map = _get_ugrid_dim_map()
+    source_dims_dict = {}
 
     # set mesh topology
     out_ds["Mesh2"] = xr.DataArray(
@@ -176,8 +175,6 @@ def _dual_to_ugrid(in_ds, out_ds):
             "long_name": "latitude of mesh nodes",
             "units": "degrees_north",
         })
-
-    ugrid_dim_map['nMesh2_node'] = in_ds['latCell'].dims[0]
 
     # centers of dual-mesh cells (in degrees)
     lonVertex = np.rad2deg(in_ds['lonVertex'].values)
@@ -219,9 +216,6 @@ def _dual_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_dim_map['nMesh2_face'] = in_ds['cellsOnVertex'].dims[0]
-    ugrid_dim_map['nMaxMesh2_face_nodes'] = in_ds['cellsOnVertex'].dims[1]
-
     # vertex indices that saddle a given edge
     cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=INT_DTYPE)
 
@@ -239,12 +233,16 @@ def _dual_to_ugrid(in_ds, out_ds):
             "start_index": INT_DTYPE(0)
         })
 
-    ugrid_dim_map['nMesh2_edge'] = in_ds['cellsOnEdge'].dims[0]
-
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
 
-    return ugrid_dim_map
+    # populate source dims
+    source_dims_dict[in_ds['latCell'].dims[0]] = "nMesh2_node"
+    source_dims_dict[in_ds['cellsOnVertex'].dims[0]] = "nMesh2_face"
+    source_dims_dict[in_ds['cellsOnVertex'].dims[1]] = "nMaxMesh2_face_nodes"
+    source_dims_dict[in_ds['cellsOnEdge'].dims[0]] = "nMesh2_edge"
+
+    return source_dims_dict
 
 
 def _set_global_attrs(in_ds, out_ds):

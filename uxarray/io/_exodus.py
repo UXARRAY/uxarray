@@ -18,7 +18,7 @@ def _read_exodus(ext_ds):
     """
 
     # TODO: UGRID Variable Mapping
-    ugrid_dim_map = _get_ugrid_dim_map()
+    source_dims_dict = {}
 
     # Not loading specific variables.
     # as there is no way to know number of face types etc. without loading
@@ -172,7 +172,7 @@ def _read_exodus(ext_ds):
     # set lon/lat coordinates
     ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
 
-    return ds, ugrid_dim_map
+    return ds, source_dims_dict
 
 
 def _encode_exodus(ds, outfile=None):

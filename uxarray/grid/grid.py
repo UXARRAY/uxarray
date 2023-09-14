@@ -76,18 +76,18 @@ class Grid:
     def __init__(self,
                  grid_ds: xr.Dataset,
                  grid_spec: Optional[str] = None,
-                 ugrid_dim_map: Optional[dict] = None):
+                 source_dims_dict: Optional[dict] = None):
 
         # source grid spec not provided
         if grid_spec is None:
             if _validate_minimum_ugrid(grid_ds):
                 grid_spec = "UGRID"
-                ugrid_dim_map = None  # TODO
+                source_dims_dict = None  # TODO
             else:
                 raise ValueError  # TODO
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
-        self._ugrid_dim_map = ugrid_dim_map
+        self._source_dims_dict = source_dims_dict
 
         # source grid specification
         self.grid_spec = grid_spec
@@ -126,19 +126,19 @@ class Grid:
         grid_spec = _parse_grid_type(dataset)
 
         if grid_spec == "Exodus":
-            grid_ds, ugrid_dim_map = _read_exodus(dataset)
+            grid_ds, source_dims_dict = _read_exodus(dataset)
         elif grid_spec == "Scrip":
-            grid_ds, ugrid_dim_map = _read_scrip(dataset)
+            grid_ds, source_dims_dict = _read_scrip(dataset)
         elif grid_spec == "UGRID":
-            grid_ds, ugrid_dim_map = _read_ugrid(dataset)
+            grid_ds, source_dims_dict = _read_ugrid(dataset)
         elif grid_spec == "MPAS":
-            grid_ds, ugrid_dim_map = _read_mpas(dataset, use_dual=use_dual)
+            grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
         elif grid_spec == "Shapefile":
             raise ValueError("Shapefiles not yet supported")
         else:
             raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, grid_spec, ugrid_dim_map)
+        return cls(grid_ds, grid_spec, source_dims_dict)
 
     @classmethod
     def from_face_vertices(cls,
@@ -511,7 +511,7 @@ class Grid:
 
         return Grid(self._ds,
                     grid_spec=self.grid_spec,
-                    ugrid_dim_map=self._ugrid_dim_map)
+                    source_dims_dict=self._source_dims_dict)
 
     def encode_as(self, grid_type: str) -> xr.Dataset:
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
