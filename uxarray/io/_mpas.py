@@ -120,7 +120,7 @@ def _primal_to_ugrid(in_ds, out_ds):
     _set_global_attrs(in_ds, out_ds)
 
     # populate source dims
-    source_dims_dict['lonVertex'] = 'nMesh2_node'
+    source_dims_dict['nVertices'] = 'nMesh2_node'
     source_dims_dict[in_ds['verticesOnCell'].dims[0]] = 'nMesh2_face'
     source_dims_dict[in_ds['verticesOnCell'].dims[1]] = 'nMaxMesh2_face_nodes'
     source_dims_dict[in_ds['verticesOnEdge'].dims[0]] = "nMesh2_edge"

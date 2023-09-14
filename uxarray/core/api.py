@@ -12,6 +12,8 @@ from uxarray.grid import Grid
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import _map_dims_to_ugrid
 
+from warnings import warn
+
 
 def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
                                           list, tuple],
@@ -32,9 +34,6 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 
     latlon : bool, optional
             Specify if the grid is lat/lon based
-
-    source_grid: str, optional
-        Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
     use_dual: bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
@@ -59,6 +58,11 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     >>> import uxarray as ux
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
+
+    if 'source_grid' in kwargs.keys():
+        warn('source_grid is no longer a supported kwarg',
+             DeprecationWarning,
+             stacklevel=2)
 
     # construct Grid from dataset
     if isinstance(grid_filename_or_obj, xr.Dataset):
@@ -85,6 +89,7 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 def open_dataset(grid_filename_or_obj: str,
                  filename_or_obj: str,
                  latlon: Optional[bool] = False,
+                 remap_dims: Optional[bool] = True,
                  use_dual: Optional[bool] = False,
                  grid_kwargs: Optional[Dict[str, Any]] = {},
                  **kwargs: Dict[str, Any]) -> UxDataset:
@@ -104,11 +109,11 @@ def open_dataset(grid_filename_or_obj: str,
         stores the actual data set. It is the same ``filename_or_obj`` in
         ``xarray.open_dataset``.
 
+    remap_dims : bool, optional
+        Specifies whether the dimensions of each variable should be renamed to follow the UGRID conventions, if applicable
+
     latlon : bool, optional
             Specify if the grid is lat/lon based
-
-    source_grid: str, optional
-        Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
     use_dual: bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
@@ -141,6 +146,11 @@ def open_dataset(grid_filename_or_obj: str,
     :param grid_kwargs:
     """
 
+    if 'source_grid' in kwargs.keys():
+        warn('source_grid is no longer a supported kwarg',
+             DeprecationWarning,
+             stacklevel=2)
+
     # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        latlon=latlon,
@@ -151,7 +161,10 @@ def open_dataset(grid_filename_or_obj: str,
     ds = xr.open_dataset(filename_or_obj, decode_times=False,
                          **kwargs)  # type: ignore
 
-    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    # map each dimension to its UGRID equivalent
+    if remap_dims:
+        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds
@@ -159,6 +172,7 @@ def open_dataset(grid_filename_or_obj: str,
 
 def open_mfdataset(grid_filename_or_obj: str,
                    paths: Union[str, os.PathLike],
+                   remap_dims: Optional[bool] = True,
                    latlon: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
                    grid_kwargs: Optional[Dict[str, Any]] = {},
@@ -178,11 +192,11 @@ def open_mfdataset(grid_filename_or_obj: str,
         Either a string glob in the form "path/to/my/files/*.nc" or an explicit
         list of files to open. It is the same ``paths`` in ``xarray.open_mfdataset``.
 
+    remap_dims : bool, optional
+        Specifies whether the dimensions of each variable should be renamed to follow the UGRID conventions, if applicable
+
     latlon : bool, optional
             Specify if the grid is lat/lon based
-
-    source_grid: str, optional
-        Path or URL to the source grid file. For diagnostic/reporting purposes only.
 
     use_dual: bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
@@ -221,6 +235,11 @@ def open_mfdataset(grid_filename_or_obj: str,
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
+    if 'source_grid' in kwargs.keys():
+        warn('source_grid is no longer a supported kwarg',
+             DeprecationWarning,
+             stacklevel=2)
+
     # Grid definition
     uxgrid = open_grid(grid_filename_or_obj,
                        latlon=latlon,
@@ -229,6 +248,11 @@ def open_mfdataset(grid_filename_or_obj: str,
 
     # UxDataset
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
+
+    # map each dimension to its UGRID equivalent
+    if remap_dims:
+        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
     return uxds

@@ -49,11 +49,11 @@ class Grid:
     grid_ds : xr.Dataset
         ``xarray.Dataset`` encoded in the UGRID conventions
 
-    grid_spec : str, default="UGRID"
+    source_grid_spec : str, default="UGRID"
         Original unstructured grid format (i.e. UGRID, MPAS, etc.)
 
-    ugrid_dim_map : dict, default=None
-        mapping of ugrid dimensions to the source dataset's conventions
+    source_dims_dict : dict, default={}
+        Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : nMesh2_face})
 
     Examples
     ----------
@@ -75,22 +75,24 @@ class Grid:
 
     def __init__(self,
                  grid_ds: xr.Dataset,
-                 grid_spec: Optional[str] = None,
-                 source_dims_dict: Optional[dict] = None):
+                 source_grid_spec: Optional[str] = None,
+                 source_dims_dict: Optional[dict] = {}):
 
-        # source grid spec not provided
-        if grid_spec is None:
+        # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
+        if source_grid_spec is None:
             if _validate_minimum_ugrid(grid_ds):
-                grid_spec = "UGRID"
-                source_dims_dict = None  # TODO
+                source_grid_spec = "UGRID"
+                source_dims_dict = None
             else:
-                raise ValueError  # TODO
+                raise ValueError(
+                    "Directly constructing a Grid requires the input dataset to be in the UGRID "
+                    "conventions")
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
 
-        # source grid specification
-        self.grid_spec = grid_spec
+        # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
+        self.source_grid_spec = source_grid_spec
 
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
@@ -123,22 +125,22 @@ class Grid:
             raise ValueError("Input must be an xarray.Dataset")
 
         # determine grid/mesh specification
-        grid_spec = _parse_grid_type(dataset)
+        source_grid_spec = _parse_grid_type(dataset)
 
-        if grid_spec == "Exodus":
+        if source_grid_spec == "Exodus":
             grid_ds, source_dims_dict = _read_exodus(dataset)
-        elif grid_spec == "Scrip":
+        elif source_grid_spec == "Scrip":
             grid_ds, source_dims_dict = _read_scrip(dataset)
-        elif grid_spec == "UGRID":
+        elif source_grid_spec == "UGRID":
             grid_ds, source_dims_dict = _read_ugrid(dataset)
-        elif grid_spec == "MPAS":
+        elif source_grid_spec == "MPAS":
             grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-        elif grid_spec == "Shapefile":
+        elif source_grid_spec == "Shapefile":
             raise ValueError("Shapefiles not yet supported")
         else:
             raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, grid_spec, source_dims_dict)
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
     def from_face_vertices(cls,
@@ -171,12 +173,12 @@ class Grid:
                 f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
                 f"one face is passed in.")
 
-        return cls(grid_ds, grid_spec="Face Vertices")
+        return cls(grid_ds, source_grid_spec="Face Vertices")
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
         prefix = "<uxarray.Grid>\n"
-        original_grid_str = f"Original Grid Type: {self.grid_spec}\n"
+        original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
         # if self.grid_var_names["Mesh2_node_x"] in self._ds:
@@ -510,7 +512,7 @@ class Grid:
         """Returns a deep copy of this grid."""
 
         return Grid(self._ds,
-                    grid_spec=self.grid_spec,
+                    source_grid_spec=self.source_grid_spec,
                     source_dims_dict=self._source_dims_dict)
 
     def encode_as(self, grid_type: str) -> xr.Dataset:
