@@ -19,6 +19,7 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset
 
 
@@ -122,10 +123,11 @@ Coordinates
 .. autosummary::
    :toctree: _autosummary
 
-   grid.coordinates._populate_cartesian_xyz_coord
-   grid.coordinates._populate_lonlat_coord
    grid.coordinates._get_lonlat_from_xyz
    grid.coordinates._get_xyz_from_lonlat
+   grid.coordinates._populate_cartesian_xyz_coord
+   grid.coordinates._populate_lonlat_coord
+
 
 Lines
 -----
@@ -188,11 +190,12 @@ Shapefile
 
    io._shapefile._read_shpfile
 
-Connectivity
-------------
+Vertices
+--------
 .. autosummary::
    :toctree: _autosummary
-   io._read_face_vertices
+
+   io._vertices._read_face_vertices
 
 Utils
 -----
