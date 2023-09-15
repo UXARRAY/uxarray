@@ -132,4 +132,6 @@ def _validate_minimum_ugrid(grid_ds):
     """Checks whether a given ``grid_ds`` meets the requirements for a minimum
     unstructured grid encoded in the UGRID conventions, containing a set of (x,
     y) latlon coordinates and face node connectivity."""
-    return "Mesh2_node_x" in grid_ds and "Mesh2_node_y" in grid_ds and "Mesh2_face_nodes" in grid_ds
+    return ("Mesh2_node_x" in grid_ds and "Mesh2_node_y" in grid_ds) or (
+        "Mesh2_node_cart_x" in grid_ds and "Mesh2_node_cart_y" in grid_ds and
+        "Mesh2_node_cart_z" in grid_ds) and "Mesh2_face_nodes" in grid_ds
