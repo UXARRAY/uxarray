@@ -203,3 +203,10 @@ Utils
    :toctree: _autosummary
 
    io.utils._parse_grid_type
+
+Core Utils
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   core.utils._map_dims_to_ugrid
