@@ -62,16 +62,7 @@ class TestUxDataset(TestCase):
 
         ugrid_dims = ["nMesh2_face", "nMesh2_node", "nMesh2_edge"]
 
-        uxds_no_remap = ux.open_dataset(mpas_ds_path,
-                                        mpas_ds_path,
-                                        remap_dims=False)
-
-        for dim in ugrid_dims:
-            assert dim not in uxds_no_remap.dims
-
-        uxds_remap = ux.open_dataset(mpas_ds_path,
-                                     mpas_ds_path,
-                                     remap_dims=True)
+        uxds_remap = ux.open_dataset(mpas_ds_path, mpas_ds_path)
 
         for dim in ugrid_dims:
             assert dim in uxds_remap.dims

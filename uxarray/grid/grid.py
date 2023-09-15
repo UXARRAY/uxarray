@@ -81,9 +81,7 @@ class Grid:
                  source_dims_dict: Optional[dict] = {}):
 
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        _is_minimum_ugrid = _validate_minimum_ugrid(grid_ds)
-
-        if not _is_minimum_ugrid:
+        if not _validate_minimum_ugrid(grid_ds):
             raise ValueError(
                 "Directly constructing a Grid requires the input dataset to follow the UGRID conventions as "
                 "described in our documentation."
@@ -96,10 +94,10 @@ class Grid:
                 "is only advised if grid_ds is following the internal unstructured grid definition, including"
                 "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
                 Warning)
-            if _is_minimum_ugrid:
-                # TODO: more checks for validate grid (lat/lon coords, etc)
-                source_grid_spec = "UGRID"
-                source_dims_dict = None
+
+            # TODO: more checks for validate grid (lat/lon coords, etc)
+            source_grid_spec = "UGRID"
+            source_dims_dict = None
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict

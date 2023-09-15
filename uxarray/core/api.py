@@ -89,7 +89,6 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
 def open_dataset(grid_filename_or_obj: str,
                  filename_or_obj: str,
                  latlon: Optional[bool] = False,
-                 remap_dims: Optional[bool] = True,
                  use_dual: Optional[bool] = False,
                  grid_kwargs: Optional[Dict[str, Any]] = {},
                  **kwargs: Dict[str, Any]) -> UxDataset:
@@ -108,9 +107,6 @@ def open_dataset(grid_filename_or_obj: str,
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set. It is the same ``filename_or_obj`` in
         ``xarray.open_dataset``.
-
-    remap_dims : bool, optional
-        Specifies whether the dimensions of each variable should be renamed to follow the UGRID conventions, if applicable
 
     latlon : bool, optional
             Specify if the grid is lat/lon based
@@ -162,8 +158,7 @@ def open_dataset(grid_filename_or_obj: str,
                          **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    if remap_dims:
-        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
@@ -172,7 +167,6 @@ def open_dataset(grid_filename_or_obj: str,
 
 def open_mfdataset(grid_filename_or_obj: str,
                    paths: Union[str, os.PathLike],
-                   remap_dims: Optional[bool] = True,
                    latlon: Optional[bool] = False,
                    use_dual: Optional[bool] = False,
                    grid_kwargs: Optional[Dict[str, Any]] = {},
@@ -191,9 +185,6 @@ def open_mfdataset(grid_filename_or_obj: str,
     paths : string, required
         Either a string glob in the form "path/to/my/files/*.nc" or an explicit
         list of files to open. It is the same ``paths`` in ``xarray.open_mfdataset``.
-
-    remap_dims : bool, optional
-        Specifies whether the dimensions of each variable should be renamed to follow the UGRID conventions, if applicable
 
     latlon : bool, optional
             Specify if the grid is lat/lon based
@@ -250,8 +241,7 @@ def open_mfdataset(grid_filename_or_obj: str,
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    if remap_dims:
-        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
