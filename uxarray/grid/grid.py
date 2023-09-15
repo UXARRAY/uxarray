@@ -93,8 +93,8 @@ class Grid:
                 source_dims_dict = None
             else:
                 raise ValueError(
-                    "Directly constructing a Grid requires the input dataset to be in the UGRID "
-                    "conventions"
+                    "Directly constructing a Grid requires the input dataset to follow the UGRID conventions as "
+                    "described in our documentation."
                 )  # TODO: elaborate once we have a formal definition
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
