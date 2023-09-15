@@ -3,7 +3,6 @@ import numpy as np
 import warnings
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.utils import _get_ugrid_dim_map
 
 
 def _primal_to_ugrid(in_ds, out_ds):

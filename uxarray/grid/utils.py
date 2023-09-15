@@ -58,15 +58,3 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     grid_var[fill_val_idx] = new_fill
 
     return grid_var
-
-
-def _get_ugrid_dim_map():
-    """TODO."""
-    ugrid_dim_map = {
-        "nMesh2_node": None,
-        "nMesh2_edge": None,
-        "nMesh2_face": None,
-        "nMaxMesh2_face_nodes": None
-    }
-
-    return ugrid_dim_map

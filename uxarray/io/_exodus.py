@@ -5,7 +5,6 @@ from datetime import datetime
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.utils import _get_ugrid_dim_map
 from uxarray.grid.coordinates import _get_lonlat_from_xyz, _get_xyz_from_lonlat
 
 

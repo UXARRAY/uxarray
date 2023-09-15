@@ -307,7 +307,8 @@ class TestFaceAreas(TestCase):
     def test_calculate_total_face_area_file(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
 
-        area = self.grid_CSne30.calculate_total_face_area()
+        # = self.grid_CSne30.calculate_total_face_area()
+        area = ux.open_grid(gridfile_CSne30).calculate_total_face_area()
 
         nt.assert_almost_equal(area, constants.MESH30_AREA, decimal=3)
 

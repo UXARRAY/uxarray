@@ -612,15 +612,10 @@ class Grid:
         # if self._face_areas is None: # this allows for using the cached result,
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
-        # area of a face call needs the units for coordinate conversion if spherical grid is used
-        # coords_type = "spherical"
-        # if not "degree" in self.Mesh2_node_x.units:
-        #     coords_type = "cartesian"
-
         if latlon:
             x = self.Mesh2_node_x.data
             y = self.Mesh2_node_y.data
-            z = np.zeros(self.nMesh2_node)
+            z = np.zeros((self.nMesh2_node))
             coords_type = "spherical"  # TODO: should really be called latlon?
         else:
             x = self.Mesh2_node_cart_x.data
@@ -629,7 +624,7 @@ class Grid:
             coords_type = "cartesian"
 
         # TODO: we dont really need this, but keep for now
-        dim = 3
+        dim = self.Mesh2.attrs['topology_dimension']
 
         nNodes_per_face = self.nNodes_per_face.data
         face_nodes = self.Mesh2_face_nodes.data
