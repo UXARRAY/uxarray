@@ -32,6 +32,8 @@ from uxarray.grid.geometry import (_build_antimeridian_face_indices,
 
 from uxarray.grid.neighbors import BallTree
 
+from warnings import warn
+
 
 class Grid:
     """Represents a two-dimensional unstructured grid encoded following the
@@ -80,6 +82,11 @@ class Grid:
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
+            warn(
+                "Attempting to construct a Grid without passing in source_grid_spec. Use of Grid constructor"
+                "is only advised if grid_ds is following the internal unstructured grid definition, including"
+                "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
+                Warning)
             if _validate_minimum_ugrid(grid_ds):
                 # TODO: more checks for validate grid (lat/lon coords, etc)
                 source_grid_spec = "UGRID"
