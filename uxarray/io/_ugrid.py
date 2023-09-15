@@ -13,16 +13,13 @@ def _read_ugrid(xr_ds):
     """
 
     source_dims_dict = {}
-
-    # TODO: Standardized UGRID Variable Names (Mesh2_node_x, etc)
-
     # TODO: obtain and change to Mesh2 construct, see Issue #27
 
     # get the data variable name that has attribute "cf_role" set to "mesh_topology"
     # this is the base xarray.DataArray name
     base_xarray_var = list(
         xr_ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
-    # TODO: Dataset includes more than just coordinates and face nodes, handle
+    # TODO: Allow for parsing datasets with more than just coordinates and face nodes
 
     xr_ds = xr_ds.rename({base_xarray_var: "Mesh2"})
 
@@ -50,14 +47,15 @@ def _read_ugrid(xr_ds):
         xr_ds["Mesh2_face_nodes"].dims[1]: "nMaxMesh2_face_nodes"
     })
 
-    if len(coord_names) == 2:
-        # set coordinates
-        xr_ds = xr_ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
-    else:
-        xr_ds = xr_ds.set_coords(
-            [["Mesh2_node_x", "Mesh2_node_y",
-              "Mesh2_node_z"]  # TODO: remove Mesh2_node_z
-            ])
+    xr_ds = xr_ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
+    # if len(coord_names) == 2:
+    #     # set coordinates
+    #     xr_ds = xr_ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
+    # else:
+    #     xr_ds = xr_ds.set_coords(
+    #         [["Mesh2_node_x", "Mesh2_node_y",
+    #           "Mesh2_node_z"]  # TODO: remove Mesh2_node_z
+    #         ])
 
     # standardize fill values and data type for face nodes
     xr_ds = _standardize_fill_values(xr_ds)

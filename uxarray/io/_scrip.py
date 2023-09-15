@@ -127,7 +127,7 @@ def _read_scrip(ext_ds):
 
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
-        unq_inv = _to_ugrid(ext_ds, ds)
+        source_dims_dict = _to_ugrid(ext_ds, ds)
 
         # Add necessary UGRID attributes to new dataset
         ds["Mesh2"] = xr.DataArray(
@@ -146,8 +146,8 @@ def _read_scrip(ext_ds):
             "Variables not in recognized SCRIP form. Please refer to",
             "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
             "for more information on SCRIP Grid file formatting")
-    # TODO: Original Variable Names
-    return ds, unq_inv
+
+    return ds, source_dims_dict
 
 
 def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):

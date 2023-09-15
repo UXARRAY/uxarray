@@ -396,10 +396,9 @@ def _read_mpas(ext_ds, use_dual=False):
 
     # convert dual-mesh to UGRID
     if use_dual:
-        ugrid_mapping = _dual_to_ugrid(ext_ds, ds)
+        source_dim_map = _dual_to_ugrid(ext_ds, ds)
     # convert primal-mesh to UGRID
     else:
-        ugrid_mapping = _primal_to_ugrid(ext_ds, ds)
+        source_dim_map = _primal_to_ugrid(ext_ds, ds)
 
-    # TODO: Return Original Variable Mapping to UGRID
-    return ds, ugrid_mapping
+    return ds, source_dim_map

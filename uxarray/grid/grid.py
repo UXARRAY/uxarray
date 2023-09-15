@@ -273,7 +273,6 @@ class Grid:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
-    # TODO: deprecate
     @property
     def Mesh2(self) -> xr.DataArray:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
