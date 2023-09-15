@@ -621,7 +621,7 @@ class Grid:
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
         if latlon:
-            x = self.Mesh2_node_x.dv
+            x = self.Mesh2_node_x.data
             y = self.Mesh2_node_y.data
             z = np.zeros((self.nMesh2_node))
             coords_type = "spherical"  # TODO: should really be called latlon?
