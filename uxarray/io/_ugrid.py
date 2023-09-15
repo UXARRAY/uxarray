@@ -48,14 +48,6 @@ def _read_ugrid(xr_ds):
     })
 
     xr_ds = xr_ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
-    # if len(coord_names) == 2:
-    #     # set coordinates
-    #     xr_ds = xr_ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
-    # else:
-    #     xr_ds = xr_ds.set_coords(
-    #         [["Mesh2_node_x", "Mesh2_node_y",
-    #           "Mesh2_node_z"]  # TODO: remove Mesh2_node_z
-    #         ])
 
     # standardize fill values and data type for face nodes
     xr_ds = _standardize_fill_values(xr_ds)
