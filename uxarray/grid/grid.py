@@ -963,12 +963,15 @@ class Grid:
             face_y = verts[:, 1]
             face_z = verts[:, 2]
 
-            # TODO: Assign all Mesh2 values to the grid
-
             # TODO: Currently errors out due to nMesh2_node already having a certain size /
             #  however when the Refactor is merged and we move this so you can call it when /
             #  open_grid is called, it won't have a nMesh2_node value at all, so this won't /
             #  occur
+
+            # Assign the connectivity information
+            self._ds["Mesh2_face_nodes"] = ([
+                "nMesh2_face", "nMaxMesh2_face_nodes"
+            ], grid.regions)
             self._ds["Mesh2_node_x"] = xr.DataArray(data=node_x,
                                                     dims=["nMesh2_node"],
                                                     attrs={"units": x_units})
@@ -987,7 +990,7 @@ class Grid:
                 raise ValueError(
                     "At least 3 vertices needed for Delaunay Triangulation")
 
-            # Perform Stereographic Projection and filter out points with NaN values
+            # Perform Stereographic Projection and filter out points with NaN values (The South Pole)
             projected_points = []
             for point in verts:
                 x, y, z = point
@@ -999,19 +1002,16 @@ class Grid:
             # Perform Delaunay Triangulation on the projected points
             tri = Delaunay(projected_points)
 
-            tri_indices_on_plane = tri.simplices
-
-            # Access the original sphere points using the connectivity information
-            triangles_on_sphere = []
-            for indices in tri_indices_on_plane:
-                triangle_on_sphere = [verts[i] for i in indices]
-                triangles_on_sphere.append(triangle_on_sphere)
-
-            # Testing purposes only
-            print("Triangles on the Sphere:")
-            for triangle in triangles_on_sphere:
-                print(triangle)
-            # TODO: Assign all Mesh2 Values
+            # TODO: Fix the hole created at one of the poles
+            # Assign the connectivity information
+            face_nodes = []
+            for simplex in tri.simplices:
+                face_nodes.append(simplex)
+            self._ds["Mesh2_face_nodes"] = ([
+                "nMesh2_face", "nMaxMesh2_face_nodes"
+            ], face_nodes)
+            # TODO: Assign all Mesh2 Values. Once this is moved to its proper place it will need /
+            #       to assign the x, y, z coordinates
 
         else:
             raise ValueError("Invalid method")
