@@ -81,6 +81,7 @@ class Grid:
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
             if _validate_minimum_ugrid(grid_ds):
+                # TODO: more checks for validate grid (lat/lon coords, etc)
                 source_grid_spec = "UGRID"
                 source_dims_dict = None
             else:
@@ -613,7 +614,7 @@ class Grid:
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
         if latlon:
-            x = self.Mesh2_node_x.data
+            x = self.Mesh2_node_x.dv
             y = self.Mesh2_node_y.data
             z = np.zeros((self.nMesh2_node))
             coords_type = "spherical"  # TODO: should really be called latlon?

@@ -97,12 +97,12 @@ def calculate_face_area(x,
 
 
 @njit(cache=ENABLE_JIT_CACHE)
-def get_all_face_area_from_coords(x=np.array([]),
-                                  y=np.array([]),
-                                  z=np.array([]),
-                                  face_nodes=np.array([[]]),
-                                  face_geometry=np.array([]),
-                                  dim=2,
+def get_all_face_area_from_coords(x,
+                                  y,
+                                  z,
+                                  face_nodes,
+                                  face_geometry,
+                                  dim,
                                   quadrature_rule="triangular",
                                   order=4,
                                   coords_type="spherical"):
