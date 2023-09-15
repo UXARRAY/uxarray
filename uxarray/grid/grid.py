@@ -83,8 +83,9 @@ class Grid:
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
             raise ValueError(
-                "Directly constructing a Grid requires the input dataset to follow the UGRID conventions as "
-                "described in our documentation."
+                "Use of Grid constructor requires grid_ds to follow the internal unstructured grid definition, "
+                "including variable and dimension names. This grid_ds does not satisfy those requirements. If you are "
+                "not sure about how to do that, using ux.open_grid() or ux.from_dataset() is suggested."
             )  # TODO: elaborate once we have a formal definition
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
