@@ -149,6 +149,7 @@ UGRID
    io._ugrid._encode_ugrid
    io._ugrid._standardize_fill_value
    io._ugrid._is_ugrid
+   io._ugrid._validate_minimum_ugrid
 
 MPAS
 ----
