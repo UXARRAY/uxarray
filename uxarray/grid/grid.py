@@ -238,14 +238,20 @@ class Grid:
         If two grids are equal : bool
         """
 
-        # TODO: fix failing case where grids are the same, but one has more variables constructed
-        try:
-            if self._ds == other._ds:
-                return True
-            else:
-                return False
-        except:
+        if not isinstance(other, Grid):
             return False
+
+        if self.source_grid_spec != other.source_grid_spec:
+            return False
+
+        if not (self.Mesh2_node_x.equals(other.Mesh2_node_x) or
+                self.Mesh2_node_y.equals(other.Mesh2_node_y)):
+            return False
+
+        if not self.Mesh2_face_nodes.equals(other.Mesh2_face_nodes):
+            return False
+
+        return True
 
     def __ne__(self, other) -> bool:
         """Two grids are not equal if they have differing grid topology
