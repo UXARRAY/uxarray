@@ -98,7 +98,6 @@ class Grid:
 
             # TODO: more checks for validate grid (lat/lon coords, etc)
             source_grid_spec = "UGRID"
-            source_dims_dict = None
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
