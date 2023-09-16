@@ -95,7 +95,6 @@ class Grid:
                 "is only advised if grid_ds is following the internal unstructured grid definition, including"
                 "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
                 Warning)
-
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
