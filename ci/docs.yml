@@ -1,6 +1,7 @@
 name: uxarray-docs
 channels:
     - conda-forge
+    - pyviz
 dependencies:
     - python
     - dask
@@ -17,6 +18,7 @@ dependencies:
     - ipykernel
     - ipython
     - jupyter_client
+    - scikit-learn
     - sphinx-book-theme
     - myst-nb
     - sphinx-design
@@ -24,6 +26,11 @@ dependencies:
     - matplotlib-base
     - spatialpandas
     - shapely
+    - hvplot
+    - holoviews
+    - geoviews
+    - cartopy
+    - pandas<2.1.0
     - pip:
       - antimeridian
       - pyfma

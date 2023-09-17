@@ -105,6 +105,8 @@ IO
    :toctree: _autosummary
 
    open_grid
+   Grid.from_dataset
+   Grid.from_face_vertices
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_shapely_polygons
@@ -118,6 +120,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.encode_as
+   Grid.get_ball_tree
    Grid.integrate
    Grid.copy
 
@@ -127,6 +130,7 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
+   Grid.grid_spec
    Grid.Mesh2
    Grid.parsed_attrs
    Grid.nMesh2_node
@@ -137,12 +141,36 @@ Attributes
    Grid.nNodes_per_face
    Grid.Mesh2_node_x
    Grid.Mesh2_node_y
+   Mesh2_node_cart_x
+   Mesh2_node_cart_y
+   Mesh2_node_cart_z
    Grid.Mesh2_face_x
    Grid.Mesh2_face_y
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
    Grid.antimeridian_face_indices
+   Grid.corner_node_balltree
+   Grid.center_node_balltree
+
+
+Nearest Neighbors
+=================
+
+BallTree Data Structure
+-----------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.BallTree
+
+Query Methods
+-------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.BallTree.query
+   grid.BallTree.query_radius
 
 
 
@@ -176,7 +204,6 @@ Coordinates
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
    grid.coordinates.normalize_in_place
-
 
 
 Lines
