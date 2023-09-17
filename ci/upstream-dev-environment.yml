@@ -2,10 +2,18 @@ name: uxarray_upstream_build
 channels:
   - conda-forge
 dependencies:
+  - matplotlib-base
   - netcdf4
   - numba
   - numpy
+  - pandas<2.1.0
   - pathlib
+  - pyarrow<13.0.0   # pin due to CI faliures on macOS & ubuntu
   - pytest
   - pytest-cov
+  - scikit-learn
   - scipy
+  - shapely
+  - spatialpandas
+  - pip:
+    - antimeridian
