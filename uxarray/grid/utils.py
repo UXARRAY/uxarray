@@ -1,4 +1,5 @@
 import numpy as np
+import pyfma
 from uxarray.constants import ERROR_TOLERANCE
 
 
@@ -61,44 +62,62 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     return grid_var
 
 
-def gram_schmidt(vectors):
-    """Apply the Gram-Schmidt process to orthogonalize a set of vectors.
+def _fmms(a, b, c, d):
+    """
+    Calculate the difference of products using the FMA (fused multiply-add) operation: (a * b) - (c * d).
+
+    This operation leverages the fused multiply-add operation when available on the system and rounds the result only once.
+    The relative error of this operation is bounded by 1.5 ulps when no overflow and underflow occur.
 
     Parameters
     ----------
-    vectors : numpy.ndarray
-        The input vectors to be orthogonalized. Each vector should be represented as a row in the 2D array.
+    a (float): The first value of the first product.
+    b (float): The second value of the first product.
+    c (float): The first value of the second product.
+    d (float): The second value of the second product.
 
     Returns
     -------
-    numpy.ndarray
-        An array containing the orthogonalized vectors forming an orthonormal basis.
+    float: The difference of the two products.
 
-    Notes
-    -----
-    This function applies the Gram-Schmidt process to the input vectors to obtain an
-    orthonormal basis.
-    are used.
+    Example
+    -------
+    >>> _fmms(3.0,2.0,1.0,1.0)
+    5.0
 
-    If the input vectors do not meet the error tolerance criterion specified by `ERROR_TOLERANCE`,
-    they are considered linearly dependent and excluded from the orthogonal basis.
-
-    Examples
-    --------
-    >>> vectors = np.array([[1, 0, 0], [1, 1, 0], [1, 1, 1]])
-    >>> result = gram_schmidt(vectors)
-    >>> result
-    array([[1., 0., 0.],
-           [0., 1., 0.],
-           [0., 0., 1.]])
+    Reference
+    ---------
+    Claude-Pierre Jeannerod, Nicolas Louvet, and Jean-Michel Muller, Further
+    analysis of Kahan’s algorithm for the accurate computation of 2 x 2 determinants,
+    Mathematics of Computation, vol. 82, no. 284, pp. 2245-2264, 2013.
+    [Read more](https://ens-lyon.hal.science/ensl-00649347) (DOI: 10.1090/S0025-5718-2013-02679-8)
     """
-    basis = []
-    for v in vectors:
-        norm_v = np.linalg.norm(v)
-        if norm_v > ERROR_TOLERANCE:
-            for b in basis:
-                v -= np.dot(v, b) * b
-            basis.append(v / norm_v)
-        else:
-            return np.array([0, 0, 0])
-    return np.array(basis)
+    cd = c * d
+    err = pyfma.fma(-c, d, cd)
+    dop = pyfma.fma(a, b, -cd)
+    return dop + err
+
+def cross_fma(v1, v2):
+    """
+    Calculate the cross product of two 3D vectors utilizing the fused multiply-add operation.
+
+    Parameters
+    ----------
+    v1 (np.array): The first vector of size 3.
+    v2 (np.array): The second vector of size 3.
+
+    Returns
+    -------
+    np.array: The cross product vector of size 3.
+
+    Example
+    -------
+    >>> v1 = np.array([1.0, 2.0, 3.0])
+    >>> v2 = np.array([4.0, 5.0, 6.0])
+    >>> cross_fma(v1, v2)
+    array([-3.0, 6.0, -3.0])
+    """
+    x = _fmms(v1[1], v2[2], v1[2], v2[1])
+    y = _fmms(v1[2], v2[0], v1[0], v2[2])
+    z = _fmms(v1[0], v2[1], v1[1], v2[0])
+    return np.array([x, y, z])
