@@ -97,9 +97,10 @@ def _fmms(a, b, c, d):
     dop = pyfma.fma(a, b, -cd)
     return dop + err
 
+
 def cross_fma(v1, v2):
-    """
-    Calculate the cross product of two 3D vectors utilizing the fused multiply-add operation.
+    """Calculate the cross product of two 3D vectors utilizing the fused
+    multiply-add operation.
 
     Parameters
     ----------
