@@ -60,6 +60,7 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
 
     return grid_var
 
+
 def _fmms(a, b, c, d):
     """
     Calculate the difference of products using the FMA (fused multiply-add) operation: (a * b) - (c * d).
