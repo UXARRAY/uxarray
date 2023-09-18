@@ -20,4 +20,3 @@ dependencies:
   - xarray
   - pip:
     - antimeridian
-    - pyfma
