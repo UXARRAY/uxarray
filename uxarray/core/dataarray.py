@@ -206,3 +206,59 @@ class UxDataArray(xr.DataArray):
             raise ValueError(
                 f"Data Variable with size {self.data.size} does not match the number of faces "
                 f"({self.uxgrid.nMesh2_face}.")
+
+    def integrate(self, quadrature_rule="triangular", order=4):
+        """TODO: Docstring
+
+        Parameters
+        ----------
+        quadrature_rule : str, optional
+            Quadrature rule to use. Defaults to "triangular".
+        order : int, optional
+            Order of quadrature rule. Defaults to 4.
+
+        Returns
+        -------
+        Calculated integral : float
+
+        Examples
+        --------
+        Open a Uxarray dataset
+
+        >>> import uxarray as ux
+        >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
+
+        # Compute the integral
+        >>> integral = uxds.integrate()
+        """
+        # call function to get area of all the faces as a np array
+        face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
+
+        if self.data.shape[-1] == self.uxgrid.nMesh2_face:
+
+            face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
+
+            # perform dot product between face areas and last dimension of data
+            integral = np.einsum('i,...i', face_areas, self.data)
+
+        elif self.data.shape[-1] == self.uxgrid.nMesh2_node:
+            raise ValueError(
+                "Integrating data mapped to each node not yet supported.")
+
+        elif self.data.shape[-1] == self.uxgrid.nMesh2_edge:
+            raise ValueError(
+                "Integrating data mapped to each edge not yet supported.")
+
+        else:
+            raise ValueError(
+                f"The final dimension of the data variable does not match the number of nodes, edges, "
+                f"or faces. Expected one of "
+                f"{self.uxgrid.nMesh2_face}, {self.uxgrid.nMesh2_edge}, or {self.uxgrid.nMesh2_face}, "
+                f"but received {self.data.shape[-1]}")
+
+        uxda = UxDataArray(integral,
+                           uxgrid=self.uxgrid,
+                           dims=self.dims[:-1],
+                           name=self.name)
+
+        return uxda

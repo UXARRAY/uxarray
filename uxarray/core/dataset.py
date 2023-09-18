@@ -277,6 +277,8 @@ class UxDataset(xr.Dataset):
         # Compute the integral
         >>> integral = uxds.integrate()
         """
+
+        # TODO: Deprecation Warning
         integral = 0.0
 
         # call function to get area of all the faces as a np array
