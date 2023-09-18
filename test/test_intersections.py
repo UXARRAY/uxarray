@@ -1,5 +1,6 @@
 import numpy as np
 from unittest import TestCase
+
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
 from uxarray.grid.intersections import get_GCA_GCA_intersection
 
