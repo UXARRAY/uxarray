@@ -201,24 +201,37 @@ class Grid:
             # if key in self._inverse_grid_var_names:
             #     dims_str += f"  * {self._inverse_grid_var_names[key]}: {value}\n"
 
-        if "nMesh2_edge" in self._ds.dims:
-            dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
+        # if "nMesh2_edge" in self._ds.dims:
+        #     dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
 
         if "nMaxMesh2_face_edges" in self._ds.dims:
             dims_str += f"  * nMaxMesh2_face_edges: {self.nMaxMesh2_face_edges}\n"
 
-        coord_heading = "Grid Coordinate Variables:\n"
+        coord_heading = "Grid Coordinates (Latitude & Longitude):\n"
         coords_str = ""
         if "Mesh2_node_x" in self._ds:
             coords_str += f"  * Mesh2_node_x: {self.Mesh2_node_x.shape}\n"
             coords_str += f"  * Mesh2_node_y: {self.Mesh2_node_y.shape}\n"
+        if "Mesh2_edge_x" in self._ds:
+            coords_str += f"  * Mesh2_edge_x: {self.Mesh2_edge_x.shape}\n"
+            coords_str += f"  * Mesh2_edge_y: {self.Mesh2_edge_y.shape}\n"
+        if "Mesh2_face_x" in self._ds:
+            coords_str += f"  * Mesh2_face_x: {self.Mesh2_face_x.shape}\n"
+            coords_str += f"  * Mesh2_face_y: {self.Mesh2_face_y.shape}\n"
+
+        coords_str += "Grid Coordinates (Cartesian):\n"
         if "Mesh2_node_cart_x" in self._ds:
             coords_str += f"  * Mesh2_node_cart_x: {self.Mesh2_node_cart_x.shape}\n"
             coords_str += f"  * Mesh2_node_cart_y: {self.Mesh2_node_cart_y.shape}\n"
             coords_str += f"  * Mesh2_node_cart_z: {self.Mesh2_node_cart_z.shape}\n"
-        if "Mesh2_face_x" in self._ds:
-            coords_str += f"  * Mesh2_face_x: {self.Mesh2_face_x.shape}\n"
-            coords_str += f"  * Mesh2_face_y: {self.Mesh2_face_y.shape}\n"
+        if "Mesh2_edge_cart_x" in self._ds:
+            coords_str += f"  * Mesh2_edge_cart_x: {self.Mesh2_edge_cart_x.shape}\n"
+            coords_str += f"  * Mesh2_edge_cart_y: {self.Mesh2_edge_cart_y.shape}\n"
+            coords_str += f"  * Mesh2_edge_cart_z: {self.Mesh2_edge_cart_z.shape}\n"
+        if "Mesh2_face_cart_x" in self._ds:
+            coords_str += f"  * Mesh2_face_cart_x: {self.Mesh2_face_cart_x.shape}\n"
+            coords_str += f"  * Mesh2_face_cart_y: {self.Mesh2_face_cart_y.shape}\n"
+            coords_str += f"  * Mesh2_face_cart_z: {self.Mesh2_face_cart_z.shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
@@ -376,6 +389,27 @@ class Grid:
             return None
 
     @property
+    def Mesh2_face_cart_x(self) -> xr.DataArray:
+        if "Mesh2_face_cart_x" in self._ds:
+            return self._ds["Mesh2_face_cart_x"]
+        else:
+            return None
+
+    @property
+    def Mesh2_edge_x(self) -> xr.DataArray:
+        if "Mesh2_edge_x" in self._ds:
+            return self._ds["Mesh2_edge_x"]
+        else:
+            return None
+
+    @property
+    def Mesh2_edge_cart_x(self) -> xr.DataArray:
+        if "Mesh2_edge_cart_x" in self._ds:
+            return self._ds["Mesh2_edge_cart_x"]
+        else:
+            return None
+
+    @property
     def Mesh2_node_y(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_node_y``, which contains the
         latitude of each node.
@@ -411,6 +445,27 @@ class Grid:
             return None
 
     @property
+    def Mesh2_face_cart_y(self) -> xr.DataArray:
+        if "Mesh2_face_cart_y" in self._ds:
+            return self._ds["Mesh2_face_cart_y"]
+        else:
+            return None
+
+    @property
+    def Mesh2_edge_y(self) -> xr.DataArray:
+        if "Mesh2_edge_y" in self._ds:
+            return self._ds["Mesh2_edge_y"]
+        else:
+            return None
+
+    @property
+    def Mesh2_edge_cart_y(self) -> xr.DataArray:
+        if "Mesh2_edge_cart_y" in self._ds:
+            return self._ds["Mesh2_edge_cart_y"]
+        else:
+            return None
+
+    @property
     def Mesh2_node_cart_z(self) -> xr.DataArray:
         """Coordinate Variable ``Mesh2_node_cart_z``, which contains the z
         location in meters.
@@ -420,6 +475,20 @@ class Grid:
         if "Mesh2_node_cart_z" not in self._ds:
             self._populate_cartesian_xyz_coord()
         return self._ds['Mesh2_node_cart_z']
+
+    @property
+    def Mesh2_face_cart_z(self) -> xr.DataArray:
+        if "Mesh2_face_cart_z" in self._ds:
+            return self._ds["Mesh2_face_cart_z"]
+        else:
+            return None
+
+    @property
+    def Mesh2_edge_cart_z(self) -> xr.DataArray:
+        if "Mesh2_edge_cart_z" in self._ds:
+            return self._ds["Mesh2_edge_cart_z"]
+        else:
+            return None
 
     @property
     def Mesh2_face_nodes(self) -> xr.DataArray:
