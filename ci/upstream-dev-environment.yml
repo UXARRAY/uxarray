@@ -17,4 +17,3 @@ dependencies:
   - spatialpandas
   - pip:
     - antimeridian
-    - pyfma
