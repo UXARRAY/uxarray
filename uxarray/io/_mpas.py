@@ -4,6 +4,9 @@ import warnings
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
+# TODO: Parse Cartesian (x, y, z) coordinates
+# TODO: Revisit missing value representation
+
 
 def _primal_to_ugrid(in_ds, out_ds):
     """Encodes the MPAS Primal-Mesh in the UGRID conventions.
@@ -53,6 +56,35 @@ def _primal_to_ugrid(in_ds, out_ds):
             "units": "degrees_north",
         })
 
+    # corners of primal-mesh cells (artesian)
+    xVertex = in_ds['xVertex'].values
+    yVertex = in_ds['yVertex'].values
+    zVertex = in_ds['zVertex'].values
+
+    out_ds["Mesh2_node_cart_x"] = xr.DataArray(data=xVertex,
+                                               dims=["nMesh2_node"],
+                                               attrs={
+                                                   "standard_name": "x",
+                                                   "long_name": "cartesian x",
+                                                   "units": "m",
+                                               })
+
+    out_ds["Mesh2_node_cart_y"] = xr.DataArray(data=yVertex,
+                                               dims=["nMesh2_node"],
+                                               attrs={
+                                                   "standard_name": "y",
+                                                   "long_name": "cartesian y",
+                                                   "units": "m",
+                                               })
+
+    out_ds["Mesh2_node_cart_z"] = xr.DataArray(data=zVertex,
+                                               dims=["nMesh2_node"],
+                                               attrs={
+                                                   "standard_name": "z",
+                                                   "long_name": "cartesian z",
+                                                   "units": "m",
+                                               })
+
     # centers of primal-mesh cells (in degrees)
     lonCell = np.rad2deg(in_ds['lonCell'].values)
     latCell = np.rad2deg(in_ds['latCell'].values)
@@ -74,6 +106,37 @@ def _primal_to_ugrid(in_ds, out_ds):
             "long_name": "latitude of center nodes",
             "units": "degrees_north",
         })
+
+    # centers of primal-mesh cells (artesian)
+    xCell = in_ds['xCell'].values
+    yCell = in_ds['yCell'].values
+    zCell = in_ds['zCell'].values
+
+    out_ds["Mesh2_face_cart_x"] = xr.DataArray(data=xCell,
+                                               dims=["nMesh2_face"],
+                                               attrs={
+                                                   "standard_name": "x",
+                                                   "long_name": "cartesian x",
+                                                   "units": "m",
+                                               })
+
+    out_ds["Mesh2_face_cart_y"] = xr.DataArray(data=yCell,
+                                               dims=["nMesh2_face"],
+                                               attrs={
+                                                   "standard_name": "y",
+                                                   "long_name": "cartesian y",
+                                                   "units": "m",
+                                               })
+
+    out_ds["Mesh2_face_cart_z"] = xr.DataArray(data=zCell,
+                                               dims=["nMesh2_face"],
+                                               attrs={
+                                                   "standard_name": "z",
+                                                   "long_name": "cartesian z",
+                                                   "units": "m",
+                                               })
+
+    # TODO: Edge Locations (latlon, artesian)
 
     # vertex indices that surround each primal-mesh cell
     verticesOnCell = np.array(in_ds['verticesOnCell'].values, dtype=INT_DTYPE)
@@ -127,6 +190,7 @@ def _primal_to_ugrid(in_ds, out_ds):
     return source_dims_dict
 
 
+# TODO: same updates as above
 def _dual_to_ugrid(in_ds, out_ds):
     """Encodes the MPAS Dual-Mesh in the UGRID conventions.
 
