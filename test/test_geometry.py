@@ -27,10 +27,7 @@ class TestAntimeridian:
     def test_crossing(self):
         verts = [[[-170, 40], [180, 30], [165, 25], [-170, 20]]]
 
-        uxgrid = ux.open_grid(verts,
-                              vertices=True,
-                              islatlon=True,
-                              isconcave=False)
+        uxgrid = ux.open_grid(verts, latlon=True)
 
         gdf = uxgrid.to_geodataframe()
 
@@ -41,9 +38,6 @@ class TestAntimeridian:
     def test_point_on(self):
         verts = [[[-170, 40], [180, 30], [-170, 20]]]
 
-        uxgrid = ux.open_grid(verts,
-                              vertices=True,
-                              islatlon=True,
-                              isconcave=False)
+        uxgrid = ux.open_grid(verts, latlon=True)
 
         assert len(uxgrid.antimeridian_face_indices) == 1
