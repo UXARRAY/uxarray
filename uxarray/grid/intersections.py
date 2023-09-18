@@ -1,10 +1,10 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.grid.utils import cross_fma
-from uxarray.grid.lines import point_within_GCA
+from uxarray.grid.lines import point_within_gca
 
 
-def get_GCA_GCA_intersection(gca1_cart, gca2_cart):
+def gca_gca_intersection(gca1_cart, gca2_cart):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
@@ -14,9 +14,9 @@ def get_GCA_GCA_intersection(gca1_cart, gca2_cart):
 
     Parameters
     ----------
-    gca1_cart : np.ndarray
+    gca1_cart : n*3 np.ndarray where n is the number of intersection points
         Cartesian coordinates of the first GCA.
-    gca2_cart : np.ndarray
+    gca2_cart : n*3 np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
 
     Returns
@@ -31,6 +31,10 @@ def get_GCA_GCA_intersection(gca1_cart, gca2_cart):
 
         If the input GCAs cannot be computed accurately using floating-point arithmetic.
     """
+
+    # Support lists as an default input
+    gca1_cart = np.asarray(gca1_cart)
+    gca2_cart = np.asarray(gca2_cart)
     # Check if the two GCAs are in the cartesian format (size of three)
     if gca1_cart.shape[1] != 3 or gca2_cart.shape[1] != 3:
         raise ValueError(
@@ -67,18 +71,19 @@ def get_GCA_GCA_intersection(gca1_cart, gca2_cart):
             "The current input data cannot be computed accurately using floating-point arithmetic. "
             "Please turn on multi-precision mode and re-run.")
 
-    # Compute intersection points
+    # If the cross_norms is zero, the two GCAs are parallel
     if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
-        return np.array([0, 0, 0])
+        return np.array([])
 
     x1 = cross_norms
     x2 = -x1
 
-    if point_within_GCA(x1, [w0, w1]) and point_within_GCA(x1, [v0, v1]):
-        return x1
-    elif point_within_GCA(x2, [w0, w1]) and point_within_GCA(x2, [v0, v1]):
-        return x2
-    elif np.all(x1 == 0):
-        return np.array([0, 0, 0])  # Two vectors are parallel to each other
-    else:
-        return np.array([-1, -1, -1])  # Intersection out of the interval
+    res = np.array([])
+
+    if point_within_gca(x1, [w0, w1]) and point_within_gca(x1, [v0, v1]):
+        res = np.append(res, x1)
+
+    if point_within_gca(x2, [w0, w1]) and point_within_gca(x2, [v0, v1]):
+        res = np.append(res, x2)
+
+    return res
