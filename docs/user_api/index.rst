@@ -214,6 +214,13 @@ Lines
    grid.lines.in_between
    grid.lines.point_within_GCA
 
+Lines
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.intersections.get_GCA_GCA_intersection
+
 Numba
 -----
 .. autosummary::
