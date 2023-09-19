@@ -15,6 +15,7 @@ class TestIntegrate(TestCase):
     dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
     def test_single_dim(self):
+        """Integral with 1D data mapped to each face."""
         uxgrid = ux.open_grid(self.gridfile_ne30)
 
         test_data = np.ones(uxgrid.nMesh2_face)
@@ -28,9 +29,13 @@ class TestIntegrate(TestCase):
 
         integral = uxda.integrate()
 
+        # integration reduces the dimension by 1
+        assert integral.ndim == len(dims) - 1
+
         pass
 
     def test_multi_dim(self):
+        """Integral with 3D data mapped to each face."""
         uxgrid = ux.open_grid(self.gridfile_ne30)
 
         test_data = np.ones((5, 5, uxgrid.nMesh2_face))
@@ -43,4 +48,8 @@ class TestIntegrate(TestCase):
                               name='var2')
 
         integral = uxda.integrate()
+
+        # integration reduces the dimension by 1
+        assert integral.ndim == len(dims) - 1
+
         pass

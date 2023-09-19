@@ -231,11 +231,7 @@ class UxDataArray(xr.DataArray):
         # Compute the integral
         >>> integral = uxds.integrate()
         """
-        # call function to get area of all the faces as a np array
-        face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
-
         if self.data.shape[-1] == self.uxgrid.nMesh2_face:
-
             face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
 
             # perform dot product between face areas and last dimension of data
@@ -256,6 +252,7 @@ class UxDataArray(xr.DataArray):
                 f"{self.uxgrid.nMesh2_face}, {self.uxgrid.nMesh2_edge}, or {self.uxgrid.nMesh2_face}, "
                 f"but received {self.data.shape[-1]}")
 
+        # construct a uxda with integrated quantity
         uxda = UxDataArray(integral,
                            uxgrid=self.uxgrid,
                            dims=self.dims[:-1],

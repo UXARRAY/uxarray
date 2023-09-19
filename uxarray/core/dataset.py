@@ -8,6 +8,8 @@ from typing import Optional, IO
 from uxarray.core.dataarray import UxDataArray
 from uxarray.grid import Grid
 
+from warnings import warn
+
 
 class UxDataset(xr.Dataset):
     """A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
@@ -279,6 +281,11 @@ class UxDataset(xr.Dataset):
         """
 
         # TODO: Deprecation Warning
+        warn(
+            "Integration of a single data variable will be deprecated in a future release. For integrating"
+            "a single variable, use the UxDataArray.integrate() method.",
+            DeprecationWarning)
+
         integral = 0.0
 
         # call function to get area of all the faces as a np array
