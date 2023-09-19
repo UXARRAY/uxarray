@@ -2,8 +2,9 @@ import uxarray as ux
 import os
 from unittest import TestCase
 from pathlib import Path
-import xarray as xr
 import numpy as np
+
+import numpy.testing as nt
 
 import uxarray as ux
 
@@ -32,7 +33,7 @@ class TestIntegrate(TestCase):
         # integration reduces the dimension by 1
         assert integral.ndim == len(dims) - 1
 
-        pass
+        nt.assert_almost_equal(integral, 4 * np.pi)
 
     def test_multi_dim(self):
         """Integral with 3D data mapped to each face."""
@@ -52,4 +53,4 @@ class TestIntegrate(TestCase):
         # integration reduces the dimension by 1
         assert integral.ndim == len(dims) - 1
 
-        pass
+        nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)

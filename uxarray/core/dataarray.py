@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import xarray as xr
 import numpy as np
 
@@ -207,8 +209,11 @@ class UxDataArray(xr.DataArray):
                 f"Data Variable with size {self.data.size} does not match the number of faces "
                 f"({self.uxgrid.nMesh2_face}.")
 
-    def integrate(self, quadrature_rule="triangular", order=4):
-        """TODO: Docstring
+    def integrate(self,
+                  quadrature_rule: Optional[str] = "triangular",
+                  order: Optional[int] = 4) -> UxDataArray:
+        """Computes the integral of a data variable residing on an unstructured
+        grid.
 
         Parameters
         ----------
@@ -219,17 +224,16 @@ class UxDataArray(xr.DataArray):
 
         Returns
         -------
-        Calculated integral : float
+        uxda : UxDataArray
+            UxDataArray containing the integrated data variable
 
         Examples
         --------
-        Open a Uxarray dataset
-
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
 
         # Compute the integral
-        >>> integral = uxds.integrate()
+        >>> integral = uxds['psi'].integrate()
         """
         if self.data.shape[-1] == self.uxgrid.nMesh2_face:
             face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
