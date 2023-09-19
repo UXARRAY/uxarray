@@ -105,6 +105,8 @@ IO
    :toctree: _autosummary
 
    open_grid
+   Grid.from_dataset
+   Grid.from_face_vertices
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_shapely_polygons
@@ -128,6 +130,7 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
+   Grid.grid_spec
    Grid.Mesh2
    Grid.parsed_attrs
    Grid.nMesh2_node
@@ -138,6 +141,9 @@ Attributes
    Grid.nNodes_per_face
    Grid.Mesh2_node_x
    Grid.Mesh2_node_y
+   Mesh2_node_cart_x
+   Mesh2_node_cart_y
+   Mesh2_node_cart_z
    Grid.Mesh2_face_x
    Grid.Mesh2_face_y
    Grid.Mesh2_face_nodes
@@ -165,6 +171,7 @@ Query Methods
 
    grid.BallTree.query
    grid.BallTree.query_radius
+
 
 
 Helpers
