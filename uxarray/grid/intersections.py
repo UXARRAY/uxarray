@@ -41,7 +41,6 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
         If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
-
     """
 
     # Support lists as an input
@@ -71,30 +70,31 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
             warnings.warn(
                 "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
                 "https://bugs.python.org/msg312480)"
-                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed.")
-
-
-
+                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
+            )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
     if not np.allclose(np.dot(w0w1_norm, w0), 0,
                        atol=ERROR_TOLERANCE) or not np.allclose(
                            np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic. Use with care ")
+            "The current input data cannot be computed accurately using floating-point arithmetic. Use with care "
+        )
 
     if not np.allclose(np.dot(v0v1_norm, v0), 0,
                        atol=ERROR_TOLERANCE) or not np.allclose(
                            np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic.  Use with care ")
+            "The current input data cannot be computed accurately using floating-point arithmetic.  Use with care "
+        )
 
     if not np.allclose(
             np.dot(cross_norms,
                    v0v1_norm), 0, atol=ERROR_TOLERANCE) or not np.allclose(
                        np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic. Use with care ")
+            "The current input data cannot be computed accurately using floating-point arithmetic. Use with care "
+        )
 
     # If the cross_norms is zero, the two GCAs are parallel
     if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
