@@ -282,8 +282,9 @@ class UxDataset(xr.Dataset):
 
         # TODO: Deprecation Warning
         warn(
-            "Integration of a single data variable will be deprecated in a future release. For integrating"
-            "a single variable, use the UxDataArray.integrate() method.",
+            "This method currently only works when there is a single DataArray in this Dataset. For integration of a "
+            "single data variable, use the UxDataArray.integrate() method instead. This function will be deprecated and "
+            "replaced with one that can perform a Dataset-wide integration in a future release.",
             DeprecationWarning)
 
         integral = 0.0
