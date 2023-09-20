@@ -20,14 +20,17 @@ def centroid_from_mean_verts(self, repopulate=True):
     face_nodes = self.Mesh2_face_nodes.values
     nNodes_per_face = self.nNodes_per_face.values
 
-    mesh2_face_x = []
-    mesh2_face_y = []
-    mesh2_face_z = []
+    mesh2_face_x = np.array([], dtype=np.float64)
+    mesh2_face_y = np.array([], dtype=np.float64)
+    mesh2_face_z = np.array([], dtype=np.float64)
 
     for cur_face_nodes, n_nodes in zip(face_nodes, nNodes_per_face):
-        mesh2_face_x.append(np.mean(node_x[cur_face_nodes[:n_nodes]]))
-        mesh2_face_y.append(np.mean(node_y[cur_face_nodes[:n_nodes]]))
-        mesh2_face_z.append(np.mean(node_z[cur_face_nodes[:n_nodes]]))
+        mesh2_face_x = np.append(mesh2_face_x,
+                                 np.mean(node_x[cur_face_nodes[:n_nodes]]))
+        mesh2_face_y = np.append(mesh2_face_y,
+                                 np.mean(node_y[cur_face_nodes[:n_nodes]]))
+        mesh2_face_z = np.append(mesh2_face_z,
+                                 np.mean(node_z[cur_face_nodes[:n_nodes]]))
 
     if latlon:
         [centroid_lon, centroid_lat
