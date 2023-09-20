@@ -78,7 +78,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
                        atol=ERROR_TOLERANCE) or not np.allclose(
                            np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic. Use with care "
+            "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
     if not np.allclose(np.dot(v0v1_norm, v0), 0,
