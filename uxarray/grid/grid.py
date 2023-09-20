@@ -28,6 +28,7 @@ from uxarray.grid.coordinates import (_populate_lonlat_coord,
 from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
+                                   _grid_to_matplotlib_linecollection,
                                    _grid_to_polygons)
 
 from uxarray.grid.neighbors import BallTree
@@ -769,6 +770,10 @@ class Grid:
             self._poly_collection = poly_collection
 
         return poly_collection, corrected_to_original_faces
+
+    def to_linecollection(self):
+        line_collection = _grid_to_matplotlib_linecollection(self)
+        return line_collection
 
     def to_shapely_polygons(self,
                             correct_antimeridian_polygons: Optional[bool] = True
