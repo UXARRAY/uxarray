@@ -16,7 +16,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
     ----------
     gca1_cart : n*3 np.ndarray where n is the number of intersection points
         Cartesian coordinates of the first GCA.
-    gca2_cart : n*3 np.ndarray where n is the number of intersection points
+    gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
 
     Returns
