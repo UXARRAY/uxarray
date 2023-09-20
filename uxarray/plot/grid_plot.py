@@ -9,7 +9,8 @@ import hvplot.pandas
 
 
 def plot(grid: Grid, **kwargs):
-    pass
+    # default to edge plot for now
+    return edges(grid, **kwargs)
 
 
 def edges(grid: Grid, **kwargs):
