@@ -187,13 +187,37 @@ class Grid:
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
     @classmethod
-    def from_vertices(cls,
-                      node_x: Union[list, np.ndarray],
-                      node_y: Union[list, np.ndarray],
-                      node_z: Optional[list, np.ndarray],
-                      method="delaunay"):
-        """TODO: docstring"""
-        pass
+    def from_xyz_vertices(cls,
+                          node_x: Union[list, np.ndarray],
+                          node_y: Union[list, np.ndarray],
+                          node_z: Union[list, np.ndarray],
+                          method="delaunay"):
+        """Constructs a ``Grid`` from a set of unstructured Cartesian [x,y,z]
+        coordinates."""
+        if method == "delaunay":
+            pass
+        elif method == "voronoi":
+            pass
+        else:
+            raise ValueError(
+                f"Invalid method. Expected one of [delaunay, voronoi], but received {method}"
+            )
+
+    @classmethod
+    def from_latlon_vertices(cls,
+                             node_lon: Union[list, np.ndarray],
+                             nodeL_lat: Union[list, np.ndarray],
+                             method="delaunay"):
+        """Constructs a ``Grid`` from a pair of unstructured LatLon [lon, lat]
+        coordinates."""
+        if method == "delaunay":
+            pass
+        elif method == "voronoi":
+            pass
+        else:
+            raise ValueError(
+                f"Invalid method. Expected one of [delaunay, voronoi], but received {method}"
+            )
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
@@ -800,7 +824,8 @@ class Grid:
         polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
         return polygons
 
-    def from_vertices_hold(self, method="spherical_voronoi"):
+    # TODO: move into class methods and _vertices.py
+    def from_vertices(self, method="spherical_voronoi"):
         """Create a grid and related information from just vertices, using
         either Spherical Voronoi or Delaunay Triangulation.
 
