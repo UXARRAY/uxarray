@@ -1,6 +1,8 @@
 import xarray as xr
 import numpy as np
 
+from typing import Union
+
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 
@@ -113,9 +115,28 @@ def _read_face_vertices(face_vertices, latlon):
     return grid_ds
 
 
-def _spherical_delaunay():
+def _xyz_to_delaunay_grid(node_x: Union[list, np.ndarray],
+                          node_y: Union[list, np.ndarray],
+                          node_z: Union[list, np.ndarray]):
+    grid_ds = xr.Dataset()
+
+    # populate Cartesian coordinates
+    grid_ds['Mesh2_node_cart_x'] = xr.DataArray(data=node_x)
+    grid_ds['Mesh2_node_cart_y'] = xr.DataArray(data=node_y)
+    grid_ds['Mesh2_node_cart_z'] = xr.DataArray(data=node_z)
+
     pass
 
 
-def _spherical_voronoi():
+def _latlon_to_delaunay_grid(node_lon: Union[list, np.ndarray],
+                             node_lat: Union[list, np.ndarray]):
+
+    grid_ds = xr.Dataset()
+
+    # populate LatLon coordinates
+    grid_ds['Mesh2_node_x'] = xr.DataArray(data=node_lon)
+    grid_ds['Mesh2_node_y'] = xr.DataArray(data=node_lat)
+
+    # populate Cartesiain coordinates
+
     pass
