@@ -32,7 +32,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
         If the input GCAs cannot be computed accurately using floating-point arithmetic.
     """
 
-    # Support lists as an default input
+    # Support lists as an input
     gca1_cart = np.asarray(gca1_cart)
     gca2_cart = np.asarray(gca2_cart)
     # Check if the two GCAs are in the cartesian format (size of three)
