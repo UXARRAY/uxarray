@@ -16,9 +16,9 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
     Parameters
     ----------
-    gca1_cart : n*3 np.ndarray where n is the number of intersection points
+    gca1_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the first GCA.
-    gca2_cart : n*3 np.ndarray where n is the number of intersection points
+    gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
     fma_disabled : bool, optional (default=False)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
@@ -44,7 +44,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
     """
 
-    # Support lists as an default input
+    # Support lists as an input
     gca1_cart = np.asarray(gca1_cart)
     gca2_cart = np.asarray(gca2_cart)
     # Check if the two GCAs are in the cartesian format (size of three)
