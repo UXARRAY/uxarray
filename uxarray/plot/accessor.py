@@ -20,15 +20,15 @@ class GridPlotAccessor:
 
     @functools.wraps(grid_plot.plot)
     def __call__(self, **kwargs) -> Any:
-        return grid_plot.plot(self._uxgrid)
+        return grid_plot.plot(self._uxgrid, **kwargs)
 
     @functools.wraps(grid_plot.nodes)
-    def nodes(self):
-        return grid_plot.nodes(self._uxgrid)
+    def nodes(self, **kwargs):
+        return grid_plot.nodes(self._uxgrid, **kwargs)
 
     @functools.wraps(grid_plot.edges)
-    def edges(self, rasterize: bool = True):
-        return grid_plot.edges(self._uxgrid)
+    def edges(self, **kwargs):
+        return grid_plot.edges(self._uxgrid, **kwargs)
 
 
 class UxDataArrayPlotAccessor:
