@@ -1,7 +1,6 @@
-import xarray as xr
-import numpy as np
+from __future__ import annotations
 
-from typing import Optional
+import xarray as xr
 
 from uxarray.grid import Grid
 

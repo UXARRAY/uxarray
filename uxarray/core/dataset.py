@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import numpy as np
 import xarray as xr
 
 import sys
 
-from typing import Optional, IO
+from typing import Optional, IO, TYPE_CHECKING
 
-from uxarray.core.dataarray import UxDataArray
+# if TYPE_CHECKING:
+#     from uxarray.core.dataarray import UxDataArray
+#     from uxarray.grid import Grid
 from uxarray.grid import Grid
+from uxarray.core.dataarray import UxDataArray
 
 
 class UxDataset(xr.Dataset):
