@@ -788,10 +788,8 @@ class Grid:
 
         Returns
         -------
-        polycollection : matplotlib.collections.PolyCollection
-            The output `PolyCollection` containing faces represented as polygons
-        corrected_to_original_faces: list
-            Original indices used to map the corrected polygon shells to their entries in face nodes
+        line_collection : matplotlib.collections.LineCollection
+            The output `LineCollection` containing faces represented as polygons
         """
 
         # use cached line collection
