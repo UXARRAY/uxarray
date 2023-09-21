@@ -136,6 +136,12 @@ Lines
 
    grid.lines._angle_of_2_vectors
 
+Utils
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.utils._fmms
 
 Grid Parsing and Encoding
 =========================
