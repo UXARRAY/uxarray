@@ -4,6 +4,10 @@ import xarray as xr
 
 from uxarray.grid import Grid
 
+from uxarray.plot.accessor import UxDataArrayPlotAccessor
+
+from xarray.core.utils import UncachedAccessor
+
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from
@@ -45,6 +49,8 @@ class UxDataArray(xr.DataArray):
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
+
+    plot = UncachedAccessor(UxDataArrayPlotAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
