@@ -151,16 +151,6 @@ def _build_corrected_polygon_shells(polygon_shells):
     return corrected_polygon_shells, _corrected_shells_to_original_faces
 
 
-def _build_line_segments(node_x, node_y, edge_nodes):
-    segment_x = node_x[edge_nodes[:, 0]]
-    segment_y = node_y[edge_nodes[:, 1]]
-
-    points = np.array([segment_x, segment_y]).T.reshape(-1, 1, 2)
-    segments = np.concatenate([points[:-1], points[1:]], axis=1)
-
-    return segments
-
-
 def _build_antimeridian_face_indices(grid):
     """Constructs ``antimeridian_face_indices``, which represent the indicies
     of faces that cross the antimeridian.
@@ -233,13 +223,21 @@ def _grid_to_matplotlib_polycollection(grid):
 
 def _grid_to_matplotlib_linecollection(grid):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
+
     # import optional dependencies
     from matplotlib.collections import LineCollection
 
-    segments = _build_line_segments(grid.Mesh2_node_x.values,
-                                    grid.Mesh2_node_y.values,
-                                    grid.Mesh2_edge_nodes.values)
+    polygons = grid.to_shapely_polygons(correct_antimeridian_polygons=True)
 
-    line_collection = LineCollection(segments)
+    # Convert polygons into lines
+    lines = []
+    for pol in polygons:
+        boundary = pol.boundary
+        if boundary.geom_type == 'MultiLineString':
+            for line in list(boundary.geoms):
+                lines.append(np.array(line.coords))
+        else:
+            lines.append(np.array(boundary.coords))
 
-    return line_collection
+    # need transform?
+    return LineCollection(lines)
