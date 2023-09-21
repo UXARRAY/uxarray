@@ -1,5 +1,4 @@
 import numpy as np
-import pyfma
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
@@ -91,6 +90,7 @@ def _fmms(a, b, c, d):
     Mathematics of Computation, vol. 82, no. 284, pp. 2245-2264, 2013.
     [Read more](https://ens-lyon.hal.science/ensl-00649347) (DOI: 10.1090/S0025-5718-2013-02679-8)
     """
+    import pyfma
     cd = c * d
     err = pyfma.fma(-c, d, cd)
     dop = pyfma.fma(a, b, -cd)
