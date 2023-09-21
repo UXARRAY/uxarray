@@ -13,7 +13,7 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.lines import point_within_GCA, _angle_of_2_vectors, in_between
+from uxarray.grid.lines import point_within_gca, _angle_of_2_vectors, in_between
 
 try:
     import constants
@@ -227,7 +227,7 @@ class TestIntersectionPoint(TestCase):
         ]
         pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
         with self.assertRaises(ValueError):
-            point_within_GCA(pt_same_lon_in, gcr_180degree_cart)
+            point_within_gca(pt_same_lon_in, gcr_180degree_cart)
 
         gcr_180degree_cart = [
             ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, np.pi / 2.0]),
@@ -236,7 +236,7 @@ class TestIntersectionPoint(TestCase):
 
         pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
         with self.assertRaises(ValueError):
-            point_within_GCA(pt_same_lon_in, gcr_180degree_cart)
+            point_within_gca(pt_same_lon_in, gcr_180degree_cart)
 
         # Test when the point and the GCR all have the same longitude
         gcr_same_lon_cart = [
@@ -244,17 +244,17 @@ class TestIntersectionPoint(TestCase):
             ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, -1.5])
         ]
         pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
-        self.assertTrue(point_within_GCA(pt_same_lon_in, gcr_same_lon_cart))
+        self.assertTrue(point_within_gca(pt_same_lon_in, gcr_same_lon_cart))
 
         pt_same_lon_out = ux.grid.coordinates.node_lonlat_rad_to_xyz(
             [0.0, 1.500000000000001])
-        res = point_within_GCA(pt_same_lon_out, gcr_same_lon_cart)
+        res = point_within_gca(pt_same_lon_out, gcr_same_lon_cart)
         self.assertFalse(res)
 
         # And if we increase the digital place by one, it should be true again
         pt_same_lon_out_add_one_place = ux.grid.coordinates.node_lonlat_rad_to_xyz(
             [0.0, 1.5000000000000001])
-        res = point_within_GCA(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
+        res = point_within_gca(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
         self.assertTrue(res)
 
         # Normal case
@@ -265,7 +265,7 @@ class TestIntersectionPoint(TestCase):
                                                         -0.997]])
         pt_cart_within = np.array(
             [0.25616109352676675, 0.9246590335292105, -0.010021496695000144])
-        self.assertTrue(point_within_GCA(pt_cart_within, gcr_cart_2))
+        self.assertTrue(point_within_gca(pt_cart_within, gcr_cart_2))
 
         # Test other more complicate cases : The anti-meridian case
 
@@ -275,12 +275,12 @@ class TestIntersectionPoint(TestCase):
         gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
         pt_cart = np.array(
             [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
-        self.assertTrue(point_within_GCA(pt_cart, gcr_cart))
+        self.assertTrue(point_within_gca(pt_cart, gcr_cart))
         # If we swap the gcr, it should throw a value error since it's larger than 180 degree
         gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
                                                           0.593]])
         with self.assertRaises(ValueError):
-            point_within_GCA(pt_cart, gcr_cart_flip)
+            point_within_gca(pt_cart, gcr_cart_flip)
 
         # 2nd anti-meridian case
         # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
@@ -290,7 +290,7 @@ class TestIntersectionPoint(TestCase):
                                                          -0.007]])
         pt_cart_within = np.array(
             [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
-        self.assertFalse(point_within_GCA(pt_cart_within, gcr_cart_1))
+        self.assertFalse(point_within_gca(pt_cart_within, gcr_cart_1))
 
         # The first case should not work and the second should work
         v1_rad = [0.1, 0.0]
@@ -300,9 +300,9 @@ class TestIntersectionPoint(TestCase):
         gcr_cart = np.array([v1_cart, v2_cart])
         pt_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.01, 0.0])
         with self.assertRaises(ValueError):
-            point_within_GCA(pt_cart, gcr_cart)
+            point_within_gca(pt_cart, gcr_cart)
         gcr_car_flipped = np.array([v2_cart, v1_cart])
-        self.assertTrue(point_within_GCA(pt_cart, gcr_car_flipped))
+        self.assertTrue(point_within_gca(pt_cart, gcr_car_flipped))
 
 
 class TestOperators(TestCase):

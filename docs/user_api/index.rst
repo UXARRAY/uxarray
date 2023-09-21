@@ -212,7 +212,21 @@ Lines
    :toctree: _autosummary
 
    grid.lines.in_between
-   grid.lines.point_within_GCA
+   grid.lines.point_within_gca
+
+Intersections
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.intersections.gca_gca_intersection
+
+Utils
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.utils.cross_fma
 
 Numba
 -----
