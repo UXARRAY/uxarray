@@ -121,7 +121,7 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
 
-    # declare plot accessor
+    # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
     @classmethod

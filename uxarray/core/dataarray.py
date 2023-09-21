@@ -50,6 +50,7 @@ class UxDataArray(xr.DataArray):
 
         super().__init__(*args, **kwargs)
 
+    # declare plotting accessor
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
 
     @classmethod

@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any, overload, Optional
 
 import functools
 
+import warnings
+
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
@@ -48,7 +50,7 @@ class UxDataArrayPlotAccessor:
                plot_height: Optional[int] = 300,
                plot_width: Optional[int] = 600,
                cmap: Optional[str] = "blue",
-               agg: Optional[str] = "mean"):
+               agg: Optional[str] = "mean"):  # TODO: return hint
         """TODO: Docstring & additional params"""
         return dataarray_plot.raster(self._uxda, plot_height, plot_width, cmap,
                                      agg)
@@ -60,3 +62,7 @@ class UxDatasetPlotAccessor:
 
     def __init__(self, uxds: UxDataset) -> None:
         self._uxds = uxds
+
+    def __call__(self, **kwargs) -> Any:
+        warnings.warn("Plotting for UxDataset instances not yet supported.")
+        pass
