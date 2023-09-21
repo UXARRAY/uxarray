@@ -45,9 +45,6 @@ class TestAntimeridian(TestCase):
 
 class TestLineCollection(TestCase):
 
-    def test_ugrid(self):
+    def test_linecollection_execution(self):
         uxgrid = ux.open_grid(gridfile_CSne8)
         lines = uxgrid.to_linecollection()
-        a = lines.get_segments()
-
-        pass
