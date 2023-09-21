@@ -114,6 +114,7 @@ class Grid:
         # initialize cached data structures (visualization)
         self._gdf = None
         self._poly_collection = None
+        self._line_collection = None
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -771,8 +772,38 @@ class Grid:
 
         return poly_collection, corrected_to_original_faces
 
-    def to_linecollection(self):
+    def to_linecollection(self,
+                          override: Optional[bool] = False,
+                          cache: Optional[bool] = True):
+        """Constructs a ``matplotlib.collections.LineCollection`` object with
+        line segments representing the geometry of the unstructured grid,
+        corrected near the antimeridian.
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``LineCollection`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``LineCollection`` should be cached
+
+        Returns
+        -------
+        polycollection : matplotlib.collections.PolyCollection
+            The output `PolyCollection` containing faces represented as polygons
+        corrected_to_original_faces: list
+            Original indices used to map the corrected polygon shells to their entries in face nodes
+        """
+
+        # use cached line collection
+        if self._line_collection is not None and not override:
+            return self._line_collection
+
         line_collection = _grid_to_matplotlib_linecollection(self)
+
+        # cache computed line collection
+        if cache:
+            self._line_collection = line_collection
+
         return line_collection
 
     def to_shapely_polygons(self,

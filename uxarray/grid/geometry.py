@@ -227,6 +227,7 @@ def _grid_to_matplotlib_linecollection(grid):
     # import optional dependencies
     from matplotlib.collections import LineCollection
 
+    # obtain corrected shapely polygons
     polygons = grid.to_shapely_polygons(correct_antimeridian_polygons=True)
 
     # Convert polygons into lines
@@ -239,5 +240,5 @@ def _grid_to_matplotlib_linecollection(grid):
         else:
             lines.append(np.array(boundary.coords))
 
-    # need transform?
+    # need transform? consider adding it later if needed
     return LineCollection(lines)
