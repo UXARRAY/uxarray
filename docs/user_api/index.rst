@@ -81,6 +81,13 @@ Attributes
    :toctree: _autosummary
    UxDataArray.uxgrid
 
+Methods
+-------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.integrate
+
 
 
 Grid
