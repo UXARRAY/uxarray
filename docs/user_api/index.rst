@@ -116,6 +116,7 @@ IO
    Grid.from_face_vertices
    Grid.to_geodataframe
    Grid.to_polycollection
+   Grid.to_linecollection
    Grid.to_shapely_polygons
 
 
