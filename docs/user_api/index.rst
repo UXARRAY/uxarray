@@ -71,6 +71,7 @@ IO
 .. autosummary::
    :toctree: _autosummary
 
+   UxDataArray.to_dataset
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
 

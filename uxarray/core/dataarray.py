@@ -1,9 +1,15 @@
+from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from uxarray.grid import Grid
+import uxarray.core.dataset
+
+if TYPE_CHECKING:
+    from uxarray.core.dataarray import UxDataArray
+    from uxarray.core.dataset import UxDataset
 
 
 class UxDataArray(xr.DataArray):
@@ -96,6 +102,11 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
+
+    def to_dataset(self) -> UxDataset:
+        """Convert a UxDataArray to a UxDataset."""
+        xrds = super().to_dataset()
+        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
     def to_geodataframe(self,
                         override=False,
