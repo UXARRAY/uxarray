@@ -34,207 +34,31 @@ def _primal_to_ugrid(in_ds, out_ds):
             "face_dimension": "nMesh2_face"
         })
 
-    # corners of primal-mesh cells (in degrees)
-    lonVertex = np.rad2deg(in_ds['lonVertex'].values)
-    latVertex = np.rad2deg(in_ds['latVertex'].values)
+    if "lonVertex" in in_ds:
+        _parse_node_latlon_coords(in_ds, out_ds, "primal")
 
-    out_ds['Mesh2_node_x'] = xr.DataArray(
-        lonVertex,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of mesh nodes",
-            "units": "degrees_east",
-        })
+    if "xVertex" in in_ds:
+        _parse_node_xyz_coords(in_ds, out_ds, "primal")
 
-    out_ds['Mesh2_node_y'] = xr.DataArray(
-        latVertex,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of mesh nodes",
-            "units": "degrees_north",
-        })
+    if "lonCell" in in_ds:
+        _parse_face_latlon_coords(in_ds, out_ds, "primal")
 
-    # corners of primal-mesh cells (Cartesian)
-    xVertex = in_ds['xVertex'].values
-    yVertex = in_ds['yVertex'].values
-    zVertex = in_ds['zVertex'].values
+    if "xCell" in in_ds:
+        _parse_face_xyz_coords(in_ds, out_ds, "primal")
 
-    out_ds["Mesh2_node_cart_x"] = xr.DataArray(
-        data=xVertex,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "x",
-            "long_name": "cartesian node x",
-            "units": "m",
-        })
+    if "lonEdge" in in_ds:
+        _parse_edge_latlon_coords(in_ds, out_ds, "primal")
 
-    out_ds["Mesh2_node_cart_y"] = xr.DataArray(
-        data=yVertex,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "y",
-            "long_name": "cartesian node y",
-            "units": "m",
-        })
+    if "xEdge" in in_ds:
+        _parse_edge_xyz_coords(in_ds, out_ds, "primal")
 
-    out_ds["Mesh2_node_cart_z"] = xr.DataArray(
-        data=zVertex,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "z",
-            "long_name": "cartesian node z",
-            "units": "m",
-        })
+    _parse_face_nodes(in_ds, out_ds, "primal")
 
-    # centers of primal-mesh cells (in degrees)
-    lonCell = np.rad2deg(in_ds['lonCell'].values)
-    latCell = np.rad2deg(in_ds['latCell'].values)
+    if "verticesOnEdge" in in_ds:
+        _parse_edge_nodes(in_ds, out_ds, "primal")
+        source_dims_dict[in_ds['verticesOnEdge'].dims[0]] = "nMesh2_edge"
 
-    out_ds['Mesh2_face_x'] = xr.DataArray(
-        lonCell,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of center nodes",
-            "units": "degrees_east",
-        })
-
-    out_ds['Mesh2_face_y'] = xr.DataArray(
-        latCell,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of center nodes",
-            "units": "degrees_north",
-        })
-
-    # centers of primal-mesh cells (artesian)
-    xCell = in_ds['xCell'].values
-    yCell = in_ds['yCell'].values
-    zCell = in_ds['zCell'].values
-
-    out_ds["Mesh2_face_cart_x"] = xr.DataArray(
-        data=xCell,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "x",
-            "long_name": "cartesian edge x",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_face_cart_y"] = xr.DataArray(
-        data=yCell,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "y",
-            "long_name": "cartesian edge y",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_face_cart_z"] = xr.DataArray(
-        data=zCell,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "z",
-            "long_name": "cartesian edge z",
-            "units": "m",
-        })
-
-    # centers of primal-mesh edges (in degrees)
-    lonEdge = np.rad2deg(in_ds['lonEdge'].values)
-    latEdge = np.rad2deg(in_ds['latEdge'].values)
-
-    out_ds['Mesh2_edge_x'] = xr.DataArray(
-        lonEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of edge centers",
-            "units": "degrees_east",
-        })
-
-    out_ds['Mesh2_edge_y'] = xr.DataArray(
-        latEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of edge centers",
-            "units": "degrees_north",
-        })
-
-    # centers of primal-mesh edges (Cartesian)
-    xEdge = in_ds['xEdge'].values
-    yEdge = in_ds['yEdge'].values
-    zEdge = in_ds['zEdge'].values
-
-    out_ds["Mesh2_edge_cart_x"] = xr.DataArray(
-        data=xEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "x",
-            "long_name": "cartesian edge x",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_edge_cart_y"] = xr.DataArray(
-        data=yEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "y",
-            "long_name": "cartesian edge y",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_edge_cart_z"] = xr.DataArray(
-        data=zEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "z",
-            "long_name": "cartesian edge z",
-            "units": "m",
-        })
-
-    # vertex indices that surround each primal-mesh cell
-    verticesOnCell = np.array(in_ds['verticesOnCell'].values, dtype=INT_DTYPE)
-
-    nEdgesOnCell = np.array(in_ds['nEdgesOnCell'].values, dtype=INT_DTYPE)
-
-    # replace padded values with fill values
-    verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
-
-    # replace missing/zero values with fill values
-    verticesOnCell = _replace_zeros(verticesOnCell)
-
-    # convert to zero-indexed
-    verticesOnCell = _to_zero_index(verticesOnCell)
-
-    out_ds["Mesh2_face_nodes"] = xr.DataArray(
-        data=verticesOnCell,
-        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-        attrs={
-            "cf_role": "face_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "start_index": INT_DTYPE(0)
-        })
-
-    # vertex indices that saddle a given edge
-    verticesOnEdge = np.array(in_ds['verticesOnEdge'].values, dtype=INT_DTYPE)
-
-    # replace missing/zero values with fill value
-    verticesOnEdge = _replace_zeros(verticesOnEdge)
-
-    # convert to zero-indexed
-    verticesOnEdge = _to_zero_index(verticesOnEdge)
-
-    out_ds["Mesh2_edge_nodes"] = xr.DataArray(
-        data=verticesOnEdge,
-        dims=["nMesh2_edge", "Two"],
-        attrs={
-            "cf_role": "edge_node_connectivity",
-            "start_index": INT_DTYPE(0)
-        })
+    _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
 
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
@@ -243,7 +67,6 @@ def _primal_to_ugrid(in_ds, out_ds):
     source_dims_dict['nVertices'] = 'nMesh2_node'
     source_dims_dict[in_ds['verticesOnCell'].dims[0]] = 'nMesh2_face'
     source_dims_dict[in_ds['verticesOnCell'].dims[1]] = 'nMaxMesh2_face_nodes'
-    source_dims_dict[in_ds['verticesOnEdge'].dims[0]] = "nMesh2_edge"
 
     return source_dims_dict
 
@@ -275,202 +98,31 @@ def _dual_to_ugrid(in_ds, out_ds):
             "face_dimension": "nMesh2_face"
         })
 
-    # corners of dual-mesh cells (in degrees)
-    lonCell = np.rad2deg(in_ds['lonCell'].values)
-    latCell = np.rad2deg(in_ds['latCell'].values)
+    if "lonCell" in in_ds:
+        _parse_node_latlon_coords(in_ds, out_ds, "dual")
 
-    out_ds['Mesh2_node_x'] = xr.DataArray(
-        lonCell,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of mesh nodes",
-            "units": "degrees_east",
-        })
+    if "xCell" in in_ds:
+        _parse_node_xyz_coords(in_ds, out_ds, "dual")
 
-    out_ds['Mesh2_node_y'] = xr.DataArray(
-        latCell,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of mesh nodes",
-            "units": "degrees_north",
-        })
+    if "lonVertex" in in_ds:
+        _parse_face_latlon_coords(in_ds, out_ds, "dual")
 
-    # corners of dual-mesh cells (artesian)
-    xCell = in_ds['xCell'].values
-    yCell = in_ds['yCell'].values
-    zCell = in_ds['zCell'].values
+    if "xVertex" in in_ds:
+        _parse_face_xyz_coords(in_ds, out_ds, "dual")
 
-    out_ds["Mesh2_node_cart_x"] = xr.DataArray(
-        data=xCell,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "x",
-            "long_name": "cartesian node x",
-            "units": "m",
-        })
+    if "lonEdge" in in_ds:
+        _parse_edge_latlon_coords(in_ds, out_ds, "dual")
 
-    out_ds["Mesh2_node_cart_y"] = xr.DataArray(
-        data=yCell,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "y",
-            "long_name": "cartesian node y",
-            "units": "m",
-        })
+    if "xEdge" in in_ds:
+        _parse_edge_xyz_coords(in_ds, out_ds, "dual")
 
-    out_ds["Mesh2_node_cart_z"] = xr.DataArray(
-        data=zCell,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "z",
-            "long_name": "cartesian node z",
-            "units": "m",
-        })
+    _parse_face_nodes(in_ds, out_ds, "dual")
 
-    # centers of dual-mesh cells (in degrees)
-    lonVertex = np.rad2deg(in_ds['lonVertex'].values)
-    latVertex = np.rad2deg(in_ds['latVertex'].values)
+    if "cellsOnEdge" in in_ds:
+        _parse_edge_nodes(in_ds, out_ds, "primal")
+        source_dims_dict[in_ds['cellsOnEdge'].dims[0]] = "nMesh2_edge"
 
-    out_ds['Mesh2_face_x'] = xr.DataArray(
-        lonVertex,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of center nodes",
-            "units": "degrees_east",
-        })
-
-    out_ds['Mesh2_face_y'] = xr.DataArray(
-        latVertex,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of center nodes",
-            "units": "degrees_north",
-        })
-
-    # centers of dual-mesh cells (artesian)
-    xVertex = in_ds['xVertex'].values
-    yVertex = in_ds['yVertex'].values
-    zVertex = in_ds['zVertex'].values
-
-    out_ds["Mesh2_face_cart_x"] = xr.DataArray(
-        data=xVertex,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "x",
-            "long_name": "cartesian edge x",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_face_cart_y"] = xr.DataArray(
-        data=yVertex,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "y",
-            "long_name": "cartesian edge y",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_face_cart_z"] = xr.DataArray(
-        data=zVertex,
-        dims=["nMesh2_face"],
-        attrs={
-            "standard_name": "z",
-            "long_name": "cartesian edge z",
-            "units": "m",
-        })
-
-    # centers of primal-mesh edges (in degrees)
-    lonEdge = np.rad2deg(in_ds['lonEdge'].values)
-    latEdge = np.rad2deg(in_ds['latEdge'].values)
-
-    out_ds['Mesh2_edge_x'] = xr.DataArray(
-        lonEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of edge centers",
-            "units": "degrees_east",
-        })
-
-    out_ds['Mesh2_edge_y'] = xr.DataArray(
-        latEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of edge centers",
-            "units": "degrees_north",
-        })
-
-    # centers of dual-mesh edges (Cartesian)
-    xEdge = in_ds['xEdge'].values
-    yEdge = in_ds['yEdge'].values
-    zEdge = in_ds['zEdge'].values
-
-    out_ds["Mesh2_edge_cart_x"] = xr.DataArray(
-        data=xEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "x",
-            "long_name": "cartesian edge x",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_edge_cart_y"] = xr.DataArray(
-        data=yEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "y",
-            "long_name": "cartesian edge y",
-            "units": "m",
-        })
-
-    out_ds["Mesh2_edge_cart_z"] = xr.DataArray(
-        data=zEdge,
-        dims=["nMesh2_edge"],
-        attrs={
-            "standard_name": "z",
-            "long_name": "cartesian edge z",
-            "units": "m",
-        })
-
-    # vertex indices that surround each dual-mesh cell
-    cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=INT_DTYPE)
-
-    # replace missing/zero values with fill values
-    _replace_zeros(cellsOnVertex)
-
-    # convert to zero-indexed
-    _to_zero_index(cellsOnVertex)
-
-    out_ds["Mesh2_face_nodes"] = xr.DataArray(
-        data=cellsOnVertex,
-        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-        attrs={
-            "cf_role": "face_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "start_index": INT_DTYPE(0)
-        })
-
-    # vertex indices that saddle a given edge
-    cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=INT_DTYPE)
-
-    # replace missing/zero values with fill values
-    _replace_zeros(cellsOnEdge)
-
-    # convert to zero-indexed
-    _to_zero_index(cellsOnEdge)
-
-    out_ds["Mesh2_edge_nodes"] = xr.DataArray(
-        data=cellsOnEdge,
-        dims=["nMesh2_edge", "Two"],
-        attrs={
-            "cf_role": "edge_node_connectivity",
-            "start_index": INT_DTYPE(0)
-        })
+    _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
 
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
@@ -479,9 +131,298 @@ def _dual_to_ugrid(in_ds, out_ds):
     source_dims_dict[in_ds['latCell'].dims[0]] = "nMesh2_node"
     source_dims_dict[in_ds['cellsOnVertex'].dims[0]] = "nMesh2_face"
     source_dims_dict[in_ds['cellsOnVertex'].dims[1]] = "nMaxMesh2_face_nodes"
-    source_dims_dict[in_ds['cellsOnEdge'].dims[0]] = "nMesh2_edge"
 
     return source_dims_dict
+
+
+def _parse_node_latlon_coords(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        node_lon = np.rad2deg(in_ds['lonVertex'].values)
+        node_lat = np.rad2deg(in_ds['latVertex'].values)
+    else:
+        node_lon = np.rad2deg(in_ds['lonCell'].values)
+        node_lat = np.rad2deg(in_ds['latCell'].values)
+
+    out_ds['Mesh2_node_x'] = xr.DataArray(
+        node_lon,
+        dims=["nMesh2_node"],
+        attrs={
+            "standard_name": "longitude",
+            "long_name": "longitude of mesh nodes",
+            "units": "degrees_east",
+        })
+
+    out_ds['Mesh2_node_y'] = xr.DataArray(
+        node_lat,
+        dims=["nMesh2_node"],
+        attrs={
+            "standard_name": "latitude",
+            "long_name": "latitude of mesh nodes",
+            "units": "degrees_north",
+        })
+
+
+def _parse_node_xyz_coords(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        node_x = in_ds['xVertex'].values
+        node_y = in_ds['yVertex'].values
+        node_z = in_ds['zVertex'].values
+    else:
+        # corners of dual-mesh cells (artesian)
+        node_x = in_ds['xCell'].values
+        node_y = in_ds['yCell'].values
+        node_z = in_ds['zCell'].values
+
+    out_ds["Mesh2_node_cart_x"] = xr.DataArray(
+        data=node_x,
+        dims=["nMesh2_node"],
+        attrs={
+            "standard_name": "x",
+            "long_name": "cartesian node x",
+            "units": "m",
+        })
+
+    out_ds["Mesh2_node_cart_y"] = xr.DataArray(
+        data=node_y,
+        dims=["nMesh2_node"],
+        attrs={
+            "standard_name": "y",
+            "long_name": "cartesian node y",
+            "units": "m",
+        })
+
+    out_ds["Mesh2_node_cart_z"] = xr.DataArray(
+        data=node_z,
+        dims=["nMesh2_node"],
+        attrs={
+            "standard_name": "z",
+            "long_name": "cartesian node z",
+            "units": "m",
+        })
+
+
+def _parse_face_latlon_coords(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        face_lon = np.rad2deg(in_ds['lonCell'].values)
+        face_lat = np.rad2deg(in_ds['latCell'].values)
+    else:
+        face_lon = np.rad2deg(in_ds['lonVertex'].values)
+        face_lat = np.rad2deg(in_ds['latVertex'].values)
+
+    out_ds['Mesh2_face_x'] = xr.DataArray(
+        face_lon,
+        dims=["nMesh2_face"],
+        attrs={
+            "standard_name": "longitude",
+            "long_name": "longitude of center nodes",
+            "units": "degrees_east",
+        })
+
+    out_ds['Mesh2_face_y'] = xr.DataArray(
+        face_lat,
+        dims=["nMesh2_face"],
+        attrs={
+            "standard_name": "latitude",
+            "long_name": "latitude of center nodes",
+            "units": "degrees_north",
+        })
+
+
+def _parse_face_xyz_coords(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        face_x = in_ds['xCell'].values
+        face_y = in_ds['yCell'].values
+        face_z = in_ds['zCell'].values
+    else:
+        # centers of dual-mesh cells (in degrees)
+        face_x = in_ds['xVertex'].values
+        face_y = in_ds['yVertex'].values
+        face_z = in_ds['zVertex'].values
+
+    out_ds["Mesh2_face_cart_x"] = xr.DataArray(
+        data=face_x,
+        dims=["nMesh2_face"],
+        attrs={
+            "standard_name": "x",
+            "long_name": "cartesian edge x",
+            "units": "m",
+        })
+
+    out_ds["Mesh2_face_cart_y"] = xr.DataArray(
+        data=face_y,
+        dims=["nMesh2_face"],
+        attrs={
+            "standard_name": "y",
+            "long_name": "cartesian edge y",
+            "units": "m",
+        })
+
+    out_ds["Mesh2_face_cart_z"] = xr.DataArray(
+        data=face_z,
+        dims=["nMesh2_face"],
+        attrs={
+            "standard_name": "z",
+            "long_name": "cartesian edge z",
+            "units": "m",
+        })
+
+
+def _parse_edge_latlon_coords(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        edge_lon = np.rad2deg(in_ds['lonEdge'].values)
+        edge_lat = np.rad2deg(in_ds['latEdge'].values)
+    else:
+        edge_lon = np.rad2deg(in_ds['lonEdge'].values)
+        edge_lat = np.rad2deg(in_ds['latEdge'].values)
+
+    out_ds['Mesh2_edge_x'] = xr.DataArray(
+        edge_lon,
+        dims=["nMesh2_edge"],
+        attrs={
+            "standard_name": "longitude",
+            "long_name": "longitude of edge centers",
+            "units": "degrees_east",
+        })
+
+    out_ds['Mesh2_edge_y'] = xr.DataArray(
+        edge_lat,
+        dims=["nMesh2_edge"],
+        attrs={
+            "standard_name": "latitude",
+            "long_name": "latitude of edge centers",
+            "units": "degrees_north",
+        })
+
+
+def _parse_edge_xyz_coords(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        edge_x = in_ds['xEdge'].values
+        edge_y = in_ds['yEdge'].values
+        edge_z = in_ds['zEdge'].values
+    else:
+        # centers of dual-mesh edges (Cartesian)
+        edge_x = in_ds['xEdge'].values
+        edge_y = in_ds['yEdge'].values
+        edge_z = in_ds['zEdge'].values
+
+    out_ds["Mesh2_edge_cart_x"] = xr.DataArray(
+        data=edge_x,
+        dims=["nMesh2_edge"],
+        attrs={
+            "standard_name": "x",
+            "long_name": "cartesian edge x",
+            "units": "m",
+        })
+
+    out_ds["Mesh2_edge_cart_y"] = xr.DataArray(
+        data=edge_y,
+        dims=["nMesh2_edge"],
+        attrs={
+            "standard_name": "y",
+            "long_name": "cartesian edge y",
+            "units": "m",
+        })
+
+    out_ds["Mesh2_edge_cart_z"] = xr.DataArray(
+        data=edge_z,
+        dims=["nMesh2_edge"],
+        attrs={
+            "standard_name": "z",
+            "long_name": "cartesian edge z",
+            "units": "m",
+        })
+
+
+def _parse_face_nodes(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        verticesOnCell = np.array(in_ds['verticesOnCell'].values,
+                                  dtype=INT_DTYPE)
+
+        nEdgesOnCell = np.array(in_ds['nEdgesOnCell'].values, dtype=INT_DTYPE)
+
+        # replace padded values with fill values
+        verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
+
+        # replace missing/zero values with fill values
+        verticesOnCell = _replace_zeros(verticesOnCell)
+
+        # convert to zero-indexed
+        verticesOnCell = _to_zero_index(verticesOnCell)
+
+        face_nodes = verticesOnCell
+
+    else:
+        cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=INT_DTYPE)
+
+        # replace missing/zero values with fill values
+        cellsOnVertex = _replace_zeros(cellsOnVertex)
+
+        # convert to zero-indexed
+        cellsOnVertex = _to_zero_index(cellsOnVertex)
+
+        face_nodes = cellsOnVertex
+
+    out_ds["Mesh2_face_nodes"] = xr.DataArray(
+        data=face_nodes,
+        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+        attrs={
+            "cf_role": "face_node_connectivity",
+            "_FillValue": INT_FILL_VALUE,
+            "start_index": INT_DTYPE(0)
+        })
+
+
+def _parse_edge_nodes(in_ds, out_ds, mesh_type):
+    if mesh_type == "primal":
+        # vertex indices that saddle a given edge
+        verticesOnEdge = np.array(in_ds['verticesOnEdge'].values,
+                                  dtype=INT_DTYPE)
+
+        # replace missing/zero values with fill value
+        verticesOnEdge = _replace_zeros(verticesOnEdge)
+
+        # convert to zero-indexed
+        verticesOnEdge = _to_zero_index(verticesOnEdge)
+
+        edge_nodes = verticesOnEdge
+    else:
+        # vertex indices that saddle a given edge
+        cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=INT_DTYPE)
+
+        # replace missing/zero values with fill values
+        cellsOnEdge = _replace_zeros(cellsOnEdge)
+
+        # convert to zero-indexed
+        cellsOnEdge = _to_zero_index(cellsOnEdge)
+
+        edge_nodes = cellsOnEdge
+
+    out_ds["Mesh2_edge_nodes"] = xr.DataArray(
+        data=edge_nodes,
+        dims=["nMesh2_edge", "Two"],
+        attrs={
+            "cf_role": "edge_node_connectivity",
+            "start_index": INT_DTYPE(0)
+        })
+
+
+def _populate_face_mask(face_nodes, out_ds):
+    n, m = face_nodes.shape
+
+    # create a mask for Fill Values that are not followed by another Fill Value
+    not_followed_by_fill = (face_nodes == INT_FILL_VALUE) & (np.roll(
+        face_nodes, shift=-1, axis=1) != INT_FILL_VALUE)
+
+    # create a mask for Fill Values that are not the final entry in each row
+    row_contains_fill = (face_nodes == INT_FILL_VALUE).cumsum(axis=1) > 0
+    not_final_entry = row_contains_fill & (np.roll(
+        row_contains_fill, shift=-1, axis=1) == False)
+
+    fill_mask = np.any(not_followed_by_fill | not_final_entry, axis=1)
+
+    out_ds['Mesh2_face_mask'] = xr.DataArray(fill_mask)
+
+    return fill_mask
 
 
 def _set_global_attrs(in_ds, out_ds):

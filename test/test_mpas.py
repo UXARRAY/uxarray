@@ -17,7 +17,12 @@ class TestMPAS(TestCase):
 
     # sample mpas dataset
     mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
-    mpas_xr_ds = xr.open_dataset(mpas_grid_path)
+    mpas_xr_ds = xr.open_dataset(mpas_grid_path)\
+
+    mpas_doubly_periodic = current_path / 'meshfiles' / "mpas" / "doubly_periodic" / 'doubly_periodic_0.5km_2x64km_planar.160120.nc'
+    mpas_xr_dp_ds = xr.open_dataset(mpas_doubly_periodic)
+
+    mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.230422.nc'
 
     # fill value (remove once there is a unified approach in uxarray)
     fv = INT_FILL_VALUE
@@ -36,8 +41,13 @@ class TestMPAS(TestCase):
     def test_primal_to_ugrid_conversion(self):
         """Verifies that the Primal-Mesh was converted properly."""
 
-        # primal-mesh encoded in the UGRID conventions
-        ds, _ = _read_mpas(self.mpas_xr_ds, use_dual=False)
+        for path in [
+                self.mpas_grid_path, self.mpas_doubly_periodic,
+                self.mpas_ocean_mesh
+        ]:
+            # dual-mesh encoded in the UGRID conventions
+            uxgrid = ux.open_grid(path, use_dual=False)
+            ds = uxgrid._ds
 
         # check for correct dimensions
         expected_ugrid_dims = [
@@ -59,23 +69,29 @@ class TestMPAS(TestCase):
     def test_dual_to_ugrid_conversion(self):
         """Verifies that the Dual-Mesh was converted properly."""
 
-        # dual-mesh encoded in the UGRID conventions
-        ds, _ = _read_mpas(self.mpas_xr_ds, use_dual=True)
+        for path in [
+                self.mpas_grid_path, self.mpas_doubly_periodic,
+                self.mpas_ocean_mesh
+        ]:
 
-        # check for correct dimensions
-        expected_ugrid_dims = [
-            'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
-        ]
-        for dim in expected_ugrid_dims:
-            assert dim in ds.sizes
+            # dual-mesh encoded in the UGRID conventions
+            uxgrid = ux.open_grid(path, use_dual=True)
+            ds = uxgrid._ds
 
-        # check for correct length of coordinates
-        assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
-        assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
+            # check for correct dimensions
+            expected_ugrid_dims = [
+                'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
+            ]
+            for dim in expected_ugrid_dims:
+                assert dim in ds.sizes
 
-        # check for correct shape of face nodes
-        nMesh2_face = ds.sizes['nMesh2_face']
-        assert ds['Mesh2_face_nodes'].shape == (nMesh2_face, 3)
+            # check for correct length of coordinates
+            assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
+            assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
+
+            # check for correct shape of face nodes
+            nMesh2_face = ds.sizes['nMesh2_face']
+            assert ds['Mesh2_face_nodes'].shape == (nMesh2_face, 3)
 
     def test_add_fill_values(self):
         """Test _add_fill_values() implementation, output should be both be
