@@ -28,6 +28,7 @@ from uxarray.grid.coordinates import (_populate_lonlat_coord,
 from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
+                                   _grid_to_matplotlib_linecollection,
                                    _grid_to_polygons)
 
 from uxarray.grid.neighbors import BallTree
@@ -113,6 +114,7 @@ class Grid:
         # initialize cached data structures (visualization)
         self._gdf = None
         self._poly_collection = None
+        self._line_collection = None
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -651,52 +653,6 @@ class Grid:
 
         return self._face_areas
 
-    # TODO: Make a decision on whether to provide Dataset- or DataArray-specific
-    # functions from within Grid
-    # def integrate(self, var_ds, quadrature_rule="triangular", order=4):
-    #     """Integrates a xarray.Dataset over all the faces of the given mesh.
-    #
-    #     Parameters
-    #     ----------
-    #     var_ds : Xarray dataset, required
-    #         Xarray dataset containing values to integrate on this grid
-    #     quadrature_rule : str, optional
-    #         Quadrature rule to use. Defaults to "triangular".
-    #     order : int, optional
-    #         Order of quadrature rule. Defaults to 4.
-    #
-    #     Returns
-    #     -------
-    #     Calculated integral : float
-    #
-    #     Examples
-    #     --------
-    #     Open grid file only
-    #
-    #     >>> xr_grid = xr.open_dataset("grid.ug")
-    #     >>> grid = ux.Grid.(xr_grid)
-    #     >>> var_ds = xr.open_dataset("centroid_pressure_data_ug")
-    #
-    #     # Compute the integral
-    #     >>> integral_psi = grid.integrate(var_ds)
-    #     """
-    #     integral = 0.0
-    #
-    #     # call function to get area of all the faces as a np array
-    #     face_areas = self.compute_face_areas(quadrature_rule, order)
-    #
-    #     var_key = list(var_ds.keys())
-    #     if len(var_key) > 1:
-    #         # warning: print message
-    #         print(
-    #             "WARNING: The xarray dataset file has more than one variable, using the first variable for integration"
-    #         )
-    #     var_key = var_key[0]
-    #     face_vals = var_ds[var_key].to_numpy()
-    #     integral = np.dot(face_areas, face_vals)
-    #
-    #     return integral
-
     def to_geodataframe(self,
                         override: Optional[bool] = False,
                         cache: Optional[bool] = True,
@@ -769,6 +725,38 @@ class Grid:
             self._poly_collection = poly_collection
 
         return poly_collection, corrected_to_original_faces
+
+    def to_linecollection(self,
+                          override: Optional[bool] = False,
+                          cache: Optional[bool] = True):
+        """Constructs a ``matplotlib.collections.LineCollection`` object with
+        line segments representing the geometry of the unstructured grid,
+        corrected near the antimeridian.
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``LineCollection`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``LineCollection`` should be cached
+
+        Returns
+        -------
+        line_collection : matplotlib.collections.LineCollection
+            The output `LineCollection` containing faces represented as polygons
+        """
+
+        # use cached line collection
+        if self._line_collection is not None and not override:
+            return self._line_collection
+
+        line_collection = _grid_to_matplotlib_linecollection(self)
+
+        # cache computed line collection
+        if cache:
+            self._line_collection = line_collection
+
+        return line_collection
 
     def to_shapely_polygons(self,
                             correct_antimeridian_polygons: Optional[bool] = True
