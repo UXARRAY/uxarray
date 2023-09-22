@@ -28,6 +28,7 @@ from uxarray.grid.coordinates import (_populate_lonlat_coord,
 from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
+                                   _grid_to_matplotlib_linecollection,
                                    _grid_to_polygons)
 
 from uxarray.grid.neighbors import BallTree
@@ -113,6 +114,7 @@ class Grid:
         # initialize cached data structures (visualization)
         self._gdf = None
         self._poly_collection = None
+        self._line_collection = None
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -723,6 +725,38 @@ class Grid:
             self._poly_collection = poly_collection
 
         return poly_collection, corrected_to_original_faces
+
+    def to_linecollection(self,
+                          override: Optional[bool] = False,
+                          cache: Optional[bool] = True):
+        """Constructs a ``matplotlib.collections.LineCollection`` object with
+        line segments representing the geometry of the unstructured grid,
+        corrected near the antimeridian.
+
+        Parameters
+        ----------
+        override : bool
+            Flag to recompute the ``LineCollection`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``LineCollection`` should be cached
+
+        Returns
+        -------
+        line_collection : matplotlib.collections.LineCollection
+            The output `LineCollection` containing faces represented as polygons
+        """
+
+        # use cached line collection
+        if self._line_collection is not None and not override:
+            return self._line_collection
+
+        line_collection = _grid_to_matplotlib_linecollection(self)
+
+        # cache computed line collection
+        if cache:
+            self._line_collection = line_collection
+
+        return line_collection
 
     def to_shapely_polygons(self,
                             correct_antimeridian_polygons: Optional[bool] = True
