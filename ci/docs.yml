@@ -33,3 +33,4 @@ dependencies:
     - pandas<2.1.0
     - pip:
       - antimeridian
+      - pyfma

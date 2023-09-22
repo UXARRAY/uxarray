@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 import xarray as xr
 import numpy as np
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from uxarray.grid import Grid
+import uxarray.core.dataset
+
+if TYPE_CHECKING:
+    from uxarray.core.dataarray import UxDataArray
+    from uxarray.core.dataset import UxDataset
 
 
 class UxDataArray(xr.DataArray):
@@ -96,6 +103,11 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
+
+    def to_dataset(self) -> UxDataset:
+        """Convert a UxDataArray to a UxDataset."""
+        xrds = super().to_dataset()
+        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
     def to_geodataframe(self,
                         override=False,
@@ -206,3 +218,58 @@ class UxDataArray(xr.DataArray):
             raise ValueError(
                 f"Data Variable with size {self.data.size} does not match the number of faces "
                 f"({self.uxgrid.nMesh2_face}.")
+
+    def integrate(self,
+                  quadrature_rule: Optional[str] = "triangular",
+                  order: Optional[int] = 4) -> UxDataArray:
+        """Computes the integral of a data variable residing on an unstructured
+        grid.
+
+        Parameters
+        ----------
+        quadrature_rule : str, optional
+            Quadrature rule to use. Defaults to "triangular".
+        order : int, optional
+            Order of quadrature rule. Defaults to 4.
+
+        Returns
+        -------
+        uxda : UxDataArray
+            UxDataArray containing the integrated data variable
+
+        Examples
+        --------
+        >>> import uxarray as ux
+        >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
+
+        # Compute the integral
+        >>> integral = uxds['psi'].integrate()
+        """
+        if self.data.shape[-1] == self.uxgrid.nMesh2_face:
+            face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
+
+            # perform dot product between face areas and last dimension of data
+            integral = np.einsum('i,...i', face_areas, self.data)
+
+        elif self.data.shape[-1] == self.uxgrid.nMesh2_node:
+            raise ValueError(
+                "Integrating data mapped to each node not yet supported.")
+
+        elif self.data.shape[-1] == self.uxgrid.nMesh2_edge:
+            raise ValueError(
+                "Integrating data mapped to each edge not yet supported.")
+
+        else:
+            raise ValueError(
+                f"The final dimension of the data variable does not match the number of nodes, edges, "
+                f"or faces. Expected one of "
+                f"{self.uxgrid.nMesh2_face}, {self.uxgrid.nMesh2_edge}, or {self.uxgrid.nMesh2_face}, "
+                f"but received {self.data.shape[-1]}")
+
+        # construct a uxda with integrated quantity
+        uxda = UxDataArray(integral,
+                           uxgrid=self.uxgrid,
+                           dims=self.dims[:-1],
+                           name=self.name)
+
+        return uxda

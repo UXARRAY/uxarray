@@ -7,6 +7,8 @@ import uxarray as ux
 
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 
+from uxarray.core.dataset import UxDataset
+
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
@@ -17,6 +19,17 @@ dsfiles_mf_ne30 = str(
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
+
+
+class TestDataArray(TestCase):
+
+    def test_to_dataset(self):
+        """Tests the conversion of UxDataArrays to a UXDataset."""
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        uxds_converted = uxds['psi'].to_dataset()
+
+        assert isinstance(uxds_converted, UxDataset)
+        assert uxds_converted.uxgrid == uxds.uxgrid
 
 
 class TestGeometryConversions(TestCase):
