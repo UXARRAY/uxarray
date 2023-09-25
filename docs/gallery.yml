@@ -17,3 +17,7 @@
 - title: Conversion to GeoDataFrame for Visualization with HoloViz Packages
   path: examples/005-to-geodataframe-for-holoviz.ipynb
   thumbnail: _static/thumbnails/005-thumbnail.png
+
+- title: Conversion to PolyCollection & LineCollection for Visualization with Matplotlib
+  path: examples/006-conversion-to-pc-lc-for-mpl.ipynb
+  thumbnail: _static/thumbnails/005-thumbnail.png
