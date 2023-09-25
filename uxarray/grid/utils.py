@@ -2,8 +2,8 @@ import numpy as np
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
-    """Replaces all instances of the the current fill value (``original_fill``)
-    in (``grid_var``) with (``new_fill``) and converts to the dtype defined by
+    """Replaces all instances of the current fill value (``original_fill``) in
+    (``grid_var``) with (``new_fill``) and converts to the dtype defined by
     (``new_dtype``)
 
     Parameters
