@@ -359,8 +359,8 @@ class Grid:
 
     @property
     def Mesh2_node_x(self) -> xr.DataArray:
-        """UGRID Coordinate Variable ``Mesh2_node_x``, which contains the
-        longitude of each node in degrees.
+        """Coordinate ``Mesh2_node_x``, which contains the longitude of each
+        node in degrees.
 
         Dimensions (``nMesh2_node``)
         """
@@ -370,8 +370,8 @@ class Grid:
 
     @property
     def Mesh2_node_cart_x(self) -> xr.DataArray:
-        """Coordinate Variable ``Mesh2_node_cart_x``, which contains the x
-        location in meters.
+        """Coordinate ``Mesh2_node_cart_x``, which contains the Cartesian x of
+        each node in meters.
 
         Dimensions (``nMesh2_node``)
         """
@@ -382,8 +382,8 @@ class Grid:
 
     @property
     def Mesh2_face_x(self) -> xr.DataArray:
-        """UGRID Coordinate Variable ``Mesh2_face_x``, which contains the
-        longitude of each face center.
+        """Coordinate ``Mesh2_face_x``, which contains the longitude of each
+        face center in degrees.
 
         Dimensions (``nMesh2_face``)
         """
@@ -394,6 +394,11 @@ class Grid:
 
     @property
     def Mesh2_face_cart_x(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_face_cart_x``, which contains the Cartesian y of
+        each face center.
+
+        Dimensions (``nMesh2_face``)
+        """
         if "Mesh2_face_cart_x" in self._ds:
             return self._ds["Mesh2_face_cart_x"]
         else:
@@ -401,6 +406,11 @@ class Grid:
 
     @property
     def Mesh2_edge_x(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_edge_x``, which contains the longitude of the
+        center of each edge.
+
+        Dimensions (``nMesh2_edge``)
+        """
         if "Mesh2_edge_x" in self._ds:
             return self._ds["Mesh2_edge_x"]
         else:
@@ -408,6 +418,11 @@ class Grid:
 
     @property
     def Mesh2_edge_cart_x(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_edge_cart_x``, which contains the Cartesian x
+        location of each edge center.
+
+        Dimensions (``nMesh2_edge``)
+        """
         if "Mesh2_edge_cart_x" in self._ds:
             return self._ds["Mesh2_edge_cart_x"]
         else:
@@ -415,8 +430,8 @@ class Grid:
 
     @property
     def Mesh2_node_y(self) -> xr.DataArray:
-        """UGRID Coordinate Variable ``Mesh2_node_y``, which contains the
-        latitude of each node.
+        """Coordinate ``Mesh2_node_y``, which contains the latitude of each
+        node in degrees.
 
         Dimensions (``nMesh2_node``)
         """
@@ -427,8 +442,8 @@ class Grid:
 
     @property
     def Mesh2_node_cart_y(self) -> xr.DataArray:
-        """Coordinate Variable ``Mesh2_node_cart_y``, which contains the y
-        location in meters.
+        """Coordinate ``Mesh2_node_cart_y``, which contains the Cartesian y
+        location of each node in meters.
 
         Dimensions (``nMesh2_node``)
         """
@@ -438,8 +453,8 @@ class Grid:
 
     @property
     def Mesh2_face_y(self) -> xr.DataArray:
-        """UGRID Coordinate Variable ``Mesh2_face_y``, which contains the
-        latitude of each face center.
+        """Coordinate ``Mesh2_face_y``, which contains the latitude of each
+        face center in degrees.
 
         Dimensions (``nMesh2_face``)
         """
@@ -450,6 +465,11 @@ class Grid:
 
     @property
     def Mesh2_face_cart_y(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_face_cart_y``, which contains the Cartesian y
+        location of each face center in meters.
+
+        Dimensions (``nMesh2_face``)
+        """
         if "Mesh2_face_cart_y" in self._ds:
             return self._ds["Mesh2_face_cart_y"]
         else:
@@ -457,6 +477,11 @@ class Grid:
 
     @property
     def Mesh2_edge_y(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_node_cart_z``, which contains the latitude on
+        each edge center in degrees.
+
+        Dimensions (``nMesh2_edge``)
+        """
         if "Mesh2_edge_y" in self._ds:
             return self._ds["Mesh2_edge_y"]
         else:
@@ -464,6 +489,11 @@ class Grid:
 
     @property
     def Mesh2_edge_cart_y(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_edge_cart_y``, which contains the Cartesian y
+        location of each edge center in meters.
+
+        Dimensions (``nMesh2_edge``)
+        """
         if "Mesh2_edge_cart_y" in self._ds:
             return self._ds["Mesh2_edge_cart_y"]
         else:
@@ -471,8 +501,8 @@ class Grid:
 
     @property
     def Mesh2_node_cart_z(self) -> xr.DataArray:
-        """Coordinate Variable ``Mesh2_node_cart_z``, which contains the z
-        location in meters.
+        """Coordinate ``Mesh2_node_cart_z``, which contains the Cartesian z
+        location of each node in meters.
 
         Dimensions (``nMesh2_node``)
         """
@@ -482,6 +512,11 @@ class Grid:
 
     @property
     def Mesh2_face_cart_z(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_face_cart_z``, which contains the Cartesian z
+        location of each face center in meters.
+
+        Dimensions (``nMesh2_face``)
+        """
         if "Mesh2_face_cart_z" in self._ds:
             return self._ds["Mesh2_face_cart_z"]
         else:
@@ -489,6 +524,11 @@ class Grid:
 
     @property
     def Mesh2_edge_cart_z(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_edge_cart_z``, which contains the Cartesian z
+        location of each edge center in meters.
+
+        Dimensions (``nMesh2_edge``)
+        """
         if "Mesh2_edge_cart_z" in self._ds:
             return self._ds["Mesh2_edge_cart_z"]
         else:
@@ -570,6 +610,10 @@ class Grid:
 
     @property
     def Mesh2_edge_node_distances(self):
+        """Contains the distance between the nodes that saddle a given edge.
+
+        Dimensions (``nMesh2_edge``) and DataType float.
+        """
         if "Mesh2_edge_node_distances" in self._ds:
             return self._ds["Mesh2_edge_node_distances"]
         else:
@@ -577,6 +621,10 @@ class Grid:
 
     @property
     def Mesh2_edge_face_distances(self):
+        """Contains the distance between the faces that saddle a given edge.
+
+        Dimensions (``nMesh2_edge``) and DataType float.
+        """
         if "Mesh2_edge_face_distances" in self._ds:
             return self._ds["Mesh2_edge_face_distances"]
         else:
