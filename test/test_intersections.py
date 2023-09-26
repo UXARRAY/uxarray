@@ -24,7 +24,7 @@ class TestGCAGCAIntersection(TestCase):
         ])
         res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
 
-        # res_cart should be [-1, -1, -1] since these two GCRs are not intersecting
+        # res_cart should be empty since these two GCRs are not intersecting
         self.assertTrue(np.array_equal(res_cart, np.array([])))
 
         GCR1_cart = np.array([
@@ -39,6 +39,12 @@ class TestGCAGCAIntersection(TestCase):
         ])
 
         res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
+
+        # Test if the result is normalized
+        self.assertTrue(
+            np.allclose(np.linalg.norm(res_cart, axis=0),
+                        1.0,
+                        atol=ERROR_TOLERANCE))
         res_lonlat_rad = node_xyz_to_lonlat_rad(res_cart.tolist())
 
         # res_cart should be [170, 0]
@@ -58,7 +64,7 @@ class TestGCAGCAIntersection(TestCase):
             node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0.0])
         ])
         res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
-        self.assertTrue(np.allclose(res_cart, 0.0))
+        self.assertTrue(np.array_equal(res_cart, np.array([])))
 
     def test_get_GCA_GCA_intersections_perpendicular(self):
         # Test the case where the two GCAs are perpendicular to each other
@@ -73,6 +79,12 @@ class TestGCAGCAIntersection(TestCase):
             node_lonlat_rad_to_xyz([-0.5 * np.pi - 0.01, 0.0])
         ])
         res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
+
+        # Test if the result is normalized
+        self.assertTrue(
+            np.allclose(np.linalg.norm(res_cart, axis=0),
+                        1.0,
+                        atol=ERROR_TOLERANCE))
         res_lonlat_rad = node_xyz_to_lonlat_rad(res_cart.tolist())
         self.assertTrue(
             np.allclose(res_lonlat_rad,
