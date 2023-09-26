@@ -71,6 +71,7 @@ IO
 .. autosummary::
    :toctree: _autosummary
 
+   UxDataArray.to_dataset
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
 
@@ -80,6 +81,13 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
    UxDataArray.uxgrid
+
+Methods
+-------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.integrate
 
 
 
@@ -109,6 +117,7 @@ IO
    Grid.from_face_vertices
    Grid.to_geodataframe
    Grid.to_polycollection
+   Grid.to_linecollection
    Grid.to_shapely_polygons
 
 
