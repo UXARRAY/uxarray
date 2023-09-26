@@ -61,7 +61,7 @@ def _primal_to_ugrid(in_ds, out_ds):
     _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
 
     # set global attributes
-    _set_global_attrs(in_ds, out_ds)
+    _parse_global_attrs(in_ds, out_ds)
 
     # populate source dims
     source_dims_dict['nVertices'] = 'nMesh2_node'
@@ -125,7 +125,7 @@ def _dual_to_ugrid(in_ds, out_ds):
     _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
 
     # set global attributes
-    _set_global_attrs(in_ds, out_ds)
+    _parse_global_attrs(in_ds, out_ds)
 
     # populate source dims
     source_dims_dict[in_ds['latCell'].dims[0]] = "nMesh2_node"
@@ -136,6 +136,8 @@ def _dual_to_ugrid(in_ds, out_ds):
 
 
 def _parse_node_latlon_coords(in_ds, out_ds, mesh_type):
+    """Parses cartesian corner node coordinates for either the Primal or Dual
+    Mesh."""
     if mesh_type == "primal":
         node_lon = np.rad2deg(in_ds['lonVertex'].values)
         node_lat = np.rad2deg(in_ds['latVertex'].values)
@@ -163,6 +165,8 @@ def _parse_node_latlon_coords(in_ds, out_ds, mesh_type):
 
 
 def _parse_node_xyz_coords(in_ds, out_ds, mesh_type):
+    """Parses cartesian corner node coordinates for either the Primal or Dual
+    Mesh."""
     if mesh_type == "primal":
         node_x = in_ds['xVertex'].values
         node_y = in_ds['yVertex'].values
@@ -202,6 +206,8 @@ def _parse_node_xyz_coords(in_ds, out_ds, mesh_type):
 
 
 def _parse_face_latlon_coords(in_ds, out_ds, mesh_type):
+    """Parses latlon face center coordinates for either the Primal or Dual
+    Mesh."""
     if mesh_type == "primal":
         face_lon = np.rad2deg(in_ds['lonCell'].values)
         face_lat = np.rad2deg(in_ds['latCell'].values)
@@ -229,6 +235,8 @@ def _parse_face_latlon_coords(in_ds, out_ds, mesh_type):
 
 
 def _parse_face_xyz_coords(in_ds, out_ds, mesh_type):
+    """Parses cartesian face center coordinates for either the Primal or Dual
+    Mesh."""
     if mesh_type == "primal":
         face_x = in_ds['xCell'].values
         face_y = in_ds['yCell'].values
@@ -268,6 +276,8 @@ def _parse_face_xyz_coords(in_ds, out_ds, mesh_type):
 
 
 def _parse_edge_latlon_coords(in_ds, out_ds, mesh_type):
+    """Parses latlon edge node coordinates for either the Primal or Dual
+    Mesh."""
     if mesh_type == "primal":
         edge_lon = np.rad2deg(in_ds['lonEdge'].values)
         edge_lat = np.rad2deg(in_ds['latEdge'].values)
@@ -295,6 +305,8 @@ def _parse_edge_latlon_coords(in_ds, out_ds, mesh_type):
 
 
 def _parse_edge_xyz_coords(in_ds, out_ds, mesh_type):
+    """Parses cartesian edge node coordinates for either the Primal or Dual
+    Mesh."""
     if mesh_type == "primal":
         edge_x = in_ds['xEdge'].values
         edge_y = in_ds['yEdge'].values
@@ -334,6 +346,7 @@ def _parse_edge_xyz_coords(in_ds, out_ds, mesh_type):
 
 
 def _parse_face_nodes(in_ds, out_ds, mesh_type):
+    """Parses face node connectivity for either the Primal or Dual Mesh."""
     if mesh_type == "primal":
         verticesOnCell = np.array(in_ds['verticesOnCell'].values,
                                   dtype=INT_DTYPE)
@@ -373,6 +386,7 @@ def _parse_face_nodes(in_ds, out_ds, mesh_type):
 
 
 def _parse_edge_nodes(in_ds, out_ds, mesh_type):
+    """Parses edge node connectivity for either the Primal or Dual Mesh."""
     if mesh_type == "primal":
         # vertex indices that saddle a given edge
         verticesOnEdge = np.array(in_ds['verticesOnEdge'].values,
@@ -407,6 +421,8 @@ def _parse_edge_nodes(in_ds, out_ds, mesh_type):
 
 
 def _populate_face_mask(face_nodes, out_ds):
+    """Constructs ``Mesh2_face_mask``, which indicates which faces should be
+    masked to adhere with the UGRID conventions."""
     n, m = face_nodes.shape
 
     # create a mask for Fill Values that are not followed by another Fill Value
@@ -420,62 +436,23 @@ def _populate_face_mask(face_nodes, out_ds):
 
     fill_mask = np.any(not_followed_by_fill | not_final_entry, axis=1)
 
-    out_ds['Mesh2_face_mask'] = xr.DataArray(fill_mask)
+    out_ds['Mesh2_face_mask'] = xr.DataArray(fill_mask, dims={"nMesh2_face"})
 
     return fill_mask
 
 
-def _set_global_attrs(in_ds, out_ds):
-    """Helper to set MPAS global attributes.
+def _parse_global_attrs(in_ds, out_ds):
+    """Helper to parse MPAS global attributes.
 
     Parameters
     ----------
     in_ds : xarray.Dataset
         Input MPAS dataset
     out_ds : xarray.Dataset
-        Output dataset where the MPAS Primal-Mesh is encoded in the UGRID
-        conventions with global attributes included
+        Output UGRID dataset with parsed global attributes
     """
 
-    # defines if the mesh describes points that lie on the surface of a sphere or not
-    if 'sphere_radius' in in_ds.attrs:
-        out_ds.attrs['sphere_radius'] = in_ds.sphere_radius
-    else:
-        warnings.warn("Missing Required Attribute: 'sphere_radius'")
-
-    # typically a random string used for tracking mesh provenance
-    if 'mesh_id' in in_ds.attrs:
-        out_ds.attrs['mesh_id'] = in_ds.mesh_id
-    # else:
-    #     warnings.warn("Missing Required Attribute: 'mesh_id'")
-
-    # defines the version of the MPAS Mesh specification the mesh conforms to
-    if 'mesh_spec' in in_ds.attrs:
-        out_ds.attrs['mesh_spec'] = in_ds.mesh_spec
-    # else:
-    #     warnings.warn("Missing Required Attribute: 'mesh_spec'")
-
-    # defines if the mesh describes points that lie on the surface of a sphere or not
-    if "on_a_sphere" in in_ds.attrs:
-        out_ds.attrs['on_a_sphere'] = in_ds.on_a_sphere
-        # required attributes if mesh does not lie on a sphere
-        if in_ds.on_a_sphere == "NO":
-            # defines if the mesh has any periodic boundaries
-            if "is_periodic" in in_ds.attrs:
-                out_ds.attrs['is_periodic'] = in_ds.is_periodic
-                if in_ds.is_periodic == "YES":
-                    # period of the mesh in the x direction
-                    if "x_period" in in_ds.attrs:
-                        out_ds.attrs['x_period'] = in_ds.x_period
-                    else:
-                        warnings.warn("Missing Required Attribute: 'x_period'")
-                    # period of the mesh in the y direction
-                    if "y_period" in in_ds.attrs:
-                        out_ds.attrs['y_period'] = in_ds.y_period
-                    else:
-                        warnings.warn("Missing Required Attribute: 'y_period'")
-    else:
-        warnings.warn("Missing Required Attribute: 'on_a_sphere'")
+    out_ds.attrs = in_ds.attrs
 
 
 def _replace_padding(verticesOnCell, nEdgesOnCell):

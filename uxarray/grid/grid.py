@@ -566,6 +566,12 @@ class Grid:
             self.compute_face_areas()
         return self._face_areas
 
+    def Mesh2_face_distances(self):
+        pass
+
+    def Mesh2_edge_distances(self):
+        pass
+
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
