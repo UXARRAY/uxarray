@@ -22,7 +22,7 @@ def _primal_to_ugrid(in_ds, out_ds):
 
     source_dims_dict = {}
 
-    # set mesh topologys
+    # set mesh topology ?
     out_ds["Mesh2"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
@@ -54,9 +54,17 @@ def _primal_to_ugrid(in_ds, out_ds):
 
     _parse_face_nodes(in_ds, out_ds, "primal")
 
+    _parse_node_faces(in_ds, out_ds, "primal")
+
     if "verticesOnEdge" in in_ds:
         _parse_edge_nodes(in_ds, out_ds, "primal")
         source_dims_dict[in_ds['verticesOnEdge'].dims[0]] = "nMesh2_edge"
+
+    if "dvEdge" in in_ds:
+        _parse_edge_node_distances(in_ds, out_ds)
+
+    if "dcEdge" in in_ds:
+        _parse_edge_face_distances(in_ds, out_ds)
 
     _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
 
@@ -118,9 +126,17 @@ def _dual_to_ugrid(in_ds, out_ds):
 
     _parse_face_nodes(in_ds, out_ds, "dual")
 
+    _parse_node_faces(in_ds, out_ds, "dual")
+
     if "cellsOnEdge" in in_ds:
         _parse_edge_nodes(in_ds, out_ds, "primal")
         source_dims_dict[in_ds['cellsOnEdge'].dims[0]] = "nMesh2_edge"
+
+    if "dvEdge" in in_ds:
+        _parse_edge_node_distances(in_ds, out_ds)
+
+    if "dcEdge" in in_ds:
+        _parse_edge_face_distances(in_ds, out_ds)
 
     _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
 
@@ -418,6 +434,101 @@ def _parse_edge_nodes(in_ds, out_ds, mesh_type):
             "cf_role": "edge_node_connectivity",
             "start_index": INT_DTYPE(0)
         })
+
+
+def _parse_node_faces(in_ds, out_ds, mesh_type):
+    """Parses node face connectivity for either the Primal or Dual Mesh."""
+    if mesh_type == "primal":
+        cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=INT_DTYPE)
+
+        # replace missing/zero values with fill values
+        cellsOnVertex = _replace_zeros(cellsOnVertex)
+
+        # convert to zero-indexed
+        cellsOnVertex = _to_zero_index(cellsOnVertex)
+
+        node_faces = cellsOnVertex
+    else:
+        verticesOnCell = np.array(in_ds['verticesOnCell'].values,
+                                  dtype=INT_DTYPE)
+
+        nEdgesOnCell = np.array(in_ds['nEdgesOnCell'].values, dtype=INT_DTYPE)
+
+        # replace padded values with fill values
+        verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
+
+        # replace missing/zero values with fill values
+        verticesOnCell = _replace_zeros(verticesOnCell)
+
+        # convert to zero-indexed
+        verticesOnCell = _to_zero_index(verticesOnCell)
+
+        node_faces = verticesOnCell
+
+    out_ds["Mesh2_node_faces"] = xr.DataArray(
+        data=node_faces,
+        dims=["nMesh2_node", "nMaxNumFacesPerNode"],
+        attrs={
+            "cf_role": "node_face_connectivity",
+            "start_index": INT_DTYPE(0)
+        })
+
+
+def _parse_face_edges(in_ds, out_ds, mesh_type):
+    """Parses face node connectivity for either the Primal or Dual Mesh."""
+    if mesh_type == "primal":
+        edgesOnCell = np.array(in_ds['edgesOnCell'].values, dtype=INT_DTYPE)
+
+        nEdgesOnCell = np.array(in_ds['nEdgesOnCell'].values, dtype=INT_DTYPE)
+
+        # replace padded values with fill values
+        verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
+
+        # replace missing/zero values with fill values
+        verticesOnCell = _replace_zeros(verticesOnCell)
+
+        # convert to zero-indexed
+        verticesOnCell = _to_zero_index(verticesOnCell)
+
+        face_edges = None
+
+    else:
+        cellsOnVertex = np.array(in_ds['cellsOnVertex'].values, dtype=INT_DTYPE)
+
+        # replace missing/zero values with fill values
+        cellsOnVertex = _replace_zeros(cellsOnVertex)
+
+        # convert to zero-indexed
+        cellsOnVertex = _to_zero_index(cellsOnVertex)
+
+        face_edges = None
+
+    out_ds["Mesh2_face_edges"] = xr.DataArray(
+        data=face_edges,
+        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],  # TODO
+        attrs={
+            "cf_role": "face_node_connectivity",
+            "_FillValue": INT_FILL_VALUE,
+            "start_index": INT_DTYPE(0)
+        })
+
+
+def _parse_edge_node_distances(in_ds, out_ds):
+    edge_node_distances = in_ds['dvEdge'].values
+
+    out_ds["Mesh2_edge_node_distances"] = xr.DataArray(
+        data=edge_node_distances,
+        dims=["nMesh2_edge"],
+        attrs={"start_index": INT_DTYPE(0)})
+
+
+def _parse_edge_face_distances(in_ds, out_ds):
+    edge_face_distances = in_ds['dcEdge'].values
+
+    out_ds["Mesh2_edge_face_distances"] = xr.DataArray(
+        data=edge_face_distances,
+        dims=["nMesh2_edge"],
+        attrs={"start_index": INT_DTYPE(0)})
 
 
 def _populate_face_mask(face_nodes, out_ds):

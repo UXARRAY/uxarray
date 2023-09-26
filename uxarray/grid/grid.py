@@ -35,6 +35,8 @@ from uxarray.grid.neighbors import BallTree
 
 from warnings import warn
 
+from uxarray.grid.accessor import some_coord
+
 
 class Grid:
     """Represents a two-dimensional unstructured grid encoded following the
@@ -566,11 +568,19 @@ class Grid:
             self.compute_face_areas()
         return self._face_areas
 
-    def Mesh2_face_distances(self):
-        pass
+    @property
+    def Mesh2_edge_node_distances(self):
+        if "Mesh2_edge_node_distances" in self._ds:
+            return self._ds["Mesh2_edge_node_distances"]
+        else:
+            return None
 
-    def Mesh2_edge_distances(self):
-        pass
+    @property
+    def Mesh2_edge_face_distances(self):
+        if "Mesh2_edge_face_distances" in self._ds:
+            return self._ds["Mesh2_edge_face_distances"]
+        else:
+            return None
 
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
