@@ -1,5 +1,5 @@
 import numpy as np
-
+from uxarray.constants import ERROR_TOLERANCE
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
@@ -121,6 +121,28 @@ def cross_fma(v1, v2):
     y = _fmms(v1[2], v2[0], v1[0], v2[2])
     z = _fmms(v1[0], v2[1], v1[1], v2[0])
     return np.array([x, y, z])
+
+def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
+    # d_dx = (x0 * x_i_old - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0 - y1 * y_i_old * z0)
+    # d_dy = 2 * (x0 * x_i_old * z1 - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0)
+    #
+    # # row 1
+    # J[0, 0] = y_i_old / d_dx
+    # J[0, 1] = (x0 * z1 - z0 * x1) / d_dy
+    # # row 2
+    # J[1, 0] = x_i_old / d_dx
+    # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
+
+    # The Jacobian Matrix
+    jacobian = [[_fmms(y0, z1, z0, y1), _fmms(x0, z1, z0, x1)],
+                [2 * x_i_old, 2 * y_i_old]]
+    try:
+        inverse_jacobian = np.linalg.inv(jacobian)
+    except np.linalg.LinAlgError:
+        print("Warning: Singular Jacobian matrix encountered.")
+        return None
+
+    return inverse_jacobian
 
 def _newton_raphson_solver_for_gca_constLat(init_cart, gca_cart, max_iter=1000, verbose=False):
     """
