@@ -49,6 +49,13 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset.nearest_neighbor_remap
+
 
 UxDataArray
 ===========
@@ -88,6 +95,13 @@ Methods
    :toctree: _autosummary
 
    UxDataArray.integrate
+
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.nearest_neighbor_remap
 
 
 
