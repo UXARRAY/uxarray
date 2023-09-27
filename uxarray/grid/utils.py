@@ -121,3 +121,48 @@ def cross_fma(v1, v2):
     y = _fmms(v1[2], v2[0], v1[0], v2[2])
     z = _fmms(v1[0], v2[1], v1[1], v2[0])
     return np.array([x, y, z])
+
+def _newton_raphson_solver_for_gca_constLat(init_cart, gca_cart, max_iter=1000, verbose=False):
+    """
+    Solve for the intersection point between a great circle arc and a constant latitude.
+
+    Args:
+        init_cart (np.ndarray): Initial guess for the intersection point.
+        w0_cart (np.ndarray): First vector defining the great circle arc.
+        w1_cart (np.ndarray): Second vector defining the great circle arc.
+        max_iter (int, optional): Maximum number of iterations. Defaults to 1000.
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+
+    Returns:
+        np.ndarray or None: The intersection point or None if the solver fails to converge.
+    """
+    tolerance = ERROR_TOLERANCE
+    w0_cart, w1_cart = gca_cart
+    error = float('inf')
+    constZ = init_cart[2]
+    y_guess = np.array(init_cart[0:2])
+    y_new = y_guess
+
+    _iter = 0
+
+    while error > tolerance and _iter < max_iter:
+        f_vector = np.array([
+            np.dot(np.cross(w0_cart, w1_cart), np.array([y_guess[0], y_guess[1], constZ])),
+            y_guess[0] * y_guess[0] + y_guess[1] * y_guess[1] + constZ * constZ - 1.0
+        ])
+
+        j_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2], y_guess[0],
+                                 y_guess[1])
+
+        if j_inv is None:
+            return None
+
+        y_new = y_guess - np.matmul(j_inv, f_vector)
+        error = np.max(np.abs(y_guess - y_new))
+        y_guess = y_new
+
+        if verbose:
+            print(f"Newton method iter: {_iter}, error: {error}")
+        _iter += 1
+
+    return np.append(y_new, constZ)
