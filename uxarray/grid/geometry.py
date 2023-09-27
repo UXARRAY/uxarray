@@ -25,13 +25,22 @@ def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     import antimeridian
     from shapely import polygons as Polygons
 
+    # TODO
+    if "Mesh2_face_mask" in grid._ds:
+        mask = grid.Mesh2_face_mask.values
+        face_nodes = grid.Mesh2_face_nodes.values[mask]
+        n_nodes_per_face = grid.nNodes_per_face.values[mask]
+        n_face = len(face_nodes)
+    else:
+        face_nodes = grid.Mesh2_face_nodes.values
+        n_nodes_per_face = grid.nNodes_per_face.values
+        n_face = grid.nMesh2_face
+
     # obtain polygon shells for shapely polygon construction
     polygon_shells = _build_polygon_shells(grid.Mesh2_node_x.values,
-                                           grid.Mesh2_node_y.values,
-                                           grid.Mesh2_face_nodes.values,
-                                           grid.nMesh2_face,
-                                           grid.nMaxMesh2_face_nodes,
-                                           grid.nNodes_per_face.values)
+                                           grid.Mesh2_node_y.values, face_nodes,
+                                           n_face, grid.nMaxMesh2_face_nodes,
+                                           n_nodes_per_face)
 
     # list of shapely Polygons representing each face in our grid
     polygons = Polygons(polygon_shells)
@@ -165,12 +174,22 @@ def _build_antimeridian_face_indices(grid):
     antimeridian_face_indices : np.ndarray
         Array containing Shapely Polygons
     """
+    # TODO
+    if "Mesh2_face_mask" in grid._ds:
+        mask = grid.Mesh2_face_mask.values
+        face_nodes = grid.Mesh2_face_nodes.values[mask]
+        n_nodes_per_face = grid.nNodes_per_face.values[mask]
+        n_face = len(face_nodes)
+    else:
+        face_nodes = grid.Mesh2_face_nodes.values
+        n_nodes_per_face = grid.nNodes_per_face.values
+        n_face = grid.nMesh2_face
+
+    # obtain polygon shells for shapely polygon construction
     polygon_shells = _build_polygon_shells(grid.Mesh2_node_x.values,
-                                           grid.Mesh2_node_y.values,
-                                           grid.Mesh2_face_nodes.values,
-                                           grid.nMesh2_face,
-                                           grid.nMaxMesh2_face_nodes,
-                                           grid.nNodes_per_face.values)
+                                           grid.Mesh2_node_y.values, face_nodes,
+                                           n_face, grid.nMaxMesh2_face_nodes,
+                                           n_nodes_per_face)
 
     antimeridian_face_indices = np.argwhere(
         np.any(np.abs(np.diff(polygon_shells[:, :, 0])) >= 180, axis=1))

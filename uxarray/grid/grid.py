@@ -633,6 +633,16 @@ class Grid:
         else:
             return None
 
+    @property
+    def Mesh2_face_mask(self):
+        """Contains a mask which, when used to index ``Mesh2_face_nodes``,
+        returns all valid faces, excluding those that may be invalid after
+        parsing."""
+        if "Mesh2_face_mask" in self._ds:
+            return self._ds["Mesh2_face_mask"]
+        else:
+            return None
+
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
@@ -772,9 +782,6 @@ class Grid:
         # TODO: we dont really need this, but keep for now
         dim = self.Mesh2.attrs['topology_dimension']
 
-        nNodes_per_face = self.nNodes_per_face.data
-        face_nodes = self.Mesh2_face_nodes.data
-
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float
         # if not (int etc.), convert to float, this is to avoid numba errors
@@ -782,9 +789,20 @@ class Grid:
                    if not np.issubdtype(arr[0], np.floating) else arr
                    for arr in (x, y, z))
 
+        # TODO
+        if self.Mesh2_face_mask is not None:
+            mask = self.Mesh2_face_mask.values
+            face_nodes = self.Mesh2_face_nodes.values[mask]
+            n_nodes_per_face = self.nNodes_per_face.values[mask]
+            n_face = len(face_nodes)
+        else:
+            face_nodes = self.Mesh2_face_nodes.values
+            n_nodes_per_face = self.nNodes_per_face.values
+            n_face = self.nMesh2_face
+
         # call function to get area of all the faces as a np array
         self._face_areas = get_all_face_area_from_coords(
-            x, y, z, face_nodes, nNodes_per_face, dim, quadrature_rule, order,
+            x, y, z, face_nodes, n_nodes_per_face, dim, quadrature_rule, order,
             coords_type)
 
         return self._face_areas

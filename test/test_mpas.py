@@ -19,7 +19,7 @@ class TestMPAS(TestCase):
     mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
     mpas_xr_ds = xr.open_dataset(mpas_grid_path)\
 
-    mpas_doubly_periodic = current_path / 'meshfiles' / "mpas" / "doubly_periodic" / 'doubly_periodic_0.5km_2x64km_planar.160120.nc'
+    mpas_doubly_periodic = current_path / 'meshfiles' / "mpas" / "doubly_periodic" / 'doubly_periodic_10km_160x500km_planar.151001.nc'
     mpas_xr_dp_ds = xr.open_dataset(mpas_doubly_periodic)
 
     mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.230422.nc'
@@ -141,3 +141,9 @@ class TestMPAS(TestCase):
         # check if all expected attributes are set
         for mpas_attr in expected_attrs:
             assert mpas_attr in uxgrid._ds.attrs
+
+    def test_face_mask(self):
+        primal_uxgrid = ux.open_grid(self.mpas_ocean_mesh, use_dual=False)
+        dual_uxgrid = ux.open_grid(self.mpas_ocean_mesh, use_dual=True)
+
+        pass

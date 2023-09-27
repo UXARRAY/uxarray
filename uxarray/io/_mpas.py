@@ -394,8 +394,8 @@ def _parse_face_nodes(in_ds, out_ds, mesh_type):
                                   "_FillValue": INT_FILL_VALUE,
                                   "start_index": INT_DTYPE(0)
                               })
-
-    faces_nodes = _mask_invalid_cells(face_nodes)
+    if mesh_type == "dual":
+        _mask_invalid_cells(face_nodes.values, out_ds)
 
     out_ds["Mesh2_face_nodes"] = face_nodes
 
@@ -473,6 +473,7 @@ def _parse_node_faces(in_ds, out_ds, mesh_type):
         })
 
 
+# TODO
 def _parse_face_edges(in_ds, out_ds, mesh_type):
     """Parses face node connectivity for either the Primal or Dual Mesh."""
     if mesh_type == "primal":
@@ -530,16 +531,15 @@ def _parse_edge_face_distances(in_ds, out_ds):
         attrs={"start_index": INT_DTYPE(0)})
 
 
-def _mask_invalid_cells(face_nodes):
-    mask, n_cells = _construct_face_mask(face_nodes.values)
+def _mask_invalid_cells(face_nodes, out_ds):
+    mask, n_cells = _construct_face_mask(face_nodes)
 
     if n_cells != 0:
-        face_nodes = face_nodes.assign_attrs(face_mask=mask)
         warnings.warn(
             "Invalid faces encountered in Mesh2_face_nodes. Refer to Mesh2_face_nodes.face_mask to mask"
             "any invalid entries.")
 
-    return face_nodes
+        out_ds["Mesh2_face_mask"] = xr.DataArray(mask)
 
 
 def _construct_face_mask(face_nodes):
@@ -565,6 +565,8 @@ def _construct_face_mask(face_nodes):
 
     face_mask = np.any(not_followed_by_fill | not_final_entry, axis=1)
     n_invalid_faces = np.count_nonzero(face_mask)
+
+    face_mask = np.invert(face_mask)
 
     return face_mask, n_invalid_faces
 
