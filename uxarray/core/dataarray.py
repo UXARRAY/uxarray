@@ -231,6 +231,18 @@ class UxDataArray(xr.DataArray):
                                                       UxDataset],
                                destination_data_mapping: str = "nodes",
                                coord_type: str = "lonlat"):
+        """Nearest Neighbor Remapping between a source (``UxDataArray``) and
+        destination.`.
+
+        Parameters
+        ---------
+        destination_obj : Grid, UxDataArray, UxDataset
+            Destination for remapping
+        destination_data_mapping : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        coord_type : str, default="lonlat"
+            Indicates whether to remap using on latlon or cartesian coordinates
+        """
 
         return _nearest_neighbor_uxda(self, destination_obj,
                                       destination_data_mapping, coord_type)
