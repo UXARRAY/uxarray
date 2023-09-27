@@ -239,12 +239,17 @@ class Grid:
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
-        if "Mesh2_face_nodes" in self._ds:
-            connectivity_str += f"  * Mesh2_face_nodes: {self.Mesh2_face_nodes.shape}\n"
+        if "Mesh2_node_faces" in self._ds:
+            connectivity_str += f"  * Mesh2_node_faces: {self.Mesh2_node_faces.shape}\n"
+
         if "Mesh2_edge_nodes" in self._ds:
             connectivity_str += f"  * Mesh2_edge_nodes: {self.Mesh2_edge_nodes.shape}\n"
+
+        if "Mesh2_face_nodes" in self._ds:
+            connectivity_str += f"  * Mesh2_face_nodes: {self.Mesh2_face_nodes.shape}\n"
         if "Mesh2_face_edges" in self._ds:
             connectivity_str += f"  * Mesh2_face_edges: {self.Mesh2_face_edges.shape}\n"
+
         connectivity_str += f"  * nNodes_per_face: {self.nNodes_per_face.shape}\n"
 
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \

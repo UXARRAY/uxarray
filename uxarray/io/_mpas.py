@@ -66,8 +66,6 @@ def _primal_to_ugrid(in_ds, out_ds):
     if "dcEdge" in in_ds:
         _parse_edge_face_distances(in_ds, out_ds)
 
-    _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
-
     # set global attributes
     _parse_global_attrs(in_ds, out_ds)
 
@@ -137,8 +135,6 @@ def _dual_to_ugrid(in_ds, out_ds):
 
     if "dcEdge" in in_ds:
         _parse_edge_face_distances(in_ds, out_ds)
-
-    _populate_face_mask(out_ds["Mesh2_face_nodes"].values, out_ds)
 
     # set global attributes
     _parse_global_attrs(in_ds, out_ds)
@@ -391,14 +387,17 @@ def _parse_face_nodes(in_ds, out_ds, mesh_type):
 
         face_nodes = cellsOnVertex
 
-    out_ds["Mesh2_face_nodes"] = xr.DataArray(
-        data=face_nodes,
-        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
-        attrs={
-            "cf_role": "face_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "start_index": INT_DTYPE(0)
-        })
+    face_nodes = xr.DataArray(data=face_nodes,
+                              dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+                              attrs={
+                                  "cf_role": "face_node_connectivity",
+                                  "_FillValue": INT_FILL_VALUE,
+                                  "start_index": INT_DTYPE(0)
+                              })
+
+    faces_nodes = _mask_invalid_cells(face_nodes)
+
+    out_ds["Mesh2_face_nodes"] = face_nodes
 
 
 def _parse_edge_nodes(in_ds, out_ds, mesh_type):
@@ -531,9 +530,28 @@ def _parse_edge_face_distances(in_ds, out_ds):
         attrs={"start_index": INT_DTYPE(0)})
 
 
-def _populate_face_mask(face_nodes, out_ds):
-    """Constructs ``Mesh2_face_mask``, which indicates which faces should be
-    masked to adhere with the UGRID conventions."""
+def _mask_invalid_cells(face_nodes):
+    mask, n_cells = _construct_face_mask(face_nodes.values)
+
+    if n_cells != 0:
+        face_nodes = face_nodes.assign_attrs(face_mask=mask)
+        warnings.warn(
+            "Invalid faces encountered in Mesh2_face_nodes. Refer to Mesh2_face_nodes.face_mask to mask"
+            "any invalid entries.")
+
+    return face_nodes
+
+
+def _construct_face_mask(face_nodes):
+    """Constructs a mask into ``Mesh2_face_nodes`` indicating which cells do
+    not ahere to the UGRID conventions (i.e. have a FILL_VALUE that's not
+    followed by another fill or isn't the final entry in the connectivity
+    array).
+
+    These faces typically either have missing values, or have less than
+    3 nodes.
+    """
+
     n, m = face_nodes.shape
 
     # create a mask for Fill Values that are not followed by another Fill Value
@@ -545,11 +563,10 @@ def _populate_face_mask(face_nodes, out_ds):
     not_final_entry = row_contains_fill & (np.roll(
         row_contains_fill, shift=-1, axis=1) == False)
 
-    fill_mask = np.any(not_followed_by_fill | not_final_entry, axis=1)
+    face_mask = np.any(not_followed_by_fill | not_final_entry, axis=1)
+    n_invalid_faces = np.count_nonzero(face_mask)
 
-    out_ds['Mesh2_face_mask'] = xr.DataArray(fill_mask, dims={"nMesh2_face"})
-
-    return fill_mask
+    return face_mask, n_invalid_faces
 
 
 def _parse_global_attrs(in_ds, out_ds):
