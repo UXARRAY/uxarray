@@ -35,8 +35,6 @@ from uxarray.grid.neighbors import BallTree
 
 from warnings import warn
 
-from uxarray.grid.accessor import some_coord
-
 
 class Grid:
     """Represents a two-dimensional unstructured grid encoded following the
