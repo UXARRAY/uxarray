@@ -789,7 +789,7 @@ class Grid:
                    if not np.issubdtype(arr[0], np.floating) else arr
                    for arr in (x, y, z))
 
-        # TODO
+        # Mask out invalid faces
         if self.Mesh2_face_mask is not None:
             mask = self.Mesh2_face_mask.values
             face_nodes = self.Mesh2_face_nodes.values[mask]

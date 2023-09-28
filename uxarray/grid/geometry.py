@@ -25,7 +25,7 @@ def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     import antimeridian
     from shapely import polygons as Polygons
 
-    # TODO
+    # Mask out invalid faces
     if "Mesh2_face_mask" in grid._ds:
         mask = grid.Mesh2_face_mask.values
         face_nodes = grid.Mesh2_face_nodes.values[mask]
@@ -174,7 +174,7 @@ def _build_antimeridian_face_indices(grid):
     antimeridian_face_indices : np.ndarray
         Array containing Shapely Polygons
     """
-    # TODO
+    # Mask out invalid faces
     if "Mesh2_face_mask" in grid._ds:
         mask = grid.Mesh2_face_mask.values
         face_nodes = grid.Mesh2_face_nodes.values[mask]
