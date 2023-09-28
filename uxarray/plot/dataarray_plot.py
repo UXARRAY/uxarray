@@ -1,33 +1,57 @@
 from __future__ import annotations
 
+import matplotlib
+
 from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
 
 def plot(uxda, **kwargs):
+    """Default Plotting Method for UxDataArray."""
     return raster(uxda, **kwargs)
 
 
 def raster(uxda: UxDataArray,
            plot_height: Optional[int] = 300,
            plot_width: Optional[int] = 600,
-           cmap: Optional[str] = "blue",
+           x_range: Optional[tuple] = (-180, 180),
+           y_range: Optional[tuple] = (-90, 90),
+           cmap: Optional[str] = "inferno",
            agg: Optional[str] = "mean"):
-    """TODO: Docstring & additional params"""
+    """Renders a Raster Plot of an Unstructured Grid Data Variable.
+
+    Parameters
+    ----------
+    plot_width, plot_height : int, optional
+       Width and height of the output aggregate in pixels.
+    x_range, y_range : tuple, optional
+       A tuple representing the bounds inclusive space ``[min, max]`` along
+       the axis.
+    cmap: str, optional
+        Colormap used for shading
+    agg : str, optional
+        Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
+    """
     import datashader as ds
     import datashader.transfer_functions as tf
 
-    cvs = ds.Canvas(plot_width, plot_height)
+    cvs = ds.Canvas(plot_width, plot_height, x_range, y_range)
     gdf = uxda.to_geodataframe()
+
     if agg == "mean":
-        aggregated = cvs.polygons(gdf,
-                                  geometry='geometry',
-                                  agg=ds.mean(uxda.name))
+        _agg = ds.mean
     elif agg == "sum":
-        aggregated = cvs.polygons(gdf,
-                                  geometry='geometry',
-                                  agg=ds.sum(uxda.name))
+        _agg = ds.sum
     else:
-        raise ValueError
-    return tf.shade(aggregated, cmap=cmap)
+        raise ValueError("Invalid agg")
+
+    aggregated = cvs.polygons(gdf, geometry='geometry', agg=_agg(uxda.name))
+
+    # support mpl colormaps
+    try:
+        _cmap = matplotlib.colormaps[cmap]
+    except KeyError:
+        _cmap = cmap
+
+    return tf.shade(aggregated, cmap=_cmap)

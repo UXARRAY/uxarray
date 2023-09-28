@@ -17,6 +17,8 @@ from uxarray.plot.accessor import UxDatasetPlotAccessor
 
 from xarray.core.utils import UncachedAccessor
 
+from warnings import warn
+
 
 class UxDataset(xr.Dataset):
     """A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
@@ -289,6 +291,14 @@ class UxDataset(xr.Dataset):
         # Compute the integral
         >>> integral = uxds.integrate()
         """
+
+        # TODO: Deprecation Warning
+        warn(
+            "This method currently only works when there is a single DataArray in this Dataset. For integration of a "
+            "single data variable, use the UxDataArray.integrate() method instead. This function will be deprecated and "
+            "replaced with one that can perform a Dataset-wide integration in a future release.",
+            DeprecationWarning)
+
         integral = 0.0
 
         # call function to get area of all the faces as a np array

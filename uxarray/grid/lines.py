@@ -16,7 +16,7 @@ def _to_list(obj):
     return obj
 
 
-def point_within_GCA(pt, gca_cart):
+def point_within_gca(pt, gca_cart):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
 

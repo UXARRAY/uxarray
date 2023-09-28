@@ -49,11 +49,26 @@ class UxDataArrayPlotAccessor:
     def raster(self,
                plot_height: Optional[int] = 300,
                plot_width: Optional[int] = 600,
-               cmap: Optional[str] = "blue",
-               agg: Optional[str] = "mean"):  # TODO: return hint
-        """TODO: Docstring & additional params"""
-        return dataarray_plot.raster(self._uxda, plot_height, plot_width, cmap,
-                                     agg)
+               x_range: Optional[tuple] = (-180, 180),
+               y_range: Optional[tuple] = (-90, 90),
+               cmap: Optional[str] = "inferno",
+               agg: Optional[str] = "mean"):
+        """Renders a Raster Plot of an Unstructured Grid Data Variable.
+
+        Parameters
+        ----------
+        plot_width, plot_height : int, optional
+           Width and height of the output aggregate in pixels.
+        x_range, y_range : tuple, optional
+           A tuple representing the bounds inclusive space ``[min, max]`` along
+           the axis.
+        cmap: str, optional
+            Colormap used for shading
+        agg : str, optional
+            Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
+        """
+        return dataarray_plot.raster(self._uxda, plot_height, plot_width,
+                                     x_range, y_range, cmap, agg)
 
 
 class UxDatasetPlotAccessor:

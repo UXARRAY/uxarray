@@ -71,6 +71,7 @@ IO
 .. autosummary::
    :toctree: _autosummary
 
+   UxDataArray.to_dataset
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
 
@@ -80,6 +81,13 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
    UxDataArray.uxgrid
+
+Methods
+-------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.integrate
 
 
 
@@ -109,6 +117,7 @@ IO
    Grid.from_face_vertices
    Grid.to_geodataframe
    Grid.to_polycollection
+   Grid.to_linecollection
    Grid.to_shapely_polygons
 
 
@@ -212,7 +221,21 @@ Lines
    :toctree: _autosummary
 
    grid.lines.in_between
-   grid.lines.point_within_GCA
+   grid.lines.point_within_gca
+
+Intersections
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.intersections.gca_gca_intersection
+
+Utils
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.utils.cross_fma
 
 Numba
 -----
