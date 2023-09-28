@@ -49,6 +49,13 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset.plot
+
 
 UxDataArray
 ===========
@@ -88,6 +95,14 @@ Methods
    :toctree: _autosummary
 
    UxDataArray.integrate
+
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.plot
+   UxDataArray.plot.raster
 
 
 
@@ -161,6 +176,14 @@ Attributes
    Grid.antimeridian_face_indices
    Grid.corner_node_balltree
    Grid.center_node_balltree
+
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.plot
+
 
 
 Nearest Neighbors
