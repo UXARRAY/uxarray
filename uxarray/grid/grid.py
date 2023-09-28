@@ -794,11 +794,9 @@ class Grid:
             mask = self.Mesh2_face_mask.values
             face_nodes = self.Mesh2_face_nodes.values[mask]
             n_nodes_per_face = self.nNodes_per_face.values[mask]
-            n_face = len(face_nodes)
         else:
             face_nodes = self.Mesh2_face_nodes.values
             n_nodes_per_face = self.nNodes_per_face.values
-            n_face = self.nMesh2_face
 
         # call function to get area of all the faces as a np array
         self._face_areas = get_all_face_area_from_coords(

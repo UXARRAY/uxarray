@@ -473,7 +473,7 @@ def _parse_node_faces(in_ds, out_ds, mesh_type):
         })
 
 
-# TODO
+# TODO ~~~~~
 def _parse_face_edges(in_ds, out_ds, mesh_type):
     """Parses face node connectivity for either the Primal or Dual Mesh."""
     if mesh_type == "primal":
@@ -532,12 +532,14 @@ def _parse_edge_face_distances(in_ds, out_ds):
 
 
 def _mask_invalid_cells(face_nodes, out_ds):
+    """Set up ``Mesh2_face_mask``"""
     mask, n_cells = _construct_face_mask(face_nodes)
 
     if n_cells != 0:
         warnings.warn(
-            "Invalid faces encountered in Mesh2_face_nodes. Refer to Mesh2_face_nodes.face_mask to mask"
-            "any invalid entries.")
+            "One or more invalid face encountered in Mesh2_face_nodes. This may be due to parsing cells that "
+            "have one or more node excluded for the connectivity array. Refer to Grid.Mesh2_face_mask"
+            "to see which faces are being masked out")
 
         out_ds["Mesh2_face_mask"] = xr.DataArray(mask)
 
@@ -549,7 +551,8 @@ def _construct_face_mask(face_nodes):
     array).
 
     These faces typically either have missing values, or have less than
-    3 nodes.
+    3 nodes. They are commonly encountered in the dual of an ocean mesh
+    around land borders.
     """
 
     n, m = face_nodes.shape

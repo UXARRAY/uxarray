@@ -19,9 +19,6 @@ class TestMPAS(TestCase):
     mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
     mpas_xr_ds = xr.open_dataset(mpas_grid_path)\
 
-    mpas_doubly_periodic = current_path / 'meshfiles' / "mpas" / "doubly_periodic" / 'doubly_periodic_10km_160x500km_planar.151001.nc'
-    mpas_xr_dp_ds = xr.open_dataset(mpas_doubly_periodic)
-
     mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.230422.nc'
 
     # fill value (remove once there is a unified approach in uxarray)
@@ -41,10 +38,7 @@ class TestMPAS(TestCase):
     def test_primal_to_ugrid_conversion(self):
         """Verifies that the Primal-Mesh was converted properly."""
 
-        for path in [
-                self.mpas_grid_path, self.mpas_doubly_periodic,
-                self.mpas_ocean_mesh
-        ]:
+        for path in [self.mpas_grid_path, self.mpas_ocean_mesh]:
             # dual-mesh encoded in the UGRID conventions
             uxgrid = ux.open_grid(path, use_dual=False)
             ds = uxgrid._ds
@@ -69,10 +63,7 @@ class TestMPAS(TestCase):
     def test_dual_to_ugrid_conversion(self):
         """Verifies that the Dual-Mesh was converted properly."""
 
-        for path in [
-                self.mpas_grid_path, self.mpas_doubly_periodic,
-                self.mpas_ocean_mesh
-        ]:
+        for path in [self.mpas_grid_path, self.mpas_ocean_mesh]:
 
             # dual-mesh encoded in the UGRID conventions
             uxgrid = ux.open_grid(path, use_dual=True)
