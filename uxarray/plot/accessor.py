@@ -21,17 +21,9 @@ class GridPlotAccessor:
     def __init__(self, uxgrid: Grid) -> None:
         self._uxgrid = uxgrid
 
-    @functools.wraps(grid_plot.plot)
     def __call__(self, **kwargs) -> Any:
-        return grid_plot.plot(self._uxgrid, **kwargs)
-
-    @functools.wraps(grid_plot.nodes)
-    def nodes(self, **kwargs):
-        return grid_plot.nodes(self._uxgrid, **kwargs)
-
-    @functools.wraps(grid_plot.edges)
-    def edges(self, **kwargs):
-        return grid_plot.edges(self._uxgrid, **kwargs)
+        warnings.warn("Plotting for UxDataset instances not yet supported.")
+        pass
 
 
 class UxDataArrayPlotAccessor:
