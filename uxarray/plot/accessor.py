@@ -15,6 +15,8 @@ import uxarray.plot.dataarray_plot as dataarray_plot
 
 
 class GridPlotAccessor:
+    """Plotting Accessor for Grid, accessed through ``Grid.plot()`` or
+    ``Grid.plot.specific_routine()``"""
     _uxgrid: Grid
     __slots__ = ("_uxgrid",)
 
@@ -27,6 +29,8 @@ class GridPlotAccessor:
 
 
 class UxDataArrayPlotAccessor:
+    """Plotting Accessor for UxDataArray, accessed through
+    ``UxDataArray.plot()`` or ``UxDataArray.plot.specific_routine()``"""
     _uxda: UxDataArray
     __slots__ = ("_uxda",)
 
@@ -62,8 +66,13 @@ class UxDataArrayPlotAccessor:
         return dataarray_plot.raster(self._uxda, plot_height, plot_width,
                                      x_range, y_range, cmap, agg)
 
+    def polygons(self, *args, **kwargs):
+        pass
+
 
 class UxDatasetPlotAccessor:
+    """Plotting Accessor for UxDataset, accessed through ``UxDataset.plot()``
+    or ``UxDataset.plot.specific_routine()``"""
     _uxds: UxDataset
     __slots__ = ("_uxds",)
 
