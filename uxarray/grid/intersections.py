@@ -116,9 +116,13 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
     return res
 
-def gca_constLat_intersection(gca_cart, constLat, fma_disabled=False, verbose=False):
-    """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a constant latitude line in a
-    Cartesian coordinate system.
+
+def gca_constLat_intersection(gca_cart,
+                              constLat,
+                              fma_disabled=False,
+                              verbose=False):
+    """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
+    constant latitude line in a Cartesian coordinate system.
 
     To reduce relative errors, the Fused Multiply-Add (FMA) operation is utilized.
     A warning is raised if the given coordinates are not in the cartesian coordinates, or
@@ -147,11 +151,11 @@ def gca_constLat_intersection(gca_cart, constLat, fma_disabled=False, verbose=Fa
     n = cross_fma(x1, x2)
     nx, ny, nz = n
 
-    s_tilde = np.sqrt(nx ** 2 + ny ** 2 - np.linalg.norm(n) ** 2 * constZ ** 2)
-    p1_x = -(1.0 / (nx ** 2 + ny ** 2)) * (constZ * nx * nz + s_tilde * ny)
-    p2_x = -(1.0 / (nx ** 2 + ny ** 2)) * (constZ * nx * nz - s_tilde * ny)
-    p1_y = -(1.0 / (nx ** 2 + ny ** 2)) * (constZ * ny * nz - s_tilde * nx)
-    p2_y = -(1.0 / (nx ** 2 + ny ** 2)) * (constZ * ny * nz + s_tilde * nx)
+    s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n)**2 * constZ**2)
+    p1_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz + s_tilde * ny)
+    p2_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz - s_tilde * ny)
+    p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
+    p2_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz + s_tilde * nx)
 
     p1 = np.array([p1_x, p1_y, constZ])
     p2 = np.array([p2_x, p2_y, constZ])
@@ -159,10 +163,14 @@ def gca_constLat_intersection(gca_cart, constLat, fma_disabled=False, verbose=Fa
     # Now test which intersection point is within the GCA range
     res = np.array([])
     if point_within_gca(p1, gca_cart):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(p1, gca_cart, verbose=verbose)
+        converged_pt = _newton_raphson_solver_for_gca_constLat(p1,
+                                                               gca_cart,
+                                                               verbose=verbose)
         return converged_pt
     elif point_within_gca(p2, gca_cart):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(p2, gca_cart, verbose=verbose)
+        converged_pt = _newton_raphson_solver_for_gca_constLat(p2,
+                                                               gca_cart,
+                                                               verbose=verbose)
         return converged_pt
 
     return res

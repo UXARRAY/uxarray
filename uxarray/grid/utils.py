@@ -1,6 +1,7 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
 
+
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
     (``grid_var``) with (``new_fill``) and converts to the dtype defined by
@@ -122,6 +123,7 @@ def cross_fma(v1, v2):
     z = _fmms(v1[0], v2[1], v1[1], v2[0])
     return np.array([x, y, z])
 
+
 def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # d_dx = (x0 * x_i_old - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0 - y1 * y_i_old * z0)
     # d_dy = 2 * (x0 * x_i_old * z1 - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0)
@@ -134,8 +136,8 @@ def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
     # The Jacobian Matrix
-    jacobian = [[_fmms(y0, z1, z0, y1), _fmms(x0, z1, z0, x1)],
-                [2 * x_i_old, 2 * y_i_old]]
+    jacobian = [[_fmms(y0, z1, z0, y1),
+                 _fmms(x0, z1, z0, x1)], [2 * x_i_old, 2 * y_i_old]]
     try:
         inverse_jacobian = np.linalg.inv(jacobian)
     except np.linalg.LinAlgError:
@@ -144,9 +146,13 @@ def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
 
     return inverse_jacobian
 
-def _newton_raphson_solver_for_gca_constLat(init_cart, gca_cart, max_iter=1000, verbose=False):
-    """
-    Solve for the intersection point between a great circle arc and a constant latitude.
+
+def _newton_raphson_solver_for_gca_constLat(init_cart,
+                                            gca_cart,
+                                            max_iter=1000,
+                                            verbose=False):
+    """Solve for the intersection point between a great circle arc and a
+    constant latitude.
 
     Args:
         init_cart (np.ndarray): Initial guess for the intersection point.
@@ -169,12 +175,14 @@ def _newton_raphson_solver_for_gca_constLat(init_cart, gca_cart, max_iter=1000, 
 
     while error > tolerance and _iter < max_iter:
         f_vector = np.array([
-            np.dot(np.cross(w0_cart, w1_cart), np.array([y_guess[0], y_guess[1], constZ])),
-            y_guess[0] * y_guess[0] + y_guess[1] * y_guess[1] + constZ * constZ - 1.0
+            np.dot(np.cross(w0_cart, w1_cart),
+                   np.array([y_guess[0], y_guess[1],
+                             constZ])), y_guess[0] * y_guess[0] +
+            y_guess[1] * y_guess[1] + constZ * constZ - 1.0
         ])
 
-        j_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1], w0_cart[2], w1_cart[2], y_guess[0],
-                                 y_guess[1])
+        j_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1],
+                               w0_cart[2], w1_cart[2], y_guess[0], y_guess[1])
 
         if j_inv is None:
             return None

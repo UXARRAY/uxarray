@@ -91,6 +91,7 @@ class TestGCAGCAIntersection(TestCase):
                         np.array([np.deg2rad(170.0),
                                   np.deg2rad(0.0)])))
 
+
 class TestGCAconstLatIntersection(TestCase):
 
     def test_GCA_constLat_intersections_antimeridian(self):
@@ -101,7 +102,9 @@ class TestGCAconstLatIntersection(TestCase):
                                     np.deg2rad(10.0)])
         ])
 
-        res = gca_constLat_intersection(GCR1_cart, np.deg2rad(60.0), verbose=True)
+        res = gca_constLat_intersection(GCR1_cart,
+                                        np.deg2rad(60.0),
+                                        verbose=True)
         res_lonlat_rad = node_xyz_to_lonlat_rad(res.tolist())
         self.assertTrue(
             np.allclose(res_lonlat_rad,
