@@ -1,12 +1,21 @@
+from __future__ import annotations
+
 import numpy as np
 import xarray as xr
 
 import sys
 
-from typing import Optional, IO
+from typing import Optional, IO, TYPE_CHECKING
 
-from uxarray.core.dataarray import UxDataArray
+# if TYPE_CHECKING:
+#     from uxarray.core.dataarray import UxDataArray
+#     from uxarray.grid import Grid
 from uxarray.grid import Grid
+from uxarray.core.dataarray import UxDataArray
+
+from uxarray.plot.accessor import UxDatasetPlotAccessor
+
+from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
 
@@ -61,6 +70,9 @@ class UxDataset(xr.Dataset):
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
+
+    # declare plotting accessor
+    plot = UncachedAccessor(UxDatasetPlotAccessor)
 
     def __getitem__(self, key):
         """Override to make sure the result is an instance of
