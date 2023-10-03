@@ -43,6 +43,7 @@ class UxDataArrayPlotAccessor:
 
     @functools.wraps(dataarray_plot.datashade)
     def datashade(self,
+                  *args,
                   method: Optional[str] = "polygon",
                   plot_height: Optional[int] = 300,
                   plot_width: Optional[int] = 600,
@@ -68,7 +69,7 @@ class UxDataArrayPlotAccessor:
         agg : str, optional
             Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
         """
-        return dataarray_plot.datashade(self._uxda, method, plot_height,
+        return dataarray_plot.datashade(self._uxda, *args, method, plot_height,
                                         plot_width, x_range, y_range, cmap, agg,
                                         **kwargs)
 

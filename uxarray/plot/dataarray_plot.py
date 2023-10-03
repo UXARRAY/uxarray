@@ -13,6 +13,7 @@ def plot(uxda, **kwargs):
 
 
 def datashade(uxda: UxDataArray,
+              *args,
               method: Optional[str] = "polygon",
               plot_height: Optional[int] = 300,
               plot_width: Optional[int] = 600,
