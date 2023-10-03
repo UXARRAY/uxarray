@@ -117,6 +117,8 @@ Geometry
    grid.geometry._build_corrected_polygon_shells
    grid.geometry._build_antimeridian_face_indices
    grid.geometry._grid_to_polygon_geodataframe
+   grid.geometry._grid_to_matplotlib_polycollection
+   grid.geometry._grid_to_matplotlib_linecollection
 
 Coordinates
 -----------
@@ -136,6 +138,12 @@ Lines
 
    grid.lines._angle_of_2_vectors
 
+Utils
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.utils._fmms
 
 Grid Parsing and Encoding
 =========================
