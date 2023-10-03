@@ -122,7 +122,8 @@ class Grid:
     @classmethod
     def from_dataset(cls,
                      dataset: xr.Dataset,
-                     use_dual: Optional[bool] = False):
+                     use_dual: Optional[bool] = False,
+                     construct_face_mask: Optional[bool] = False):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
         Parameters
@@ -131,6 +132,8 @@ class Grid:
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        construct_face_mask: bool, default=False
+            Selects whether to attempt to construct ``Mesh2_face_mask``
         """
         if not isinstance(dataset, xr.Dataset):
             raise ValueError("Input must be an xarray.Dataset")
@@ -145,7 +148,10 @@ class Grid:
         elif source_grid_spec == "UGRID":
             grid_ds, source_dims_dict = _read_ugrid(dataset)
         elif source_grid_spec == "MPAS":
-            grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+            grid_ds, source_dims_dict = _read_mpas(
+                dataset,
+                use_dual=use_dual,
+                construct_face_mask=construct_face_mask)
         elif source_grid_spec == "Shapefile":
             raise ValueError("Shapefiles not yet supported")
         else:
