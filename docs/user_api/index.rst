@@ -198,6 +198,13 @@ Accessors
    plot.accessor.UxDataArrayPlotAccessor
    plot.accessor.UxDatasetPlotAccessor
 
+UxDataArray Plotting Methods
+----------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.dataarray_plot.datashade
+
 
 
 Nearest Neighbors
