@@ -19,7 +19,8 @@ def datashade(uxda: UxDataArray,
               x_range: Optional[tuple] = (-180, 180),
               y_range: Optional[tuple] = (-90, 90),
               cmap: Optional[str] = "Blues",
-              agg: Optional[str] = "mean"):
+              agg: Optional[str] = "mean",
+              **kwargs):
     """Visualizes an unstructured grid data variable using data shading
     (rasterization + shading).
 
@@ -58,4 +59,4 @@ def datashade(uxda: UxDataArray,
     except KeyError:
         _cmap = cmap
 
-    return tf.shade(aggregated, cmap=_cmap)
+    return tf.shade(aggregated, cmap=_cmap, **kwargs)

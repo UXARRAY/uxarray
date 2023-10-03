@@ -49,7 +49,8 @@ class UxDataArrayPlotAccessor:
                   x_range: Optional[tuple] = (-180, 180),
                   y_range: Optional[tuple] = (-90, 90),
                   cmap: Optional[str] = "Blues",
-                  agg: Optional[str] = "mean"):
+                  agg: Optional[str] = "mean",
+                  **kwargs):
         """Visualizes an unstructured grid data variable using data shading
         (rasterization + shading)
 
@@ -68,7 +69,8 @@ class UxDataArrayPlotAccessor:
             Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
         """
         return dataarray_plot.datashade(self._uxda, method, plot_height,
-                                        plot_width, x_range, y_range, cmap, agg)
+                                        plot_width, x_range, y_range, cmap, agg,
+                                        **kwargs)
 
     def polygons(self, *args, **kwargs):
         pass
