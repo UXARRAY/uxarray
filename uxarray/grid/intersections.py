@@ -100,6 +100,8 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
         return np.array([])
 
+    # Normalize the cross_norms
+    cross_norms = cross_norms / np.linalg.norm(cross_norms)
     x1 = cross_norms
     x2 = -x1
 
