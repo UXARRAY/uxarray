@@ -186,6 +186,20 @@ Plotting
 
 
 
+Visualization
+=============
+
+Accessors
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.accessor.GridPlotAccessor
+   plot.accessor.UxDataArrayPlotAccessor
+   plot.accessor.UxDatasetPlotAccessor
+
+
+
 Nearest Neighbors
 =================
 
