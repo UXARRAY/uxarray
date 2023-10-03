@@ -102,7 +102,7 @@ Plotting
    :toctree: _autosummary
 
    UxDataArray.plot
-   UxDataArray.plot.raster
+   UxDataArray.plot.datashade
 
 
 

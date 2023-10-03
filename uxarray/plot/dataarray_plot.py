@@ -9,20 +9,24 @@ if TYPE_CHECKING:
 
 def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
-    return raster(uxda, **kwargs)
+    return datashade(uxda, **kwargs)
 
 
-def raster(uxda: UxDataArray,
-           plot_height: Optional[int] = 300,
-           plot_width: Optional[int] = 600,
-           x_range: Optional[tuple] = (-180, 180),
-           y_range: Optional[tuple] = (-90, 90),
-           cmap: Optional[str] = "inferno",
-           agg: Optional[str] = "mean"):
-    """Renders a Raster Plot of an Unstructured Grid Data Variable.
+def datashade(uxda: UxDataArray,
+              method: Optional[str] = "polygon",
+              plot_height: Optional[int] = 300,
+              plot_width: Optional[int] = 600,
+              x_range: Optional[tuple] = (-180, 180),
+              y_range: Optional[tuple] = (-90, 90),
+              cmap: Optional[str] = "Blues",
+              agg: Optional[str] = "mean"):
+    """Visualizes an unstructured grid data variable using data shading
+    (rasterization + shading).
 
     Parameters
     ----------
+    method: str, optional
+        Selects which method to use for data shading
     plot_width, plot_height : int, optional
        Width and height of the output aggregate in pixels.
     x_range, y_range : tuple, optional

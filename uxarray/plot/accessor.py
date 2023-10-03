@@ -41,18 +41,22 @@ class UxDataArrayPlotAccessor:
     def __call__(self, **kwargs) -> Any:
         return dataarray_plot.plot(self._uxda, **kwargs)
 
-    @functools.wraps(dataarray_plot.raster)
-    def raster(self,
-               plot_height: Optional[int] = 300,
-               plot_width: Optional[int] = 600,
-               x_range: Optional[tuple] = (-180, 180),
-               y_range: Optional[tuple] = (-90, 90),
-               cmap: Optional[str] = "inferno",
-               agg: Optional[str] = "mean"):
-        """Renders a Raster Plot of an Unstructured Grid Data Variable.
+    @functools.wraps(dataarray_plot.datashade)
+    def datashade(self,
+                  method: Optional[str] = "polygon",
+                  plot_height: Optional[int] = 300,
+                  plot_width: Optional[int] = 600,
+                  x_range: Optional[tuple] = (-180, 180),
+                  y_range: Optional[tuple] = (-90, 90),
+                  cmap: Optional[str] = "Blues",
+                  agg: Optional[str] = "mean"):
+        """Visualizes an unstructured grid data variable using data shading
+        (rasterization + shading)
 
         Parameters
         ----------
+        method: str, optional
+            Selects which method to use for data shading
         plot_width, plot_height : int, optional
            Width and height of the output aggregate in pixels.
         x_range, y_range : tuple, optional
@@ -63,8 +67,8 @@ class UxDataArrayPlotAccessor:
         agg : str, optional
             Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
         """
-        return dataarray_plot.raster(self._uxda, plot_height, plot_width,
-                                     x_range, y_range, cmap, agg)
+        return dataarray_plot.datashade(self._uxda, method, plot_height,
+                                        plot_width, x_range, y_range, cmap, agg)
 
     def polygons(self, *args, **kwargs):
         pass
