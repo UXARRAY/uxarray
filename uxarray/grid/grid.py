@@ -33,6 +33,10 @@ from uxarray.grid.geometry import (_build_antimeridian_face_indices,
 
 from uxarray.grid.neighbors import BallTree
 
+from uxarray.plot.accessor import GridPlotAccessor
+
+from xarray.core.utils import UncachedAccessor
+
 from warnings import warn
 
 
@@ -118,6 +122,9 @@ class Grid:
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
+
+    # declare plotting accessor
+    plot = UncachedAccessor(GridPlotAccessor)
 
     @classmethod
     def from_dataset(cls,

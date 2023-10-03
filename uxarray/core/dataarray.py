@@ -12,6 +12,10 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
 
+from uxarray.plot.accessor import UxDataArrayPlotAccessor
+
+from xarray.core.utils import UncachedAccessor
+
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from
@@ -53,6 +57,9 @@ class UxDataArray(xr.DataArray):
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
+
+    # declare plotting accessor
+    plot = UncachedAccessor(UxDataArrayPlotAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -109,10 +116,12 @@ class UxDataArray(xr.DataArray):
         xrds = super().to_dataset()
         return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
-    def to_geodataframe(self,
-                        override=False,
-                        cache=True,
-                        correct_antimeridian_polygons=True):
+    def to_geodataframe(
+        self,
+        override=False,
+        cache=True,
+        correct_antimeridian_polygons=True,
+    ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
