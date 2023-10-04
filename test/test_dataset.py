@@ -66,3 +66,14 @@ class TestUxDataset(TestCase):
 
         for dim in ugrid_dims:
             assert dim in uxds_remap.dims
+
+    def test_read_from_https(self):
+        """Tests reading a dataset from a HTTPS link."""
+        import requests
+
+        small_file_480km = requests.get(
+            "https://web.lcrc.anl.gov/public/e3sm/inputdata/share/meshes/mpas/ocean/oQU480.230422.nc"
+        ).content
+
+        ds_small_480km = ux.open_dataset(small_file_480km, small_file_480km)
+        assert isinstance(ds_small_480km, ux.core.dataset.UxDataset)
