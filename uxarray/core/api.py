@@ -15,8 +15,8 @@ from uxarray.core.utils import _map_dims_to_ugrid
 from warnings import warn
 
 
-def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
-                                          list, tuple],
+def open_grid(grid_filename_or_obj: Union[str, os.PathLike, xr.DataArray,
+                                          np.ndarray, list, tuple],
               latlon: Optional[bool] = False,
               use_dual: Optional[bool] = False,
               **kwargs: Dict[str, Any]) -> Grid:
@@ -68,20 +68,21 @@ def open_grid(grid_filename_or_obj: Union[str, Path, xr.DataArray, np.ndarray,
     if isinstance(grid_filename_or_obj, xr.Dataset):
         uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
 
-    # construct Grid from path
-    elif isinstance(grid_filename_or_obj, (str, Path, PurePath)):
-        grid_ds = xr.open_dataset(grid_filename_or_obj,
-                                  decode_times=False,
-                                  **kwargs)
-
-        uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
-
+    # construct Grid from face vertices
     elif isinstance(grid_filename_or_obj,
                     (list, tuple, np.ndarray, xr.DataArray)):
         uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon=latlon)
 
+    # attempt to use Xarray directly for remaining input types
     else:
-        raise ValueError  # TODO: invalid input
+        try:
+            grid_ds = xr.open_dataset(grid_filename_or_obj,
+                                      decode_times=False,
+                                      **kwargs)
+
+            uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+        except ValueError:
+            raise ValueError("Inputted grid_filename_or_obj not supported.")
 
     return uxgrid
 

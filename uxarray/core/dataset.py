@@ -1,12 +1,23 @@
+from __future__ import annotations
+
 import numpy as np
 import xarray as xr
 
 import sys
 
-from typing import Optional, IO
+from typing import Optional, IO, TYPE_CHECKING
 
-from uxarray.core.dataarray import UxDataArray
+# if TYPE_CHECKING:
+#     from uxarray.core.dataarray import UxDataArray
+#     from uxarray.grid import Grid
 from uxarray.grid import Grid
+from uxarray.core.dataarray import UxDataArray
+
+from uxarray.plot.accessor import UxDatasetPlotAccessor
+
+from xarray.core.utils import UncachedAccessor
+
+from warnings import warn
 
 
 class UxDataset(xr.Dataset):
@@ -59,6 +70,9 @@ class UxDataset(xr.Dataset):
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
+
+    # declare plotting accessor
+    plot = UncachedAccessor(UxDatasetPlotAccessor)
 
     def __getitem__(self, key):
         """Override to make sure the result is an instance of
@@ -277,6 +291,14 @@ class UxDataset(xr.Dataset):
         # Compute the integral
         >>> integral = uxds.integrate()
         """
+
+        # TODO: Deprecation Warning
+        warn(
+            "This method currently only works when there is a single DataArray in this Dataset. For integration of a "
+            "single data variable, use the UxDataArray.integrate() method instead. This function will be deprecated and "
+            "replaced with one that can perform a Dataset-wide integration in a future release.",
+            DeprecationWarning)
+
         integral = 0.0
 
         # call function to get area of all the faces as a np array
