@@ -123,8 +123,23 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
 
+        self._mesh2_warning_raised = False
+
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
+
+    def _mesh2_future_warning(self):
+        """Raises a FutureWarning about the 'Mesh2' prefix removal.
+
+        Only raises the warning once when a effected property is called.
+        """
+        if not self._mesh2_warning_raised:
+            print("HELLO")
+            self._mesh2_warning_raised = True
+            warn(
+                "'Mesh2' prefix used in dimension, coordinate, and connectivity attributes (i.e. Mesh2_face_nodes) will"
+                "be dropped"
+                "in a future release.", FutureWarning, 1)
 
     @classmethod
     def from_dataset(cls,
@@ -295,24 +310,28 @@ class Grid:
     def Mesh2(self) -> xr.DataArray:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
         unstructured mesh."""
+        self._mesh2_future_warning()
         return self._ds["Mesh2"]
 
     @property
     def nMesh2_node(self) -> int:
         """UGRID Dimension ``nMesh2_node``, which represents the total number
         of nodes."""
+        self._mesh2_future_warning()
         return self._ds.dims["nMesh2_node"]
 
     @property
     def nMesh2_face(self) -> int:
         """UGRID Dimension ``nMesh2_face``, which represents the total number
         of faces."""
+        self._mesh2_future_warning()
         return self._ds["Mesh2_face_nodes"].shape[0]
 
     @property
     def nMesh2_edge(self) -> int:
         """UGRID Dimension ``nMesh2_edge``, which represents the total number
         of edges."""
+        self._mesh2_future_warning()
 
         if "Mesh2_edge_nodes" not in self._ds:
             _build_edge_node_connectivity(self, repopulate=True)
@@ -323,6 +342,7 @@ class Grid:
     def nMaxMesh2_face_nodes(self) -> int:
         """UGRID Dimension ``nMaxMesh2_face_nodes``, which represents the
         maximum number of nodes that a face may contain."""
+        self._mesh2_future_warning()
         return self.Mesh2_face_nodes.shape[1]
 
     @property
@@ -332,7 +352,7 @@ class Grid:
 
         Equivalent to ``nMaxMesh2_face_nodes``
         """
-
+        self._mesh2_future_warning()
         if "Mesh2_face_edges" not in self._ds:
             _build_face_edges_connectivity(self)
 
@@ -345,6 +365,7 @@ class Grid:
 
         Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
         """
+        self._mesh2_future_warning()
         if "nNodes_per_face" not in self._ds:
             _build_nNodes_per_face(self)
         return self._ds["nNodes_per_face"]
@@ -356,6 +377,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_node_x" not in self._ds:
             _populate_lonlat_coord(self)
         return self._ds["Mesh2_node_x"]
@@ -367,6 +389,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_node_cart_x" not in self._ds:
             _populate_cartesian_xyz_coord(self)
 
@@ -379,6 +402,7 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_x" in self._ds:
             return self._ds["Mesh2_face_x"]
         else:
@@ -391,6 +415,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_node_y" not in self._ds:
             _populate_lonlat_coord(self)
 
@@ -403,6 +428,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_node_cart_y" not in self._ds:
             _populate_cartesian_xyz_coord(self)
         return self._ds['Mesh2_node_cart_y']
@@ -414,6 +440,7 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_y" in self._ds:
             return self._ds["Mesh2_face_y"]
         else:
@@ -426,6 +453,7 @@ class Grid:
 
         Dimensions (``nMesh2_node``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_node_cart_z" not in self._ds:
             self._populate_cartesian_xyz_coord()
         return self._ds['Mesh2_node_cart_z']
@@ -443,7 +471,7 @@ class Grid:
 
         Nodes are in counter-clockwise order.
         """
-
+        self._mesh2_future_warning()
         return self._ds["Mesh2_face_nodes"]
 
     @property
@@ -456,6 +484,7 @@ class Grid:
 
         Nodes are in arbitrary order.
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_nodes" not in self._ds:
             _build_edge_node_connectivity(self)
 
@@ -469,6 +498,7 @@ class Grid:
         Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
         DataType ``INT_DTYPE``.
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_edges" not in self._ds:
             _build_face_edges_connectivity(self)
 
@@ -482,6 +512,7 @@ class Grid:
         Dimensions (``nMesh2_node``, ``nMaxNumFacesPerNode``) and
         DataType ``INT_DTYPE``.
         """
+        self._mesh2_future_warning()
         if "Mesh2_node_faces" not in self._ds:
             _build_node_faces_connectivity(self)
 
