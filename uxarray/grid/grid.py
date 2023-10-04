@@ -138,8 +138,7 @@ class Grid:
             self._mesh2_warning_raised = True
             warn(
                 "'Mesh2' prefix used in dimension, coordinate, and connectivity attributes (i.e. Mesh2_face_nodes) will"
-                "be dropped"
-                "in a future release.", FutureWarning, 1)
+                " be dropped in a future release.", FutureWarning, 1)
 
     @classmethod
     def from_dataset(cls,
