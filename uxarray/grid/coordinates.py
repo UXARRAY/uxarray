@@ -236,27 +236,54 @@ def _populate_lonlat_coord(grid):
         })
 
 
-def _centroid_from_mean_verts(self, repopulate=True):
+def _populate_centroid_coord(self):
     """Finds the centroids using cartesian averaging of faces based off the
-    vertices.
+    vertices."""
 
-    Parameters
-    ----------
-    repopulate : bool, optional
-        Bool used to turn on/off repopulating the face coordinates of the centroids
-    """
-
-    # Determines whether it should convert to latlon at the end
-    latlon = False
-    if "Mesh2_node_z" not in self._ds:
-        latlon = True
-
-    # Assigns the values needed for the calculation and assignments
     node_x = self.Mesh2_node_cart_x.values
     node_y = self.Mesh2_node_cart_y.values
     node_z = self.Mesh2_node_cart_z.values
     face_nodes = self.Mesh2_face_nodes.values
     nNodes_per_face = self.nNodes_per_face.values
+
+    mesh2_face_x, mesh2_face_y, mesh2_face_z = _construct_xyz_centroids(
+        node_x, node_y, node_z, face_nodes, nNodes_per_face)
+
+    # Convert from xyz to latlon
+    centroid_lon, centroid_lat = _get_lonlat_from_xyz(mesh2_face_x,
+                                                      mesh2_face_y,
+                                                      mesh2_face_z)
+
+    # Populate latlon Mesh2_face_xy
+    self._ds["Mesh2_face_x"] = xr.DataArray(
+        centroid_lon,
+        dims=["nMesh2_face"],
+        attrs={"standard_name": "degrees_east"})
+    self._ds["Mesh2_face_y"] = xr.DataArray(
+        centroid_lat,
+        dims=["nMesh2_face"],
+        attrs={"standard_name": "degrees_north"})
+
+    # Populate cartesian coordinates Mesh2_face_cart_xyz
+    self._ds["Mesh2_face_cart_x"] = xr.DataArray(
+        mesh2_face_x,
+        dims=["nMesh2_face"],
+        attrs={"standard_name": "cartesian x"})
+
+    self._ds["Mesh2_face_cart_y"] = xr.DataArray(
+        mesh2_face_y,
+        dims=["nMesh2_face"],
+        attrs={"standard_name": "cartesian y"})
+
+    self._ds["Mesh2_face_cart_z"] = xr.DataArray(
+        mesh2_face_z,
+        dims=["nMesh2_face"],
+        attrs={"standard_name": "cartesian z"})
+
+
+def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
+                             nNodes_per_face):
+    """Constructs the xyz centroid coordinates for faces."""
 
     # Initialize empty arrays to store the results
     mesh2_face_x = np.array([], dtype=np.float64)
@@ -272,34 +299,4 @@ def _centroid_from_mean_verts(self, repopulate=True):
         mesh2_face_z = np.append(mesh2_face_z,
                                  np.mean(node_z[cur_face_nodes[:n_nodes]]))
 
-    # Populates the grid variable depending on the coordinate type
-    if latlon:
-        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
-            mesh2_face_x, mesh2_face_y, mesh2_face_z)
-
-        if "Mesh2_face_x" not in self._ds or repopulate:
-            self._ds["Mesh2_face_x"] = xr.DataArray(
-                centroid_lon,
-                dims=["nMesh2_face"],
-                attrs={"standard_name": "degrees_east"})
-        if "Mesh2_face_y" not in self._ds or repopulate:
-            self._ds["Mesh2_face_y"] = xr.DataArray(
-                centroid_lat,
-                dims=["nMesh2_face"],
-                attrs={"standard_name": "degrees_north"})
-    else:
-        if "Mesh2_face_x" not in self._ds or repopulate:
-            self._ds["Mesh2_face_x"] = xr.DataArray(
-                mesh2_face_x,
-                dims=["nMesh2_face"],
-                attrs={"standard_name": "degrees_east"})
-        if "Mesh2_face_y" not in self._ds or repopulate:
-            self._ds["Mesh2_face_y"] = xr.DataArray(
-                mesh2_face_y,
-                dims=["nMesh2_face"],
-                attrs={"standard_name": "degrees_north"})
-        if "Mesh2_face_z" not in self._ds or repopulate:
-            self._ds["Mesh2_face_z"] = xr.DataArray(
-                mesh2_face_z,
-                dims=["nMesh2_face"],
-                attrs={"standard_name": "elevation"})
+    return mesh2_face_x, mesh2_face_y, mesh2_face_z
