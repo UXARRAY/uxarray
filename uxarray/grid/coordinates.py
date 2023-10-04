@@ -108,7 +108,6 @@ def normalize_in_place(node):
 
 
 def _get_xyz_from_lonlat(node_lon, node_lat):
-
     # check for units and create Mesh2_node_cart_x/y/z set to grid._ds
     nodes_lon_rad = np.deg2rad(node_lon)
     nodes_lat_rad = np.deg2rad(node_lat)
@@ -235,3 +234,72 @@ def _populate_lonlat_coord(grid):
             "long_name": "latitude of mesh nodes",
             "units": "degrees_north",
         })
+
+
+def _centroid_from_mean_verts(self, repopulate=True):
+    """Finds the centroids using cartesian averaging of faces based off the
+    vertices.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centroids
+    """
+
+    # Determines whether it should convert to latlon at the end
+    latlon = False
+    if "Mesh2_node_z" not in self._ds:
+        latlon = True
+
+    # Assigns the values needed for the calculation and assignments
+    node_x = self.Mesh2_node_cart_x.values
+    node_y = self.Mesh2_node_cart_y.values
+    node_z = self.Mesh2_node_cart_z.values
+    face_nodes = self.Mesh2_face_nodes.values
+    nNodes_per_face = self.nNodes_per_face.values
+
+    # Initialize empty arrays to store the results
+    mesh2_face_x = np.array([], dtype=np.float64)
+    mesh2_face_y = np.array([], dtype=np.float64)
+    mesh2_face_z = np.array([], dtype=np.float64)
+
+    # Calculate the mean xy for all the faces
+    for cur_face_nodes, n_nodes in zip(face_nodes, nNodes_per_face):
+        mesh2_face_x = np.append(mesh2_face_x,
+                                 np.mean(node_x[cur_face_nodes[:n_nodes]]))
+        mesh2_face_y = np.append(mesh2_face_y,
+                                 np.mean(node_y[cur_face_nodes[:n_nodes]]))
+        mesh2_face_z = np.append(mesh2_face_z,
+                                 np.mean(node_z[cur_face_nodes[:n_nodes]]))
+
+    # Populates the grid variable depending on the coordinate type
+    if latlon:
+        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
+            mesh2_face_x, mesh2_face_y, mesh2_face_z)
+
+        if "Mesh2_face_x" not in self._ds or repopulate:
+            self._ds["Mesh2_face_x"] = xr.DataArray(
+                centroid_lon,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "degrees_east"})
+        if "Mesh2_face_y" not in self._ds or repopulate:
+            self._ds["Mesh2_face_y"] = xr.DataArray(
+                centroid_lat,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "degrees_north"})
+    else:
+        if "Mesh2_face_x" not in self._ds or repopulate:
+            self._ds["Mesh2_face_x"] = xr.DataArray(
+                mesh2_face_x,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "degrees_east"})
+        if "Mesh2_face_y" not in self._ds or repopulate:
+            self._ds["Mesh2_face_y"] = xr.DataArray(
+                mesh2_face_y,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "degrees_north"})
+        if "Mesh2_face_z" not in self._ds or repopulate:
+            self._ds["Mesh2_face_z"] = xr.DataArray(
+                mesh2_face_z,
+                dims=["nMesh2_face"],
+                attrs={"standard_name": "elevation"})
