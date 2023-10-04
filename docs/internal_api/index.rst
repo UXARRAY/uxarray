@@ -129,6 +129,7 @@ Coordinates
    grid.coordinates._get_xyz_from_lonlat
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
+   grid.coordinates._centroid_from_mean_verts
 
 
 Lines
