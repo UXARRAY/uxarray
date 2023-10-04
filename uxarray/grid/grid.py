@@ -134,7 +134,6 @@ class Grid:
         Only raises the warning once when a effected property is called.
         """
         if not self._mesh2_warning_raised:
-            print("HELLO")
             self._mesh2_warning_raised = True
             warn(
                 "'Mesh2' prefix used in dimension, coordinate, and connectivity attributes (i.e. Mesh2_face_nodes) will"
