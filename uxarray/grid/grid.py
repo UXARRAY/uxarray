@@ -430,7 +430,7 @@ class Grid:
 
     @property
     def Mesh2_face_cart_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_y``, which contains the Cartesian x
+        """Coordinate ``Mesh2_face_cart_y``, which contains the Cartesian y
         location of each face center in meters.
 
         Dimensions (``nMesh2_face``)
@@ -441,7 +441,7 @@ class Grid:
 
     @property
     def Mesh2_face_cart_z(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_z``, which contains the Cartesian x
+        """Coordinate ``Mesh2_face_cart_z``, which contains the Cartesian z
         location of each face center in meters.
 
         Dimensions (``nMesh2_face``)
