@@ -375,7 +375,7 @@ class Grid:
     @property
     def Mesh2_face_x(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_face_x``, which contains the
-        longitude or cartesian coordinate of each face center.
+        longitude of each face center.
 
         Dimensions (``nMesh2_face``)
         """
@@ -409,7 +409,7 @@ class Grid:
     @property
     def Mesh2_face_y(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_face_y``, which contains the
-        latitude or cartesian coordinate of each face center.
+        latitude of each face center.
 
         Dimensions (``nMesh2_face``)
         """
