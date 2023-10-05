@@ -49,12 +49,21 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
+<<<<<<< HEAD
 Remapping
 ---------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataset.nearest_neighbor_remap
+=======
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset.plot
+>>>>>>> main
 
 
 UxDataArray
@@ -96,12 +105,22 @@ Methods
 
    UxDataArray.integrate
 
+
 Remapping
 ---------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataArray.nearest_neighbor_remap
+
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.plot
+   UxDataArray.plot.datashade
+
 
 
 
@@ -175,6 +194,35 @@ Attributes
    Grid.antimeridian_face_indices
    Grid.corner_node_balltree
    Grid.center_node_balltree
+
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.plot
+
+
+
+Visualization
+=============
+
+Accessors
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.accessor.GridPlotAccessor
+   plot.accessor.UxDataArrayPlotAccessor
+   plot.accessor.UxDatasetPlotAccessor
+
+UxDataArray Plotting Methods
+----------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.dataarray_plot.datashade
+
 
 
 Nearest Neighbors
