@@ -1,9 +1,8 @@
 import xarray as xr
 import numpy as np
 
-from uxarray.utils.helpers import grid_center_lat_lon, _replace_fill_values
-
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.connectivity import _replace_fill_values
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _to_ugrid(in_ds, out_ds):
@@ -20,6 +19,8 @@ def _to_ugrid(in_ds, out_ds):
         file to be returned by ``_populate_scrip_data``, used as an empty placeholder file
         to store reassigned SCRIP variables in UGRID conventions
     """
+
+    source_dims_dict = {}
 
     if in_ds['grid_area'].all():
 
@@ -94,7 +95,10 @@ def _to_ugrid(in_ds, out_ds):
     else:
         raise Exception("Structured scrip files are not yet supported")
 
-    return out_ds
+    # populate source dims
+    source_dims_dict[in_ds['grid_center_lon'].dims[0]] = "nMesh2_face"
+
+    return source_dims_dict
 
 
 def _read_scrip(ext_ds):
@@ -123,7 +127,7 @@ def _read_scrip(ext_ds):
 
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
-        _to_ugrid(ext_ds, ds)
+        source_dims_dict = _to_ugrid(ext_ds, ds)
 
         # Add necessary UGRID attributes to new dataset
         ds["Mesh2"] = xr.DataArray(
@@ -143,7 +147,7 @@ def _read_scrip(ext_ds):
             "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
             "for more information on SCRIP Grid file formatting")
 
-    return ds
+    return ds, source_dims_dict
 
 
 def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
@@ -229,3 +233,50 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
 
     return ds
+
+
+def grid_center_lat_lon(ds):
+    """Using scrip file variables ``grid_corner_lat`` and ``grid_corner_lon``,
+    calculates the ``grid_center_lat`` and ``grid_center_lon``.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset that contains ``grid_corner_lat`` and ``grid_corner_lon``
+        data variables
+
+    Returns
+    -------
+    center_lon : :class:`numpy.ndarray`
+        The calculated center longitudes of the grid box based on the corner
+        points
+    center_lat : :class:`numpy.ndarray`
+        The calculated center latitudes of the grid box based on the corner
+        points
+    """
+
+    # Calculate and create grid center lat/lon
+    scrip_corner_lon = ds['grid_corner_lon']
+    scrip_corner_lat = ds['grid_corner_lat']
+
+    # convert to radians
+    rad_corner_lon = np.deg2rad(scrip_corner_lon)
+    rad_corner_lat = np.deg2rad(scrip_corner_lat)
+
+    # get nodes per face
+    nodes_per_face = rad_corner_lat.shape[1]
+
+    # geographic center of each cell
+    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon),
+               axis=1) / nodes_per_face
+    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon),
+               axis=1) / nodes_per_face
+    z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
+
+    center_lon = np.rad2deg(np.arctan2(y, x))
+    center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
+
+    # Make negative lons positive
+    center_lon[center_lon < 0] += 360
+
+    return center_lat, center_lon

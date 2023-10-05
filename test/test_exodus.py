@@ -5,7 +5,7 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -19,6 +19,7 @@ class TestExodus(TestCase):
         """Read an exodus file and writes a exodus file."""
 
         uxgrid = ux.open_grid(self.exo_filename)
+        pass
 
     def test_init_verts(self):
         """Create a uxarray grid from vertices and saves a 1 face exodus
@@ -35,8 +36,8 @@ class TestExodus(TestCase):
 
         uxgrid = ux.open_grid(self.exo2_filename)
 
-        uxgrid.encode_as("ugrid")
-        uxgrid.encode_as("exodus")
+        uxgrid.encode_as("UGRID")
+        uxgrid.encode_as("Exodus")
 
     def test_standardized_dtype_and_fill(self):
         """Test to see if Mesh2_Face_Nodes uses the expected integer datatype

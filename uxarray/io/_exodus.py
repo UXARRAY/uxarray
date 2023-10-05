@@ -3,17 +3,21 @@ import numpy as np
 from pathlib import PurePath
 from datetime import datetime
 
-from uxarray.utils.helpers import _replace_fill_values
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.connectivity import _replace_fill_values
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.coordinates import _get_lonlat_from_xyz, _get_xyz_from_lonlat
 
 
 # Exodus Number is one-based.
-def _read_exodus(ext_ds, grid_var_names):
+def _read_exodus(ext_ds):
     """Exodus file reader.
 
     Parameters: xarray.Dataset, required
     Returns: ugrid aware xarray.Dataset
     """
+
+    # TODO: UGRID Variable Mapping
+    source_dims_dict = {}
 
     # Not loading specific variables.
     # as there is no way to know number of face types etc. without loading
@@ -50,58 +54,58 @@ def _read_exodus(ext_ds, grid_var_names):
         elif key == "coord":
             ds.Mesh2.attrs['topology_dimension'] = INT_DTYPE(
                 ext_ds.dims['num_dim'])
-            ds["Mesh2_node_x"] = xr.DataArray(
+            ds["Mesh2_node_cart_x"] = xr.DataArray(
                 data=ext_ds.coord[0],
                 dims=["nMesh2_node"],
                 attrs={
-                    "standard_name": "longitude",
-                    "long_name": "longitude of mesh nodes",
-                    "units": "degrees_east",
+                    "standard_name": "x",
+                    "long_name": "cartesian x",
+                    "units": "m",
                 })
-            ds["Mesh2_node_y"] = xr.DataArray(
+            ds["Mesh2_node_cart_y"] = xr.DataArray(
                 data=ext_ds.coord[1],
                 dims=["nMesh2_node"],
                 attrs={
-                    "standard_name": "latitude",
-                    "long_name": "latitude of mesh nodes",
-                    "units": "degrees_north",
+                    "standard_name": "y",
+                    "long_name": "cartesian y",
+                    "units": "m",
                 })
             if ext_ds.dims['num_dim'] > 2:
-                ds["Mesh2_node_z"] = xr.DataArray(
+                ds["Mesh2_node_cart_z"] = xr.DataArray(
                     data=ext_ds.coord[2],
                     dims=["nMesh2_node"],
                     attrs={
-                        "standard_name": "spherical",
-                        "long_name": "elevation",
-                        "units": "degree",
+                        "standard_name": "z",
+                        "long_name": "cartesian z",
+                        "units": "m",
                     })
         elif key == "coordx":
-            ds["Mesh2_node_x"] = xr.DataArray(
+            ds["Mesh2_node_cart_x"] = xr.DataArray(
                 data=ext_ds.coordx,
                 dims=["nMesh2_node"],
                 attrs={
-                    "standard_name": "longitude",
-                    "long_name": "longitude of mesh nodes",
-                    "units": "degrees_east",
+                    "standard_name": "x",
+                    "long_name": "cartesian x",
+                    "units": "m",
                 })
         elif key == "coordy":
-            ds["Mesh2_node_y"] = xr.DataArray(
+            ds["Mesh2_node_cart_y"] = xr.DataArray(
                 data=ext_ds.coordx,
                 dims=["nMesh2_node"],
                 attrs={
-                    "standard_name": "latitude",
-                    "long_name": "latitude of mesh nodes",
-                    "units": "degrees_north",
+                    "standard_name": "y",
+                    "long_name": "cartesian y",
+                    "units": "m",
                 })
         elif key == "coordz":
             if ext_ds.dims['num_dim'] > 2:
-                ds["Mesh2_node_z"] = xr.DataArray(
+                ds["Mesh2_node_cart_z"] = xr.DataArray(
                     data=ext_ds.coordx,
                     dims=["nMesh2_node"],
                     attrs={
-                        "standard_name": "spherical",
-                        "long_name": "elevation",
-                        "units": "degree",
+                        "standard_name": "z",
+                        "long_name": "cartesian z",
+                        "units": "m",
                     })
         elif "connect" in key:
             # check if num face nodes is less than max.
@@ -141,18 +145,36 @@ def _read_exodus(ext_ds, grid_var_names):
                 INT_DTYPE(
                     0)  # NOTE: This might cause an error if numbering has holes
         })
-    print("Finished reading exodus file.")
 
-    if ext_ds.dims['num_dim'] > 2:
-        # set coordinates
-        ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z"])
-    else:
-        ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
+    # populate lon/lat coordinates
+    lon, lat = _get_lonlat_from_xyz(ds["Mesh2_node_cart_x"].values,
+                                    ds["Mesh2_node_cart_y"].values,
+                                    ds["Mesh2_node_cart_z"].values)
 
-    return ds
+    # populate dataset
+    ds["Mesh2_node_x"] = xr.DataArray(
+        data=lon,
+        dims=["nMesh2_node"],
+        attrs={
+            "standard_name": "longitude",
+            "long_name": "longitude of mesh nodes",
+            "units": "degrees_east",
+        })
+    ds["Mesh2_node_y"] = xr.DataArray(data=lat,
+                                      dims=["nMesh2_node"],
+                                      attrs={
+                                          "standard_name": "latitude",
+                                          "long_name": "latitude of mesh nodes",
+                                          "units": "degrees_north",
+                                      })
+
+    # set lon/lat coordinates
+    ds = ds.set_coords(["Mesh2_node_x", "Mesh2_node_y"])
+
+    return ds, source_dims_dict
 
 
-def _encode_exodus(ds, grid_var_names, outfile=None):
+def _encode_exodus(ds, outfile=None):
     """Encodes an Exodus file.
 
     Parameters
@@ -211,33 +233,29 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
         np.array(qa_records, dtype='str')),
                                         dims=["four", "num_qa_rec"])
 
-    # get orig dimension from Mesh2 attribute topology dimension
-    dim = ds[grid_var_names["Mesh2"]].topology_dimension
-
-    c_data = []
-    if dim == 2:
+    # Set the dim to 3 as we will always have x/y/z for cartesian grid
+    # Note: Don't get orig dimension from Mesh2 attribute topology dimension
+    if "Mesh2_node_cart_x" not in ds:
+        x, y, z = _get_xyz_from_lonlat(ds["Mesh2_node_x"].values,
+                                       ds["Mesh2_node_y"].values)
+        c_data = xr.DataArray([x, y, z])
+    else:
         c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_y"]].data.tolist()
-        ])
-    elif dim == 3:
-        c_data = xr.DataArray([
-            ds[grid_var_names["Mesh2_node_x"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_y"]].data.tolist(),
-            ds[grid_var_names["Mesh2_node_z"]].data.tolist()
+            ds["Mesh2_node_cart_x"].data.tolist(),
+            ds["Mesh2_node_cart_y"].data.tolist(),
+            ds["Mesh2_node_cart_z"].data.tolist()
         ])
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
 
     # process face nodes, this array holds num faces at corresponding location
     # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
-    num_el_all_blks = np.zeros(ds[grid_var_names["nMaxMesh2_face_nodes"]].size,
-                               "i8")
+    num_el_all_blks = np.zeros(ds["nMaxMesh2_face_nodes"].size, "i8")
     # this list stores connectivity without filling
     conn_nofill = []
 
     # store the number of faces in an array
-    for row in ds[grid_var_names["Mesh2_face_nodes"]].astype(INT_DTYPE).data:
+    for row in ds["Mesh2_face_nodes"].astype(INT_DTYPE).data:
 
         # find out -1 in each row, this indicates lower than max face nodes
         arr = np.where(row == -1)
@@ -253,8 +271,7 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
             conn_nofill.append(list_node)
         elif arr[0].size == 0:
             # increment the number of faces for this "nMaxMesh2_face_nodes" face
-            num_el_all_blks[ds[grid_var_names["nMaxMesh2_face_nodes"]].size -
-                            1] += 1
+            num_el_all_blks[ds["nMaxMesh2_face_nodes"].size - 1] += 1
             # get integer list nodes
             list_node = list(map(int, row.tolist()))
             conn_nofill.append(list_node)
@@ -332,12 +349,7 @@ def _encode_exodus(ds, grid_var_names, outfile=None):
     eb_names = np.empty(num_blks, dtype='str')
     exo_ds["eb_names"] = xr.DataArray(data=xr.DataArray(eb_names),
                                       dims=["num_el_blk"])
-    if dim == 2:
-        cnames = ["x", "y"]
-    elif dim == 3:
-        cnames = ["x", "y", "z"]
-    else:
-        raise RuntimeError("dim must be 2 or 3")
+    cnames = ["x", "y", "z"]
 
     exo_ds["coor_names"] = xr.DataArray(data=xr.DataArray(
         np.array(cnames, dtype='str')),

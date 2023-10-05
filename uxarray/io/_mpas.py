@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 import warnings
 
-from uxarray.utils.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _primal_to_ugrid(in_ds, out_ds):
@@ -17,7 +17,9 @@ def _primal_to_ugrid(in_ds, out_ds):
         conventions
     """
 
-    # set mesh topology
+    source_dims_dict = {}
+
+    # set mesh topologys
     out_ds["Mesh2"] = xr.DataArray(
         attrs={
             "cf_role": "mesh_topology",
@@ -116,6 +118,14 @@ def _primal_to_ugrid(in_ds, out_ds):
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
 
+    # populate source dims
+    source_dims_dict['nVertices'] = 'nMesh2_node'
+    source_dims_dict[in_ds['verticesOnCell'].dims[0]] = 'nMesh2_face'
+    source_dims_dict[in_ds['verticesOnCell'].dims[1]] = 'nMaxMesh2_face_nodes'
+    source_dims_dict[in_ds['verticesOnEdge'].dims[0]] = "nMesh2_edge"
+
+    return source_dims_dict
+
 
 def _dual_to_ugrid(in_ds, out_ds):
     """Encodes the MPAS Dual-Mesh in the UGRID conventions.
@@ -128,6 +138,8 @@ def _dual_to_ugrid(in_ds, out_ds):
         Output dataset where the MPAS Dual-Mesh is encoded in the UGRID
         conventions
     """
+
+    source_dims_dict = {}
 
     # set mesh topology
     out_ds["Mesh2"] = xr.DataArray(
@@ -222,6 +234,14 @@ def _dual_to_ugrid(in_ds, out_ds):
 
     # set global attributes
     _set_global_attrs(in_ds, out_ds)
+
+    # populate source dims
+    source_dims_dict[in_ds['latCell'].dims[0]] = "nMesh2_node"
+    source_dims_dict[in_ds['cellsOnVertex'].dims[0]] = "nMesh2_face"
+    source_dims_dict[in_ds['cellsOnVertex'].dims[1]] = "nMaxMesh2_face_nodes"
+    source_dims_dict[in_ds['cellsOnEdge'].dims[0]] = "nMesh2_edge"
+
+    return source_dims_dict
 
 
 def _set_global_attrs(in_ds, out_ds):
@@ -375,9 +395,9 @@ def _read_mpas(ext_ds, use_dual=False):
 
     # convert dual-mesh to UGRID
     if use_dual:
-        _dual_to_ugrid(ext_ds, ds)
+        source_dim_map = _dual_to_ugrid(ext_ds, ds)
     # convert primal-mesh to UGRID
     else:
-        _primal_to_ugrid(ext_ds, ds)
+        source_dim_map = _primal_to_ugrid(ext_ds, ds)
 
-    return ds
+    return ds, source_dim_map
