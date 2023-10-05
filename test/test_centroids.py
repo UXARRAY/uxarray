@@ -43,5 +43,7 @@ class TestCentroids(TestCase):
         computed_face_x = uxgrid.Mesh2_face_x.values
         computed_face_y = uxgrid.Mesh2_face_y.values
 
+        pass
+
         nt.assert_array_almost_equal(expected_face_x, computed_face_x)
         nt.assert_array_almost_equal(expected_face_y, computed_face_y)

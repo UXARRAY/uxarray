@@ -252,7 +252,7 @@ def _populate_centroid_coord(self, repopulate=False):
     face_nodes = self.Mesh2_face_nodes.values
     nNodes_per_face = self.nNodes_per_face.values
 
-    if "Mesh2_face_x" not in self._ds:
+    if "Mesh2_face_x" not in self._ds or repopulate:
         # Construct the centroids if there are none stored
         if "Mesh2_face_cart_x" not in self._ds:
             centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(
