@@ -3,7 +3,7 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Tuple
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -282,3 +282,51 @@ class UxDataArray(xr.DataArray):
                            name=self.name)
 
         return uxda
+
+    def _select_ball_tree(self):
+        if self.data.size == self.uxgrid.nMesh2_face:
+            ball_tree = self.uxgrid.get_ball_tree(tree_type="face centers")
+        elif self.data.size == self.uxgrid.nMesh2_node:
+            ball_tree = self.uxgrid.get_ball_tree(tree_type="nodes")
+        else:
+            raise ValueError  # TODO
+
+        return ball_tree
+
+    def spatial_min(self, lonlat: Tuple[float, float], distance: float):
+        """Computes the minimum value within some radius from a given (lon,
+        lat) location."""
+
+        ball_tree = self._select_ball_tree()
+
+        _, ind = ball_tree.query_radius(lonlat, distance)
+
+        if len(ind) == 0:
+            return None
+        else:
+            return min(self.data[..., ind])
+
+    def spatial_max(self, lonlat: Tuple[float, float], distance: float):
+        """Computes the maximum value within some radius from a given (lon,
+        lat) location."""
+        ball_tree = self._select_ball_tree()
+
+        _, ind = ball_tree.query_radius(lonlat, distance)
+
+        if len(ind) == 0:
+            return None
+        else:
+            return max(self.data[..., ind])
+
+    def spatial_mean(self, lonlat: Tuple[float, float], distance: float):
+        """Computes the average value within some radius from a given (lon,
+        lat) location."""
+
+        ball_tree = self._select_ball_tree()
+
+        _, ind = ball_tree.query_radius(lonlat, distance)
+
+        if len(ind) == 0:
+            return None
+        else:
+            return np.mean(self.data[..., ind])

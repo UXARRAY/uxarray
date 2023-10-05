@@ -104,6 +104,15 @@ Plotting
    UxDataArray.plot
    UxDataArray.plot.datashade
 
+Spatial
+-------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.spatial_min
+   UxDataArray.spatial_max
+   UxDataArray.spatial_mean
+
 
 
 Grid
