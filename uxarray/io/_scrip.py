@@ -20,6 +20,8 @@ def _to_ugrid(in_ds, out_ds):
         to store reassigned SCRIP variables in UGRID conventions
     """
 
+    source_dims_dict = {}
+
     if in_ds['grid_area'].all():
 
         # Create Mesh2_node_x/y variables from grid_corner_lat/lon
@@ -93,7 +95,10 @@ def _to_ugrid(in_ds, out_ds):
     else:
         raise Exception("Structured scrip files are not yet supported")
 
-    return out_ds
+    # populate source dims
+    source_dims_dict[in_ds['grid_center_lon'].dims[0]] = "nMesh2_face"
+
+    return source_dims_dict
 
 
 def _read_scrip(ext_ds):
@@ -122,7 +127,7 @@ def _read_scrip(ext_ds):
 
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
-        _to_ugrid(ext_ds, ds)
+        source_dims_dict = _to_ugrid(ext_ds, ds)
 
         # Add necessary UGRID attributes to new dataset
         ds["Mesh2"] = xr.DataArray(
@@ -142,7 +147,7 @@ def _read_scrip(ext_ds):
             "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
             "for more information on SCRIP Grid file formatting")
 
-    return ds
+    return ds, source_dims_dict
 
 
 def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):

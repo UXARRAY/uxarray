@@ -219,3 +219,26 @@ def _grid_to_matplotlib_polycollection(grid):
         polygon_shells)
 
     return PolyCollection(corrected_polygon_shells), corrected_to_original_faces
+
+
+def _grid_to_matplotlib_linecollection(grid):
+    """Constructs and returns a ``matplotlib.collections.LineCollection``"""
+
+    # import optional dependencies
+    from matplotlib.collections import LineCollection
+
+    # obtain corrected shapely polygons
+    polygons = grid.to_shapely_polygons(correct_antimeridian_polygons=True)
+
+    # Convert polygons into lines
+    lines = []
+    for pol in polygons:
+        boundary = pol.boundary
+        if boundary.geom_type == 'MultiLineString':
+            for line in list(boundary.geoms):
+                lines.append(np.array(line.coords))
+        else:
+            lines.append(np.array(boundary.coords))
+
+    # need transform? consider adding it later if needed
+    return LineCollection(lines)

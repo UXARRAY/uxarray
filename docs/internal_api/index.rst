@@ -19,6 +19,7 @@ Class
 -----
 .. autosummary::
    :toctree: _autosummary
+
    UxDataset
 
 
@@ -83,25 +84,6 @@ Class
 
    Grid
 
-Methods
--------
-.. autosummary::
-   :toctree: _autosummary
-
-   Grid.__init_grid_var_names__
-   Grid.__from_ds__
-   Grid.__from_vert__
-   Grid.__init_grid_var_attrs__
-
-
-
-Attributes
-----------
-.. autosummary::
-   :toctree: _autosummary
-
-   Grid._Mesh2_node_z
-
 Operators
 ---------
 .. autosummary::
@@ -135,14 +117,19 @@ Geometry
    grid.geometry._build_corrected_polygon_shells
    grid.geometry._build_antimeridian_face_indices
    grid.geometry._grid_to_polygon_geodataframe
+   grid.geometry._grid_to_matplotlib_polycollection
+   grid.geometry._grid_to_matplotlib_linecollection
 
 Coordinates
 -----------
 .. autosummary::
    :toctree: _autosummary
 
+   grid.coordinates._get_lonlat_from_xyz
+   grid.coordinates._get_xyz_from_lonlat
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
+
 
 Lines
 -----
@@ -151,6 +138,12 @@ Lines
 
    grid.lines._angle_of_2_vectors
 
+Utils
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.utils._fmms
 
 Grid Parsing and Encoding
 =========================
@@ -164,6 +157,7 @@ UGRID
    io._ugrid._encode_ugrid
    io._ugrid._standardize_fill_value
    io._ugrid._is_ugrid
+   io._ugrid._validate_minimum_ugrid
 
 MPAS
 ----
@@ -205,9 +199,23 @@ Shapefile
 
    io._shapefile._read_shpfile
 
+Vertices
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   io._vertices._read_face_vertices
+
 Utils
 -----
 .. autosummary::
    :toctree: _autosummary
 
    io.utils._parse_grid_type
+
+Core Utils
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   core.utils._map_dims_to_ugrid

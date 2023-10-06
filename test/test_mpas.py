@@ -24,8 +24,8 @@ class TestMPAS(TestCase):
 
     def test_read_mpas(self):
         """Tests execution of _read_mpas()"""
-        mpas_primal_ugrid = _read_mpas(self.mpas_xr_ds, use_dual=False)
-        mpas_dual_ugrid = _read_mpas(self.mpas_xr_ds, use_dual=True)
+        mpas_primal_ugrid, _ = _read_mpas(self.mpas_xr_ds, use_dual=False)
+        mpas_dual_ugrid, _ = _read_mpas(self.mpas_xr_ds, use_dual=True)
 
     def test_mpas_to_grid(self):
         """Tests creation of Grid object from converted MPAS dataset."""
@@ -36,7 +36,7 @@ class TestMPAS(TestCase):
         """Verifies that the Primal-Mesh was converted properly."""
 
         # primal-mesh encoded in the UGRID conventions
-        ds = _read_mpas(self.mpas_xr_ds, use_dual=False)
+        ds, _ = _read_mpas(self.mpas_xr_ds, use_dual=False)
 
         # check for correct dimensions
         expected_ugrid_dims = [
@@ -59,7 +59,7 @@ class TestMPAS(TestCase):
         """Verifies that the Dual-Mesh was converted properly."""
 
         # dual-mesh encoded in the UGRID conventions
-        ds = _read_mpas(self.mpas_xr_ds, use_dual=True)
+        ds, _ = _read_mpas(self.mpas_xr_ds, use_dual=True)
 
         # check for correct dimensions
         expected_ugrid_dims = [
@@ -110,7 +110,7 @@ class TestMPAS(TestCase):
         ]
 
         # included attrs: 'sphere_radius', 'mesh_spec' 'on_a_sphere'
-        ds = _read_mpas(self.mpas_xr_ds)
+        ds, _ = _read_mpas(self.mpas_xr_ds)
 
         # set dummy attrs to test execution
         ds.attrs['mesh_id'] = "12345678"

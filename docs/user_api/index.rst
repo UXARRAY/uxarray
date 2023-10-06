@@ -49,6 +49,13 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset.plot
+
 
 UxDataArray
 ===========
@@ -71,6 +78,7 @@ IO
 .. autosummary::
    :toctree: _autosummary
 
+   UxDataArray.to_dataset
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
 
@@ -80,6 +88,21 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
    UxDataArray.uxgrid
+
+Methods
+-------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.integrate
+
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.plot
+   UxDataArray.plot.datashade
 
 
 
@@ -105,8 +128,11 @@ IO
    :toctree: _autosummary
 
    open_grid
+   Grid.from_dataset
+   Grid.from_face_vertices
    Grid.to_geodataframe
    Grid.to_polycollection
+   Grid.to_linecollection
    Grid.to_shapely_polygons
 
 
@@ -128,6 +154,7 @@ Attributes
 .. autosummary::
    :toctree: _autosummary
 
+   Grid.grid_spec
    Grid.Mesh2
    Grid.parsed_attrs
    Grid.nMesh2_node
@@ -138,6 +165,9 @@ Attributes
    Grid.nNodes_per_face
    Grid.Mesh2_node_x
    Grid.Mesh2_node_y
+   Mesh2_node_cart_x
+   Mesh2_node_cart_y
+   Mesh2_node_cart_z
    Grid.Mesh2_face_x
    Grid.Mesh2_face_y
    Grid.Mesh2_face_nodes
@@ -146,6 +176,35 @@ Attributes
    Grid.antimeridian_face_indices
    Grid.corner_node_balltree
    Grid.center_node_balltree
+
+Plotting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.plot
+
+
+
+Visualization
+=============
+
+Accessors
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.accessor.GridPlotAccessor
+   plot.accessor.UxDataArrayPlotAccessor
+   plot.accessor.UxDatasetPlotAccessor
+
+UxDataArray Plotting Methods
+----------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.dataarray_plot.datashade
+
 
 
 Nearest Neighbors
@@ -165,6 +224,7 @@ Query Methods
 
    grid.BallTree.query
    grid.BallTree.query_radius
+
 
 
 Helpers
@@ -205,7 +265,21 @@ Lines
    :toctree: _autosummary
 
    grid.lines.in_between
-   grid.lines.point_within_GCA
+   grid.lines.point_within_gca
+
+Intersections
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.intersections.gca_gca_intersection
+
+Utils
+-----
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.utils.cross_fma
 
 Numba
 -----
