@@ -43,10 +43,9 @@ class TestGrid(TestCase):
 
     def test_validate(self):
         """Test to check the validate function."""
-        ug_30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-        xr_dataset = xr.open_dataset(ug_30)
-        grid = ux.Grid(xr_dataset)
-        assert (grid.validate())
+        assert (self.grid_CSne30.validate())
+        assert (self.grid_RLL1deg.validate())
+        assert (self.grid_RLL10deg_CSne4.validate())
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
