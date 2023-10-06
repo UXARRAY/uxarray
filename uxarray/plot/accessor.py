@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any, overload, Optional
 
 import functools
 
+from cartopy import crs as ccrs
+
 import warnings
 
 if TYPE_CHECKING:
@@ -71,6 +73,44 @@ class UxDataArrayPlotAccessor:
         """
         return dataarray_plot.datashade(self._uxda, *args, method, plot_height,
                                         plot_width, x_range, y_range, cmap, agg,
+                                        **kwargs)
+
+    @functools.wraps(dataarray_plot.rasterize)
+    def rasterize(self,
+                  *args,
+                  colorbar=True,
+                  cmap='coolwarm',
+                  width=1000,
+                  height=500,
+                  tools=['hover'],
+                  projection: Optional[ccrs] = None,
+                  aggregator='mean',
+                  interpolation='linear',
+                  precompute=True,
+                  dynamic=False,
+                  npartitions: Optional[int] = 1,
+                  **kwargs):
+        """Visualizes an unstructured grid data variable using data shading
+        (rasterization + shading)
+
+        Parameters
+        ----------
+        projection: cartopy.crs, optional
+            Custom projection to transform the axis coordinates during display. Defaults to None.
+        """
+        return dataarray_plot.rasterize(self._uxda,
+                                        *args,
+                                        colorbar,
+                                        cmap=cmap,
+                                        width=width,
+                                        height=height,
+                                        tools=tools,
+                                        projection=projection,
+                                        aggregator=aggregator,
+                                        interpolation=interpolation,
+                                        precompute=precompute,
+                                        dynamic=dynamic,
+                                        npartitions=npartitions,
                                         **kwargs)
 
     def polygons(self, *args, **kwargs):

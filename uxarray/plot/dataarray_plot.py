@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import matplotlib
+from cartopy import crs as ccrs
 
 from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
@@ -61,3 +62,76 @@ def datashade(uxda: UxDataArray,
         _cmap = cmap
 
     return tf.shade(aggregated, cmap=_cmap, **kwargs)
+
+
+def rasterize(uxda: UxDataArray,
+              *args,
+              colorbar=True,
+              cmap='coolwarm',
+              width=1000,
+              height=500,
+              tools=['hover'],
+              projection: Optional[ccrs] = None,
+              aggregator='mean',
+              interpolation='linear',
+              precompute=True,
+              dynamic=False,
+              npartitions: Optional[int] = 1,
+              **kwargs):
+    """Visualizes an unstructured grid data variable using rasterization.
+
+    Parameters
+    ----------
+    projection: cartopy.crs, optional
+            Custom projection to transform the axis coordinates during display. Defaults to None.
+    npartitions: int, optional
+            Number of partions for Dask DataFrane construction
+    """
+    import dask.dataframe as dd
+    import holoviews as hv
+    from holoviews.operation.datashader import rasterize as hds_rasterize
+
+    face_centered_data=True
+    node_centered_data=True
+
+    # Face-centered data
+    if (uxda.uxgrid.nMesh2_face in uxda.shape and
+            uxda.uxgrid.nMesh2_node not in uxda.shape):
+        lon = uxda.uxgrid.Mesh2_face_x.values
+        lat = uxda.uxgrid.Mesh2_face_y.values
+    # Node-centered data
+    elif (uxda.uxgrid.nMesh2_node in uxda.shape and
+          uxda.uxgrid.nMesh2_face not in uxda.shape):
+        lon = uxda.uxgrid.Mesh2_node_x.values
+        lat = uxda.uxgrid.Mesh2_node_y.values
+    else:
+        raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+
+    # Construct a point dictionary
+    if projection is None:
+        point_dict = {"lon": lon,
+                      "lat": lat,
+                      "var": uxda.values}
+    # Transform axis coords w.r.t projection, if any
+    else:
+        xPCS, yPCS, _ = projection.transform_points(ccrs.PlateCarree(),
+                                                    lon,
+                                                    lat).T
+        point_dict = {"lon": xPCS,
+                      "lat": yPCS,
+                      "var": uxda.values}
+
+    # Construct Dask DataFrame
+    point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
+
+    points = hv.Points(point_ddf, ['lon', 'lat'])
+
+    # Rasterize
+    raster = hds_rasterize(points,
+                           aggregator=aggregator,
+                           interpolation=interpolation,
+                           precompute=precompute,
+                           dynamic=dynamic,
+                           **kwargs)
+
+    return raster.opts(width=width, height=height, tools=tools, colorbar=colorbar, cmap=cmap)
