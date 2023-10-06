@@ -82,6 +82,14 @@ class UxDataArray(xr.DataArray):
 
         return copied
 
+    def _is_face_centered(self):
+        return (self.uxgrid.nMesh2_face in self.shape and
+                self.uxgrid.nMesh2_node not in self.shape)
+
+    def _is_node_centered(self):
+        return (self.uxgrid.nMesh2_node in self.shape and
+          self.uxgrid.nMesh2_face not in self.shape)
+
     def _replace(self, *args, **kwargs):
         """Override to make the result a complete instance of
         ``uxarray.UxDataArray``."""

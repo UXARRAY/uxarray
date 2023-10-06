@@ -78,6 +78,7 @@ class UxDataArrayPlotAccessor:
     @functools.wraps(dataarray_plot.rasterize)
     def rasterize(self,
                   *args,
+                  method="point",
                   colorbar=True,
                   cmap='coolwarm',
                   width=1000,
@@ -100,7 +101,8 @@ class UxDataArrayPlotAccessor:
         """
         return dataarray_plot.rasterize(self._uxda,
                                         *args,
-                                        colorbar,
+                                        method=method,
+                                        colorbar=colorbar,
                                         cmap=cmap,
                                         width=width,
                                         height=height,

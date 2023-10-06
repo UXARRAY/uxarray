@@ -66,6 +66,7 @@ def datashade(uxda: UxDataArray,
 
 def rasterize(uxda: UxDataArray,
               *args,
+              method="point",
               colorbar=True,
               cmap='coolwarm',
               width=1000,
@@ -91,47 +92,87 @@ def rasterize(uxda: UxDataArray,
     import holoviews as hv
     from holoviews.operation.datashader import rasterize as hds_rasterize
 
-    face_centered_data=True
-    node_centered_data=True
-
     # Face-centered data
-    if (uxda.uxgrid.nMesh2_face in uxda.shape and
-            uxda.uxgrid.nMesh2_node not in uxda.shape):
+    if uxda._is_face_centered():
         lon = uxda.uxgrid.Mesh2_face_x.values
         lat = uxda.uxgrid.Mesh2_face_y.values
     # Node-centered data
-    elif (uxda.uxgrid.nMesh2_node in uxda.shape and
-          uxda.uxgrid.nMesh2_face not in uxda.shape):
+    elif uxda._is_node_centered():
         lon = uxda.uxgrid.Mesh2_node_x.values
         lat = uxda.uxgrid.Mesh2_node_y.values
     else:
         raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
 
-    # Construct a point dictionary
-    if projection is None:
+    # Transform axis coords w.r.t projection, if any
+    if projection is not None:
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(),
+                                                    lon,
+                                                    lat).T
+
+    if method is "point":
+        # Construct a point dictionary
         point_dict = {"lon": lon,
                       "lat": lat,
                       "var": uxda.values}
-    # Transform axis coords w.r.t projection, if any
-    else:
-        xPCS, yPCS, _ = projection.transform_points(ccrs.PlateCarree(),
-                                                    lon,
-                                                    lat).T
-        point_dict = {"lon": xPCS,
-                      "lat": yPCS,
-                      "var": uxda.values}
 
-    # Construct Dask DataFrame
-    point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
+        # Construct Dask DataFrame
+        point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
 
-    points = hv.Points(point_ddf, ['lon', 'lat'])
+        points = hv.Points(point_ddf, ['lon', 'lat'])
 
-    # Rasterize
-    raster = hds_rasterize(points,
-                           aggregator=aggregator,
-                           interpolation=interpolation,
-                           precompute=precompute,
-                           dynamic=dynamic,
-                           **kwargs)
+        # Rasterize
+        raster = hds_rasterize(points,
+                               aggregator=aggregator,
+                               interpolation=interpolation,
+                               precompute=precompute,
+                               dynamic=dynamic,
+                               **kwargs)
+    elif method is "trimesh":
+        if uxda._is_face_centered():
+            tris = uxda.uxgrid.Mesh2_node_faces.values
+        elif uxda._is_node_centered():
+            tris = uxda.uxgrid.Mesh2_face_nodes.values
+        else:
+            raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+
+        trimesh = _create_hvTriMesh(lon, lat, tris, dataarray, n_workers=n_workers)
+
+        # Rasterize
+        raster = hds_rasterize(trimesh,
+                               aggregator=aggregator,
+                               interpolation=interpolation,
+                               precompute=precompute,
+                               dynamic=dynamic,
+                               **kwargs)
+
 
     return raster.opts(width=width, height=height, tools=tools, colorbar=colorbar, cmap=cmap)
+
+def _create_hvTriMesh(x, y, triangle_indices, var, npartitions=1):
+    # Create a Holoviews Triangle Mesh suitable for rendering with Datashader
+    #
+    # This function returns a Holoviews TriMesh that is created from a list of coordinates, 'x' and 'y',
+    # an array of triangle indices that addressess the coordinates in 'x' and 'y', and a data variable 'var'. The
+    # data variable's values will annotate the triangle vertices
+
+    import numpy as np
+    import pandas as pd
+    import dask.dataframe as dd
+    import holoviews as hv
+
+    # Declare verts array
+    verts = np.column_stack([x, y, var])
+
+    # Convert to pandas
+    verts_df  = pd.DataFrame(verts,  columns=['x', 'y', 'z'])
+    tris_df   = pd.DataFrame(triangle_indices, columns=['v0', 'v1', 'v2'])
+
+    # Convert to dask
+    verts_ddf = dd.from_pandas(verts_df, npartitions=npartitions)
+    tris_ddf = dd.from_pandas(tris_df, npartitions=npartitions)
+
+    # Declare HoloViews element
+    tri_nodes = hv.Nodes(verts_ddf, ['x', 'y', 'index'], ['z'])
+    trimesh = hv.TriMesh((tris_ddf, tri_nodes))
+
+    return(trimesh)
