@@ -1,3 +1,5 @@
+import warnings
+
 import xarray as xr
 import numpy as np
 import math
@@ -108,7 +110,6 @@ def normalize_in_place(node):
 
 
 def _get_xyz_from_lonlat(node_lon, node_lat):
-
     # check for units and create Mesh2_node_cart_x/y/z set to grid._ds
     nodes_lon_rad = np.deg2rad(node_lon)
     nodes_lat_rad = np.deg2rad(node_lat)
@@ -235,3 +236,96 @@ def _populate_lonlat_coord(grid):
             "long_name": "latitude of mesh nodes",
             "units": "degrees_north",
         })
+
+
+def _populate_centroid_coord(grid, repopulate=False):
+    """Finds the centroids using cartesian averaging of faces based off the
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized. This cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centroids
+    """
+    warnings.warn(
+        "This cannot be guaranteed to work correctly on concave polygons")
+
+    node_x = grid.Mesh2_node_cart_x.values
+    node_y = grid.Mesh2_node_cart_y.values
+    node_z = grid.Mesh2_node_cart_z.values
+    face_nodes = grid.Mesh2_face_nodes.values
+    nNodes_per_face = grid.nNodes_per_face.values
+
+    if "Mesh2_face_x" not in grid._ds or repopulate:
+        # Construct the centroids if there are none stored
+        if "Mesh2_face_cart_x" not in grid._ds:
+            centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(
+                node_x, node_y, node_z, face_nodes, nNodes_per_face)
+
+        else:
+            # If there are cartesian centroids already use those instead
+            centroid_x, centroid_y, centroid_z = grid.Mesh2_face_cart_x, grid.Mesh2_face_cart_y, grid.Mesh2_face_cart_z
+
+        # Convert from xyz to latlon
+        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
+            centroid_x, centroid_y, centroid_z)
+    else:
+        # Convert to xyz if there are latlon centroids already stored
+        centroid_lon, centroid_lat = grid.Mesh2_face_x.values, grid.Mesh2_face_y.values
+        centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
+            centroid_lon, centroid_lat)
+
+    if "Mesh2_face_x" not in grid._ds or repopulate:
+        # Populate latlon Mesh2_face_xy
+        grid._ds["Mesh2_face_x"] = xr.DataArray(
+            centroid_lon,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "degrees_east"})
+        grid._ds["Mesh2_face_y"] = xr.DataArray(
+            centroid_lat,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "degrees_north"})
+
+    if "Mesh2_face_cart_x" not in grid._ds or repopulate:
+        # Populate cartesian coordinates Mesh2_face_cart_xyz
+        grid._ds["Mesh2_face_cart_x"] = xr.DataArray(
+            centroid_x,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "cartesian x"})
+
+        grid._ds["Mesh2_face_cart_y"] = xr.DataArray(
+            centroid_y,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "cartesian y"})
+
+        grid._ds["Mesh2_face_cart_z"] = xr.DataArray(
+            centroid_z,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "cartesian z"})
+
+
+@njit(cache=ENABLE_JIT_CACHE)
+def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
+                             nNodes_per_face):
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging."""
+    centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(nNodes_per_face):
+        # compute cartesian average
+        centroid_x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+        # normalize coordinates
+        centroid_normalized_xyz = normalize_in_place(
+            [centroid_x, centroid_y, centroid_z])
+
+        # store xyz
+        centroids[0, face_idx] = centroid_normalized_xyz[0]
+        centroids[1, face_idx] = centroid_normalized_xyz[1]
+        centroids[2, face_idx] = centroid_normalized_xyz[2]
+
+    return centroids[0, :], centroids[1, :], centroids[2, :]
