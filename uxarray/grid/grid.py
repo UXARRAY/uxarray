@@ -14,7 +14,7 @@ from uxarray.io._vertices import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
-
+from uxarray.grid.coordinates import _populate_centroid_coord
 from uxarray.grid.connectivity import (
     _build_edge_node_connectivity,
     _build_face_edges_connectivity,
@@ -379,10 +379,9 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
-        if "Mesh2_face_x" in self._ds:
-            return self._ds["Mesh2_face_x"]
-        else:
-            return None
+        if "Mesh2_face_x" not in self._ds:
+            _populate_centroid_coord(self)
+        return self._ds['Mesh2_face_x']
 
     @property
     def Mesh2_node_y(self) -> xr.DataArray:
@@ -414,10 +413,42 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
-        if "Mesh2_face_y" in self._ds:
-            return self._ds["Mesh2_face_y"]
-        else:
-            return None
+        if "Mesh2_face_y" not in self._ds:
+            _populate_centroid_coord(self)
+        return self._ds['Mesh2_face_y']
+
+    @property
+    def Mesh2_face_cart_x(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_face_cart_x``, which contains the Cartesian x
+        location of each face center in meters.
+
+        Dimensions (``nMesh2_face``)
+        """
+        if "Mesh2_face_cart_x" not in self._ds:
+            _populate_centroid_coord(self)
+        return self._ds["Mesh2_face_cart_x"]
+
+    @property
+    def Mesh2_face_cart_y(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_face_cart_y``, which contains the Cartesian y
+        location of each face center in meters.
+
+        Dimensions (``nMesh2_face``)
+        """
+        if "Mesh2_face_cart_y" not in self._ds:
+            _populate_centroid_coord(self)
+        return self._ds["Mesh2_face_cart_y"]
+
+    @property
+    def Mesh2_face_cart_z(self) -> xr.DataArray:
+        """Coordinate ``Mesh2_face_cart_z``, which contains the Cartesian z
+        location of each face center in meters.
+
+        Dimensions (``nMesh2_face``)
+        """
+        if "Mesh2_face_cart_z" not in self._ds:
+            _populate_centroid_coord(self)
+        return self._ds["Mesh2_face_cart_z"]
 
     @property
     def Mesh2_node_cart_z(self) -> xr.DataArray:
