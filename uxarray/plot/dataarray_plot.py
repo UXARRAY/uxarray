@@ -101,19 +101,17 @@ def rasterize(uxda: UxDataArray,
         lon = uxda.uxgrid.Mesh2_node_x.values
         lat = uxda.uxgrid.Mesh2_node_y.values
     else:
-        raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+        raise ValueError(
+            "Issue with data. It is neither face-centered nor node-centered!")
 
     # Transform axis coords w.r.t projection, if any
     if projection is not None:
-        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(),
-                                                    lon,
-                                                    lat).T
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
+                                                  lat).T
 
     if method is "point":
         # Construct a point dictionary
-        point_dict = {"lon": lon,
-                      "lat": lat,
-                      "var": uxda.values}
+        point_dict = {"lon": lon, "lat": lat, "var": uxda.values}
 
         # Construct Dask DataFrame
         point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
@@ -133,9 +131,15 @@ def rasterize(uxda: UxDataArray,
         elif uxda._is_node_centered():
             tris = uxda.uxgrid.Mesh2_face_nodes.values
         else:
-            raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+            raise ValueError(
+                "Issue with data. It is neither face-centered nor node-centered!"
+            )
 
-        trimesh = _create_hvTriMesh(lon, lat, tris, dataarray, n_workers=n_workers)
+        trimesh = _create_hvTriMesh(lon,
+                                    lat,
+                                    tris,
+                                    dataarray,
+                                    n_workers=n_workers)
 
         # Rasterize
         raster = hds_rasterize(trimesh,
@@ -145,8 +149,12 @@ def rasterize(uxda: UxDataArray,
                                dynamic=dynamic,
                                **kwargs)
 
+    return raster.opts(width=width,
+                       height=height,
+                       tools=tools,
+                       colorbar=colorbar,
+                       cmap=cmap)
 
-    return raster.opts(width=width, height=height, tools=tools, colorbar=colorbar, cmap=cmap)
 
 def _create_hvTriMesh(x, y, triangle_indices, var, npartitions=1):
     # Create a Holoviews Triangle Mesh suitable for rendering with Datashader
@@ -164,8 +172,8 @@ def _create_hvTriMesh(x, y, triangle_indices, var, npartitions=1):
     verts = np.column_stack([x, y, var])
 
     # Convert to pandas
-    verts_df  = pd.DataFrame(verts,  columns=['x', 'y', 'z'])
-    tris_df   = pd.DataFrame(triangle_indices, columns=['v0', 'v1', 'v2'])
+    verts_df = pd.DataFrame(verts, columns=['x', 'y', 'z'])
+    tris_df = pd.DataFrame(triangle_indices, columns=['v0', 'v1', 'v2'])
 
     # Convert to dask
     verts_ddf = dd.from_pandas(verts_df, npartitions=npartitions)
@@ -175,4 +183,4 @@ def _create_hvTriMesh(x, y, triangle_indices, var, npartitions=1):
     tri_nodes = hv.Nodes(verts_ddf, ['x', 'y', 'index'], ['z'])
     trimesh = hv.TriMesh((tris_ddf, tri_nodes))
 
-    return(trimesh)
+    return (trimesh)

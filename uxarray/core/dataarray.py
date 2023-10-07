@@ -88,7 +88,7 @@ class UxDataArray(xr.DataArray):
 
     def _is_node_centered(self):
         return (self.uxgrid.nMesh2_node in self.shape and
-          self.uxgrid.nMesh2_face not in self.shape)
+                self.uxgrid.nMesh2_face not in self.shape)
 
     def _replace(self, *args, **kwargs):
         """Override to make the result a complete instance of
