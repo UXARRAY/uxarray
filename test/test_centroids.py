@@ -37,7 +37,7 @@ class TestCentroids(TestCase):
 
         # Create a polygon
         test_triangle = np.array([(0, 0, 1), (0, 0, -1), (1, 0, 0), (0, 1, 0),
-                                  (-1, 0, 0)])
+                                  (125, 125, 1)])
 
         # Calculate the expected centroid
         expected_centroid = np.mean(test_triangle, axis=0)
