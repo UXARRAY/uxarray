@@ -1,3 +1,5 @@
+import warnings
+
 import xarray as xr
 import numpy as np
 import math
@@ -236,65 +238,69 @@ def _populate_lonlat_coord(grid):
         })
 
 
-def _populate_centroid_coord(self, repopulate=False):
+def _populate_centroid_coord(grid, repopulate=False):
     """Finds the centroids using cartesian averaging of faces based off the
-    vertices.
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized. This cannot be guaranteed to work on concave
+    polygons.
 
     Parameters
     ----------
     repopulate : bool, optional
         Bool used to turn on/off repopulating the face coordinates of the centroids
     """
+    warnings.warn(
+        "This cannot be guaranteed to work correctly on concave polygons")
 
-    node_x = self.Mesh2_node_cart_x.values
-    node_y = self.Mesh2_node_cart_y.values
-    node_z = self.Mesh2_node_cart_z.values
-    face_nodes = self.Mesh2_face_nodes.values
-    nNodes_per_face = self.nNodes_per_face.values
+    node_x = grid.Mesh2_node_cart_x.values
+    node_y = grid.Mesh2_node_cart_y.values
+    node_z = grid.Mesh2_node_cart_z.values
+    face_nodes = grid.Mesh2_face_nodes.values
+    nNodes_per_face = grid.nNodes_per_face.values
 
-    if "Mesh2_face_x" not in self._ds or repopulate:
+    if "Mesh2_face_x" not in grid._ds or repopulate:
         # Construct the centroids if there are none stored
-        if "Mesh2_face_cart_x" not in self._ds:
+        if "Mesh2_face_cart_x" not in grid._ds:
             centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(
                 node_x, node_y, node_z, face_nodes, nNodes_per_face)
 
         else:
             # If there are cartesian centroids already use those instead
-            centroid_x, centroid_y, centroid_z = self.Mesh2_face_cart_x, self.Mesh2_face_cart_y, self.Mesh2_face_cart_z
+            centroid_x, centroid_y, centroid_z = grid.Mesh2_face_cart_x, grid.Mesh2_face_cart_y, grid.Mesh2_face_cart_z
 
         # Convert from xyz to latlon
         centroid_lon, centroid_lat = _get_lonlat_from_xyz(
             centroid_x, centroid_y, centroid_z)
     else:
         # Convert to xyz if there are latlon centroids already stored
-        centroid_lon, centroid_lat = self.Mesh2_face_x.values, self.Mesh2_face_y.values
+        centroid_lon, centroid_lat = grid.Mesh2_face_x.values, grid.Mesh2_face_y.values
         centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
             centroid_lon, centroid_lat)
 
-    if "Mesh2_face_x" not in self._ds or repopulate:
+    if "Mesh2_face_x" not in grid._ds or repopulate:
         # Populate latlon Mesh2_face_xy
-        self._ds["Mesh2_face_x"] = xr.DataArray(
+        grid._ds["Mesh2_face_x"] = xr.DataArray(
             centroid_lon,
             dims=["nMesh2_face"],
             attrs={"standard_name": "degrees_east"})
-        self._ds["Mesh2_face_y"] = xr.DataArray(
+        grid._ds["Mesh2_face_y"] = xr.DataArray(
             centroid_lat,
             dims=["nMesh2_face"],
             attrs={"standard_name": "degrees_north"})
 
-    if "Mesh2_face_cart_x" not in self._ds or repopulate:
+    if "Mesh2_face_cart_x" not in grid._ds or repopulate:
         # Populate cartesian coordinates Mesh2_face_cart_xyz
-        self._ds["Mesh2_face_cart_x"] = xr.DataArray(
+        grid._ds["Mesh2_face_cart_x"] = xr.DataArray(
             centroid_x,
             dims=["nMesh2_face"],
             attrs={"standard_name": "cartesian x"})
 
-        self._ds["Mesh2_face_cart_y"] = xr.DataArray(
+        grid._ds["Mesh2_face_cart_y"] = xr.DataArray(
             centroid_y,
             dims=["nMesh2_face"],
             attrs={"standard_name": "cartesian y"})
 
-        self._ds["Mesh2_face_cart_z"] = xr.DataArray(
+        grid._ds["Mesh2_face_cart_z"] = xr.DataArray(
             centroid_z,
             dims=["nMesh2_face"],
             attrs={"standard_name": "cartesian z"})
@@ -308,6 +314,9 @@ def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
     centroid_x = np.array([], dtype=np.float64)
     centroid_y = np.array([], dtype=np.float64)
     centroid_z = np.array([], dtype=np.float64)
+    norm_centroid_x = np.array([], dtype=np.float64)
+    norm_centroid_y = np.array([], dtype=np.float64)
+    norm_centroid_z = np.array([], dtype=np.float64)
 
     # Calculate the mean xyz for all the faces
     for cur_face_nodes, n_nodes in zip(face_nodes, nNodes_per_face):
@@ -317,5 +326,11 @@ def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
                                np.mean(node_y[cur_face_nodes[:n_nodes]]))
         centroid_z = np.append(centroid_z,
                                np.mean(node_z[cur_face_nodes[:n_nodes]]))
+        # Normalize and append to lists
+        normalized_coords = normalize_in_place(
+            [centroid_x[-1], centroid_y[-1], centroid_z[-1]])
+        norm_centroid_x = np.append(norm_centroid_x, normalized_coords[0])
+        norm_centroid_y = np.append(norm_centroid_y, normalized_coords[1])
+        norm_centroid_z = np.append(norm_centroid_z, normalized_coords[2])
 
-    return centroid_x, centroid_y, centroid_z
+    return norm_centroid_x, norm_centroid_y, norm_centroid_z
