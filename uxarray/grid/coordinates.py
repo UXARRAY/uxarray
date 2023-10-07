@@ -306,31 +306,26 @@ def _populate_centroid_coord(grid, repopulate=False):
             attrs={"standard_name": "cartesian z"})
 
 
+@njit(cache=ENABLE_JIT_CACHE)
 def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
                              nNodes_per_face):
-    """Constructs the xyz centroid coordinates for faces."""
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging."""
+    centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
 
-    # Initialize empty arrays to store the results
-    centroid_x = np.array([], dtype=np.float64)
-    centroid_y = np.array([], dtype=np.float64)
-    centroid_z = np.array([], dtype=np.float64)
-    norm_centroid_x = np.array([], dtype=np.float64)
-    norm_centroid_y = np.array([], dtype=np.float64)
-    norm_centroid_z = np.array([], dtype=np.float64)
+    for face_idx, n_max_nodes in enumerate(nNodes_per_face):
+        # compute cartesian average
+        centroid_x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
 
-    # Calculate the mean xyz for all the faces
-    for cur_face_nodes, n_nodes in zip(face_nodes, nNodes_per_face):
-        centroid_x = np.append(centroid_x,
-                               np.mean(node_x[cur_face_nodes[:n_nodes]]))
-        centroid_y = np.append(centroid_y,
-                               np.mean(node_y[cur_face_nodes[:n_nodes]]))
-        centroid_z = np.append(centroid_z,
-                               np.mean(node_z[cur_face_nodes[:n_nodes]]))
-        # Normalize and append to lists
-        normalized_coords = normalize_in_place(
-            [centroid_x[-1], centroid_y[-1], centroid_z[-1]])
-        norm_centroid_x = np.append(norm_centroid_x, normalized_coords[0])
-        norm_centroid_y = np.append(norm_centroid_y, normalized_coords[1])
-        norm_centroid_z = np.append(norm_centroid_z, normalized_coords[2])
+        # normalize coordinates
+        centroid_normalized_xyz = normalize_in_place(
+            [centroid_x, centroid_y, centroid_z])
 
-    return norm_centroid_x, norm_centroid_y, norm_centroid_z
+        # store xyz
+        centroids[0, face_idx] = centroid_normalized_xyz[0]
+        centroids[1, face_idx] = centroid_normalized_xyz[1]
+        centroids[2, face_idx] = centroid_normalized_xyz[2]
+
+    return centroids[0, :], centroids[1, :], centroids[2, :]
