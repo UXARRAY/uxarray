@@ -128,14 +128,9 @@ def rasterize(uxda: UxDataArray,
                                dynamic=dynamic,
                                **kwargs)
     elif method is "trimesh":
-        if uxda._is_face_centered():
-            tris = uxda.uxgrid.Mesh2_node_faces.values
-        elif uxda._is_node_centered():
-            tris = uxda.uxgrid.Mesh2_face_nodes.values
-        else:
-            raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+        tris = _grid_to_hvTriMesh(uxda)
 
-        trimesh = _create_hvTriMesh(lon, lat, tris, dataarray, n_workers=n_workers)
+        trimesh = _create_hvTriMesh(uxda, lon, lat, tris, npartitions=npartitions)
 
         # Rasterize
         raster = hds_rasterize(trimesh,
@@ -144,11 +139,44 @@ def rasterize(uxda: UxDataArray,
                                precompute=precompute,
                                dynamic=dynamic,
                                **kwargs)
+    else:
+        raise ValueError("method:" + method + " is not supported")
 
 
     return raster.opts(width=width, height=height, tools=tools, colorbar=colorbar, cmap=cmap)
 
-def _create_hvTriMesh(x, y, triangle_indices, var, npartitions=1):
+def _grid_to_hvTriMesh(uxda):
+    if uxda._is_face_centered():
+        tris = uxda.uxgrid.Mesh2_node_faces.values
+
+        # The MPAS connectivity array unfortunately does not seem to guarantee consistent clockwise winding order, which
+        # is required by Datashader (and Matplotlib)
+        #
+        tris = _order_CCW(uxda.uxgrid.Mesh2_face_x, uxda.uxgrid.Mesh2_face_y, tris)
+
+        # Lastly, we need to "unzip" the mesh along a constant line of longitude so that when we project to PCS coordinates
+        # cells don't wrap around from east to west. The function below does the job, but it assumes that the
+        # central_longitude from the map projection is 0.0. I.e. it will cut the mesh where longitude
+        # wraps around from -180.0 to 180.0. We'll need to generalize this
+        #
+        tris = _unzip_mesh(uxda.uxgrid.Mesh2_face_x, tris, 90.0)
+    elif uxda._is_node_centered():
+        nNodes_per_face = uxda.uxgrid.nNodes_per_face.values - 1
+
+        # For the dual mesh the data are located on triangle centers, which correspond to cell (polygon) vertices. Here
+        # we decompose each cell into triangles
+        #
+        tris = _triangulate_poly(uxda.uxgrid.Mesh2_face_nodes.values, nNodes_per_face)
+
+        tris = _unzip_mesh(uxda.uxgrid.Mesh2_node_x, tris, 90.0)
+
+    else:
+        raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+
+    return tris
+
+
+def _create_hvTriMesh(uxda: UxDataArray, x, y, triangle_indices, npartitions=1):
     # Create a Holoviews Triangle Mesh suitable for rendering with Datashader
     #
     # This function returns a Holoviews TriMesh that is created from a list of coordinates, 'x' and 'y',
@@ -161,7 +189,7 @@ def _create_hvTriMesh(x, y, triangle_indices, var, npartitions=1):
     import holoviews as hv
 
     # Declare verts array
-    verts = np.column_stack([x, y, var])
+    verts = np.column_stack([x, y, uxda])
 
     # Convert to pandas
     verts_df  = pd.DataFrame(verts,  columns=['x', 'y', 'z'])
@@ -176,3 +204,58 @@ def _create_hvTriMesh(x, y, triangle_indices, var, npartitions=1):
     trimesh = hv.TriMesh((tris_ddf, tri_nodes))
 
     return(trimesh)
+
+def _order_CCW(x,y,tris):
+    # Reorder triangles as necessary so they all have counter clockwise winding order. CCW is what Datashader and MPL
+    # require.
+
+    tris[_triArea(x,y,tris)<0.0,:] = tris[_triArea(x,y,tris)<0.0,::-1]
+    return(tris)
+
+
+def _triArea(x,y,tris):
+    # Compute the signed area of a triangle
+
+    return ((x[tris[:,1]]-x[tris[:,0]]) * (y[tris[:,2]]-y[tris[:,0]])) - ((x[tris[:,2]]-x[tris[:,0]]) * (y[tris[:,1]]-y[tris[:,0]]))
+
+# Triangulate MPAS primary mesh:
+#
+# Triangulate each polygon in a heterogenous mesh of n-gons by connecting
+# each internal polygon vertex to the first vertex. Uses the MPAS
+# auxilliary variables verticesOnCell, and nEdgesOnCell.
+#
+# The function is decorated with Numba's just-in-time compiler so that it is translated into
+# optimized machine code for better peformance
+#
+
+# from numba import jit
+# @jit(nopython=True)
+def _triangulate_poly(verticesOnCell, nEdgesOnCell):
+    # Calculate the number of triangles. nEdgesOnCell gives the number of vertices for each cell (polygon)
+    # The number of triangles per polygon is the number of vertices minus 2.
+    #
+    import numpy as np
+
+    nTriangles = np.sum(nEdgesOnCell - 2)
+
+    triangles = np.ones((nTriangles, 3), dtype=np.int64)
+    nCells = verticesOnCell.shape[0]
+    triIndex = 0
+    for j in range(nCells):
+        for i in range(nEdgesOnCell[j]-2):
+            triangles[triIndex][0] = verticesOnCell[j][0]
+            triangles[triIndex][1] = verticesOnCell[j][i+1]
+            triangles[triIndex][2] = verticesOnCell[j][i+2]
+            triIndex += 1
+
+    return triangles
+
+def _unzip_mesh(x,tris,t):
+    # This funtion splits a global mesh along longitude
+    #
+    # Examine the X coordinates of each triangle in 'tris'. Return an array of 'tris' where only those triangles
+    # with legs whose length is less than 't' are returned.
+
+    import numpy as np
+
+    return tris[(np.abs((x[tris[:,0]])-(x[tris[:,1]])) < t) & (np.abs((x[tris[:,0]])-(x[tris[:,2]])) < t)]
