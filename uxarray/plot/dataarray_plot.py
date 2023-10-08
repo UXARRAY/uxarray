@@ -155,18 +155,19 @@ def _grid_to_hvTriMesh(uxda):
     if uxda._is_face_centered():
         tris = uxda.uxgrid.Mesh2_node_faces.values
 
+        mesh2_face_x = ((uxda.uxgrid.Mesh2_face_x - 180.0) % 360.0) - 180.0
+
         # The MPAS connectivity array unfortunately does not seem to guarantee consistent clockwise winding order, which
         # is required by Datashader (and Matplotlib)
         #
-        tris = _order_CCW(uxda.uxgrid.Mesh2_face_x, uxda.uxgrid.Mesh2_face_y,
-                          tris)
+        tris = _order_CCW(mesh2_face_x, uxda.uxgrid.Mesh2_face_y, tris)
 
         # Lastly, we need to "unzip" the mesh along a constant line of longitude so that when we project to PCS coordinates
         # cells don't wrap around from east to west. The function below does the job, but it assumes that the
         # central_longitude from the map projection is 0.0. I.e. it will cut the mesh where longitude
         # wraps around from -180.0 to 180.0. We'll need to generalize this
         #
-        tris = _unzip_mesh(uxda.uxgrid.Mesh2_face_x, tris, 90.0)
+        tris = _unzip_mesh(mesh2_face_x, tris, 90.0)
     elif uxda._is_node_centered():
         nNodes_per_face = uxda.uxgrid.nNodes_per_face.values - 1
 
