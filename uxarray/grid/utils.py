@@ -1,5 +1,6 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
+import warnings
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
@@ -124,7 +125,39 @@ def cross_fma(v1, v2):
     return np.array([x, y, z])
 
 
-def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
+def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
+    """Calculate the inverse Jacobian matrix for a given set of parameters.
+
+    Parameters
+    ----------
+    x0 : float
+        Description of x0.
+    x1 : float
+        Description of x1.
+    y0 : float
+        Description of y0.
+    y1 : float
+        Description of y1.
+    z0 : float
+        Description of z0.
+    z1 : float
+        Description of z1.
+    x_i_old : float
+        Description of x_i_old.
+    y_i_old : float
+        Description of y_i_old.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        The inverse Jacobian matrix if it is non-singular, or None if a singular matrix is encountered.
+
+    Notes
+    -----
+    This function calculates the inverse Jacobian matrix based on the provided parameters. If the Jacobian matrix
+    is singular, a warning is printed, and None is returned.
+    """
+
     # d_dx = (x0 * x_i_old - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0 - y1 * y_i_old * z0)
     # d_dy = 2 * (x0 * x_i_old * z1 - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0)
     #
@@ -141,7 +174,7 @@ def __inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     try:
         inverse_jacobian = np.linalg.inv(jacobian)
     except np.linalg.LinAlgError:
-        print("Warning: Singular Jacobian matrix encountered.")
+        raise warnings("Warning: Singular Jacobian matrix encountered.")
         return None
 
     return inverse_jacobian
@@ -181,8 +214,8 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
             y_guess[1] * y_guess[1] + constZ * constZ - 1.0
         ])
 
-        j_inv = __inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1],
-                               w0_cart[2], w1_cart[2], y_guess[0], y_guess[1])
+        j_inv = _inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1],
+                              w0_cart[2], w1_cart[2], y_guess[0], y_guess[1])
 
         if j_inv is None:
             return None

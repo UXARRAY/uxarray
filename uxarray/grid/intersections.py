@@ -145,10 +145,29 @@ def gca_constLat_intersection(gca_cart,
     ------
     ValueError
         If the input GCA is not in the cartesian [x, y, z] format.
+
+    Warning
+    -------
+        If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
+        is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
     constZ = np.sin(constLat)
     x1, x2 = gca_cart
-    n = cross_fma(x1, x2)
+
+    if fma_disabled:
+        n = np.cross(x1, x2)
+
+    else:
+        # Raise a warning for Windows users
+        if platform.system() == "Windows":
+
+            warnings.warn(
+                "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
+                "https://bugs.python.org/msg312480)"
+                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
+            )
+        n = cross_fma(x1, x2)
+
     nx, ny, nz = n
 
     s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n)**2 * constZ**2)
@@ -161,16 +180,14 @@ def gca_constLat_intersection(gca_cart,
     p2 = np.array([p2_x, p2_y, constZ])
 
     # Now test which intersection point is within the GCA range
-    res = np.array([])
     if point_within_gca(p1, gca_cart):
         converged_pt = _newton_raphson_solver_for_gca_constLat(p1,
                                                                gca_cart,
                                                                verbose=verbose)
-        return converged_pt
     elif point_within_gca(p2, gca_cart):
         converged_pt = _newton_raphson_solver_for_gca_constLat(p2,
                                                                gca_cart,
                                                                verbose=verbose)
-        return converged_pt
-
-    return res
+    else:
+        converged_pt = np.array([])
+    return converged_pt
