@@ -101,19 +101,17 @@ def rasterize(uxda: UxDataArray,
         lon = uxda.uxgrid.Mesh2_node_x.values
         lat = uxda.uxgrid.Mesh2_node_y.values
     else:
-        raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+        raise ValueError(
+            "Issue with data. It is neither face-centered nor node-centered!")
 
     # Transform axis coords w.r.t projection, if any
     if projection is not None:
-        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(),
-                                                    lon,
-                                                    lat).T
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
+                                                  lat).T
 
     if method is "point":
         # Construct a point dictionary
-        point_dict = {"lon": lon,
-                      "lat": lat,
-                      "var": uxda.values}
+        point_dict = {"lon": lon, "lat": lat, "var": uxda.values}
 
         # Construct Dask DataFrame
         point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
@@ -142,8 +140,12 @@ def rasterize(uxda: UxDataArray,
     else:
         raise ValueError("method:" + method + " is not supported")
 
+    return raster.opts(width=width,
+                       height=height,
+                       tools=tools,
+                       colorbar=colorbar,
+                       cmap=cmap)
 
-    return raster.opts(width=width, height=height, tools=tools, colorbar=colorbar, cmap=cmap)
 
 def _grid_to_hvTriMesh(uxda):
     if uxda._is_face_centered():
@@ -192,8 +194,8 @@ def _create_hvTriMesh(uxda: UxDataArray, x, y, triangle_indices, npartitions=1):
     verts = np.column_stack([x, y, uxda])
 
     # Convert to pandas
-    verts_df  = pd.DataFrame(verts,  columns=['x', 'y', 'z'])
-    tris_df   = pd.DataFrame(triangle_indices, columns=['v0', 'v1', 'v2'])
+    verts_df = pd.DataFrame(verts, columns=['x', 'y', 'z'])
+    tris_df = pd.DataFrame(triangle_indices, columns=['v0', 'v1', 'v2'])
 
     # Convert to dask
     verts_ddf = dd.from_pandas(verts_df, npartitions=npartitions)
@@ -203,20 +205,23 @@ def _create_hvTriMesh(uxda: UxDataArray, x, y, triangle_indices, npartitions=1):
     tri_nodes = hv.Nodes(verts_ddf, ['x', 'y', 'index'], ['z'])
     trimesh = hv.TriMesh((tris_ddf, tri_nodes))
 
-    return(trimesh)
+    return (trimesh)
 
-def _order_CCW(x,y,tris):
+
+def _order_CCW(x, y, tris):
     # Reorder triangles as necessary so they all have counter clockwise winding order. CCW is what Datashader and MPL
     # require.
 
-    tris[_triArea(x,y,tris)<0.0,:] = tris[_triArea(x,y,tris)<0.0,::-1]
-    return(tris)
+    tris[_triArea(x, y, tris) < 0.0, :] = tris[_triArea(x, y, tris) < 0.0, ::-1]
+    return (tris)
 
 
-def _triArea(x,y,tris):
+def _triArea(x, y, tris):
     # Compute the signed area of a triangle
 
-    return ((x[tris[:,1]]-x[tris[:,0]]) * (y[tris[:,2]]-y[tris[:,0]])) - ((x[tris[:,2]]-x[tris[:,0]]) * (y[tris[:,1]]-y[tris[:,0]]))
+    return ((x[tris[:, 1]] - x[tris[:, 0]]) * (y[tris[:, 2]] - y[tris[:, 0]])) - (
+                (x[tris[:, 2]] - x[tris[:, 0]]) * (y[tris[:, 1]] - y[tris[:, 0]]))
+
 
 # Triangulate MPAS primary mesh:
 #
@@ -242,15 +247,16 @@ def _triangulate_poly(verticesOnCell, nEdgesOnCell):
     nCells = verticesOnCell.shape[0]
     triIndex = 0
     for j in range(nCells):
-        for i in range(nEdgesOnCell[j]-2):
+        for i in range(nEdgesOnCell[j] - 2):
             triangles[triIndex][0] = verticesOnCell[j][0]
-            triangles[triIndex][1] = verticesOnCell[j][i+1]
-            triangles[triIndex][2] = verticesOnCell[j][i+2]
+            triangles[triIndex][1] = verticesOnCell[j][i + 1]
+            triangles[triIndex][2] = verticesOnCell[j][i + 2]
             triIndex += 1
 
     return triangles
 
-def _unzip_mesh(x,tris,t):
+
+def _unzip_mesh(x, tris, t):
     # This funtion splits a global mesh along longitude
     #
     # Examine the X coordinates of each triangle in 'tris'. Return an array of 'tris' where only those triangles
@@ -258,4 +264,4 @@ def _unzip_mesh(x,tris,t):
 
     import numpy as np
 
-    return tris[(np.abs((x[tris[:,0]])-(x[tris[:,1]])) < t) & (np.abs((x[tris[:,0]])-(x[tris[:,2]])) < t)]
+    return tris[(np.abs((x[tris[:, 0]]) - (x[tris[:, 1]])) < t) & (np.abs((x[tris[:, 0]]) - (x[tris[:, 2]])) < t)]
