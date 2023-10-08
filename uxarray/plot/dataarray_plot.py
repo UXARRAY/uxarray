@@ -128,7 +128,11 @@ def rasterize(uxda: UxDataArray,
     elif method is "trimesh":
         tris = _grid_to_hvTriMesh(uxda)
 
-        trimesh = _create_hvTriMesh(uxda, lon, lat, tris, npartitions=npartitions)
+        trimesh = _create_hvTriMesh(uxda,
+                                    lon,
+                                    lat,
+                                    tris,
+                                    npartitions=npartitions)
 
         # Rasterize
         raster = hds_rasterize(trimesh,
@@ -154,7 +158,8 @@ def _grid_to_hvTriMesh(uxda):
         # The MPAS connectivity array unfortunately does not seem to guarantee consistent clockwise winding order, which
         # is required by Datashader (and Matplotlib)
         #
-        tris = _order_CCW(uxda.uxgrid.Mesh2_face_x, uxda.uxgrid.Mesh2_face_y, tris)
+        tris = _order_CCW(uxda.uxgrid.Mesh2_face_x, uxda.uxgrid.Mesh2_face_y,
+                          tris)
 
         # Lastly, we need to "unzip" the mesh along a constant line of longitude so that when we project to PCS coordinates
         # cells don't wrap around from east to west. The function below does the job, but it assumes that the
@@ -168,12 +173,14 @@ def _grid_to_hvTriMesh(uxda):
         # For the dual mesh the data are located on triangle centers, which correspond to cell (polygon) vertices. Here
         # we decompose each cell into triangles
         #
-        tris = _triangulate_poly(uxda.uxgrid.Mesh2_face_nodes.values, nNodes_per_face)
+        tris = _triangulate_poly(uxda.uxgrid.Mesh2_face_nodes.values,
+                                 nNodes_per_face)
 
         tris = _unzip_mesh(uxda.uxgrid.Mesh2_node_x, tris, 90.0)
 
     else:
-        raise ValueError("Issue with data. It is neither face-centered nor node-centered!")
+        raise ValueError(
+            "Issue with data. It is neither face-centered nor node-centered!")
 
     return tris
 
@@ -219,8 +226,10 @@ def _order_CCW(x, y, tris):
 def _triArea(x, y, tris):
     # Compute the signed area of a triangle
 
-    return ((x[tris[:, 1]] - x[tris[:, 0]]) * (y[tris[:, 2]] - y[tris[:, 0]])) - (
-                (x[tris[:, 2]] - x[tris[:, 0]]) * (y[tris[:, 1]] - y[tris[:, 0]]))
+    return ((x[tris[:, 1]] - x[tris[:, 0]]) *
+            (y[tris[:, 2]] - y[tris[:, 0]])) - (
+                (x[tris[:, 2]] - x[tris[:, 0]]) *
+                (y[tris[:, 1]] - y[tris[:, 0]]))
 
 
 # Triangulate MPAS primary mesh:
@@ -232,6 +241,7 @@ def _triArea(x, y, tris):
 # The function is decorated with Numba's just-in-time compiler so that it is translated into
 # optimized machine code for better peformance
 #
+
 
 # from numba import jit
 # @jit(nopython=True)
@@ -264,4 +274,5 @@ def _unzip_mesh(x, tris, t):
 
     import numpy as np
 
-    return tris[(np.abs((x[tris[:, 0]]) - (x[tris[:, 1]])) < t) & (np.abs((x[tris[:, 0]]) - (x[tris[:, 2]])) < t)]
+    return tris[(np.abs((x[tris[:, 0]]) - (x[tris[:, 1]])) < t) &
+                (np.abs((x[tris[:, 0]]) - (x[tris[:, 2]])) < t)]
