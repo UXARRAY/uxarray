@@ -4,7 +4,7 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
-from uxarray.grid.intersections import gca_gca_intersection
+from uxarray.grid.intersections import gca_gca_intersection, gca_constLat_intersection
 
 
 class TestGCAGCAIntersection(TestCase):
@@ -90,3 +90,23 @@ class TestGCAGCAIntersection(TestCase):
             np.allclose(res_lonlat_rad,
                         np.array([np.deg2rad(170.0),
                                   np.deg2rad(0.0)])))
+
+
+class TestGCAconstLatIntersection(TestCase):
+
+    def test_GCA_constLat_intersections_antimeridian(self):
+        GCR1_cart = np.array([
+            node_lonlat_rad_to_xyz([np.deg2rad(170.0),
+                                    np.deg2rad(89.99)]),
+            node_lonlat_rad_to_xyz([np.deg2rad(170.0),
+                                    np.deg2rad(10.0)])
+        ])
+
+        res = gca_constLat_intersection(GCR1_cart,
+                                        np.deg2rad(60.0),
+                                        verbose=True)
+        res_lonlat_rad = node_xyz_to_lonlat_rad(res.tolist())
+        self.assertTrue(
+            np.allclose(res_lonlat_rad,
+                        np.array([np.deg2rad(170.0),
+                                  np.deg2rad(60.0)])))
