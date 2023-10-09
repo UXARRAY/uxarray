@@ -6,19 +6,21 @@ import numpy as np
 from typing import TYPE_CHECKING, Optional, Union
 
 from uxarray.grid import Grid
+import uxarray.core.dataset
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
 
-from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
-import uxarray.core.dataset
-import uxarray.core.dataset
-
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 
 from xarray.core.utils import UncachedAccessor
 
+from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
+import uxarray.core.dataset
+
+from uxarray.plot.accessor import UxDataArrayPlotAccessor
+from xarray.core.utils import UncachedAccessor
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from
@@ -240,6 +242,18 @@ class UxDataArray(xr.DataArray):
                                                       UxDataset],
                                destination_data_mapping: str = "nodes",
                                coord_type: str = "lonlat"):
+        """Nearest Neighbor Remapping between a source (``UxDataArray``) and
+        destination.`.
+
+        Parameters
+        ---------
+        destination_obj : Grid, UxDataArray, UxDataset
+            Destination for remapping
+        destination_data_mapping : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        coord_type : str, default="lonlat"
+            Indicates whether to remap using on latlon or cartesian coordinates
+        """
 
         return _nearest_neighbor_uxda(self, destination_obj,
                                       destination_data_mapping, coord_type)

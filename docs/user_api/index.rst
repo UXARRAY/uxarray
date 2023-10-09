@@ -49,12 +49,21 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
+<<<<<<< HEAD
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset.nearest_neighbor_remap
+=======
 Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataset.plot
+>>>>>>> main
 
 
 UxDataArray
@@ -96,6 +105,14 @@ Methods
 
    UxDataArray.integrate
 
+
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.nearest_neighbor_remap
+
 Plotting
 --------
 .. autosummary::
@@ -103,6 +120,7 @@ Plotting
 
    UxDataArray.plot
    UxDataArray.plot.datashade
+
 
 
 
