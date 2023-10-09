@@ -182,6 +182,10 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(faces_verts_list, latlon=False)
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
+
+        # validate the grid
+        assert (vgrid.validate())
+
         vgrid.encode_as("UGRID")
 
         # Test initializing Grid from tuples
@@ -193,6 +197,10 @@ class TestGrid(TestCase):
         vgrid = ux.open_grid(faces_verts_tuples, latlon=False)
         assert (vgrid.nMesh2_face == 3)
         assert (vgrid.nMesh2_node == 14)
+
+        # validate the grid
+        assert (vgrid.validate())
+
         vgrid.encode_as("UGRID")
 
     def test_init_verts_fill_values(self):
@@ -299,6 +307,9 @@ class TestFaceAreas(TestCase):
                                   vertices=True,
                                   islatlon=False,
                                   isconcave=False)
+
+        # validate the grid
+        assert (grid_verts.validate())
 
         #calculate area
         area_gaussian = grid_verts.calculate_total_face_area(

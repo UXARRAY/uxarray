@@ -38,6 +38,8 @@ from uxarray.grid.neighbors import BallTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
+from uxarray.grid.validation import check_connectivity, check_duplicate_nodes
+
 from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
@@ -208,8 +210,10 @@ class Grid:
         print("Validating the mesh...")
         print("valid ugrid format"
               if _is_ugrid(self._ds) else "not a valid ugrid format")
-        self.check_duplicate_nodes()
-        self.check_connectivity()
+
+        check_duplicate_nodes(self)
+        check_connectivity(self)
+
         # check face area
         areas = self.face_areas
         # Check if area of any face is close to zero
@@ -221,36 +225,6 @@ class Grid:
             print("No face area is close to zero.")
 
         return True
-
-    def check_connectivity(self):
-        """Check if the mesh connectivity is valid."""
-
-        # Check if all nodes are referenced by at least one element
-        nodes_in_conn = np.unique(self.Mesh2_face_nodes.values.flatten())
-
-        # assert that size of unique nodes in connectivity is equal to the number of nodes
-        if (nodes_in_conn.size == self.nMesh2_node):
-            print("All nodes are referenced by at least one element.")
-        else:
-            print("WARNING: Some nodes may not referenced by any element.")
-
-        # UGRID does not impose that element connectivity is consistent
-        # (e.g., shared nodes are the same)
-        # TODO: Add check for this
-
-    def check_duplicate_nodes(self):
-        """Check if there are duplicate nodes in the mesh."""
-        coords1 = np.column_stack(
-            (np.vstack(self.Mesh2_node_x), np.vstack(self.Mesh2_node_y)))
-        unique_nodes, indices = np.unique(coords1, axis=0, return_index=True)
-        duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
-        if duplicate_indices.size > 0:
-            print("WARNING: Duplicate nodes found in the mesh. # ",
-                  duplicate_indices.size, " nodes are duplicates.")
-            return True
-        else:
-            print("No duplicate nodes found in the mesh.")
-            return False
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
