@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+
 import matplotlib
 from cartopy import crs as ccrs
 
@@ -243,14 +245,17 @@ def _triArea(x, y, tris):
 # optimized machine code for better peformance
 #
 
+from numba import njit, config
+from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
-# from numba import jit
-# @jit(nopython=True)
+config.DISABLE_JIT = not ENABLE_JIT
+
+
+@njit(cache=ENABLE_JIT_CACHE)
 def _triangulate_poly(verticesOnCell, nEdgesOnCell):
     # Calculate the number of triangles. nEdgesOnCell gives the number of vertices for each cell (polygon)
     # The number of triangles per polygon is the number of vertices minus 2.
     #
-    import numpy as np
 
     nTriangles = np.sum(nEdgesOnCell - 2)
 
