@@ -73,8 +73,47 @@ class UxDataArrayPlotAccessor:
                                         plot_width, x_range, y_range, cmap, agg,
                                         **kwargs)
 
-    def polygons(self, *args, **kwargs):
-        pass
+    @functools.wraps(dataarray_plot.rasterize)
+    def rasterize(self,
+                  *args,
+                  method: Optional[str] = "point",
+                  backend: Optional[str] = "bokeh",
+                  pixel_ratio: Optional[float] = 1.0,
+                  dynamic: Optional[bool] = False,
+                  precompute: Optional[bool] = True,
+                  projection: Optional[ccrs] = None,
+                  width: Optional[int] = 1000,
+                  height: Optional[int] = 500,
+                  colorbar: Optional[bool] = True,
+                  cmap: Optional[str] = "Blues",
+                  aggregator: Optional[str] = "mean",
+                  interpolation: Optional[str] = "linear",
+                  npartitions: Optional[int] = 1,
+                  **kwargs):
+        """Visualizes an unstructured grid data variable using data shading
+        (rasterization + shading)
+        Parameters
+        ----------
+        projection: cartopy.crs, optional
+            Custom projection to transform the axis coordinates during display. Defaults to None.
+        """
+
+        return dataarray_plot.rasterize(self._uxda,
+                                        *args,
+                                        method=method,
+                                        backend=backend,
+                                        pixel_ratio=pixel_ratio,
+                                        dynamic=dynamic,
+                                        precompute=precompute,
+                                        projection=projection,
+                                        width=width,
+                                        height=height,
+                                        colorbar=colorbar,
+                                        cmap=cmap,
+                                        aggregator=aggregator,
+                                        interpolation=interpolation,
+                                        npartitions=npartitions,
+                                        **kwargs)
 
 
 class UxDatasetPlotAccessor:

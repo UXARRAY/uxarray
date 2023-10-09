@@ -282,3 +282,11 @@ class UxDataArray(xr.DataArray):
                            name=self.name)
 
         return uxda
+
+    def face_centered(self) -> bool:
+        return (self.uxgrid.nMesh2_face == self.shape[-1] and
+                self.uxgrid.nMesh2_node not in self.shape)
+
+    def node_centered(self) -> bool:
+        return (self.uxgrid.nMesh2_node == self.shape[-1] and
+                self.uxgrid.nMesh2_face not in self.shape)
