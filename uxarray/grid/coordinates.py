@@ -1,3 +1,5 @@
+import warnings
+
 import xarray as xr
 import numpy as np
 import math
@@ -107,6 +109,16 @@ def normalize_in_place(node):
     return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
 
 
+def _get_xyz_from_lonlat(node_lon, node_lat):
+    # check for units and create Mesh2_node_cart_x/y/z set to grid._ds
+    nodes_lon_rad = np.deg2rad(node_lon)
+    nodes_lat_rad = np.deg2rad(node_lat)
+    nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
+    nodes_cart = np.asarray(list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
+
+    return nodes_cart[:, 0], nodes_cart[:, 1], nodes_cart[:, 2]
+
+
 def _populate_cartesian_xyz_coord(grid):
     """A helper function that populates the xyz attribute in UXarray.Grid._ds.
     This function is called when we need to use the cartesian coordinates for
@@ -136,33 +148,39 @@ def _populate_cartesian_xyz_coord(grid):
     if "Mesh2_node_cart_x" in grid._ds.keys():
         return
 
-    # check for units and create Mesh2_node_cart_x/y/z set to grid._ds
-    nodes_lon_rad = np.deg2rad(grid.Mesh2_node_x.values)
-    nodes_lat_rad = np.deg2rad(grid.Mesh2_node_y.values)
-    nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
-    nodes_cart = np.asarray(list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
+    # get Cartesian (x, y, z) coordinates from lon/lat
+    x, y, z = _get_xyz_from_lonlat(grid.Mesh2_node_x.values,
+                                   grid.Mesh2_node_y.values)
 
     grid._ds["Mesh2_node_cart_x"] = xr.DataArray(
-        data=nodes_cart[:, 0],
+        data=x,
         dims=["nMesh2_node"],
         attrs={
             "standard_name": "cartesian x",
             "units": "m",
         })
     grid._ds["Mesh2_node_cart_y"] = xr.DataArray(
-        data=nodes_cart[:, 1],
+        data=y,
         dims=["nMesh2_node"],
         attrs={
             "standard_name": "cartesian y",
             "units": "m",
         })
     grid._ds["Mesh2_node_cart_z"] = xr.DataArray(
-        data=nodes_cart[:, 2],
+        data=z,
         dims=["nMesh2_node"],
         attrs={
             "standard_name": "cartesian z",
             "units": "m",
         })
+
+
+def _get_lonlat_from_xyz(x, y, z):
+    nodes_cart = np.stack((x, y, z), axis=1).tolist()
+    nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
+    nodes_degree = np.rad2deg(nodes_rad)
+
+    return nodes_degree[:, 0], nodes_degree[:, 1]
 
 
 def _populate_lonlat_coord(grid):
@@ -196,34 +214,14 @@ def _populate_lonlat_coord(grid):
      unit:  "m"
     """
 
-    # Check if the "Mesh2_node_x" is already in longitude
-    if "degree" in grid._ds.Mesh2_node_x.units:
-        return
+    # get lon/lat coordinates from Cartesian (x, y, z)
+    lon, lat = _get_lonlat_from_xyz(grid.Mesh2_node_cart_x.values,
+                                    grid.Mesh2_node_cart_y.values,
+                                    grid.Mesh2_node_cart_z.values)
 
-    # Check if the input Mesh2_node_xyz" are represented in the cartesian format with the unit "m"
-    if ("m" not in grid._ds.Mesh2_node_x.units) or ("m" not in grid._ds.Mesh2_node_y.units) \
-            or ("m" not in grid._ds.Mesh2_node_z.units):
-        raise RuntimeError(
-            "Expected: Mesh2_node_x/y/z should be represented in the cartesian format with the "
-            "unit 'm' when calling this function")
-
-    # Put the cartesian coordinates inside the proper data structure
-    grid._ds["Mesh2_node_cart_x"] = xr.DataArray(
-        data=grid._ds["Mesh2_node_x"].values)
-    grid._ds["Mesh2_node_cart_y"] = xr.DataArray(
-        data=grid._ds["Mesh2_node_y"].values)
-    grid._ds["Mesh2_node_cart_z"] = xr.DataArray(
-        data=grid._ds["Mesh2_node_z"].values)
-
-    # convert the input cartesian values into the longitude latitude degree
-    nodes_cart = np.stack(
-        (grid._ds["Mesh2_node_x"].values, grid._ds["Mesh2_node_y"].values,
-         grid._ds["Mesh2_node_z"].values),
-        axis=1).tolist()
-    nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
-    nodes_degree = np.rad2deg(nodes_rad)
+    # populate dataset
     grid._ds["Mesh2_node_x"] = xr.DataArray(
-        data=nodes_degree[:, 0],
+        data=lon,
         dims=["nMesh2_node"],
         attrs={
             "standard_name": "longitude",
@@ -231,10 +229,103 @@ def _populate_lonlat_coord(grid):
             "units": "degrees_east",
         })
     grid._ds["Mesh2_node_y"] = xr.DataArray(
-        data=nodes_degree[:, 1],
+        data=lat,
         dims=["nMesh2_node"],
         attrs={
             "standard_name": "latitude",
             "long_name": "latitude of mesh nodes",
             "units": "degrees_north",
         })
+
+
+def _populate_centroid_coord(grid, repopulate=False):
+    """Finds the centroids using cartesian averaging of faces based off the
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized. This cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centroids
+    """
+    warnings.warn(
+        "This cannot be guaranteed to work correctly on concave polygons")
+
+    node_x = grid.Mesh2_node_cart_x.values
+    node_y = grid.Mesh2_node_cart_y.values
+    node_z = grid.Mesh2_node_cart_z.values
+    face_nodes = grid.Mesh2_face_nodes.values
+    nNodes_per_face = grid.nNodes_per_face.values
+
+    if "Mesh2_face_x" not in grid._ds or repopulate:
+        # Construct the centroids if there are none stored
+        if "Mesh2_face_cart_x" not in grid._ds:
+            centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(
+                node_x, node_y, node_z, face_nodes, nNodes_per_face)
+
+        else:
+            # If there are cartesian centroids already use those instead
+            centroid_x, centroid_y, centroid_z = grid.Mesh2_face_cart_x, grid.Mesh2_face_cart_y, grid.Mesh2_face_cart_z
+
+        # Convert from xyz to latlon
+        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
+            centroid_x, centroid_y, centroid_z)
+    else:
+        # Convert to xyz if there are latlon centroids already stored
+        centroid_lon, centroid_lat = grid.Mesh2_face_x.values, grid.Mesh2_face_y.values
+        centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
+            centroid_lon, centroid_lat)
+
+    if "Mesh2_face_x" not in grid._ds or repopulate:
+        # Populate latlon Mesh2_face_xy
+        grid._ds["Mesh2_face_x"] = xr.DataArray(
+            centroid_lon,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "degrees_east"})
+        grid._ds["Mesh2_face_y"] = xr.DataArray(
+            centroid_lat,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "degrees_north"})
+
+    if "Mesh2_face_cart_x" not in grid._ds or repopulate:
+        # Populate cartesian coordinates Mesh2_face_cart_xyz
+        grid._ds["Mesh2_face_cart_x"] = xr.DataArray(
+            centroid_x,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "cartesian x"})
+
+        grid._ds["Mesh2_face_cart_y"] = xr.DataArray(
+            centroid_y,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "cartesian y"})
+
+        grid._ds["Mesh2_face_cart_z"] = xr.DataArray(
+            centroid_z,
+            dims=["nMesh2_face"],
+            attrs={"standard_name": "cartesian z"})
+
+
+@njit(cache=ENABLE_JIT_CACHE)
+def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
+                             nNodes_per_face):
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging."""
+    centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(nNodes_per_face):
+        # compute cartesian average
+        centroid_x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+        # normalize coordinates
+        centroid_normalized_xyz = normalize_in_place(
+            [centroid_x, centroid_y, centroid_z])
+
+        # store xyz
+        centroids[0, face_idx] = centroid_normalized_xyz[0]
+        centroids[1, face_idx] = centroid_normalized_xyz[1]
+        centroids[2, face_idx] = centroid_normalized_xyz[2]
+
+    return centroids[0, :], centroids[1, :], centroids[2, :]

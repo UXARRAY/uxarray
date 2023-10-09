@@ -2,6 +2,7 @@ import os
 from unittest import TestCase
 from pathlib import Path
 import numpy.testing as nt
+import xarray as xr
 
 import uxarray as ux
 
@@ -19,6 +20,8 @@ dsfiles_mf_ne30 = str(
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
+
+mpas_ds_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
 
 
 class TestUxDataset(TestCase):
@@ -53,3 +56,24 @@ class TestUxDataset(TestCase):
                 uxds_var2_geoflow.info(show_attrs=True)
             except Exception as exc:
                 assert False, f"'uxds_var2_geoflow.info()' raised an exception: {exc}"
+
+    def test_ugrid_dim_names(self):
+        """Tests the remapping of dimensions to the UGRID conventions."""
+
+        ugrid_dims = ["nMesh2_face", "nMesh2_node", "nMesh2_edge"]
+
+        uxds_remap = ux.open_dataset(mpas_ds_path, mpas_ds_path)
+
+        for dim in ugrid_dims:
+            assert dim in uxds_remap.dims
+
+    def test_read_from_https(self):
+        """Tests reading a dataset from a HTTPS link."""
+        import requests
+
+        small_file_480km = requests.get(
+            "https://web.lcrc.anl.gov/public/e3sm/inputdata/share/meshes/mpas/ocean/oQU480.230422.nc"
+        ).content
+
+        ds_small_480km = ux.open_dataset(small_file_480km, small_file_480km)
+        assert isinstance(ds_small_480km, ux.core.dataset.UxDataset)

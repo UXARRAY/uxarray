@@ -24,17 +24,17 @@ def _parse_grid_type(dataset):
     """
     # exodus with coord or coordx
     if "coord" in dataset:
-        mesh_type = "exo"
+        mesh_type = "Exodus"
     elif "coordx" in dataset:
-        mesh_type = "exo"
+        mesh_type = "Exodus"
     # scrip with grid_center_lon
     elif "grid_center_lon" in dataset:
-        mesh_type = "scrip"
+        mesh_type = "Scrip"
     # ugrid topology
     elif _is_ugrid(dataset):
-        mesh_type = "ugrid"
+        mesh_type = "UGRID"
     elif "verticesOnCell" in dataset:
-        mesh_type = "mpas"
+        mesh_type = "MPAS"
     else:
         raise RuntimeError(f"Could not recognize dataset format.")
     return mesh_type
