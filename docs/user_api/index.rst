@@ -281,7 +281,6 @@ Utils
    :toctree: _autosummary
 
    grid.utils.cross_fma
-   grid.utils._newton_raphson_solver_for_gca_constLat
 
 Numba
 -----
