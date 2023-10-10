@@ -199,7 +199,11 @@ class Grid:
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
     def validate(self):
-        """Validate a grid object as per UGRID conventions.
+        """Validate a grid object check for common errors, such as:
+
+            - Duplicate nodes
+            - Connectivity
+            - Face areas (non zero)
         Raises
         ------
         RuntimeError
@@ -208,9 +212,12 @@ class Grid:
         # If the mesh file is loaded correctly, we have the underlying file format as UGRID
         # Test if the file is a valid ugrid file format or not
         print("Validating the mesh...")
-        print("valid ugrid format"
-              if _is_ugrid(self._ds) else "not a valid ugrid format")
 
+        # check if the grid is a valid ugrid format
+        print("-Valid ugrid format"
+              if _is_ugrid(self._ds) else "-WARNING: Not a valid ugrid format")
+
+        # call the check_connectivity and check_duplicate_nodes functions from validation.py
         check_duplicate_nodes(self)
         check_connectivity(self)
 
@@ -219,10 +226,10 @@ class Grid:
         # Check if area of any face is close to zero
         if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
             print(
-                "At least one face area is close to zero. Mesh may contain inverted elements"
+                "-WARNING: At least one face area is close to zero. Mesh may contain inverted elements"
             )
         else:
-            print("No face area is close to zero.")
+            print("-No face area is close to zero.")
 
         return True
 
