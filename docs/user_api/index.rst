@@ -273,6 +273,7 @@ Intersections
    :toctree: _autosummary
 
    grid.intersections.gca_gca_intersection
+   grid.intersections.gca_constLat_intersection
 
 Utils
 -----
