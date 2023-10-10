@@ -9,9 +9,12 @@ if TYPE_CHECKING:
 # consider making these required depndencies
 from cartopy import crs as ccrs
 import dask.dataframe as dd
+import dask.array as da
 import holoviews as hv
 from holoviews.operation.datashader import rasterize as hds_rasterize
 from holoviews import opts
+
+import pandas as pd
 
 
 def plot(uxda, **kwargs):
@@ -103,6 +106,7 @@ def rasterize(uxda: UxDataArray,
             "Issue with data. It is neither face-centered nor node-centered!")
 
     if method == "point":
+        data_values = uxda.values
 
         recompute = True
         if data_mapping == "center":
@@ -124,7 +128,7 @@ def rasterize(uxda: UxDataArray,
                 lon, lat, _ = projection.transform_points(
                     ccrs.PlateCarree(), lon, lat).T
 
-            point_dict = {"lon": lon, "lat": lat, "var": uxda.values}
+            point_dict = {"lon": lon, "lat": lat, "var": data_values}
 
             # Construct Dask DataFrame
             point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
@@ -140,8 +144,9 @@ def rasterize(uxda: UxDataArray,
                 uxda.uxgrid._corner_points_df_proj[1] = projection
 
         else:
+
             # assign a new data variable to existing points
-            points_df.replace({'var': uxda.values})
+            points_df['var'] = pd.Series(data_values)
             points = hv.Points(points_df, ['lon', 'lat'])
 
         if backend == "matplotlib":
@@ -154,7 +159,6 @@ def rasterize(uxda: UxDataArray,
                                    aggregator=aggregator,
                                    interpolation=interpolation).opts(
                                        colorbar=colorbar, cmap=cmap, **kwargs)
-            pass
         elif backend == "bokeh":
             hv.extension("bokeh")
             raster = hds_rasterize(points,
