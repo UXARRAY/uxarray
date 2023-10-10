@@ -84,10 +84,10 @@ class UxDataArrayPlotAccessor:
                   width=1000,
                   height=500,
                   tools=['hover'],
+                  precompute: Optional[bool] = True,
                   projection: Optional[ccrs] = None,
                   aggregator='mean',
                   interpolation='linear',
-                  precompute=True,
                   dynamic=False,
                   npartitions: Optional[int] = 1,
                   **kwargs):
