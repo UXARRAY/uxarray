@@ -129,6 +129,8 @@ Coordinates
    grid.coordinates._get_xyz_from_lonlat
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
+   grid.coordinates._populate_centroid_coord
+   grid.coordinates._construct_xyz_centroids
 
 
 Lines
@@ -144,6 +146,8 @@ Utils
    :toctree: _autosummary
 
    grid.utils._fmms
+   grid.utils._newton_raphson_solver_for_gca_constLat
+   grid.utils._inv_jacobian
 
 Grid Parsing and Encoding
 =========================
