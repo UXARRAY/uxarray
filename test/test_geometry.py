@@ -48,3 +48,33 @@ class TestLineCollection(TestCase):
     def test_linecollection_execution(self):
         uxgrid = ux.open_grid(gridfile_CSne8)
         lines = uxgrid.to_linecollection()
+
+class TestPredicate(TestCase):
+    def test_is_pole_point_inside_polygon_from_vertice(self):
+        # Define a face as a list of vertices on the unit sphere
+        # Here, we're defining a tetrahedron like structure around the North pole
+        vertices = [
+            [0.5, 0.5, 0.5],
+            [-0.5, 0.5, 0.5],
+            [-0.5, -0.5, 0.5],
+            [0.5, -0.5, 0.5]
+        ]
+
+        # Normalize the vertices to ensure they lie on the unit sphere
+        for i, vertex in enumerate(vertices):
+            float_vertex = [float(coord) for coord in vertex]
+            vertices[i] = ux.grid.coordinates.normalize_in_place(float_vertex)
+
+        # Create face_edge_cart from the vertices
+        # Assuming the vertices are in clockwise or counter-clockwise order, we'll define edges accordingly
+        face_edge_cart = np.array([
+            [vertices[0], vertices[1]],
+            [vertices[1], vertices[2]],
+            [vertices[2], vertices[3]],
+            [vertices[3], vertices[0]]
+        ])
+
+        # Check if the North pole is inside the polygon
+        result = ux.grid.geometry._is_pole_point_inside_polygon('North', face_edge_cart)
+        self.assertTrue(result, "North pole should be inside the polygon")
+

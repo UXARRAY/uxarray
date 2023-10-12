@@ -1,8 +1,9 @@
 import numpy as np
-
+from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.connectivity import close_face_nodes
-
+from uxarray.grid.intersections import gca_gca_intersection
+import warnings
 
 def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     """Constructs an array of Shapely Polygons representing each face, with
@@ -242,3 +243,45 @@ def _grid_to_matplotlib_linecollection(grid):
 
     # need transform? consider adding it later if needed
     return LineCollection(lines)
+
+def _is_pole_point_inside_polygon(pole, face_edge_cart):
+    """
+    Determines if a pole point is inside a polygon.
+
+    Parameters
+    ----------
+    pole : str
+        Either 'North' or 'South'
+    face_edge_cart : np.ndarray
+        Face polygon that is represented by a list of edges in Cartesian coordinates.
+        The shape of the array is (n_edges, 2, 3)
+
+    Returns
+    -------
+    bool
+        True if pole point is inside polygon, False otherwise.
+    """
+    POLE_POINTS = {
+        'North': np.array([0.0, 0.0, 1.0]),
+        'South': np.array([0.0, 0.0, -1.0])
+    }
+
+    # Below is the smallest offset I can obtain when using the float64 type
+    REFERENCE_POINT_OFFSET = np.deg2rad(89.9999999999999)
+
+    if pole not in POLE_POINTS:
+        raise ValueError('Pole point must be either "North" or "South"')
+
+    warnings.warn('To use this function, the given face cannot cover both poles. '
+                  'For ideal results, the given face is recommended to be away from the other pole.')
+
+    pole_point = POLE_POINTS[pole]
+    ref_offset = REFERENCE_POINT_OFFSET if pole == 'South' else -REFERENCE_POINT_OFFSET
+    ref_point = node_lonlat_rad_to_xyz(np.array([0, ref_offset]))
+
+    GCA = np.array([pole_point, ref_point])
+
+    intersection_count = sum(1 for edge in face_edge_cart if gca_gca_intersection(GCA, edge).size != 0)
+
+    return intersection_count % 2 == 1
+
