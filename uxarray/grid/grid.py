@@ -406,7 +406,6 @@ class Grid:
             _populate_centroid_coord(self)
         return self._ds['Mesh2_face_x']
 
-
     @property
     def Mesh2_node_y(self) -> xr.DataArray:
         """UGRID Coordinate Variable ``Mesh2_node_y``, which contains the
@@ -477,7 +476,6 @@ class Grid:
         if "Mesh2_face_cart_z" not in self._ds:
             _populate_centroid_coord(self)
         return self._ds["Mesh2_face_cart_z"]
-
 
     @property
     def Mesh2_node_cart_z(self) -> xr.DataArray:
