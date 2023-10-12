@@ -27,6 +27,11 @@ class GridPlotAccessor:
         warnings.warn("Plotting for UxDataset instances not yet supported.")
         pass
 
+    @functools.wraps(grid_plot.mesh)
+    def mesh(self, projection=None, **kwargs):
+
+        return grid_plot.mesh(self._uxgrid, projection, **kwargs)
+
 
 class UxDataArrayPlotAccessor:
     """Plotting Accessor for UxDataArray, accessed through
