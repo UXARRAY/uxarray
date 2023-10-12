@@ -90,12 +90,24 @@ class UxDataArrayPlotAccessor:
                   interpolation: Optional[str] = "linear",
                   npartitions: Optional[int] = 1,
                   **kwargs):
-        """Visualizes an unstructured grid data variable using data shading
-        (rasterization + shading)
+        """Performs an unstructured grid rasterization for visualuzation.
+
         Parameters
         ----------
-        projection: cartopy.crs, optional
-            Custom projection to transform the axis coordinates during display. Defaults to None.
+        method: str
+            Selects what type of element to rasterize (point, trimesh, polygon), with "point" being the only currently
+            implemented method.
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+        projection: ccrs
+             Custom projection to transform (lon, lat) coordinates for rendering
+        pixel_ratio: float
+            Determines the resolution of the outputted raster.
+
+        Notes
+        -----
+        For further information about supported keyword arguments, please refer to the [Holoviews Documentation](https://holoviews.org/_modules/holoviews/operation/datashader.html#rasterize)
+        or run holoviews.help(holoviews.operation.datashader.rasterize).
         """
 
         return dataarray_plot.rasterize(self._uxda,
