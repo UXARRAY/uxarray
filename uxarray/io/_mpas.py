@@ -5,7 +5,7 @@ import warnings
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
-def _primal_to_ugrid(in_ds, out_ds, construct_face_mask):
+def _primal_to_ugrid(in_ds, out_ds):
     """Encodes the MPAS Primal-Mesh in the UGRID conventions.
 
     Parameters
@@ -49,8 +49,7 @@ def _primal_to_ugrid(in_ds, out_ds, construct_face_mask):
     if "xEdge" in in_ds:
         _parse_edge_xyz_coords(in_ds, out_ds, "primal")
 
-    _parse_face_nodes(in_ds, out_ds, "primal", construct_face_mask)
-
+    _parse_face_nodes(in_ds, out_ds, mesh_type="primal")
     _parse_node_faces(in_ds, out_ds, "primal")
 
     if "verticesOnEdge" in in_ds:
@@ -77,7 +76,7 @@ def _primal_to_ugrid(in_ds, out_ds, construct_face_mask):
     return source_dims_dict
 
 
-def _dual_to_ugrid(in_ds, out_ds, construct_face_mask):
+def _dual_to_ugrid(in_ds, out_ds):
     """Encodes the MPAS Dual-Mesh in the UGRID conventions.
 
     Parameters
@@ -121,8 +120,7 @@ def _dual_to_ugrid(in_ds, out_ds, construct_face_mask):
     if "xEdge" in in_ds:
         _parse_edge_xyz_coords(in_ds, out_ds, "dual")
 
-    _parse_face_nodes(in_ds, out_ds, "dual", construct_face_mask)
-
+    _parse_face_nodes(in_ds, out_ds, mesh_type="dual")
     _parse_node_faces(in_ds, out_ds, "dual")
 
     if "cellsOnEdge" in in_ds:
@@ -359,7 +357,7 @@ def _parse_edge_xyz_coords(in_ds, out_ds, mesh_type):
         })
 
 
-def _parse_face_nodes(in_ds, out_ds, mesh_type, construct_face_mask):
+def _parse_face_nodes(in_ds, out_ds, mesh_type):
     """Parses face node connectivity for either the Primal or Dual Mesh."""
     if mesh_type == "primal":
         verticesOnCell = np.array(in_ds['verticesOnCell'].values,
@@ -396,9 +394,6 @@ def _parse_face_nodes(in_ds, out_ds, mesh_type, construct_face_mask):
                                   "_FillValue": INT_FILL_VALUE,
                                   "start_index": INT_DTYPE(0)
                               })
-
-    if mesh_type == "dual" or construct_face_mask:
-        _mask_invalid_cells(face_nodes.values, out_ds)
 
     out_ds["Mesh2_face_nodes"] = face_nodes
 
@@ -535,49 +530,6 @@ def _parse_edge_face_distances(in_ds, out_ds):
         attrs={"start_index": INT_DTYPE(0)})
 
 
-def _mask_invalid_cells(face_nodes, out_ds):
-    """Set up ``Mesh2_face_mask``"""
-    mask, n_cells = _construct_face_mask(face_nodes)
-
-    if n_cells != 0:
-        warnings.warn(
-            "One or more invalid face encountered in Mesh2_face_nodes. This may be due to parsing cells that "
-            "have one or more node excluded for the connectivity array. Refer to Grid.Mesh2_face_mask"
-            "to see which faces are being masked out")
-
-        out_ds["Mesh2_face_mask"] = xr.DataArray(mask)
-
-
-def _construct_face_mask(face_nodes):
-    """Constructs a mask into ``Mesh2_face_nodes`` indicating which cells do
-    not ahere to the UGRID conventions (i.e. have a FILL_VALUE that's not
-    followed by another fill or isn't the final entry in the connectivity
-    array).
-
-    These faces typically either have missing values, or have less than
-    3 nodes. They are commonly encountered in the dual of an ocean mesh
-    around land borders.
-    """
-
-    n, m = face_nodes.shape
-
-    # create a mask for Fill Values that are not followed by another Fill Value
-    not_followed_by_fill = (face_nodes == INT_FILL_VALUE) & (np.roll(
-        face_nodes, shift=-1, axis=1) != INT_FILL_VALUE)
-
-    # create a mask for Fill Values that are not the final entry in each row
-    row_contains_fill = (face_nodes == INT_FILL_VALUE).cumsum(axis=1) > 0
-    not_final_entry = row_contains_fill & (np.roll(
-        row_contains_fill, shift=-1, axis=1) == False)
-
-    face_mask = np.any(not_followed_by_fill | not_final_entry, axis=1)
-    n_invalid_faces = np.count_nonzero(face_mask)
-
-    face_mask = np.invert(face_mask)
-
-    return face_mask, n_invalid_faces
-
-
 def _parse_global_attrs(in_ds, out_ds):
     """Helper to parse MPAS global attributes.
 
@@ -665,7 +617,7 @@ def _to_zero_index(grid_var):
     return grid_var
 
 
-def _read_mpas(ext_ds, use_dual=False, construct_face_mask=False):
+def _read_mpas(ext_ds, use_dual=False):
     """Function to read in a MPAS Grid dataset and encode either the Primal or
     Dual Mesh in the UGRID conventions.
 
@@ -690,9 +642,9 @@ def _read_mpas(ext_ds, use_dual=False, construct_face_mask=False):
 
     # convert dual-mesh to UGRID
     if use_dual:
-        source_dim_map = _dual_to_ugrid(ext_ds, ds, construct_face_mask)
+        source_dim_map = _dual_to_ugrid(ext_ds, ds)
     # convert primal-mesh to UGRID
     else:
-        source_dim_map = _primal_to_ugrid(ext_ds, ds, construct_face_mask)
+        source_dim_map = _primal_to_ugrid(ext_ds, ds)
 
     return ds, source_dim_map

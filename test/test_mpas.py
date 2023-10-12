@@ -43,22 +43,22 @@ class TestMPAS(TestCase):
             uxgrid = ux.open_grid(path, use_dual=False)
             ds = uxgrid._ds
 
-        # check for correct dimensions
-        expected_ugrid_dims = [
-            'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
-        ]
-        for dim in expected_ugrid_dims:
-            assert dim in ds.sizes
+            # check for correct dimensions
+            expected_ugrid_dims = [
+                'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
+            ]
+            for dim in expected_ugrid_dims:
+                assert dim in ds.sizes
 
-        # check for correct length of coordinates
-        assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
-        assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
+            # check for correct length of coordinates
+            assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
+            assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
 
-        # check for correct shape of face nodes
-        nMesh2_face = ds.sizes['nMesh2_face']
-        nMaxMesh2_face_nodes = ds.sizes['nMaxMesh2_face_nodes']
-        assert ds['Mesh2_face_nodes'].shape == (nMesh2_face,
-                                                nMaxMesh2_face_nodes)
+            # check for correct shape of face nodes
+            nMesh2_face = ds.sizes['nMesh2_face']
+            nMaxMesh2_face_nodes = ds.sizes['nMaxMesh2_face_nodes']
+            assert ds['Mesh2_face_nodes'].shape == (nMesh2_face,
+                                                    nMaxMesh2_face_nodes)
 
     def test_dual_to_ugrid_conversion(self):
         """Verifies that the Dual-Mesh was converted properly."""

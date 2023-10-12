@@ -129,8 +129,7 @@ class Grid:
     @classmethod
     def from_dataset(cls,
                      dataset: xr.Dataset,
-                     use_dual: Optional[bool] = False,
-                     construct_face_mask: Optional[bool] = False):
+                     use_dual: Optional[bool] = False):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
         Parameters
@@ -139,8 +138,6 @@ class Grid:
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
-        construct_face_mask: bool, default=False
-            Selects whether to attempt to construct ``Mesh2_face_mask``
         """
         if not isinstance(dataset, xr.Dataset):
             raise ValueError("Input must be an xarray.Dataset")
@@ -155,10 +152,7 @@ class Grid:
         elif source_grid_spec == "UGRID":
             grid_ds, source_dims_dict = _read_ugrid(dataset)
         elif source_grid_spec == "MPAS":
-            grid_ds, source_dims_dict = _read_mpas(
-                dataset,
-                use_dual=use_dual,
-                construct_face_mask=construct_face_mask)
+            grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
         elif source_grid_spec == "Shapefile":
             raise ValueError("Shapefiles not yet supported")
         else:
@@ -677,16 +671,6 @@ class Grid:
         else:
             return None
 
-    @property
-    def Mesh2_face_mask(self):
-        """Contains a mask which, when used to index ``Mesh2_face_nodes``,
-        returns all valid faces, excluding those that may be invalid after
-        parsing."""
-        if "Mesh2_face_mask" in self._ds:
-            return self._ds["Mesh2_face_mask"]
-        else:
-            return None
-
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
@@ -833,14 +817,8 @@ class Grid:
                    if not np.issubdtype(arr[0], np.floating) else arr
                    for arr in (x, y, z))
 
-        # Mask out invalid faces
-        if self.Mesh2_face_mask is not None:
-            mask = self.Mesh2_face_mask.values
-            face_nodes = self.Mesh2_face_nodes.values[mask]
-            n_nodes_per_face = self.nNodes_per_face.values[mask]
-        else:
-            face_nodes = self.Mesh2_face_nodes.values
-            n_nodes_per_face = self.nNodes_per_face.values
+        face_nodes = self.Mesh2_face_nodes.values
+        n_nodes_per_face = self.nNodes_per_face.values
 
         # call function to get area of all the faces as a np array
         self._face_areas = get_all_face_area_from_coords(

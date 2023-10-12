@@ -25,16 +25,9 @@ def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     import antimeridian
     from shapely import polygons as Polygons
 
-    # Mask out invalid faces
-    if "Mesh2_face_mask" in grid._ds:
-        mask = grid.Mesh2_face_mask.values
-        face_nodes = grid.Mesh2_face_nodes.values[mask]
-        n_nodes_per_face = grid.nNodes_per_face.values[mask]
-        n_face = len(face_nodes)
-    else:
-        face_nodes = grid.Mesh2_face_nodes.values
-        n_nodes_per_face = grid.nNodes_per_face.values
-        n_face = grid.nMesh2_face
+    face_nodes = grid.Mesh2_face_nodes.values
+    n_nodes_per_face = grid.nNodes_per_face.values
+    n_face = grid.nMesh2_face
 
     # obtain polygon shells for shapely polygon construction
     polygon_shells = _build_polygon_shells(grid.Mesh2_node_x.values,
@@ -174,16 +167,9 @@ def _build_antimeridian_face_indices(grid):
     antimeridian_face_indices : np.ndarray
         Array containing Shapely Polygons
     """
-    # Mask out invalid faces
-    if "Mesh2_face_mask" in grid._ds:
-        mask = grid.Mesh2_face_mask.values
-        face_nodes = grid.Mesh2_face_nodes.values[mask]
-        n_nodes_per_face = grid.nNodes_per_face.values[mask]
-        n_face = len(face_nodes)
-    else:
-        face_nodes = grid.Mesh2_face_nodes.values
-        n_nodes_per_face = grid.nNodes_per_face.values
-        n_face = grid.nMesh2_face
+    face_nodes = grid.Mesh2_face_nodes.values
+    n_nodes_per_face = grid.nNodes_per_face.values
+    n_face = grid.nMesh2_face
 
     # obtain polygon shells for shapely polygon construction
     polygon_shells = _build_polygon_shells(grid.Mesh2_node_x.values,
