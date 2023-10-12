@@ -19,7 +19,7 @@ import pandas as pd
 
 def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
-    return datashade(uxda, **kwargs)
+    return rasterize(uxda, **kwargs)
 
 
 def datashade(uxda: UxDataArray,
