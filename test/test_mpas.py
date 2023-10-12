@@ -19,7 +19,7 @@ class TestMPAS(TestCase):
     mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
     mpas_xr_ds = xr.open_dataset(mpas_grid_path)\
 
-    mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.230422.nc'
+    mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
     # fill value (remove once there is a unified approach in uxarray)
     fv = INT_FILL_VALUE
