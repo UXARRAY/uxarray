@@ -17,7 +17,7 @@ class TestMPAS(TestCase):
 
     # sample mpas dataset
     mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
-    mpas_xr_ds = xr.open_dataset(mpas_grid_path)\
+    mpas_xr_ds = xr.open_dataset(mpas_grid_path)
 
     mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
@@ -33,7 +33,6 @@ class TestMPAS(TestCase):
         """Tests creation of Grid object from converted MPAS dataset."""
         mpas_uxgrid_primal = ux.open_grid(self.mpas_grid_path, use_dual=False)
         mpas_uxgrid_dual = ux.open_grid(self.mpas_grid_path, use_dual=True)
-        pass
 
     def test_primal_to_ugrid_conversion(self):
         """Verifies that the Primal-Mesh was converted properly."""
