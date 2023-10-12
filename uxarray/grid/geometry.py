@@ -5,6 +5,7 @@ from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
+
 def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     """Constructs an array of Shapely Polygons representing each face, with
     antimeridian polygons split according to the GeoJSON standards.
@@ -244,11 +245,12 @@ def _grid_to_matplotlib_linecollection(grid):
     # need transform? consider adding it later if needed
     return LineCollection(lines)
 
+
 def _is_pole_point_inside_polygon(pole, face_edge_cart):
-    """
-    Determines if a pole point is inside a polygon. To use this function, the given face cannot reach out the other
-    hemisphere. For example, if you want to check if the North pole is inside a polygon, the polygon should not reach
-    the south hemisphere.
+    """Determines if a pole point is inside a polygon. To use this function,
+    the given face cannot reach out the other hemisphere. For example, if you
+    want to check if the North pole is inside a polygon, the polygon should not
+    reach the south hemisphere.
 
     Parameters
     ----------
@@ -282,15 +284,18 @@ def _is_pole_point_inside_polygon(pole, face_edge_cart):
     if pole not in POLE_POINTS:
         raise ValueError('Pole point must be either "North" or "South"')
 
-    warnings.warn('To use this function, the given face cannot reach out the other hemisphere. For example, if you '
-                  'want to check if the North pole is inside a polygon, the polygon should not reach the south hemisphere.')
+    warnings.warn(
+        'To use this function, the given face cannot reach out the other hemisphere. For example, if you '
+        'want to check if the North pole is inside a polygon, the polygon should not reach the south hemisphere.'
+    )
 
     pole_point = POLE_POINTS[pole]
-    ref_point = node_lonlat_rad_to_xyz(np.array([0.0, 0.0])) # We just set the reference point to be on the equator
+    ref_point = node_lonlat_rad_to_xyz(np.array(
+        [0.0, 0.0]))  # We just set the reference point to be on the equator
 
     GCA = np.array([pole_point, ref_point])
 
-    intersection_count = sum(1 for edge in face_edge_cart if gca_gca_intersection(GCA, edge).size != 0)
+    intersection_count = sum(1 for edge in face_edge_cart
+                             if gca_gca_intersection(GCA, edge).size != 0)
 
     return intersection_count % 2 == 1
-
