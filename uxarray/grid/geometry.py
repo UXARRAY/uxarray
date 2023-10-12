@@ -246,7 +246,9 @@ def _grid_to_matplotlib_linecollection(grid):
 
 def _is_pole_point_inside_polygon(pole, face_edge_cart):
     """
-    Determines if a pole point is inside a polygon.
+    Determines if a pole point is inside a polygon. To use this function, the given face cannot reach out the other
+    hemisphere. For example, if you want to check if the North pole is inside a polygon, the polygon should not reach
+    the south hemisphere.
 
     Parameters
     ----------
@@ -260,24 +262,31 @@ def _is_pole_point_inside_polygon(pole, face_edge_cart):
     -------
     bool
         True if pole point is inside polygon, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        If the provided pole point is neither 'North' nor 'South'.
+
+    Warning
+    -----
+    UserWarning
+        To use this function, the given face cannot reach out the other hemisphere. For example, if you
+        want to check if the North pole is inside a polygon, the polygon should not reach the south hemisphere.
     """
     POLE_POINTS = {
         'North': np.array([0.0, 0.0, 1.0]),
         'South': np.array([0.0, 0.0, -1.0])
     }
 
-    # Below is the smallest offset I can obtain when using the float64 type
-    REFERENCE_POINT_OFFSET = np.deg2rad(89.9999999999999)
-
     if pole not in POLE_POINTS:
         raise ValueError('Pole point must be either "North" or "South"')
 
-    warnings.warn('To use this function, the given face cannot cover both poles. '
-                  'For ideal results, the given face is recommended to be away from the other pole.')
+    warnings.warn('To use this function, the given face cannot reach out the other hemisphere. For example, if you '
+                  'want to check if the North pole is inside a polygon, the polygon should not reach the south hemisphere.')
 
     pole_point = POLE_POINTS[pole]
-    ref_offset = REFERENCE_POINT_OFFSET if pole == 'South' else -REFERENCE_POINT_OFFSET
-    ref_point = node_lonlat_rad_to_xyz(np.array([0, ref_offset]))
+    ref_point = node_lonlat_rad_to_xyz(np.array([0.0, 0.0])) # We just set the reference point to be on the equator
 
     GCA = np.array([pole_point, ref_point])
 
