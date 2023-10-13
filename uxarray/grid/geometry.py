@@ -1,9 +1,14 @@
 import numpy as np
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
+
+POLE_POINTS = {
+    'North': np.array([0.0, 0.0, 1.0]),
+    'South': np.array([0.0, 0.0, -1.0])
+}
 
 
 def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
@@ -247,10 +252,11 @@ def _grid_to_matplotlib_linecollection(grid):
 
 
 def _is_pole_point_inside_polygon(pole, face_edge_cart):
-    """Determines if a pole point is inside a polygon. To use this function,
-    the given face cannot reach out the other hemisphere. For example, if you
-    want to check if the North pole is inside a polygon, the polygon should not
-    reach the south hemisphere.
+    """Determines if a pole point is inside a polygon. For notice: if the pole
+    point is on the edge of the polygon, our function will consider it as
+    "inside the polygon". To use this function, the given face cannot reach out
+    the other hemisphere. For example, if you want to check if the North pole
+    is inside a polygon, the polygon should not reach the south hemisphere.
 
     Parameters
     ----------
@@ -276,10 +282,6 @@ def _is_pole_point_inside_polygon(pole, face_edge_cart):
         To use this function, the given face cannot reach out the other hemisphere. For example, if you
         want to check if the North pole is inside a polygon, the polygon should not reach the south hemisphere.
     """
-    POLE_POINTS = {
-        'North': np.array([0.0, 0.0, 1.0]),
-        'South': np.array([0.0, 0.0, -1.0])
-    }
 
     if pole not in POLE_POINTS:
         raise ValueError('Pole point must be either "North" or "South"')
@@ -295,7 +297,17 @@ def _is_pole_point_inside_polygon(pole, face_edge_cart):
 
     GCA = np.array([pole_point, ref_point])
 
-    intersection_count = sum(1 for edge in face_edge_cart
-                             if gca_gca_intersection(GCA, edge).size != 0)
+    # Count the intersection point if: there's an intersection point and the intersection point is not the pole point
+    intersection_count = 0
 
-    return intersection_count % 2 == 1
+    for edge in face_edge_cart:
+        intersection_point = gca_gca_intersection(edge, GCA)
+
+        # If the intersection point is the pole point, we consider it still "inside the polygon"
+        if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
+            return True
+        if intersection_point is not None and not np.allclose(
+                intersection_point, pole_point, atol=ERROR_TOLERANCE):
+            intersection_count += 1
+
+    return intersection_count % 2 != 0
