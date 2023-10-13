@@ -87,22 +87,24 @@ def _point_raster(uxda: UxDataArray,
                   interpolation: Optional[str] = "linear",
                   npartitions: Optional[int] = 1,
                   **kwargs):
+    """Implementation of Point Rasterization."""
 
-    if uxda.face_centered():
+    if uxda._face_centered():
         # data mapped to face centroid coordinates
         lon = uxda.uxgrid.Mesh2_face_x.values
         lat = uxda.uxgrid.Mesh2_face_y.values
-    elif uxda.node_centered():
+    elif uxda._node_centered():
         # data mapped to face corner coordinates
         lon = uxda.uxgrid.Mesh2_node_x.values
         lat = uxda.uxgrid.Mesh2_node_y.values
     else:
         raise ValueError(
-            "Issue with data. It is neither face-centered nor node-centered!")
+            f"The Dimension of Data Variable {uxda.name} is not Node or Face centered."
+        )
 
     # determine whether we need to recompute points, typically when a new projection is selected
     recompute = True
-    if uxda.face_centered() == "center":
+    if uxda._face_centered() == "center":
         if uxda.uxgrid._centroid_points_df_proj[
                 0] is not None and uxda.uxgrid._centroid_points_df_proj[
                     1] == projection:
@@ -130,7 +132,7 @@ def _point_raster(uxda: UxDataArray,
         points = hv.Points(point_ddf, ['lon', 'lat'])
 
         # cache computed points & projection
-        if uxda.face_centered() == "center":
+        if uxda._face_centered() == "center":
             uxda.uxgrid._centroid_points_df_proj[0] = point_ddf
             uxda.uxgrid._centroid_points_df_proj[1] = projection
         else:
@@ -203,6 +205,10 @@ def rasterize(uxda: UxDataArray,
          Custom projection to transform (lon, lat) coordinates for rendering
     pixel_ratio: float
         Determines the resolution of the outputted raster.
+    height: int
+        Plot Height for Bokeh Backend
+    width: int
+        Plot Width for Bokeh Backend
 
     Notes
     -----

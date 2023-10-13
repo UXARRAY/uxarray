@@ -283,10 +283,14 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def face_centered(self) -> bool:
+    def _face_centered(self) -> bool:
+        """Returns whether the data stored is Face Centered (i.e. dimensions
+        match up with the number of faces)"""
         return (self.uxgrid.nMesh2_face == self.shape[-1] and
                 self.uxgrid.nMesh2_node not in self.shape)
 
-    def node_centered(self) -> bool:
+    def _node_centered(self) -> bool:
+        """Returns whether the data stored is Node Centered (i.e. dimensions
+        match up with the number of nodes)"""
         return (self.uxgrid.nMesh2_node == self.shape[-1] and
                 self.uxgrid.nMesh2_face not in self.shape)
