@@ -88,6 +88,7 @@ class UxDataArrayPlotAccessor:
                   aggregator: Optional[str] = "mean",
                   interpolation: Optional[str] = "linear",
                   npartitions: Optional[int] = 1,
+                  cache: Optional[bool] = True,
                   **kwargs):
         """Performs an unstructured grid rasterization for visualuzation.
 
@@ -102,6 +103,9 @@ class UxDataArrayPlotAccessor:
              Custom projection to transform (lon, lat) coordinates for rendering
         pixel_ratio: float
             Determines the resolution of the outputted raster.
+        cache: bool
+            Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
+            calls
 
         Notes
         -----
@@ -123,6 +127,7 @@ class UxDataArrayPlotAccessor:
                                         aggregator=aggregator,
                                         interpolation=interpolation,
                                         npartitions=npartitions,
+                                        cache=cache,
                                         **kwargs)
 
 

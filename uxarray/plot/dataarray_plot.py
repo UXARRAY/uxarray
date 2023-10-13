@@ -86,6 +86,7 @@ def _point_raster(uxda: UxDataArray,
                   aggregator: Optional[str] = "mean",
                   interpolation: Optional[str] = "linear",
                   npartitions: Optional[int] = 1,
+                  cache: Optional[bool] = True,
                   **kwargs):
     """Implementation of Point Rasterization."""
 
@@ -132,12 +133,13 @@ def _point_raster(uxda: UxDataArray,
         points = hv.Points(point_ddf, ['lon', 'lat'])
 
         # cache computed points & projection
-        if uxda._face_centered() == "center":
-            uxda.uxgrid._centroid_points_df_proj[0] = point_ddf
-            uxda.uxgrid._centroid_points_df_proj[1] = projection
-        else:
-            uxda.uxgrid._corner_points_df_proj[0] = point_ddf
-            uxda.uxgrid._corner_points_df_proj[1] = projection
+        if cache:
+            if uxda._face_centered() == "center":
+                uxda.uxgrid._centroid_points_df_proj[0] = point_ddf
+                uxda.uxgrid._centroid_points_df_proj[1] = projection
+            else:
+                uxda.uxgrid._corner_points_df_proj[0] = point_ddf
+                uxda.uxgrid._corner_points_df_proj[1] = projection
 
     else:
         # use existing cached points & projection
@@ -191,6 +193,7 @@ def rasterize(uxda: UxDataArray,
               aggregator: Optional[str] = "mean",
               interpolation: Optional[str] = "linear",
               npartitions: Optional[int] = 1,
+              cache: Optional[bool] = True,
               **kwargs):
     """Performs an unstructured grid rasterization for visualuzation.
 
@@ -209,6 +212,9 @@ def rasterize(uxda: UxDataArray,
         Plot Height for Bokeh Backend
     width: int
         Plot Width for Bokeh Backend
+    cache: bool
+            Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
+            calls
 
     Notes
     -----
@@ -220,7 +226,8 @@ def rasterize(uxda: UxDataArray,
         # perform point rasterization
         raster = _point_raster(uxda, backend, pixel_ratio, dynamic, precompute,
                                projection, width, height, colorbar, cmap,
-                               aggregator, interpolation, npartitions, **kwargs)
+                               aggregator, interpolation, npartitions, cache,
+                               **kwargs)
     elif method == "polygon":
         raise ValueError(f"Polygon Rasterization not yet implemented.")
     elif method == "trimesh":
