@@ -75,7 +75,6 @@ class UxDataArrayPlotAccessor:
 
     @functools.wraps(dataarray_plot.rasterize)
     def rasterize(self,
-                  *args,
                   method: Optional[str] = "point",
                   backend: Optional[str] = "bokeh",
                   pixel_ratio: Optional[float] = 1.0,
@@ -111,7 +110,6 @@ class UxDataArrayPlotAccessor:
         """
 
         return dataarray_plot.rasterize(self._uxda,
-                                        *args,
                                         method=method,
                                         backend=backend,
                                         pixel_ratio=pixel_ratio,

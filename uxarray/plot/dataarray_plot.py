@@ -90,22 +90,19 @@ def _point_raster(uxda: UxDataArray,
 
     if uxda.face_centered():
         # data mapped to face centroid coordinates
-        data_mapping = "center"
         lon = uxda.uxgrid.Mesh2_face_x.values
         lat = uxda.uxgrid.Mesh2_face_y.values
     elif uxda.node_centered():
         # data mapped to face corner coordinates
-        data_mapping = "corner"
         lon = uxda.uxgrid.Mesh2_node_x.values
         lat = uxda.uxgrid.Mesh2_node_y.values
     else:
         raise ValueError(
             "Issue with data. It is neither face-centered nor node-centered!")
 
-    data_values = uxda.values
-
+    # determine whether we need to recompute points, typically when a new projection is selected
     recompute = True
-    if data_mapping == "center":
+    if uxda.face_centered() == "center":
         if uxda.uxgrid._centroid_points_df_proj[
                 0] is not None and uxda.uxgrid._centroid_points_df_proj[
                     1] == projection:
@@ -120,12 +117,12 @@ def _point_raster(uxda: UxDataArray,
             points_df = uxda.uxgrid._corner_points_df_proj[0]
 
     if recompute:
-        # need to recompute points & projection
+        # need to recompute points and/or projection
         if projection is not None:
             lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
                                                       lat).T
 
-        point_dict = {"lon": lon, "lat": lat, "var": data_values}
+        point_dict = {"lon": lon, "lat": lat, "var": uxda.values}
 
         # Construct Dask DataFrame
         point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
@@ -133,7 +130,7 @@ def _point_raster(uxda: UxDataArray,
         points = hv.Points(point_ddf, ['lon', 'lat'])
 
         # cache computed points & projection
-        if data_mapping == "center":
+        if uxda.face_centered() == "center":
             uxda.uxgrid._centroid_points_df_proj[0] = point_ddf
             uxda.uxgrid._centroid_points_df_proj[1] = projection
         else:
@@ -141,12 +138,12 @@ def _point_raster(uxda: UxDataArray,
             uxda.uxgrid._corner_points_df_proj[1] = projection
 
     else:
-        # can use existing cached points & projection
-        points_df['var'] = pd.Series(data_values)
+        # use existing cached points & projection
+        points_df['var'] = pd.Series(uxda.values)
         points = hv.Points(points_df, ['lon', 'lat'])
 
     if backend == "matplotlib":
-        # use holoview's matplotlib backend
+        # use holoviews matplotlib backend
         hv.extension("matplotlib")
         raster = hds_rasterize(points,
                                pixel_ratio=pixel_ratio,
@@ -156,7 +153,7 @@ def _point_raster(uxda: UxDataArray,
                                interpolation=interpolation).opts(
                                    colorbar=colorbar, cmap=cmap, **kwargs)
     elif backend == "bokeh":
-        # use holoview's bokeh backend
+        # use holoviews bokeh backend
         hv.extension("bokeh")
         raster = hds_rasterize(points,
                                pixel_ratio=pixel_ratio,
@@ -179,7 +176,6 @@ def _point_raster(uxda: UxDataArray,
 
 
 def rasterize(uxda: UxDataArray,
-              *args,
               method: Optional[str] = "point",
               backend: Optional[str] = "bokeh",
               pixel_ratio: Optional[float] = 1.0,
