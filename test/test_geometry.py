@@ -90,11 +90,12 @@ class TestPredicate(TestCase):
             float_vertex = [float(coord) for coord in vertex]
             vertices[i] = ux.grid.coordinates.normalize_in_place(float_vertex)
 
-        # Create face_edge_cart from the vertices
-        face_edge_cart = np.array([[vertices[0], vertices[1]],
-                                   [vertices[1], vertices[2]],
-                                   [vertices[2], vertices[3]],
-                                   [vertices[3], vertices[0]]])
+        # Create face_edge_cart from the vertices, since we are using the south pole, and want retrive the smaller face
+        # we need to reverse the order of the vertices
+        face_edge_cart = np.array([[vertices[3], vertices[2]],
+                                      [vertices[2], vertices[1]],
+                                      [vertices[1], vertices[0]],
+                                      [vertices[0], vertices[3]]])
 
         # Check if the North pole is inside the polygon
         result = ux.grid.geometry._is_pole_point_inside_polygon(

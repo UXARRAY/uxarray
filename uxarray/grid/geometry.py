@@ -301,13 +301,12 @@ def _is_pole_point_inside_polygon(pole, face_edge_cart):
     intersection_count = 0
 
     for edge in face_edge_cart:
-        intersection_point = gca_gca_intersection(edge, GCA)
+        intersection_point = gca_gca_intersection(GCA, edge)
 
         # If the intersection point is the pole point, we consider it still "inside the polygon"
-        if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
-            return True
-        if intersection_point is not None and not np.allclose(
-                intersection_point, pole_point, atol=ERROR_TOLERANCE):
+        if intersection_point.size != 0:
+            if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
+                return True
             intersection_count += 1
 
     return intersection_count % 2 != 0
