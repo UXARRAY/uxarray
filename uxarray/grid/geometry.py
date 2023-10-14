@@ -286,27 +286,57 @@ def _is_pole_point_inside_polygon(pole, face_edge_cart):
     if pole not in POLE_POINTS:
         raise ValueError('Pole point must be either "North" or "South"')
 
-    warnings.warn(
-        'To use this function, the given face cannot reach out the other hemisphere. For example, if you '
-        'want to check if the North pole is inside a polygon, the polygon should not reach the south hemisphere.'
-    )
+    # Run a test for each vertice of the face to see if this face is: completely in the North hemisphere, go cross the
+    # equator, or completely in the South hemisphere.
 
-    pole_point = POLE_POINTS[pole]
-    ref_point = node_lonlat_rad_to_xyz(np.array(
-        [0.0, 0.0]))  # We just set the reference point to be on the equator
+    # If the z coordinate of all vertices are positive, then the face is completely in the North hemisphere
+    if np.all(face_edge_cart[:, :, 2] > 0.0):
+        side = 'North'
+    # If the z coordinate of all vertices are negative, then the face is completely in the South hemisphere
+    elif np.all(face_edge_cart[:, :, 2] < 0.0):
+        side = 'South'
+    else:
+        side = "cross"
 
-    GCA = np.array([pole_point, ref_point])
+    # If the face is not completely in the North or South hemisphere, we split the face into two faces, and run the
+    # function recursively
+    if side == "cross":
+        # Split the face into two faces
+        # First, find the edge that crosses the equator
+        for i, edge in enumerate(face_edge_cart):
+            if edge[0][2] * edge[1][2] < 0.0:
+                # We found the edge that crosses the equator
+                # We split the face into two faces
+                face_edge_cart_1 = np.concatenate(
+                    (face_edge_cart[:i], np.array([edge])), axis=0)
+                face_edge_cart_2 = np.concatenate(
+                    (np.array([edge]), face_edge_cart[i + 1:]), axis=0)
+                # Run the function recursively
+                return _is_pole_point_inside_polygon(pole,
+                                                     face_edge_cart_1) or _is_pole_point_inside_polygon(
+                                                         pole, face_edge_cart_2)
 
-    # Count the intersection point if: there's an intersection point and the intersection point is not the pole point
-    intersection_count = 0
+    else:
+        # If the face is completely in the North or South hemisphere, we check if the pole point is in the same
+        # hemisphere
+        if pole != side:
+            return False
+        pole_point = POLE_POINTS[pole]
+        ref_point = node_lonlat_rad_to_xyz(np.array(
+            [0.0, 0.0]))  # We just set the reference point to be on the equator
 
-    for edge in face_edge_cart:
-        intersection_point = gca_gca_intersection(GCA, edge)
+        GCA = np.array([pole_point, ref_point])
 
-        # If the intersection point is the pole point, we consider it still "inside the polygon"
-        if intersection_point.size != 0:
-            if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
-                return True
-            intersection_count += 1
+        # Count the intersection point if: there's an intersection point and the intersection point is not the pole point
+        intersection_count = 0
 
-    return intersection_count % 2 != 0
+        for edge in face_edge_cart:
+            intersection_point = gca_gca_intersection(GCA, edge)
+
+            # If the intersection point is the pole point, we consider it still "inside the polygon"
+            if intersection_point.size != 0:
+                if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
+                    return True
+                intersection_count += 1
+
+        return intersection_count % 2 != 0
