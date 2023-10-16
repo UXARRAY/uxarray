@@ -97,7 +97,7 @@ def nearest_neighbor(source_grid: Grid,
 
     else:
         raise ValueError(
-            f"Invalid coord_type. Expected either 'lonlat' or 'artesian', but received {coord_type}"
+            f"Invalid coord_type. Expected either 'lonlat' or 'Cartesian', but received {coord_type}"
         )
 
 
@@ -116,7 +116,8 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     destination_data_mapping : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
     coord_type : str, default="lonlat"
-        Indicates whether to remap using on latlon or cartesiain coordinates
+        Indicates whether to remap using on latlon or Cartesian coordinates for nearest neighbor computations when
+        remapping.
     """
 
     # prepare dimensions
