@@ -146,6 +146,8 @@ Utils
    :toctree: _autosummary
 
    grid.utils._fmms
+   grid.utils._newton_raphson_solver_for_gca_constLat
+   grid.utils._inv_jacobian
 
 
 Remapping
