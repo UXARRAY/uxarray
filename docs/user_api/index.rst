@@ -49,21 +49,21 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
-<<<<<<< HEAD
+
 Remapping
 ---------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataset.nearest_neighbor_remap
-=======
+
 Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataset.plot
->>>>>>> main
+
 
 
 UxDataArray
@@ -163,7 +163,6 @@ Methods
    Grid.compute_face_areas
    Grid.encode_as
    Grid.get_ball_tree
-   Grid.integrate
    Grid.copy
 
 
