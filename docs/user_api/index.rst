@@ -103,6 +103,7 @@ Plotting
 
    UxDataArray.plot
    UxDataArray.plot.datashade
+   UxDataArray.plot.rasterize
 
 
 
@@ -204,6 +205,7 @@ UxDataArray Plotting Methods
    :toctree: _autosummary
 
    plot.dataarray_plot.datashade
+   plot.dataarray_plot.rasterize
 
 
 
