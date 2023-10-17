@@ -52,7 +52,7 @@ class TestLineCollection(TestCase):
 
 class TestPredicate(TestCase):
 
-    def test_is_pole_point_inside_polygon_from_vertice_north(self):
+    def test_pole_point_inside_polygon_from_vertice_north(self):
         # Define a face as a list of vertices on the unit sphere
         # Here, we're defining a square like structure around the North pole
         vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
@@ -79,7 +79,7 @@ class TestPredicate(TestCase):
             'South', face_edge_cart)
         self.assertFalse(result, "South pole should not be inside the polygon")
 
-    def test_is_pole_point_inside_polygon_from_vertice_south(self):
+    def test_pole_point_inside_polygon_from_vertice_south(self):
         # Define a face as a list of vertices on the unit sphere
         # Here, we're defining a square like structure around the south pole
         vertices = [[0.5, 0.5, -0.5], [-0.5, 0.5, -0.5], [0.0, 0.0, -1.0]]
@@ -106,7 +106,7 @@ class TestPredicate(TestCase):
             'South', face_edge_cart)
         self.assertTrue(result, "South pole should be inside the polygon")
 
-    def test_is_pole_point_inside_polygon_from_vertice_pole(self):
+    def test_pole_point_inside_polygon_from_vertice_pole(self):
         # Define a face as a list of vertices on the unit sphere
         # Here, we're defining a square like structure that pole is on the edge
         vertices = [[0, 0, 1], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
@@ -133,7 +133,7 @@ class TestPredicate(TestCase):
             'South', face_edge_cart)
         self.assertFalse(result, "South pole should not be inside the polygon")
 
-    def test_is_pole_point_inside_polygon_from_vertice_cross(self):
+    def test_pole_point_inside_polygon_from_vertice_cross(self):
         # Define a face that crosses the equator and ecompasses the North pole
         vertices = [[0.6, -0.3, 0.5], [0.2, 0.2, -0.2], [-0.5, 0.1, -0.2],
                     [-0.1, -0.2, 0.2]]
@@ -152,4 +152,4 @@ class TestPredicate(TestCase):
         # Check if the North pole is inside the polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
             'North', face_edge_cart)
-        self.assertFalse(result, "North pole should be inside the polygon")
+        self.assertTrue(result, "North pole should be inside the polygon")

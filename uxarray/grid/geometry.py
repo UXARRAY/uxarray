@@ -300,6 +300,7 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
                                             axis=1)]
         south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0,
                                             axis=1)]
+
         return (_check_intersection(ref_edge_north, north_edges) +
                 _check_intersection(ref_edge_south, south_edges)) % 2 != 0
     else:
