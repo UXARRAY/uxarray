@@ -1,6 +1,5 @@
 import numpy as np
-from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE
 from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
@@ -9,6 +8,8 @@ POLE_POINTS = {
     'North': np.array([0.0, 0.0, 1.0]),
     'South': np.array([0.0, 0.0, -1.0])
 }
+
+REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
 def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
@@ -285,16 +286,15 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
     # Classify the polygon's location
     location = _classify_polygon_location(face_edge_cart)
     pole_point = POLE_POINTS[pole]
-    ref_point = np.array([1.0, 0.0, 0.0])  # Reference point on the equator
 
     if location == pole:
-        ref_edge = np.array([pole_point, ref_point])
+        ref_edge = np.array([pole_point, REFERENCE_POINT_EQUATOR])
         return _check_intersection(ref_edge, face_edge_cart) % 2 != 0
     elif location == "Equator":
         # smallest offset I can obtain when using the float64 type
 
-        ref_edge_north = np.array([pole_point, ref_point])
-        ref_edge_south = np.array([-pole_point, ref_point])
+        ref_edge_north = np.array([pole_point, REFERENCE_POINT_EQUATOR])
+        ref_edge_south = np.array([-pole_point, REFERENCE_POINT_EQUATOR])
 
         north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0,
                                             axis=1)]
