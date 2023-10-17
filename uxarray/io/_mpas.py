@@ -32,32 +32,35 @@ def _primal_to_ugrid(in_ds, out_ds):
         })
 
     if "lonVertex" in in_ds:
-        _parse_node_latlon_coords(in_ds, out_ds, "primal")
+        _parse_node_latlon_coords(in_ds, out_ds, mesh_type="primal")
 
     if "xVertex" in in_ds:
-        _parse_node_xyz_coords(in_ds, out_ds, "primal")
+        _parse_node_xyz_coords(in_ds, out_ds, mesh_type="primal")
 
     if "lonCell" in in_ds:
-        _parse_face_latlon_coords(in_ds, out_ds, "primal")
+        _parse_face_latlon_coords(in_ds, out_ds, mesh_type="primal")
 
     if "xCell" in in_ds:
-        _parse_face_xyz_coords(in_ds, out_ds, "primal")
+        _parse_face_xyz_coords(in_ds, out_ds, mesh_type="primal")
 
     if "lonEdge" in in_ds:
-        _parse_edge_latlon_coords(in_ds, out_ds, "primal")
+        _parse_edge_latlon_coords(in_ds, out_ds, mesh_type="primal")
 
     if "xEdge" in in_ds:
-        _parse_edge_xyz_coords(in_ds, out_ds, "primal")
+        _parse_edge_xyz_coords(in_ds, out_ds, mesh_type="primal")
 
     _parse_face_nodes(in_ds, out_ds, mesh_type="primal")
-    _parse_node_faces(in_ds, out_ds, "primal")
+    _parse_node_faces(in_ds, out_ds, mesh_type="primal")
 
     if "verticesOnEdge" in in_ds:
         _parse_edge_nodes(in_ds, out_ds, "primal")
         source_dims_dict[in_ds['verticesOnEdge'].dims[0]] = "nMesh2_edge"
 
     if "edgesOnCell" in in_ds:
-        _parse_face_edges(in_ds, out_ds, "primal")
+        _parse_face_edges(in_ds, out_ds, mesh_type="primal")
+
+    if "cellsOnEdge" in in_ds:
+        _parse_edge_faces(in_ds, out_ds, mesh_type="primal")
 
     if "dvEdge" in in_ds:
         _parse_edge_node_distances(in_ds, out_ds)
@@ -103,32 +106,35 @@ def _dual_to_ugrid(in_ds, out_ds):
         })
 
     if "lonCell" in in_ds:
-        _parse_node_latlon_coords(in_ds, out_ds, "dual")
+        _parse_node_latlon_coords(in_ds, out_ds, mesh_type="dual")
 
     if "xCell" in in_ds:
-        _parse_node_xyz_coords(in_ds, out_ds, "dual")
+        _parse_node_xyz_coords(in_ds, out_ds, mesh_type="dual")
 
     if "lonVertex" in in_ds:
-        _parse_face_latlon_coords(in_ds, out_ds, "dual")
+        _parse_face_latlon_coords(in_ds, out_ds, mesh_type="dual")
 
     if "xVertex" in in_ds:
-        _parse_face_xyz_coords(in_ds, out_ds, "dual")
+        _parse_face_xyz_coords(in_ds, out_ds, mesh_type="dual")
 
     if "lonEdge" in in_ds:
-        _parse_edge_latlon_coords(in_ds, out_ds, "dual")
+        _parse_edge_latlon_coords(in_ds, out_ds, mesh_type="dual")
 
     if "xEdge" in in_ds:
-        _parse_edge_xyz_coords(in_ds, out_ds, "dual")
+        _parse_edge_xyz_coords(in_ds, out_ds, mesh_type="dual")
 
     _parse_face_nodes(in_ds, out_ds, mesh_type="dual")
-    _parse_node_faces(in_ds, out_ds, "dual")
+    _parse_node_faces(in_ds, out_ds, mesh_type="dual")
 
     if "cellsOnEdge" in in_ds:
-        _parse_edge_nodes(in_ds, out_ds, "primal")
+        _parse_edge_nodes(in_ds, out_ds, mesh_type="dual")
         source_dims_dict[in_ds['cellsOnEdge'].dims[0]] = "nMesh2_edge"
 
     if "edgesOnVertex" in in_ds:
-        _parse_face_edges(in_ds, out_ds, "dual")
+        _parse_face_edges(in_ds, out_ds, mesh_type="dual")
+
+    if "verticesOnEdge" in in_ds:
+        _parse_edge_faces(in_ds, out_ds, mesh_type="dual")
 
     if "dvEdge" in in_ds:
         _parse_edge_node_distances(in_ds, out_ds)
@@ -506,6 +512,43 @@ def _parse_face_edges(in_ds, out_ds, mesh_type):
         attrs={
             "cf_role": "face_node_connectivity",
             "_FillValue": INT_FILL_VALUE,
+            "start_index": INT_DTYPE(0)
+        })
+
+
+def _parse_edge_faces(in_ds, out_ds, mesh_type):
+    """Parses edge node connectivity for either the Primal or Dual Mesh."""
+    if mesh_type == "primal":
+
+        # vertex indices that saddle a given edge
+        cellsOnEdge = np.array(in_ds['cellsOnEdge'].values, dtype=INT_DTYPE)
+
+        # replace missing/zero values with fill values
+        cellsOnEdge = _replace_zeros(cellsOnEdge)
+
+        # convert to zero-indexed
+        cellsOnEdge = _to_zero_index(cellsOnEdge)
+
+        edge_faces = cellsOnEdge
+
+    else:
+        # vertex indices that saddle a given edge
+        verticesOnEdge = np.array(in_ds['verticesOnEdge'].values,
+                                  dtype=INT_DTYPE)
+
+        # replace missing/zero values with fill value
+        verticesOnEdge = _replace_zeros(verticesOnEdge)
+
+        # convert to zero-indexed
+        verticesOnEdge = _to_zero_index(verticesOnEdge)
+
+        edge_faces = verticesOnEdge
+
+    out_ds["Mesh2_edge_faces"] = xr.DataArray(
+        data=edge_faces,
+        dims=["nMesh2_edge", "Two"],
+        attrs={
+            "cf_role": "edge_face_connectivity",
             "start_index": INT_DTYPE(0)
         })
 

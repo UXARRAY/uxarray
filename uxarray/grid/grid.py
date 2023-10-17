@@ -650,6 +650,21 @@ class Grid:
         return self._ds["Mesh2_face_edges"]
 
     @property
+    def Mesh2_edge_faces(self) -> xr.DataArray:
+        """UGRID Connectivity Variable ``Mesh2_edge_faces``, which contains the
+        index of the faces that saddle a given edge.
+
+        Dimensions (``nMesh2_edge``, ``TWO``) and DataType
+        ``INT_DTYPE``.
+        """
+        self._mesh2_future_warning()
+        if "Mesh2_edge_faces" not in self._ds:
+            # TODO _build_edge_face_connectivity(self)
+            return None
+
+        return self._ds["Mesh2_edge_faces"]
+
+    @property
     def Mesh2_node_faces(self) -> xr.DataArray:
         """UGRID Connectivity Variable ``Mesh2_node_faces``, which maps every
         node to its faces.
