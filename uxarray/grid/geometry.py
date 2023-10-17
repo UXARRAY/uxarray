@@ -252,19 +252,17 @@ def _grid_to_matplotlib_linecollection(grid):
 
 
 def _pole_point_inside_polygon(pole, face_edge_cart):
-    """Determines if a pole point is inside a polygon. For notice: if the pole
-    point is on the edge of the polygon, our function will consider it as
-    "inside the polygon". To use this function, the given face cannot reach out
-    the other hemisphere. For example, if you want to check if the North pole
-    is inside a polygon, the polygon should not reach the south hemisphere.
+    """Determines if a pole point is inside a polygon.
+
+    .. note::
+        - If the pole point is on the edge of the polygon, it will be considered "inside the polygon".
 
     Parameters
     ----------
     pole : str
-        Either 'North' or 'South'
+        Either 'North' or 'South'.
     face_edge_cart : np.ndarray
-        Face polygon that is represented by a list of edges in Cartesian coordinates.
-        The shape of the array is (n_edges, 2, 3)
+        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
 
     Returns
     -------
@@ -274,70 +272,57 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
     Raises
     ------
     ValueError
-        If the provided pole point is neither 'North' nor 'South'.
+        If the provided pole is neither 'North' nor 'South'.
 
     Warning
-    -----
+    -------
     UserWarning
-        To use this function, the given face cannot reach out the other hemisphere. For example, if you
-        want to check if the North pole is inside a polygon, the polygon should not reach the south hemisphere.
+        Raised if the face contains both pole points.
     """
     if pole not in POLE_POINTS:
         raise ValueError('Pole point must be either "North" or "South"')
 
     # Classify the polygon's location
     location = _classify_polygon_location(face_edge_cart)
-
     pole_point = POLE_POINTS[pole]
     ref_point = np.array([1.0, 0.0, 0.0])  # Reference point on the equator
 
-    ref_edge = np.array([pole_point, ref_point])
-
     if location == pole:
-        # Case where the pole and the polygon are in the same hemisphere
-        intersection_count = 0
-        for edge in face_edge_cart:
-            intersection_point = gca_gca_intersection(ref_edge, edge)
-
-            if intersection_point.size != 0:
-                if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
-                    return True
-                intersection_count += 1
-
-        return intersection_count % 2 != 0
-
+        ref_edge = np.array([pole_point, ref_point])
+        return _check_intersection(ref_edge, face_edge_cart) % 2 != 0
     elif location == "Equator":
-        # Case where the polygon crosses the equator
-        north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
-        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0, axis=1)]
+        # smallest offset I can obtain when using the float64 type
 
-        intersection_count = 0
+        ref_edge_north = np.array([pole_point, ref_point])
+        ref_edge_south = np.array([-pole_point, ref_point])
 
-        for edge in north_edges:
-            intersection_point = gca_gca_intersection(ref_edge, edge)
-
-            if intersection_point.size != 0:
-                if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
-                    return True
-                intersection_count += 1
-
-        for edge in south_edges:
-            intersection_point = gca_gca_intersection(ref_edge, edge)
-
-            if intersection_point.size != 0:
-                if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
-                    return True
-                intersection_count += 1
-
-        return intersection_count % 2 != 0
-
+        north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0,
+                                            axis=1)]
+        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0,
+                                            axis=1)]
+        return (_check_intersection(ref_edge_north, north_edges) +
+                _check_intersection(ref_edge_south, south_edges)) % 2 != 0
     else:
-        # Case where the pole and the polygon are in opposite hemispheres
+        warnings.warn("The given face should not contain both pole points.",
+                      UserWarning)
         return False
 
 
 def _check_intersection(ref_edge, edges):
-    """Check if the reference edge intersects with any of the given edges.
+    """Check the number of intersections of the reference edge with the given
+    edges.
+
+    Parameters
+    ----------
+    ref_edge : np.ndarray
+        Reference edge to check intersections against.
+    edges : np.ndarray
+        Edges to check for intersections. Shape: (n_edges, 2, 3)
+
+    Returns
+    -------
+    int
+        Count of intersections.
     """
     pole_point, ref_point = ref_edge
     intersection_count = 0
@@ -346,14 +331,27 @@ def _check_intersection(ref_edge, edges):
         intersection_point = gca_gca_intersection(ref_edge, edge)
 
         if intersection_point.size != 0:
-            if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
+            if np.allclose(intersection_point, pole_point,
+                           atol=ERROR_TOLERANCE):
                 return True
             intersection_count += 1
 
     return intersection_count
 
+
 def _classify_polygon_location(face_edge_cart):
-    """Classify the location of the polygon relative to the hemisphere."""
+    """Classify the location of the polygon relative to the hemisphere.
+
+    Parameters
+    ----------
+    face_edge_cart : np.ndarray
+        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+
+    Returns
+    -------
+    str
+        Returns either 'North', 'South' or 'Equator' based on the polygon's location.
+    """
     z_coords = face_edge_cart[:, :, 2]
     if np.all(z_coords > 0):
         return "North"

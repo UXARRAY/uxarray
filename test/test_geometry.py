@@ -134,9 +134,9 @@ class TestPredicate(TestCase):
         self.assertFalse(result, "South pole should not be inside the polygon")
 
     def test_is_pole_point_inside_polygon_from_vertice_cross(self):
-        # Define a face that crosses the equator
-        vertices = [[0.1, 0.1, 0.1], [0.1, 0.1, -0.1], [-0.1, 0.1, -0.1],
-                    [-0.1, 0.1, 0.1]]
+        # Define a face that crosses the equator and ecompasses the North pole
+        vertices = [[0.6, -0.3, 0.5], [0.2, 0.2, -0.2], [-0.5, 0.1, -0.2],
+                    [-0.1, -0.2, 0.2]]
 
         # Normalize the vertices to ensure they lie on the unit sphere
         for i, vertex in enumerate(vertices):
@@ -153,4 +153,3 @@ class TestPredicate(TestCase):
         result = ux.grid.geometry._pole_point_inside_polygon(
             'North', face_edge_cart)
         self.assertFalse(result, "North pole should be inside the polygon")
-
