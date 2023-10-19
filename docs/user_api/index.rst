@@ -145,6 +145,7 @@ Methods
    Grid.compute_face_areas
    Grid.encode_as
    Grid.get_ball_tree
+   Grid.get_kd_tree
    Grid.integrate
    Grid.copy
 
@@ -176,6 +177,8 @@ Attributes
    Grid.antimeridian_face_indices
    Grid.corner_node_balltree
    Grid.center_node_balltree
+   Grid.corner_node_kdtree
+   Grid.center_node_kdtree
 
 Plotting
 --------
@@ -217,6 +220,13 @@ BallTree Data Structure
 
    grid.BallTree
 
+KDTree Data Structure
+-----------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.KDTree
+
 Query Methods
 -------------
 .. autosummary::
@@ -224,6 +234,8 @@ Query Methods
 
    grid.BallTree.query
    grid.BallTree.query_radius
+   grid.KDTree.query
+   grid.KDTree.query_radius
 
 
 
