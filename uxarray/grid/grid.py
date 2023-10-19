@@ -15,12 +15,11 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import _populate_centroid_coord
-from uxarray.grid.connectivity import (
-    _build_edge_node_connectivity,
-    _build_face_edges_connectivity,
-    _build_nNodes_per_face,
-    _build_node_faces_connectivity,
-)
+from uxarray.grid.connectivity import (_build_edge_node_connectivity,
+                                       _build_face_edges_connectivity,
+                                       _build_nNodes_per_face,
+                                       _build_node_faces_connectivity,
+                                       _build_edge_face_connectivity)
 
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
@@ -537,6 +536,20 @@ class Grid:
             _build_face_edges_connectivity(self)
 
         return self._ds["Mesh2_face_edges"]
+
+    @property
+    def Mesh2_edge_faces(self) -> xr.DataArray:
+        """UGRID Connectivity Variable ``Mesh2_edge_faces``, which contains the
+        index of the faces that saddle a given edge.
+
+        Dimensions (``nMesh2_edge``, ``TWO``) and DataType
+        ``INT_DTYPE``.
+        """
+        self._mesh2_future_warning()
+        if "Mesh2_edge_faces" not in self._ds:
+            _build_edge_face_connectivity(self)
+
+        return self._ds["Mesh2_edge_faces"]
 
     @property
     def Mesh2_node_faces(self) -> xr.DataArray:

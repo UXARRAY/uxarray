@@ -212,6 +212,45 @@ def _build_edge_node_connectivity(grid, repopulate=False):
         })
 
 
+def _build_edge_face_connectivity(grid):
+    if "Mesh2_face_edges" not in grid._ds:
+        _build_face_edges_connectivity(grid)
+
+    n_edge = grid.nMesh2_edge
+    face_edges = grid.Mesh2_face_edges.values
+    n_nodes_per_face = grid.nNodes_per_face.values
+
+    edge_faces = {edge_idx: [] for edge_idx in range(n_edge)}
+
+    for face_idx, (cur_face_edges,
+                   n_edges) in enumerate(zip(face_edges, n_nodes_per_face)):
+        # obtain all the edges that make up a face (excluding fill values)
+        edges = cur_face_edges[:n_edges]
+        for edge_idx in edges:
+            # each edge is our key, append the face that its part of to it's list
+            edge_faces[edge_idx].append(face_idx)
+
+    edge_faces_list = []
+
+    for edge_idx, cur_edge_faces in edge_faces.items():
+
+        if len(cur_edge_faces) == 2:
+            edge_faces_list.append(cur_edge_faces)
+        else:
+            cur_edge_faces.append([cur_edge_faces[0], INT_FILL_VALUE])
+
+    edge_faces_array = np.array(edge_faces_list, dtype=INT_DTYPE)
+
+    grid._ds["Mesh2_edge_faces"] = xr.DataArray(
+        data=edge_faces_array,
+        dims=["nMesh2_edge", "Two"],
+        attrs={
+            "cf_role": "edge_face_connectivity",
+            "start_index": INT_DTYPE(0),
+            "long_name": "Maps the faces that saddle a given edge",
+        })
+
+
 def _build_face_edges_connectivity(grid):
     """Constructs the UGRID connectivity variable (``Mesh2_face_edges``) and
     stores it within the internal (``Grid._ds``) and through the attribute
