@@ -119,6 +119,9 @@ class Grid:
         self._gdf = None
         self._poly_collection = None
         self._line_collection = None
+        self._centroid_points_df_proj = [None, None]
+        self._corner_points_df_proj = [None, None]
+        self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None

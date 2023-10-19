@@ -1,7 +1,15 @@
 import numpy as np
-
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE
 from uxarray.grid.connectivity import close_face_nodes
+from uxarray.grid.intersections import gca_gca_intersection
+import warnings
+
+POLE_POINTS = {
+    'North': np.array([0.0, 0.0, 1.0]),
+    'South': np.array([0.0, 0.0, -1.0])
+}
+
+REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
 def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
@@ -242,3 +250,113 @@ def _grid_to_matplotlib_linecollection(grid):
 
     # need transform? consider adding it later if needed
     return LineCollection(lines)
+
+
+def _pole_point_inside_polygon(pole, face_edge_cart):
+    """Determines if a pole point is inside a polygon.
+
+    .. note::
+        - If the pole point is on the edge of the polygon, it will be considered "inside the polygon".
+
+    Parameters
+    ----------
+    pole : str
+        Either 'North' or 'South'.
+    face_edge_cart : np.ndarray
+        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+
+    Returns
+    -------
+    bool
+        True if pole point is inside polygon, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        If the provided pole is neither 'North' nor 'South'.
+
+    Warning
+    -------
+    UserWarning
+        Raised if the face contains both pole points.
+    """
+    if pole not in POLE_POINTS:
+        raise ValueError('Pole point must be either "North" or "South"')
+
+    # Classify the polygon's location
+    location = _classify_polygon_location(face_edge_cart)
+    pole_point = POLE_POINTS[pole]
+
+    if location == pole:
+        ref_edge = np.array([pole_point, REFERENCE_POINT_EQUATOR])
+        return _check_intersection(ref_edge, face_edge_cart) % 2 != 0
+    elif location == "Equator":
+        # smallest offset I can obtain when using the float64 type
+
+        ref_edge_north = np.array([pole_point, REFERENCE_POINT_EQUATOR])
+        ref_edge_south = np.array([-pole_point, REFERENCE_POINT_EQUATOR])
+
+        north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0,
+                                            axis=1)]
+        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0,
+                                            axis=1)]
+
+        return (_check_intersection(ref_edge_north, north_edges) +
+                _check_intersection(ref_edge_south, south_edges)) % 2 != 0
+    else:
+        warnings.warn("The given face should not contain both pole points.",
+                      UserWarning)
+        return False
+
+
+def _check_intersection(ref_edge, edges):
+    """Check the number of intersections of the reference edge with the given
+    edges.
+
+    Parameters
+    ----------
+    ref_edge : np.ndarray
+        Reference edge to check intersections against.
+    edges : np.ndarray
+        Edges to check for intersections. Shape: (n_edges, 2, 3)
+
+    Returns
+    -------
+    int
+        Count of intersections.
+    """
+    pole_point, ref_point = ref_edge
+    intersection_count = 0
+
+    for edge in edges:
+        intersection_point = gca_gca_intersection(ref_edge, edge)
+
+        if intersection_point.size != 0:
+            if np.allclose(intersection_point, pole_point,
+                           atol=ERROR_TOLERANCE):
+                return True
+            intersection_count += 1
+
+    return intersection_count
+
+
+def _classify_polygon_location(face_edge_cart):
+    """Classify the location of the polygon relative to the hemisphere.
+
+    Parameters
+    ----------
+    face_edge_cart : np.ndarray
+        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+
+    Returns
+    -------
+    str
+        Returns either 'North', 'South' or 'Equator' based on the polygon's location.
+    """
+    z_coords = face_edge_cart[:, :, 2]
+    if np.all(z_coords > 0):
+        return "North"
+    elif np.all(z_coords < 0):
+        return "South"
+    else:
+        return "Equator"

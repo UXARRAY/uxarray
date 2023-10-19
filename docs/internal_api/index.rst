@@ -45,6 +45,7 @@ Methods
    UxDataset._replace
 
 
+
 UxDataArray
 ===========
 The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list of
@@ -72,7 +73,8 @@ Methods
    UxDataArray._construct_direct
    UxDataArray._copy
    UxDataArray._replace
-
+   UxDataArray._face_centered
+   UxDataArray._node_centered
 
 Grid
 ===========
@@ -119,6 +121,9 @@ Geometry
    grid.geometry._grid_to_polygon_geodataframe
    grid.geometry._grid_to_matplotlib_polycollection
    grid.geometry._grid_to_matplotlib_linecollection
+   grid.geometry._pole_point_inside_polygon
+   grid.geometry._classify_polygon_location
+   grid.geometry._check_intersection
 
 Coordinates
 -----------
