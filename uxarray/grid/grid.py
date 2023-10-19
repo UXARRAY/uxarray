@@ -421,7 +421,6 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
-
         self._mesh2_future_warning()
         if "Mesh2_face_x" not in self._ds:
             _populate_centroid_coord(self)
@@ -430,10 +429,11 @@ class Grid:
     @property
     def Mesh2_face_cart_x(self) -> xr.DataArray:
         """Coordinate ``Mesh2_face_cart_x``, which contains the Cartesian y of
-        each face center.
+        each face center in meters.
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_cart_x" in self._ds:
             return self._ds["Mesh2_face_cart_x"]
         else:
@@ -442,10 +442,11 @@ class Grid:
     @property
     def Mesh2_edge_x(self) -> xr.DataArray:
         """Coordinate ``Mesh2_edge_x``, which contains the longitude of the
-        center of each edge.
+        center of each edge in degrees.
 
         Dimensions (``nMesh2_edge``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_x" in self._ds:
             return self._ds["Mesh2_edge_x"]
         else:
@@ -453,11 +454,12 @@ class Grid:
 
     @property
     def Mesh2_edge_cart_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_edge_cart_x``, which contains the Cartesian x
-        location of each edge center.
+        """Coordinate ``Mesh2_edge_cart_x``, which contains the Cartesian x of
+        each edge center in meters.
 
         Dimensions (``nMesh2_edge``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_cart_x" in self._ds:
             return self._ds["Mesh2_edge_cart_x"]
         else:
@@ -508,6 +510,7 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_cart_x" not in self._ds:
             _populate_centroid_coord(self)
         return self._ds["Mesh2_face_cart_x"]
@@ -519,6 +522,7 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_cart_y" not in self._ds:
             _populate_centroid_coord(self)
         return self._ds["Mesh2_face_cart_y"]
@@ -530,6 +534,7 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_cart_z" not in self._ds:
             _populate_centroid_coord(self)
         return self._ds["Mesh2_face_cart_z"]
@@ -541,6 +546,7 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_cart_y" in self._ds:
             return self._ds["Mesh2_face_cart_y"]
         else:
@@ -553,6 +559,7 @@ class Grid:
 
         Dimensions (``nMesh2_edge``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_y" in self._ds:
             return self._ds["Mesh2_edge_y"]
         else:
@@ -565,6 +572,7 @@ class Grid:
 
         Dimensions (``nMesh2_edge``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_cart_y" in self._ds:
             return self._ds["Mesh2_edge_cart_y"]
         else:
@@ -589,6 +597,7 @@ class Grid:
 
         Dimensions (``nMesh2_face``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_face_cart_z" in self._ds:
             return self._ds["Mesh2_face_cart_z"]
         else:
@@ -601,6 +610,7 @@ class Grid:
 
         Dimensions (``nMesh2_edge``)
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_cart_z" in self._ds:
             return self._ds["Mesh2_edge_cart_z"]
         else:
@@ -704,6 +714,7 @@ class Grid:
 
         Dimensions (``nMesh2_edge``) and DataType float.
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_node_distances" in self._ds:
             return self._ds["Mesh2_edge_node_distances"]
         else:
@@ -715,6 +726,7 @@ class Grid:
 
         Dimensions (``nMesh2_edge``) and DataType float.
         """
+        self._mesh2_future_warning()
         if "Mesh2_edge_face_distances" in self._ds:
             return self._ds["Mesh2_edge_face_distances"]
         else:

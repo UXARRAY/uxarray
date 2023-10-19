@@ -296,12 +296,9 @@ def _parse_face_xyz_coords(in_ds, out_ds, mesh_type):
 def _parse_edge_latlon_coords(in_ds, out_ds, mesh_type):
     """Parses latlon edge node coordinates for either the Primal or Dual
     Mesh."""
-    if mesh_type == "primal":
-        edge_lon = np.rad2deg(in_ds['lonEdge'].values)
-        edge_lat = np.rad2deg(in_ds['latEdge'].values)
-    else:
-        edge_lon = np.rad2deg(in_ds['lonEdge'].values)
-        edge_lat = np.rad2deg(in_ds['latEdge'].values)
+
+    edge_lon = np.rad2deg(in_ds['lonEdge'].values)
+    edge_lat = np.rad2deg(in_ds['latEdge'].values)
 
     out_ds['Mesh2_edge_x'] = xr.DataArray(
         edge_lon,
@@ -325,15 +322,9 @@ def _parse_edge_latlon_coords(in_ds, out_ds, mesh_type):
 def _parse_edge_xyz_coords(in_ds, out_ds, mesh_type):
     """Parses cartesian edge node coordinates for either the Primal or Dual
     Mesh."""
-    if mesh_type == "primal":
-        edge_x = in_ds['xEdge'].values
-        edge_y = in_ds['yEdge'].values
-        edge_z = in_ds['zEdge'].values
-    else:
-        # centers of dual-mesh edges (Cartesian)
-        edge_x = in_ds['xEdge'].values
-        edge_y = in_ds['yEdge'].values
-        edge_z = in_ds['zEdge'].values
+    edge_x = in_ds['xEdge'].values
+    edge_y = in_ds['yEdge'].values
+    edge_z = in_ds['zEdge'].values
 
     out_ds["Mesh2_edge_cart_x"] = xr.DataArray(
         data=edge_x,
