@@ -10,9 +10,7 @@ import uxarray as ux
 
 from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity
 
-from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
-
-from uxarray.grid.neighbors import BallTree
+from uxarray.grid.coordinates import _populate_lonlat_coord
 
 try:
     import constants
@@ -36,7 +34,6 @@ shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
 
 
 class TestGrid(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
@@ -280,7 +277,6 @@ class TestOperators(TestCase):
 
 
 class TestFaceAreas(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
     def test_calculate_total_face_area_triangle(self):
@@ -295,7 +291,7 @@ class TestFaceAreas(TestCase):
                                   islatlon=False,
                                   isconcave=False)
 
-        #calculate area
+        # calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -407,7 +403,7 @@ class TestPopulateCoordinates(TestCase):
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
 
         vgrid = ux.open_grid(verts_degree, latlon=True)
-        #_populate_cartesian_xyz_coord(vgrid)
+        # _populate_cartesian_xyz_coord(vgrid)
 
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.Mesh2_node_cart_x.values[i],
@@ -833,14 +829,12 @@ class TestConnectivity(TestCase):
 
 
 class TestClassMethods(TestCase):
-
     gridfile_ugrid = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
     gridfile_exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
     gridfile_scrip = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
 
     def test_from_dataset(self):
-
         # UGRID
         xrds = xr.open_dataset(self.gridfile_ugrid)
         uxgrid = ux.Grid.from_dataset(xrds)
@@ -872,7 +866,6 @@ class TestClassMethods(TestCase):
 
 
 class TestBallTree(TestCase):
-
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_files = [gridfile_mpas]
 
@@ -940,3 +933,33 @@ class TestBallTree(TestCase):
     def test_antimeridian_distance_face_centers(self):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
         pass
+
+
+class TestKDTree:
+    corner_grid_files = [gridfile_CSne30, gridfile_mpas]
+    center_grid_file = gridfile_mpas
+
+    def test_construction_from_nodes(self):
+        """Test the KDTree creation and query function using the grids
+        nodes."""
+
+        for grid_file in self.corner_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+            d, ind = uxgrid.get_kd_tree(tree_type="nodes").query(
+                [0.0, 0.0, 1.0])
+
+    def test_construction_from_face_centers(self):
+        """Test the KDTree creation and query function using the grids face
+        centers."""
+
+        uxgrid = ux.open_grid(self.center_grid_file)
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query(
+            [1.0, 0.0, 0.0], k=5)
+
+    def test_query_radius(self):
+        """Test the KDTree creation and query_radius function using the grids
+        face centers."""
+
+        uxgrid = ux.open_grid(self.center_grid_file)
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query_radius(
+            [0.0, 0.0, 1.0], r=90.01)

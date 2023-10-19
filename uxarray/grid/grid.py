@@ -31,7 +31,7 @@ from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_matplotlib_linecollection,
                                    _grid_to_polygons)
 
-from uxarray.grid.neighbors import BallTree
+from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
@@ -122,6 +122,7 @@ class Grid:
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
+        self._kd_tree = None
 
         self._mesh2_warning_raised = False
 
@@ -592,6 +593,34 @@ class Grid:
                 self._ball_tree.tree_type = tree_type
 
         return self._ball_tree
+
+    def get_kd_tree(self, tree_type: Optional[str] = "nodes"):
+        """Get the KDTree data structure of this Grid that allows for nearest
+        neighbor queries (k nearest or within some radius) on either the nodes
+        (``Mesh2_node_cart_x``, ``Mesh2_node_cart_y``, ``Mesh2_node_cart_z``)
+        or face centers (``Mesh2_face_cart_x``, ``Mesh2_face_cart_y``,
+        ``Mesh2_face_cart_z``).
+
+        Parameters
+        ----------
+        tree_type : str, default="nodes"
+            Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
+            Centers of each face
+
+        Returns
+        -------
+        self._kd_tree : grid.Neighbors.KDTree
+            KDTree instance
+        """
+        if self._kd_tree is None:
+            self._kd_tree = KDTree(self,
+                                   tree_type=tree_type,
+                                   distance_metric='minkowski')
+        else:
+            if tree_type != self._kd_tree._tree_type:
+                self._kd_tree.tree_type = tree_type
+
+        return self._kd_tree
 
     def copy(self):
         """Returns a deep copy of this grid."""
