@@ -8,7 +8,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity
+from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity
 
 from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
 
@@ -666,7 +666,7 @@ class TestConnectivity(TestCase):
 
             mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-            _build_face_edges_connectivity(tgrid)
+            _populate_face_edge_connectivity(tgrid)
             mesh2_face_edges = tgrid._ds.Mesh2_face_edges
             mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -701,7 +701,7 @@ class TestConnectivity(TestCase):
 
         mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-        _build_face_edges_connectivity(tgrid)
+        _populate_face_edge_connectivity(tgrid)
         mesh2_face_edges = tgrid._ds.Mesh2_face_edges
         mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -724,7 +724,7 @@ class TestConnectivity(TestCase):
             self.f5_deg, self.f6_deg
         ]
         uds = ux.open_grid(verts)
-        _build_face_edges_connectivity(uds)
+        _populate_face_edge_connectivity(uds)
         n_face = len(uds._ds["Mesh2_face_edges"].values)
         n_node = uds.nMesh2_node
         n_edge = len(uds._ds["Mesh2_edge_nodes"].values)
