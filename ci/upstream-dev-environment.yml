@@ -2,6 +2,7 @@ name: uxarray_upstream_build
 channels:
   - conda-forge
 dependencies:
+  - cartopy
   - matplotlib-base
   - netcdf4
   - numba
