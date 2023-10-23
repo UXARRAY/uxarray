@@ -152,31 +152,30 @@ def _angle_of_2_vectors(u, v):
     return angle_u_v_rad
 
 def max_gca_latitude(gca_cart):
-    # Helper function in paper 2.1.2 Maximum latitude of a great circle arc
+    """Calculate the maximum latitude of a great circle arc defined by two 3D points.
+
+    Parameters
+    ----------
+    gca_cart : numpy.ndarray (float, 2*3)
+        An array containing two 3D vectors that define a great circle arc.
+
+    Returns
+    -------
+    float
+        The maximum latitude of the great circle arc in radians.
+    """
     n1, n2 = gca_cart
     dot_n1_n2 = np.dot(n1, n2)
-    d_de_nom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
-    d_a_max = (n1[2] * np.dot(n1, n2) - n2[2]) / d_de_nom
-    if np.abs(d_a_max - 0.0) < ERROR_TOLERANCE:
-        d_a_max = 0.0
-    if np.abs(d_a_max - 1.0) < ERROR_TOLERANCE:
-        d_a_max = 1.0
-    if (d_a_max > 0.0) and (d_a_max < 1.0):
-        node3 = [0.0, 0.0, 0.0]
-        node3[0] = n1[0] * (1 - d_a_max) + n2[0] * d_a_max
-        node3[1] = n1[1] * (1 - d_a_max) + n2[1] * d_a_max
-        node3[2] = n1[2] * (1 - d_a_max) + n2[2] * d_a_max
+    denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
+    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
+
+    # Clip d_a_max to be within [0, 1] if it's close to the bounds
+    d_a_max = np.clip(d_a_max, 0, 1) if np.isclose(d_a_max, [0, 1], atol=ERROR_TOLERANCE).any() else d_a_max
+
+    if 0 < d_a_max < 1:
+        node3 = (1 - d_a_max) * n1 + d_a_max * n2
         node3 = normalize_in_place(node3)
-
-        d_lat_rad = node3[2]
-
-        if d_lat_rad > 1.0:
-            d_lat_rad = 0.5 * np.pi
-        elif d_lat_rad < -1.0:
-            d_lat_rad = -0.5 * np.pi
-        else:
-            d_lat_rad = np.arcsin(d_lat_rad)
+        d_lat_rad = np.arcsin(np.clip(node3[2], -1, 1))
         return d_lat_rad
     else:
         return max(node_xyz_to_lonlat_rad(n1)[1], node_xyz_to_lonlat_rad(n2)[1])
-
