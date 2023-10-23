@@ -330,3 +330,17 @@ class UxDataArray(xr.DataArray):
             return None
         else:
             return np.mean(self.data[..., ind])
+
+    def spatial_std_deviation(self, lonlat: Tuple[float, float],
+                              distance: float):
+        """Computes the standard deviation within some radius from a given
+        (lon, lat) location."""
+
+        ball_tree = self._select_ball_tree()
+
+        _, ind = ball_tree.query_radius(lonlat, distance)
+
+        if len(ind) == 0:
+            return None
+        else:
+            return np.std(self.data[..., ind])

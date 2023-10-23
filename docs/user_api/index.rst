@@ -112,6 +112,7 @@ Spatial
    UxDataArray.spatial_min
    UxDataArray.spatial_max
    UxDataArray.spatial_mean
+   UxDataArray.spatial_std_deviation
 
 
 
