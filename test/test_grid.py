@@ -8,7 +8,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity
+from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity, _build_edge_face_connectivity
 
 from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
 
@@ -830,6 +830,18 @@ class TestConnectivity(TestCase):
                 self.assertTrue(
                     np.array_equal(valid_face_index_from_sparse_matrix,
                                    face_index_from_dict))
+
+    def test_edge_face_connectivity(self):
+        """Tests the construction of ``Mesh2_face_edges``"""
+        uxgrid = ux.open_grid(self.mpas_filepath)
+
+        edge_faces_gold = uxgrid.Mesh2_edge_faces.values
+
+        edge_faces_output = _build_edge_face_connectivity(
+            uxgrid.Mesh2_face_edges.values, uxgrid.nNodes_per_face.values,
+            uxgrid.nMesh2_edge)
+
+        nt.assert_array_equal(edge_faces_output, edge_faces_gold)
 
 
 class TestClassMethods(TestCase):
