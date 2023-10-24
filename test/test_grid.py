@@ -962,4 +962,4 @@ class TestKDTree:
 
         uxgrid = ux.open_grid(self.center_grid_file)
         d, ind = uxgrid.get_kd_tree(tree_type="face centers").query_radius(
-            [0.0, 0.0, 1.0], r=90.01)
+            [0.0, 0.0, 1.0], r=5)

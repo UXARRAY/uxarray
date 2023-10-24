@@ -85,7 +85,7 @@ class KDTree:
         return self._tree_from_face_centers
 
     def _current_tree(self):
-
+        """Creates and returns the current tree."""
         _tree = None
 
         if self._tree_type == "nodes":
@@ -134,7 +134,7 @@ class KDTree:
                 f"The value of k must be greater than 1 and less than the number of elements used to construct "
                 f"the tree ({self._n_elements}).")
 
-        xyz = _prepare_cart_xyz_for_query(xyz)
+        xyz = _prepare_xyz_for_query(xyz)
 
         d, ind = self._current_tree().query(xyz, k, return_distance, dualtree,
                                             breadth_first, sort_results)
@@ -166,7 +166,7 @@ class KDTree:
         ----------
         xyz : array_like
            coordinate pairs in cartesian (x, y, z) to query
-        r: distance in degrees within which neighbors are returned
+        r: distance within which neighbors are returned
             r can be a single value , or an array of values of shape x.shape[:-1] if different radii are desired for each point.
         return_distance : bool, default=False
             Indicates whether distances should be returned
@@ -187,8 +187,7 @@ class KDTree:
             raise AssertionError(
                 f"The value of r must be greater than or equal to zero.")
 
-        r = np.deg2rad(r)
-        xyz = _prepare_cart_xyz_for_query(xyz)
+        xyz = _prepare_xyz_for_query(xyz)
 
         if count_only:
             count = self._current_tree().query_radius(xyz, r, return_distance,
@@ -495,7 +494,7 @@ def _prepare_xy_for_query(xy, use_radians):
     return xy
 
 
-def _prepare_cart_xyz_for_query(xyz):
+def _prepare_xyz_for_query(xyz):
     """Prepares xyz coordinates for query with the sklearn KDTree."""
 
     xyz = np.asarray(xyz)
