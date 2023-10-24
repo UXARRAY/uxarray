@@ -200,7 +200,7 @@ class TestLatlonBound(TestCase):
                 b_lonlat[0] - c_lonlat[0]) >= ERROR_TOLERANCE:
             max_lat = -np.pi
             v_b, v_c = max_section
-            angle_v1_v2_rad = ux.grid.lines._angle_of_2_vectors(v_b, v_c)
+            angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
             v0 = ux.grid.utils.cross_fma(v_temp, v_b)
             v0 = ux.grid.coordinates.normalize_in_place(v0.tolist())
             avg_angle_rad = angle_v1_v2_rad / 10.0
@@ -284,7 +284,7 @@ class TestLatlonBound(TestCase):
                 b_lonlat[0] - c_lonlat[0]) >= ERROR_TOLERANCE:
             min_lat = np.pi
             v_b, v_c = min_section
-            angle_v1_v2_rad = ux.grid.lines._angle_of_2_vectors(v_b, v_c)
+            angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
             v0 = ux.grid.utils.cross_fma(v_temp, v_b)
             v0 = np.array(ux.grid.coordinates.normalize_in_place(v0.tolist()))
             avg_angle_rad = angle_v1_v2_rad / 10.0
@@ -335,7 +335,7 @@ class TestLatlonBound(TestCase):
         ])
 
         # Calculate the maximum latitude
-        max_latitude = ux.grid.lines.extreme_gca_latitude(gca_cart, 'max')
+        max_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'max')
 
         # Check if the maximum latitude is correct
         expected_max_latitude = self._max_latitude_rad_iterative(gca_cart)
@@ -347,7 +347,7 @@ class TestLatlonBound(TestCase):
         gca_cart = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
 
         # Calculate the maximum latitude
-        max_latitude = ux.grid.lines.extreme_gca_latitude(gca_cart, 'max')
+        max_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'max')
 
         # Check if the maximum latitude is correct
         expected_max_latitude = np.pi / 2  # 90 degrees in radians
@@ -363,7 +363,7 @@ class TestLatlonBound(TestCase):
         ])
 
         # Calculate the minimum latitude
-        min_latitude = ux.grid.lines.extreme_gca_latitude(gca_cart, 'min')
+        min_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'min')
 
         # Check if the minimum latitude is correct
         expected_min_latitude = self._min_latitude_rad_iterative(gca_cart)
@@ -375,7 +375,7 @@ class TestLatlonBound(TestCase):
         gca_cart = np.array([[0.0, 0.0, -1.0], [1.0, 0.0, 0.0]])
 
         # Calculate the minimum latitude
-        min_latitude = ux.grid.lines.extreme_gca_latitude(gca_cart, 'min')
+        min_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'min')
 
         # Check if the minimum latitude is correct
         expected_min_latitude = -np.pi / 2  # 90 degrees in radians
