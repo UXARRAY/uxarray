@@ -2,7 +2,10 @@ name: uxarray_build
 channels:
   - conda-forge
 dependencies:
+  - cartopy
   - dask
+  - datashader
+  - holoviews
   - matplotlib-base
   - netcdf4
   - numba
