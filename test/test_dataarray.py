@@ -3,6 +3,8 @@ import os
 from unittest import TestCase
 from pathlib import Path
 
+import numpy as np
+
 import uxarray as ux
 
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
@@ -113,3 +115,87 @@ class TestGeometryConversions(TestCase):
 
         # override will recompute the grid
         assert gdf_start is not gdf_end
+
+
+class TestSpatialOperators(TestCase):
+
+    def test_spatial_min(self):
+        # Open the dataset
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+
+        # Find spatial min
+        min_psi = uxds['psi'].spatial_min(lonlat=(0.0, 0.0), distance=10)
+
+        # Open with a grid to construct the ball tree
+        uxgrid = ux.open_grid(gridfile_ne30)
+        d, ind = uxgrid.get_ball_tree(tree_type="face centers").query_radius(
+            [0.0, 0.0], r=10)
+
+        # Get an array of the queried radius
+        queried_psi = []
+        for i in ind:
+            queried_psi.append(uxds['psi'][i])
+        expected_min = min(queried_psi)
+
+        self.assertEqual(expected_min, min_psi)
+
+    def test_spatial_max(self):
+        # Open the dataset
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+
+        # Find spatial max
+        max_psi = uxds['psi'].spatial_max(lonlat=(0.0, 0.0), distance=10)
+
+        # Open with a grid to construct the ball tree
+        uxgrid = ux.open_grid(gridfile_ne30)
+        d, ind = uxgrid.get_ball_tree(tree_type="face centers").query_radius(
+            [0.0, 0.0], r=10)
+
+        # Get an array of the queried radius
+        queried_psi = []
+        for i in ind:
+            queried_psi.append(uxds['psi'][i])
+        expected_max = max(queried_psi)
+
+        self.assertEqual(expected_max, max_psi)
+
+    def test_spatial_mean(self):
+        # Open the dataset
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+
+        # Find spatial mean
+        mean_psi = uxds['psi'].spatial_mean(lonlat=(0.0, 0.0), distance=10)
+
+        # Open with a grid to construct the ball tree
+        uxgrid = ux.open_grid(gridfile_ne30)
+        d, ind = uxgrid.get_ball_tree(tree_type="face centers").query_radius(
+            [0.0, 0.0], r=10)
+
+        # Get an array of the queried radius
+        queried_psi = []
+        for i in ind:
+            queried_psi.append(uxds['psi'][i])
+        expected_mean = np.mean(queried_psi)
+
+        self.assertEqual(expected_mean, mean_psi)
+
+    def test_spatial_std_deviation(self):
+        # Open the dataset
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+
+        # Find spatial standard deviation
+        std_deviation = uxds['psi'].spatial_std_deviation(lonlat=(0.0, 0.0),
+                                                          distance=10)
+        uxgrid = ux.open_grid(gridfile_ne30)
+
+        # Open with a grid to construct the ball tree
+        d, ind = uxgrid.get_ball_tree(tree_type="face centers").query_radius(
+            [0.0, 0.0], r=10)
+        queried_psi = []
+
+        # Get an array of the queried radius
+        for i in ind:
+            queried_psi.append(uxds['psi'][i])
+        expected_std_deviation = np.std(queried_psi)
+
+        self.assertEqual(expected_std_deviation, std_deviation)
