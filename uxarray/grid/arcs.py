@@ -1,6 +1,6 @@
 import numpy as np
 
-from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, normalize_in_place
+from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 from enum import Enum
 from uxarray.constants import ERROR_TOLERANCE
 
