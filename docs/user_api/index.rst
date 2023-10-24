@@ -261,13 +261,13 @@ Coordinates
    grid.coordinates.normalize_in_place
 
 
-Lines
------
+Arcs
+----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines.in_between
-   grid.lines.point_within_gca
+   grid.arcs.in_between
+   grid.arcs.point_within_gca
 
 Intersections
 -----

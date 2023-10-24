@@ -138,12 +138,12 @@ Coordinates
    grid.coordinates._construct_xyz_centroids
 
 
-Lines
------
+Arcs
+----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines._angle_of_2_vectors
+   grid.arcs._angle_of_2_vectors
 
 Utils
 -----
