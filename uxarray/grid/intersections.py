@@ -1,7 +1,7 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.grid.utils import cross_fma, _newton_raphson_solver_for_gca_constLat
-from uxarray.grid.lines import point_within_gca
+from uxarray.grid.arcs import point_within_gca
 import platform
 import warnings
 
