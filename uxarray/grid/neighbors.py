@@ -2,7 +2,11 @@ import numpy as np
 from numpy import deg2rad
 import warnings
 
+from numba import njit
+
 from sklearn.neighbors import BallTree as SKBallTree
+from sklearn.metrics.pairwise import haversine_distances
+
 from typing import Optional, Union
 
 from uxarray.constants import INT_DTYPE
@@ -268,3 +272,19 @@ def _prepare_xy_for_query(xy, use_radians):
         xy = np.deg2rad(xy)
 
     return xy
+
+
+@njit
+def _populate_edge_node_distances(node_lon, node_lat, edge_nodes):
+
+    edge_lon_a = np.deg2rad((node_lon[edge_nodes[:, 0]]))
+    edge_lon_b = np.deg2rad((node_lon[edge_nodes[:, 1]]))
+
+    edge_lat_a = np.deg2rad((node_lat[edge_nodes[:, 0]]))
+    edge_lat_b = np.deg2rad((node_lat[edge_nodes[:, 1]]))
+
+    d = np.arccos(
+        np.sin(edge_lat_a) * np.sin(edge_lat_b) + np.cos(edge_lat_a) *
+        np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b))
+
+    return d
