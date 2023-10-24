@@ -362,10 +362,10 @@ class TestLatlonBound(TestCase):
             ux.grid.coordinates.normalize_in_place([-0.5, 0.5, -0.5])
         ])
 
-        # Calculate the maximum latitude
+        # Calculate the minimum latitude
         min_latitude = ux.grid.lines.extreme_gca_latitude(gca_cart, 'min')
 
-        # Check if the maximum latitude is correct
+        # Check if the minimum latitude is correct
         expected_min_latitude = self._min_latitude_rad_iterative(gca_cart)
         self.assertAlmostEqual(min_latitude,
                                expected_min_latitude,
@@ -374,10 +374,10 @@ class TestLatlonBound(TestCase):
         # Define a great circle arc in 3D space
         gca_cart = np.array([[0.0, 0.0, -1.0], [1.0, 0.0, 0.0]])
 
-        # Calculate the maximum latitude
+        # Calculate the minimum latitude
         min_latitude = ux.grid.lines.extreme_gca_latitude(gca_cart, 'min')
 
-        # Check if the maximum latitude is correct
+        # Check if the minimum latitude is correct
         expected_min_latitude = -np.pi / 2  # 90 degrees in radians
         self.assertAlmostEqual(min_latitude,
                                expected_min_latitude,
