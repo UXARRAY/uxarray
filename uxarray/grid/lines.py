@@ -1,9 +1,12 @@
 import numpy as np
 
 from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz, normalize_in_place
-
+from enum import Enum
 from uxarray.constants import ERROR_TOLERANCE
 
+class EXTREME_TYPE(Enum):
+    MAX = 'max'
+    MIN = 'min'
 
 def _to_list(obj):
     if not isinstance(obj, list):
@@ -99,7 +102,7 @@ def point_within_gca(pt, gca_cart):
         elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
             return in_between(GCRv0_lonlat[0],
                               pt_lonlat[0], 2 * np.pi) or in_between(
-                                  0, pt_lonlat[0], GCRv1_lonlat[0])
+                0, pt_lonlat[0], GCRv1_lonlat[0])
 
     # The non-anti-meridian case.
     else:
@@ -151,31 +154,51 @@ def _angle_of_2_vectors(u, v):
                                    np.linalg.norm(vec_sum))
     return angle_u_v_rad
 
-def max_gca_latitude(gca_cart):
-    """Calculate the maximum latitude of a great circle arc defined by two 3D points.
+def extreme_gca_latitude(gca_cart, extreme_type):
+    """Calculate the maximum or minimum latitude of a great circle arc defined by two 3D points.
 
     Parameters
     ----------
-    gca_cart : numpy.ndarray (float, 2*3)
+    gca_cart : numpy.ndarray
         An array containing two 3D vectors that define a great circle arc.
+
+    extreme_type : str
+        The type of extreme latitude to calculate. Must be either 'max' or 'min'.
 
     Returns
     -------
     float
-        The maximum latitude of the great circle arc in radians.
+        The maximum or minimum latitude of the great circle arc in radians.
+
+    Raises
+    ------
+    ValueError
+        If `extreme_type` is not 'max' or 'min'.
+
+    Notes
+    -----
+    The function converts the string input for `extreme_type` to an enumeration internally.
+    This enumeration is used to decide the behavior of the function.
     """
+    try:
+        extreme_type = EXTREME_TYPE[extreme_type.upper()]
+    except KeyError:
+        raise ValueError("extreme_type must be either 'max' or 'min'")
+
     n1, n2 = gca_cart
     dot_n1_n2 = np.dot(n1, n2)
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
-    # Clip d_a_max to be within [0, 1] if it's close to the bounds
     d_a_max = np.clip(d_a_max, 0, 1) if np.isclose(d_a_max, [0, 1], atol=ERROR_TOLERANCE).any() else d_a_max
+    lat_n1, lat_n2 = node_xyz_to_lonlat_rad(n1.tolist())[1], node_xyz_to_lonlat_rad(n2.tolist())[1]
 
     if 0 < d_a_max < 1:
         node3 = (1 - d_a_max) * n1 + d_a_max * n2
-        node3 = normalize_in_place(node3)
+        node3 = np.array(normalize_in_place(node3.tolist()))
         d_lat_rad = np.arcsin(np.clip(node3[2], -1, 1))
-        return d_lat_rad
+
+
+        return max(d_lat_rad, lat_n1, lat_n2) if extreme_type == EXTREME_TYPE.MAX else min(d_lat_rad, lat_n1, lat_n2)
     else:
-        return max(node_xyz_to_lonlat_rad(n1)[1], node_xyz_to_lonlat_rad(n2)[1])
+        return max(lat_n1, lat_n2) if extreme_type == EXTREME_TYPE.MAX else min(lat_n1, lat_n2)

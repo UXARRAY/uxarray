@@ -268,6 +268,7 @@ Lines
 
    grid.lines.in_between
    grid.lines.point_within_gca
+   grid.lines.extreme_gca_latitude
 
 Intersections
 -----
