@@ -229,34 +229,3 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
         _iter += 1
 
     return np.append(y_new, constZ)
-
-def get_face_edge_connectivity_cartesian(Mesh2_face_nodes_i, Mesh2_face_edges_i, Mesh2_edge_nodes):
-    """Get the face-edge connectivity for Cartesian grid.
-    Mesh2_face_nodes_i: The ith entry of Grid.Mesh2_face_nodes
-    Mesh2_face_edges_i: The ith entry of Grid.Mesh2_face_edges
-    Mesh2_edge_nodes: The entire Grid.Mesh2_edge_nodes
-    """
-    face_edges = np.zeros((len(Mesh2_face_edges_i), 2), dtype=INT_DTYPE)
-    face_edges = face_edges.astype(INT_DTYPE)
-    for iter in range(0, len(Mesh2_face_edges_i)):
-        edge_idx = Mesh2_face_edges_i[iter]
-        if edge_idx == INT_FILL_VALUE:
-            edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
-        else:
-            edge_nodes = Mesh2_edge_nodes.values[edge_idx]
-        face_edges[iter] = edge_nodes
-    # sort edge nodes in counter-clockwise order
-    starting_two_nodes_index = [Mesh2_face_nodes_i[0], Mesh2_face_nodes_i[1]]
-    face_edges[0] = starting_two_nodes_index
-    for idx in range(1, len(face_edges)):
-        if face_edges[idx][0] == face_edges[idx - 1][1]:
-            continue
-        else:
-            # Swap the node index in this edge
-            temp = face_edges[idx][0]
-            face_edges[idx][0] = face_edges[idx][1]
-            face_edges[idx][1] = temp
-
-    return face_edges
-
-
