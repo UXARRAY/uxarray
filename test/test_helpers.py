@@ -129,7 +129,8 @@ class TestCoordinatesConversion(TestCase):
             random.uniform(-0.5 * np.pi, 0.5 * np.pi)
         ]
 
-        [x, y, z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
+        xyz = ux.grid.coordinates.node_lonlat_rad_to_xyz(lon, lat)
+        x = xyz[0]
 
         [new_lon,
          new_lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
