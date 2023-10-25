@@ -118,5 +118,3 @@ The following visuals
 Face Node
 --------------------
 Add Visual Here
-
-
