@@ -13,3 +13,5 @@ common tasks that you can accomplish with UXarray.
    :hidden:
 
    user-guide/terminology.rst
+   user-guide/coordinates.rst
+   user-guide/connectivity.rst
