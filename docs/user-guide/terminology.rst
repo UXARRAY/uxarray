@@ -1,1 +1,7 @@
-Hello
+.. currentmodule:: uxarray
+
+===========
+Terminology
+===========
+
+Coming soon!
