@@ -103,6 +103,7 @@ Plotting
 
    UxDataArray.plot
    UxDataArray.plot.datashade
+   UxDataArray.plot.rasterize
 
 
 
@@ -204,6 +205,7 @@ UxDataArray Plotting Methods
    :toctree: _autosummary
 
    plot.dataarray_plot.datashade
+   plot.dataarray_plot.rasterize
 
 
 
@@ -259,13 +261,13 @@ Coordinates
    grid.coordinates.normalize_in_place
 
 
-Lines
------
+Arcs
+----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines.in_between
-   grid.lines.point_within_gca
+   grid.arcs.in_between
+   grid.arcs.point_within_gca
 
 Intersections
 -----
@@ -273,6 +275,7 @@ Intersections
    :toctree: _autosummary
 
    grid.intersections.gca_gca_intersection
+   grid.intersections.gca_constLat_intersection
 
 Utils
 -----
