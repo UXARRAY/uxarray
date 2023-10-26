@@ -116,37 +116,37 @@ Below
      - EXODUS
      - SCRIP
    * - Node (Spherical)
-     - No
+     - No *
      - Yes
      - Yes
      - Yes
      - Yes
    * - Node (Cartesian)
-     - No
+     - No *
      - Yes
      - Yes
      - Yes
      - Yes
    * - Edge (Spherical)
-     - No
+     - Yes
      - Yes
      - Yes
      - Yes
      - Yes
    * - Edge (Cartesian)
-     - No
+     - Yes
      - Yes
      - Yes
      - Yes
      - Yes
    * - Face (Spherical)
-     - No
+     - Yes
      - Yes
      - Yes
      - Yes
      - Yes
    * - Face (Cartesian)
-     - No
+     - Yes
      - Yes
      - Yes
      - Yes
