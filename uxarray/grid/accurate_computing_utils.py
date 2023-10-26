@@ -1,5 +1,5 @@
 import numpy as np
-
+import sys
 def _fmms(a, b, c, d):
     """
     Calculate the difference of products using the FMA (fused multiply-add) operation: (a * b) - (c * d).
@@ -91,7 +91,6 @@ def dot_fma(v1, v2):
     >>> dot_fma([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
     32.0
 
-
     References
     ----------
     S. Graillat, Ph. Langlois, and N. Louvet. "Accurate dot products with FMA." Presented at RNC 7, 2007, Nancy, France. DALI-LP2A Laboratory, University of Perpignan, France.
@@ -102,8 +101,10 @@ def dot_fma(v1, v2):
 
     s, c = _two_prod_fma(v1[0], v2[0])
     for i in range(1, len(v1)):
-        s, alpha, beta = _three_fma(v1[i], v2[i], s)
-        c = c + (alpha + beta)
+        p, pi = _two_prod_fma(v1[i], v2[i])
+        s, signma = _two_sum(s, p)
+        c = c + pi + signma
+
     return s + c
 
 def _two_prod_fma(a, b):
@@ -132,7 +133,7 @@ def _two_prod_fma(a, b):
 
 def _three_fma(a, b, c):
     """
-    Error-free transformation for the FMA operation.
+    Error-free transformation for the FMA operation. such that x = FMA(a,b,c) and a * b + c = x + y + z.
 
     Parameters
     ----------
@@ -149,13 +150,17 @@ def _three_fma(a, b, c):
     Graillat, Stef & Langlois, Philippe & Louvet, Nicolas. (2006). Improving the compensated Horner scheme with
     a Fused Multiply and Add. 2. 1323-1327. 10.1145/1141277.1141585.
     """
-    import pyfma
-    x = pyfma.fma(a, b, c)
-    u1, u2 = _two_prod_fma(a, b)
-    alph1, z = _two_sum(b, u2)
-    beta1, beta2 = _two_sum(u1, alph1)
-    y = (beta1 - x) + beta2
-    return x, y, z
+    if sys.float_info.rounds == 1:
+        import pyfma
+        x = pyfma.fma(a, b, c)
+        u1, u2 = _two_prod_fma(a, b)
+        alpha1, z = _two_sum(b, u2)
+        beta1, beta2 = _two_sum(u1, alpha1)
+        y1 = (beta1 - x)
+        y = y1  + beta2
+        return x, y, z
+    else:
+        raise ValueError("3FMA operation is only available in round to the nearest mode. and the current mode is " + str(sys.float_info.rounds))
 
 def _two_sum(a, b):
     """
