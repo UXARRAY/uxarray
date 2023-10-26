@@ -223,7 +223,7 @@ BallTree Data Structure
    grid.BallTree
 
 KDTree Data Structure
------------------------
+------------------------
 .. autosummary::
    :toctree: _autosummary
 
