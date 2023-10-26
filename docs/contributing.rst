@@ -190,7 +190,7 @@ select an issue to work on:
 created from either the:
 
 * `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_
-  and `UXarray roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_,
+  and `UXarray Roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_,
 * An entry in a `UXarray Discussion <https://github.com/UXARRAY/uxarray/discussions>`_
 * A feature request, bug report, or any finding of the developers or users
   as a work to-do.
