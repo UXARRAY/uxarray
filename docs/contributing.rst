@@ -73,7 +73,7 @@ Some important UXarray resources are as follows:
   and :ref:`api`.
 
 * `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
-  `UXarray roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ shows
+  `UXarray Roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ shows
   UXarray's future function development milestones and roadmap. It is
   open to community feedback and inputs!
 
