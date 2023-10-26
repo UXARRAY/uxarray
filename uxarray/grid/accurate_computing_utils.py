@@ -81,6 +81,11 @@ def dot_fma(v1, v2):
     float
         The dot product of the two vectors.
 
+    Raises
+    ------
+    ValueError
+        If the input vectors `v1` and `v2` are not of the same length.
+
     Examples
     --------
     >>> dot_fma([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
