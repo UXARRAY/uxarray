@@ -63,31 +63,116 @@ def cross_fma(v1, v2):
     return np.array([x, y, z])
 
 def dot_fma(v1, v2):
-    s,c = _two_prod_fma(v1[0], v2[0])
+    """
+    Calculate the dot product of two vectors using the FMA (fused multiply-add) operation.
+
+    This implementation leverages the FMA operation to provide a more accurate result, especially when the
+    intermediate products and sums are large.
+
+    Parameters
+    ----------
+    v1 : list of float
+        The first vector.
+    v2 : list of float
+        The second vector. Must be the same length as v1.
+
+    Returns
+    -------
+    float
+        The dot product of the two vectors.
+
+    Examples
+    --------
+    >>> dot_fma([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
+    32.0
+
+
+    References
+    ----------
+    S. Graillat, Ph. Langlois, and N. Louvet. "Accurate dot products with FMA." Presented at RNC 7, 2007, Nancy, France. DALI-LP2A Laboratory, University of Perpignan, France.
+    [Poster](https://www-pequan.lip6.fr/~graillat/papers/posterRNC7.pdf)
+    """
+    if len(v1) != len(v2):
+        raise ValueError("Input vectors must be of the same length")
+
+    s, c = _two_prod_fma(v1[0], v2[0])
     for i in range(1, len(v1)):
         s, alpha, beta = _three_fma(v1[i], v2[i], s)
         c = c + (alpha + beta)
     return s + c
 
 def _two_prod_fma(a, b):
+    """
+    Error-free transformation of the product of two floating-point numbers using FMA.
+
+    Parameters
+    ----------
+    a, b : float
+        The floating-point numbers to be multiplied.
+
+    Returns
+    -------
+    tuple of float
+        The product and the error term.
+
+    Examples
+    --------
+    >>> _two_prod_fma(1.0, 2.0)
+    (2.0, 0.0)
+    """
     import pyfma
     x = a * b
     y = pyfma.fma(a, b, -x)
-    return [x, y]
+    return x, y
 
-def _three_fma(a,b,c):
-    # Reference:
-    # Graillat, Stef & Langlois, Philippe & Louvet, Nicolas. (2006). Improving the compensated Horner scheme with a Fused Multiply and Add. 2. 1323-1327. 10.1145/1141277.1141585.
+def _three_fma(a, b, c):
+    """
+    Error-free transformation for the FMA operation.
+
+    Parameters
+    ----------
+    a, b, c : float
+        The operands for the FMA operation.
+
+    Returns
+    -------
+    tuple of float
+        The result of the FMA operation and two error terms.
+
+    References
+    ----------
+    Graillat, Stef & Langlois, Philippe & Louvet, Nicolas. (2006). Improving the compensated Horner scheme with
+    a Fused Multiply and Add. 2. 1323-1327. 10.1145/1141277.1141585.
+    """
     import pyfma
     x = pyfma.fma(a, b, c)
     u1, u2 = _two_prod_fma(a, b)
     alph1, z = _two_sum(b, u2)
     beta1, beta2 = _two_sum(u1, alph1)
     y = (beta1 - x) + beta2
-    return [x, y, z]
+    return x, y, z
 
 def _two_sum(a, b):
+    """
+    Error-free transformation of the sum of two floating-point numbers.
+
+    Parameters
+    ----------
+    a, b : float
+        The floating-point numbers to be added.
+
+    Returns
+    -------
+    tuple of float
+        The sum and the error term.
+
+    Examples
+    --------
+    >>> _two_sum(1.0, 2.0)
+    (3.0, 0.0)
+    """
     x = a + b
     z = x - a
-    y = (a - (x - z)) + (b + z)
-    return [x, y]
+    y = (a - (x - z)) + (b - z)
+    return x, y
+
