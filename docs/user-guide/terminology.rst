@@ -4,4 +4,15 @@
 Terminology
 ===========
 
-Coming soon!
+Grid Representation
+-------------------
+
+**Node**: Sample Definition
+
+**Edge**: Sample Definition
+
+**Face**: Sample Definition
+
+**Mesh**: Sample Definition
+
+**Connectivity**: Sample Definition

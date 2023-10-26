@@ -17,6 +17,7 @@ common tasks that you can accomplish with UXarray.
    user-guide/dimensions-and-mapping.rst
    user-guide/coordinates.rst
    user-guide/connectivity.rst
+   user-guide/grid-quantities.rst
    user-guide/ugrid.rst
    user-guide/mpas.rst
    user-guide/exodus.rst
