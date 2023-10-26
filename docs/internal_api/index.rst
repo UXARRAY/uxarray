@@ -6,7 +6,7 @@ Internal API
 
 This page shows already-implemented Uxarray internal API functions. You can also
 check the `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
-`UXarray roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ for a high
+`UXarray RoadMap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ for a high
 level understanding of UXarray's future function development milestones and roadmap.
 Please let us know if you have any feedback!
 
