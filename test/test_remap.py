@@ -11,7 +11,7 @@ import uxarray as ux
 from uxarray.core.dataset import UxDataset
 from uxarray.core.dataarray import UxDataArray
 
-from uxarray.remap import nearest_neighbor
+from uxarray.remap import _nearest_neighbor
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
@@ -37,20 +37,20 @@ class TestNearestNeighborRemap(TestCase):
         source_grid = ux.open_grid(source_verts)
         destination_grid = ux.open_grid(source_verts)
 
-        destination_data = nearest_neighbor(source_grid,
-                                            destination_grid,
-                                            source_data_single_dim,
-                                            destination_data_mapping="nodes")
+        destination_data = _nearest_neighbor(source_grid,
+                                             destination_grid,
+                                             source_data_single_dim,
+                                             destination_data_mapping="nodes")
 
         np.array_equal(source_data_single_dim, destination_data)
 
         source_data_multi_dim = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0],
                                           [7.0, 8.0, 9.0]])
 
-        destination_data = nearest_neighbor(source_grid,
-                                            destination_grid,
-                                            source_data_multi_dim,
-                                            destination_data_mapping="nodes")
+        destination_data = _nearest_neighbor(source_grid,
+                                             destination_grid,
+                                             source_data_multi_dim,
+                                             destination_data_mapping="nodes")
 
         np.array_equal(source_data_multi_dim, destination_data)
 
