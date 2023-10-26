@@ -176,10 +176,6 @@ Attributes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
    Grid.antimeridian_face_indices
-   Grid.corner_node_balltree
-   Grid.center_node_balltree
-   Grid.corner_node_kdtree
-   Grid.center_node_kdtree
 
 Plotting
 --------
