@@ -8,7 +8,6 @@ import sys
 from typing import TYPE_CHECKING, Optional, IO, Union
 
 if TYPE_CHECKING:
-    from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
 
 from uxarray.grid import Grid
@@ -330,7 +329,8 @@ class UxDataset(xr.Dataset):
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     def nearest_neighbor_remap(self,
-                               destination_obj,
+                               destination_obj: Union[Grid, UxDataArray,
+                                                      UxDataset],
                                destination_data_mapping: str = "nodes",
                                coord_type: str = "lonlat"):
         """Nearest Neighbor Remapping between a source (``UxDataset``) and

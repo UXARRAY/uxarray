@@ -13,11 +13,11 @@ import uxarray.core.dataset
 from uxarray.grid import Grid
 
 
-def nearest_neighbor(source_grid: Grid,
-                     destination_grid: Grid,
-                     source_data: np.ndarray,
-                     destination_data_mapping: str = "nodes",
-                     coord_type: str = "lonlat") -> np.ndarray:
+def _nearest_neighbor(source_grid: Grid,
+                      destination_grid: Grid,
+                      source_data: np.ndarray,
+                      destination_data_mapping: str = "nodes",
+                      coord_type: str = "lonlat") -> np.ndarray:
     """Nearest Neighbor Remapping between two grids, mapping data that resides
     on either the corner nodes or face centers on the source grid to the corner
     nodes or face centers of the destination grid..
@@ -139,9 +139,9 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
         raise ValueError("TODO: Invalid Input")
 
     # perform remapping
-    destination_data = nearest_neighbor(source_uxda.uxgrid, destination_grid,
-                                        source_uxda.data,
-                                        destination_data_mapping, coord_type)
+    destination_data = _nearest_neighbor(source_uxda.uxgrid, destination_grid,
+                                         source_uxda.data,
+                                         destination_data_mapping, coord_type)
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(data=destination_data,
                                                     name=source_uxda.name,

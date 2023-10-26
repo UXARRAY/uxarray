@@ -12,15 +12,12 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
 
-from uxarray.plot.accessor import UxDataArrayPlotAccessor
-
 from xarray.core.utils import UncachedAccessor
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 import uxarray.core.dataset
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
-from xarray.core.utils import UncachedAccessor
 
 
 class UxDataArray(xr.DataArray):

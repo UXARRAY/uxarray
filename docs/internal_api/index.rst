@@ -163,9 +163,9 @@ UGRID
 .. autosummary::
    :toctree: _autosummary
 
-   nearest_neighbor.nearest_neighbor
-   nearest_neighbor._nearest_neighbor_uxda
-   nearest_neighbor._nearest_neighbor_uxds
+   remap.nearest_neighbor._nearest_neighbor
+   remap.nearest_neighbor._nearest_neighbor_uxda
+   remap.nearest_neighbor._nearest_neighbor_uxds
 
 
 

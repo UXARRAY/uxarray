@@ -1,1 +1,1 @@
-from .nearest_neighbor import nearest_neighbor
+from .nearest_neighbor import _nearest_neighbor
