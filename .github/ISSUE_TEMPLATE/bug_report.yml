@@ -15,7 +15,7 @@ body:
   id: version
   attributes:
     label: Version
-    description: What version of Earth-2 MIP are you running?
+    description: What version of UXarray are you running?
     placeholder: "source - main"
   validations:
     required: true
