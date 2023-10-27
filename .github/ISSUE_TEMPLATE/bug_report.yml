@@ -31,7 +31,7 @@ body:
       - Source
   validations:
     required: true
-      
+
 - type: textarea
   attributes:
     label: "What happened?"
