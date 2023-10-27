@@ -3,6 +3,7 @@ from uxarray.constants import ERROR_TOLERANCE
 import warnings
 import uxarray.grid.accurate_computing_utils as ac_utils
 
+
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
     (``grid_var``) with (``new_fill``) and converts to the dtype defined by
@@ -106,8 +107,10 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
     # The Jacobian Matrix
-    jacobian = [[ac_utils._fmms(y0, z1, z0, y1),
-                 ac_utils._fmms(x0, z1, z0, x1)], [2 * x_i_old, 2 * y_i_old]]
+    jacobian = [[
+        ac_utils._fmms(y0, z1, z0, y1),
+        ac_utils._fmms(x0, z1, z0, x1)
+    ], [2 * x_i_old, 2 * y_i_old]]
     try:
         inverse_jacobian = np.linalg.inv(jacobian)
     except np.linalg.LinAlgError:
