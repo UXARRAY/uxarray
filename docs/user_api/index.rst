@@ -275,12 +275,13 @@ Intersections
    grid.intersections.gca_gca_intersection
    grid.intersections.gca_constLat_intersection
 
-Utils
+Accurate Computing Utils
 -----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils.cross_fma
+   grid.accurate_computing_utils.cross_fma
+   grid.accurate_computing_utils.dot_fma
 
 Numba
 -----

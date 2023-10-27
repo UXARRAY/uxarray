@@ -150,9 +150,20 @@ Utils
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+
+Accurate Computing Utils
+------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.accurate_computing_utils._err_fmac
+   grid.accurate_computing_utils._fast_two_mult
+   grid.accurate_computing_utils._fast_two_sum
+   grid.accurate_computing_utils._two_sum
+   grid.accurate_computing_utils._two_prod_fma
+
 
 Grid Parsing and Encoding
 =========================

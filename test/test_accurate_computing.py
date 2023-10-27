@@ -19,7 +19,8 @@ class TestCrossProduct(TestCase):
         nt.assert_allclose(np_cross, fma_cross, atol=ERROR_TOLERANCE)
 
 class TestDotProduct(TestCase):
-    """ Since we don't have the multiprecision in current release, we're just going to test if the FMA enabled dot product is similar to the np.dot one."""
+    """ Since we don't have the multiprecision in current release, we're just going to test if the FMA enabled dot
+    product is similar to the np.dot one."""
 
     def test_dot_fma(self):
         v1 = np.array(normalize_in_place([1.0, 0.0, 0.0]), dtype=np.float64)
@@ -59,7 +60,6 @@ class TestFMAOperations(TestCase):
 
     def test_fast_two_mult(self):
         """Test the two_prod_fma function"""
-        import pyfma
         a = 1.0
         b = 2.0
         x, y = ac_utils._two_prod_fma(a, b)
@@ -67,7 +67,8 @@ class TestFMAOperations(TestCase):
         self.assertEquals(x, xf)
         self.assertEquals(y, yf)
 
-    def test_three_FMA(self):
+    def test_err_fmac(self):
+        """Test the _err_fmac function"""
         import pyfma
         a = 1.0
         b = 2.0
