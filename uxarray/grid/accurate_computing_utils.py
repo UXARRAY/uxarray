@@ -1,5 +1,7 @@
 import numpy as np
 import sys
+
+
 def _fmms(a, b, c, d):
     """
     Calculate the difference of products using the FMA (fused multiply-add) operation: (a * b) - (c * d).
@@ -62,6 +64,7 @@ def cross_fma(v1, v2):
     z = _fmms(v1[0], v2[1], v1[1], v2[0])
     return np.array([x, y, z])
 
+
 def dot_fma(v1, v2):
     """
     Calculate the dot product of two vectors using the FMA (fused multiply-add) operation.
@@ -107,9 +110,10 @@ def dot_fma(v1, v2):
 
     return s + c
 
+
 def _two_prod_fma(a, b):
     """
-    Error-free transformation of the product of two floating-point numbers using FMA.
+    Error-free transformation of the product of two floating-point numbers using FMA, such that a * b = x + y exactly.
 
     Parameters
     ----------
@@ -131,9 +135,10 @@ def _two_prod_fma(a, b):
     y = pyfma.fma(a, b, -x)
     return x, y
 
-def _three_fma(a, b, c):
+
+def _err_fmac(a, b, c):
     """
-    Error-free transformation for the FMA operation. such that x = FMA(a,b,c) and a * b + c = x + y + z.
+    Error-free transformation for the FMA operation. such that x = FMA(a,b,c) and a * b + c = x + y + z exactly.
 
     Parameters
     ----------
@@ -153,18 +158,21 @@ def _three_fma(a, b, c):
     if sys.float_info.rounds == 1:
         import pyfma
         x = pyfma.fma(a, b, c)
-        u1, u2 = _two_prod_fma(a, b)
-        alpha1, z = _two_sum(b, u2)
+        u1, u2 = _fast_two_mult(a, b)
+        alpha1, alpha2 = _two_sum(c, u2)
         beta1, beta2 = _two_sum(u1, alpha1)
-        y1 = (beta1 - x)
-        y = y1  + beta2
+        gamma = (beta1 - x) + beta2
+        y, z = _fast_two_sum(gamma, alpha2)
         return x, y, z
     else:
-        raise ValueError("3FMA operation is only available in round to the nearest mode. and the current mode is " + str(sys.float_info.rounds))
+        raise ValueError(
+            "3FMA operation is only available in round to the nearest mode. and the current mode is " + str(
+                sys.float_info.rounds))
+
 
 def _two_sum(a, b):
     """
-    Error-free transformation of the sum of two floating-point numbers.
+    Error-free transformation of the sum of two floating-point numbers such that a + b = x + y exactly
 
     Parameters
     ----------
@@ -186,3 +194,28 @@ def _two_sum(a, b):
     y = (a - (x - z)) + (b - z)
     return x, y
 
+
+def _fast_two_mult(a, b):
+    """
+    Error-free transformation of the product of two floating-point numbers such that a * b = x + y exactly.
+
+    This function is faster than the _two_prod_fma function.
+    """
+    x = a * b
+    y = a * b - x
+    return x, y
+
+def _fast_two_sum(a, b):
+    """
+    Error-free transformation of the product of two floating-point numbers such that a + b = x + y exactly.
+
+    This function is faster than the _two_prod_fma function, but the input abs(a) must be no less than abs(b).
+    """
+    if abs(a) >= abs(b):
+        x = a + b
+        b_tile = x - a
+        y = b - b_tile
+        return x, y
+
+    else:
+        raise ValueError("|a| must be greater than or equal to |b|.")
