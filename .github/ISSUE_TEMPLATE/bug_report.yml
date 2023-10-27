@@ -20,7 +20,7 @@ body:
   validations:
     required: true
 
- - type: dropdown
+- type: dropdown
   id: installation-method
   attributes:
     label: On which installation method(s) does this occur?
