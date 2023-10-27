@@ -23,7 +23,7 @@ body:
 - type: dropdown
   id: installation-method
   attributes:
-    label: On which installation method does this occur?
+    label: How did you install UXarray?
     multiple: true
     options:
       - Conda
