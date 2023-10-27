@@ -88,7 +88,7 @@ def node_xyz_to_lonlat_rad(node_coord):
     return [d_lon_rad, d_lat_rad]
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+#@njit(cache=ENABLE_JIT_CACHE)
 def node_xyz_to_lonlat_rad(coords):
     coords_norm = normalize_in_place(coords)
     dx = coords_norm[:, 0]
@@ -141,19 +141,22 @@ def node_xyz_to_lonlat_rad(coords):
 #     return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+#@njit(cache=ENABLE_JIT_CACHE)
 def normalize_in_place(coords):
-    return coords / np.linalg.norm(coords, ord=2, axis=1)
+
+    coords_norm = coords / np.linalg.norm(coords, ord=2, axis=1)
+
+    return coords_norm
 
 
 def _get_xyz_from_lonlat(node_lon, node_lat):
     # check for units and create Mesh2_node_cart_x/y/z set to grid._ds
     nodes_lon_rad = np.deg2rad(node_lon)
     nodes_lat_rad = np.deg2rad(node_lat)
-    nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
-    nodes_cart = np.asarray(list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
 
-    return nodes_cart[:, 0], nodes_cart[:, 1], nodes_cart[:, 2]
+    xyz = lonlat_rad_to_xyz(nodes_lon_rad, nodes_lat_rad)
+
+    return xyz[:, 0], xyz[:, 1], xyz[:, 2]
 
 
 def _populate_cartesian_xyz_coord(grid):
