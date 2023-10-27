@@ -16,7 +16,7 @@ body:
   attributes:
     label: Version
     description: What version of UXarray are you running?
-    placeholder: "source - main"
+    placeholder: "v2023.10.0"
   validations:
     required: true
 
