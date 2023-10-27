@@ -11,6 +11,15 @@ body:
       issue, please make sure to take a few minutes to check the issue tracker
       for existing issues about the bug.
 
+- type: input
+  id: version
+  attributes:
+    label: Version
+    description: What version of Earth-2 MIP are you running?
+    placeholder: "source - main"
+  validations:
+    required: true
+      
 - type: textarea
   attributes:
     label: "What happened?"
