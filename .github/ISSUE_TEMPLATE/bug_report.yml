@@ -19,6 +19,16 @@ body:
     placeholder: "source - main"
   validations:
     required: true
+
+ - type: dropdown
+  id: installation-method
+  attributes:
+    label: On which installation method(s) does this occur?
+    multiple: true
+    options:
+      - Conda
+      - Pip
+      - Source
       
 - type: textarea
   attributes:
