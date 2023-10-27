@@ -29,11 +29,13 @@ body:
       - Conda
       - Pip
       - Source
+    validations:
+      required: true
       
 - type: textarea
   attributes:
     label: "What happened?"
-    placeholder: Something that I wasn't expecting occurred 
+    placeholder: Something that I wasn't expecting occurred.
   validations:
     required: true
 
