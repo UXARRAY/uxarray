@@ -66,8 +66,8 @@ def cross_fma(v1, v2):
 
 
 def dot_fma(v1, v2):
-    """
-    Calculate the dot product of two vectors using the FMA (fused multiply-add) operation.
+    """Calculate the dot product of two vectors using the FMA (fused multiply-
+    add) operation.
 
     This implementation leverages the FMA operation to provide a more accurate result. Currently the ComptDot product
     algorithm is used, which provides a relative error of approvimately u + n^2u^2cond(v1 dot v2), where u is 0.5 ulps,
@@ -169,8 +169,8 @@ def _err_fmac(a, b, c):
         return x, y, z
     else:
         raise ValueError(
-            "3FMA operation is only available in round to the nearest mode. and the current mode is " + str(
-                sys.float_info.rounds))
+            "3FMA operation is only available in round to the nearest mode. and the current mode is "
+            + str(sys.float_info.rounds))
 
 
 def _two_sum(a, b):
@@ -208,9 +208,10 @@ def _fast_two_mult(a, b):
     y = a * b - x
     return x, y
 
+
 def _fast_two_sum(a, b):
-    """
-    Compute a fast error-free transformation of the sum of two floating-point numbers.
+    """Compute a fast error-free transformation of the sum of two floating-
+    point numbers.
 
     This function is a faster alternative to `_two_sum` for computing the sum
     of two floating-point numbers `a` and `b`, such that a + b = x + y exactly.
