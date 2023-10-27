@@ -13,7 +13,7 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.lines import point_within_gca, _angle_of_2_vectors, in_between
+from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
 
 try:
     import constants
