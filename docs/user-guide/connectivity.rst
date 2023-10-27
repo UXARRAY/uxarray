@@ -4,15 +4,8 @@
 Connectivity
 ============
 
-Overview
---------
-
 ``UXarray`` relies on connectivity arrays to describe how various elements (i.e nodes, edges, faces) related to each-other
 geometrically.
-
-
-
-
 
 .. list-table::
    :widths: 25 75 25 100

@@ -9,16 +9,12 @@ In this user guide, you will find detailed descriptions and examples that descri
 common tasks that you can accomplish with UXarray.
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
+   :maxdepth: 2
 
    user-guide/terminology.rst
    user-guide/data-structures.rst
-   user-guide/dimensions-and-mapping.rst
+   user-guide/representation.rst
    user-guide/coordinates.rst
    user-guide/connectivity.rst
    user-guide/grid-quantities.rst
-   user-guide/ugrid.rst
-   user-guide/mpas.rst
-   user-guide/exodus.rst
-   user-guide/scrip.rst
+   user-guide/grid-formats.rst

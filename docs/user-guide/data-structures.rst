@@ -4,10 +4,6 @@
 Data Structures
 ===============
 
-Overview
---------
-
-
 ``Grid``
 --------
 

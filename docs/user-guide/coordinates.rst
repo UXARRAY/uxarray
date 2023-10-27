@@ -4,16 +4,10 @@
 Coordinates
 ===========
 
-Overview
---------
-
 ``UXarray`` ~~~ todo
 
 Definitions
 -----------
-
-
-
 
 Spherical Coordinates
 ---------------------

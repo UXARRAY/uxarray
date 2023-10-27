@@ -4,15 +4,8 @@
 Grid Quantities
 ===============
 
-Overview
---------
-
 In addition to Coordinate and Connectivity Variables, ``UXarray`` also houses other variables
 that describe quantities on an unstructured grid.
-
-
-
-
 
 .. list-table::
    :widths: 25 75 25 100

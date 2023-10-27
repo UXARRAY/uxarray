@@ -1,11 +1,14 @@
 .. currentmodule:: uxarray
 
-=========================
-Dimensions & Data Mapping
-=========================
+===================
+Grid Representation
+===================
 
-Grid Dimensions
-===============
+Geometric Elements
+==================
+
+Dimensions
+==========
 
 In ``UXarray``, an unstructured grid is defined as a set of Faces that either
 fully or partially cover the surface of a sphere. Each face is composed of Nodes that make
@@ -38,4 +41,4 @@ number of nodes per face is 3 (a triangle), with the maximum number being repres
 
 
 Data Mapping
-===============
+============
