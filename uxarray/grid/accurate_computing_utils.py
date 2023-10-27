@@ -69,8 +69,10 @@ def dot_fma(v1, v2):
     """
     Calculate the dot product of two vectors using the FMA (fused multiply-add) operation.
 
-    This implementation leverages the FMA operation to provide a more accurate result, especially when the
-    intermediate products and sums are large.
+    This implementation leverages the FMA operation to provide a more accurate result. Currently the ComptDot product
+    algorithm is used, which provides a relative error of approvimately u + n^2u^2cond(v1 dot v2), where u is 0.5 ulps,
+    n is the length of the vectors, and cond(v1 dot v2) is the condition number of the naive dot product of v1 and v2.
+    This operatin takes approvimately 3 + 10 * n flops, where n is the length of the vectors.
 
     Parameters
     ----------
@@ -139,6 +141,7 @@ def _two_prod_fma(a, b):
 def _err_fmac(a, b, c):
     """
     Error-free transformation for the FMA operation. such that x = FMA(a,b,c) and a * b + c = x + y + z exactly.
+    Thhis function is only available in round to the nearest mode and takes approximately 17 flops
 
     Parameters
     ----------
@@ -207,9 +210,36 @@ def _fast_two_mult(a, b):
 
 def _fast_two_sum(a, b):
     """
-    Error-free transformation of the product of two floating-point numbers such that a + b = x + y exactly.
+    Compute a fast error-free transformation of the sum of two floating-point numbers.
 
-    This function is faster than the _two_prod_fma function, but the input abs(a) must be no less than abs(b).
+    This function is a faster alternative to `_two_sum` for computing the sum
+    of two floating-point numbers `a` and `b`, such that a + b = x + y exactly.
+    Note: |a| must be no less than |b|.
+
+    Parameters
+    ----------
+    a, b : float
+        The floating-point numbers to be added. It is required that |a| >= |b|.
+
+    Returns
+    -------
+    tuple of float
+        The rounded sum of `a` and `b`, and the error term. The error term represents the difference between the exact sum and the rounded sum.
+
+    Raises
+    ------
+    ValueError
+        If |a| < |b|.
+
+    Examples
+    --------
+    >>> _fast_two_sum(2.0, 1.0)
+    (3.0, 0.0)
+
+    >>> _fast_two_sum(1.0, 2.0)
+    Traceback (most recent call last):
+        ...
+    ValueError: |a| must be greater than or equal to |b|.
     """
     if abs(a) >= abs(b):
         x = a + b

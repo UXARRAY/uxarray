@@ -38,6 +38,15 @@ class TestFMAOperations(TestCase):
         s, e = ac_utils._two_sum(a, b)
         self.assertAlmostEquals(a + b, s + e, places=15)
 
+    def test_fast_two_sum(self):
+        """Test the fase_two_sum function"""
+        a = 2.0
+        b = 1.0
+        s, e = ac_utils._two_sum(a, b)
+        sf, ef = ac_utils._fast_two_sum(a, b)
+        self.assertEquals(s, sf)
+        self.assertEquals(e, ef)
+
     def test_two_prod_fma(self):
         """Test the two_prod_fma function"""
         import pyfma
@@ -48,12 +57,22 @@ class TestFMAOperations(TestCase):
         self.assertEquals(y, pyfma.fma(a, b, -x))
         self.assertAlmostEquals(a * b, x + y, places=15)
 
+    def test_fast_two_mult(self):
+        """Test the two_prod_fma function"""
+        import pyfma
+        a = 1.0
+        b = 2.0
+        x, y = ac_utils._two_prod_fma(a, b)
+        xf, yf = ac_utils._fast_two_mult(a, b)
+        self.assertEquals(x, xf)
+        self.assertEquals(y, yf)
+
     def test_three_FMA(self):
         import pyfma
         a = 1.0
         b = 2.0
         c = 3.0
-        x, y, z = ac_utils._three_fma(a, b, c)
+        x, y, z = ac_utils._err_fmac(a, b, c)
         self.assertEquals(x, pyfma.fma(a, b, c))
         self.assertAlmostEquals(a * b + c, x + y + z, places=15)
 
