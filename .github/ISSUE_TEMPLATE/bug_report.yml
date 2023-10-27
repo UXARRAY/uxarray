@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug. For security vulnerabilities see Report a security vulnerability in the templates.
+description: File a bug report for UXarray.
 title: "🐛[BUG]: <Please write a comprehensive title for the bug>"
 labels: bug
 
