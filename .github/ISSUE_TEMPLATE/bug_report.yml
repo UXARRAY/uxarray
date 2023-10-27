@@ -29,8 +29,8 @@ body:
       - Conda
       - Pip
       - Source
-    validations:
-      required: true
+  validations:
+    required: true
       
 - type: textarea
   attributes:
