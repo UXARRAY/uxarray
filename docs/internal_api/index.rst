@@ -45,6 +45,7 @@ Methods
    UxDataset._replace
 
 
+
 UxDataArray
 ===========
 The ``uxarray.UxDataArray`` class inherits from ``xarray.DataArray``. Below is a list of
@@ -72,7 +73,8 @@ Methods
    UxDataArray._construct_direct
    UxDataArray._copy
    UxDataArray._replace
-
+   UxDataArray._face_centered
+   UxDataArray._node_centered
 
 Grid
 ===========
@@ -119,6 +121,9 @@ Geometry
    grid.geometry._grid_to_polygon_geodataframe
    grid.geometry._grid_to_matplotlib_polycollection
    grid.geometry._grid_to_matplotlib_linecollection
+   grid.geometry._pole_point_inside_polygon
+   grid.geometry._classify_polygon_location
+   grid.geometry._check_intersection
 
 Coordinates
 -----------
@@ -129,14 +134,16 @@ Coordinates
    grid.coordinates._get_xyz_from_lonlat
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
+   grid.coordinates._populate_centroid_coord
+   grid.coordinates._construct_xyz_centroids
 
 
-Lines
------
+Arcs
+----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines._angle_of_2_vectors
+   grid.arcs._angle_of_2_vectors
 
 Utils
 -----
@@ -144,6 +151,8 @@ Utils
    :toctree: _autosummary
 
    grid.utils._fmms
+   grid.utils._newton_raphson_solver_for_gca_constLat
+   grid.utils._inv_jacobian
 
 Grid Parsing and Encoding
 =========================
