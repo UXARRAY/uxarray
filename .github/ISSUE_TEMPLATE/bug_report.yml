@@ -33,12 +33,14 @@ body:
 - type: textarea
   attributes:
     label: "What happened?"
+    placeholder: Something that I wasn't expecting occurred 
   validations:
     required: true
 
 - type: textarea
   attributes:
     label: "What did you expect to happen?"
+    placeholder: I was expecting something else to happen.
   validations:
     required: true
 
