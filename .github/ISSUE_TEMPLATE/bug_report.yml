@@ -23,7 +23,7 @@ body:
 - type: dropdown
   id: installation-method
   attributes:
-    label: On which installation method(s) does this occur?
+    label: On which installation method does this occur?
     multiple: true
     options:
       - Conda
