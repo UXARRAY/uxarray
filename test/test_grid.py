@@ -36,7 +36,6 @@ shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
 
 
 class TestGrid(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
@@ -280,7 +279,6 @@ class TestOperators(TestCase):
 
 
 class TestFaceAreas(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
     def test_calculate_total_face_area_triangle(self):
@@ -292,7 +290,7 @@ class TestFaceAreas(TestCase):
 
         grid_verts = ux.open_grid(verts, latlon=False)
 
-        #calculate area
+        # calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -869,7 +867,6 @@ class TestClassMethods(TestCase):
 
 
 class TestBallTree(TestCase):
-
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_files = [gridfile_mpas]
 
@@ -937,3 +934,21 @@ class TestBallTree(TestCase):
     def test_antimeridian_distance_face_centers(self):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
         pass
+
+
+# move to a seperate testing module
+# class TestGridFromVertices(TestCase):
+#
+#     def test_spherical_voronoi(self):
+#         verts = np.array([[0, 0, 1], [0, 0, -1], [1, 0, 0], [0, 1, 0],
+#                           [0, -1, 0], [-1, 0, 0]])
+#         grid_from_verts = ux.open_grid(verts)
+#         # Voronoi Diagram Test
+#         grid_from_verts.from_vertices(method="spherical_voronoi")
+#
+#     def test_delaunay_triangulation(self):
+#         verts = np.array([[0, 0, 1], [0, 0, -1], [1, 0, 0], [0, 1, 0],
+#                           [0, -1, 0], [-1, 0, 0]])
+#         grid_from_verts = ux.open_grid(verts)
+#         # Delaunay Triangulation Test
+#         grid_from_verts.from_vertices(method="delaunay_triangulation")
