@@ -77,10 +77,10 @@ Methods
    UxDataArray._node_centered
 
 Grid
-===========
+====
 
 Class
-----------
+-----
 .. autosummary::
    :toctree: _autosummary
 
@@ -158,15 +158,12 @@ Utils
 Remapping
 =========
 
-UGRID
------
 .. autosummary::
    :toctree: _autosummary
 
    remap.nearest_neighbor._nearest_neighbor
    remap.nearest_neighbor._nearest_neighbor_uxda
    remap.nearest_neighbor._nearest_neighbor_uxds
-
 
 
 

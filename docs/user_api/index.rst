@@ -26,7 +26,7 @@ Class
    UxDataset
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -83,7 +83,7 @@ Class
    UxDataArray
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -126,7 +126,7 @@ Plotting
 
 
 Grid
-===========
+====
 Unstructured grid topology definition to store stores grid topology dimensions,
 coordinates, variables and provides grid-specific functions.
 
@@ -135,14 +135,14 @@ seen as the property of ``uxarray.UxDataset`` and ``uxarray.DataArray`` to make
 them unstructured grid-aware data sets and arrays.
 
 Class
-----------
+-----
 .. autosummary::
    :toctree: _autosummary
 
    Grid
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -224,28 +224,21 @@ UxDataArray Plotting Methods
 
 
 
-Nearest Neighbors
+Nearest Neighbor Data Structures
 =================
 
-BallTree Data Structure
+BallTree
 -----------------------
 .. autosummary::
    :toctree: _autosummary
 
-   grid.BallTree
-
-Query Methods
--------------
-.. autosummary::
-   :toctree: _autosummary
-
-   grid.BallTree.query
-   grid.BallTree.query_radius
-
+   grid.neighbors.BallTree
+   grid.neighbors.BallTree.query
+   grid.neighbors.BallTree.query_radius
 
 
 Helpers
-===========
+=======
 
 Face Area
 ----------
