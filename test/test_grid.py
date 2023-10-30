@@ -286,10 +286,7 @@ class TestFaceAreas(TestCase):
                   [0.57735027, 5.77350269e-01, -0.57735027],
                   [-0.57735027, 5.77350269e-01, -0.57735027]]]
 
-        grid_verts = ux.open_grid(verts,
-                                  vertices=True,
-                                  islatlon=False,
-                                  isconcave=False)
+        grid_verts = ux.open_grid(verts, latlon=False)
 
         # calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
