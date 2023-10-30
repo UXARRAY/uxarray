@@ -1,0 +1,62 @@
+name: Bug Report
+description: File a bug report for UXarray.
+title: "<Please write a comprehensive title for the bug>"
+labels: bug
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      Thank you for taking the time to file a bug report! Before creating a new
+      issue, please make sure to take a few minutes to check the issue tracker
+      for existing issues about the bug.
+
+- type: input
+  id: version
+  attributes:
+    label: Version
+    description: What version of UXarray are you running?
+    placeholder: "v2023.10.0"
+  validations:
+    required: true
+
+- type: dropdown
+  id: installation-method
+  attributes:
+    label: How did you install UXarray?
+    multiple: true
+    options:
+      - Conda
+      - Pip
+      - Source
+  validations:
+    required: true
+
+- type: textarea
+  attributes:
+    label: "What happened?"
+    placeholder: Something that I wasn't expecting occurred.
+  validations:
+    required: true
+
+- type: textarea
+  attributes:
+    label: "What did you expect to happen?"
+    placeholder: I was expecting something else to happen.
+  validations:
+    required: true
+
+- type: textarea
+  attributes:
+    label: "Can you provide a MCVE to repoduce the bug?"
+    description: >
+      A short MCVE (Minimum Complete Verifiable Example) that
+      that reproduces the problem/missing feature. It should be
+      self-contained, i.e., can be copy-pasted into the Python
+      interpreter or run as-is via `python myproblem.py`.
+    placeholder: |
+      import uxarray as ux
+      << your code here >>
+    render: python
+  validations:
+    required: false
