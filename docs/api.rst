@@ -8,9 +8,10 @@ API Reference
 
 
 Below user API and internal API pages show already-implemented UXarray functionality.
-You can also check the draft `UXarray API
-<https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-documentation to see the tentative whole API and let us know if you have any feedback!
+You can also check the `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_
+and `UXarray Roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ for a
+high-level understanding of UXarray's future function development milestones and roadmap.
+Please let us know if you have any feedback!
 
 .. toctree::
    :maxdepth: 2
