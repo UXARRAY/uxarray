@@ -226,10 +226,10 @@ UxDataArray Plotting Methods
 
 
 Nearest Neighbor Data Structures
-=================
+================================
 
 BallTree
------------------------
+--------
 .. autosummary::
    :toctree: _autosummary
 
@@ -279,7 +279,7 @@ Arcs
    grid.arcs.point_within_gca
 
 Intersections
------
+-------------
 .. autosummary::
    :toctree: _autosummary
 
