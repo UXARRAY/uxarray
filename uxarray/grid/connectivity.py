@@ -234,10 +234,6 @@ def _populate_edge_face_connectivity(grid):
     """Constructs the UGRID connectivity variable (``Mesh2_edge_faces``) and
     stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.Mesh2_edge_faces``)."""
-    # should not be needed with our property attrs
-    # if "Mesh2_face_edges" not in grid._ds:
-    #     _populate_face_edge_connectivity
-
     edge_faces = _build_edge_face_connectivity(grid.Mesh2_face_edges.values,
                                                grid.nNodes_per_face.values,
                                                grid.nMesh2_edge)
