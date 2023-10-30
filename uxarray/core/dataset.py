@@ -270,7 +270,7 @@ class UxDataset(xr.Dataset):
         buf.write("\n".join(lines))
 
     def integrate(self, quadrature_rule="triangular", order=4):
-        """Integrates over all the faces of the given mesh.
+        """Integrates over all the faces of the givfen mesh.
 
         Parameters
         ----------

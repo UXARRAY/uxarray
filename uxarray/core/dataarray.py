@@ -232,6 +232,8 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.nMesh2_face}.")
 
     def to_dataset(self) -> UxDataset:
+        """Converts a ``UxDataArray`` into a ``UxDataset`` with a single data
+        variable."""
         xrds = super().to_dataset()
         return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
