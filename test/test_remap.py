@@ -40,7 +40,7 @@ class TestNearestNeighborRemap(TestCase):
         destination_data = _nearest_neighbor(source_grid,
                                              destination_grid,
                                              source_data_single_dim,
-                                             destination_data_mapping="nodes")
+                                             remap_to="nodes")
 
         np.array_equal(source_data_single_dim, destination_data)
 
@@ -50,7 +50,7 @@ class TestNearestNeighborRemap(TestCase):
         destination_data = _nearest_neighbor(source_grid,
                                              destination_grid,
                                              source_data_multi_dim,
-                                             destination_data_mapping="nodes")
+                                             remap_to="nodes")
 
         np.array_equal(source_data_multi_dim, destination_data)
 

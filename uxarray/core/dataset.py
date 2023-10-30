@@ -331,7 +331,7 @@ class UxDataset(xr.Dataset):
     def nearest_neighbor_remap(self,
                                destination_obj: Union[Grid, UxDataArray,
                                                       UxDataset],
-                               destination_data_mapping: str = "nodes",
+                               remap_to: str = "nodes",
                                coord_type: str = "lonlat"):
         """Nearest Neighbor Remapping between a source (``UxDataset``) and
         destination.`.
@@ -340,11 +340,11 @@ class UxDataset(xr.Dataset):
         ---------
         destination_obj : Grid, UxDataArray, UxDataset
             Destination for remapping
-        destination_data_mapping : str, default="nodes"
+        remap_to : str, default="nodes"
             Location of where to map data, either "nodes" or "face centers"
         coord_type : str, default="lonlat"
             Indicates whether to remap using on latlon or cartesian coordinates
         """
 
-        return _nearest_neighbor_uxds(self, destination_obj,
-                                      destination_data_mapping, coord_type)
+        return _nearest_neighbor_uxds(self, destination_obj, remap_to,
+                                      coord_type)

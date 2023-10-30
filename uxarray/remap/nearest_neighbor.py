@@ -16,7 +16,7 @@ from uxarray.grid import Grid
 def _nearest_neighbor(source_grid: Grid,
                       destination_grid: Grid,
                       source_data: np.ndarray,
-                      destination_data_mapping: str = "nodes",
+                      remap_to: str = "nodes",
                       coord_type: str = "lonlat") -> np.ndarray:
     """Nearest Neighbor Remapping between two grids, mapping data that resides
     on either the corner nodes or face centers on the source grid to the corner
@@ -30,7 +30,7 @@ def _nearest_neighbor(source_grid: Grid,
         Destination grid to remap data to
     source_data : np.ndarray
         Data variable to remaps
-    destination_data_mapping : str, default="nodes"
+    remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
 
     Returns
@@ -58,15 +58,15 @@ def _nearest_neighbor(source_grid: Grid,
 
     if coord_type == "lonlat":
         # get destination coordinate pairs
-        if destination_data_mapping == "nodes":
+        if remap_to == "nodes":
             lon, lat = destination_grid.Mesh2_node_x.values, destination_grid.Mesh2_node_y.values
 
-        elif destination_data_mapping == "face centers":
+        elif remap_to == "face centers":
             lon, lat = destination_grid.Mesh2_face_x.values, destination_grid.Mesh2_face_y.values
         else:
             raise ValueError(
-                f"Invalid destination_data_mapping. Expected 'nodes' or 'face centers', "
-                f"but received: {destination_data_mapping}")
+                f"Invalid remap_to. Expected 'nodes' or 'face centers', "
+                f"but received: {remap_to}")
 
         # specify whether to query on the corner nodes or face centers based on source grid
         _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
@@ -103,7 +103,7 @@ def _nearest_neighbor(source_grid: Grid,
 
 def _nearest_neighbor_uxda(source_uxda: UxDataArray,
                            destination_obj: Union[Grid, UxDataArray, UxDataset],
-                           destination_data_mapping: str = "nodes",
+                           remap_to: str = "nodes",
                            coord_type: str = "lonlat"):
     """Nearest Neighbor Remapping implementation for ``UxDataArray``.
 
@@ -113,7 +113,7 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
         Source UxDataArray for remapping
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
-    destination_data_mapping : str, default="nodes"
+    remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
     coord_type : str, default="lonlat"
         Indicates whether to remap using on latlon or Cartesian coordinates for nearest neighbor computations when
@@ -121,7 +121,7 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     """
 
     # prepare dimensions
-    if destination_data_mapping == "nodes":
+    if remap_to == "nodes":
         destination_dim = "n_node"
     else:
         destination_dim = "n_face"
@@ -140,8 +140,7 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
 
     # perform remapping
     destination_data = _nearest_neighbor(source_uxda.uxgrid, destination_grid,
-                                         source_uxda.data,
-                                         destination_data_mapping, coord_type)
+                                         source_uxda.data, remap_to, coord_type)
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(data=destination_data,
                                                     name=source_uxda.name,
@@ -165,7 +164,7 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
 
 def _nearest_neighbor_uxds(source_uxds: UxDataset,
                            destination_obj: Union[Grid, UxDataArray, UxDataset],
-                           destination_data_mapping: str = "nodes",
+                           remap_to: str = "nodes",
                            coord_type: str = "lonlat"):
     """Nearest Neighbor Remapping implementation for ``UxDataset``.
 
@@ -175,7 +174,7 @@ def _nearest_neighbor_uxds(source_uxds: UxDataset,
         Source UxDataset for remapping
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
-    destination_data_mapping : str, default="nodes"
+    remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
     coord_type : str, default="lonlat"
         Indicates whether to remap using on latlon or cartesiain coordinates
@@ -193,8 +192,7 @@ def _nearest_neighbor_uxds(source_uxds: UxDataset,
 
     for var_name in source_uxds.data_vars:
         destination_uxds = _nearest_neighbor_uxda(source_uxds[var_name],
-                                                  destination_uxds,
-                                                  destination_data_mapping,
+                                                  destination_uxds, remap_to,
                                                   coord_type)
 
     return destination_uxds
