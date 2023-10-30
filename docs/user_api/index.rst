@@ -5,9 +5,10 @@ User API
 ########
 
 This page shows already-implemented Uxarray user API functions. You can also
-check the draft `UXarray API
-<https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-documentation to see the tentative whole API and let us know if you have any feedback!
+check the `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
+`UXarray RoadMap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ for a high
+level understanding of UXarray's future function development milestones and roadmap.
+Please let us know if you have any feedback!
 
 UxDataset
 =========
@@ -176,8 +177,6 @@ Attributes
    Grid.Mesh2_face_edges
    Grid.Mesh2_edge_faces
    Grid.antimeridian_face_indices
-   Grid.corner_node_balltree
-   Grid.center_node_balltree
 
 Plotting
 --------
@@ -262,13 +261,13 @@ Coordinates
    grid.coordinates.normalize_in_place
 
 
-Lines
------
+Arcs
+----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines.in_between
-   grid.lines.point_within_gca
+   grid.arcs.in_between
+   grid.arcs.point_within_gca
 
 Intersections
 -----

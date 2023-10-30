@@ -1,7 +1,6 @@
 name: uxarray_build
 channels:
   - conda-forge
-  - pyviz
 dependencies:
   - cartopy
   - dask
