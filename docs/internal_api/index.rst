@@ -145,6 +145,8 @@ Arcs
    :toctree: _autosummary
 
    grid.arcs._angle_of_2_vectors
+   grid.arcs._angle_of_2_vectors
+
 
 Utils
 -----

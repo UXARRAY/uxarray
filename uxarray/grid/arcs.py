@@ -5,11 +5,6 @@ from enum import Enum
 from uxarray.constants import ERROR_TOLERANCE
 
 
-class EXTREME_TYPE(Enum):
-    MAX = 'max'
-    MIN = 'min'
-
-
 def _to_list(obj):
     if not isinstance(obj, list):
         if isinstance(obj, np.ndarray):
@@ -178,15 +173,10 @@ def extreme_gca_latitude(gca_cart, extreme_type):
     ------
     ValueError
         If `extreme_type` is not 'max' or 'min'.
-
-    Notes
-    -----
-    The function converts the string input for `extreme_type` to an enumeration internally.
-    This enumeration is used to decide the behavior of the function.
     """
-    try:
-        extreme_type = EXTREME_TYPE[extreme_type.upper()]
-    except KeyError:
+    extreme_type = extreme_type.lower()
+
+    if extreme_type not in ('max', 'min'):
         raise ValueError("extreme_type must be either 'max' or 'min'")
 
     n1, n2 = gca_cart
@@ -204,9 +194,8 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         node3 = np.array(normalize_in_place(node3.tolist()))
         d_lat_rad = np.arcsin(np.clip(node3[2], -1, 1))
 
-        return max(d_lat_rad, lat_n1,
-                   lat_n2) if extreme_type == EXTREME_TYPE.MAX else min(
-                       d_lat_rad, lat_n1, lat_n2)
+        return max(d_lat_rad, lat_n1, lat_n2) if extreme_type == 'max' else min(
+            d_lat_rad, lat_n1, lat_n2)
     else:
-        return max(lat_n1, lat_n2) if extreme_type == EXTREME_TYPE.MAX else min(
+        return max(lat_n1, lat_n2) if extreme_type == 'max' else min(
             lat_n1, lat_n2)
