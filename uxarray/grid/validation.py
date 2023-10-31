@@ -4,7 +4,7 @@ from uxarray.constants import ERROR_TOLERANCE
 
 
 # validation helper functions
-def check_connectivity(self):
+def _check_connectivity(self):
     """Check if all nodes are referenced by at least one element.
 
     If not, the mesh may have hanging nodes and may not a valid UGRID
@@ -27,7 +27,7 @@ def check_connectivity(self):
         return False
 
 
-def check_duplicate_nodes(self):
+def _check_duplicate_nodes(self):
     """Check if there are duplicate nodes in the mesh."""
 
     coords1 = np.column_stack(

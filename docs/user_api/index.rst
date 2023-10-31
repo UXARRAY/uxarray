@@ -136,6 +136,7 @@ IO
    Grid.to_polycollection
    Grid.to_linecollection
    Grid.to_shapely_polygons
+   Grid.validate_mesh
 
 
 Methods

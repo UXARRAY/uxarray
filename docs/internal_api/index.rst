@@ -155,6 +155,14 @@ Utils
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
 
+Validation
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.validation._check_connectivity
+   grid.validation._check_duplicate_nodes
+
 Grid Parsing and Encoding
 =========================
 

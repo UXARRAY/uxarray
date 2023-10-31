@@ -38,7 +38,7 @@ from uxarray.grid.neighbors import BallTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
-from uxarray.grid.validation import check_connectivity, check_duplicate_nodes
+from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes
 
 from xarray.core.utils import UncachedAccessor
 
@@ -234,8 +234,8 @@ class Grid:
               if _is_ugrid(self._ds) else "-WARNING: Not a valid ugrid format")
 
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
-        check_duplicate_nodes(self)
-        check_connectivity(self)
+        _check_duplicate_nodes(self)
+        _check_connectivity(self)
 
         # check face area
         areas = self.face_areas
