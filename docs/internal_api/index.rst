@@ -78,10 +78,10 @@ Methods
    UxDataArray._node_centered
 
 Grid
-===========
+====
 
 Class
-----------
+-----
 .. autosummary::
    :toctree: _autosummary
 
@@ -160,6 +160,20 @@ Utils
    grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+
+
+Remapping
+=========
+
+.. autosummary::
+   :toctree: _autosummary
+
+   remap.nearest_neighbor._nearest_neighbor
+   remap.nearest_neighbor._nearest_neighbor_uxda
+   remap.nearest_neighbor._nearest_neighbor_uxds
+
+
+
 
 Grid Parsing and Encoding
 =========================
