@@ -104,9 +104,6 @@ Connectivity
 .. autosummary::
    :toctree: _autosummary
 
-
-
-
    grid.connectivity._face_nodes_to_sparse_matrix
    grid.connectivity._replace_fill_values
    grid.connectivity._build_nNodes_per_face
@@ -118,6 +115,7 @@ Connectivity
    grid.connectivity._populate_face_edges_connectivity
    grid.connectivity._populate_node_faces_connectivity
    grid.connectivity._populate_edge_face_connectivity
+   grid.connectivity._populate_n_nodes_per_face
 
 Geometry
 --------
