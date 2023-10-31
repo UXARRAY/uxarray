@@ -14,6 +14,8 @@ from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lo
 
 from uxarray.grid.neighbors import BallTree
 
+from uxarray.constants import INT_FILL_VALUE
+
 try:
     import constants
 except ImportError:
@@ -828,8 +830,9 @@ class TestConnectivity(TestCase):
                     np.array_equal(valid_face_index_from_sparse_matrix,
                                    face_index_from_dict))
 
-    def test_edge_face_connectivity(self):
-        """Tests the construction of ``Mesh2_face_edges``"""
+    def test_edge_face_connectivity_mpas(self):
+        """Tests the construction of ``Mesh2_face_edges`` to the expected
+        results of an MPAS grid."""
         uxgrid = ux.open_grid(self.mpas_filepath)
 
         edge_faces_gold = uxgrid.Mesh2_edge_faces.values
@@ -839,6 +842,40 @@ class TestConnectivity(TestCase):
             uxgrid.nMesh2_edge)
 
         nt.assert_array_equal(edge_faces_output, edge_faces_gold)
+
+    def test_edge_face_connectivity_sample(self):
+        """Tests the construction of ``Mesh2_face_edges`` on an example with
+        one shared edge, and the remaining edges only being part of one
+        face."""
+        # single triangle with point on antimeridian
+        verts = [[(0.0, -90.0), (180, 0.0), (0.0, 90)],
+                 [(-180, 0.0), (0, 90.0), (0.0, -90)]]
+
+        uxgrid = ux.open_grid(verts)
+
+        n_shared = 0
+        n_solo = 0
+        n_invalid = 0
+        for edge_face in uxgrid.Mesh2_edge_faces.values:
+            if edge_face[0] != INT_FILL_VALUE and edge_face[1] != INT_FILL_VALUE:
+                # shared edge
+                n_shared += 1
+            elif edge_face[0] != INT_FILL_VALUE and edge_face[
+                    1] == INT_FILL_VALUE:
+                # edge borders one face
+                n_solo += 1
+            else:
+                # invalid edge, if any
+                n_invalid += 1
+
+        # example has only 1 shared edge
+        assert n_shared == 1
+
+        # remaining edges only saddle one face
+        assert n_solo == uxgrid.nMesh2_edge - n_shared
+
+        # no invalid entries should occur
+        assert n_invalid == 0
 
 
 class TestClassMethods(TestCase):
