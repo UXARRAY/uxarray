@@ -5,9 +5,10 @@ User API
 ########
 
 This page shows already-implemented Uxarray user API functions. You can also
-check the draft `UXarray API
-<https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-documentation to see the tentative whole API and let us know if you have any feedback!
+check the `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
+`UXarray RoadMap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ for a high
+level understanding of UXarray's future function development milestones and roadmap.
+Please let us know if you have any feedback!
 
 UxDataset
 =========
@@ -26,7 +27,7 @@ Class
    UxDataset
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -49,12 +50,21 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
+
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset.nearest_neighbor_remap
+
 Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataset.plot
+
 
 
 UxDataArray
@@ -74,7 +84,7 @@ Class
    UxDataArray
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -96,6 +106,14 @@ Methods
 
    UxDataArray.integrate
 
+
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.nearest_neighbor_remap
+
 Plotting
 --------
 .. autosummary::
@@ -107,8 +125,9 @@ Plotting
 
 
 
+
 Grid
-===========
+====
 Unstructured grid topology definition to store stores grid topology dimensions,
 coordinates, variables and provides grid-specific functions.
 
@@ -117,14 +136,14 @@ seen as the property of ``uxarray.UxDataset`` and ``uxarray.DataArray`` to make
 them unstructured grid-aware data sets and arrays.
 
 Class
-----------
+-----
 .. autosummary::
    :toctree: _autosummary
 
    Grid
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -146,7 +165,6 @@ Methods
    Grid.compute_face_areas
    Grid.encode_as
    Grid.get_ball_tree
-   Grid.integrate
    Grid.copy
 
 
@@ -166,14 +184,15 @@ Attributes
    Grid.nNodes_per_face
    Grid.Mesh2_node_x
    Grid.Mesh2_node_y
-   Mesh2_node_cart_x
-   Mesh2_node_cart_y
-   Mesh2_node_cart_z
+   Grid.Mesh2_node_cart_x
+   Grid.Mesh2_node_cart_y
+   Grid.Mesh2_node_cart_z
    Grid.Mesh2_face_x
    Grid.Mesh2_face_y
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
+   Grid.Mesh2_edge_faces
    Grid.antimeridian_face_indices
 
 Plotting
@@ -207,28 +226,21 @@ UxDataArray Plotting Methods
 
 
 
-Nearest Neighbors
-=================
+Nearest Neighbor Data Structures
+================================
 
-BallTree Data Structure
------------------------
+BallTree
+--------
 .. autosummary::
    :toctree: _autosummary
 
-   grid.BallTree
-
-Query Methods
--------------
-.. autosummary::
-   :toctree: _autosummary
-
-   grid.BallTree.query
-   grid.BallTree.query_radius
-
+   grid.neighbors.BallTree
+   grid.neighbors.BallTree.query
+   grid.neighbors.BallTree.query_radius
 
 
 Helpers
-===========
+=======
 
 Face Area
 ----------
@@ -268,7 +280,7 @@ Arcs
    grid.arcs.point_within_gca
 
 Intersections
------
+-------------
 .. autosummary::
    :toctree: _autosummary
 
