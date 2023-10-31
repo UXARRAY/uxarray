@@ -1,7 +1,6 @@
 name: uxarray-docs
 channels:
     - conda-forge
-    - pyviz
 dependencies:
     - python
     - dask

@@ -175,8 +175,6 @@ Attributes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
    Grid.antimeridian_face_indices
-   Grid.corner_node_balltree
-   Grid.center_node_balltree
 
 Plotting
 --------
@@ -261,13 +259,13 @@ Coordinates
    grid.coordinates.normalize_in_place
 
 
-Lines
------
+Arcs
+----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines.in_between
-   grid.lines.point_within_gca
+   grid.arcs.in_between
+   grid.arcs.point_within_gca
 
 Intersections
 -----
