@@ -192,6 +192,7 @@ Attributes
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
+   Grid.Mesh2_edge_faces
    Grid.antimeridian_face_indices
 
 Plotting
