@@ -10,143 +10,47 @@ from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT, ERROR_TOLERANCE
 
 config.DISABLE_JIT = not ENABLE_JIT
 
-# @njit(cache=ENABLE_JIT_CACHE)
-# def node_lonlat_rad_to_xyz(node_coord):
-#     """Helper function to Convert the node coordinate from 2D
-#     longitude/latitude to normalized 3D xyz.
-#
-#     Parameters
-#     ----------
-#     node: float list
-#         2D coordinates[longitude, latitude] in radiance
-#
-#     Returns
-#     ----------
-#     float list
-#         the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
-#
-#     Raises
-#     ----------
-#     RuntimeError
-#         The input array doesn't have the size of 3.
-#     """
-#     if len(node_coord) != 2:
-#         raise RuntimeError(
-#             "Input array should have a length of 2: [longitude, latitude]")
-#     lon = node_coord[0]
-#     lat = node_coord[1]
-#     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
-
 
 @njit(cache=ENABLE_JIT_CACHE)
 def lonlat_rad_to_xyz(lon, lat):
     xyz = np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)
     return xyz
 
+#@njit(cache=ENABLE_JIT_CACHE)
+def xyz_to_lonlat_rad(x, y, z):
 
-@njit(cache=ENABLE_JIT_CACHE)
-def node_xyz_to_lonlat_rad(node_coord):
-    """Calculate the latitude and longitude in radiance for a node represented
-    in the [x, y, z] 3D Cartesian coordinates.
+    x_n, y_n, z_n = normalize_xyz_coords(x, y, z)
 
-    Parameters
-    ----------
-    node_coord: float list
-        3D Cartesian Coordinates [x, y, z] of the node
+    denom = np.absolute(x_n * x_n + y_n * y_n + z_n * z_n)
 
-    Returns
-    ----------
-    float list
-        the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
+    x_n /= denom
+    y_n /= denom
+    z_n /= denom
 
-    Raises
-    ----------
-    RuntimeError
-        The input array doesn't have the size of 3.
-    """
-    if len(node_coord) != 3:
-        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+    # todo
+    if np.absolute(z_n) < (1.0 - ERROR_TOLERANCE):
+        lon_rad = np.atan2(y_n, x_n)
+        lat_rad = np.arcsin(z_n)
 
-    [dx, dy, dz] = normalize_in_place(node_coord)
-    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
-
-    if np.absolute(dz) < (1.0 - ERROR_TOLERANCE):
-        d_lon_rad = math.atan2(dy, dx)
-        d_lat_rad = np.arcsin(dz)
-
-        if d_lon_rad < 0.0:
-            d_lon_rad += 2.0 * np.pi
-    elif dz > 0.0:
-        d_lon_rad = 0.0
-        d_lat_rad = 0.5 * np.pi
+        if lon_rad < 0.0:
+            lon_rad += 2.0 * np.pi
+    elif z_n > 0.0:
+        lon_rad = 0.0 *
+        lat_rad = 0.5 * np.pi
     else:
-        d_lon_rad = 0.0
-        d_lat_rad = -0.5 * np.pi
+        lon_rad = 0.0
+        lat_rad = -0.5 * np.pi
 
-    return [d_lon_rad, d_lat_rad]
-
+    return lon_rad, lat_rad
 
 #@njit(cache=ENABLE_JIT_CACHE)
-def node_xyz_to_lonlat_rad(coords):
-    coords_norm = normalize_in_place(coords)
-    dx = coords_norm[:, 0]
-    dy = coords_norm[:, 1]
-    dz = coords_norm[:, 2]
+def normalize_xyz_coords(x, y, z):
+    """TODO."""
+    x_norm = x / np.linalg.norm(x, ord=2, axis=1)
+    y_norm = y / np.linalg.norm(y, ord=2, axis=1)
+    z_norm = z / np.linalg.norm(z, ord=2, axis=1)
 
-    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
-
-    if np.absolute(dz) < (1.0 - ERROR_TOLERANCE):
-        d_lon_rad = np.atan2(dy, dx)
-        d_lat_rad = np.arcsin(dz)
-
-        if d_lon_rad < 0.0:
-            d_lon_rad += 2.0 * np.pi
-    elif dz > 0.0:
-        d_lon_rad = 0.0
-        d_lat_rad = 0.5 * np.pi
-    else:
-        d_lon_rad = 0.0
-        d_lat_rad = -0.5 * np.pi
-
-    return [d_lon_rad, d_lat_rad]
-
-
-# @njit(cache=ENABLE_JIT_CACHE)
-# def normalize_in_place(node):
-#     """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
-#     on the unit sphere. It uses the `np.linalg.norm` internally to calculate
-#     the magnitude.
-#
-#     Parameters
-#     ----------
-#     node: float list
-#         3D Cartesian Coordinates [x, y, z]
-#
-#     Returns
-#     ----------
-#     float list
-#         the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
-#
-#     Raises
-#     ----------
-#     RuntimeError
-#         The input array doesn't have the size of 3.
-#     """
-#     if len(node) != 3:
-#         raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-#     return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
-
-
-#@njit(cache=ENABLE_JIT_CACHE)
-def normalize_in_place(coords):
-
-    coords_norm = coords / np.linalg.norm(coords, ord=2, axis=1)
-
-    return coords_norm
+    return x_norm, y_norm, z_norm
 
 
 def _get_xyz_from_lonlat(node_lon, node_lat):
@@ -218,6 +122,9 @@ def _populate_cartesian_xyz_coord(grid):
 def _get_lonlat_from_xyz(x, y, z):
     nodes_cart = np.stack((x, y, z), axis=1).tolist()
     nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
+
+    lonlat = xyz_to_lonlat_rad()
+
     nodes_degree = np.rad2deg(nodes_rad)
 
     return nodes_degree[:, 0], nodes_degree[:, 1]
