@@ -1009,3 +1009,21 @@ class Grid:
         """
         polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
         return polygons
+
+    def nearest_neighbors(self,
+                          center_coord,
+                          k,
+                          query_type="nodes",
+                          coord_type="spherical",
+                          tree_type="BallTree"):
+        _uxgrid = None
+        return _uxgrid
+
+    def nearest_neighbors_within_radius(self,
+                                        center_coord,
+                                        r,
+                                        query_type="nodes",
+                                        coord_type="spherical",
+                                        tree_type="BallTree"):
+        _uxgrid = None
+        return _uxgrid
