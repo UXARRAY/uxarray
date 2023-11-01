@@ -1,7 +1,7 @@
 import numpy as np
 
-from uxarray.grid.coordinates import node_xyz_to_lonlat_rad
-
+from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
+from enum import Enum
 from uxarray.constants import ERROR_TOLERANCE
 
 
@@ -150,3 +150,52 @@ def _angle_of_2_vectors(u, v):
     angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus),
                                    np.linalg.norm(vec_sum))
     return angle_u_v_rad
+
+
+def extreme_gca_latitude(gca_cart, extreme_type):
+    """Calculate the maximum or minimum latitude of a great circle arc defined
+    by two 3D points.
+
+    Parameters
+    ----------
+    gca_cart : numpy.ndarray
+        An array containing two 3D vectors that define a great circle arc.
+
+    extreme_type : str
+        The type of extreme latitude to calculate. Must be either 'max' or 'min'.
+
+    Returns
+    -------
+    float
+        The maximum or minimum latitude of the great circle arc in radians.
+
+    Raises
+    ------
+    ValueError
+        If `extreme_type` is not 'max' or 'min'.
+    """
+    extreme_type = extreme_type.lower()
+
+    if extreme_type not in ('max', 'min'):
+        raise ValueError("extreme_type must be either 'max' or 'min'")
+
+    n1, n2 = gca_cart
+    dot_n1_n2 = np.dot(n1, n2)
+    denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
+    d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
+
+    d_a_max = np.clip(d_a_max, 0, 1) if np.isclose(
+        d_a_max, [0, 1], atol=ERROR_TOLERANCE).any() else d_a_max
+    lat_n1, lat_n2 = node_xyz_to_lonlat_rad(
+        n1.tolist())[1], node_xyz_to_lonlat_rad(n2.tolist())[1]
+
+    if 0 < d_a_max < 1:
+        node3 = (1 - d_a_max) * n1 + d_a_max * n2
+        node3 = np.array(normalize_in_place(node3.tolist()))
+        d_lat_rad = np.arcsin(np.clip(node3[2], -1, 1))
+
+        return max(d_lat_rad, lat_n1, lat_n2) if extreme_type == 'max' else min(
+            d_lat_rad, lat_n1, lat_n2)
+    else:
+        return max(lat_n1, lat_n2) if extreme_type == 'max' else min(
+            lat_n1, lat_n2)
