@@ -230,7 +230,7 @@ UxDataArray Plotting Methods
 Nearest Neighbor Data Structures
 ================================
 
-KDTree 
+KDTree
 ------
 .. autosummary::
    :toctree: _autosummary
