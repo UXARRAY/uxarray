@@ -278,6 +278,7 @@ Arcs
 
    grid.arcs.in_between
    grid.arcs.point_within_gca
+   grid.arcs.extreme_gca_latitude
 
 Intersections
 -------------
