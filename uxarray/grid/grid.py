@@ -16,12 +16,11 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import _populate_centroid_coord
-from uxarray.grid.connectivity import (
-    _build_edge_node_connectivity,
-    _build_face_edges_connectivity,
-    _build_nNodes_per_face,
-    _build_node_faces_connectivity,
-)
+from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
+                                       _populate_face_edge_connectivity,
+                                       _populate_n_nodes_per_face,
+                                       _populate_node_face_connectivity,
+                                       _populate_edge_face_connectivity)
 
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
@@ -393,7 +392,7 @@ class Grid:
         self._mesh2_future_warning()
 
         if "Mesh2_edge_nodes" not in self._ds:
-            _build_edge_node_connectivity(self, repopulate=True)
+            _populate_edge_node_connectivity(self)
 
         return self._ds['Mesh2_edge_nodes'].shape[0]
 
@@ -413,7 +412,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_face_edges" not in self._ds:
-            _build_face_edges_connectivity(self)
+            _populate_face_edge_connectivity(self)
 
         return self._ds["Mesh2_face_edges"].shape[1]
 
@@ -426,7 +425,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "nNodes_per_face" not in self._ds:
-            _build_nNodes_per_face(self)
+            _populate_n_nodes_per_face(self)
         return self._ds["nNodes_per_face"]
 
     @property
@@ -684,7 +683,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_edge_nodes" not in self._ds:
-            _build_edge_node_connectivity(self)
+            _populate_edge_node_connectivity(self)
 
         return self._ds['Mesh2_edge_nodes']
 
@@ -698,7 +697,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_face_edges" not in self._ds:
-            _build_face_edges_connectivity(self)
+            _populate_face_edge_connectivity(self)
 
         return self._ds["Mesh2_face_edges"]
 
@@ -712,8 +711,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_edge_faces" not in self._ds:
-            # TODO _build_edge_face_connectivity(self)
-            return None
+            _populate_edge_face_connectivity(self)
 
         return self._ds["Mesh2_edge_faces"]
 
@@ -727,7 +725,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_node_faces" not in self._ds:
-            _build_node_faces_connectivity(self)
+            _populate_node_face_connectivity(self)
 
         return self._ds["Mesh2_node_faces"]
 
