@@ -1,0 +1,16 @@
+name: Feature Request
+description: Request new or improved functionality or changes to existing UXarray functionality.
+title: "<Please write a comprehensive title for the feature request>"
+labels: new feature
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      Thank you for taking the time to file a feature request! Before creating a new issue, please make sure to take a few minutes to check the issue tracker for existing issues that match the feature you are describing.
+
+- type: textarea
+  attributes:
+    label: "Proposed new feature or change:"
+  validations:
+    required: true
