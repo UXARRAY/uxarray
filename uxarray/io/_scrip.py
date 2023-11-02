@@ -49,18 +49,18 @@ def _to_ugrid(in_ds, out_ds):
                              (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
         # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
-        out_ds['Mesh2_node_x'] = xr.DataArray(
+        out_ds['node_lon'] = xr.DataArray(
             unq_lon,
-            dims=["nMesh2_node"],
+            dims=["n_node"],
             attrs={
                 "standard_name": "longitude",
                 "long_name": "longitude of mesh nodes",
                 "units": "degrees_east",
             })
 
-        out_ds['Mesh2_node_y'] = xr.DataArray(
+        out_ds['node_lat'] = xr.DataArray(
             unq_lat,
-            dims=["nMesh2_node"],
+            dims=["n_node"],
             attrs={
                 "standard_name": "latitude",
                 "long_name": "latitude of mesh nodes",
@@ -68,8 +68,8 @@ def _to_ugrid(in_ds, out_ds):
             })
 
         # Create Mesh2_face_x/y from grid_center_lat/lon
-        out_ds['Mesh2_face_x'] = in_ds['grid_center_lon']
-        out_ds['Mesh2_face_y'] = in_ds['grid_center_lat']
+        out_ds['face_lon'] = in_ds['grid_center_lon']
+        out_ds['face_lat'] = in_ds['grid_center_lat']
 
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(unq_inv,
@@ -78,9 +78,9 @@ def _to_ugrid(in_ds, out_ds):
                                           new_dtype=INT_DTYPE)
 
         # set the face nodes data compiled in "connect" section
-        out_ds["Mesh2_face_nodes"] = xr.DataArray(
+        out_ds["face_node_connectivity"] = xr.DataArray(
             data=face_nodes,
-            dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+            dims=["n_face", "n_max_face_nodes"],
             attrs={
                 "cf_role":
                     "face_node_connectivity",
@@ -96,7 +96,7 @@ def _to_ugrid(in_ds, out_ds):
         raise Exception("Structured scrip files are not yet supported")
 
     # populate source dims
-    source_dims_dict[in_ds['grid_center_lon'].dims[0]] = "nMesh2_face"
+    source_dims_dict[in_ds['grid_center_lon'].dims[0]] = "n_face"
 
     return source_dims_dict
 
@@ -128,19 +128,6 @@ def _read_scrip(ext_ds):
     try:
         # If not ugrid compliant, translates scrip to ugrid conventions
         source_dims_dict = _to_ugrid(ext_ds, ds)
-
-        # Add necessary UGRID attributes to new dataset
-        ds["Mesh2"] = xr.DataArray(
-            attrs={
-                "cf_role": "mesh_topology",
-                "long_name": "Topology data of unstructured mesh",
-                "topology_dimension": 2,
-                "node_coordinates": "Mesh2_node_x Mesh2_node_y",
-                "node_dimension": "nMesh2_node",
-                "face_node_connectivity": "Mesh2_face_nodes",
-                "face_dimension": "nMesh2_face"
-            })
-
     except:
         print(
             "Variables not in recognized SCRIP form. Please refer to",
