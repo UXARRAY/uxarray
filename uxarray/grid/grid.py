@@ -215,23 +215,11 @@ class Grid:
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
-        # if self.grid_var_names["Mesh2_node_x"] in self._ds:
-        #     dims_str += f"  * nMesh2_node: {self.nMesh2_node}\n"
-        # if self.grid_var_names["Mesh2_face_nodes"] in self._ds:
-        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
-        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
 
         for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
             dims_str += f"  * {key}: {value}\n"
-            # if key in self._inverse_grid_var_names:
-            #     dims_str += f"  * {self._inverse_grid_var_names[key]}: {value}\n"
 
-        # if "nMesh2_edge" in self._ds.dims:
-        #     dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
-
-        # TODO
-        # if "nMaxMesh2_face_edges" in self._ds.dims:
-        #     dims_str += f"  * nMaxMesh2_face_edges: {self.nMaxMesh2_face_edges}\n"
+        dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
 
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
@@ -288,8 +276,6 @@ class Grid:
         if "node_face_connectivity" in self._ds:
             connectivity_str += f"  * node_face_connectivity: {self.node_face_connectivity.shape}\n"
 
-        # connectivity_str += f"  * nNodes_per_face: {self.nNodes_per_face.shape}\n"
-
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
             connectivity_heading + connectivity_str
 
@@ -342,32 +328,34 @@ class Grid:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
-    # TODO: remove?
     @property
     def Mesh2(self) -> xr.DataArray:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
-        unstructured mesh."""
+        unstructured mesh.
+
+        Internal use has been deprecated.
+        """
         return self._ds["Mesh2"]
 
     # ==================================================================================================================
     # Grid Dimensions
     @property
     def n_node(self) -> int:
-        """UGRID Dimension ``n_node``, which represents the total number of
-        unique corner nodes."""
+        """Dimension ``n_node``, which represents the total number of unique
+        corner nodes."""
         return self._ds.dims["n_node"]
 
     @property
     def n_face(self) -> int:
-        """UGRID Dimension ``n_face``, which represents the total number of
-        unique faces."""
+        """Dimension ``n_face``, which represents the total number of unique
+        faces."""
         return self._ds.dims["n_face"]
 
     @property
     def n_edge(self) -> int:
-        """UGRID Dimension ``n_edge``, which represents the total number of
-        unique edges."""
-        if "edge_node_connectivity" not in self._ds:  # TODO
+        """Dimension ``n_edge``, which represents the total number of unique
+        edges."""
+        if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
 
         return self._ds.dims["n_edge"]
@@ -375,14 +363,13 @@ class Grid:
     # ==================================================================================================================
     @property
     def n_max_face_nodes(self) -> int:
-        """UGRID Dimension ``n_max_face_nodes``, which represents the maximum
-        number of nodes that a face may contain."""
-        return self.face_node_connectivity.shape[1]  # TODO, use dims
+        """Dimension ``n_max_face_nodes``, which represents the maximum number
+        of nodes that a face may contain."""
+        return self.face_node_connectivity.shape[1]
 
-    # TODO:
     @property
     def n_max_face_edges(self) -> xr.DataArray:
-        """Dimension ``n_max_face_nodes``, which represents the maximum number
+        """Dimension ``n_max_face_edges``, which represents the maximum number
         of edges per face.
 
         Equivalent to ``nMaxMesh2_face_nodes``
@@ -590,8 +577,8 @@ class Grid:
     # (, node) Connectivity
     @property
     def face_node_connectivity(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``face_node_connectivity``, which maps
-        each face to its corner nodes.
+        """Connectivity Variable ``face_node_connectivity``, which maps each
+        face to its corner nodes.
 
         Dimensions (``n_face``, ``n_max_face_nodes``) and
         DataType ``INT_DTYPE``.
@@ -602,8 +589,8 @@ class Grid:
 
     @property
     def edge_node_connectivity(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``edge_node_connectivity``, which maps
-        every edge to the two nodes that it connects.
+        """Connectivity Variable ``edge_node_connectivity``, which maps every
+        edge to the two nodes that it connects.
 
         Dimensions (``n_edge``, ``two``) and DataType
         ``INT_DTYPE``.
@@ -617,15 +604,15 @@ class Grid:
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
-        """TODO."""
+        """Connectivity Variable ``node_node_connectivity``."""
         return None
 
     # ==================================================================================================================
     # (, edge) Connectivity
     @property
     def face_edge_connectivity(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``face_edge_connectivity``, which maps
-        every face to its edges.
+        """Connectivity Variable ``face_edge_connectivity``, which maps every
+        face to its edges.
 
         Dimensions (``n_face``, ``n_max_face_nodes``) and DataType
         ``INT_DTYPE``.
@@ -637,22 +624,25 @@ class Grid:
 
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``edge_edge_connectivity``."""
         return None
 
     @property
     def node_edge_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``node_edge_connectivity``."""
         return None
 
     # ==================================================================================================================
     # (, face) Connectivity
     @property
     def face_face_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``face_face_connectivity``."""
         return None
 
     @property
     def edge_face_connectivity(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``edge_face_connectivity``, which
-        contains the index of the faces that saddle a given edge.
+        """Connectivity Variable ``edge_face_connectivity``, which contains the
+        index of the faces that saddle a given edge.
 
         Dimensions (``n_edge``, ``TWO``) and DataType ``INT_DTYPE``.
         """
@@ -663,11 +653,11 @@ class Grid:
 
     @property
     def node_face_connectivity(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``node_face_connectivity``, which maps
-        every node to its faces.
+        """Connectivity Variable ``node_face_connectivity``, which maps every
+        node to its faces.
 
-        Dimensions (``n_node``, ``n_max_faces_per_node``) and   # TODO
-        DataType ``INT_DTYPE``.
+        Dimensions (``n_node``, ``n_max_faces_per_node``) and DataType
+        ``INT_DTYPE``.
         """
         if "node_face_connectivity" not in self._ds:
             _populate_node_face_connectivity(self)
@@ -873,15 +863,13 @@ class Grid:
             x = self.node_lon.data
             y = self.node_lat.data
             z = np.zeros((self.n_node))
-            coords_type = "spherical"  # TODO: should really be called latlon?
+            coords_type = "spherical"
         else:
             x = self.node_x.data
             y = self.node_y.data
             z = self.node_z.data
             coords_type = "cartesian"
 
-        # TODO: we dont really need this, but keep for now
-        #dim = self.Mesh2.attrs['topology_dimension']
         dim = 2
 
         # Note: x, y, z are np arrays of type float
