@@ -347,7 +347,6 @@ class Grid:
     def Mesh2(self) -> xr.DataArray:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
         unstructured mesh."""
-        self._mesh2_future_warning()
         return self._ds["Mesh2"]
 
     # ==================================================================================================================
