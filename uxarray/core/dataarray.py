@@ -324,3 +324,6 @@ class UxDataArray(xr.DataArray):
         match up with the number of nodes)"""
         return (self.uxgrid.nMesh2_node == self.shape[-1] and
                 self.uxgrid.nMesh2_face not in self.shape)
+
+    def gradient(self, method):
+        pass

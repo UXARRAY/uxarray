@@ -9,7 +9,7 @@ from sklearn.metrics.pairwise import haversine_distances
 
 from typing import Optional, Union
 
-from uxarray.constants import INT_DTYPE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class BallTree:
@@ -274,17 +274,37 @@ def _prepare_xy_for_query(xy, use_radians):
     return xy
 
 
-@njit
-def _populate_edge_node_distances(node_lon, node_lat, edge_nodes):
+# @njit
+def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
 
     edge_lon_a = np.deg2rad((node_lon[edge_nodes[:, 0]]))
     edge_lon_b = np.deg2rad((node_lon[edge_nodes[:, 1]]))
 
+    # need to handle INT_FILL_VALUE
     edge_lat_a = np.deg2rad((node_lat[edge_nodes[:, 0]]))
     edge_lat_b = np.deg2rad((node_lat[edge_nodes[:, 1]]))
 
-    d = np.arccos(
+    edge_node_distances = np.arccos(
         np.sin(edge_lat_a) * np.sin(edge_lat_b) + np.cos(edge_lat_a) *
         np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b))
 
-    return d
+    return edge_node_distances
+
+
+def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
+
+    saddle_mask = edge_faces[:, 1] != INT_FILL_VALUE
+
+    edge_face_distances = np.zeros(edge_faces.shape[0])
+
+    edge_lon_a = np.deg2rad((node_lon[edge_faces[saddle_mask, 0]]))
+    edge_lon_b = np.deg2rad((node_lon[edge_faces[saddle_mask, 1]]))
+
+    edge_lat_a = np.deg2rad((node_lat[edge_faces[saddle_mask, 0]]))
+    edge_lat_b = np.deg2rad((node_lat[edge_faces[saddle_mask, 1]]))
+
+    edge_face_distances[saddle_mask] = np.arccos(
+        np.sin(edge_lat_a) * np.sin(edge_lat_b) + np.cos(edge_lat_a) *
+        np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b))
+
+    return edge_face_distances

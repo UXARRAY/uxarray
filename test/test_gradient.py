@@ -11,23 +11,25 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-from uxarray.core.gradient import _calculate_edge_grad
-from uxarray.grid.neighbors import _populate_edge_node_distances
+from uxarray.core.gradient import _calculate_abs_edge_grad
+from uxarray.grid.neighbors import _populate_edge_node_distances, _populate_edge_face_distances
 
 
 class TestGrad(TestCase):
-    mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+    mpas_atmo_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+    mpas_ocean_path = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
     def test_grad_mpas(self):
-        uxds = ux.open_dataset(self.mpas_grid_path, self.mpas_grid_path)
+        uxds = ux.open_dataset(self.mpas_atmo_path, self.mpas_atmo_path)
         uxgrid = uxds.uxgrid
-        grad = _calculate_edge_grad(uxds['lonCell'].values,
-                                    uxgrid.Mesh2_edge_faces.values,
-                                    uxgrid.Mesh2_edge_node_distances.values,
-                                    uxgrid.nMesh2_edge)
 
-        e_d = _populate_edge_node_distances(uxgrid.Mesh2_node_x.values,
-                                            uxgrid.Mesh2_node_y.values,
-                                            uxgrid.Mesh2_edge_nodes.values)
+        edge_face_d = _populate_edge_face_distances(
+            uxgrid.Mesh2_face_x.values, uxgrid.Mesh2_face_y.values,
+            uxgrid.Mesh2_edge_faces.values)
+
+        grad = _calculate_abs_edge_grad(uxds['lonCell'].values,
+                                        uxgrid.Mesh2_edge_faces.values,
+                                        uxgrid.Mesh2_edge_node_distances.values,
+                                        uxgrid.nMesh2_edge)
 
         pass
