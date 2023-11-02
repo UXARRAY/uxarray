@@ -366,7 +366,7 @@ class Grid:
         if "n_max_face_edges" not in self._ds:
             _populate_face_edge_connectivity(self)
 
-        return self._ds["n_max_face_edges"].shape[1]
+        return self._ds["face_edge_connectivity"].shape[1]
 
     @property
     def n_nodes_per_face(self) -> xr.DataArray:
