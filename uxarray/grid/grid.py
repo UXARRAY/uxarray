@@ -59,7 +59,7 @@ class Grid:
         Original unstructured grid format (i.e. UGRID, MPAS, etc.)
 
     source_dims_dict : dict, default={}
-        Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : nMesh2_face})
+        Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : n_face})
 
     Examples
     ----------
@@ -131,17 +131,6 @@ class Grid:
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
-    def _mesh2_future_warning(self):
-        """Raises a FutureWarning about the 'Mesh2' prefix removal.
-
-        Only raises the warning once when a effected property is called.
-        """
-        if not self._mesh2_warning_raised:
-            self._mesh2_warning_raised = True
-            warn(
-                "'Mesh2' prefix used in dimension, coordinate, and connectivity attributes (i.e. Mesh2_face_nodes) will"
-                " be dropped in a future release.", FutureWarning, 1)
-
     @classmethod
     def from_dataset(cls,
                      dataset: xr.Dataset,
@@ -204,7 +193,7 @@ class Grid:
         else:
             raise RuntimeError(
                 f"Invalid Input Dimension: {face_vertices.ndim}. Expected dimension should be "
-                f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
+                f"3: [n_face, n_node, two/three] or 2 when only "
                 f"one face is passed in.")
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
@@ -372,7 +361,7 @@ class Grid:
         """Dimension ``n_max_face_edges``, which represents the maximum number
         of edges per face.
 
-        Equivalent to ``nMaxMesh2_face_nodes``
+        Equivalent to ``n_max_face_nodes``
         """
         if "n_max_face_edges" not in self._ds:
             _populate_face_edge_connectivity(self)
@@ -384,7 +373,7 @@ class Grid:
         """Dimension Variable ``n_nodes_per_face``, which contains the number
         of non-fill-value nodes per face.
 
-        Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
+        Dimensions (``n_node``) and DataType ``INT_DTYPE``.
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
@@ -709,8 +698,8 @@ class Grid:
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
-        (``Mesh2_node_x``, ``Mesh2_node_y``) or face centers (``Mesh2_face_x``,
-        ``Mesh2_face_y``).
+        (``node_lon``, ``node_lat``) or face centers (``face_lon``,
+        ``face_lat``).
 
         Parameters
         ----------
@@ -736,9 +725,8 @@ class Grid:
     def get_kd_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
-        (``Mesh2_node_cart_x``, ``Mesh2_node_cart_y``, ``Mesh2_node_cart_z``)
-        or face centers (``Mesh2_face_cart_x``, ``Mesh2_face_cart_y``,
-        ``Mesh2_face_cart_z``).
+        (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
+        ``face_y``, ``face_z``).
 
         Parameters
         ----------
@@ -850,7 +838,6 @@ class Grid:
 
         >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
 
-        Get area of all faces in the same order as listed in grid._ds.Mesh2_face_nodes
 
         >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
