@@ -212,6 +212,7 @@ Connectivity
 ------------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.face_node_connectivity
    Grid.edge_node_connectivity
    Grid.node_node_connectivity
@@ -226,6 +227,7 @@ Grid Descriptors
 ----------------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.face_areas
    Grid.antimeridian_face_indices
 
