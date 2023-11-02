@@ -173,6 +173,7 @@ Dimensions
 ----------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.n_node
    Grid.n_edge
    Grid.n_face
@@ -184,6 +185,7 @@ Spherical Coordinates
 ---------------------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.node_lon
    Grid.node_lat
    Grid.edge_lon
@@ -195,6 +197,7 @@ Cartesian Coordinates
 ---------------------
 .. autosummary::
    :toctree: _autosummary
+
    Grid.node_x
    Grid.node_y
    Grid.node_z
