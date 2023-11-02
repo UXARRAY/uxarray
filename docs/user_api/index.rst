@@ -165,6 +165,7 @@ Methods
    Grid.compute_face_areas
    Grid.encode_as
    Grid.get_ball_tree
+   Grid.get_kd_tree
    Grid.copy
 
 
@@ -228,6 +229,15 @@ UxDataArray Plotting Methods
 
 Nearest Neighbor Data Structures
 ================================
+
+KDTree
+------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.neighbors.KDTree
+   grid.neighbors.KDTree.query
+   grid.neighbors.KDTree.query_radius
 
 BallTree
 --------
