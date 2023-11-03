@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Union
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
-from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugrid, _is_ugrid
+from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugrid
 
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
