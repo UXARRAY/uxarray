@@ -16,12 +16,11 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import _populate_centroid_coord
-from uxarray.grid.connectivity import (
-    _build_edge_node_connectivity,
-    _build_face_edges_connectivity,
-    _build_nNodes_per_face,
-    _build_node_faces_connectivity,
-)
+from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
+                                       _populate_face_edge_connectivity,
+                                       _populate_n_nodes_per_face,
+                                       _populate_node_face_connectivity,
+                                       _populate_edge_face_connectivity)
 
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
@@ -34,7 +33,7 @@ from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_matplotlib_linecollection,
                                    _grid_to_polygons)
 
-from uxarray.grid.neighbors import BallTree
+from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
@@ -130,6 +129,7 @@ class Grid:
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
+        self._kd_tree = None
 
         self._mesh2_warning_raised = False
 
@@ -389,7 +389,7 @@ class Grid:
         self._mesh2_future_warning()
 
         if "Mesh2_edge_nodes" not in self._ds:
-            _build_edge_node_connectivity(self, repopulate=True)
+            _populate_edge_node_connectivity(self)
 
         return self._ds['Mesh2_edge_nodes'].shape[0]
 
@@ -409,7 +409,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_face_edges" not in self._ds:
-            _build_face_edges_connectivity(self)
+            _populate_face_edge_connectivity(self)
 
         return self._ds["Mesh2_face_edges"].shape[1]
 
@@ -422,7 +422,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "nNodes_per_face" not in self._ds:
-            _build_nNodes_per_face(self)
+            _populate_n_nodes_per_face(self)
         return self._ds["nNodes_per_face"]
 
     @property
@@ -680,7 +680,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_edge_nodes" not in self._ds:
-            _build_edge_node_connectivity(self)
+            _populate_edge_node_connectivity(self)
 
         return self._ds['Mesh2_edge_nodes']
 
@@ -694,7 +694,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_face_edges" not in self._ds:
-            _build_face_edges_connectivity(self)
+            _populate_face_edge_connectivity(self)
 
         return self._ds["Mesh2_face_edges"]
 
@@ -708,8 +708,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_edge_faces" not in self._ds:
-            # TODO _build_edge_face_connectivity(self)
-            return None
+            _populate_edge_face_connectivity(self)
 
         return self._ds["Mesh2_edge_faces"]
 
@@ -723,7 +722,7 @@ class Grid:
         """
         self._mesh2_future_warning()
         if "Mesh2_node_faces" not in self._ds:
-            _build_node_faces_connectivity(self)
+            _populate_node_face_connectivity(self)
 
         return self._ds["Mesh2_node_faces"]
 
@@ -802,6 +801,34 @@ class Grid:
                 self._ball_tree.tree_type = tree_type
 
         return self._ball_tree
+
+    def get_kd_tree(self, tree_type: Optional[str] = "nodes"):
+        """Get the KDTree data structure of this Grid that allows for nearest
+        neighbor queries (k nearest or within some radius) on either the nodes
+        (``Mesh2_node_cart_x``, ``Mesh2_node_cart_y``, ``Mesh2_node_cart_z``)
+        or face centers (``Mesh2_face_cart_x``, ``Mesh2_face_cart_y``,
+        ``Mesh2_face_cart_z``).
+
+        Parameters
+        ----------
+        tree_type : str, default="nodes"
+            Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
+            Centers of each face
+
+        Returns
+        -------
+        self._kd_tree : grid.Neighbors.KDTree
+            KDTree instance
+        """
+        if self._kd_tree is None:
+            self._kd_tree = KDTree(self,
+                                   tree_type=tree_type,
+                                   distance_metric='minkowski')
+        else:
+            if tree_type != self._kd_tree._tree_type:
+                self._kd_tree.tree_type = tree_type
+
+        return self._kd_tree
 
     def copy(self):
         """Returns a deep copy of this grid."""

@@ -8,11 +8,11 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _build_edge_node_connectivity, _build_face_edges_connectivity
+from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity, _build_edge_face_connectivity
 
-from uxarray.grid.coordinates import _populate_cartesian_xyz_coord, _populate_lonlat_coord
+from uxarray.grid.coordinates import _populate_lonlat_coord
 
-from uxarray.grid.neighbors import BallTree
+from uxarray.constants import INT_FILL_VALUE
 
 try:
     import constants
@@ -36,7 +36,6 @@ shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
 
 
 class TestGrid(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
@@ -293,7 +292,6 @@ class TestOperators(TestCase):
 
 
 class TestFaceAreas(TestCase):
-
     grid_CSne30 = ux.open_grid(gridfile_CSne30)
 
     def test_calculate_total_face_area_triangle(self):
@@ -308,7 +306,10 @@ class TestFaceAreas(TestCase):
         # validate the grid
         assert (grid_verts.validate())
 
-        #calculate area
+        # validate the grid
+        assert (grid_verts.validate())
+
+        # calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
             quadrature_rule="gaussian", order=5)
         nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
@@ -420,7 +421,7 @@ class TestPopulateCoordinates(TestCase):
         verts_degree = np.stack((lon_deg, lat_deg), axis=1)
 
         vgrid = ux.open_grid(verts_degree, latlon=True)
-        #_populate_cartesian_xyz_coord(vgrid)
+        # _populate_cartesian_xyz_coord(vgrid)
 
         for i in range(0, vgrid.nMesh2_node):
             nt.assert_almost_equal(vgrid.Mesh2_node_cart_x.values[i],
@@ -679,7 +680,7 @@ class TestConnectivity(TestCase):
 
             mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-            _build_face_edges_connectivity(tgrid)
+            _populate_face_edge_connectivity(tgrid)
             mesh2_face_edges = tgrid._ds.Mesh2_face_edges
             mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -714,7 +715,7 @@ class TestConnectivity(TestCase):
 
         mesh2_face_nodes = tgrid._ds["Mesh2_face_nodes"]
 
-        _build_face_edges_connectivity(tgrid)
+        _populate_face_edge_connectivity(tgrid)
         mesh2_face_edges = tgrid._ds.Mesh2_face_edges
         mesh2_edge_nodes = tgrid._ds.Mesh2_edge_nodes
 
@@ -737,7 +738,7 @@ class TestConnectivity(TestCase):
             self.f5_deg, self.f6_deg
         ]
         uds = ux.open_grid(verts)
-        _build_face_edges_connectivity(uds)
+        _populate_face_edge_connectivity(uds)
         n_face = len(uds._ds["Mesh2_face_edges"].values)
         n_node = uds.nMesh2_node
         n_edge = len(uds._ds["Mesh2_edge_nodes"].values)
@@ -844,16 +845,61 @@ class TestConnectivity(TestCase):
                     np.array_equal(valid_face_index_from_sparse_matrix,
                                    face_index_from_dict))
 
+    def test_edge_face_connectivity_mpas(self):
+        """Tests the construction of ``Mesh2_face_edges`` to the expected
+        results of an MPAS grid."""
+        uxgrid = ux.open_grid(self.mpas_filepath)
+
+        edge_faces_gold = uxgrid.Mesh2_edge_faces.values
+
+        edge_faces_output = _build_edge_face_connectivity(
+            uxgrid.Mesh2_face_edges.values, uxgrid.nNodes_per_face.values,
+            uxgrid.nMesh2_edge)
+
+        nt.assert_array_equal(edge_faces_output, edge_faces_gold)
+
+    def test_edge_face_connectivity_sample(self):
+        """Tests the construction of ``Mesh2_face_edges`` on an example with
+        one shared edge, and the remaining edges only being part of one
+        face."""
+        # single triangle with point on antimeridian
+        verts = [[(0.0, -90.0), (180, 0.0), (0.0, 90)],
+                 [(-180, 0.0), (0, 90.0), (0.0, -90)]]
+
+        uxgrid = ux.open_grid(verts)
+
+        n_shared = 0
+        n_solo = 0
+        n_invalid = 0
+        for edge_face in uxgrid.Mesh2_edge_faces.values:
+            if edge_face[0] != INT_FILL_VALUE and edge_face[1] != INT_FILL_VALUE:
+                # shared edge
+                n_shared += 1
+            elif edge_face[0] != INT_FILL_VALUE and edge_face[
+                    1] == INT_FILL_VALUE:
+                # edge borders one face
+                n_solo += 1
+            else:
+                # invalid edge, if any
+                n_invalid += 1
+
+        # example has only 1 shared edge
+        assert n_shared == 1
+
+        # remaining edges only saddle one face
+        assert n_solo == uxgrid.nMesh2_edge - n_shared
+
+        # no invalid entries should occur
+        assert n_invalid == 0
+
 
 class TestClassMethods(TestCase):
-
     gridfile_ugrid = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
     gridfile_exodus = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
     gridfile_scrip = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
 
     def test_from_dataset(self):
-
         # UGRID
         xrds = xr.open_dataset(self.gridfile_ugrid)
         uxgrid = ux.Grid.from_dataset(xrds)
@@ -885,7 +931,6 @@ class TestClassMethods(TestCase):
 
 
 class TestBallTree(TestCase):
-
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_files = [gridfile_mpas]
 
@@ -953,3 +998,33 @@ class TestBallTree(TestCase):
     def test_antimeridian_distance_face_centers(self):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
         pass
+
+
+class TestKDTree:
+    corner_grid_files = [gridfile_CSne30, gridfile_mpas]
+    center_grid_file = gridfile_mpas
+
+    def test_construction_from_nodes(self):
+        """Test the KDTree creation and query function using the grids
+        nodes."""
+
+        for grid_file in self.corner_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+            d, ind = uxgrid.get_kd_tree(tree_type="nodes").query(
+                [0.0, 0.0, 1.0])
+
+    def test_construction_from_face_centers(self):
+        """Test the KDTree creation and query function using the grids face
+        centers."""
+
+        uxgrid = ux.open_grid(self.center_grid_file)
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query(
+            [1.0, 0.0, 0.0], k=5)
+
+    def test_query_radius(self):
+        """Test the KDTree creation and query_radius function using the grids
+        face centers."""
+
+        uxgrid = ux.open_grid(self.center_grid_file)
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query_radius(
+            [0.0, 0.0, 1.0], r=5)
