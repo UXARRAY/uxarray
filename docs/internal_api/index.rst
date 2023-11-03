@@ -164,6 +164,14 @@ Utils
    grid.utils._inv_jacobian
 
 
+Validation
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.validation._check_connectivity
+   grid.validation._check_duplicate_nodes
+
 Remapping
 =========
 
@@ -174,16 +182,6 @@ Remapping
    remap.nearest_neighbor._nearest_neighbor_uxda
    remap.nearest_neighbor._nearest_neighbor_uxds
 
-
-
-
-Validation
-----------
-.. autosummary::
-   :toctree: _autosummary
-
-   grid.validation._check_connectivity
-   grid.validation._check_duplicate_nodes
 
 Grid Parsing and Encoding
 =========================
