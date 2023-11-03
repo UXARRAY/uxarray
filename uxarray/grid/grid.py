@@ -229,10 +229,6 @@ class Grid:
         # Test if the file is a valid ugrid file format or not
         print("Validating the mesh...")
 
-        # check if the grid is a valid ugrid format
-        print("-Valid ugrid format"
-              if _is_ugrid(self._ds) else "-WARNING: Not a valid ugrid format")
-
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
         _check_duplicate_nodes(self)
         _check_connectivity(self)
@@ -241,9 +237,9 @@ class Grid:
         areas = self.face_areas
         # Check if area of any face is close to zero
         if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
-            print(
-                "-WARNING: At least one face area is close to zero. Mesh may contain inverted elements"
-            )
+            warn(
+                "At least one face area is close to zero. Mesh may contain inverted elements",
+                RuntimeWarning)
         else:
             print("-No face area is close to zero.")
 

@@ -1,6 +1,5 @@
 import numpy as np
-from uxarray.io._ugrid import _is_ugrid
-from uxarray.constants import ERROR_TOLERANCE
+from warnings import warn
 
 
 # validation helper functions
@@ -22,8 +21,9 @@ def _check_connectivity(self):
         print("-All nodes are referenced by at least one element.")
         return True
     else:
-        print("-WARNING: Some nodes may not referenced by any element.",
-              nodes_in_conn.size, self.nMesh2_node)
+        warn(
+            "Some nodes may not be referenced by any element. {0} and {1}".
+            format(nodes_in_conn.size, self.nMesh2_node), RuntimeWarning)
         return False
 
 
@@ -36,8 +36,9 @@ def _check_duplicate_nodes(self):
     duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
 
     if duplicate_indices.size > 0:
-        print("-WARNING: Duplicate nodes found in the mesh. # ",
-              duplicate_indices.size, " nodes are duplicates.")
+        warn(
+            "Duplicate nodes found in the mesh. {0} nodes are duplicates.".
+            format(duplicate_indices.size), RuntimeWarning)
         return False
     else:
         print("-No duplicate nodes found in the mesh.")
