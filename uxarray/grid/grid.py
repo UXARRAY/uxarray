@@ -30,7 +30,9 @@ from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_matplotlib_linecollection,
                                    _grid_to_polygons)
 
-from uxarray.grid.neighbors import BallTree, KDTree
+from uxarray.grid.neighbors import (BallTree, KDTree,
+                                    _populate_edge_face_distances,
+                                    _populate_edge_node_distances)
 
 from uxarray.plot.accessor import GridPlotAccessor
 
@@ -714,10 +716,9 @@ class Grid:
         Dimensions (``nMesh2_edge``) and DataType float.
         """
         self._mesh2_future_warning()
-        if "Mesh2_edge_node_distances" in self._ds:
-            return self._ds["Mesh2_edge_node_distances"]
-        else:
-            return None
+        if "Mesh2_edge_node_distances" not in self._ds:
+            _populate_edge_node_distances(self)
+        return self._ds["Mesh2_edge_node_distances"]
 
     @property
     def Mesh2_edge_face_distances(self):
@@ -726,10 +727,9 @@ class Grid:
         Dimensions (``nMesh2_edge``) and DataType float.
         """
         self._mesh2_future_warning()
-        if "Mesh2_edge_face_distances" in self._ds:
-            return self._ds["Mesh2_edge_face_distances"]
-        else:
-            return None
+        if "Mesh2_edge_face_distances" not in self._ds:
+            _populate_edge_face_distances(self)
+        return self._ds["Mesh2_edge_face_distances"]
 
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest

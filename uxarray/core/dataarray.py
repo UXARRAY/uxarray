@@ -17,6 +17,8 @@ from xarray.core.utils import UncachedAccessor
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 import uxarray.core.dataset
 
+from uxarray.core.gradient import _calculate_grad_on_edge
+
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 
 
@@ -325,5 +327,23 @@ class UxDataArray(xr.DataArray):
         return (self.uxgrid.nMesh2_node == self.shape[-1] and
                 self.uxgrid.nMesh2_face not in self.shape)
 
-    def gradient(self, method):
-        pass
+    def gradient(self,
+                 method: Optional[str] = "need a name for this method",
+                 use_magnitude: Optional[bool] = True,
+                 normalize: Optional[bool] = True):
+        """Computes the gradient of a data variable residing on an unstructured
+        grid."""
+        if method == "need a name for this method":
+            _grad = _calculate_grad_on_edge(
+                self.values, self.uxgrid.Mesh2_edge_faces.values,
+                self.uxgrid.Mesh2_edge_node_distances.values,
+                self.uxgrid.nMesh2_edge, use_magnitude, normalize)
+        else:
+            raise ValueError("TODO")
+
+        uxda = UxDataArray(_grad,
+                           uxgrid=self.uxgrid,
+                           dims=("n_edge"),
+                           name=self.name + "_grad")
+
+        return uxda

@@ -2,12 +2,13 @@ import numpy as np
 from numpy import deg2rad
 import warnings
 
+import xarray as xr
+
 from numba import njit
 
 from sklearn.neighbors import BallTree as SKBallTree
 from sklearn.neighbors import KDTree as SKKDTree
 from sklearn.metrics.pairwise import haversine_distances
-
 
 from typing import Optional, Union
 
@@ -499,7 +500,6 @@ def _prepare_xy_for_query(xy, use_radians):
     return xy
 
 
-
 def _prepare_xyz_for_query(xyz):
     """Prepares xyz coordinates for query with the sklearn KDTree."""
 
@@ -521,8 +521,25 @@ def _prepare_xyz_for_query(xyz):
 
     return xyz
 
- # @njit
+
+def _populate_edge_node_distances(grid):
+    """Populates ``Mesh2_edge_node_distances``"""
+    edge_node_distances = _construct_edge_node_distances(
+        grid.Mesh2_node_x.values, grid.Mesh2_node_y.values,
+        grid.Mesh2_edge_nodes.values)
+
+    grid._ds["Mesh2_edge_node_distances"] = xr.DataArray(
+        data=edge_node_distances,
+        dims=["nMesh2_edge"],
+        attrs={
+            "long_name": "arc distance between the nodes of each edge",
+        })
+
+
+@njit
 def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
+    """Helper for computing the arc-distance between nodes compose each
+    edge."""
 
     edge_lon_a = np.deg2rad((node_lon[edge_nodes[:, 0]]))
     edge_lon_b = np.deg2rad((node_lon[edge_nodes[:, 1]]))
@@ -538,7 +555,25 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
     return edge_node_distances
 
 
+def _populate_edge_face_distances(grid):
+    """Populates ``Mesh2_edge_face_distances``"""
+    edge_face_distances = _construct_edge_face_distances(
+        grid.Mesh2_node_x.values, grid.Mesh2_node_y.values,
+        grid.Mesh2_edge_faces.values)
+
+    grid._ds["Mesh2_edge_face_distances"] = xr.DataArray(
+        data=edge_face_distances,
+        dims=["nMesh2_edge"],
+        attrs={
+            "long_name":
+                "arc distance between the face centers that saddle a given edge",
+        })
+
+
+@njit
 def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
+    """Helper for computing the arc-distance between faces that saddle a given
+    edge."""
 
     saddle_mask = edge_faces[:, 1] != INT_FILL_VALUE
 
