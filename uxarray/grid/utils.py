@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 import warnings
 
 
@@ -230,23 +230,39 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
 
     return np.append(y_new, constZ)
 
-def get_face_edge_connectivity_cartesian(Mesh2_face_nodes_i, Mesh2_face_edges_i, Mesh2_edge_nodes):
-    """Get the face-edge connectivity for Cartesian grid.
-    Mesh2_face_nodes_i: The ith entry of Grid.Mesh2_face_nodes
-    Mesh2_face_edges_i: The ith entry of Grid.Mesh2_face_edges
-    Mesh2_edge_nodes: The entire Grid.Mesh2_edge_nodes
+
+def _get_face_edge_connectivity_cartesian(face_nodes_ind, face_edges_ind,
+                                          edge_nodes_grid):
+    """Helper function that constructs the face-edge connectivity for a Cartesian grid.
+    Parameters
+    ----------
+    face_nodes_ind :
+        The ith entry of Grid.Mesh2_face_nodes
+    face_edges_ind :
+        The ith entry of Grid.Mesh2_face_edges
+    edge_nodes_grid :
+        The entire Grid.Mesh2_edge_nodes
+    Returns
+    -------
+    face_edges : np.ndarray
+        Face edge connectivity for Cartesian grid
     """
-    face_edges = np.zeros((len(Mesh2_face_edges_i), 2), dtype=INT_DTYPE)
+
+    # Construct array to hold the face edge data
+    face_edges = np.zeros((len(face_edges_ind), 2), dtype=INT_DTYPE)
     face_edges = face_edges.astype(INT_DTYPE)
-    for iter in range(0, len(Mesh2_face_edges_i)):
-        edge_idx = Mesh2_face_edges_i[iter]
+
+    # Assign edge_nodes
+    for ind in range(0, len(face_edges_ind)):
+        edge_idx = face_edges_ind[ind]
         if edge_idx == INT_FILL_VALUE:
             edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
         else:
-            edge_nodes = Mesh2_edge_nodes.values[edge_idx]
-        face_edges[iter] = edge_nodes
-    # sort edge nodes in counter-clockwise order
-    starting_two_nodes_index = [Mesh2_face_nodes_i[0], Mesh2_face_nodes_i[1]]
+            edge_nodes = edge_nodes_grid.values[edge_idx]
+        face_edges[ind] = edge_nodes
+
+    # Sort edge nodes in counter-clockwise order
+    starting_two_nodes_index = [face_nodes_ind[0], face_nodes_ind[1]]
     face_edges[0] = starting_two_nodes_index
     for idx in range(1, len(face_edges)):
         if face_edges[idx][0] == face_edges[idx - 1][1]:
@@ -256,5 +272,4 @@ def get_face_edge_connectivity_cartesian(Mesh2_face_nodes_i, Mesh2_face_edges_i,
             temp = face_edges[idx][0]
             face_edges[idx][0] = face_edges[idx][1]
             face_edges[idx][1] = temp
-
     return face_edges

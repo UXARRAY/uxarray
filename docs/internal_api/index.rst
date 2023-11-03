@@ -154,6 +154,7 @@ Utils
    grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+   grid.utils._get_face_edge_connectivity_cartesian
 
 Grid Parsing and Encoding
 =========================

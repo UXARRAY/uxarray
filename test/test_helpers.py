@@ -14,6 +14,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
+from uxarray.grid.utils import _get_face_edge_connectivity_cartesian
 
 try:
     import constants
@@ -25,6 +26,8 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
 gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
+gridfile_geoflowsmall_grid = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'grid.nc'
+gridfile_geoflowsmall_var = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'v1.nc'
 
 err_tolerance = 1.0e-12
 
@@ -219,7 +222,6 @@ class TestSparseMatrix(TestCase):
 class TestIntersectionPoint(TestCase):
 
     def test_pt_within_gcr(self):
-
         # The GCR that's eexactly 180 degrees will have Value Error raised
         gcr_180degree_cart = [
             ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0]),
@@ -324,3 +326,22 @@ class TestVectorsAngel(TestCase):
         v1 = np.array([1.0, 0.0, 0.0])
         v2 = np.array([1.0, 0.0, 0.0])
         self.assertAlmostEqual(_angle_of_2_vectors(v1, v2), 0.0)
+
+
+class TestFaceEdgeConnectivityHelper(TestCase):
+
+    def test_construction_of_edge_connectivity(self):
+
+        # Load the dataset
+        uxds = ux.open_dataset(gridfile_geoflowsmall_grid,
+                               gridfile_geoflowsmall_var)
+
+        # Construct the connectivity
+        for i in range(0, len(uxds.uxgrid.Mesh2_face_nodes)):
+            face_edges_connectivity_cartesian = _get_face_edge_connectivity_cartesian(
+                uxds.uxgrid.Mesh2_face_nodes[i],
+                uxds.uxgrid.Mesh2_face_edges.values[i],
+                uxds.uxgrid.Mesh2_edge_nodes)
+        # Assert the dimension is 3, right now it is 2?
+        dimension_number = face_edges_connectivity_cartesian.ndim
+        assert dimension_number == 3
