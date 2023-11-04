@@ -25,14 +25,14 @@ def _read_ugrid(xr_ds):
     # map and rename coordinates
     coord_names = xr_ds["Mesh2"].node_coordinates.split()
     if len(coord_names) == 1:
-        xr_ds = xr_ds.rename({coord_names[0]: "Mesh2_node_x"})
+        xr_ds = xr_ds.rename({coord_names[0]: "node_lon"})
     elif len(coord_names) == 2:
         xr_ds = xr_ds.rename({
-            coord_names[0]: "Mesh2_node_x",
-            coord_names[1]: "Mesh2_node_y"
+            coord_names[0]: "node_lon",
+            coord_names[1]: "node_lat"
         })
     # map and rename dimensions
-    coord_dim_name = xr_ds["Mesh2_node_x"].dims
+    coord_dim_name = xr_ds["node_lon"].dims
 
     xr_ds = xr_ds.rename({coord_dim_name[0]: "n_node"})
 
@@ -44,11 +44,6 @@ def _read_ugrid(xr_ds):
     xr_ds = xr_ds.rename({
         xr_ds["face_node_connectivity"].dims[0]: "n_face",
         xr_ds["face_node_connectivity"].dims[1]: "n_max_face_nodes"
-    })
-
-    xr_ds = xr_ds.rename({
-        "Mesh2_node_x": "node_lon",
-        "Mesh2_node_y": "node_lat"
     })
 
     xr_ds = xr_ds.set_coords(["node_lon", "node_lat"])
