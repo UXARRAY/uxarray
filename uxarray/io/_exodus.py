@@ -95,7 +95,7 @@ def _read_exodus(ext_ds):
                 conn = value.data
             else:
                 raise RuntimeError(
-                    "found face_nodes_dim greater than nMaxMesh2_face_nodes")
+                    "found face_nodes_dim greater than n_max_face_nodes")
 
             # find the elem_type as etype for this element
             for k, v in value.attrs.items():
@@ -212,7 +212,7 @@ def _encode_exodus(ds, outfile=None):
 
     # Set the dim to 3 as we will always have x/y/z for cartesian grid
     # Note: Don't get orig dimension from Mesh2 attribute topology dimension
-    if "Mesh2_node_cart_x" not in ds:
+    if "node_x" not in ds:
         x, y, z = _get_xyz_from_lonlat(ds["node_lon"].values,
                                        ds["node_lat"].values)
         c_data = xr.DataArray([x, y, z])
@@ -246,14 +246,14 @@ def _encode_exodus(ds, outfile=None):
             list_node = list(map(int, row))
             conn_nofill.append(list_node)
         elif arr[0].size == 0:
-            # increment the number of faces for this "nMaxMesh2_face_nodes" face
+            # increment the number of faces for this "n_max_face_nodes" face
             num_el_all_blks[ds["n_max_face_nodes"].size - 1] += 1
             # get integer list nodes
             list_node = list(map(int, row.tolist()))
             conn_nofill.append(list_node)
         else:
             raise RuntimeError(
-                "num nodes in conn array is greater than nMaxMesh2_face_nodes. Abort!"
+                "num nodes in conn array is greater than n_max_face_nodes. Abort!"
             )
     # get number of blks found
     num_blks = np.count_nonzero(num_el_all_blks)
@@ -264,7 +264,7 @@ def _encode_exodus(ds, outfile=None):
     # get index of blocks found
     nonzero_el_index_blks = np.nonzero(num_el_all_blks)
 
-    # break Mesh2_face_nodes into blks
+    # break face_node_connectivity into blks
     start = 0
     for blk in range(num_blks):
         blkID = blk + 1
