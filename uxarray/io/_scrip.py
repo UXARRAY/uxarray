@@ -24,7 +24,7 @@ def _to_ugrid(in_ds, out_ds):
 
     if in_ds['grid_area'].all():
 
-        # Create Mesh2_node_x/y variables from grid_corner_lat/lon
+        # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude scrip array into 1D instead of 2D
         corner_lat = in_ds['grid_corner_lat'].values.ravel()
 
@@ -40,15 +40,15 @@ def _to_ugrid(in_ds, out_ds):
                                         return_inverse=True,
                                         axis=0)
 
-        # Now, calculate unique lon and lat values to account for 'mesh2_node_x' and 'mesh2_node_y'
+        # Now, calculate unique lon and lat values to account for 'node_lon' and 'node_lat'
         unq_lon = corner_lon_lat[unq_ind, :][:, 0]
         unq_lat = corner_lon_lat[unq_ind, :][:, 1]
 
-        # Reshape face nodes array into original shape for use in 'Mesh2_face_nodes'
+        # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv,
                              (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
-        # Create Mesh2_node_x/y from unsorted, unique grid_corner_lat/lon
+        # Create node_lon & node_lat from unsorted, unique grid_corner_lat/lon
         out_ds['node_lon'] = xr.DataArray(
             unq_lon,
             dims=["n_node"],
@@ -67,7 +67,7 @@ def _to_ugrid(in_ds, out_ds):
                 "units": "degrees_north",
             })
 
-        # Create Mesh2_face_x/y from grid_center_lat/lon
+        # Create face_lon & face_lat from grid_center_lat/lon
         out_ds['face_lon'] = in_ds['grid_center_lon']
         out_ds['face_lat'] = in_ds['grid_center_lat']
 
@@ -102,7 +102,7 @@ def _to_ugrid(in_ds, out_ds):
 
 
 def _read_scrip(ext_ds):
-    """Function to reassign lat/lon variables to mesh2_node variables.
+    """Function to reassign lat/lon variables to node variables.
 
     Currently, supports unstructured SCRIP grid files following traditional SCRIP
     naming practices (grid_corner_lat, grid_center_lat, etc) and SCRIP files with
@@ -137,7 +137,7 @@ def _read_scrip(ext_ds):
     return ds, source_dims_dict
 
 
-def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
+def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
     """Function to reassign UGRID formatted variables to SCRIP formatted
     variables.
 
@@ -155,15 +155,15 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
         Name of file to be created. Saved to working directory, or to
         specified location if full path to new file is provided.
 
-    mesh2_face_nodes : xarray.DataArray
+    face_node_connectivity : xarray.DataArray
         Face-node connectivity. This variable should come from the ``Grid``
         object that calls this function
 
-    mesh2_node_x : xarray.DataArray
+    node_lon : xarray.DataArray
         Nodes' x values. This variable should come from the ``Grid`` object
         that calls this function
 
-    mesh2_node_y : xarray.DataArray
+    node_lat : xarray.DataArray
         Nodes' y values. This variable should come from the ``Grid`` object
         that calls this function
 
@@ -181,17 +181,19 @@ def _encode_scrip(mesh2_face_nodes, mesh2_node_x, mesh2_node_y, face_areas):
     ds = xr.Dataset()
 
     # Make grid corner lat/lon
-    f_nodes = mesh2_face_nodes.values.astype(INT_DTYPE).ravel()
+    f_nodes = face_node_connectivity.values.astype(INT_DTYPE).ravel()
 
     # Create arrays to hold lat/lon data
-    lat_nodes = mesh2_node_y[f_nodes].values
-    lon_nodes = mesh2_node_x[f_nodes].values
+    lat_nodes = node_lat[f_nodes].values
+    lon_nodes = node_lon[f_nodes].values
 
     # Reshape arrays to be 2D instead of 1D
     reshp_lat = np.reshape(
-        lat_nodes, [mesh2_face_nodes.shape[0], mesh2_face_nodes.shape[1]])
+        lat_nodes,
+        [face_node_connectivity.shape[0], face_node_connectivity.shape[1]])
     reshp_lon = np.reshape(
-        lon_nodes, [mesh2_face_nodes.shape[0], mesh2_face_nodes.shape[1]])
+        lon_nodes,
+        [face_node_connectivity.shape[0], face_node_connectivity.shape[1]])
 
     # Add data to new scrip output file
     ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
