@@ -231,8 +231,8 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
     return np.append(y_new, constZ)
 
 
-def _get_face_edge_connectivity_cartesian(face_nodes_ind, face_edges_ind,
-                                          edge_nodes_grid):
+def _get_cartesiain_face_edge_nodes(face_nodes_ind, face_edges_ind,
+                                    edge_nodes_grid):
     """Helper function that constructs the face-edge connectivity for a Cartesian grid.
     Parameters
     ----------

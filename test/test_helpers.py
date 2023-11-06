@@ -14,7 +14,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
-from uxarray.grid.utils import _get_face_edge_connectivity_cartesian
+from uxarray.grid.utils import _get_cartesiain_face_edge_nodes
 
 try:
     import constants
@@ -338,7 +338,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
         # Construct the connectivity
         for i in range(0, len(uxds.uxgrid.Mesh2_face_nodes)):
-            face_edges_connectivity_cartesian = _get_face_edge_connectivity_cartesian(
+            face_edges_connectivity_cartesian = _get_cartesiain_face_edge_nodes(
                 uxds.uxgrid.Mesh2_face_nodes[i],
                 uxds.uxgrid.Mesh2_face_edges.values[i],
                 uxds.uxgrid.Mesh2_edge_nodes)
