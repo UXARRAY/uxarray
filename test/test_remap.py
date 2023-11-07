@@ -1,7 +1,5 @@
 import os
 import numpy as np
-import numpy.testing as nt
-import xarray as xr
 
 from unittest import TestCase
 from pathlib import Path
@@ -55,6 +53,32 @@ class TestNearestNeighborRemap(TestCase):
         np.array_equal(source_data_multi_dim, destination_data)
 
         pass
+
+    def test_remap_to_corner_nodes_cartesian(self):
+        """Test remapping to the same dummy 3-vertex grid, using cartesian
+        coordinates.
+
+        Corner nodes case.
+        """
+
+        # single triangle
+        source_verts = np.array([(0.0, 0.0, 1.0), (0.0, 1.0, 0.0),
+                                 (1.0, 0.0, 0.0)])
+        source_data_single_dim = [1.0, 2.0, 3.0]
+
+        # open the source and destination grids
+        source_grid = ux.open_grid(source_verts)
+        destination_grid = ux.open_grid(source_verts)
+
+        # create the destination data using the nearest neighbor function
+        destination_data = _nearest_neighbor(source_grid,
+                                             destination_grid,
+                                             source_data_single_dim,
+                                             remap_to="nodes",
+                                             coord_type="cartesian")
+
+        # assert that the source and destination data are the same
+        assert np.array_equal(source_data_single_dim, destination_data)
 
     def test_nn_remap(self):
         """Test nearest neighbor remapping.

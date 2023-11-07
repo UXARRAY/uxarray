@@ -39,9 +39,7 @@ def _nearest_neighbor(source_grid: Grid,
         Data mapped to destination grid
     """
 
-    # TODO: implementation in latlon, consider cartesiain once KDtree is implemented
-
-    # ensure array is an np.ndarray
+    # ensure array is a np.ndarray
     source_data = np.asarray(source_data)
 
     n_elements = source_data.shape[-1]
@@ -90,10 +88,41 @@ def _nearest_neighbor(source_grid: Grid,
         return destination_data
 
     elif coord_type == "cartesian":
-        # TODO: once a cartesian balltree/kdtree is implemented, implement this
-        raise ValueError(
-            f"Nearest Neighbor Remapping using Cartesian coordinates is not yet supported"
-        )
+        # get destination coordinates
+        if remap_to == "nodes":
+            cart_x, cart_y, cart_z = (destination_grid.Mesh2_node_cart_x.values,
+                                      destination_grid.Mesh2_node_cart_y.values,
+                                      destination_grid.Mesh2_node_cart_z.values)
+
+        elif remap_to == "face centers":
+            cart_x, cart_y, cart_z = (destination_grid.Mesh2_face_cart_x.values,
+                                      destination_grid.Mesh2_face_cart_y.values,
+                                      destination_grid.Mesh2_face_cart_z.values)
+        else:
+            raise ValueError(
+                f"Invalid remap_to. Expected 'nodes' or 'face centers', "
+                f"but received: {remap_to}")
+
+        # specify whether to query on the corner nodes or face centers based on source grid
+        _source_tree = source_grid.get_kd_tree(tree_type=source_data_mapping)
+
+        # prepare coordinates for query
+        cartesian = np.vstack([cart_x, cart_y, cart_z]).T
+
+        _, nearest_neighbor_indices = _source_tree.query(cartesian, k=1)
+
+        # data values from source data to destination data using nearest neighbor indices
+        if nearest_neighbor_indices.ndim > 1:
+            nearest_neighbor_indices = nearest_neighbor_indices.squeeze()
+
+        # support arbitrary dimension data using Ellipsis "..."
+        destination_data = source_data[..., nearest_neighbor_indices]
+
+        # case for 1D slice of data
+        if source_data.ndim == 1:
+            destination_data = destination_data.squeeze()
+
+        return destination_data
 
     else:
         raise ValueError(
