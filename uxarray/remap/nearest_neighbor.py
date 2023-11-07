@@ -46,23 +46,23 @@ def _nearest_neighbor(source_grid: Grid,
 
     n_elements = source_data.shape[-1]
 
-    if n_elements == source_grid.nMesh2_node:
+    if n_elements == source_grid.n_node:
         source_data_mapping = "nodes"
-    elif n_elements == source_grid.nMesh2_face:
+    elif n_elements == source_grid.n_face:
         source_data_mapping = "face centers"
     else:
         raise ValueError(
             f"Invalid source_data shape. The final dimension should be either match the number of corner "
-            f"nodes ({source_grid.nMesh2_node}) or face centers ({source_grid.nMesh2_face}) in the "
+            f"nodes ({source_grid.n_node}) or face centers ({source_grid.n_face}) in the "
             f"source grid, but received: {source_data.shape}")
 
     if coord_type == "spherical":
         # get destination coordinate pairs
         if remap_to == "nodes":
-            lon, lat = destination_grid.Mesh2_node_x.values, destination_grid.Mesh2_node_y.values
+            lon, lat = destination_grid.node_lon.values, destination_grid.node_lat.values
 
         elif remap_to == "face centers":
-            lon, lat = destination_grid.Mesh2_face_x.values, destination_grid.Mesh2_face_y.values
+            lon, lat = destination_grid.face_lon.values, destination_grid.face_lat.values
         else:
             raise ValueError(
                 f"Invalid remap_to. Expected 'nodes' or 'face centers', "
