@@ -78,10 +78,10 @@ Methods
    UxDataArray._node_centered
 
 Grid
-===========
+====
 
 Class
-----------
+-----
 .. autosummary::
    :toctree: _autosummary
 
@@ -110,6 +110,12 @@ Connectivity
    grid.connectivity._build_edge_node_connectivity
    grid.connectivity._build_face_edges_connectivity
    grid.connectivity._build_node_faces_connectivity
+   grid.connectivity._build_edge_face_connectivity
+   grid.connectivity._populate_edge_node_connectivity
+   grid.connectivity._populate_face_edges_connectivity
+   grid.connectivity._populate_node_faces_connectivity
+   grid.connectivity._populate_edge_face_connectivity
+   grid.connectivity._populate_n_nodes_per_face
 
 Geometry
 --------
@@ -145,6 +151,8 @@ Arcs
    :toctree: _autosummary
 
    grid.arcs._angle_of_2_vectors
+   grid.arcs._angle_of_2_vectors
+
 
 Utils
 -----
@@ -154,6 +162,20 @@ Utils
    grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+
+
+Remapping
+=========
+
+.. autosummary::
+   :toctree: _autosummary
+
+   remap.nearest_neighbor._nearest_neighbor
+   remap.nearest_neighbor._nearest_neighbor_uxda
+   remap.nearest_neighbor._nearest_neighbor_uxds
+
+
+
 
 Grid Parsing and Encoding
 =========================

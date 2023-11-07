@@ -27,7 +27,7 @@ Class
    UxDataset
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -50,12 +50,21 @@ Methods
    UxDataset.info
    UxDataset.integrate
 
+
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataset.nearest_neighbor_remap
+
 Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
 
    UxDataset.plot
+
 
 
 UxDataArray
@@ -75,7 +84,7 @@ Class
    UxDataArray
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -97,6 +106,14 @@ Methods
 
    UxDataArray.integrate
 
+
+Remapping
+---------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.nearest_neighbor_remap
+
 Plotting
 --------
 .. autosummary::
@@ -108,8 +125,9 @@ Plotting
 
 
 
+
 Grid
-===========
+====
 Unstructured grid topology definition to store stores grid topology dimensions,
 coordinates, variables and provides grid-specific functions.
 
@@ -118,14 +136,14 @@ seen as the property of ``uxarray.UxDataset`` and ``uxarray.DataArray`` to make
 them unstructured grid-aware data sets and arrays.
 
 Class
-----------
+-----
 .. autosummary::
    :toctree: _autosummary
 
    Grid
 
 IO
-----------
+--
 .. autosummary::
    :toctree: _autosummary
 
@@ -147,7 +165,7 @@ Methods
    Grid.compute_face_areas
    Grid.encode_as
    Grid.get_ball_tree
-   Grid.integrate
+   Grid.get_kd_tree
    Grid.copy
 
 
@@ -167,14 +185,15 @@ Attributes
    Grid.nNodes_per_face
    Grid.Mesh2_node_x
    Grid.Mesh2_node_y
-   Mesh2_node_cart_x
-   Mesh2_node_cart_y
-   Mesh2_node_cart_z
+   Grid.Mesh2_node_cart_x
+   Grid.Mesh2_node_cart_y
+   Grid.Mesh2_node_cart_z
    Grid.Mesh2_face_x
    Grid.Mesh2_face_y
    Grid.Mesh2_face_nodes
    Grid.Mesh2_edge_nodes
    Grid.Mesh2_face_edges
+   Grid.Mesh2_edge_faces
    Grid.antimeridian_face_indices
 
 Plotting
@@ -208,28 +227,30 @@ UxDataArray Plotting Methods
 
 
 
-Nearest Neighbors
-=================
+Nearest Neighbor Data Structures
+================================
 
-BallTree Data Structure
------------------------
+KDTree
+------
 .. autosummary::
    :toctree: _autosummary
 
-   grid.BallTree
+   grid.neighbors.KDTree
+   grid.neighbors.KDTree.query
+   grid.neighbors.KDTree.query_radius
 
-Query Methods
--------------
+BallTree
+--------
 .. autosummary::
    :toctree: _autosummary
 
-   grid.BallTree.query
-   grid.BallTree.query_radius
-
+   grid.neighbors.BallTree
+   grid.neighbors.BallTree.query
+   grid.neighbors.BallTree.query_radius
 
 
 Helpers
-===========
+=======
 
 Face Area
 ----------
@@ -267,9 +288,10 @@ Arcs
 
    grid.arcs.in_between
    grid.arcs.point_within_gca
+   grid.arcs.extreme_gca_latitude
 
 Intersections
------
+-------------
 .. autosummary::
    :toctree: _autosummary
 
