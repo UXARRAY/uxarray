@@ -32,6 +32,8 @@ def _nearest_neighbor(source_grid: Grid,
         Data variable to remaps
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
+    coord_type: str, default="latlon"
+        Coordinate type to use for nearest neighbor query, either "latlon" or "cartesian"
 
     Returns
     -------
