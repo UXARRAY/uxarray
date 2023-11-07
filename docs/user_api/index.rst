@@ -165,7 +165,71 @@ Methods
    Grid.compute_face_areas
    Grid.encode_as
    Grid.get_ball_tree
+   Grid.get_kd_tree
    Grid.copy
+
+
+Dimensions
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.n_node
+   Grid.n_edge
+   Grid.n_face
+   Grid.n_max_face_nodes
+   Grid.n_max_face_edges
+   Grid.n_nodes_per_face
+
+Spherical Coordinates
+---------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.node_lon
+   Grid.node_lat
+   Grid.edge_lon
+   Grid.edge_lat
+   Grid.face_lon
+   Grid.face_lat
+
+Cartesian Coordinates
+---------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.node_x
+   Grid.node_y
+   Grid.node_z
+   Grid.edge_x
+   Grid.edge_y
+   Grid.edge_z
+   Grid.face_x
+   Grid.face_y
+   Grid.face_z
+
+Connectivity
+------------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.face_node_connectivity
+   Grid.edge_node_connectivity
+   Grid.node_node_connectivity
+   Grid.face_edge_connectivity
+   Grid.edge_edge_connectivity
+   Grid.node_edge_connectivity
+   Grid.face_face_connectivity
+   Grid.edge_face_connectivity
+   Grid.node_face_connectivity
+
+Grid Descriptors
+----------------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.face_areas
+   Grid.antimeridian_face_indices
 
 
 Attributes
@@ -174,26 +238,8 @@ Attributes
    :toctree: _autosummary
 
    Grid.grid_spec
-   Grid.Mesh2
    Grid.parsed_attrs
-   Grid.nMesh2_node
-   Grid.nMesh2_face
-   Grid.nMesh2_edge
-   Grid.nMaxMesh2_face_nodes
-   Grid.nMaxMesh2_face_edges
-   Grid.nNodes_per_face
-   Grid.Mesh2_node_x
-   Grid.Mesh2_node_y
-   Grid.Mesh2_node_cart_x
-   Grid.Mesh2_node_cart_y
-   Grid.Mesh2_node_cart_z
-   Grid.Mesh2_face_x
-   Grid.Mesh2_face_y
-   Grid.Mesh2_face_nodes
-   Grid.Mesh2_edge_nodes
-   Grid.Mesh2_face_edges
-   Grid.Mesh2_edge_faces
-   Grid.antimeridian_face_indices
+
 
 Plotting
 --------
@@ -228,6 +274,15 @@ UxDataArray Plotting Methods
 
 Nearest Neighbor Data Structures
 ================================
+
+KDTree
+------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.neighbors.KDTree
+   grid.neighbors.KDTree.query
+   grid.neighbors.KDTree.query_radius
 
 BallTree
 --------
@@ -278,6 +333,7 @@ Arcs
 
    grid.arcs.in_between
    grid.arcs.point_within_gca
+   grid.arcs.extreme_gca_latitude
 
 Intersections
 -------------
