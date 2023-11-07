@@ -35,24 +35,21 @@ class TestNearestNeighborRemap(TestCase):
         source_grid = ux.open_grid(source_verts)
         destination_grid = ux.open_grid(source_verts)
 
-        destination_data = _nearest_neighbor(source_grid,
-                                             destination_grid,
-                                             source_data_single_dim,
-                                             remap_to="nodes")
-
-        np.array_equal(source_data_single_dim, destination_data)
+        destination_single_data = _nearest_neighbor(source_grid,
+                                                    destination_grid,
+                                                    source_data_single_dim,
+                                                    remap_to="nodes")
 
         source_data_multi_dim = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0],
                                           [7.0, 8.0, 9.0]])
 
-        destination_data = _nearest_neighbor(source_grid,
-                                             destination_grid,
-                                             source_data_multi_dim,
-                                             remap_to="nodes")
+        destination_multi_data = _nearest_neighbor(source_grid,
+                                                   destination_grid,
+                                                   source_data_multi_dim,
+                                                   remap_to="nodes")
 
-        np.array_equal(source_data_multi_dim, destination_data)
-
-        pass
+        assert np.array_equal(source_data_single_dim, destination_single_data)
+        assert np.array_equal(source_data_multi_dim, destination_multi_data)
 
     def test_remap_to_corner_nodes_cartesian(self):
         """Test remapping to the same dummy 3-vertex grid, using cartesian
