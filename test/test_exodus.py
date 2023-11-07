@@ -45,5 +45,5 @@ class TestExodus(TestCase):
 
         uxgrid = ux.open_grid(self.exo2_filename)
 
-        assert uxgrid.Mesh2_face_nodes.dtype == INT_DTYPE
-        assert uxgrid.Mesh2_face_nodes._FillValue == INT_FILL_VALUE
+        assert uxgrid.face_node_connectivity.dtype == INT_DTYPE
+        assert uxgrid.face_node_connectivity._FillValue == INT_FILL_VALUE
