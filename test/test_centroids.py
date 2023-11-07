@@ -28,9 +28,9 @@ class TestCentroids(TestCase):
         _populate_centroid_coord(grid)
 
         # Test the values of the calculate centroids
-        self.assertEqual(norm_x, grid.Mesh2_face_cart_x)
-        self.assertEqual(norm_y, grid.Mesh2_face_cart_y)
-        self.assertEqual(norm_z, grid.Mesh2_face_cart_z)
+        self.assertEqual(norm_x, grid.face_x)
+        self.assertEqual(norm_y, grid.face_y)
+        self.assertEqual(norm_z, grid.face_z)
 
     def test_centroids_from_mean_verts_pentagon(self):
         """Test finding the centroid of a pentagon."""
@@ -49,9 +49,9 @@ class TestCentroids(TestCase):
         _populate_centroid_coord(grid)
 
         # Test the values of the calculate centroids
-        self.assertEqual(norm_x, grid.Mesh2_face_cart_x)
-        self.assertEqual(norm_y, grid.Mesh2_face_cart_y)
-        self.assertEqual(norm_z, grid.Mesh2_face_cart_z)
+        self.assertEqual(norm_x, grid.face_x)
+        self.assertEqual(norm_y, grid.face_y)
+        self.assertEqual(norm_z, grid.face_z)
 
     def test_centroids_from_mean_verts_scrip(self):
         """Test computed centroid values compared to values from a SCRIP
@@ -59,13 +59,13 @@ class TestCentroids(TestCase):
 
         uxgrid = ux.open_grid(gridfile_CSne8)
 
-        expected_face_x = uxgrid.Mesh2_face_x.values
-        expected_face_y = uxgrid.Mesh2_face_y.values
+        expected_face_x = uxgrid.face_lon.values
+        expected_face_y = uxgrid.face_lat.values
 
         _populate_centroid_coord(uxgrid, repopulate=True)
 
-        computed_face_x = uxgrid.Mesh2_face_x.values
-        computed_face_y = uxgrid.Mesh2_face_y.values
+        computed_face_x = uxgrid.face_lon.values
+        computed_face_y = uxgrid.face_lat.values
 
         nt.assert_array_almost_equal(expected_face_x, computed_face_x)
         nt.assert_array_almost_equal(expected_face_y, computed_face_y)
