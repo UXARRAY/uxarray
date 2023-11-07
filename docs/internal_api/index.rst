@@ -159,11 +159,11 @@ Accurate Computing Utils
 .. autosummary::
    :toctree: _autosummary
 
-   grid.accurate_computing_utils._err_fmac
-   grid.accurate_computing_utils._fast_two_mult
-   grid.accurate_computing_utils._fast_two_sum
-   grid.accurate_computing_utils._two_sum
-   grid.accurate_computing_utils._two_prod_fma
+   grid.utils.computing._err_fmac
+   grid.utils.computing._fast_two_mult
+   grid.utils.computing._fast_two_sum
+   grid.utils.computing._two_sum
+   grid.utils.computing._two_prod_fma
 
 
 Grid Parsing and Encoding

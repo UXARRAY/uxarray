@@ -1,11 +1,8 @@
-import os
 from unittest import TestCase
-from pathlib import Path
 import numpy.testing as nt
 import numpy as np
-import uxarray as ux
 from uxarray.grid.coordinates import normalize_in_place
-import uxarray.grid.accurate_computing_utils as ac_utils
+import uxarray.utils.computing as ac_utils
 from uxarray.constants import ERROR_TOLERANCE
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
 import warnings
-import uxarray.grid.accurate_computing_utils as ac_utils
+import uxarray.utils.computing as ac_utils
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
