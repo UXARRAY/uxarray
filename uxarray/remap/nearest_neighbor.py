@@ -72,21 +72,21 @@ def _nearest_neighbor(source_grid: Grid,
         _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
 
         # prepare coordinates for query
-        spherical = np.vstack([lon, lat]).T
+        latlon = np.vstack([lon, lat]).T
 
-        _, nearest_neighbor_indices = _source_tree.query(spherical, k=1)
+        _, nearest_neighbor_indices = _source_tree.query(latlon, k=1)
 
     elif coord_type == "cartesian":
         # get destination coordinates
         if remap_to == "nodes":
-            cart_x, cart_y, cart_z = (destination_grid.Mesh2_node_cart_x.values,
-                                      destination_grid.Mesh2_node_cart_y.values,
-                                      destination_grid.Mesh2_node_cart_z.values)
+            cart_x, cart_y, cart_z = (destination_grid.node_x.values,
+                                      destination_grid.node_y.values,
+                                      destination_grid.node_z.values)
 
         elif remap_to == "face centers":
-            cart_x, cart_y, cart_z = (destination_grid.Mesh2_face_cart_x.values,
-                                      destination_grid.Mesh2_face_cart_y.values,
-                                      destination_grid.Mesh2_face_cart_z.values)
+            cart_x, cart_y, cart_z = (destination_grid.face_x.values,
+                                      destination_grid.face_y.values,
+                                      destination_grid.face_z.values)
         else:
             raise ValueError(
                 f"Invalid remap_to. Expected 'nodes' or 'face centers', "
@@ -134,7 +134,7 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
     coord_type : str, default="spherical"
-        Indicates whether to remap using on spherical or Cartesian coordinates for nearest neighbor computations when
+        Indicates whether to remap using on Spherical or Cartesian coordinates for nearest neighbor computations when
         remapping.
     """
 
@@ -195,7 +195,7 @@ def _nearest_neighbor_uxds(source_uxds: UxDataset,
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
     coord_type : str, default="spherical"
-        Indicates whether to remap using on spherical or Cartesiain coordinates
+        Indicates whether to remap using on Spherical or Cartesian coordinates
     """
 
     if isinstance(destination_obj, Grid):
