@@ -123,7 +123,7 @@ class UxDataArray(xr.DataArray):
         self,
         override=False,
         cache=True,
-        correct_antimeridian_polygons=True,
+        exclude_antimeridian=False,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -135,8 +135,8 @@ class UxDataArray(xr.DataArray):
             Flag to recompute the ``GeoDataFrame`` stored under the ``uxgrid`` if one is already cached
         cache: bool
             Flag to indicate if the computed ``GeoDataFrame`` stored under the ``uxgrid`` accessor should be cached
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
+        exclude_antimeridian: bool, Optional
+            TODO
 
         Returns
         -------
@@ -144,19 +144,33 @@ class UxDataArray(xr.DataArray):
             The output `GeoDataFrame` with a filled out "geometry" and 1D data column representing the geometry of the unstructured grid
         """
 
-        # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
+            # data is multidimensional, must be a 1D slice
             raise ValueError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data.")
 
-        # face-centered data
         if self.values.size == self.uxgrid.n_face:
+            # face-centered data
+            if self.uxgrid._gdf is not None:
+                # determine if we need to re-compute the cached GeoDataFrame
+                if exclude_antimeridian and len(
+                        self.uxgrid.antimeridian_face_indices) != len(
+                            self.uxgrid._gdf):
+                    override = True
+                elif self.uxgrid.n_face != len(self.uxgrid._gdf):
+                    override = True
+
             gdf = self.uxgrid.to_geodataframe(
                 override=override,
                 cache=cache,
-                correct_antimeridian_polygons=correct_antimeridian_polygons)
-            gdf[self.name] = self.values
+                exclude_antimeridian=exclude_antimeridian)
+
+            if exclude_antimeridian:
+                gdf[self.name] = np.delete(
+                    self.values, self.uxgrid.antimeridian_face_indices, axis=0)
+            else:
+                gdf[self.name] = self.values
             return gdf
 
         # TODO: Mapping Node Data to Each Polygon

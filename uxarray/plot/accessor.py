@@ -75,8 +75,9 @@ class UxDataArrayPlotAccessor:
 
     @functools.wraps(dataarray_plot.rasterize)
     def rasterize(self,
-                  method: Optional[str] = "point",
+                  method: Optional[str] = "polygon",
                   backend: Optional[str] = "bokeh",
+                  exclude_antimeridian: Optional[bool] = False,
                   pixel_ratio: Optional[float] = 1.0,
                   dynamic: Optional[bool] = False,
                   precompute: Optional[bool] = True,
@@ -113,22 +114,24 @@ class UxDataArrayPlotAccessor:
         or run holoviews.help(holoviews.operation.datashader.rasterize).
         """
 
-        return dataarray_plot.rasterize(self._uxda,
-                                        method=method,
-                                        backend=backend,
-                                        pixel_ratio=pixel_ratio,
-                                        dynamic=dynamic,
-                                        precompute=precompute,
-                                        projection=projection,
-                                        width=width,
-                                        height=height,
-                                        colorbar=colorbar,
-                                        cmap=cmap,
-                                        aggregator=aggregator,
-                                        interpolation=interpolation,
-                                        npartitions=npartitions,
-                                        cache=cache,
-                                        **kwargs)
+        return dataarray_plot.rasterize(
+            self._uxda,
+            method=method,
+            backend=backend,
+            exclude_antimeridian=exclude_antimeridian,
+            pixel_ratio=pixel_ratio,
+            dynamic=dynamic,
+            precompute=precompute,
+            projection=projection,
+            width=width,
+            height=height,
+            colorbar=colorbar,
+            cmap=cmap,
+            aggregator=aggregator,
+            interpolation=interpolation,
+            npartitions=npartitions,
+            cache=cache,
+            **kwargs)
 
 
 class UxDatasetPlotAccessor:

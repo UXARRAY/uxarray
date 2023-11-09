@@ -179,9 +179,65 @@ def _point_raster(uxda: UxDataArray,
     return raster
 
 
+def _polygon_raster(uxda: UxDataArray,
+                    backend: Optional[str] = "bokeh",
+                    exclude_antimeridian: Optional[bool] = False,
+                    pixel_ratio: Optional[float] = 1.0,
+                    dynamic: Optional[bool] = False,
+                    precompute: Optional[bool] = True,
+                    projection: Optional[ccrs] = None,
+                    width: Optional[int] = 1000,
+                    height: Optional[int] = 500,
+                    colorbar: Optional[bool] = True,
+                    cmap: Optional[str] = "Blues",
+                    aggregator: Optional[str] = "mean",
+                    interpolation: Optional[str] = "linear",
+                    npartitions: Optional[int] = 1,
+                    cache: Optional[bool] = True,
+                    **kwargs):
+    """Implementation of Polygon Rasterization."""
+
+    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+
+    hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+
+    if backend == "matplotlib":
+        # use holoviews matplotlib backend
+        hv.extension("matplotlib")
+        raster = hds_rasterize(hv_polygons,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               aggregator=aggregator,
+                               interpolation=interpolation).opts(
+                                   colorbar=colorbar, cmap=cmap, **kwargs)
+    elif backend == "bokeh":
+        # use holoviews bokeh backend
+        hv.extension("bokeh")
+        raster = hds_rasterize(hv_polygons,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               aggregator=aggregator,
+                               interpolation=interpolation).opts(
+                                   width=width,
+                                   height=height,
+                                   colorbar=colorbar,
+                                   cmap=cmap,
+                                   **kwargs)
+
+    else:
+        raise ValueError(
+            f"Invalid backend selected. Expected one of ['matplotlib', 'bokeh'] but received {backend}."
+        )
+
+    return raster
+
+
 def rasterize(uxda: UxDataArray,
               method: Optional[str] = "point",
               backend: Optional[str] = "bokeh",
+              exclude_antimeridian: Optional[bool] = False,
               pixel_ratio: Optional[float] = 1.0,
               dynamic: Optional[bool] = False,
               precompute: Optional[bool] = True,
@@ -204,6 +260,8 @@ def rasterize(uxda: UxDataArray,
         implemented method.
     backend: str
         Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+    exclude_antimeridian: bool,
+        Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
     projection: ccrs
          Custom projection to transform (lon, lat) coordinates for rendering
     pixel_ratio: float
@@ -224,12 +282,36 @@ def rasterize(uxda: UxDataArray,
 
     if method == "point":
         # perform point rasterization
-        raster = _point_raster(uxda, backend, pixel_ratio, dynamic, precompute,
-                               projection, width, height, colorbar, cmap,
-                               aggregator, interpolation, npartitions, cache,
+        raster = _point_raster(uxda=uxda,
+                               backend=backend,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               projection=projection,
+                               width=width,
+                               height=height,
+                               colorbar=colorbar,
+                               cmap=cmap,
+                               aggregator=aggregator,
+                               interpolation=interpolation,
+                               npartitions=npartitions,
+                               cache=cache,
                                **kwargs)
     elif method == "polygon":
-        raise ValueError(f"Polygon Rasterization not yet implemented.")
+        raster = _polygon_raster(uxda=uxda,
+                                 backend=backend,
+                                 exclude_antimeridian=exclude_antimeridian,
+                                 dynamic=dynamic,
+                                 precompute=precompute,
+                                 projection=projection,
+                                 width=width,
+                                 height=height,
+                                 colorbar=colorbar,
+                                 cmap=cmap,
+                                 aggregator=aggregator,
+                                 interpolation=interpolation,
+                                 npartitions=npartitions,
+                                 **kwargs)
     elif method == "trimesh":
         raise ValueError(f"Trimesh Rasterization not yet implemented.")
     else:

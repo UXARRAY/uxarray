@@ -382,3 +382,11 @@ class TestLatlonBound(TestCase):
         self.assertAlmostEqual(min_latitude,
                                expected_min_latitude,
                                delta=ERROR_TOLERANCE)
+
+
+class TestGeoDataFrame(TestCase):
+
+    def test_to_gdf(self):
+        uxgrid = ux.open_grid(gridfile_geoflow)
+
+        gdf_with = uxgrid.to_geodataframe(exclude_antimeridian=False)
