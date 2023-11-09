@@ -11,6 +11,7 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class TestExodus(TestCase):
+
     exo_filename = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
     exo2_filename = current_path / "meshfiles" / "exodus" / "mixed" / "mixed.exo"
 

@@ -16,12 +16,10 @@ class TestMPAS(TestCase):
     """Test suite for Read MPAS functionality."""
 
     # sample mpas dataset
-    mpas_grid_path = (
-        current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
-    )
+    mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
     mpas_xr_ds = xr.open_dataset(mpas_grid_path)
 
-    mpas_ocean_mesh = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+    mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
     # fill value (remove once there is a unified approach in uxarray)
     fv = INT_FILL_VALUE
@@ -47,18 +45,19 @@ class TestMPAS(TestCase):
             ds = uxgrid._ds
 
             # check for correct dimensions
-            expected_ugrid_dims = ["n_node", "n_face", "n_max_face_nodes"]
+            expected_ugrid_dims = ['n_node', "n_face", "n_max_face_nodes"]
             for dim in expected_ugrid_dims:
                 assert dim in ds.sizes
 
             # check for correct length of coordinates
-            assert len(ds["node_lon"]) == len(ds["node_lat"])
-            assert len(ds["face_lon"]) == len(ds["face_lat"])
+            assert len(ds['node_lon']) == len(ds['node_lat'])
+            assert len(ds['face_lon']) == len(ds['face_lat'])
 
             # check for correct shape of face nodes
-            n_face = ds.sizes["n_face"]
-            n_max_face_nodes = ds.sizes["n_max_face_nodes"]
-            assert ds["face_node_connectivity"].shape == (n_face, n_max_face_nodes)
+            n_face = ds.sizes['n_face']
+            n_max_face_nodes = ds.sizes['n_max_face_nodes']
+            assert ds['face_node_connectivity'].shape == (n_face,
+                                                          n_max_face_nodes)
 
             pass
 
@@ -66,40 +65,39 @@ class TestMPAS(TestCase):
         """Verifies that the Dual-Mesh was converted properly."""
 
         for path in [self.mpas_grid_path, self.mpas_ocean_mesh]:
+
             # dual-mesh encoded in the UGRID conventions
             uxgrid = ux.open_grid(path, use_dual=True)
             ds = uxgrid._ds
 
             # check for correct dimensions
-            expected_ugrid_dims = ["n_node", "n_face", "n_max_face_nodes"]
+            expected_ugrid_dims = ['n_node', "n_face", "n_max_face_nodes"]
             for dim in expected_ugrid_dims:
                 assert dim in ds.sizes
 
             # check for correct length of coordinates
-            assert len(ds["node_lon"]) == len(ds["node_lat"])
-            assert len(ds["face_lon"]) == len(ds["face_lat"])
+            assert len(ds['node_lon']) == len(ds['node_lat'])
+            assert len(ds['face_lon']) == len(ds['face_lat'])
 
             # check for correct shape of face nodes
-            nMesh2_face = ds.sizes["n_face"]
-            assert ds["face_node_connectivity"].shape == (nMesh2_face, 3)
+            nMesh2_face = ds.sizes['n_face']
+            assert ds['face_node_connectivity'].shape == (nMesh2_face, 3)
 
     def test_add_fill_values(self):
         """Test _add_fill_values() implementation, output should be both be
         zero-indexed and padded values should be replaced with fill values."""
 
         # two cells with 2, 3 and 2 padded faces respectively
-        verticesOnCell = np.array(
-            [[1, 2, 1, 1], [3, 4, 5, 3], [6, 7, 0, 0]], dtype=INT_DTYPE
-        )
+        verticesOnCell = np.array([[1, 2, 1, 1], [3, 4, 5, 3], [6, 7, 0, 0]],
+                                  dtype=INT_DTYPE)
 
         # cell has 2, 3 and 2 nodes respectively
         nEdgesOnCell = np.array([2, 3, 2])
 
         # expected output of _add_fill_values()
-        gold_output = np.array(
-            [[0, 1, self.fv, self.fv], [2, 3, 4, self.fv], [5, 6, self.fv, self.fv]],
-            dtype=INT_DTYPE,
-        )
+        gold_output = np.array([[0, 1, self.fv, self.fv], [2, 3, 4, self.fv],
+                                [5, 6, self.fv, self.fv]],
+                               dtype=INT_DTYPE)
 
         # test data output
         verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
@@ -114,23 +112,18 @@ class TestMPAS(TestCase):
 
         # full set of expected mpas attributes
         expected_attrs = [
-            "sphere_radius",
-            "mesh_spec",
-            "on_a_sphere",
-            "mesh_id",
-            "is_periodic",
-            "x_period",
-            "y_period",
+            'sphere_radius', 'mesh_spec', 'on_a_sphere', 'mesh_id',
+            'is_periodic', 'x_period', 'y_period'
         ]
 
         # included attrs: 'sphere_radius', 'mesh_spec' 'on_a_sphere'
         ds, _ = _read_mpas(self.mpas_xr_ds)
 
         # set dummy attrs to test execution
-        ds.attrs["mesh_id"] = "12345678"
-        ds.attrs["is_periodic"] = "YES"
-        ds.attrs["x_period"] = 1.0
-        ds.attrs["y_period"] = 1.0
+        ds.attrs['mesh_id'] = "12345678"
+        ds.attrs['is_periodic'] = "YES"
+        ds.attrs['x_period'] = 1.0
+        ds.attrs['y_period'] = 1.0
 
         # create a grid
         uxgrid = ux.Grid(ds)

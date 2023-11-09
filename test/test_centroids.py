@@ -12,6 +12,7 @@ gridfile_CSne8 = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.n
 
 
 class TestCentroids(TestCase):
+
     def test_centroids_from_mean_verts_triangle(self):
         """Test finding the centroid of a triangle."""
         # Create a triangle
@@ -20,8 +21,7 @@ class TestCentroids(TestCase):
         # Calculate the expected centroid
         expected_centroid = np.mean(test_triangle, axis=0)
         [norm_x, norm_y, norm_z] = normalize_in_place(
-            [expected_centroid[0], expected_centroid[1], expected_centroid[2]]
-        )
+            [expected_centroid[0], expected_centroid[1], expected_centroid[2]])
 
         # Open the dataset and find the centroids
         grid = ux.open_grid(test_triangle)
@@ -36,15 +36,13 @@ class TestCentroids(TestCase):
         """Test finding the centroid of a pentagon."""
 
         # Create a polygon
-        test_triangle = np.array(
-            [(0, 0, 1), (0, 0, -1), (1, 0, 0), (0, 1, 0), (125, 125, 1)]
-        )
+        test_triangle = np.array([(0, 0, 1), (0, 0, -1), (1, 0, 0), (0, 1, 0),
+                                  (125, 125, 1)])
 
         # Calculate the expected centroid
         expected_centroid = np.mean(test_triangle, axis=0)
         [norm_x, norm_y, norm_z] = normalize_in_place(
-            [expected_centroid[0], expected_centroid[1], expected_centroid[2]]
-        )
+            [expected_centroid[0], expected_centroid[1], expected_centroid[2]])
 
         # Open the dataset and find the centroids
         grid = ux.open_grid(test_triangle)
