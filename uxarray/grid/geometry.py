@@ -167,7 +167,7 @@ def _build_corrected_polygon_shells(polygon_shells):
         _corrected_shells_to_original_faces, dtype=INT_DTYPE
     )
 
-    return corrected_polygon_shells, _corrected_shells_to_original_faces
+    return corrected_polygon_shells, original_to_corrected
 
 
 def _build_antimeridian_face_indices(grid):

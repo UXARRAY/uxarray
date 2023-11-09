@@ -23,14 +23,6 @@ def _read_face_vertices(face_vertices, latlon):
         y_units = "m"
         z_units = "m"
 
-    x_coord = face_vertices[:, :, 0].flatten()
-    y_coord = face_vertices[:, :, 1].flatten()
-
-    if face_vertices[0][0].size > 2:
-        z_coord = face_vertices[:, :, 2].flatten()
-    else:
-        z_coord = x_coord * 0.0
-
     # Identify unique vertices and their indices
     unique_verts, indices = np.unique(
         face_vertices.reshape(-1, face_vertices.shape[-1]), axis=0, return_inverse=True
@@ -48,7 +40,7 @@ def _read_face_vertices(face_vertices, latlon):
         )
 
     # Get the indices of all the False values in fill_value_mask
-    false_indices = np.where(fill_value_mask == True)[0]
+    false_indices = np.where(fill_value_mask)[0]
 
     # Check if any False values were found
     indices = indices.astype(INT_DTYPE)

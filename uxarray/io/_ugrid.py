@@ -114,12 +114,12 @@ def _standardize_fill_values(ds):
 
 def _is_ugrid(ds):
     """Check mesh topology and dimension."""
-    standard_name = lambda v: v is not None
+    # standard_name = lambda v: v is not None
     # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
     # return type KeysView
-    node_coords_dv = ds.filter_by_attrs(node_coordinates=standard_name)
-    face_conn_dv = ds.filter_by_attrs(face_node_connectivity=standard_name)
-    topo_dim_dv = ds.filter_by_attrs(topology_dimension=standard_name)
+    node_coords_dv = ds.filter_by_attrs(node_coordinates=lambda v: v is not None)
+    face_conn_dv = ds.filter_by_attrs(face_node_connectivity=lambda v: v is not None)
+    topo_dim_dv = ds.filter_by_attrs(topology_dimension=lambda v: v is not None)
     mesh_topo_dv = ds.filter_by_attrs(cf_role="mesh_topology")
     if (
         len(mesh_topo_dv) != 0

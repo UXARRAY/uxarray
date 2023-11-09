@@ -108,12 +108,6 @@ def _read_exodus(ext_ds):
             else:
                 raise RuntimeError("found face_nodes_dim greater than n_max_face_nodes")
 
-            # find the elem_type as etype for this element
-            for k, v in value.attrs.items():
-                if k == "elem_type":
-                    # TODO: etype if not used now, remove if it'll never be required
-                    etype = v
-
     # outside the k,v for loop
     # set the face nodes data compiled in "connect" section
 

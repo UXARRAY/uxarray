@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from uxarray.grid import Grid
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
 

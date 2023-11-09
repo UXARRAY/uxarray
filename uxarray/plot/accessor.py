@@ -12,6 +12,8 @@ if TYPE_CHECKING:
 
 import uxarray.plot.dataarray_plot as dataarray_plot
 
+import cartopy.crs as ccrs
+
 
 class GridPlotAccessor:
     """Plotting Accessor for Grid, accessed through ``Grid.plot()`` or

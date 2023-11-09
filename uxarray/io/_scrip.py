@@ -121,15 +121,8 @@ def _read_scrip(ext_ds):
     """
     ds = xr.Dataset()
 
-    try:
-        # If not ugrid compliant, translates scrip to ugrid conventions
-        source_dims_dict = _to_ugrid(ext_ds, ds)
-    except:
-        print(
-            "Variables not in recognized SCRIP form. Please refer to",
-            "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
-            "for more information on SCRIP Grid file formatting",
-        )
+    # If not ugrid compliant, translates scrip to ugrid conventions
+    source_dims_dict = _to_ugrid(ext_ds, ds)
 
     return ds, source_dims_dict
 

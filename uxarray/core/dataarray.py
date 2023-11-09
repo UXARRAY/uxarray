@@ -9,13 +9,11 @@ from uxarray.grid import Grid
 import uxarray.core.dataset
 
 if TYPE_CHECKING:
-    from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
 
 from xarray.core.utils import UncachedAccessor
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
-import uxarray.core.dataset
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 
@@ -76,7 +74,7 @@ class UxDataArray(xr.DataArray):
 
         deep = kwargs.get("deep", None)
 
-        if deep == True:
+        if deep:
             # Reinitialize the uxgrid assessor
             copied.uxgrid = self.uxgrid.copy()  # deep copy
         else:
@@ -113,11 +111,6 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
-
-    def to_dataset(self) -> UxDataset:
-        """Convert a UxDataArray to a UxDataset."""
-        xrds = super().to_dataset()
-        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
     def to_geodataframe(
         self,

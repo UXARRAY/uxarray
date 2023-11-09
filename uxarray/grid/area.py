@@ -4,7 +4,6 @@ from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 
-
 config.DISABLE_JIT = not ENABLE_JIT
 
 

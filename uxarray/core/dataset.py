@@ -5,10 +5,7 @@ import xarray as xr
 
 import sys
 
-from typing import TYPE_CHECKING, Optional, IO, Union
-
-if TYPE_CHECKING:
-    from uxarray.core.dataset import UxDataset
+from typing import Optional, IO, Union
 
 from uxarray.grid import Grid
 from uxarray.core.dataarray import UxDataArray
@@ -172,7 +169,7 @@ class UxDataset(xr.Dataset):
 
         deep = kwargs.get("deep", None)
 
-        if deep == True:
+        if deep:
             # Reinitialize the uxgrid assessor
             copied.uxgrid = self.uxgrid.copy()  # deep copy
         else:
