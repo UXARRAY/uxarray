@@ -4,10 +4,7 @@ from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
-POLE_POINTS = {
-    'North': np.array([0.0, 0.0, 1.0]),
-    'South': np.array([0.0, 0.0, -1.0])
-}
+POLE_POINTS = {"North": np.array([0.0, 0.0, 1.0]), "South": np.array([0.0, 0.0, -1.0])}
 
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
@@ -38,17 +35,20 @@ def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     n_face = grid.n_face
 
     # obtain polygon shells for shapely polygon construction
-    polygon_shells = _build_polygon_shells(grid.node_lon.values,
-                                           grid.node_lat.values, face_nodes,
-                                           n_face, grid.n_max_face_nodes,
-                                           n_nodes_per_face)
+    polygon_shells = _build_polygon_shells(
+        grid.node_lon.values,
+        grid.node_lat.values,
+        face_nodes,
+        n_face,
+        grid.n_max_face_nodes,
+        n_nodes_per_face,
+    )
 
     # list of shapely Polygons representing each face in our grid
     polygons = Polygons(polygon_shells)
 
     # handle antimeridian polygons, if any
     if grid.antimeridian_face_indices is not None and correct_antimeridian_polygons:
-
         # obtain each antimeridian polygon
         antimeridian_polygons = polygons[grid.antimeridian_face_indices]
 
@@ -64,8 +64,14 @@ def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     return polygons
 
 
-def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
-                          n_max_face_nodes, n_nodes_per_face):
+def _build_polygon_shells(
+    node_lon,
+    node_lat,
+    face_node_connectivity,
+    n_face,
+    n_max_face_nodes,
+    n_nodes_per_face,
+):
     """Constructs the shell of each polygon derived from the closed off face
     nodes, which can be used to construct Shapely Polygons.
 
@@ -74,8 +80,9 @@ def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
     """
 
     # close face nodes to construct closed polygons
-    closed_face_nodes = close_face_nodes(face_node_connectivity, n_face,
-                                         n_max_face_nodes)
+    closed_face_nodes = close_face_nodes(
+        face_node_connectivity, n_face, n_max_face_nodes
+    )
 
     # additional node after closing our faces
     nNodes_per_face_closed = n_nodes_per_face + 1
@@ -85,9 +92,7 @@ def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
         node_lon = (node_lon + 180) % 360 - 180
 
     polygon_shells = []
-    for face_nodes, max_n_nodes in zip(closed_face_nodes,
-                                       nNodes_per_face_closed):
-
+    for face_nodes, max_n_nodes in zip(closed_face_nodes, nNodes_per_face_closed):
         polygon_x = np.empty_like(face_nodes, dtype=node_lon.dtype)
         polygon_y = np.empty_like(face_nodes, dtype=node_lon.dtype)
 
@@ -136,27 +141,31 @@ def _build_corrected_polygon_shells(polygon_shells):
     corrected_polygon_shells = []
 
     for i, polygon in enumerate(corrected_polygons):
-
         # Convert MultiPolygons into individual Polygon Vertices
         if polygon.geom_type == "MultiPolygon":
             for individual_polygon in polygon.geoms:
                 corrected_polygon_shells.append(
-                    np.array([
-                        individual_polygon.exterior.coords.xy[0],
-                        individual_polygon.exterior.coords.xy[1]
-                    ]).T)
+                    np.array(
+                        [
+                            individual_polygon.exterior.coords.xy[0],
+                            individual_polygon.exterior.coords.xy[1],
+                        ]
+                    ).T
+                )
                 _corrected_shells_to_original_faces.append(i)
 
         # Convert Shapely Polygon into Polygon Vertices
         else:
             corrected_polygon_shells.append(
-                np.array([
-                    polygon.exterior.coords.xy[0], polygon.exterior.coords.xy[1]
-                ]).T)
+                np.array(
+                    [polygon.exterior.coords.xy[0], polygon.exterior.coords.xy[1]]
+                ).T
+            )
             _corrected_shells_to_original_faces.append(i)
 
-    original_to_corrected = np.array(_corrected_shells_to_original_faces,
-                                     dtype=INT_DTYPE)
+    original_to_corrected = np.array(
+        _corrected_shells_to_original_faces, dtype=INT_DTYPE
+    )
 
     return corrected_polygon_shells, _corrected_shells_to_original_faces
 
@@ -180,13 +189,18 @@ def _build_antimeridian_face_indices(grid):
     n_face = grid.n_face
 
     # obtain polygon shells for shapely polygon construction
-    polygon_shells = _build_polygon_shells(grid.node_lon.values,
-                                           grid.node_lat.values, face_nodes,
-                                           n_face, grid.n_max_face_nodes,
-                                           n_nodes_per_face)
+    polygon_shells = _build_polygon_shells(
+        grid.node_lon.values,
+        grid.node_lat.values,
+        face_nodes,
+        n_face,
+        grid.n_max_face_nodes,
+        n_nodes_per_face,
+    )
 
     antimeridian_face_indices = np.argwhere(
-        np.any(np.abs(np.diff(polygon_shells[:, :, 0])) >= 180, axis=1))
+        np.any(np.abs(np.diff(polygon_shells[:, :, 0])) >= 180, axis=1)
+    )
 
     # convert output into a 1D array
     if antimeridian_face_indices.shape[0] == 1:
@@ -221,14 +235,19 @@ def _grid_to_matplotlib_polycollection(grid):
     # import optional dependencies
     from matplotlib.collections import PolyCollection
 
-    polygon_shells = _build_polygon_shells(grid.node_lon.values,
-                                           grid.node_lat.values,
-                                           grid.face_node_connectivity.values,
-                                           grid.n_face, grid.n_max_face_nodes,
-                                           grid.n_nodes_per_face.values)
+    polygon_shells = _build_polygon_shells(
+        grid.node_lon.values,
+        grid.node_lat.values,
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_nodes,
+        grid.n_nodes_per_face.values,
+    )
 
-    corrected_polygon_shells, corrected_to_original_faces = _build_corrected_polygon_shells(
-        polygon_shells)
+    (
+        corrected_polygon_shells,
+        corrected_to_original_faces,
+    ) = _build_corrected_polygon_shells(polygon_shells)
 
     return PolyCollection(corrected_polygon_shells), corrected_to_original_faces
 
@@ -246,7 +265,7 @@ def _grid_to_matplotlib_linecollection(grid):
     lines = []
     for pol in polygons:
         boundary = pol.boundary
-        if boundary.geom_type == 'MultiLineString':
+        if boundary.geom_type == "MultiLineString":
             for line in list(boundary.geoms):
                 lines.append(np.array(line.coords))
         else:
@@ -300,16 +319,17 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         ref_edge_north = np.array([pole_point, REFERENCE_POINT_EQUATOR])
         ref_edge_south = np.array([-pole_point, REFERENCE_POINT_EQUATOR])
 
-        north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0,
-                                            axis=1)]
-        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0,
-                                            axis=1)]
+        north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
+        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0, axis=1)]
 
-        return (_check_intersection(ref_edge_north, north_edges) +
-                _check_intersection(ref_edge_south, south_edges)) % 2 != 0
+        return (
+            _check_intersection(ref_edge_north, north_edges)
+            + _check_intersection(ref_edge_south, south_edges)
+        ) % 2 != 0
     else:
-        warnings.warn("The given face should not contain both pole points.",
-                      UserWarning)
+        warnings.warn(
+            "The given face should not contain both pole points.", UserWarning
+        )
         return False
 
 
@@ -336,8 +356,7 @@ def _check_intersection(ref_edge, edges):
         intersection_point = gca_gca_intersection(ref_edge, edge)
 
         if intersection_point.size != 0:
-            if np.allclose(intersection_point, pole_point,
-                           atol=ERROR_TOLERANCE):
+            if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
                 return True
             intersection_count += 1
 

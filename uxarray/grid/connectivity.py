@@ -37,8 +37,7 @@ def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
     """
 
     # padding to shape [n_face, n_max_face_nodes + 1]
-    closed = np.ones(
-        (n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+    closed = np.ones((n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
 
     # set all non-paded values to original face nodee values
     closed[:, :-1] = face_node_connectivity.copy()
@@ -47,8 +46,7 @@ def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
     first_fv_idx_2d = np.argmax(closed == INT_FILL_VALUE, axis=1)
 
     # 2d to 1d index for np.put()
-    first_fv_idx_1d = first_fv_idx_2d + (
-        (n_max_face_nodes + 1) * np.arange(0, n_face))
+    first_fv_idx_1d = first_fv_idx_2d + ((n_max_face_nodes + 1) * np.arange(0, n_face))
 
     # column of first node values
     first_node_value = face_node_connectivity[:, 0].copy()
@@ -97,8 +95,10 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
         int_max = np.iinfo(grid_var.dtype).max
         # ensure new_fill is in range [int_min, int_max]
         if new_fill < int_min or new_fill > int_max:
-            raise ValueError(f'New fill value: {new_fill} not representable by'
-                             f' integer dtype: {grid_var.dtype}')
+            raise ValueError(
+                f"New fill value: {new_fill} not representable by"
+                f" integer dtype: {grid_var.dtype}"
+            )
 
     # ensure non-nan fill value can be represented with current float data type
     elif np.issubdtype(new_dtype, np.floating) and not np.isnan(new_fill):
@@ -106,11 +106,14 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
         float_max = np.finfo(grid_var.dtype).max
         # ensure new_fill is in range [float_min, float_max]
         if new_fill < float_min or new_fill > float_max:
-            raise ValueError(f'New fill value: {new_fill} not representable by'
-                             f' float dtype: {grid_var.dtype}')
+            raise ValueError(
+                f"New fill value: {new_fill} not representable by"
+                f" float dtype: {grid_var.dtype}"
+            )
     else:
-        raise ValueError(f'Data type {grid_var.dtype} not supported'
-                         f'for grid variables')
+        raise ValueError(
+            f"Data type {grid_var.dtype} not supported" f"for grid variables"
+        )
 
     # replace all zeros with a fill value
     grid_var[fill_val_idx] = new_fill
@@ -124,13 +127,15 @@ def _populate_n_nodes_per_face(grid):
     (``Grid.n_nodes_per_face``)."""
 
     n_nodes_per_face = _build_n_nodes_per_face(
-        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes)
+        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes
+    )
 
     # add to internal dataset
     grid._ds["n_nodes_per_face"] = xr.DataArray(
         data=n_nodes_per_face,
         dims=["n_face"],
-        attrs={"long_name": "number of non-fill value nodes for each face"})
+        attrs={"long_name": "number of non-fill value nodes for each face"},
+    )
 
 
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
@@ -138,8 +143,7 @@ def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     value nodes for each face in ``face_node_connectivity``"""
 
     # padding to shape [n_face, n_max_face_nodes + 1]
-    closed = np.ones(
-        (n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+    closed = np.ones((n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
 
     closed[:, :-1] = face_nodes.copy()
 
@@ -154,10 +158,11 @@ def _populate_edge_node_connectivity(grid):
     (``Grid.edge_node_connectivity``)."""
 
     edge_nodes, inverse_indices, fill_value_mask = _build_edge_node_connectivity(
-        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes)
+        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes
+    )
 
     # add edge_node_connectivity to internal dataset
-    grid._ds['edge_node_connectivity'] = xr.DataArray(
+    grid._ds["edge_node_connectivity"] = xr.DataArray(
         edge_nodes,
         dims=["n_edge", "Two"],
         attrs={
@@ -166,8 +171,9 @@ def _populate_edge_node_connectivity(grid):
             "long_name": "Maps every edge to the two nodes that it connects",
             "start_index": INT_DTYPE(0),
             "inverse_indices": inverse_indices,
-            "fill_value_mask": fill_value_mask
-        })
+            "fill_value_mask": fill_value_mask,
+        },
+    )
 
 
 def _build_edge_node_connectivity(face_nodes, n_face, n_max_face_nodes):
@@ -201,12 +207,14 @@ def _build_edge_node_connectivity(face_nodes, n_face, n_max_face_nodes):
     edge_nodes.sort(axis=1)
 
     # unique edge nodes
-    edge_nodes_unique, inverse_indices = np.unique(edge_nodes,
-                                                   return_inverse=True,
-                                                   axis=0)
+    edge_nodes_unique, inverse_indices = np.unique(
+        edge_nodes, return_inverse=True, axis=0
+    )
     # find all edge nodes that contain a fill value
-    fill_value_mask = np.logical_or(edge_nodes_unique[:, 0] == INT_FILL_VALUE,
-                                    edge_nodes_unique[:, 1] == INT_FILL_VALUE)
+    fill_value_mask = np.logical_or(
+        edge_nodes_unique[:, 0] == INT_FILL_VALUE,
+        edge_nodes_unique[:, 1] == INT_FILL_VALUE,
+    )
 
     # all edge nodes that do not contain a fill value
     non_fill_value_mask = np.logical_not(fill_value_mask)
@@ -219,7 +227,7 @@ def _build_edge_node_connectivity(face_nodes, n_face, n_max_face_nodes):
     inverse_indices[remove_mask] = INT_FILL_VALUE
 
     # Compute the indices where inverse_indices exceeds the values in indices_to_update
-    indexes = np.searchsorted(indices_to_update, inverse_indices, side='right')
+    indexes = np.searchsorted(indices_to_update, inverse_indices, side="right")
     # subtract the corresponding indexes from `inverse_indices`
     for i in range(len(inverse_indices)):
         if inverse_indices[i] != INT_FILL_VALUE:
@@ -233,8 +241,8 @@ def _populate_edge_face_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.edge_node_connectivity``)."""
     edge_faces = _build_edge_face_connectivity(
-        grid.face_edge_connectivity.values, grid.n_nodes_per_face.values,
-        grid.n_edge)
+        grid.face_edge_connectivity.values, grid.n_nodes_per_face.values, grid.n_edge
+    )
 
     grid._ds["edge_face_connectivity"] = xr.DataArray(
         data=edge_faces,
@@ -243,17 +251,18 @@ def _populate_edge_face_connectivity(grid):
             "cf_role": "edge_face_connectivity",
             "start_index": INT_DTYPE(0),
             "long_name": "Maps the faces that saddle a given edge",
-        })
+        },
+    )
 
 
 @njit
 def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
     """Helper for (``edge_face_connectivity``) construction."""
-    edge_faces = np.ones(shape=(n_edge, 2),
-                         dtype=face_edges.dtype) * INT_FILL_VALUE
+    edge_faces = np.ones(shape=(n_edge, 2), dtype=face_edges.dtype) * INT_FILL_VALUE
 
-    for face_idx, (cur_face_edges,
-                   n_edges) in enumerate(zip(face_edges, n_nodes_per_face)):
+    for face_idx, (cur_face_edges, n_edges) in enumerate(
+        zip(face_edges, n_nodes_per_face)
+    ):
         # obtain all the edges that make up a face (excluding fill values)
         edges = cur_face_edges[:n_edges]
         for edge_idx in edges:
@@ -270,13 +279,17 @@ def _populate_face_edge_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.face_edge_connectivity``)."""
 
-    if ("edge_node_connectivity" not in grid._ds or
-            "inverse_indices" not in grid._ds['edge_node_connectivity'].attrs):
+    if (
+        "edge_node_connectivity" not in grid._ds
+        or "inverse_indices" not in grid._ds["edge_node_connectivity"].attrs
+    ):
         _populate_edge_node_connectivity(grid)
 
     face_edges = _build_face_edge_connectivity(
-        grid.edge_node_connectivity.attrs['inverse_indices'], grid.n_face,
-        grid.n_max_face_nodes)
+        grid.edge_node_connectivity.attrs["inverse_indices"],
+        grid.n_face,
+        grid.n_max_face_nodes,
+    )
 
     grid._ds["face_edge_connectivity"] = xr.DataArray(
         data=face_edges,
@@ -285,7 +298,8 @@ def _populate_face_edge_connectivity(grid):
             "cf_role": "face_edges_connectivity",
             "start_index": INT_DTYPE(0),
             "long_name": "Maps every edge to the two nodes that it connects",
-        })
+        },
+    )
 
 
 def _build_face_edge_connectivity(inverse_indices, n_face, n_max_face_nodes):
@@ -300,18 +314,18 @@ def _populate_node_face_connectivity(grid):
     (``Grid.node_face_connectivity``)."""
 
     node_faces, n_max_faces_per_node = _build_node_faces_connectivity(
-        grid.face_node_connectivity.values, grid.n_node)
+        grid.face_node_connectivity.values, grid.n_node
+    )
 
     grid._ds["node_face_connectivity"] = xr.DataArray(
         node_faces,
         dims=["n_node", "n_max_node_faces"],  # TODO
         attrs={
-            "long_name": "Maps every node to the faces that "
-                         "it connects",
-            "nMaxNumFacesPerNode":
-                n_max_faces_per_node,  # todo, this possibly duplicates nNodes_per_face
-            "_FillValue": INT_FILL_VALUE
-        })
+            "long_name": "Maps every node to the faces that " "it connects",
+            "nMaxNumFacesPerNode": n_max_faces_per_node,  # todo, this possibly duplicates nNodes_per_face
+            "_FillValue": INT_FILL_VALUE,
+        },
+    )
 
 
 def _build_node_faces_connectivity(face_nodes, n_node):
@@ -330,9 +344,11 @@ def _build_node_faces_connectivity(face_nodes, n_node):
     # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
     # indexes (similar to an adjacency matrix)
     face_indices, node_indices, non_filled_element_flags = _face_nodes_to_sparse_matrix(
-        face_nodes)
+        face_nodes
+    )
     coo_matrix = sparse.coo_matrix(
-        (non_filled_element_flags, (node_indices, face_indices)))
+        (non_filled_element_flags, (node_indices, face_indices))
+    )
     csr_matrix = coo_matrix.tocsr()
     # get the row and column indices of the non-zero elements
     rows, cols = csr_matrix.nonzero()
@@ -349,20 +365,22 @@ def _build_node_faces_connectivity(face_nodes, n_node):
     subarrays = np.split(rows, change_indices)
 
     # get the start and end indices for each subarray
-    start_indices = np.cumsum([0] +
-                              [len(subarray) for subarray in subarrays[:-1]])
+    start_indices = np.cumsum([0] + [len(subarray) for subarray in subarrays[:-1]])
     end_indices = np.cumsum([len(subarray) for subarray in subarrays]) - 1
 
     for node_index in range(n_node):
         node_face_connectivity[node_index] = cols[
-            start_indices[node_index]:end_indices[node_index] + 1]
+            start_indices[node_index] : end_indices[node_index] + 1
+        ]
         if len(node_face_connectivity[node_index]) < nMaxNumFacesPerNode:
             node_face_connectivity[node_index] = np.append(
                 node_face_connectivity[node_index],
-                np.full(nMaxNumFacesPerNode -
-                        len(node_face_connectivity[node_index]),
-                        INT_FILL_VALUE,
-                        dtype=INT_DTYPE))
+                np.full(
+                    nMaxNumFacesPerNode - len(node_face_connectivity[node_index]),
+                    INT_FILL_VALUE,
+                    dtype=INT_DTYPE,
+                ),
+            )
 
     return node_face_connectivity, nMaxNumFacesPerNode
 
