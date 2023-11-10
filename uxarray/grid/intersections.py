@@ -1,9 +1,10 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
-from uxarray.grid.utils import cross_fma, _newton_raphson_solver_for_gca_constLat
+from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca
 import platform
 import warnings
+from uxarray.utils.computing import cross_fma
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
