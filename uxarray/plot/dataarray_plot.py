@@ -15,9 +15,9 @@ from holoviews.operation.datashader import rasterize as hds_rasterize
 
 import pandas as pd
 
-import holoviews.opts
+from holoviews import opts
 
-__all__ = (holoviews.opts,)
+__all__ = (opts,)
 
 
 def plot(uxda, **kwargs):
