@@ -3,7 +3,7 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -12,9 +12,12 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
 
-from uxarray.plot.accessor import UxDataArrayPlotAccessor
-
 from xarray.core.utils import UncachedAccessor
+
+from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
+import uxarray.core.dataset
+
+from uxarray.plot.accessor import UxDataArrayPlotAccessor
 
 
 class UxDataArray(xr.DataArray):
@@ -142,31 +145,31 @@ class UxDataArray(xr.DataArray):
         """
 
         # data is multidimensional, must be a 1D slice
-        if self.data.ndim > 1:
+        if self.values.ndim > 1:
             raise ValueError(
-                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.nMesh2_face} "
+                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data.")
 
         # face-centered data
-        if self.data.size == self.uxgrid.nMesh2_face:
+        if self.values.size == self.uxgrid.n_face:
             gdf = self.uxgrid.to_geodataframe(
                 override=override,
                 cache=cache,
                 correct_antimeridian_polygons=correct_antimeridian_polygons)
-            gdf[self.name] = self.data
+            gdf[self.name] = self.values
             return gdf
 
         # TODO: Mapping Node Data to Each Polygon
-        elif self.data.size == self.uxgrid.nMesh2_node:
+        elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
-                f"Data Variable with size {self.data.size} mapped on the nodes of each polygon"
+                f"Data Variable with size {self.values.size} mapped on the nodes of each polygon"
                 f"not supported yet.")
 
         # data not mapped to faces or nodes
         else:
             raise ValueError(
-                f"Data Variable with size {self.data.size} does not match the number of faces "
-                f"({self.uxgrid.nMesh2_face}.")
+                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"({self.uxgrid.n_face}.")
 
     def to_polycollection(self,
                           override=False,
@@ -193,13 +196,13 @@ class UxDataArray(xr.DataArray):
         """
 
         # data is multidimensional, must be a 1D slice
-        if self.data.ndim > 1:
+        if self.values.ndim > 1:
             raise ValueError(
-                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.nMesh2_face} "
+                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data.")
 
         # face-centered data
-        if self.data.size == self.uxgrid.nMesh2_face:
+        if self.values.size == self.uxgrid.n_face:
             poly_collection, corrected_to_original_faces = self.uxgrid.to_polycollection(
                 override=override,
                 cache=cache,
@@ -207,26 +210,53 @@ class UxDataArray(xr.DataArray):
 
             # map data with antimeridian polygons
             if len(corrected_to_original_faces) > 0:
-                data = self.data[corrected_to_original_faces]
+                data = self.values[corrected_to_original_faces]
 
             # no antimeridian polygons
             else:
-                data = self.data
+                data = self.values
 
             poly_collection.set_array(data)
             return poly_collection, corrected_to_original_faces
 
         # node-centered data
-        elif self.data.size == self.uxgrid.nMesh2_node:
+        elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
-                f"Data Variable with size {self.data.size} mapped on the nodes of each polygon"
+                f"Data Variable with size {self.values.size} mapped on the nodes of each polygon"
                 f"not supported yet.")
 
         # data not mapped to faces or nodes
         else:
             raise ValueError(
-                f"Data Variable with size {self.data.size} does not match the number of faces "
-                f"({self.uxgrid.nMesh2_face}.")
+                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"({self.uxgrid.n_face}.")
+
+    def to_dataset(self) -> UxDataset:
+        """Converts a ``UxDataArray`` into a ``UxDataset`` with a single data
+        variable."""
+        xrds = super().to_dataset()
+        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+
+    def nearest_neighbor_remap(self,
+                               destination_obj: Union[Grid, UxDataArray,
+                                                      UxDataset],
+                               remap_to: str = "nodes",
+                               coord_type: str = "spherical"):
+        """Nearest Neighbor Remapping between a source (``UxDataArray``) and
+        destination.`.
+
+        Parameters
+        ---------
+        destination_obj : Grid, UxDataArray, UxDataset
+            Destination for remapping
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        coord_type : str, default="spherical"
+            Indicates whether to remap using on spherical or cartesian coordinates
+        """
+
+        return _nearest_neighbor_uxda(self, destination_obj, remap_to,
+                                      coord_type)
 
     def integrate(self,
                   quadrature_rule: Optional[str] = "triangular",
@@ -254,17 +284,17 @@ class UxDataArray(xr.DataArray):
         # Compute the integral
         >>> integral = uxds['psi'].integrate()
         """
-        if self.data.shape[-1] == self.uxgrid.nMesh2_face:
+        if self.values.shape[-1] == self.uxgrid.n_face:
             face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
 
             # perform dot product between face areas and last dimension of data
-            integral = np.einsum('i,...i', face_areas, self.data)
+            integral = np.einsum('i,...i', face_areas, self.values)
 
-        elif self.data.shape[-1] == self.uxgrid.nMesh2_node:
+        elif self.values.shape[-1] == self.uxgrid.n_node:
             raise ValueError(
                 "Integrating data mapped to each node not yet supported.")
 
-        elif self.data.shape[-1] == self.uxgrid.nMesh2_edge:
+        elif self.values.shape[-1] == self.uxgrid.n_edge:
             raise ValueError(
                 "Integrating data mapped to each edge not yet supported.")
 
@@ -272,8 +302,8 @@ class UxDataArray(xr.DataArray):
             raise ValueError(
                 f"The final dimension of the data variable does not match the number of nodes, edges, "
                 f"or faces. Expected one of "
-                f"{self.uxgrid.nMesh2_face}, {self.uxgrid.nMesh2_edge}, or {self.uxgrid.nMesh2_face}, "
-                f"but received {self.data.shape[-1]}")
+                f"{self.uxgrid.n_node}, {self.uxgrid.n_edge}, or {self.uxgrid.n_face}, "
+                f"but received {self.values.shape[-1]}")
 
         # construct a uxda with integrated quantity
         uxda = UxDataArray(integral,
@@ -286,11 +316,11 @@ class UxDataArray(xr.DataArray):
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. dimensions
         match up with the number of faces)"""
-        return (self.uxgrid.nMesh2_face == self.shape[-1] and
-                self.uxgrid.nMesh2_node not in self.shape)
+        return (self.uxgrid.n_face == self.shape[-1] and
+                self.uxgrid.n_node not in self.shape)
 
     def _node_centered(self) -> bool:
         """Returns whether the data stored is Node Centered (i.e. dimensions
         match up with the number of nodes)"""
-        return (self.uxgrid.nMesh2_node == self.shape[-1] and
-                self.uxgrid.nMesh2_face not in self.shape)
+        return (self.uxgrid.n_node == self.shape[-1] and
+                self.uxgrid.n_face not in self.shape)

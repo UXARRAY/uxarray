@@ -60,7 +60,7 @@ class TestUxDataset(TestCase):
     def test_ugrid_dim_names(self):
         """Tests the remapping of dimensions to the UGRID conventions."""
 
-        ugrid_dims = ["nMesh2_face", "nMesh2_node", "nMesh2_edge"]
+        ugrid_dims = ["n_face", "n_node", "n_edge"]
 
         uxds_remap = ux.open_dataset(mpas_ds_path, mpas_ds_path)
 

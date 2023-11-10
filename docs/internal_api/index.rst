@@ -5,9 +5,10 @@ Internal API
 ############
 
 This page shows already-implemented Uxarray internal API functions. You can also
-check the draft `UXarray API
-<https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-documentation to see the tentative whole API and let us know if you have any feedback!
+check the `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
+`UXarray RoadMap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ for a high
+level understanding of UXarray's future function development milestones and roadmap.
+Please let us know if you have any feedback!
 
 
 UxDataset
@@ -77,10 +78,10 @@ Methods
    UxDataArray._node_centered
 
 Grid
-===========
+====
 
 Class
-----------
+-----
 .. autosummary::
    :toctree: _autosummary
 
@@ -109,6 +110,12 @@ Connectivity
    grid.connectivity._build_edge_node_connectivity
    grid.connectivity._build_face_edges_connectivity
    grid.connectivity._build_node_faces_connectivity
+   grid.connectivity._build_edge_face_connectivity
+   grid.connectivity._populate_edge_node_connectivity
+   grid.connectivity._populate_face_edges_connectivity
+   grid.connectivity._populate_node_faces_connectivity
+   grid.connectivity._populate_edge_face_connectivity
+   grid.connectivity._populate_n_nodes_per_face
 
 Geometry
 --------
@@ -121,6 +128,9 @@ Geometry
    grid.geometry._grid_to_polygon_geodataframe
    grid.geometry._grid_to_matplotlib_polycollection
    grid.geometry._grid_to_matplotlib_linecollection
+   grid.geometry._pole_point_inside_polygon
+   grid.geometry._classify_polygon_location
+   grid.geometry._check_intersection
 
 Coordinates
 -----------
@@ -135,12 +145,14 @@ Coordinates
    grid.coordinates._construct_xyz_centroids
 
 
-Lines
------
+Arcs
+----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.lines._angle_of_2_vectors
+   grid.arcs._angle_of_2_vectors
+   grid.arcs._angle_of_2_vectors
+
 
 Utils
 -----
@@ -150,6 +162,20 @@ Utils
    grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+
+
+Remapping
+=========
+
+.. autosummary::
+   :toctree: _autosummary
+
+   remap.nearest_neighbor._nearest_neighbor
+   remap.nearest_neighbor._nearest_neighbor_uxda
+   remap.nearest_neighbor._nearest_neighbor_uxds
+
+
+
 
 Grid Parsing and Encoding
 =========================
