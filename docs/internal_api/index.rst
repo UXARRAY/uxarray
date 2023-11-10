@@ -168,11 +168,11 @@ Accurate Computing Utils
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils.computing._err_fmac
-   grid.utils.computing._fast_two_mult
-   grid.utils.computing._fast_two_sum
-   grid.utils.computing._two_sum
-   grid.utils.computing._two_prod_fma
+   utils.computing._err_fmac
+   utils.computing._fast_two_mult
+   utils.computing._fast_two_sum
+   utils.computing._two_sum
+   utils.computing._two_prod_fma
 
 Remapping
 =========
