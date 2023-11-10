@@ -15,6 +15,10 @@ from holoviews.operation.datashader import rasterize as hds_rasterize
 
 import pandas as pd
 
+import holoviews.opts
+
+__all__ = (holoviews.opts,)
+
 
 def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
