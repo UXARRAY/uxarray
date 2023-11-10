@@ -348,8 +348,8 @@ Accurate Computing Utils
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils.computing.cross_fma
-   grid.utils.computing.dot_fma
+   utils.computing.cross_fma
+   utils.computing.dot_fma
 
 Numba
 -----
