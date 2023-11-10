@@ -8,7 +8,6 @@ from typing import Any, Dict, Optional, Union
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
 from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugrid
-
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io._vertices import _read_face_vertices
@@ -25,7 +24,7 @@ from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE
 
 from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
@@ -875,7 +874,8 @@ class Grid:
 
         Returns
         -------
-        Area of all the faces in the mesh : np.ndarray
+        1. Area of all the faces in the mesh : np.ndarray
+        2. Jacobian of all the faces in the mesh : np.ndarray
 
         Examples
         --------
