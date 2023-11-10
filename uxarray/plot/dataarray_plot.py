@@ -16,6 +16,8 @@ from holoviews import opts
 
 import pandas as pd
 
+import warnings
+
 
 def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
@@ -71,6 +73,90 @@ def datashade(uxda: UxDataArray,
         _cmap = cmap
 
     return tf.shade(aggregated, cmap=_cmap, **kwargs)
+
+
+def rasterize(uxda: UxDataArray,
+              method: Optional[str] = "point",
+              backend: Optional[str] = "bokeh",
+              exclude_antimeridian: Optional[bool] = False,
+              pixel_ratio: Optional[float] = 1.0,
+              dynamic: Optional[bool] = False,
+              precompute: Optional[bool] = True,
+              projection: Optional[ccrs] = None,
+              width: Optional[int] = 1000,
+              height: Optional[int] = 500,
+              colorbar: Optional[bool] = True,
+              cmap: Optional[str] = "Blues",
+              aggregator: Optional[str] = "mean",
+              interpolation: Optional[str] = "linear",
+              npartitions: Optional[int] = 1,
+              cache: Optional[bool] = True,
+              **kwargs):
+    """Rasterized Plot of a Data Variable Residing on an Unstructured Grid.
+
+    Parameters
+    ----------
+    method: str
+        Selects what type of element to rasterize (point, trimesh, polygon), with "point" being the only currently
+        implemented method.
+    backend: str
+        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+    exclude_antimeridian: bool,
+        Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
+    projection: ccrs
+         Custom projection to transform (lon, lat) coordinates for rendering
+    pixel_ratio: float
+        Determines the resolution of the outputted raster.
+    height: int
+        Plot Height for Bokeh Backend
+    width: int
+        Plot Width for Bokeh Backend
+    cache: bool
+            Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
+            calls
+
+    Notes
+    -----
+    For further information about supported keyword arguments, please refer to the [Holoviews Documentation](https://holoviews.org/_modules/holoviews/operation/datashader.html#rasterize)
+    or run holoviews.help(holoviews.operation.datashader.rasterize).
+    """
+
+    if method == "point":
+        # perform point rasterization
+        raster = _point_raster(uxda=uxda,
+                               backend=backend,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               projection=projection,
+                               width=width,
+                               height=height,
+                               colorbar=colorbar,
+                               cmap=cmap,
+                               aggregator=aggregator,
+                               interpolation=interpolation,
+                               npartitions=npartitions,
+                               cache=cache,
+                               **kwargs)
+    elif method == "polygon":
+        raster = _polygon_raster(uxda=uxda,
+                                 backend=backend,
+                                 exclude_antimeridian=exclude_antimeridian,
+                                 dynamic=dynamic,
+                                 precompute=precompute,
+                                 width=width,
+                                 height=height,
+                                 colorbar=colorbar,
+                                 cmap=cmap,
+                                 aggregator=aggregator,
+                                 interpolation=interpolation,
+                                 **kwargs)
+    elif method == "trimesh":
+        raise ValueError(f"Trimesh Rasterization not yet implemented.")
+    else:
+        raise ValueError(f"Unsupported method {method}.")
+
+    return raster
 
 
 def _point_raster(uxda: UxDataArray,
@@ -185,15 +271,12 @@ def _polygon_raster(uxda: UxDataArray,
                     pixel_ratio: Optional[float] = 1.0,
                     dynamic: Optional[bool] = False,
                     precompute: Optional[bool] = True,
-                    projection: Optional[ccrs] = None,
                     width: Optional[int] = 1000,
                     height: Optional[int] = 500,
                     colorbar: Optional[bool] = True,
                     cmap: Optional[str] = "Blues",
                     aggregator: Optional[str] = "mean",
                     interpolation: Optional[str] = "linear",
-                    npartitions: Optional[int] = 1,
-                    cache: Optional[bool] = True,
                     **kwargs):
     """Implementation of Polygon Rasterization."""
 
@@ -234,87 +317,47 @@ def _polygon_raster(uxda: UxDataArray,
     return raster
 
 
-def rasterize(uxda: UxDataArray,
-              method: Optional[str] = "point",
-              backend: Optional[str] = "bokeh",
-              exclude_antimeridian: Optional[bool] = False,
-              pixel_ratio: Optional[float] = 1.0,
-              dynamic: Optional[bool] = False,
-              precompute: Optional[bool] = True,
-              projection: Optional[ccrs] = None,
-              width: Optional[int] = 1000,
-              height: Optional[int] = 500,
-              colorbar: Optional[bool] = True,
-              cmap: Optional[str] = "Blues",
-              aggregator: Optional[str] = "mean",
-              interpolation: Optional[str] = "linear",
-              npartitions: Optional[int] = 1,
-              cache: Optional[bool] = True,
-              **kwargs):
-    """Performs an unstructured grid rasterization for visualuzation.
+def polygons(uxda: UxDataArray,
+             backend: Optional[str] = "bokeh",
+             exclude_antimeridian: Optional[bool] = True,
+             width: Optional[int] = 1000,
+             height: Optional[int] = 500,
+             colorbar: Optional[bool] = True,
+             cmap: Optional[str] = "Blues",
+             **kwargs):
+    """Vector Polygon Plot of a Data Variable Residing on an Unstructured Grid.
 
     Parameters
     ----------
-    method: str
-        Selects what type of element to rasterize (point, trimesh, polygon), with "point" being the only currently
-        implemented method.
     backend: str
         Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
     exclude_antimeridian: bool,
         Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
-    projection: ccrs
-         Custom projection to transform (lon, lat) coordinates for rendering
-    pixel_ratio: float
-        Determines the resolution of the outputted raster.
     height: int
         Plot Height for Bokeh Backend
     width: int
         Plot Width for Bokeh Backend
-    cache: bool
-            Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
-            calls
-
-    Notes
-    -----
-    For further information about supported keyword arguments, please refer to the [Holoviews Documentation](https://holoviews.org/_modules/holoviews/operation/datashader.html#rasterize)
-    or run holoviews.help(holoviews.operation.datashader.rasterize).
     """
+    if not exclude_antimeridian:
+        warnings.warn(
+            "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep"
+            "'exclude_antimeridian' set to True.")
 
-    if method == "point":
-        # perform point rasterization
-        raster = _point_raster(uxda=uxda,
-                               backend=backend,
-                               pixel_ratio=pixel_ratio,
-                               dynamic=dynamic,
-                               precompute=precompute,
-                               projection=projection,
-                               width=width,
-                               height=height,
-                               colorbar=colorbar,
-                               cmap=cmap,
-                               aggregator=aggregator,
-                               interpolation=interpolation,
-                               npartitions=npartitions,
-                               cache=cache,
-                               **kwargs)
-    elif method == "polygon":
-        raster = _polygon_raster(uxda=uxda,
-                                 backend=backend,
-                                 exclude_antimeridian=exclude_antimeridian,
-                                 dynamic=dynamic,
-                                 precompute=precompute,
-                                 projection=projection,
-                                 width=width,
-                                 height=height,
-                                 colorbar=colorbar,
-                                 cmap=cmap,
-                                 aggregator=aggregator,
-                                 interpolation=interpolation,
-                                 npartitions=npartitions,
-                                 **kwargs)
-    elif method == "trimesh":
-        raise ValueError(f"Trimesh Rasterization not yet implemented.")
-    else:
-        raise ValueError(f"Unsupported method {method}.")
+    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
 
-    return raster
+    hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+
+    if backend == "matplotlib":
+        # use holoviews matplotlib backend
+        hv.extension("matplotlib")
+
+        return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
+
+    elif backend == "bokeh":
+        # use holoviews bokeh backend
+        hv.extension("bokeh")
+        return hv_polygons.opts(width=width,
+                                height=height,
+                                colorbar=colorbar,
+                                cmap=cmap,
+                                **kwargs)

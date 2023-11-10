@@ -899,6 +899,14 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
+        if self._gdf is not None:
+            # determine if we need to recompute a cached GeoDataFrame
+            if exclude_antimeridian:
+                if len(self._gdf) != len(self.antimeridian_face_indices):
+                    override = True
+                elif len(self._gdf) != self.n_face:
+                    override = True
+
         # use cached geodataframe
         if self._gdf is not None and not override:
             return self._gdf

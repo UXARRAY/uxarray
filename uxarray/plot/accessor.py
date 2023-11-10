@@ -24,8 +24,34 @@ class GridPlotAccessor:
         self._uxgrid = uxgrid
 
     def __call__(self, **kwargs) -> Any:
-        warnings.warn("Plotting for UxDataset instances not yet supported.")
-        pass
+        return grid_plot.plot(self._uxgrid, **kwargs)
+
+    @functools.wraps(grid_plot.mesh)
+    def mesh(self,
+             backend: Optional[str] = "bokeh",
+             exclude_antimeridian: Optional[bool] = False,
+             width: Optional[int] = 1000,
+             height: Optional[int] = 500,
+             **kwargs):
+        """Vector Line Plot of the Unstructured Grid Mesh Geometry.
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+        return grid_plot.mesh(self._uxgrid,
+                              backend=backend,
+                              exclude_antimeridian=exclude_antimeridian,
+                              width=width,
+                              height=height,
+                              **kwargs)
 
 
 class UxDataArrayPlotAccessor:
@@ -91,7 +117,7 @@ class UxDataArrayPlotAccessor:
                   npartitions: Optional[int] = 1,
                   cache: Optional[bool] = True,
                   **kwargs):
-        """Performs an unstructured grid rasterization for visualuzation.
+        """Rasterized Plot of a Data Variable Residing on an Unstructured Grid.
 
         Parameters
         ----------
@@ -131,6 +157,40 @@ class UxDataArrayPlotAccessor:
             interpolation=interpolation,
             npartitions=npartitions,
             cache=cache,
+            **kwargs)
+
+    @functools.wraps(dataarray_plot.polygons)
+    def polygons(self,
+                 backend: Optional[str] = "bokeh",
+                 exclude_antimeridian: Optional[bool] = False,
+                 width: Optional[int] = 1000,
+                 height: Optional[int] = 500,
+                 colorbar: Optional[bool] = True,
+                 cmap: Optional[str] = "Blues",
+                 **kwargs):
+        """Vector Polygon Plot of a Data Variable Residing on an Unstructured
+        Grid.
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+        exclude_antimeridian: bool,
+            Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+
+        return dataarray_plot.polygons(
+            self._uxda,
+            backend=backend,
+            exclude_antimeridian=exclude_antimeridian,
+            width=width,
+            height=height,
+            colorbar=colorbar,
+            cmap=cmap,
             **kwargs)
 
 
