@@ -12,26 +12,25 @@ def _check_connectivity(self):
 
     # Check if all nodes are referenced by at least one element
     # get unique nodes in connectivity
-    nodes_in_conn = np.unique(self.Mesh2_face_nodes.values.flatten())
+    nodes_in_conn = np.unique(self.face_node_connectivity.values.flatten())
     #  remove negative indices/fill values from the list
     nodes_in_conn = nodes_in_conn[nodes_in_conn >= 0]
 
     # check if the size of unique nodes in connectivity is equal to the number of nodes
-    if (nodes_in_conn.size == self.nMesh2_node):
+    if (nodes_in_conn.size == self.n_node):
         print("-All nodes are referenced by at least one element.")
         return True
     else:
         warn(
             "Some nodes may not be referenced by any element. {0} and {1}".
-            format(nodes_in_conn.size, self.nMesh2_node), RuntimeWarning)
+            format(nodes_in_conn.size, self.n_node), RuntimeWarning)
         return False
 
 
 def _check_duplicate_nodes(self):
     """Check if there are duplicate nodes in the mesh."""
 
-    coords1 = np.column_stack(
-        (np.vstack(self.Mesh2_node_x), np.vstack(self.Mesh2_node_y)))
+    coords1 = np.column_stack((np.vstack(self.node_x), np.vstack(self.node_y)))
     unique_nodes, indices = np.unique(coords1, axis=0, return_index=True)
     duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
 
