@@ -24,8 +24,6 @@ from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
-from uxarray.constants import ERROR_TOLERANCE
-
 from uxarray.grid.geometry import (_build_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
@@ -36,7 +34,7 @@ from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
-from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes
+from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
 
 from xarray.core.utils import UncachedAccessor
 
@@ -220,16 +218,7 @@ class Grid:
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
         _check_duplicate_nodes(self)
         _check_connectivity(self)
-
-        # check face area
-        areas = self.face_areas
-        # Check if area of any face is close to zero
-        if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
-            warn(
-                "At least one face area is close to zero. Mesh may contain inverted elements",
-                RuntimeWarning)
-        else:
-            print("-No face area is close to zero.")
+        _check_area(self)
 
         return True
 

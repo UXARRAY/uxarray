@@ -1,6 +1,8 @@
 import numpy as np
 from warnings import warn
 
+from uxarray.constants import ERROR_TOLERANCE
+
 
 # validation helper functions
 def _check_connectivity(self):
@@ -42,3 +44,17 @@ def _check_duplicate_nodes(self):
     else:
         print("-No duplicate nodes found in the mesh.")
         return True
+
+
+def _check_area(self):
+    """Check if each face area is greater than our constant ERROR_TOLERANCE."""
+    areas = self.face_areas
+    # Check if area of any face is close to zero
+    if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
+        warn(
+            "At least one face area is close to zero. Mesh may contain inverted elements",
+            RuntimeWarning)
+    else:
+        print("-No face area is close to zero.")
+
+    return True
