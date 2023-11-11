@@ -216,11 +216,14 @@ class Grid:
         print("Validating the mesh...")
 
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
-        _check_duplicate_nodes(self)
-        _check_connectivity(self)
-        _check_area(self)
-
-        return True
+        checkDN = _check_duplicate_nodes(self)
+        check_C = _check_connectivity(self)
+        check_A = _check_area(self)
+        
+        if checkDN and check_C and check_A:
+            print("Mesh validation successful.")
+        else:
+            raise RuntimeError("Mesh validation failed.")
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""

@@ -54,7 +54,7 @@ def _check_area(self):
         warn(
             "At least one face area is close to zero. Mesh may contain inverted elements",
             RuntimeWarning)
+        return False
     else:
         print("-No face area is close to zero.")
-
-    return True
+        return True
