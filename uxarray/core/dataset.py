@@ -5,17 +5,19 @@ import xarray as xr
 
 import sys
 
-from typing import Optional, IO, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, IO, Union
 
-# if TYPE_CHECKING:
-#     from uxarray.core.dataarray import UxDataArray
-#     from uxarray.grid import Grid
+if TYPE_CHECKING:
+    from uxarray.core.dataset import UxDataset
+
 from uxarray.grid import Grid
 from uxarray.core.dataarray import UxDataArray
 
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 
 from xarray.core.utils import UncachedAccessor
+
+from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxds
 
 from warnings import warn
 
@@ -268,7 +270,7 @@ class UxDataset(xr.Dataset):
         buf.write("\n".join(lines))
 
     def integrate(self, quadrature_rule="triangular", order=4):
-        """Integrates over all the faces of the given mesh.
+        """Integrates over all the faces of the givfen mesh.
 
         Parameters
         ----------
@@ -325,3 +327,23 @@ class UxDataset(xr.Dataset):
 
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def nearest_neighbor_remap(self,
+                               destination_obj: Union[Grid, UxDataArray,
+                                                      UxDataset],
+                               remap_to: str = "nodes",
+                               coord_type: str = "spherical"):
+        """Nearest Neighbor Remapping between a source (``UxDataset``) and
+        destination.`.
+
+        Parameters
+        ---------
+        destination_obj : Grid, UxDataArray, UxDataset
+            Destination for remapping
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        coord_type : str, default="spherical"
+            Indicates whether to remap using on spherical or cartesian coordinates
+        """
+        return _nearest_neighbor_uxds(self, destination_obj, remap_to,
+                                      coord_type)
