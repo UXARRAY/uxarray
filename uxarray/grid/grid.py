@@ -219,9 +219,10 @@ class Grid:
         checkDN = _check_duplicate_nodes(self)
         check_C = _check_connectivity(self)
         check_A = _check_area(self)
-        
+
         if checkDN and check_C and check_A:
             print("Mesh validation successful.")
+            return True
         else:
             raise RuntimeError("Mesh validation failed.")
 
