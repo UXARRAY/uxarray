@@ -170,6 +170,7 @@ class TestGrid(TestCase):
         assert (vgrid.n_face == 3)
         assert (vgrid.n_node == 14)
         vgrid.encode_as("UGRID")
+        print(vgrid._ds)
 
         # Test initializing Grid from list
         faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30],
@@ -178,7 +179,7 @@ class TestGrid(TestCase):
                              [100, 30], [105, 20]],
                             [[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                              [85, 10]]]
-        vgrid = ux.open_grid(faces_verts_list, latlon=False)
+        vgrid = ux.open_grid(faces_verts_list, latlon=True)
         assert (vgrid.n_face == 3)
         assert (vgrid.n_node == 14)
 
@@ -193,7 +194,7 @@ class TestGrid(TestCase):
             ((125, 20), (135, 30), (125, 60), (110, 60), (100, 30), (105, 20)),
             ((95, 10), (105, 20), (100, 30), (85, 30), (75, 20), (85, 10))
         ]
-        vgrid = ux.open_grid(faces_verts_tuples, latlon=False)
+        vgrid = ux.open_grid(faces_verts_tuples, latlon=True)
         assert (vgrid.n_face == 3)
         assert (vgrid.n_node == 14)
 
