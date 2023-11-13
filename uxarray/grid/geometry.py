@@ -131,15 +131,16 @@ def _build_geodataframe_with_antimeridian(polygon_shells,
 
 def _build_antimeridian_face_indices(shells_x):
 
-    a = np.diff(shells_x)
-    b = np.abs(a)
-    d = np.any(b >= 180, axis=1)
-    e = np.argwhere(d)
+    x_mag = np.abs(np.diff(shells_x))
+    x_mag_cross = np.any(x_mag >= 180, axis=1)
+    x_cross_indices = np.argwhere(x_mag_cross)
 
-    if e.ndim == 2:
-        return e.squeeze()
+    if x_cross_indices.ndim == 2:
+        return x_cross_indices[0]
+    elif x_cross_indices.ndim == 0:
+        return np.array([], dtype=INT_DTYPE)
     else:
-        return e
+        return x_cross_indices
 
 
 def _populate_antimeridian_face_indices(grid):

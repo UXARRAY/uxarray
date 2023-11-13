@@ -988,22 +988,3 @@ class Grid:
             self._line_collection = line_collection
 
         return line_collection
-
-    def to_shapely_polygons(self,
-                            correct_antimeridian_polygons: Optional[bool] = True
-                           ):
-        """Constructs an array of Shapely Polygons representing each face, with
-        antimeridian polygons split according to the GeoJSON standards.
-
-         Parameters
-        ----------
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
-
-        Returns
-        -------
-        polygons : np.ndarray
-            Array containing Shapely Polygons
-        """
-        polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
-        return polygons
