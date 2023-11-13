@@ -163,6 +163,16 @@ Utils
    grid.utils._inv_jacobian
 
 
+
+Validation
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.validation._check_connectivity
+   grid.validation._check_duplicate_nodes
+   grid.validation._check_area
+
 Accurate Computing Utils
 ------------------------
 .. autosummary::
@@ -183,8 +193,6 @@ Remapping
    remap.nearest_neighbor._nearest_neighbor
    remap.nearest_neighbor._nearest_neighbor_uxda
    remap.nearest_neighbor._nearest_neighbor_uxds
-
-
 
 
 Grid Parsing and Encoding
