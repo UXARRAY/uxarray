@@ -32,7 +32,8 @@ def _check_connectivity(self):
 def _check_duplicate_nodes(self):
     """Check if there are duplicate nodes in the mesh."""
 
-    coords1 = np.column_stack((np.vstack(self.node_x), np.vstack(self.node_y)))
+    coords1 = np.column_stack(
+        (np.vstack(self.node_lon), np.vstack(self.node_lat)))
     unique_nodes, indices = np.unique(coords1, axis=0, return_index=True)
     duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
 
