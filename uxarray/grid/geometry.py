@@ -102,10 +102,23 @@ def _build_geodataframe_without_antimeridian(polygon_shells,
 def _build_geodataframe_with_antimeridian(polygon_shells,
                                           antimeridian_face_indices):
     # import optional dependencies
-    import antimeridian
-    from shapely import polygons as Polygons
     from spatialpandas.geometry import MultiPolygonArray
     from spatialpandas import GeoDataFrame
+
+    polygons = _build_corrected_shapely_polygons(polygon_shells,
+                                                 antimeridian_face_indices)
+
+    geometry = MultiPolygonArray(polygons)
+
+    gdf = GeoDataFrame({"geometry": geometry})
+
+    return gdf
+
+
+def _build_corrected_shapely_polygons(polygon_shells,
+                                      antimeridian_face_indices):
+    import antimeridian
+    from shapely import polygons as Polygons
 
     # list of shapely Polygons representing each face in our grid
     polygons = Polygons(polygon_shells)
@@ -122,11 +135,7 @@ def _build_geodataframe_with_antimeridian(polygon_shells,
     for i in reversed(antimeridian_face_indices):
         polygons[i] = corrected_polygons.pop()
 
-    geometry = MultiPolygonArray(polygons)
-
-    gdf = GeoDataFrame({"geometry": geometry})
-
-    return gdf
+    return polygons
 
 
 def _build_antimeridian_face_indices(shells_x):
@@ -237,8 +246,15 @@ def _grid_to_matplotlib_linecollection(grid):
     # import optional dependencies
     from matplotlib.collections import LineCollection
 
+    polygon_shells = _build_polygon_shells(grid.node_lon.values,
+                                           grid.node_lat.values,
+                                           grid.face_node_connectivity.values,
+                                           grid.n_face, grid.n_max_face_nodes,
+                                           grid.n_nodes_per_face.values)
+
     # obtain corrected shapely polygons
-    polygons = grid.to_shapely_polygons(correct_antimeridian_polygons=True)
+    polygons = _build_corrected_shapely_polygons(polygon_shells,
+                                                 grid.antimeridian_face_indices)
 
     # Convert polygons into lines
     lines = []
