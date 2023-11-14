@@ -143,7 +143,7 @@ def _build_antimeridian_face_indices(shells_x):
     x_cross_indices = np.argwhere(x_mag_cross)
 
     if x_cross_indices.ndim == 2:
-        return x_cross_indices[0]
+        return x_cross_indices.squeeze()
     elif x_cross_indices.ndim == 0:
         return np.array([], dtype=INT_DTYPE)
     else:
@@ -189,7 +189,9 @@ def _build_corrected_polygon_shells(polygon_shells):
     polygons = [Polygon(shell) for shell in polygon_shells]
 
     # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
-    corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
+    corrected_polygons = [
+        antimeridian.fix_polygon(P, fix_winding=False) for P in polygons
+    ]
 
     _corrected_shells_to_original_faces = []
     corrected_polygon_shells = []
