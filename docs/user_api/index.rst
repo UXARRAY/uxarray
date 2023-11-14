@@ -122,6 +122,7 @@ Plotting
    UxDataArray.plot
    UxDataArray.plot.datashade
    UxDataArray.plot.rasterize
+   UxDataArray.plot.polygons
 
 
 
@@ -248,6 +249,7 @@ Plotting
    :toctree: _autosummary
 
    Grid.plot
+   Grid.plot.mesh
 
 
 
@@ -263,6 +265,13 @@ Accessors
    plot.accessor.UxDataArrayPlotAccessor
    plot.accessor.UxDatasetPlotAccessor
 
+Grid Plotting Methods
+---------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.grid_plot.mesh
+
 UxDataArray Plotting Methods
 ----------------------------
 .. autosummary::
@@ -270,6 +279,8 @@ UxDataArray Plotting Methods
 
    plot.dataarray_plot.datashade
    plot.dataarray_plot.rasterize
+   plot.dataarray_plot.polygons
+
 
 
 

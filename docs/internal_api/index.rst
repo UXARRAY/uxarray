@@ -121,11 +121,15 @@ Geometry
 --------
 .. autosummary::
    :toctree: _autosummary
-
+   grid.geometry._pad_closed_face_nodes
    grid.geometry._build_polygon_shells
-   grid.geometry._build_corrected_polygon_shells
-   grid.geometry._build_antimeridian_face_indices
    grid.geometry._grid_to_polygon_geodataframe
+   grid.geometry._build_geodataframe_without_antimeridian
+   grid.geometry._build_geodataframe_with_antimeridian
+   grid.geometry._build_corrected_shapely_polygons
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._populate_antimeridian_face_indices
+   grid.geometry._build_corrected_polygon_shells
    grid.geometry._grid_to_matplotlib_polycollection
    grid.geometry._grid_to_matplotlib_linecollection
    grid.geometry._pole_point_inside_polygon
