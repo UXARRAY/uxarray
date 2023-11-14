@@ -249,7 +249,9 @@ Plotting
    :toctree: _autosummary
 
    Grid.plot
+   Grid.plot.nodes
    Grid.plot.mesh
+
 
 
 
@@ -270,7 +272,9 @@ Grid Plotting Methods
 .. autosummary::
    :toctree: _autosummary
 
+   plot.grid_plot.nodes
    plot.grid_plot.mesh
+
 
 UxDataArray Plotting Methods
 ----------------------------
