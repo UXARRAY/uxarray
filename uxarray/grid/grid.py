@@ -22,8 +22,7 @@ from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
                                        _populate_edge_face_connectivity)
 
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
-                                      _populate_cartesian_xyz_coord,
-                                      _set_desired_longitude_range)
+                                      _populate_cartesian_xyz_coord)
 
 from uxarray.grid.geometry import (_populate_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
@@ -127,9 +126,6 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
-
-        # set correct longitude range
-        _set_desired_longitude_range
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -419,7 +415,6 @@ class Grid:
         """
         if "node_lon" not in self._ds:
             _populate_lonlat_coord(self)
-            _set_desired_longitude_range(self._ds)
         return self._ds["node_lon"]
 
     @property
@@ -431,7 +426,6 @@ class Grid:
         """
         if "node_lat" not in self._ds:
             _populate_lonlat_coord(self)
-            _set_desired_longitude_range(self._ds)
 
         return self._ds["node_lat"]
 
@@ -483,7 +477,6 @@ class Grid:
         if "edge_lon" not in self._ds:
             return None
         # temp until we construct edge lon
-        _set_desired_longitude_range(self._ds)
         return self._ds["edge_lon"]
 
     @property
@@ -543,7 +536,6 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lon" not in self._ds:
-            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
         return self._ds["face_lon"]
 
@@ -555,7 +547,6 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lat" not in self._ds:
-            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
 
         return self._ds["face_lat"]

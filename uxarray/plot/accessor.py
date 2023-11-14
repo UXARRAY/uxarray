@@ -79,6 +79,69 @@ class GridPlotAccessor:
                                height=height,
                                **kwargs)
 
+    @functools.wraps(grid_plot.rasterize)
+    def rasterize(self,
+                  method: Optional[str] = "mesh",
+                  backend: Optional[str] = "bokeh",
+                  exclude_antimeridian: Optional[bool] = False,
+                  pixel_ratio: Optional[float] = 1.0,
+                  dynamic: Optional[bool] = False,
+                  precompute: Optional[bool] = True,
+                  projection: Optional[ccrs] = None,
+                  width: Optional[int] = 1000,
+                  height: Optional[int] = 500,
+                  colorbar: Optional[bool] = True,
+                  cmap: Optional[str] = "Blues",
+                  aggregator: Optional[str] = "mean",
+                  interpolation: Optional[str] = "linear",
+                  npartitions: Optional[int] = 1,
+                  cache: Optional[bool] = True,
+                  **kwargs):
+        """Rasterized Plot of an Unstructured Grid Element ("mesh" or "nodes")
+
+        Parameters
+        ----------
+        method: str
+            Selects what type of element to rasterize ("mesh" or "nodes")
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+        exclude_antimeridian: bool,
+            Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
+        projection: ccrs
+             Custom projection to transform (lon, lat) coordinates for rendering
+        pixel_ratio: float
+            Determines the resolution of the outputted raster.
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        cache: bool
+                Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
+                calls
+
+        Notes
+        -----
+        For further information about supported keyword arguments, please refer to the [Holoviews Documentation](https://holoviews.org/_modules/holoviews/operation/datashader.html#rasterize)
+        or run holoviews.help(holoviews.operation.datashader.rasterize).
+        """
+
+        return dataarray_plot.rasterize(
+            self._uxgrid,
+            method=method,
+            backend=backend,
+            exclude_antimeridian=exclude_antimeridian,
+            pixel_ratio=pixel_ratio,
+            dynamic=dynamic,
+            precompute=precompute,
+            projection=projection,
+            width=width,
+            height=height,
+            aggregator=aggregator,
+            interpolation=interpolation,
+            npartitions=npartitions,
+            cache=cache,
+            **kwargs)
+
 
 class UxDataArrayPlotAccessor:
     """Plotting Accessor for UxDataArray, accessed through
