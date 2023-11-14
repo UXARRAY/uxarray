@@ -113,6 +113,7 @@ Remapping
    :toctree: _autosummary
 
    UxDataArray.nearest_neighbor_remap
+   UxDataArray.nodal_average
 
 Plotting
 --------
