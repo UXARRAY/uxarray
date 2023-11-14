@@ -39,6 +39,8 @@ from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
+from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
+
 from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
@@ -204,6 +206,32 @@ class Grid:
             )
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
+
+    def validate(self):
+        """Validate a grid object check for common errors, such as:
+
+            - Duplicate nodes
+            - Connectivity
+            - Face areas (non zero)
+        Raises
+        ------
+        RuntimeError
+            If unsupported grid type provided
+        """
+        # If the mesh file is loaded correctly, we have the underlying file format as UGRID
+        # Test if the file is a valid ugrid file format or not
+        print("Validating the mesh...")
+
+        # call the check_connectivity and check_duplicate_nodes functions from validation.py
+        checkDN = _check_duplicate_nodes(self)
+        check_C = _check_connectivity(self)
+        check_A = _check_area(self)
+
+        if checkDN and check_C and check_A:
+            print("Mesh validation successful.")
+            return True
+        else:
+            raise RuntimeError("Mesh validation failed.")
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
@@ -723,10 +751,18 @@ class Grid:
         """Declare face_areas as a property."""
         # if self._face_areas is not None: it allows for using the cached result
         if self._face_areas is None:
-            self.compute_face_areas()
+            self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_areas
 
     # ==================================================================================================================
+
+    @property
+    def face_jacobian(self):
+        """Declare face_jacobian as a property."""
+        # if self._face_jacobian is not None: it allows for using the cached result
+        if self._face_jacobian is None:
+            self._face_areas, self._face_jacobian = self.compute_face_areas()
+        return self._face_jacobian
 
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -849,7 +885,8 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas = self.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(
+            quadrature_rule, order)
 
         return np.sum(face_areas)
 
@@ -871,7 +908,8 @@ class Grid:
 
         Returns
         -------
-        Area of all the faces in the mesh : np.ndarray
+        1. Area of all the faces in the mesh : np.ndarray
+        2. Jacobian of all the faces in the mesh : np.ndarray
 
         Examples
         --------
@@ -912,19 +950,20 @@ class Grid:
         n_nodes_per_face = self.n_nodes_per_face.values
 
         # call function to get area of all the faces as a np array
-        self._face_areas = get_all_face_area_from_coords(
-            x,
-            y,
-            z,
-            face_nodes,
-            n_nodes_per_face,
-            dim,
-            quadrature_rule,
-            order,
-            coords_type,
-        )
 
-        return self._face_areas
+        self._face_areas, self._face_jacobian = get_all_face_area_from_coords(
+            x, y, z, face_nodes, n_nodes_per_face, dim, quadrature_rule, order,
+            coords_type)
+
+        min_jacobian = np.min(self._face_jacobian)
+        max_jacobian = np.max(self._face_jacobian)
+
+        if np.any(self._face_jacobian < 0):
+            raise ValueError(
+                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".
+                format(min_jacobian, max_jacobian))
+
+        return self._face_areas, self._face_jacobian
 
     def to_geodataframe(
         self,
