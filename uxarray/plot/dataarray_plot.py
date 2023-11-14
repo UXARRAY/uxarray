@@ -23,7 +23,17 @@ import warnings
 
 def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
-    return rasterize(uxda, **kwargs)
+    if uxda._face_centered():
+        # default to polygon plot
+        if uxda.uxgrid.n_face < 1000000:
+            return polygons(uxda)
+        else:
+            return rasterize(uxda, method='polygon,'**kwargs)
+    if uxda._node_centered():
+        # default to point raster
+        return rasterize(uxda, **kwargs)
+    else:
+        raise ValueError("Data must be either node or face centered.")
 
 
 def datashade(uxda: UxDataArray,
