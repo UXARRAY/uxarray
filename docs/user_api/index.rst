@@ -154,6 +154,7 @@ IO
    Grid.to_polycollection
    Grid.to_linecollection
    Grid.to_shapely_polygons
+   Grid.validate
 
 
 Methods
@@ -343,12 +344,13 @@ Intersections
    grid.intersections.gca_gca_intersection
    grid.intersections.gca_constLat_intersection
 
-Utils
+Accurate Computing Utils
 -----
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils.cross_fma
+   utils.computing.cross_fma
+   utils.computing.dot_fma
 
 Numba
 -----

@@ -159,10 +159,30 @@ Utils
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
 
+
+
+Validation
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.validation._check_connectivity
+   grid.validation._check_duplicate_nodes
+   grid.validation._check_area
+
+Accurate Computing Utils
+------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   utils.computing._err_fmac
+   utils.computing._fast_two_mult
+   utils.computing._fast_two_sum
+   utils.computing._two_sum
+   utils.computing._two_prod_fma
 
 Remapping
 =========
@@ -173,8 +193,6 @@ Remapping
    remap.nearest_neighbor._nearest_neighbor
    remap.nearest_neighbor._nearest_neighbor_uxda
    remap.nearest_neighbor._nearest_neighbor_uxds
-
-
 
 
 Grid Parsing and Encoding
