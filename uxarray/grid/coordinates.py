@@ -305,3 +305,15 @@ def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
         centroids[2, face_idx] = centroid_normalized_xyz[2]
 
     return centroids[0, :], centroids[1, :], centroids[2, :]
+
+
+def _set_desired_longitude_range(ds):
+    """Sets the longitude range to [-180, 180] for ``node_lon``"""
+
+    node_lon = ds['node_lon'].values
+    #
+    # if node_lon.max() > 180:
+    #     node_lon = (node_lon + 180) % 360 - 180
+    #
+    # ds['node_lon'] = node_lon
+    pass

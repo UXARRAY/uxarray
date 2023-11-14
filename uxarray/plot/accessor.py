@@ -143,7 +143,8 @@ class UxDataArrayPlotAccessor:
                   npartitions: Optional[int] = 1,
                   cache: Optional[bool] = True,
                   **kwargs):
-        """Rasterized Plot of a Data Variable Residing on an Unstructured Grid.
+        """Raster plot of a data variable residing on an unstructured grid
+        element.
 
         Parameters
         ----------
@@ -194,8 +195,7 @@ class UxDataArrayPlotAccessor:
                  colorbar: Optional[bool] = True,
                  cmap: Optional[str] = "Blues",
                  **kwargs):
-        """Vector Polygon Plot of a Data Variable Residing on an Unstructured
-        Grid.
+        """Vector polygon plot shaded using a face-centered data variable.
 
         Parameters
         ----------
@@ -218,6 +218,32 @@ class UxDataArrayPlotAccessor:
             colorbar=colorbar,
             cmap=cmap,
             **kwargs)
+
+    @functools.wraps(dataarray_plot.nodes)
+    def nodes(self,
+              backend: Optional[str] = "bokeh",
+              width: Optional[int] = 1000,
+              height: Optional[int] = 500,
+              **kwargs):
+        """Vector node plot colored using a node-centered data variable.
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+
+        return dataarray_plot.nodes(self._uxda,
+                                    backend=backend,
+                                    width=width,
+                                    height=height,
+                                    **kwargs)
 
 
 class UxDatasetPlotAccessor:

@@ -16,6 +16,8 @@ from holoviews import opts
 
 import pandas as pd
 
+import numpy as np
+
 import warnings
 
 
@@ -361,3 +363,45 @@ def polygons(uxda: UxDataArray,
                                 colorbar=colorbar,
                                 cmap=cmap,
                                 **kwargs)
+
+
+def nodes(uxda: UxDataArray,
+          backend: Optional[str] = "bokeh",
+          width: Optional[int] = 1000,
+          height: Optional[int] = 500,
+          **kwargs):
+    """Vector Node Plot.
+
+    Parameters
+    ----------
+    backend: str
+        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+     exclude_antimeridian: bool,
+        Whether to exclude edges that cross the antimeridian
+    height: int
+        Plot Height for Bokeh Backend
+    width: int
+        Plot Width for Bokeh Backend
+    """
+    if not uxda._node_centered():
+        raise ValueError(
+            "Unable to plot nodes. Data Variable must be node-centered.")
+
+    vdims = [uxda.name if uxda.name is not None else "d_var"]
+    hv_points = hv.Points(np.array(
+        [uxda.uxgrid.node_lon, uxda.uxgrid.node_lat, uxda.values]).T,
+                          vdims=vdims)
+
+    if backend == "matplotlib":
+        # use holoviews matplotlib backend
+        hv.extension("matplotlib")
+
+        return hv_points.opts(color=vdims[0], **kwargs)
+
+    elif backend == "bokeh":
+        # use holoviews bokeh backend
+        hv.extension("bokeh")
+        return hv_points.opts(color=vdims[0],
+                              width=width,
+                              height=height,
+                              **kwargs)

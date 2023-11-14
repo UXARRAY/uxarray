@@ -147,6 +147,7 @@ Coordinates
    grid.coordinates._populate_lonlat_coord
    grid.coordinates._populate_centroid_coord
    grid.coordinates._construct_xyz_centroids
+   grid.coordinates._set_desired_longitude_range
 
 
 Arcs

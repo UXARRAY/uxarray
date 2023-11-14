@@ -22,7 +22,8 @@ from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
                                        _populate_edge_face_connectivity)
 
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
-                                      _populate_cartesian_xyz_coord)
+                                      _populate_cartesian_xyz_coord,
+                                      _set_desired_longitude_range)
 
 from uxarray.grid.geometry import (_populate_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
@@ -127,7 +128,9 @@ class Grid:
         self._ball_tree = None
         self._kd_tree = None
 
-        self._mesh2_warning_raised = False
+        # set correct longitude range
+        if "node_lon" in self._ds:
+            _set_desired_longitude_range(self._ds)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -417,6 +420,7 @@ class Grid:
         """
         if "node_lon" not in self._ds:
             _populate_lonlat_coord(self)
+            _set_desired_longitude_range(self._ds)
         return self._ds["node_lon"]
 
     @property
@@ -428,6 +432,7 @@ class Grid:
         """
         if "node_lat" not in self._ds:
             _populate_lonlat_coord(self)
+            _set_desired_longitude_range(self._ds)
 
         return self._ds["node_lat"]
 

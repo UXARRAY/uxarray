@@ -37,10 +37,6 @@ def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
                                                n_max_face_nodes,
                                                n_nodes_per_face)
 
-    # TODO MAKE A SEPARATE FUNCTION THAT RUNS AT GRID INIT
-    if node_lon.max() > 180:
-        node_lon = (node_lon + 180) % 360 - 180
-
     polygon_shells = np.array(
         [node_lon[closed_face_nodes], node_lat[closed_face_nodes]],
         dtype=np.float32).swapaxes(0, 1).swapaxes(1, 2)
@@ -60,7 +56,9 @@ def _grid_to_polygon_geodataframe(grid, exclude_antimeridian):
         polygon_shells[:, :, 0])
 
     if grid.n_face > 1000000:
-        warnings.warn("TODO: Warning about performance")
+        warnings.warn(
+            "Converting to a GeoDataFrame with over 1,000,000 faces may take some time."
+        )
 
     if len(grid.antimeridian_face_indices) == 0:
         # might not work
