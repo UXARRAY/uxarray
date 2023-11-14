@@ -143,7 +143,10 @@ def _build_antimeridian_face_indices(shells_x):
     x_cross_indices = np.argwhere(x_mag_cross)
 
     if x_cross_indices.ndim == 2:
-        return x_cross_indices.squeeze()
+        if x_cross_indices.shape[1] == 1:
+            return x_cross_indices[:, 0]
+        else:
+            return x_cross_indices.squeeze()
     elif x_cross_indices.ndim == 0:
         return np.array([], dtype=INT_DTYPE)
     else:

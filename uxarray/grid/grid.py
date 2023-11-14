@@ -129,8 +129,7 @@ class Grid:
         self._kd_tree = None
 
         # set correct longitude range
-        if "node_lon" in self._ds:
-            _set_desired_longitude_range(self._ds)
+        _set_desired_longitude_range
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -483,6 +482,8 @@ class Grid:
         """
         if "edge_lon" not in self._ds:
             return None
+        # temp until we construct edge lon
+        _set_desired_longitude_range(self._ds)
         return self._ds["edge_lon"]
 
     @property
@@ -494,7 +495,6 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             return None
-
         return self._ds["edge_lat"]
 
     # ==================================================================================================================
@@ -543,6 +543,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lon" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
         return self._ds["face_lon"]
 
@@ -554,6 +555,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lat" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
 
         return self._ds["face_lat"]
