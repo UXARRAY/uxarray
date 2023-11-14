@@ -123,7 +123,7 @@ Plotting
    UxDataArray.plot.datashade
    UxDataArray.plot.rasterize
    UxDataArray.plot.polygons
-
+   UxDataArray.plot.nodes
 
 
 
@@ -285,6 +285,7 @@ UxDataArray Plotting Methods
    plot.dataarray_plot.datashade
    plot.dataarray_plot.rasterize
    plot.dataarray_plot.polygons
+   plot.dataarray_plot.nodes
 
 
 
