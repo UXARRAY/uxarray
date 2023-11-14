@@ -251,6 +251,7 @@ Plotting
    Grid.plot
    Grid.plot.nodes
    Grid.plot.mesh
+   Grid.plot.edges
 
 
 

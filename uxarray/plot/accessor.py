@@ -53,6 +53,33 @@ class GridPlotAccessor:
                               height=height,
                               **kwargs)
 
+    @functools.wraps(grid_plot.mesh)
+    def edges(self,
+              backend: Optional[str] = "bokeh",
+              exclude_antimeridian: Optional[bool] = False,
+              width: Optional[int] = 1000,
+              height: Optional[int] = 500,
+              **kwargs):
+        """Vector Line Plot. Equivalent to ``Grid.plot.mesh()``
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+        return grid_plot.mesh(self._uxgrid,
+                              backend=backend,
+                              exclude_antimeridian=exclude_antimeridian,
+                              width=width,
+                              height=height,
+                              **kwargs)
+
     @functools.wraps(grid_plot.nodes)
     def nodes(self,
               backend: Optional[str] = "bokeh",
