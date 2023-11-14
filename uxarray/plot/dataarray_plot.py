@@ -25,10 +25,15 @@ def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
     if uxda._face_centered():
         # default to polygon plot
-        if uxda.uxgrid.n_face < 1000000:
+        if uxda.uxgrid.n_face < 100000:
+            # vector polygons for small datasets
             return polygons(uxda)
         else:
-            return rasterize(uxda, method='polygon,'**kwargs)
+            # rasterized polygons for larger datasets
+            return rasterize(uxda,
+                             method='polygon',
+                             exclude_antimeridian=True,
+                             **kwargs)
     if uxda._node_centered():
         # default to point raster
         return rasterize(uxda, **kwargs)
@@ -352,7 +357,7 @@ def polygons(uxda: UxDataArray,
     """
     if not exclude_antimeridian:
         warnings.warn(
-            "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep"
+            "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep "
             "'exclude_antimeridian' set to True.")
 
     gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
