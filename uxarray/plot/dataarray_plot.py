@@ -397,6 +397,11 @@ def nodes(uxda: UxDataArray,
         raise ValueError(
             "Unable to plot nodes. Data Variable must be node-centered.")
 
+    if uxda.values.ndim > 1:
+        raise ValueError(
+            f"Data Variable must be 1-dimensional, with shape {uxda.uxgrid.n_node} "
+            f"for node-centered data.")
+
     vdims = [uxda.name if uxda.name is not None else "d_var"]
     hv_points = hv.Points(np.array(
         [uxda.uxgrid.node_lon, uxda.uxgrid.node_lat, uxda.values]).T,
