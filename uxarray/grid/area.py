@@ -159,9 +159,9 @@ def get_all_face_area_from_coords(
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
 
-        face_area, face_jacobian = calculate_face_area(face_x, face_y, face_z,
-                                                       quadrature_rule, order,
-                                                       coords_type)
+        face_area, face_jacobian = calculate_face_area(
+            face_x, face_y, face_z, quadrature_rule, order, coords_type
+        )
         # store current face area
         area[face_idx] = face_area
         jacobian[face_idx] = face_jacobian

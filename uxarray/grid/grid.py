@@ -39,7 +39,11 @@ from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
-from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
+from uxarray.grid.validation import (
+    _check_connectivity,
+    _check_duplicate_nodes,
+    _check_area,
+)
 
 from xarray.core.utils import UncachedAccessor
 
@@ -885,8 +889,7 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas, face_jacobian = self.compute_face_areas(
-            quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(quadrature_rule, order)
 
         return np.sum(face_areas)
 
@@ -952,16 +955,26 @@ class Grid:
         # call function to get area of all the faces as a np array
 
         self._face_areas, self._face_jacobian = get_all_face_area_from_coords(
-            x, y, z, face_nodes, n_nodes_per_face, dim, quadrature_rule, order,
-            coords_type)
+            x,
+            y,
+            z,
+            face_nodes,
+            n_nodes_per_face,
+            dim,
+            quadrature_rule,
+            order,
+            coords_type,
+        )
 
         min_jacobian = np.min(self._face_jacobian)
         max_jacobian = np.max(self._face_jacobian)
 
         if np.any(self._face_jacobian < 0):
             raise ValueError(
-                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".
-                format(min_jacobian, max_jacobian))
+                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".format(
+                    min_jacobian, max_jacobian
+                )
+            )
 
         return self._face_areas, self._face_jacobian
 
