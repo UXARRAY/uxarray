@@ -380,43 +380,96 @@ def polygons(uxda: UxDataArray,
                                 **kwargs)
 
 
-def nodes(uxda: UxDataArray,
-          backend: Optional[str] = "bokeh",
-          width: Optional[int] = 1000,
-          height: Optional[int] = 500,
-          **kwargs):
-    """Vector Node Plot.
-
-    Parameters
-    ----------
-    backend: str
-        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-     exclude_antimeridian: bool,
-        Whether to exclude edges that cross the antimeridian
-    height: int
-        Plot Height for Bokeh Backend
-    width: int
-        Plot Width for Bokeh Backend
-    """
-    if not uxda._node_centered():
-        raise ValueError(
-            "Unable to plot nodes. Data Variable must be node-centered.")
+def points(uxda: UxDataArray,
+           backend: Optional[str] = "bokeh",
+           width: Optional[int] = 1000,
+           height: Optional[int] = 500,
+           colorbar: Optional[bool] = True,
+           cmap: Optional[str] = "Blues",
+           **kwargs):
+    """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
+    Face Coordinates."""
 
     if uxda.values.ndim > 1:
         raise ValueError(
-            f"Data Variable must be 1-dimensional, with shape {uxda.uxgrid.n_node} "
-            f"for node-centered data.")
+            f"Data Variable must be 1-dimensional, with shape {uxda.uxgrid.n_node}, {uxda.uxgrid.n_edge}, {uxda.uxgrid.n_face} "
+            f"for node-centered, edge-centered, or face-centered data respectively."
+        )
+
+    if uxda._node_centered():
+        return _plot_data_as_points(element='node',
+                                    uxda=uxda,
+                                    backend=backend,
+                                    width=width,
+                                    height=height,
+                                    colorbar=colorbar,
+                                    cmap=cmap,
+                                    **kwargs)
+    elif uxda._face_centered():
+        return _plot_data_as_points(element='face',
+                                    uxda=uxda,
+                                    backend=backend,
+                                    width=width,
+                                    height=height,
+                                    colorbar=colorbar,
+                                    cmap=cmap,
+                                    **kwargs)
+    elif uxda._edge_centered():
+        return _plot_data_as_points(element='edge',
+                                    uxda=uxda,
+                                    backend=backend,
+                                    width=width,
+                                    height=height,
+                                    colorbar=colorbar,
+                                    cmap=cmap,
+                                    **kwargs)
+    else:
+        raise ValueError(
+            "Data Variable is not mapped to nodes, edges, or faces.")
+
+
+def _plot_data_as_points(element,
+                         uxda: UxDataArray,
+                         backend: Optional[str] = "bokeh",
+                         width: Optional[int] = 1000,
+                         height: Optional[int] = 500,
+                         colorbar: Optional[bool] = True,
+                         cmap: Optional[str] = "Blues",
+                         **kwargs):
+    """Helper function for plotting data variables as Points, either on the
+    Nodes, Face Centers, or Edge Centers."""
+    uxgrid = uxda.uxgrid
+    if element == "node":
+        node_lon = uxgrid.node_lon.values
+        if node_lon.max() > 180:
+            node_lon = (node_lon + 180) % 360 - 180
+        point_array = np.array([node_lon, uxgrid.node_lat.values,
+                                uxda.values]).T
+    elif element == "face":
+        face_lon = uxgrid.face_lon.values
+        if face_lon.max() > 180:
+            face_lon = (face_lon + 180) % 360 - 180
+        point_array = np.array([face_lon, uxgrid.face_lat.values,
+                                uxda.values]).T
+    elif element == "edge":
+        edge_lon = uxgrid.edge_lon.values
+        if edge_lon.max() > 180:
+            edge_lon = (edge_lon + 180) % 360 - 180
+        point_array = np.array([edge_lon, uxgrid.edge_lat.values,
+                                uxda.values]).T
+    else:
+        raise ValueError("Invalid element selected.")
 
     vdims = [uxda.name if uxda.name is not None else "d_var"]
-    hv_points = hv.Points(np.array(
-        [uxda.uxgrid.node_lon, uxda.uxgrid.node_lat, uxda.values]).T,
-                          vdims=vdims)
+    hv_points = hv.Points(point_array, vdims=vdims)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
         hv.extension("matplotlib")
-
-        return hv_points.opts(color=vdims[0], **kwargs)
+        return hv_points.opts(color=vdims[0],
+                              colorbar=colorbar,
+                              cmap=cmap,
+                              **kwargs)
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
@@ -424,4 +477,6 @@ def nodes(uxda: UxDataArray,
         return hv_points.opts(color=vdims[0],
                               width=width,
                               height=height,
+                              colorbar=colorbar,
+                              cmap=cmap,
                               **kwargs)

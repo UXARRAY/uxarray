@@ -301,14 +301,15 @@ class UxDataArrayPlotAccessor:
             cmap=cmap,
             **kwargs)
 
-    @functools.wraps(dataarray_plot.nodes)
-    def nodes(self,
-              backend: Optional[str] = "bokeh",
-              width: Optional[int] = 1000,
-              height: Optional[int] = 500,
-              **kwargs):
-        """Vector node plot colored using a node-centered data variable.
-
+    @functools.wraps(dataarray_plot.points)
+    def points(self,
+               backend: Optional[str] = "bokeh",
+               width: Optional[int] = 1000,
+               height: Optional[int] = 500,
+               colorbar: Optional[bool] = True,
+               cmap: Optional[str] = "Blues",
+               **kwargs):
+        """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or Face Coordinates.
         Parameters
         ----------
         backend: str
@@ -321,11 +322,13 @@ class UxDataArrayPlotAccessor:
             Plot Width for Bokeh Backend
         """
 
-        return dataarray_plot.nodes(self._uxda,
-                                    backend=backend,
-                                    width=width,
-                                    height=height,
-                                    **kwargs)
+        return dataarray_plot.points(self._uxda,
+                                     backend=backend,
+                                     width=width,
+                                     height=height,
+                                     colorbar=colorbar,
+                                     cmap=cmap,
+                                     **kwargs)
 
 
 class UxDatasetPlotAccessor:

@@ -361,13 +361,16 @@ class UxDataArray(xr.DataArray):
                            is not None else None).rename({"n_node": "n_face"})
 
     def _face_centered(self) -> bool:
-        """Returns whether the data stored is Face Centered (i.e. dimensions
-        match up with the number of faces)"""
-        return (self.uxgrid.n_face == self.shape[-1] and
-                self.uxgrid.n_node not in self.shape)
+        """Returns whether the data stored is Face Centered (i.e. contains the
+        "n_face" dimension)"""
+        return "n_face" in self.dims
 
     def _node_centered(self) -> bool:
-        """Returns whether the data stored is Node Centered (i.e. dimensions
-        match up with the number of nodes)"""
-        return (self.uxgrid.n_node == self.shape[-1] and
-                self.uxgrid.n_face not in self.shape)
+        """Returns whether the data stored is Node Centered (i.e. contains the
+        "n_node" dimension)"""
+        return "n_node" in self.dims
+
+    def _edge_centered(self) -> bool:
+        """Returns whether the data stored is Edge Centered (i.e. contains the
+        "n_edge" dimension)"""
+        return "n_edge" in self.dims
