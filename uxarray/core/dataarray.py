@@ -328,6 +328,38 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
+    def nodal_average(self):
+        """Computes the Nodal Average of a Data Variable, which is the mean of
+        the nodes that surround each face.
+
+        Can be used for remapping node-centered data to each face.
+        """
+
+        if not self._node_centered():
+            # nodal average expects node-centered data
+            raise ValueError(
+                f"Data Variable must be mapped to the corner nodes of each face, with dimension "
+                f"{self.uxgrid.n_face}.")
+
+        data = self.values
+        face_nodes = self.uxgrid.face_node_connectivity.values
+        n_nodes_per_face = self.uxgrid.n_nodes_per_face.values
+
+        # compute the nodal average while preserving original dimensions
+        data_nodal_average = np.array([
+            np.mean(data[..., cur_face[0:n_max_nodes]], axis=-1)
+            for cur_face, n_max_nodes in zip(face_nodes, n_nodes_per_face)
+        ])
+
+        # set `n_nodes` as final dimension
+        data_nodal_average = np.moveaxis(data_nodal_average, 0, -1)
+
+        return UxDataArray(uxgrid=self.uxgrid,
+                           data=data_nodal_average,
+                           dims=self.dims,
+                           name=self.name + "_nodal_average" if self.name
+                           is not None else None).rename({"n_node": "n_face"})
+
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. dimensions
         match up with the number of faces)"""
