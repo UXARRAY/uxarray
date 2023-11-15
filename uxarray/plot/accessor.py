@@ -80,13 +80,14 @@ class GridPlotAccessor:
                               height=height,
                               **kwargs)
 
-    @functools.wraps(grid_plot.nodes)
-    def nodes(self,
-              backend: Optional[str] = "bokeh",
-              width: Optional[int] = 1000,
-              height: Optional[int] = 500,
-              **kwargs):
-        """Vector Node Plot.
+    @functools.wraps(grid_plot.node_coords)
+    def node_coords(self,
+                    backend: Optional[str] = "bokeh",
+                    width: Optional[int] = 1000,
+                    height: Optional[int] = 500,
+                    **kwargs):
+        """Vector Point Plot of Nodes (latitude & longitude of the nodes that
+        define the corners of each face)
 
         Parameters
         ----------
@@ -100,11 +101,65 @@ class GridPlotAccessor:
             Plot Width for Bokeh Backend
         """
 
-        return grid_plot.nodes(self._uxgrid,
-                               backend=backend,
-                               width=width,
-                               height=height,
-                               **kwargs)
+        return grid_plot.node_coords(self._uxgrid,
+                                     backend=backend,
+                                     width=width,
+                                     height=height,
+                                     **kwargs)
+
+    @functools.wraps(grid_plot.face_coords)
+    def face_coords(self,
+                    backend: Optional[str] = "bokeh",
+                    width: Optional[int] = 1000,
+                    height: Optional[int] = 500,
+                    **kwargs):
+        """Vector Point Plot of Face Coordinates (latitude & longitude of the
+        centroid of each face)
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+
+        return grid_plot.face_coords(self._uxgrid,
+                                     backend=backend,
+                                     width=width,
+                                     height=height,
+                                     **kwargs)
+
+    @functools.wraps(grid_plot.edge_coords)
+    def edge_coords(self,
+                    backend: Optional[str] = "bokeh",
+                    width: Optional[int] = 1000,
+                    height: Optional[int] = 500,
+                    **kwargs):
+        """Vector Point Plot of Face Coordinates (latitude & longitude of the
+        centroid of each face)
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+
+        return grid_plot.edge_coords(self._uxgrid,
+                                     backend=backend,
+                                     width=width,
+                                     height=height,
+                                     **kwargs)
 
 
 class UxDataArrayPlotAccessor:

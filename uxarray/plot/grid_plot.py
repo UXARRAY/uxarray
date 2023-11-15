@@ -53,12 +53,13 @@ def mesh(uxgrid: Grid,
         return hv_paths.opts(width=width, height=height, **kwargs)
 
 
-def nodes(uxgrid: Grid,
-          backend: Optional[str] = "bokeh",
-          width: Optional[int] = 1000,
-          height: Optional[int] = 500,
-          **kwargs):
-    """Vector Node Plot.
+def node_coords(uxgrid: Grid,
+                backend: Optional[str] = "bokeh",
+                width: Optional[int] = 1000,
+                height: Optional[int] = 500,
+                **kwargs):
+    """Vector Point Plot of Nodes (latitude & longitude of the nodes that
+    define the corners of each face)
 
     Parameters
     ----------
@@ -72,12 +73,100 @@ def nodes(uxgrid: Grid,
         Plot Width for Bokeh Backend
     """
 
-    hv_points = hv.Points(np.array([uxgrid.node_lon, uxgrid.node_lat]).T)
+    return _plot_coords_as_points(element="node",
+                                  uxgrid=uxgrid,
+                                  backend=backend,
+                                  width=width,
+                                  height=height,
+                                  **kwargs)
+
+
+def face_coords(uxgrid: Grid,
+                backend: Optional[str] = "bokeh",
+                width: Optional[int] = 1000,
+                height: Optional[int] = 500,
+                **kwargs):
+    """Vector Point Plot of Face Coordinates (latitude & longitude of the
+    centroid of each face)
+
+    Parameters
+    ----------
+    backend: str
+        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+     exclude_antimeridian: bool,
+        Whether to exclude edges that cross the antimeridian
+    height: int
+        Plot Height for Bokeh Backend
+    width: int
+        Plot Width for Bokeh Backend
+    """
+
+    return _plot_coords_as_points(element="face",
+                                  uxgrid=uxgrid,
+                                  backend=backend,
+                                  width=width,
+                                  height=height,
+                                  **kwargs)
+
+
+def edge_coords(uxgrid: Grid,
+                backend: Optional[str] = "bokeh",
+                width: Optional[int] = 1000,
+                height: Optional[int] = 500,
+                **kwargs):
+    """Vector Point Plot of Edge Coordinates (latitude & longitude of the
+    center of each edge)
+
+    Parameters
+    ----------
+    backend: str
+        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+     exclude_antimeridian: bool,
+        Whether to exclude edges that cross the antimeridian
+    height: int
+        Plot Height for Bokeh Backend
+    width: int
+        Plot Width for Bokeh Backend
+    """
+
+    return _plot_coords_as_points(element="edge",
+                                  uxgrid=uxgrid,
+                                  backend=backend,
+                                  width=width,
+                                  height=height,
+                                  **kwargs)
+
+
+def _plot_coords_as_points(element,
+                           uxgrid: Grid,
+                           backend: Optional[str] = "bokeh",
+                           width: Optional[int] = 1000,
+                           height: Optional[int] = 500,
+                           **kwargs):
+    """Helper function for plotting coordinates (node, edge, face) as Points
+    with Holoviews."""
+
+    if element == "node":
+        node_lon = uxgrid.node_lon.values
+        if node_lon.max() > 180:
+            node_lon = (node_lon + 180) % 360 - 180
+        hv_points = hv.Points(np.array([node_lon, uxgrid.node_lat.values]).T)
+    elif element == "face":
+        face_lon = uxgrid.face_lon.values
+        if face_lon.max() > 180:
+            face_lon = (face_lon + 180) % 360 - 180
+        hv_points = hv.Points(np.array([face_lon, uxgrid.face_lat.values]).T)
+    elif element == "edge":
+        edge_lon = uxgrid.edge_lon.values
+        if edge_lon.max() > 180:
+            edge_lon = (edge_lon + 180) % 360 - 180
+        hv_points = hv.Points(np.array([edge_lon, uxgrid.edge_lat.values]).T)
+    else:
+        raise ValueError("Invalid element selected.")
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
         hv.extension("matplotlib")
-
         return hv_points.opts(**kwargs)
 
     elif backend == "bokeh":
