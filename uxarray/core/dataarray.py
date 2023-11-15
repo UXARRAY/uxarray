@@ -315,8 +315,11 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def nodal_average(self):
-        """Computes the Nodal Average of a Data Variable, which computes the
-        average of the nodes that surround each face."""
+        """Computes the Nodal Average of a Data Variable, which is the mean of
+        the nodes that surround each face.
+
+        Can be used for remapping node-centered data to each face.
+        """
 
         if not self._node_centered():
             # nodal average expects node-centered data
