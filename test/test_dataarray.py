@@ -3,6 +3,8 @@ import os
 from unittest import TestCase
 from pathlib import Path
 
+import numpy as np
+
 import uxarray as ux
 
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
@@ -111,3 +113,29 @@ class TestGeometryConversions(TestCase):
 
         # override will recompute the grid
         assert gdf_start is not gdf_end
+
+    def test_nodal_average(self):
+
+        # test on a node-centered dataset
+        uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        v1_nodal_average = uxds['v1'].nodal_average()
+
+        # final dimension should match number of faces
+        self.assertEquals(v1_nodal_average.shape[-1], uxds.uxgrid.n_face)
+
+        # all other dimensions should remain unchanged
+        self.assertEquals(uxds['v1'].shape[0:-1], v1_nodal_average.shape[0:-1])
+
+        # test on a sample mesh with 4 verts
+        verts = [[[-170, 40], [180, 30], [165, 25], [-170, 20]]]
+        data = [1, 2, 3, 4]
+
+        uxgrid = ux.open_grid(verts, latlon=True)
+
+        uxda = ux.UxDataArray(uxgrid=uxgrid, data=data, dims=('n_node'))
+
+        uxda_nodal_average = uxda.nodal_average()
+
+        # resulting data should be the mean of the corner nodes of the single face
+        self.assertEquals(uxda_nodal_average, np.mean(data))
