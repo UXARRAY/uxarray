@@ -4,6 +4,8 @@ from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
+import shapely.geometry as sg
+
 from numba import njit
 
 POLE_POINTS = {
@@ -32,8 +34,10 @@ def _pad_closed_face_nodes(face_node_connectivity, n_face, n_max_face_nodes,
 
 def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
                           n_max_face_nodes, n_nodes_per_face):
-    if node_lon.max() > 180:
-        node_lon = (node_lon + 180) % 360 - 180
+    # TODO: Comment Out
+    # if node_lon.max() > 180:
+    #     node_lon = (node_lon + 180) % 360 - 180
+
     # close face nodes to construct closed polygons
     closed_face_nodes = _pad_closed_face_nodes(face_node_connectivity, n_face,
                                                n_max_face_nodes,

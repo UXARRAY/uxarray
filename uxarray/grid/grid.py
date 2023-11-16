@@ -14,7 +14,8 @@ from uxarray.io._vertices import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.coordinates import _populate_centroid_coord
+from uxarray.grid.coordinates import (_populate_centroid_coord,
+                                      _set_desired_longitude_range)
 from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
                                        _populate_face_edge_connectivity,
                                        _populate_n_nodes_per_face,
@@ -126,6 +127,9 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
+
+        # set desired longitude range to [-180, 180]
+        _set_desired_longitude_range(self._ds)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -414,6 +418,7 @@ class Grid:
         Dimensions (``n_node``)
         """
         if "node_lon" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_lonlat_coord(self)
         return self._ds["node_lon"]
 
@@ -425,8 +430,8 @@ class Grid:
         Dimensions (``n_node``)
         """
         if "node_lat" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_lonlat_coord(self)
-
         return self._ds["node_lat"]
 
     # ==================================================================================================================
@@ -477,6 +482,7 @@ class Grid:
         if "edge_lon" not in self._ds:
             return None
         # temp until we construct edge lon
+        _set_desired_longitude_range(self._ds)
         return self._ds["edge_lon"]
 
     @property
@@ -488,6 +494,7 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             return None
+        _set_desired_longitude_range(self._ds)
         return self._ds["edge_lat"]
 
     # ==================================================================================================================
@@ -536,6 +543,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lon" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
         return self._ds["face_lon"]
 
@@ -547,6 +555,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lat" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
 
         return self._ds["face_lat"]

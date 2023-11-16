@@ -147,20 +147,14 @@ def _plot_coords_as_points(element,
     with Holoviews."""
 
     if element == "node":
-        node_lon = uxgrid.node_lon.values
-        if node_lon.max() > 180:
-            node_lon = (node_lon + 180) % 360 - 180
-        hv_points = hv.Points(np.array([node_lon, uxgrid.node_lat.values]).T)
+        hv_points = hv.Points(
+            np.array([uxgrid.node_lon, uxgrid.node_lat.values]).T)
     elif element == "face":
-        face_lon = uxgrid.face_lon.values
-        if face_lon.max() > 180:
-            face_lon = (face_lon + 180) % 360 - 180
-        hv_points = hv.Points(np.array([face_lon, uxgrid.face_lat.values]).T)
+        hv_points = hv.Points(
+            np.array([uxgrid.face_lon, uxgrid.face_lat.values]).T)
     elif element == "edge":
-        edge_lon = uxgrid.edge_lon.values
-        if edge_lon.max() > 180:
-            edge_lon = (edge_lon + 180) % 360 - 180
-        hv_points = hv.Points(np.array([edge_lon, uxgrid.edge_lat.values]).T)
+        hv_points = hv.Points(
+            np.array([uxgrid.edge_lon, uxgrid.edge_lat.values]).T)
     else:
         raise ValueError("Invalid element selected.")
 
