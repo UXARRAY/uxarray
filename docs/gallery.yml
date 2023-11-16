@@ -17,3 +17,7 @@
 - title: Conversion to GeoDataFrame for Visualization with HoloViz Packages
   path: examples/005-to-geodataframe-for-holoviz.ipynb
   thumbnail: _static/thumbnails/005-thumbnail.png
+
+- title: Work In Progress Plot API Showcase
+  path: examples/006-plotting-api.ipynb
+  thumbnail: _static/thumbnails/default.svg

@@ -105,6 +105,9 @@ def rasterize(uxda: UxDataArray,
               interpolation: Optional[str] = "linear",
               npartitions: Optional[int] = 1,
               cache: Optional[bool] = True,
+              xlabel: Optional[str] = "Longitude",
+              ylabel: Optional[str] = "Latitude",
+              size: Optional[int] = 5,
               **kwargs):
     """Rasterized Plot of a Data Variable Residing on an Unstructured Grid.
 
@@ -151,6 +154,9 @@ def rasterize(uxda: UxDataArray,
                                interpolation=interpolation,
                                npartitions=npartitions,
                                cache=cache,
+                               xlabel=xlabel,
+                               ylabel=ylabel,
+                               size=size,
                                **kwargs)
     elif method == "polygon":
         raster = _polygon_raster(uxda=uxda,
@@ -164,6 +170,8 @@ def rasterize(uxda: UxDataArray,
                                  cmap=cmap,
                                  aggregator=aggregator,
                                  interpolation=interpolation,
+                                 xlabel=xlabel,
+                                 ylabel=ylabel,
                                  **kwargs)
     elif method == "trimesh":
         raise ValueError(f"Trimesh Rasterization not yet implemented.")
@@ -187,17 +195,30 @@ def _point_raster(uxda: UxDataArray,
                   interpolation: Optional[str] = "linear",
                   npartitions: Optional[int] = 1,
                   cache: Optional[bool] = True,
+                  xlabel: Optional[str] = "Longitude",
+                  ylabel: Optional[str] = "Latitude",
+                  size: Optional[int] = 5.0,
                   **kwargs):
     """Implementation of Point Rasterization."""
 
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
+
     if uxda._face_centered():
         # data mapped to face centroid coordinates
-        lon = uxda.uxgrid.node_lon.values
-        lat = uxda.uxgrid.node_lat.values
+        lon = uxda.uxgrid.face_lon.values
+        lat = uxda.uxgrid.face_lat.values
     elif uxda._node_centered():
         # data mapped to face corner coordinates
         lon = uxda.uxgrid.node_lon.values
         lat = uxda.uxgrid.node_lat.values
+    elif uxda._edge_centered():
+        # data mapped to face corner coordinates
+        lon = uxda.uxgrid.edge_lon.values
+        lat = uxda.uxgrid.edge_lat.values
     else:
         raise ValueError(
             f"The Dimension of Data Variable {uxda.name} is not Node or Face centered."
@@ -230,7 +251,8 @@ def _point_raster(uxda: UxDataArray,
         # Construct Dask DataFrame
         point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
 
-        points = hv.Points(point_ddf, ['lon', 'lat'])
+        hv.extension("bokeh")
+        points = hv.Points(point_ddf, ['lon', 'lat']).opts(size=size)
 
         # cache computed points & projection
         if cache:
@@ -244,7 +266,7 @@ def _point_raster(uxda: UxDataArray,
     else:
         # use existing cached points & projection
         points_df['var'] = pd.Series(uxda.values)
-        points = hv.Points(points_df, ['lon', 'lat'])
+        points = hv.Points(points_df, ['lon', 'lat']).opts(size=size)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
@@ -255,7 +277,12 @@ def _point_raster(uxda: UxDataArray,
                                precompute=precompute,
                                aggregator=aggregator,
                                interpolation=interpolation).opts(
-                                   colorbar=colorbar, cmap=cmap, **kwargs)
+                                   colorbar=colorbar,
+                                   cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
+                                   **kwargs)
     elif backend == "bokeh":
         # use holoviews bokeh backend
         hv.extension("bokeh")
@@ -269,6 +296,9 @@ def _point_raster(uxda: UxDataArray,
                                    height=height,
                                    colorbar=colorbar,
                                    cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
                                    **kwargs)
 
     else:
@@ -291,8 +321,16 @@ def _polygon_raster(uxda: UxDataArray,
                     cmap: Optional[str] = "Blues",
                     aggregator: Optional[str] = "mean",
                     interpolation: Optional[str] = "linear",
+                    xlabel: Optional[str] = "Longitude",
+                    ylabel: Optional[str] = "Latitude",
                     **kwargs):
     """Implementation of Polygon Rasterization."""
+
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
 
     gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
 
@@ -307,7 +345,12 @@ def _polygon_raster(uxda: UxDataArray,
                                precompute=precompute,
                                aggregator=aggregator,
                                interpolation=interpolation).opts(
-                                   colorbar=colorbar, cmap=cmap, **kwargs)
+                                   colorbar=colorbar,
+                                   cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
+                                   **kwargs)
     elif backend == "bokeh":
         # use holoviews bokeh backend
         hv.extension("bokeh")
@@ -321,6 +364,9 @@ def _polygon_raster(uxda: UxDataArray,
                                    height=height,
                                    colorbar=colorbar,
                                    cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
                                    **kwargs)
 
     else:
@@ -338,6 +384,8 @@ def polygons(uxda: UxDataArray,
              height: Optional[int] = 500,
              colorbar: Optional[bool] = True,
              cmap: Optional[str] = "Blues",
+             xlabel: Optional[str] = "Longitude",
+             ylabel: Optional[str] = "Latitude",
              **kwargs):
     """Vector Polygon Plot of a Data Variable Residing on an Unstructured Grid.
 
@@ -357,6 +405,12 @@ def polygons(uxda: UxDataArray,
             "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep "
             "'exclude_antimeridian' set to True.")
 
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
+
     gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
@@ -374,6 +428,9 @@ def polygons(uxda: UxDataArray,
                                 height=height,
                                 colorbar=colorbar,
                                 cmap=cmap,
+                                xlabel=xlabel,
+                                ylabel=ylabel,
+                                clabel=clabel,
                                 **kwargs)
 
 
@@ -383,6 +440,8 @@ def points(uxda: UxDataArray,
            height: Optional[int] = 500,
            colorbar: Optional[bool] = True,
            cmap: Optional[str] = "Blues",
+           xlabel: Optional[str] = "Longitude",
+           ylabel: Optional[str] = "Latitude",
            **kwargs):
     """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
     Face Coordinates."""
@@ -401,6 +460,8 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    xlabel=xlabel,
+                                    ylabel=ylabel,
                                     **kwargs)
     elif uxda._face_centered():
         return _plot_data_as_points(element='face',
@@ -410,6 +471,8 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    xlabel=xlabel,
+                                    ylabel=ylabel,
                                     **kwargs)
     elif uxda._edge_centered():
         return _plot_data_as_points(element='edge',
@@ -419,6 +482,8 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    xlabel=xlabel,
+                                    ylabel=ylabel,
                                     **kwargs)
     else:
         raise ValueError(
@@ -432,9 +497,18 @@ def _plot_data_as_points(element,
                          height: Optional[int] = 500,
                          colorbar: Optional[bool] = True,
                          cmap: Optional[str] = "Blues",
+                         xlabel: Optional[str] = "Longitude",
+                         ylabel: Optional[str] = "Latitude",
                          **kwargs):
     """Helper function for plotting data variables as Points, either on the
     Nodes, Face Centers, or Edge Centers."""
+
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
+
     uxgrid = uxda.uxgrid
     if element == "node":
         point_array = np.array(
@@ -458,6 +532,9 @@ def _plot_data_as_points(element,
         return hv_points.opts(color=vdims[0],
                               colorbar=colorbar,
                               cmap=cmap,
+                              xlabel=xlabel,
+                              ylabel=ylabel,
+                              clabel=clabel,
                               **kwargs)
 
     elif backend == "bokeh":
@@ -468,4 +545,7 @@ def _plot_data_as_points(element,
                               height=height,
                               colorbar=colorbar,
                               cmap=cmap,
+                              xlabel=xlabel,
+                              ylabel=ylabel,
+                              clabel=clabel,
                               **kwargs)

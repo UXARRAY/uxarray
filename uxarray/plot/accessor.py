@@ -107,6 +107,33 @@ class GridPlotAccessor:
                                      height=height,
                                      **kwargs)
 
+    @functools.wraps(grid_plot.node_coords)
+    def nodes(self,
+              backend: Optional[str] = "bokeh",
+              width: Optional[int] = 1000,
+              height: Optional[int] = 500,
+              **kwargs):
+        """Vector Point Plot of Nodes (latitude & longitude of the nodes that
+        define the corners of each face). Alias of ``plot.node_coords``
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+
+        return grid_plot.node_coords(self._uxgrid,
+                                     backend=backend,
+                                     width=width,
+                                     height=height,
+                                     **kwargs)
+
     @functools.wraps(grid_plot.face_coords)
     def face_coords(self,
                     backend: Optional[str] = "bokeh",
@@ -134,14 +161,68 @@ class GridPlotAccessor:
                                      height=height,
                                      **kwargs)
 
+    @functools.wraps(grid_plot.face_coords)
+    def face_centers(self,
+                     backend: Optional[str] = "bokeh",
+                     width: Optional[int] = 1000,
+                     height: Optional[int] = 500,
+                     **kwargs):
+        """Vector Point Plot of Face Coordinates (latitude & longitude of the
+        centroid of each face). Alias of ``plot.face_coords``
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+
+        return grid_plot.face_coords(self._uxgrid,
+                                     backend=backend,
+                                     width=width,
+                                     height=height,
+                                     **kwargs)
+
     @functools.wraps(grid_plot.edge_coords)
     def edge_coords(self,
                     backend: Optional[str] = "bokeh",
                     width: Optional[int] = 1000,
                     height: Optional[int] = 500,
                     **kwargs):
-        """Vector Point Plot of Face Coordinates (latitude & longitude of the
-        centroid of each face)
+        """Vector Point Plot of Edge Coordinates (latitude & longitude of the
+        centroid of each edge)
+
+        Parameters
+        ----------
+        backend: str
+            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+         exclude_antimeridian: bool,
+            Whether to exclude edges that cross the antimeridian
+        height: int
+            Plot Height for Bokeh Backend
+        width: int
+            Plot Width for Bokeh Backend
+        """
+
+        return grid_plot.edge_coords(self._uxgrid,
+                                     backend=backend,
+                                     width=width,
+                                     height=height,
+                                     **kwargs)
+
+    @functools.wraps(grid_plot.edge_coords)
+    def edge_centers(self,
+                     backend: Optional[str] = "bokeh",
+                     width: Optional[int] = 1000,
+                     height: Optional[int] = 500,
+                     **kwargs):
+        """Vector Point Plot of Edge Coordinates (latitude & longitude of the
+        centroid of each edge). Alias of ``plot.edge_coords``
 
         Parameters
         ----------
@@ -224,6 +305,7 @@ class UxDataArrayPlotAccessor:
                   interpolation: Optional[str] = "linear",
                   npartitions: Optional[int] = 1,
                   cache: Optional[bool] = True,
+                  size: Optional[int] = 5,
                   **kwargs):
         """Raster plot of a data variable residing on an unstructured grid
         element.
@@ -266,6 +348,7 @@ class UxDataArrayPlotAccessor:
             interpolation=interpolation,
             npartitions=npartitions,
             cache=cache,
+            size=size,
             **kwargs)
 
     @functools.wraps(dataarray_plot.polygons)
