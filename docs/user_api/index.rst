@@ -251,8 +251,11 @@ Plotting
 
    Grid.plot
    Grid.plot.node_coords
+   Grid.plot.nodes
    Grid.plot.face_coords
+   Grid.plot.face_centers
    Grid.plot.edge_coords
+   Grid.plot.edge_centers
    Grid.plot.mesh
    Grid.plot.edges
 
@@ -279,8 +282,11 @@ Grid Plotting Methods
    plot.grid_plot.mesh
    plot.grid_plot.edges
    plot.grid_plot.node_coords
+   plot.grid_plot.nodes
    plot.grid_plot.face_coords
+   plot.grid_plot.face_centers
    plot.grid_plot.edge_coords
+   plot.grid_plot.edge_centers
 
 
 UxDataArray Plotting Methods

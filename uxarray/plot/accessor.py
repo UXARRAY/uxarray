@@ -424,5 +424,7 @@ class UxDatasetPlotAccessor:
         self._uxds = uxds
 
     def __call__(self, **kwargs) -> Any:
-        warnings.warn("Plotting for UxDataset instances not yet supported.")
+        warnings.warn(
+            "Plotting for UxDataset instances not yet supported. Did you mean to plot a data variable, i.e. uxds['data_variable'].plot()"
+        )
         pass

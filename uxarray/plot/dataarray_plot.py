@@ -105,8 +105,6 @@ def rasterize(uxda: UxDataArray,
               interpolation: Optional[str] = "linear",
               npartitions: Optional[int] = 1,
               cache: Optional[bool] = True,
-              xlabel: Optional[str] = "Longitude",
-              ylabel: Optional[str] = "Latitude",
               size: Optional[int] = 5,
               **kwargs):
     """Rasterized Plot of a Data Variable Residing on an Unstructured Grid.
@@ -154,8 +152,6 @@ def rasterize(uxda: UxDataArray,
                                interpolation=interpolation,
                                npartitions=npartitions,
                                cache=cache,
-                               xlabel=xlabel,
-                               ylabel=ylabel,
                                size=size,
                                **kwargs)
     elif method == "polygon":
@@ -170,8 +166,6 @@ def rasterize(uxda: UxDataArray,
                                  cmap=cmap,
                                  aggregator=aggregator,
                                  interpolation=interpolation,
-                                 xlabel=xlabel,
-                                 ylabel=ylabel,
                                  **kwargs)
     elif method == "trimesh":
         raise ValueError(f"Trimesh Rasterization not yet implemented.")
@@ -440,8 +434,6 @@ def points(uxda: UxDataArray,
            height: Optional[int] = 500,
            colorbar: Optional[bool] = True,
            cmap: Optional[str] = "Blues",
-           xlabel: Optional[str] = "Longitude",
-           ylabel: Optional[str] = "Latitude",
            **kwargs):
     """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
     Face Coordinates."""
@@ -460,8 +452,6 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
-                                    xlabel=xlabel,
-                                    ylabel=ylabel,
                                     **kwargs)
     elif uxda._face_centered():
         return _plot_data_as_points(element='face',
@@ -471,8 +461,6 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
-                                    xlabel=xlabel,
-                                    ylabel=ylabel,
                                     **kwargs)
     elif uxda._edge_centered():
         return _plot_data_as_points(element='edge',
@@ -482,8 +470,6 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
-                                    xlabel=xlabel,
-                                    ylabel=ylabel,
                                     **kwargs)
     else:
         raise ValueError(

@@ -9,8 +9,6 @@ import numpy as np
 import holoviews as hv
 from holoviews import opts
 
-from holoviews.operation.datashader import rasterize as hds_rasterize
-
 
 def plot(grid: Grid, **kwargs):
     """Default Plotting Method for Grid."""
@@ -22,6 +20,8 @@ def mesh(uxgrid: Grid,
          exclude_antimeridian: Optional[bool] = False,
          width: Optional[int] = 1000,
          height: Optional[int] = 500,
+         xlabel: Optional[str] = "Longitude",
+         ylabel: Optional[str] = "Latitude",
          **kwargs):
     """Vector Line Plot.
 
@@ -50,7 +50,11 @@ def mesh(uxgrid: Grid,
     elif backend == "bokeh":
         # use holoviews bokeh backend
         hv.extension("bokeh")
-        return hv_paths.opts(width=width, height=height, **kwargs)
+        return hv_paths.opts(width=width,
+                             height=height,
+                             xlabel=xlabel,
+                             ylabel=ylabel,
+                             **kwargs)
 
 
 def node_coords(uxgrid: Grid,
@@ -142,6 +146,8 @@ def _plot_coords_as_points(element,
                            backend: Optional[str] = "bokeh",
                            width: Optional[int] = 1000,
                            height: Optional[int] = 500,
+                           xlabel: Optional[str] = "Longitude",
+                           ylabel: Optional[str] = "Latitude",
                            **kwargs):
     """Helper function for plotting coordinates (node, edge, face) as Points
     with Holoviews."""
@@ -166,4 +172,8 @@ def _plot_coords_as_points(element,
     elif backend == "bokeh":
         # use holoviews bokeh backend
         hv.extension("bokeh")
-        return hv_points.opts(width=width, height=height, **kwargs)
+        return hv_points.opts(width=width,
+                              height=height,
+                              xlabel=xlabel,
+                              ylabel=ylabel,
+                              **kwargs)
