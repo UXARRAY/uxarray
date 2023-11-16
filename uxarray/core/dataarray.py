@@ -173,11 +173,11 @@ class UxDataArray(xr.DataArray):
                 gdf[self.name] = self.values
             return gdf
 
-        # TODO: Mapping Node Data to Each Polygon
         elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
-                f"Data Variable with size {self.values.size} mapped on the nodes of each polygon"
-                f"not supported yet.")
+                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"({self.uxgrid.n_face}. Current size matches the number of nodes."
+            )
 
         # data not mapped to faces or nodes
         else:

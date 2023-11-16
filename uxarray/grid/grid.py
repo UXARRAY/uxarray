@@ -944,7 +944,7 @@ class Grid:
         cache : bool
             Flag to indicate if the computed ``GeoDataFrame`` should be cached
         exclude_antimeridian: bool
-            TODO
+            Selects whether to exclude any face that contains an edge that crosses the antimeridian
 
         Returns
         -------
@@ -955,7 +955,8 @@ class Grid:
         if self._gdf is not None:
             # determine if we need to recompute a cached GeoDataFrame
             if exclude_antimeridian:
-                if len(self._gdf) != len(self.antimeridian_face_indices):
+                if len(self._gdf) != self.n_face - len(
+                        self.antimeridian_face_indices):
                     override = True
                 elif len(self._gdf) != self.n_face:
                     override = True

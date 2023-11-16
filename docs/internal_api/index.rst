@@ -274,3 +274,14 @@ Core Utils
    :toctree: _autosummary
 
    core.utils._map_dims_to_ugrid
+
+
+Visualization
+-------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.grid_plot._plot_coords_as_points
+   plot.dataarray_plot._plot_data_as_points
+   plot.dataarray_plot._polygon_raster
+   plot.dataarray_plot._point_raster
