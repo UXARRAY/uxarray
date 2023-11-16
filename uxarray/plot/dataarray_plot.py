@@ -14,6 +14,8 @@ import holoviews as hv
 from holoviews.operation.datashader import rasterize as hds_rasterize
 from holoviews import opts
 
+from uxarray.plot.constants import N_FACE_THRESHOLD
+
 import pandas as pd
 
 import numpy as np
@@ -25,7 +27,7 @@ def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
     if uxda._face_centered():
         # default to polygon plot
-        if uxda.uxgrid.n_face < 100000:
+        if uxda.uxgrid.n_face < N_FACE_THRESHOLD:
             # vector polygons for small datasets
             return polygons(uxda)
         else:
