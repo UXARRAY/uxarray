@@ -33,7 +33,7 @@ class GridPlotAccessor:
              width: Optional[int] = 1000,
              height: Optional[int] = 500,
              **kwargs):
-        """Vector Line Plot.
+        """Vector Line Plot of the edges that make up each face.
 
         Parameters
         ----------
@@ -60,7 +60,8 @@ class GridPlotAccessor:
               width: Optional[int] = 1000,
               height: Optional[int] = 500,
               **kwargs):
-        """Vector Line Plot. Equivalent to ``Grid.plot.mesh()``
+        """Vector Line Plot of the edges that make up each face. Equivalent to
+        ``Grid.plot.mesh()``
 
         Parameters
         ----------
@@ -313,8 +314,7 @@ class UxDataArrayPlotAccessor:
         Parameters
         ----------
         method: str
-            Selects what type of element to rasterize (point, trimesh, polygon), with "point" being the only currently
-            implemented method.
+            Selects what type of element to rasterize (point, trimesh, polygon).
         backend: str
             Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
         projection: ccrs
@@ -392,7 +392,9 @@ class UxDataArrayPlotAccessor:
                colorbar: Optional[bool] = True,
                cmap: Optional[str] = "Blues",
                **kwargs):
-        """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or Face Coordinates.
+        """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
+        Face Coordinates.
+
         Parameters
         ----------
         backend: str

@@ -23,7 +23,7 @@ def mesh(uxgrid: Grid,
          xlabel: Optional[str] = "Longitude",
          ylabel: Optional[str] = "Latitude",
          **kwargs):
-    """Vector Line Plot.
+    """Vector Line Plot of the edges that make up each face.
 
     Parameters
     ----------
