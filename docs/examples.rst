@@ -22,3 +22,4 @@ your own examples or suggesting one for us to create, please see the :doc:`contr
    examples/004-working-with-mpas-grids.ipynb
    examples/005-to-geodataframe-for-holoviz.ipynb
    examples/006-plot-api-topology.ipynb
+   examples/examples/007-polygon-viz.ipynb
