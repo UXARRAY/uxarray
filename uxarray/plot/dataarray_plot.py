@@ -168,6 +168,7 @@ def rasterize(uxda: UxDataArray,
                                  cmap=cmap,
                                  aggregator=aggregator,
                                  interpolation=interpolation,
+                                 pixel_ratio=pixel_ratio,
                                  **kwargs)
     elif method == "trimesh":
         raise ValueError(f"Trimesh Rasterization not yet implemented.")
