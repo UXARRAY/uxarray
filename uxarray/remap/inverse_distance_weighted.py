@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 
 def inverse_distance_weighted_remap(source_grid,
@@ -32,6 +33,9 @@ def inverse_distance_weighted_remap(source_grid,
     destination_data : np.ndarray
         Data mapped to the destination grid.
     """
+
+    if power >= 6:
+        warnings.warn("It is recommended not to exceed a power of 5.0.")
 
     source_data = np.asarray(source_data)
     n_elements = source_data.shape[-1]
