@@ -60,8 +60,8 @@ def inverse_distance_weighted_remap(source_grid,
 
         dest_coords = np.vstack([lon, lat]).T
 
-        _, nearest_neighbor_indices = _source_tree.query(dest_coords,
-                                                         k=k_neighbors)
+        distances, nearest_neighbor_indices = _source_tree.query(dest_coords,
+                                                                 k=k_neighbors)
 
     elif coord_type == "cartesian":
         if remap_to == "nodes":
@@ -81,8 +81,8 @@ def inverse_distance_weighted_remap(source_grid,
 
         dest_coords = np.vstack([x, y, z]).T
 
-        _, nearest_neighbor_indices = _source_tree.query(dest_coords,
-                                                         k=k_neighbors)
+        distances, nearest_neighbor_indices = _source_tree.query(dest_coords,
+                                                                 k=k_neighbors)
 
     else:
         raise ValueError(
@@ -92,10 +92,7 @@ def inverse_distance_weighted_remap(source_grid,
     if nearest_neighbor_indices.ndim > 1:
         nearest_neighbor_indices = nearest_neighbor_indices.squeeze()
 
-    weights = 1 / (np.sqrt(
-        np.sum((source_grid.get_coords()[:, nearest_neighbor_indices] -
-                dest_coords.T)**2,
-               axis=0))**power + 1e-6)
+    weights = 1 / (distances**power + 1e-6)
     weights /= np.sum(weights)
 
     destination_data = np.sum(source_data[..., nearest_neighbor_indices] *
