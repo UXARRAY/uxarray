@@ -34,8 +34,8 @@ def plot(uxda, **kwargs):
             # rasterized polygons for larger datasets
             return rasterize(uxda, method='polygon', **kwargs)
     if uxda._node_centered():
-        # default to point raster
-        return rasterize(uxda, **kwargs)
+        # default to point plot
+        return points(uxda, **kwargs)
     else:
         raise ValueError("Data must be either node or face centered.")
 
