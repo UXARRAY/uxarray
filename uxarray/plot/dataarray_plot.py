@@ -29,7 +29,7 @@ def plot(uxda, **kwargs):
         # default to polygon plot
         if uxda.uxgrid.n_face < N_FACE_THRESHOLD:
             # vector polygons for small datasets
-            return polygons(uxda)
+            return polygons(uxda, **kwargs)
         else:
             # rasterized polygons for larger datasets
             return rasterize(uxda, method='polygon', **kwargs)
