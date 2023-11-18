@@ -958,7 +958,8 @@ class Grid:
                 if len(self._gdf) != self.n_face - len(
                         self.antimeridian_face_indices):
                     override = True
-                elif len(self._gdf) != self.n_face:
+            elif not exclude_antimeridian:
+                if len(self._gdf) != self.n_face:
                     override = True
 
         # use cached geodataframe
