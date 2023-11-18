@@ -20,7 +20,7 @@
 
 - title: Visualizing Grid Topology
   path: examples/006-plot-api-topology.ipynb
-  thumbnail: _static/thumbnails/default.svg
+  thumbnail: _static/thumbnails/006-thumbnail.png
 
 - title: Visualizing Data as Polygons
   path: examples/007-polygon-viz.ipynb
