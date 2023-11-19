@@ -387,6 +387,7 @@ class UxDataArrayPlotAccessor:
     @functools.wraps(dataarray_plot.points)
     def points(self,
                backend: Optional[str] = "bokeh",
+               projection: Optional = None,
                width: Optional[int] = 1000,
                height: Optional[int] = 500,
                colorbar: Optional[bool] = True,
@@ -409,6 +410,7 @@ class UxDataArrayPlotAccessor:
 
         return dataarray_plot.points(self._uxda,
                                      backend=backend,
+                                     projection=projection,
                                      width=width,
                                      height=height,
                                      colorbar=colorbar,

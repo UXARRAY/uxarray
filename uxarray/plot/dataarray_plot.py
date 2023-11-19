@@ -377,6 +377,7 @@ def _polygon_raster(uxda: UxDataArray,
 def polygons(uxda: UxDataArray,
              backend: Optional[str] = "bokeh",
              exclude_antimeridian: Optional[bool] = True,
+             projection: Optional = None,
              width: Optional[int] = 1000,
              height: Optional[int] = 500,
              colorbar: Optional[bool] = True,
@@ -408,7 +409,8 @@ def polygons(uxda: UxDataArray,
     else:
         clabel = kwargs.get("clabel")
 
-    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian,
+                               projection=projection)
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 

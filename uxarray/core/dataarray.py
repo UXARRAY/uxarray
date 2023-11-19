@@ -119,12 +119,11 @@ class UxDataArray(xr.DataArray):
         xrds = super().to_dataset()
         return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
-    def to_geodataframe(
-        self,
-        override=False,
-        cache=True,
-        exclude_antimeridian=False,
-    ):
+    def to_geodataframe(self,
+                        override=False,
+                        cache=True,
+                        exclude_antimeridian=False,
+                        projection=None):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
@@ -164,7 +163,8 @@ class UxDataArray(xr.DataArray):
             gdf = self.uxgrid.to_geodataframe(
                 override=override,
                 cache=cache,
-                exclude_antimeridian=exclude_antimeridian)
+                exclude_antimeridian=exclude_antimeridian,
+                projection=projection)
 
             if exclude_antimeridian:
                 gdf[self.name] = np.delete(
