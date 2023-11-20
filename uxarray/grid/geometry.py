@@ -4,10 +4,6 @@ from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
-import cartopy.crs as ccrs
-
-import shapely.geometry as sg
-
 from numba import njit
 
 POLE_POINTS = {
@@ -57,7 +53,7 @@ def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
     return polygon_shells
 
 
-def _grid_to_polygon_geodataframe(grid, exclude_antimeridian, projection):
+def _grid_to_polygon_geodataframe(grid, exclude_antimeridian):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     with a geometry column of polygons."""
 
@@ -82,7 +78,7 @@ def _grid_to_polygon_geodataframe(grid, exclude_antimeridian, projection):
     if exclude_antimeridian:
         # build gdf without antimeridian faces
         gdf = _build_geodataframe_without_antimeridian(
-            polygon_shells, antimeridian_face_indices, projection)
+            polygon_shells, antimeridian_face_indices)
     else:
         # build with antimeridian faces
         gdf = _build_geodataframe_with_antimeridian(polygon_shells,
@@ -94,8 +90,7 @@ def _grid_to_polygon_geodataframe(grid, exclude_antimeridian, projection):
 # Helpers (NO ANTIMERIDIAN)
 # ----------------------------------------------------------------------------------------------------------------------
 def _build_geodataframe_without_antimeridian(polygon_shells,
-                                             antimeridian_face_indices,
-                                             projection):
+                                             antimeridian_face_indices):
     """Builds a ``spatialpandas.GeoDataFrame`` excluding any faces that cross
     the antimeridian."""
     from spatialpandas.geometry import PolygonArray
@@ -104,22 +99,7 @@ def _build_geodataframe_without_antimeridian(polygon_shells,
     shells_without_antimeridian = np.delete(polygon_shells,
                                             antimeridian_face_indices,
                                             axis=0)
-    if projection is not None:
-        # Apply Geographic Projection
-        lon, lat, _ = projection.transform_points(
-            ccrs.PlateCarree(), shells_without_antimeridian[..., 0],
-            shells_without_antimeridian[..., 1]).T
-        # reshape back to original shell dimensions
-        shells_without_antimeridian_proj = np.array([lon.T, lat.T]).swapaxes(
-            0, 1).swapaxes(1, 2)
-
-        geometry = PolygonArray.from_exterior_coords(
-            shells_without_antimeridian_proj)
-
-    else:
-        # No Geographic Projection
-        geometry = PolygonArray.from_exterior_coords(
-            shells_without_antimeridian)
+    geometry = PolygonArray.from_exterior_coords(shells_without_antimeridian)
 
     gdf = GeoDataFrame({"geometry": geometry})
 

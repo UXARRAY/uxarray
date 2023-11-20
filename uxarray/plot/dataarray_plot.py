@@ -409,8 +409,7 @@ def polygons(uxda: UxDataArray,
     else:
         clabel = kwargs.get("clabel")
 
-    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian,
-                               projection=projection)
+    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 

@@ -122,8 +122,7 @@ class UxDataArray(xr.DataArray):
     def to_geodataframe(self,
                         override=False,
                         cache=True,
-                        exclude_antimeridian=False,
-                        projection=None):
+                        exclude_antimeridian=False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
@@ -135,7 +134,7 @@ class UxDataArray(xr.DataArray):
         cache: bool
             Flag to indicate if the computed ``GeoDataFrame`` stored under the ``uxgrid`` accessor should be cached
         exclude_antimeridian: bool, Optional
-            TODO
+            Selects whether to exclude any face that contains an edge that crosses the antimeridian
 
         Returns
         -------
@@ -163,8 +162,7 @@ class UxDataArray(xr.DataArray):
             gdf = self.uxgrid.to_geodataframe(
                 override=override,
                 cache=cache,
-                exclude_antimeridian=exclude_antimeridian,
-                projection=projection)
+                exclude_antimeridian=exclude_antimeridian)
 
             if exclude_antimeridian:
                 gdf[self.name] = np.delete(

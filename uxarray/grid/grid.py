@@ -931,8 +931,7 @@ class Grid:
     def to_geodataframe(self,
                         override: Optional[bool] = False,
                         cache: Optional[bool] = True,
-                        exclude_antimeridian: Optional[bool] = False,
-                        projection: Optional = None):
+                        exclude_antimeridian: Optional[bool] = False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -969,9 +968,7 @@ class Grid:
 
         # construct a geodataframe with the faces stored as polygons as the geometry
         gdf = _grid_to_polygon_geodataframe(
-            self,
-            exclude_antimeridian=exclude_antimeridian,
-            projection=projection)
+            self, exclude_antimeridian=exclude_antimeridian)
 
         # cache computed geodataframe
         if cache:
