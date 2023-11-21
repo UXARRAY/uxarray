@@ -438,6 +438,7 @@ def points(uxda: UxDataArray,
            height: Optional[int] = 500,
            colorbar: Optional[bool] = True,
            cmap: Optional[str] = "Blues",
+           projection=None,
            **kwargs):
     """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
     Face Coordinates."""
@@ -456,6 +457,7 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    projection=projection,
                                     **kwargs)
     elif uxda._face_centered():
         return _plot_data_as_points(element='face',
@@ -465,6 +467,7 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    projection=projection,
                                     **kwargs)
     elif uxda._edge_centered():
         return _plot_data_as_points(element='edge',
@@ -474,6 +477,7 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    projection=projection,
                                     **kwargs)
     else:
         raise ValueError(
@@ -489,6 +493,7 @@ def _plot_data_as_points(element,
                          cmap: Optional[str] = "Blues",
                          xlabel: Optional[str] = "Longitude",
                          ylabel: Optional[str] = "Latitude",
+                         projection=None,
                          **kwargs):
     """Helper function for plotting data variables as Points, either on the
     Nodes, Face Centers, or Edge Centers."""
@@ -501,17 +506,19 @@ def _plot_data_as_points(element,
 
     uxgrid = uxda.uxgrid
     if element == "node":
-        point_array = np.array(
-            [uxgrid.node_lon, uxgrid.node_lat.values, uxda.values]).T
+        lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
     elif element == "face":
-
-        point_array = np.array(
-            [uxgrid.face_lon, uxgrid.face_lat.values, uxda.values]).T
+        lon, lat = uxgrid.face_lon.values, uxgrid.face_lat.values
     elif element == "edge":
-        point_array = np.array(
-            [uxgrid.edge_lon, uxgrid.edge_lat.values, uxda.values]).T
+        lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
     else:
         raise ValueError("Invalid element selected.")
+
+    if projection is not None:
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
+                                                  lat).T
+
+    point_array = np.array([lon, lat, uxda.values]).T
 
     vdims = [uxda.name if uxda.name is not None else "d_var"]
     hv_points = hv.Points(point_array, vdims=vdims)
