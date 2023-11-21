@@ -4,106 +4,183 @@ from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
+from numba import njit
+
 POLE_POINTS = {
     'North': np.array([0.0, 0.0, 1.0]),
     'South': np.array([0.0, 0.0, -1.0])
 }
 
+# number of faces/polygons before raising a warning for performance
+GDF_POLYGON_THRESHOLD = 100000
+
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
-def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
-    """Constructs an array of Shapely Polygons representing each face, with
-    antimeridian polygons split according to the GeoJSON standards.
+# General Helpers for Polygon Viz
+# ----------------------------------------------------------------------------------------------------------------------
+@njit
+def _pad_closed_face_nodes(face_node_connectivity, n_face, n_max_face_nodes,
+                           n_nodes_per_face):
+    """Pads a closed array of face nodes by inserting the first element at any
+    point a fill value is encountered.
 
-     Parameters
-    ----------
-    grid : uxarray.Grid
-        Grid Object
-    correct_antimeridian_polygons: bool, Optional
-        Parameter to select whether to correct and split antimeridian polygons
-
-    Returns
-    -------
-    polygons : np.ndarray
-        Array containing Shapely Polygons
+    Ensures each resulting polygon has the same number of vertices.
     """
+    closed = np.ones((n_face, n_max_face_nodes + 1), dtype=INT_DTYPE)
 
-    # import optional dependencies
-    import antimeridian
-    from shapely import polygons as Polygons
+    # set final value to the original
+    closed[:, :-1] = face_node_connectivity.copy()
 
-    face_nodes = grid.face_node_connectivity.values
-    n_nodes_per_face = grid.n_nodes_per_face.values
-    n_face = grid.n_face
+    for i, final_node_idx in enumerate(n_nodes_per_face):
+        closed[i, final_node_idx:] = closed[i, 0]
 
-    # obtain polygon shells for shapely polygon construction
-    polygon_shells = _build_polygon_shells(grid.node_lon.values,
-                                           grid.node_lat.values, face_nodes,
-                                           n_face, grid.n_max_face_nodes,
-                                           n_nodes_per_face)
-
-    # list of shapely Polygons representing each face in our grid
-    polygons = Polygons(polygon_shells)
-
-    # handle antimeridian polygons, if any
-    if grid.antimeridian_face_indices is not None and correct_antimeridian_polygons:
-
-        # obtain each antimeridian polygon
-        antimeridian_polygons = polygons[grid.antimeridian_face_indices]
-
-        # correct each antimeridian polygon
-        corrected_polygons = [
-            antimeridian.fix_polygon(P) for P in antimeridian_polygons
-        ]
-
-        # insert correct polygon back into original array
-        for i in reversed(grid.antimeridian_face_indices):
-            polygons[i] = corrected_polygons.pop()
-
-    return polygons
+    return closed
 
 
 def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
                           n_max_face_nodes, n_nodes_per_face):
-    """Constructs the shell of each polygon derived from the closed off face
-    nodes, which can be used to construct Shapely Polygons.
+    """Builds an array of polygon shells, which can be used with Shapely to
+    construct polygons."""
+    closed_face_nodes = _pad_closed_face_nodes(face_node_connectivity, n_face,
+                                               n_max_face_nodes,
+                                               n_nodes_per_face)
 
-    Coordinates should be in degrees, with the longitude being in the
-    range [-180, 180].
-    """
+    polygon_shells = np.array(
+        [node_lon[closed_face_nodes], node_lat[closed_face_nodes]],
+        dtype=np.float32).swapaxes(0, 1).swapaxes(1, 2)
 
-    # close face nodes to construct closed polygons
-    closed_face_nodes = close_face_nodes(face_node_connectivity, n_face,
-                                         n_max_face_nodes)
-
-    # additional node after closing our faces
-    nNodes_per_face_closed = n_nodes_per_face + 1
-
-    # longitude should be between [-180, 180]
-    if node_lon.max() > 180:
-        node_lon = (node_lon + 180) % 360 - 180
-
-    polygon_shells = []
-    for face_nodes, max_n_nodes in zip(closed_face_nodes,
-                                       nNodes_per_face_closed):
-
-        polygon_x = np.empty_like(face_nodes, dtype=node_lon.dtype)
-        polygon_y = np.empty_like(face_nodes, dtype=node_lon.dtype)
-
-        polygon_x[0:max_n_nodes] = node_lon[face_nodes[0:max_n_nodes]]
-        polygon_y[0:max_n_nodes] = node_lat[face_nodes[0:max_n_nodes]]
-
-        polygon_x[max_n_nodes:] = polygon_x[0]
-        polygon_y[max_n_nodes:] = polygon_y[0]
-
-        cur_polygon_shell = np.array([polygon_x, polygon_y])
-        polygon_shells.append(cur_polygon_shell.T)
-
-    return np.array(polygon_shells)
+    return polygon_shells
 
 
-# TODO: Update this one
+def _grid_to_polygon_geodataframe(grid, exclude_antimeridian):
+    """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
+    with a geometry column of polygons."""
+
+    polygon_shells = _build_polygon_shells(grid.node_lon.values,
+                                           grid.node_lat.values,
+                                           grid.face_node_connectivity.values,
+                                           grid.n_face, grid.n_max_face_nodes,
+                                           grid.n_nodes_per_face.values)
+
+    antimeridian_face_indices = _build_antimeridian_face_indices(
+        polygon_shells[:, :, 0])
+
+    if grid.n_face > GDF_POLYGON_THRESHOLD:
+        warnings.warn(
+            "Converting to a GeoDataFrame with over 1,000,000 faces may take some time."
+        )
+
+    if len(grid.antimeridian_face_indices) == 0:
+        # if no faces cross antimeridian, no need to correct
+        exclude_antimeridian = True
+
+    if exclude_antimeridian:
+        # build gdf without antimeridian faces
+        gdf = _build_geodataframe_without_antimeridian(
+            polygon_shells, antimeridian_face_indices)
+    else:
+        # build with antimeridian faces
+        gdf = _build_geodataframe_with_antimeridian(polygon_shells,
+                                                    antimeridian_face_indices)
+
+    return gdf
+
+
+# Helpers (NO ANTIMERIDIAN)
+# ----------------------------------------------------------------------------------------------------------------------
+def _build_geodataframe_without_antimeridian(polygon_shells,
+                                             antimeridian_face_indices):
+    """Builds a ``spatialpandas.GeoDataFrame`` excluding any faces that cross
+    the antimeridian."""
+    from spatialpandas.geometry import PolygonArray
+    from spatialpandas import GeoDataFrame
+
+    shells_without_antimeridian = np.delete(polygon_shells,
+                                            antimeridian_face_indices,
+                                            axis=0)
+    geometry = PolygonArray.from_exterior_coords(shells_without_antimeridian)
+
+    gdf = GeoDataFrame({"geometry": geometry})
+
+    return gdf
+
+
+# Helpers (ANTIMERIDIAN)
+# ----------------------------------------------------------------------------------------------------------------------
+def _build_geodataframe_with_antimeridian(polygon_shells,
+                                          antimeridian_face_indices):
+    """Builds a ``spatialpandas.GeoDataFrame`` including any faces that cross
+    the antimeridian."""
+    # import optional dependencies
+    from spatialpandas.geometry import MultiPolygonArray
+    from spatialpandas import GeoDataFrame
+
+    polygons = _build_corrected_shapely_polygons(polygon_shells,
+                                                 antimeridian_face_indices)
+
+    geometry = MultiPolygonArray(polygons)
+
+    gdf = GeoDataFrame({"geometry": geometry})
+
+    return gdf
+
+
+def _build_corrected_shapely_polygons(polygon_shells,
+                                      antimeridian_face_indices):
+    import antimeridian
+    from shapely import polygons as Polygons
+
+    # list of shapely Polygons representing each face in our grid
+    polygons = Polygons(polygon_shells)
+
+    # obtain each antimeridian polygon
+    antimeridian_polygons = polygons[antimeridian_face_indices]
+
+    # correct each antimeridian polygon
+    corrected_polygons = [
+        antimeridian.fix_polygon(P) for P in antimeridian_polygons
+    ]
+
+    # insert correct polygon back into original array
+    for i in reversed(antimeridian_face_indices):
+        polygons[i] = corrected_polygons.pop()
+
+    return polygons
+
+
+def _build_antimeridian_face_indices(shells_x):
+    """Identifies any face that has an edge that crosses the antimeridian."""
+
+    x_mag = np.abs(np.diff(shells_x))
+    x_mag_cross = np.any(x_mag >= 180, axis=1)
+    x_cross_indices = np.argwhere(x_mag_cross)
+
+    if x_cross_indices.ndim == 2:
+        if x_cross_indices.shape[1] == 1:
+            return x_cross_indices[:, 0]
+        else:
+            return x_cross_indices.squeeze()
+    elif x_cross_indices.ndim == 0:
+        return np.array([], dtype=INT_DTYPE)
+    else:
+        return x_cross_indices
+
+
+def _populate_antimeridian_face_indices(grid):
+    """Populates ``Grid.antimeridian_face_indices``"""
+    polygon_shells = _build_polygon_shells(grid.node_lon.values,
+                                           grid.node_lat.values,
+                                           grid.face_node_connectivity.values,
+                                           grid.n_face, grid.n_max_face_nodes,
+                                           grid.n_nodes_per_face.values)
+
+    antimeridian_face_indices = _build_antimeridian_face_indices(
+        polygon_shells[:, :, 0])
+
+    return antimeridian_face_indices
+
+
 def _build_corrected_polygon_shells(polygon_shells):
     """Constructs ``corrected_polygon_shells`` and
     ``Grid.original_to_corrected), representing the polygon shells, with
@@ -130,7 +207,9 @@ def _build_corrected_polygon_shells(polygon_shells):
     polygons = [Polygon(shell) for shell in polygon_shells]
 
     # List of Polygons (non-split) and MultiPolygons (split across antimeridian)
-    corrected_polygons = [antimeridian.fix_polygon(P) for P in polygons]
+    corrected_polygons = [
+        antimeridian.fix_polygon(P, fix_winding=False) for P in polygons
+    ]
 
     _corrected_shells_to_original_faces = []
     corrected_polygon_shells = []
@@ -161,60 +240,6 @@ def _build_corrected_polygon_shells(polygon_shells):
     return corrected_polygon_shells, _corrected_shells_to_original_faces
 
 
-def _build_antimeridian_face_indices(grid):
-    """Constructs ``antimeridian_face_indices``, which represent the indicies
-    of faces that cross the antimeridian.
-
-     Parameters
-    ----------
-    grid : uxarray.Grid
-        Grid Object
-
-    Returns
-    -------
-    antimeridian_face_indices : np.ndarray
-        Array containing Shapely Polygons
-    """
-    face_nodes = grid.face_node_connectivity.values
-    n_nodes_per_face = grid.n_nodes_per_face.values
-    n_face = grid.n_face
-
-    # obtain polygon shells for shapely polygon construction
-    polygon_shells = _build_polygon_shells(grid.node_lon.values,
-                                           grid.node_lat.values, face_nodes,
-                                           n_face, grid.n_max_face_nodes,
-                                           n_nodes_per_face)
-
-    antimeridian_face_indices = np.argwhere(
-        np.any(np.abs(np.diff(polygon_shells[:, :, 0])) >= 180, axis=1))
-
-    # convert output into a 1D array
-    if antimeridian_face_indices.shape[0] == 1:
-        antimeridian_face_indices = antimeridian_face_indices[0]
-    else:
-        antimeridian_face_indices = antimeridian_face_indices.squeeze()
-    return antimeridian_face_indices
-
-
-def _grid_to_polygon_geodataframe(grid, correct_antimeridian_polygons=True):
-    """Constructs and returns a ``spatialpandas.GeoDataFrame``"""
-
-    # import optional dependencies
-    from spatialpandas.geometry import MultiPolygonArray
-    from spatialpandas import GeoDataFrame
-
-    # obtain faces represented as polygons, corrected on the antimeridian
-    polygons = _grid_to_polygons(grid, correct_antimeridian_polygons)
-
-    # prepare geometry for GeoDataFrame
-    geometry = MultiPolygonArray(polygons)
-
-    # assign geometry
-    gdf = GeoDataFrame({"geometry": geometry})
-
-    return gdf
-
-
 def _grid_to_matplotlib_polycollection(grid):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
 
@@ -239,8 +264,15 @@ def _grid_to_matplotlib_linecollection(grid):
     # import optional dependencies
     from matplotlib.collections import LineCollection
 
+    polygon_shells = _build_polygon_shells(grid.node_lon.values,
+                                           grid.node_lat.values,
+                                           grid.face_node_connectivity.values,
+                                           grid.n_face, grid.n_max_face_nodes,
+                                           grid.n_nodes_per_face.values)
+
     # obtain corrected shapely polygons
-    polygons = grid.to_shapely_polygons(correct_antimeridian_polygons=True)
+    polygons = _build_corrected_shapely_polygons(polygon_shells,
+                                                 grid.antimeridian_face_indices)
 
     # Convert polygons into lines
     lines = []

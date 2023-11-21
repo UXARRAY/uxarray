@@ -64,7 +64,7 @@ class TestCentroids(TestCase):
 
         _populate_centroid_coord(uxgrid, repopulate=True)
 
-        computed_face_x = uxgrid.face_lon.values
+        computed_face_x = (uxgrid.face_lon.values + 180) % 360 - 180
         computed_face_y = uxgrid.face_lat.values
 
         nt.assert_array_almost_equal(expected_face_x, computed_face_x)
