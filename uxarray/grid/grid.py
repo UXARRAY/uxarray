@@ -14,7 +14,8 @@ from uxarray.io._vertices import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.coordinates import _populate_centroid_coord
+from uxarray.grid.coordinates import (_populate_centroid_coord,
+                                      _set_desired_longitude_range)
 from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
                                        _populate_face_edge_connectivity,
                                        _populate_n_nodes_per_face,
@@ -24,11 +25,10 @@ from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
-from uxarray.grid.geometry import (_build_antimeridian_face_indices,
+from uxarray.grid.geometry import (_populate_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
-                                   _grid_to_matplotlib_linecollection,
-                                   _grid_to_polygons)
+                                   _grid_to_matplotlib_linecollection)
 
 from uxarray.grid.neighbors import BallTree, KDTree
 
@@ -128,7 +128,8 @@ class Grid:
         self._ball_tree = None
         self._kd_tree = None
 
-        self._mesh2_warning_raised = False
+        # set desired longitude range to [-180, 180]
+        _set_desired_longitude_range(self._ds)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -417,6 +418,7 @@ class Grid:
         Dimensions (``n_node``)
         """
         if "node_lon" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_lonlat_coord(self)
         return self._ds["node_lon"]
 
@@ -428,8 +430,8 @@ class Grid:
         Dimensions (``n_node``)
         """
         if "node_lat" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_lonlat_coord(self)
-
         return self._ds["node_lat"]
 
     # ==================================================================================================================
@@ -479,6 +481,8 @@ class Grid:
         """
         if "edge_lon" not in self._ds:
             return None
+        # temp until we construct edge lon
+        _set_desired_longitude_range(self._ds)
         return self._ds["edge_lon"]
 
     @property
@@ -490,7 +494,7 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             return None
-
+        _set_desired_longitude_range(self._ds)
         return self._ds["edge_lat"]
 
     # ==================================================================================================================
@@ -539,6 +543,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lon" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
         return self._ds["face_lon"]
 
@@ -550,6 +555,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lat" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
 
         return self._ds["face_lat"]
@@ -709,7 +715,7 @@ class Grid:
     def antimeridian_face_indices(self) -> np.ndarray:
         """Index of each face that crosses the antimeridian."""
         if self._antimeridian_face_indices is None:
-            self._antimeridian_face_indices = _build_antimeridian_face_indices(
+            self._antimeridian_face_indices = _populate_antimeridian_face_indices(
                 self)
         return self._antimeridian_face_indices
 
@@ -925,7 +931,7 @@ class Grid:
     def to_geodataframe(self,
                         override: Optional[bool] = False,
                         cache: Optional[bool] = True,
-                        correct_antimeridian_polygons: Optional[bool] = True):
+                        exclude_antimeridian: Optional[bool] = False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -937,8 +943,8 @@ class Grid:
             Flag to recompute the ``GeoDataFrame`` if one is already cached
         cache : bool
             Flag to indicate if the computed ``GeoDataFrame`` should be cached
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
+        exclude_antimeridian: bool
+            Selects whether to exclude any face that contains an edge that crosses the antimeridian
 
         Returns
         -------
@@ -946,12 +952,23 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
+        if self._gdf is not None:
+            # determine if we need to recompute a cached GeoDataFrame
+            if exclude_antimeridian:
+                if len(self._gdf) != self.n_face - len(
+                        self.antimeridian_face_indices):
+                    override = True
+            elif not exclude_antimeridian:
+                if len(self._gdf) != self.n_face:
+                    override = True
+
         # use cached geodataframe
         if self._gdf is not None and not override:
             return self._gdf
 
         # construct a geodataframe with the faces stored as polygons as the geometry
-        gdf = _grid_to_polygon_geodataframe(self, correct_antimeridian_polygons)
+        gdf = _grid_to_polygon_geodataframe(
+            self, exclude_antimeridian=exclude_antimeridian)
 
         # cache computed geodataframe
         if cache:
@@ -1026,22 +1043,3 @@ class Grid:
             self._line_collection = line_collection
 
         return line_collection
-
-    def to_shapely_polygons(self,
-                            correct_antimeridian_polygons: Optional[bool] = True
-                           ):
-        """Constructs an array of Shapely Polygons representing each face, with
-        antimeridian polygons split according to the GeoJSON standards.
-
-         Parameters
-        ----------
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
-
-        Returns
-        -------
-        polygons : np.ndarray
-            Array containing Shapely Polygons
-        """
-        polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
-        return polygons
