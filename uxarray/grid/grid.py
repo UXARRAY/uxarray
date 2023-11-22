@@ -125,9 +125,9 @@ class Grid:
         self._raster_data_id = None
 
         # triangulations of specific coords
-        self._node_trimesh = None
-        self._edge_trimesh = None
-        self._face_trimesh = None
+        self._node_simplices = None
+        self._edge_simplices = None
+        self._face_simplices = None
         self._trimesh_proj = {"nodes": None, "edges": None, "faces": None}
 
         # initialize cached data structures (nearest neighbor operations)
@@ -1050,20 +1050,20 @@ class Grid:
 
         return line_collection
 
-    def to_trimesh(self,
-                   element: Optional[str] = "nodes",
-                   projection: Optional = None,
-                   override: Optional[bool] = False,
-                   cache: Optional[bool] = True):
+    def to_simplices(self,
+                     element: Optional[str] = "nodes",
+                     projection: Optional = None,
+                     override: Optional[bool] = False,
+                     cache: Optional[bool] = True):
         """TODO: Docstring"""
 
-        from uxarray.grid.geometry import _grid_to_trimesh
+        from uxarray.grid.geometry import _grid_to_simplices
         if element == "nodes":
-            _trimesh_name = "_node_trimesh"
+            _trimesh_name = "_node_simplices"
         elif element == "edges":
-            _trimesh_name = "_edge_trimesh"
+            _trimesh_name = "_edge_simplices"
         elif element == "faces":
-            _trimesh_name = "_face_trimesh"
+            _trimesh_name = "_face_simplices"
         else:
             raise ValueError("TODO")
 
@@ -1071,10 +1071,10 @@ class Grid:
             if self._trimesh_proj[element] == projection:
                 return getattr(self, _trimesh_name)
 
-        trimesh = _grid_to_trimesh(self, element, projection)
+        simplices = _grid_to_simplices(self, element, projection)
         self._trimesh_proj[element] = projection
 
         if cache:
-            setattr(self, _trimesh_name, trimesh)
+            setattr(self, _trimesh_name, simplices)
 
-        return trimesh
+        return simplices

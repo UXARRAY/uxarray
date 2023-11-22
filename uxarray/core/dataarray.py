@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 import xarray as xr
 import numpy as np
 
@@ -254,7 +255,8 @@ class UxDataArray(xr.DataArray):
                    override: Optional[bool] = False,
                    cache: Optional[bool] = True):
         """TODO: """
-        from holoviews import Points, TriMesh
+        from holoviews import Nodes, TriMesh
+        from holoviews import opts
         if self._node_centered():
             element = "nodes"
             lon, lat = self.uxgrid.node_lon.values, self.uxgrid.node_lat.values
@@ -267,12 +269,16 @@ class UxDataArray(xr.DataArray):
         else:
             raise ValueError
 
-        simplices = self.uxgrid.to_trimesh(element, projection, override, cache)
+        simplices = self.uxgrid.to_simplices(element, projection, override,
+                                             cache)
 
-        vdim = self.name if self.name is not None else "d_var"
-        nodes = Points(np.column_stack([lon, lat, self.values]), vdims=vdim)
+        verts = np.column_stack([lon, lat, self.values])
+        verts_df = pd.DataFrame(verts, columns=['x', 'y', 'z'])
+        nodes = Nodes(verts_df, ['x', 'y', 'index'], ['z'])
 
-        return TriMesh((simplices, nodes))
+        trimesh = TriMesh((simplices, nodes))
+
+        return trimesh.opts(filled=True, edge_color="z")
 
     def nearest_neighbor_remap(self,
                                destination_obj: Union[Grid, UxDataArray,

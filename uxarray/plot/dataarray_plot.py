@@ -171,9 +171,21 @@ def rasterize(uxda: UxDataArray,
                                  pixel_ratio=pixel_ratio,
                                  **kwargs)
     elif method == "trimesh":
-        raise ValueError(f"Trimesh Rasterization not yet implemented.")
+        raster = _trimesh_raster(uxda=uxda,
+                                 backend=backend,
+                                 projection=projection,
+                                 dynamic=dynamic,
+                                 precompute=precompute,
+                                 width=width,
+                                 height=height,
+                                 colorbar=colorbar,
+                                 cmap=cmap,
+                                 aggregator=aggregator,
+                                 interpolation=interpolation,
+                                 pixel_ratio=pixel_ratio,
+                                 **kwargs)
     else:
-        raise ValueError(f"Unsupported method {method}.")
+        raise ValueError(f"Unsupported method: {method}.")
 
     return raster
 
@@ -374,6 +386,72 @@ def _polygon_raster(uxda: UxDataArray,
     return raster
 
 
+def _trimesh_raster(uxda: UxDataArray,
+                    backend: Optional[str] = "bokeh",
+                    projection: Optional = None,
+                    pixel_ratio: Optional[float] = 1.0,
+                    dynamic: Optional[bool] = False,
+                    precompute: Optional[bool] = True,
+                    width: Optional[int] = 1000,
+                    height: Optional[int] = 500,
+                    colorbar: Optional[bool] = True,
+                    cmap: Optional[str] = "Blues",
+                    aggregator: Optional[str] = "mean",
+                    interpolation: Optional[str] = "linear",
+                    xlabel: Optional[str] = "Longitude",
+                    ylabel: Optional[str] = "Latitude",
+                    **kwargs):
+    """Implementation of Polygon Rasterization."""
+
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
+
+    hv_trimesh = uxda.to_trimesh(projection=projection)
+
+    if backend == "matplotlib":
+        # use holoviews matplotlib backend
+        hv.extension("matplotlib")
+        raster = hds_rasterize(hv_trimesh,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               aggregator=aggregator,
+                               interpolation=interpolation).opts(
+                                   colorbar=colorbar,
+                                   cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
+                                   **kwargs)
+    elif backend == "bokeh":
+        # use holoviews bokeh backend
+        hv.extension("bokeh")
+        raster = hds_rasterize(hv_trimesh,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               aggregator=aggregator,
+                               interpolation=interpolation).opts(
+                                   width=width,
+                                   height=height,
+                                   colorbar=colorbar,
+                                   cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
+                                   **kwargs)
+
+    else:
+        raise ValueError(
+            f"Invalid backend selected. Expected one of ['matplotlib', 'bokeh'] but received {backend}."
+        )
+
+    return raster
+
+
 def polygons(uxda: UxDataArray,
              backend: Optional[str] = "bokeh",
              exclude_antimeridian: Optional[bool] = True,
@@ -467,27 +545,27 @@ def trimesh(uxda: UxDataArray,
     else:
         clabel = kwargs.get("clabel")
 
-    # gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
-    #
-    # hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+    hv_trimesh = uxda.to_trimesh(projection=projection)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
         hv.extension("matplotlib")
 
-        return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
+        return hv_trimesh.opts(
+            opts.TriMesh(colorbar=colorbar, cmap=cmap, **kwargs))
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
         hv.extension("bokeh")
-        return hv_polygons.opts(width=width,
-                                height=height,
-                                colorbar=colorbar,
-                                cmap=cmap,
-                                xlabel=xlabel,
-                                ylabel=ylabel,
-                                clabel=clabel,
-                                **kwargs)
+        return hv_trimesh.opts(
+            opts.TriMesh(width=width,
+                         height=height,
+                         colorbar=colorbar,
+                         cmap=cmap,
+                         xlabel=xlabel,
+                         ylabel=ylabel,
+                         clabel=clabel,
+                         **kwargs))
 
 
 def points(uxda: UxDataArray,
@@ -579,7 +657,7 @@ def _plot_data_as_points(element,
     point_array = np.array([lon, lat, uxda.values]).T
 
     vdims = [uxda.name if uxda.name is not None else "d_var"]
-    hv_points = hv.Points(point_array, vdims=vdims)
+    hv_points = hv.Nodes(point_array, vdims=vdims)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend

@@ -21,9 +21,9 @@ REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 # Trimesh / Triangulation Helpers
 # ----------------------------------------------------------------------------------------------------------------------
-def _grid_to_trimesh(grid, element="nodes", projection=None):
+def _grid_to_simplices(grid, element="nodes", projection=None):
     """TODO: Docstring"""
-    from holoviews import TriMesh
+    from scipy.spatial import Delaunay
 
     if element == "nodes":
         # node coordinates
@@ -40,9 +40,11 @@ def _grid_to_trimesh(grid, element="nodes", projection=None):
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
                                                   lat).T
     # construct point array
-    points = np.array([lon, lat, np.zeros_like(lon)]).T
+    points = np.column_stack([lon, lat])
 
-    return TriMesh.from_vertices(points)
+    tris = Delaunay(points)
+
+    return tris.simplices
 
 
 # General Helpers for Polygon Viz

@@ -417,6 +417,29 @@ class UxDataArrayPlotAccessor:
                                      cmap=cmap,
                                      **kwargs)
 
+    @functools.wraps(dataarray_plot.trimesh)
+    def trimesh(self,
+                backend: Optional[str] = "bokeh",
+                projection: Optional = None,
+                width: Optional[int] = 1000,
+                height: Optional[int] = 500,
+                colorbar: Optional[bool] = True,
+                cmap: Optional[str] = "Blues",
+                xlabel: Optional[str] = "Longitude",
+                ylabel: Optional[str] = "Latitude",
+                **kwargs):
+
+        return dataarray_plot.trimesh(self._uxda,
+                                      backend=backend,
+                                      projection=projection,
+                                      width=width,
+                                      height=height,
+                                      colorbar=colorbar,
+                                      cmap=cmap,
+                                      xlabel=xlabel,
+                                      ylabel=ylabel,
+                                      **kwargs)
+
 
 class UxDatasetPlotAccessor:
     """Plotting Accessor for UxDataset, accessed through ``UxDataset.plot()``
