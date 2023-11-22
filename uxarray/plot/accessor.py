@@ -428,6 +428,8 @@ class UxDataArrayPlotAccessor:
                 xlabel: Optional[str] = "Longitude",
                 ylabel: Optional[str] = "Latitude",
                 **kwargs):
+        """Vector Trimesh Plot of a Data of a Data Variable Residing on an
+        Unstructured Grid."""
 
         return dataarray_plot.trimesh(self._uxda,
                                       backend=backend,

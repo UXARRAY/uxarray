@@ -521,14 +521,13 @@ def trimesh(uxda: UxDataArray,
             xlabel: Optional[str] = "Longitude",
             ylabel: Optional[str] = "Latitude",
             **kwargs):
-    """Vector Polygon Plot of a Data Variable Residing on an Unstructured Grid.
+    """Vector Trimesh Plot of a Data of a Data Variable Residing on an
+    Unstructured Grid.
 
     Parameters
     ----------
     backend: str
         Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-    exclude_antimeridian: bool,
-        Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
     height: int
         Plot Height for Bokeh Backend
     width: int

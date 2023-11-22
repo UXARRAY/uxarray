@@ -254,7 +254,19 @@ class UxDataArray(xr.DataArray):
                    projection: Optional = None,
                    override: Optional[bool] = False,
                    cache: Optional[bool] = True):
-        """TODO: """
+        """Constructs a ``holoviews.Trimesh`` object with triangles
+        representing the triangulation of the coordinates (nodes, edge centers,
+        or face centers) that a data variable is mapped to.
+
+        Parameters
+        ----------
+        projection : ccrs
+            Cartopy Projection to project coordinates to
+        override : bool
+            Flag to recompute the ``PolyCollection`` stored under the ``uxgrid`` if one is already cached
+        cache : bool
+            Flag to indicate if the computed ``PolyCollection`` stored under the ``uxgrid`` accessor should be cached
+        """
         from holoviews import Nodes, TriMesh
         from holoviews import opts
         if self._node_centered():

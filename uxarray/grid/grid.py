@@ -1055,7 +1055,9 @@ class Grid:
                      projection: Optional = None,
                      override: Optional[bool] = False,
                      cache: Optional[bool] = True):
-        """TODO: Docstring"""
+        """Triangulates the Node, Edge Center, or Face Center coordinates using
+        Scipy's 2D Delaunay Triangulation algorithm, returning the simplifies
+        of the resulting mesh."""
 
         from uxarray.grid.geometry import _grid_to_simplices
         if element == "nodes":
