@@ -634,6 +634,8 @@ def _plot_data_as_points(element,
     """Helper function for plotting data variables as Points, either on the
     Nodes, Face Centers, or Edge Centers."""
 
+    from holoviews import Points
+
     if "clabel" not in kwargs:
         # set default label for color bar
         clabel = uxda.name
@@ -654,15 +656,13 @@ def _plot_data_as_points(element,
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
                                                   lat).T
 
-    point_array = np.array([lon, lat, uxda.values]).T
-
-    vdims = [uxda.name if uxda.name is not None else "d_var"]
-    hv_points = hv.Nodes(point_array, vdims=vdims)
+    verts = np.column_stack([lon, lat, uxda.values])
+    hv_points = Points(verts, vdims=['z'])
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
         hv.extension("matplotlib")
-        return hv_points.opts(color=vdims[0],
+        return hv_points.opts(color='z',
                               colorbar=colorbar,
                               cmap=cmap,
                               xlabel=xlabel,
@@ -673,7 +673,7 @@ def _plot_data_as_points(element,
     elif backend == "bokeh":
         # use holoviews bokeh backend
         hv.extension("bokeh")
-        return hv_points.opts(color=vdims[0],
+        return hv_points.opts(color='z',
                               width=width,
                               height=height,
                               colorbar=colorbar,
