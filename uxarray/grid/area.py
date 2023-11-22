@@ -41,6 +41,11 @@ def calculate_face_area(x,
 
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
+
+    Returns
+    -------
+    area : double
+    jacobian: double
     """
     area = 0.0  # set area to 0
     jacobian = 0.0  # set jacobian to 0
