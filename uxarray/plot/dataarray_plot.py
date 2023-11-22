@@ -432,6 +432,64 @@ def polygons(uxda: UxDataArray,
                                 **kwargs)
 
 
+def trimesh(uxda: UxDataArray,
+            backend: Optional[str] = "bokeh",
+            exclude_antimeridian: Optional[bool] = True,
+            projection: Optional = None,
+            width: Optional[int] = 1000,
+            height: Optional[int] = 500,
+            colorbar: Optional[bool] = True,
+            cmap: Optional[str] = "Blues",
+            xlabel: Optional[str] = "Longitude",
+            ylabel: Optional[str] = "Latitude",
+            **kwargs):
+    """Vector Polygon Plot of a Data Variable Residing on an Unstructured Grid.
+
+    Parameters
+    ----------
+    backend: str
+        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+    exclude_antimeridian: bool,
+        Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
+    height: int
+        Plot Height for Bokeh Backend
+    width: int
+        Plot Width for Bokeh Backend
+    """
+    if not exclude_antimeridian:
+        warnings.warn(
+            "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep "
+            "'exclude_antimeridian' set to True.")
+
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
+
+    # gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    #
+    # hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+
+    if backend == "matplotlib":
+        # use holoviews matplotlib backend
+        hv.extension("matplotlib")
+
+        return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
+
+    elif backend == "bokeh":
+        # use holoviews bokeh backend
+        hv.extension("bokeh")
+        return hv_polygons.opts(width=width,
+                                height=height,
+                                colorbar=colorbar,
+                                cmap=cmap,
+                                xlabel=xlabel,
+                                ylabel=ylabel,
+                                clabel=clabel,
+                                **kwargs)
+
+
 def points(uxda: UxDataArray,
            backend: Optional[str] = "bokeh",
            width: Optional[int] = 1000,

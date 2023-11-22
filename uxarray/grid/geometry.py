@@ -6,6 +6,8 @@ import warnings
 
 from numba import njit
 
+import cartopy.crs as ccrs
+
 POLE_POINTS = {
     'North': np.array([0.0, 0.0, 1.0]),
     'South': np.array([0.0, 0.0, -1.0])
@@ -15,6 +17,32 @@ POLE_POINTS = {
 GDF_POLYGON_THRESHOLD = 100000
 
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
+
+
+# Trimesh / Triangulation Helpers
+# ----------------------------------------------------------------------------------------------------------------------
+def _grid_to_trimesh(grid, element="nodes", projection=None):
+    """TODO: Docstring"""
+    from holoviews import TriMesh
+
+    if element == "nodes":
+        # node coordinates
+        lon, lat = grid.node_lon.values, grid.node_lat.values
+    elif element == "edges":
+        # edge center coordinates
+        lon, lat = grid.edge_lon.values, grid.edge_lat.values
+    else:
+        # face center coordinates
+        lon, lat = grid.face_lon.values, grid.face_lat.values
+
+    if projection is not None:
+        # perform geographic projection
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
+                                                  lat).T
+    # construct point array
+    points = np.array([lon, lat, np.zeros_like(lon)]).T
+
+    return TriMesh.from_vertices(points)
 
 
 # General Helpers for Polygon Viz

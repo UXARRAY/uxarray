@@ -241,7 +241,7 @@ def _populate_centroid_coord(grid, repopulate=False):
     face_nodes = grid.face_node_connectivity.values
     n_nodes_per_face = grid.n_nodes_per_face.values
 
-    if "node_lon" not in grid._ds or repopulate:
+    if "face_lon" not in grid._ds or repopulate:
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
             centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(

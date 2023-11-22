@@ -124,6 +124,12 @@ class Grid:
         self._corner_points_df_proj = [None, None]
         self._raster_data_id = None
 
+        # triangulations of specific coords
+        self._node_trimesh = None
+        self._edge_trimesh = None
+        self._face_trimesh = None
+        self._trimesh_proj = {"nodes": None, "edges": None, "faces": None}
+
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
@@ -543,8 +549,8 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lon" not in self._ds:
-            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
+            _set_desired_longitude_range(self._ds)
         return self._ds["face_lon"]
 
     @property
@@ -555,8 +561,8 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lat" not in self._ds:
-            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
+            _set_desired_longitude_range(self._ds)
 
         return self._ds["face_lat"]
 
@@ -1043,3 +1049,32 @@ class Grid:
             self._line_collection = line_collection
 
         return line_collection
+
+    def to_trimesh(self,
+                   element: Optional[str] = "nodes",
+                   projection: Optional = None,
+                   override: Optional[bool] = False,
+                   cache: Optional[bool] = True):
+        """TODO: Docstring"""
+
+        from uxarray.grid.geometry import _grid_to_trimesh
+        if element == "nodes":
+            _trimesh_name = "_node_trimesh"
+        elif element == "edges":
+            _trimesh_name = "_edge_trimesh"
+        elif element == "faces":
+            _trimesh_name = "_face_trimesh"
+        else:
+            raise ValueError("TODO")
+
+        if getattr(self, _trimesh_name) is not None and not override:
+            if self._trimesh_proj[element] == projection:
+                return getattr(self, _trimesh_name)
+
+        trimesh = _grid_to_trimesh(self, element, projection)
+        self._trimesh_proj[element] = projection
+
+        if cache:
+            setattr(self, _trimesh_name, trimesh)
+
+        return trimesh

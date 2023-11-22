@@ -249,6 +249,31 @@ class UxDataArray(xr.DataArray):
         xrds = super().to_dataset()
         return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
+    def to_trimesh(self,
+                   projection: Optional = None,
+                   override: Optional[bool] = False,
+                   cache: Optional[bool] = True):
+        """TODO: """
+        from holoviews import Points, TriMesh
+        if self._node_centered():
+            element = "nodes"
+            lon, lat = self.uxgrid.node_lon.values, self.uxgrid.node_lat.values
+        elif self._edge_centered():
+            element = "edges"
+            lon, lat = self.uxgrid.edge_lon.values, self.uxgrid.edge_lat.values
+        elif self._face_centered():
+            element = "faces"
+            lon, lat = self.uxgrid.face_lon.values, self.uxgrid.face_lat.values
+        else:
+            raise ValueError
+
+        simplices = self.uxgrid.to_trimesh(element, projection, override, cache)
+
+        vdim = self.name if self.name is not None else "d_var"
+        nodes = Points(np.column_stack([lon, lat, self.values]), vdims=vdim)
+
+        return TriMesh((simplices, nodes))
+
     def nearest_neighbor_remap(self,
                                destination_obj: Union[Grid, UxDataArray,
                                                       UxDataset],
