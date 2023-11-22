@@ -543,8 +543,8 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lon" not in self._ds:
-            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
+            _set_desired_longitude_range(self._ds)
         return self._ds["face_lon"]
 
     @property
@@ -555,8 +555,8 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lat" not in self._ds:
-            _set_desired_longitude_range(self._ds)
             _populate_centroid_coord(self)
+            _set_desired_longitude_range(self._ds)
 
         return self._ds["face_lat"]
 
