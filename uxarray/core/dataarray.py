@@ -256,7 +256,7 @@ class UxDataArray(xr.DataArray):
                    cache: Optional[bool] = True):
         """Constructs a ``holoviews.Trimesh`` object with triangles
         representing the triangulation of the coordinates (nodes, edge centers,
-        or face centers) that a data variable is mapped to.
+        or face centers) that a data variable maps to.
 
         Parameters
         ----------
@@ -270,24 +270,31 @@ class UxDataArray(xr.DataArray):
         from holoviews import Nodes, TriMesh
         from holoviews import opts
         if self._node_centered():
+            # select node coordinates
             element = "nodes"
             lon, lat = self.uxgrid.node_lon.values, self.uxgrid.node_lat.values
         elif self._edge_centered():
+            # select edge-center coordinates
             element = "edges"
             lon, lat = self.uxgrid.edge_lon.values, self.uxgrid.edge_lat.values
         elif self._face_centered():
+            # select face-center coordinates
             element = "faces"
             lon, lat = self.uxgrid.face_lon.values, self.uxgrid.face_lat.values
         else:
-            raise ValueError
+            raise ValueError(
+                "Data is not mapped to nodes, edge centers, or face centers.")
 
+        # obtain triangle simplices
         simplices = self.uxgrid.to_simplices(element, projection, override,
                                              cache)
 
+        # populate holoviews nodes with data to pair with simplices
         verts = np.column_stack([lon, lat, self.values])
         verts_df = pd.DataFrame(verts, columns=['x', 'y', 'z'])
         nodes = Nodes(verts_df, ['x', 'y', 'index'], ['z'])
 
+        # create a trimesh with simplices and nodes
         trimesh = TriMesh((simplices, nodes))
 
         return trimesh.opts(filled=True, edge_color="z")

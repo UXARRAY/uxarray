@@ -90,6 +90,7 @@ IO
 
    UxDataArray.to_dataset
    UxDataArray.to_geodataframe
+   UxDataArray.to_trimesh
    UxDataArray.to_polycollection
 
 
