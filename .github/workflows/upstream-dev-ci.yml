@@ -26,7 +26,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: conda_setup
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: uxarray_upstream_build
           channel-priority: strict
