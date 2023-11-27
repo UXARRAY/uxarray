@@ -125,6 +125,7 @@ Plotting
    UxDataArray.plot.rasterize
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+   UxDataArray.plot.trimesh
 
 
 
@@ -155,7 +156,7 @@ IO
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_linecollection
-   Grid.to_shapely_polygons
+   Grid.to_simplices
    Grid.validate
 
 

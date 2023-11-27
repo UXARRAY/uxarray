@@ -124,7 +124,7 @@ class Grid:
         self._corner_points_df_proj = [None, None]
         self._raster_data_id = None
 
-        # triangulations of specific coords
+        # triangulation cache & bookkeeping
         self._node_simplices = None
         self._edge_simplices = None
         self._face_simplices = None
@@ -1057,9 +1057,15 @@ class Grid:
                      cache: Optional[bool] = True):
         """Triangulates the Node, Edge Center, or Face Center coordinates using
         Scipy's 2D Delaunay Triangulation algorithm, returning the simplifies
-        of the resulting mesh."""
+        of the resulting mesh.
 
+        Note
+        ----
+        The resulting simplices are a triangulation of the points on a 2D plane, with no triangles crossing
+        the antimeridian.
+        """
         from uxarray.grid.geometry import _grid_to_simplices
+
         if element == "nodes":
             _trimesh_name = "_node_simplices"
         elif element == "edges":
@@ -1067,13 +1073,19 @@ class Grid:
         elif element == "faces":
             _trimesh_name = "_face_simplices"
         else:
-            raise ValueError("TODO")
+            raise ValueError(
+                f"Invalid element '{element}', expected one of: 'nodes', 'edges' or 'faces'"
+            )
 
         if getattr(self, _trimesh_name) is not None and not override:
+            # attempt to use cached triangulation
             if self._trimesh_proj[element] == projection:
+                # ensure previous triangulation used the same projection
                 return getattr(self, _trimesh_name)
 
         simplices = _grid_to_simplices(self, element, projection)
+
+        # keep track of current triangulation's projection
         self._trimesh_proj[element] = projection
 
         if cache:

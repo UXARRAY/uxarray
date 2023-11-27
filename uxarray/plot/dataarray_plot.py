@@ -521,8 +521,8 @@ def trimesh(uxda: UxDataArray,
             xlabel: Optional[str] = "Longitude",
             ylabel: Optional[str] = "Latitude",
             **kwargs):
-    """Vector Trimesh Plot of a Data of a Data Variable Residing on an
-    Unstructured Grid.
+    """Vector Trimesh Plot of a Data Variable by triangulating either the node,
+    face center, or edge centers coordinates using Delaunay Triangulation.
 
     Parameters
     ----------

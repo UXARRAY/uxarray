@@ -22,7 +22,9 @@ REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 # Trimesh / Triangulation Helpers
 # ----------------------------------------------------------------------------------------------------------------------
 def _grid_to_simplices(grid, element="nodes", projection=None):
-    """TODO: Docstring"""
+    """Triangulates an element (nodes, edge centers, or face centers) and
+    returns the simplifies (i.e. corner points) of the resulting
+    triangulation."""
     from scipy.spatial import Delaunay
 
     if element == "nodes":
