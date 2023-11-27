@@ -268,7 +268,12 @@ class UxDataArray(xr.DataArray):
             Flag to indicate if the computed ``PolyCollection`` stored under the ``uxgrid`` accessor should be cached
         """
         from holoviews import Nodes, TriMesh
+        import holoviews as hv
         from holoviews import opts
+        import cartopy.crs as ccrs
+
+        # set extension to support opts
+        hv.extension("bokeh")
         if self._node_centered():
             # select node coordinates
             element = "nodes"
@@ -284,6 +289,11 @@ class UxDataArray(xr.DataArray):
         else:
             raise ValueError(
                 "Data is not mapped to nodes, edge centers, or face centers.")
+
+        if projection is not None:
+            # perform geographic projection
+            lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
+                                                      lat).T
 
         # obtain triangle simplices
         simplices = self.uxgrid.to_simplices(element, projection, override,
