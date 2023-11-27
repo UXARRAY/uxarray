@@ -135,6 +135,7 @@ Geometry
    grid.geometry._pole_point_inside_polygon
    grid.geometry._classify_polygon_location
    grid.geometry._check_intersection
+   grid.geometry._grid_to_simplices
 
 Coordinates
 -----------
@@ -285,3 +286,4 @@ Visualization
    plot.dataarray_plot._plot_data_as_points
    plot.dataarray_plot._polygon_raster
    plot.dataarray_plot._point_raster
+   plot.dataarray_plot._trimesh_raster

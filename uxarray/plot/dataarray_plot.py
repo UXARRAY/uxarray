@@ -171,9 +171,21 @@ def rasterize(uxda: UxDataArray,
                                  pixel_ratio=pixel_ratio,
                                  **kwargs)
     elif method == "trimesh":
-        raise ValueError(f"Trimesh Rasterization not yet implemented.")
+        raster = _trimesh_raster(uxda=uxda,
+                                 backend=backend,
+                                 projection=projection,
+                                 dynamic=dynamic,
+                                 precompute=precompute,
+                                 width=width,
+                                 height=height,
+                                 colorbar=colorbar,
+                                 cmap=cmap,
+                                 aggregator=aggregator,
+                                 interpolation=interpolation,
+                                 pixel_ratio=pixel_ratio,
+                                 **kwargs)
     else:
-        raise ValueError(f"Unsupported method {method}.")
+        raise ValueError(f"Unsupported method: {method}.")
 
     return raster
 
@@ -374,6 +386,72 @@ def _polygon_raster(uxda: UxDataArray,
     return raster
 
 
+def _trimesh_raster(uxda: UxDataArray,
+                    backend: Optional[str] = "bokeh",
+                    projection: Optional = None,
+                    pixel_ratio: Optional[float] = 1.0,
+                    dynamic: Optional[bool] = False,
+                    precompute: Optional[bool] = True,
+                    width: Optional[int] = 1000,
+                    height: Optional[int] = 500,
+                    colorbar: Optional[bool] = True,
+                    cmap: Optional[str] = "Blues",
+                    aggregator: Optional[str] = "mean",
+                    interpolation: Optional[str] = "linear",
+                    xlabel: Optional[str] = "Longitude",
+                    ylabel: Optional[str] = "Latitude",
+                    **kwargs):
+    """Implementation of Polygon Rasterization."""
+
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
+
+    hv_trimesh = uxda.to_trimesh(projection=projection)
+
+    if backend == "matplotlib":
+        # use holoviews matplotlib backend
+        hv.extension("matplotlib")
+        raster = hds_rasterize(hv_trimesh,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               aggregator=aggregator,
+                               interpolation=interpolation).opts(
+                                   colorbar=colorbar,
+                                   cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
+                                   **kwargs)
+    elif backend == "bokeh":
+        # use holoviews bokeh backend
+        hv.extension("bokeh")
+        raster = hds_rasterize(hv_trimesh,
+                               pixel_ratio=pixel_ratio,
+                               dynamic=dynamic,
+                               precompute=precompute,
+                               aggregator=aggregator,
+                               interpolation=interpolation).opts(
+                                   width=width,
+                                   height=height,
+                                   colorbar=colorbar,
+                                   cmap=cmap,
+                                   xlabel=xlabel,
+                                   ylabel=ylabel,
+                                   clabel=clabel,
+                                   **kwargs)
+
+    else:
+        raise ValueError(
+            f"Invalid backend selected. Expected one of ['matplotlib', 'bokeh'] but received {backend}."
+        )
+
+    return raster
+
+
 def polygons(uxda: UxDataArray,
              backend: Optional[str] = "bokeh",
              exclude_antimeridian: Optional[bool] = True,
@@ -432,12 +510,70 @@ def polygons(uxda: UxDataArray,
                                 **kwargs)
 
 
+def trimesh(uxda: UxDataArray,
+            backend: Optional[str] = "bokeh",
+            exclude_antimeridian: Optional[bool] = True,
+            projection: Optional = None,
+            width: Optional[int] = 1000,
+            height: Optional[int] = 500,
+            colorbar: Optional[bool] = True,
+            cmap: Optional[str] = "Blues",
+            xlabel: Optional[str] = "Longitude",
+            ylabel: Optional[str] = "Latitude",
+            **kwargs):
+    """Vector Trimesh Plot of a Data Variable by triangulating either the node,
+    face center, or edge centers coordinates using Delaunay Triangulation.
+
+    Parameters
+    ----------
+    backend: str
+        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+    height: int
+        Plot Height for Bokeh Backend
+    width: int
+        Plot Width for Bokeh Backend
+    """
+    if not exclude_antimeridian:
+        warnings.warn(
+            "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep "
+            "'exclude_antimeridian' set to True.")
+
+    if "clabel" not in kwargs:
+        # set default label for color bar
+        clabel = uxda.name
+    else:
+        clabel = kwargs.get("clabel")
+
+    hv_trimesh = uxda.to_trimesh(projection=projection)
+
+    if backend == "matplotlib":
+        # use holoviews matplotlib backend
+        hv.extension("matplotlib")
+
+        return hv_trimesh.opts(
+            opts.TriMesh(colorbar=colorbar, cmap=cmap, **kwargs))
+
+    elif backend == "bokeh":
+        # use holoviews bokeh backend
+        hv.extension("bokeh")
+        return hv_trimesh.opts(
+            opts.TriMesh(width=width,
+                         height=height,
+                         colorbar=colorbar,
+                         cmap=cmap,
+                         xlabel=xlabel,
+                         ylabel=ylabel,
+                         clabel=clabel,
+                         **kwargs))
+
+
 def points(uxda: UxDataArray,
            backend: Optional[str] = "bokeh",
            width: Optional[int] = 1000,
            height: Optional[int] = 500,
            colorbar: Optional[bool] = True,
            cmap: Optional[str] = "Blues",
+           projection=None,
            **kwargs):
     """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
     Face Coordinates."""
@@ -456,6 +592,7 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    projection=projection,
                                     **kwargs)
     elif uxda._face_centered():
         return _plot_data_as_points(element='face',
@@ -465,6 +602,7 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    projection=projection,
                                     **kwargs)
     elif uxda._edge_centered():
         return _plot_data_as_points(element='edge',
@@ -474,6 +612,7 @@ def points(uxda: UxDataArray,
                                     height=height,
                                     colorbar=colorbar,
                                     cmap=cmap,
+                                    projection=projection,
                                     **kwargs)
     else:
         raise ValueError(
@@ -489,9 +628,12 @@ def _plot_data_as_points(element,
                          cmap: Optional[str] = "Blues",
                          xlabel: Optional[str] = "Longitude",
                          ylabel: Optional[str] = "Latitude",
+                         projection=None,
                          **kwargs):
     """Helper function for plotting data variables as Points, either on the
     Nodes, Face Centers, or Edge Centers."""
+
+    from holoviews import Points
 
     if "clabel" not in kwargs:
         # set default label for color bar
@@ -501,25 +643,25 @@ def _plot_data_as_points(element,
 
     uxgrid = uxda.uxgrid
     if element == "node":
-        point_array = np.array(
-            [uxgrid.node_lon, uxgrid.node_lat.values, uxda.values]).T
+        lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
     elif element == "face":
-
-        point_array = np.array(
-            [uxgrid.face_lon, uxgrid.face_lat.values, uxda.values]).T
+        lon, lat = uxgrid.face_lon.values, uxgrid.face_lat.values
     elif element == "edge":
-        point_array = np.array(
-            [uxgrid.edge_lon, uxgrid.edge_lat.values, uxda.values]).T
+        lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
     else:
         raise ValueError("Invalid element selected.")
 
-    vdims = [uxda.name if uxda.name is not None else "d_var"]
-    hv_points = hv.Points(point_array, vdims=vdims)
+    if projection is not None:
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
+                                                  lat).T
+
+    verts = np.column_stack([lon, lat, uxda.values])
+    hv_points = Points(verts, vdims=['z'])
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
         hv.extension("matplotlib")
-        return hv_points.opts(color=vdims[0],
+        return hv_points.opts(color='z',
                               colorbar=colorbar,
                               cmap=cmap,
                               xlabel=xlabel,
@@ -530,7 +672,7 @@ def _plot_data_as_points(element,
     elif backend == "bokeh":
         # use holoviews bokeh backend
         hv.extension("bokeh")
-        return hv_points.opts(color=vdims[0],
+        return hv_points.opts(color='z',
                               width=width,
                               height=height,
                               colorbar=colorbar,

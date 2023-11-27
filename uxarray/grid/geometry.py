@@ -6,6 +6,8 @@ import warnings
 
 from numba import njit
 
+import cartopy.crs as ccrs
+
 POLE_POINTS = {
     'North': np.array([0.0, 0.0, 1.0]),
     'South': np.array([0.0, 0.0, -1.0])
@@ -15,6 +17,36 @@ POLE_POINTS = {
 GDF_POLYGON_THRESHOLD = 100000
 
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
+
+
+# Trimesh / Triangulation Helpers
+# ----------------------------------------------------------------------------------------------------------------------
+def _grid_to_simplices(grid, element="nodes", projection=None):
+    """Triangulates an element (nodes, edge centers, or face centers) and
+    returns the simplifies (i.e. corner points) of the resulting
+    triangulation."""
+    from scipy.spatial import Delaunay
+
+    if element == "nodes":
+        # node coordinates
+        lon, lat = grid.node_lon.values, grid.node_lat.values
+    elif element == "edges":
+        # edge center coordinates
+        lon, lat = grid.edge_lon.values, grid.edge_lat.values
+    else:
+        # face center coordinates
+        lon, lat = grid.face_lon.values, grid.face_lat.values
+
+    if projection is not None:
+        # perform geographic projection
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
+                                                  lat).T
+    # construct point array
+    points = np.column_stack([lon, lat])
+
+    tris = Delaunay(points)
+
+    return tris.simplices
 
 
 # General Helpers for Polygon Viz
