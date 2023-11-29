@@ -307,6 +307,88 @@ def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
     return centroids[0, :], centroids[1, :], centroids[2, :]
 
 
+def _populate_edge_centroids(grid, repopulate=False):
+    """Finds the centroids using cartesian averaging of faces based off the
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized. This cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centroids
+    """
+
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
+    edge_nodes_con = grid.edge_node_connectivity.values
+
+    if "edge_lon" not in grid._ds or repopulate:
+        # Construct the centroids if there are none stored
+        if "edge_x" not in grid._ds:
+            centroid_x, centroid_y, centroid_z = _construct_centroids(
+                node_x, node_y, node_z, edge_nodes_con)
+
+        else:
+            # If there are cartesian centroids already use those instead
+            centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
+
+        # Convert from xyz to latlon
+        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
+            centroid_x, centroid_y, centroid_z)
+    else:
+        # Convert to xyz if there are latlon centroids already stored
+        centroid_lon, centroid_lat = grid.face_lon.values, grid.face_lat.values
+        centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
+            centroid_lon, centroid_lat)
+
+    if "face_lon" not in grid._ds or repopulate:
+        grid._ds["face_lon"] = xr.DataArray(centroid_lon,
+                                            dims=["n_face"],
+                                            attrs={"units": "degrees_east"})
+        grid._ds["face_lat"] = xr.DataArray(centroid_lat,
+                                            dims=["n_face"],
+                                            attrs={"units": "degrees_north"})
+
+    if "face_x" not in grid._ds or repopulate:
+        grid._ds["face_x"] = xr.DataArray(centroid_x,
+                                          dims=["n_face"],
+                                          attrs={"units": "meters"})
+
+        grid._ds["face_y"] = xr.DataArray(centroid_y,
+                                          dims=["n_face"],
+                                          attrs={"units": "meters"})
+
+        grid._ds["face_z"] = xr.DataArray(centroid_z,
+                                          dims=["n_face"],
+                                          attrs={"units": "meters"})
+
+
+@njit(cache=ENABLE_JIT_CACHE)
+def _construct_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging."""
+    centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        # compute cartesian average
+        centroid_x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+        # normalize coordinates
+        centroid_normalized_xyz = normalize_in_place(
+            [centroid_x, centroid_y, centroid_z])
+
+        # store xyz
+        centroids[0, face_idx] = centroid_normalized_xyz[0]
+        centroids[1, face_idx] = centroid_normalized_xyz[1]
+        centroids[2, face_idx] = centroid_normalized_xyz[2]
+
+    return centroids[0, :], centroids[1, :], centroids[2, :]
+
+
 def _set_desired_longitude_range(ds):
     """Sets the longitude range to [-180, 180] for all longitude variables."""
 
