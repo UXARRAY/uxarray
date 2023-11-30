@@ -29,7 +29,3 @@
 - title: Visualizing Data as Points
   path: examples/008-point-viz.ipynb
   thumbnail: _static/thumbnails/008-thumbnail.png
-
-- title: Triangulating Data for Visualization
-  path: examples/009-trimesh-viz.ipynb
-  thumbnail: _static/thumbnails/009-thumbnail.png

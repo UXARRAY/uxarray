@@ -250,65 +250,6 @@ class UxDataArray(xr.DataArray):
         xrds = super().to_dataset()
         return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
-    def to_trimesh(self,
-                   projection: Optional = None,
-                   override: Optional[bool] = False,
-                   cache: Optional[bool] = True):
-        """Constructs a ``holoviews.Trimesh`` object with triangles
-        representing the triangulation of the coordinates (nodes, edge centers,
-        or face centers) that a data variable maps to.
-
-        Parameters
-        ----------
-        projection : ccrs
-            Cartopy Projection to project coordinates to
-        override : bool
-            Flag to recompute the ``PolyCollection`` stored under the ``uxgrid`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``PolyCollection`` stored under the ``uxgrid`` accessor should be cached
-        """
-        from holoviews import Nodes, TriMesh
-        import holoviews as hv
-        from holoviews import opts
-        import cartopy.crs as ccrs
-
-        # set extension to support opts
-        hv.extension("bokeh")
-        if self._node_centered():
-            # select node coordinates
-            element = "nodes"
-            lon, lat = self.uxgrid.node_lon.values, self.uxgrid.node_lat.values
-        elif self._edge_centered():
-            # select edge-center coordinates
-            element = "edges"
-            lon, lat = self.uxgrid.edge_lon.values, self.uxgrid.edge_lat.values
-        elif self._face_centered():
-            # select face-center coordinates
-            element = "faces"
-            lon, lat = self.uxgrid.face_lon.values, self.uxgrid.face_lat.values
-        else:
-            raise ValueError(
-                "Data is not mapped to nodes, edge centers, or face centers.")
-
-        if projection is not None:
-            # perform geographic projection
-            lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon,
-                                                      lat).T
-
-        # obtain triangle simplices
-        simplices = self.uxgrid.to_simplices(element, projection, override,
-                                             cache)
-
-        # populate holoviews nodes with data to pair with simplices
-        verts = np.column_stack([lon, lat, self.values])
-        verts_df = pd.DataFrame(verts, columns=['x', 'y', 'z'])
-        nodes = Nodes(verts_df, ['x', 'y', 'index'], ['z'])
-
-        # create a trimesh with simplices and nodes
-        trimesh = TriMesh((simplices, nodes))
-
-        return trimesh.opts(filled=True, edge_color="z")
-
     def nearest_neighbor_remap(self,
                                destination_obj: Union[Grid, UxDataArray,
                                                       UxDataset],
