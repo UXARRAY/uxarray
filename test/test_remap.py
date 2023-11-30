@@ -9,7 +9,7 @@ import uxarray as ux
 from uxarray.core.dataset import UxDataset
 from uxarray.core.dataarray import UxDataArray
 
-from uxarray.remap import _nearest_neighbor
+from uxarray.remap import _nearest_neighbor, _inverse_distance_weighted_remap
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
@@ -143,3 +143,25 @@ class TestNearestNeighborRemap(TestCase):
         # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_uxds, UxDataset)
         assert len(remap_uxds_to_uxds.data_vars) == 4
+
+
+class TestInverseDistanceWeightedRemapping(TestCase):
+    """Testing for inverse distance weighted remapping."""
+
+    def test_remap_to_same_grid_corner_nodes(self):
+        """Test remapping to a 3-vertex grid.
+
+        Corner nodes case.
+        """
+        # single triangle with point on antimeridian
+        source_verts = np.array([(0.0, 90.0), (-180, 0.0), (0.0, -90)])
+        source_data_single_dim = [1.0, 2.0, 3.0]
+        source_grid = ux.open_grid(source_verts)
+        destination_grid = ux.open_grid(source_verts)
+
+        destination_single_data = _inverse_distance_weighted_remap(
+            source_grid,
+            destination_grid,
+            source_data_single_dim,
+            remap_to="nodes",
+            k_neighbors=2)

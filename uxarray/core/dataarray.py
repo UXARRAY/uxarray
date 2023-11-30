@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 from xarray.core.utils import UncachedAccessor
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
+from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap_uxda
 import uxarray.core.dataset
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
@@ -257,6 +258,28 @@ class UxDataArray(xr.DataArray):
 
         return _nearest_neighbor_uxda(self, destination_obj, remap_to,
                                       coord_type)
+
+    def inverse_distance_weighted_remap(self,
+                                        destination_obj: Union[Grid,
+                                                               UxDataArray,
+                                                               UxDataset],
+                                        remap_to: str = "nodes",
+                                        coord_type: str = "spherical"):
+        """Inverse Distance Weighted Remapping between a source
+        (``UxDataArray``) and destination.`.
+
+        Parameters
+        ---------
+        destination_obj : Grid, UxDataArray, UxDataset
+            Destination for remapping
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        coord_type : str, default="spherical"
+            Indicates whether to remap using on spherical or cartesian coordinates
+        """
+
+        return _inverse_distance_weighted_remap_uxda(self, destination_obj,
+                                                     remap_to, coord_type)
 
     def integrate(self,
                   quadrature_rule: Optional[str] = "triangular",
