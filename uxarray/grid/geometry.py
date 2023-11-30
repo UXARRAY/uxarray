@@ -6,8 +6,6 @@ import warnings
 
 from numba import njit
 
-import cartopy.crs as ccrs
-
 POLE_POINTS = {
     'North': np.array([0.0, 0.0, 1.0]),
     'South': np.array([0.0, 0.0, -1.0])
