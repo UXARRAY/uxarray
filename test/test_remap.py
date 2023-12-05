@@ -148,27 +148,54 @@ class TestNearestNeighborRemap(TestCase):
 class TestInverseDistanceWeightedRemapping(TestCase):
     """Testing for inverse distance weighted remapping."""
 
-    def test_remap_to_same_grid_corner_nodes(self):
-        """Test remapping to a 3-vertex grid.
+    def test_remap_center_nodes(self):
+        """Test remapping to center nodes."""
 
-        Corner nodes case.
-        """
-        # single triangle with point on antimeridian
-        source_verts = np.array([(0.0, 90.0), (-180, 0.0), (0.0, -90)])
-        source_data_single_dim = [1.0, 2.0, 3.0]
+        # datasets to use for remap
+        dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        destination_uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        data_on_face_centers = dataset['v1'].inverse_distance_weighted_remap(
+            destination_uxds.uxgrid, remap_to="face centers")
+        pass
+
+    def test_remap_corner_nodes(self):
+        """Test remapping to corner nodes."""
+
+        # datasets to use for remap
+        dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        destination_uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        data_on_nodes = dataset['v1'].inverse_distance_weighted_remap(
+            destination_uxds.uxgrid, remap_to="nodes")
+        pass
+
+    def test_cartesian_remap_to_nodes(self):
+        """Test remapping using cartesian coordinates using nodes."""
+
+        # triangle with data on nodes
+        source_verts = np.array([(0.0, 0.0, 1.0), (0.0, 1.0, 0.0),
+                                 (1.0, 0.0, 0.0)])
+        source_data = [1.0, 2.0, 3.0]
+
+        # open the source and destination grids
         source_grid = ux.open_grid(source_verts)
         destination_grid = ux.open_grid(source_verts)
 
+        # create the destination data
         destination_data = _inverse_distance_weighted_remap(
             source_grid,
             destination_grid,
-            source_data_single_dim,
+            source_data,
             remap_to="nodes",
+            coord_type="cartesian",
             k_neighbors=2)
+        pass
 
     def test_remap_return_types(self):
         """Tests the return type of the `UxDataset` and `UxDataArray`
         implementations of Inverse Distance Weighted."""
+
         source_data_paths = [
             dsfile_v1_geoflow, dsfile_v2_geoflow, dsfile_v3_geoflow
         ]
@@ -215,28 +242,3 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_uxds, UxDataset)
         assert len(remap_uxds_to_uxds.data_vars) == 4
-
-    def test_remap_to_corner_nodes_cartesian(self):
-        """Test remapping to the same dummy 3-vertex grid, using cartesian
-        coordinates.
-
-        Corner nodes case.
-        """
-
-        # single triangle
-        source_verts = np.array([(0.0, 0.0, 1.0), (0.0, 1.0, 0.0),
-                                 (1.0, 0.0, 0.0)])
-        source_data_single_dim = [1.0, 2.0, 3.0]
-
-        # open the source and destination grids
-        source_grid = ux.open_grid(source_verts)
-        destination_grid = ux.open_grid(source_verts)
-
-        # create the destination data
-        destination_data = _inverse_distance_weighted_remap(
-            source_grid,
-            destination_grid,
-            source_data_single_dim,
-            remap_to="nodes",
-            coord_type="cartesian",
-            k_neighbors=2)
