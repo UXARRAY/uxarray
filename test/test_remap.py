@@ -159,9 +159,84 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         source_grid = ux.open_grid(source_verts)
         destination_grid = ux.open_grid(source_verts)
 
-        destination_single_data = _inverse_distance_weighted_remap(
+        destination_data = _inverse_distance_weighted_remap(
             source_grid,
             destination_grid,
             source_data_single_dim,
             remap_to="nodes",
+            k_neighbors=2)
+
+    def test_remap_return_types(self):
+        """Tests the return type of the `UxDataset` and `UxDataArray`
+        implementations of Inverse Distance Weighted."""
+        source_data_paths = [
+            dsfile_v1_geoflow, dsfile_v2_geoflow, dsfile_v3_geoflow
+        ]
+        source_uxds = ux.open_mfdataset(gridfile_geoflow, source_data_paths)
+        destination_uxds = ux.open_dataset(gridfile_CSne30,
+                                           dsfile_vortex_CSne30)
+
+        remap_uxda_to_grid = source_uxds['v1'].inverse_distance_weighted_remap(
+            destination_uxds.uxgrid)
+
+        assert isinstance(remap_uxda_to_grid, UxDataArray)
+
+        remap_uxda_to_uxda = source_uxds['v1'].inverse_distance_weighted_remap(
+            destination_uxds['psi'])
+
+        # Dataset with two vars: original "psi" and remapped "v1"
+        assert isinstance(remap_uxda_to_uxda, UxDataset)
+        assert len(remap_uxda_to_uxda.data_vars) == 2
+
+        remap_uxda_to_uxds = source_uxds['v1'].inverse_distance_weighted_remap(
+            destination_uxds)
+
+        # Dataset with two vars: original "psi" and remapped "v1"
+        assert isinstance(remap_uxda_to_uxds, UxDataset)
+        assert len(remap_uxda_to_uxds.data_vars) == 2
+
+        remap_uxds_to_grid = source_uxds.inverse_distance_weighted_remap(
+            destination_uxds.uxgrid)
+
+        # Dataset with three vars: remapped "v1, v2, v3"
+        assert isinstance(remap_uxds_to_grid, UxDataset)
+        assert len(remap_uxds_to_grid.data_vars) == 3
+
+        remap_uxds_to_uxda = source_uxds.inverse_distance_weighted_remap(
+            destination_uxds['psi'])
+
+        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
+        assert isinstance(remap_uxds_to_uxda, UxDataset)
+        assert len(remap_uxds_to_uxda.data_vars) == 4
+
+        remap_uxds_to_uxds = source_uxds.inverse_distance_weighted_remap(
+            destination_uxds)
+
+        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
+        assert isinstance(remap_uxds_to_uxds, UxDataset)
+        assert len(remap_uxds_to_uxds.data_vars) == 4
+
+    def test_remap_to_corner_nodes_cartesian(self):
+        """Test remapping to the same dummy 3-vertex grid, using cartesian
+        coordinates.
+
+        Corner nodes case.
+        """
+
+        # single triangle
+        source_verts = np.array([(0.0, 0.0, 1.0), (0.0, 1.0, 0.0),
+                                 (1.0, 0.0, 0.0)])
+        source_data_single_dim = [1.0, 2.0, 3.0]
+
+        # open the source and destination grids
+        source_grid = ux.open_grid(source_verts)
+        destination_grid = ux.open_grid(source_verts)
+
+        # create the destination data
+        destination_data = _inverse_distance_weighted_remap(
+            source_grid,
+            destination_grid,
+            source_data_single_dim,
+            remap_to="nodes",
+            coord_type="cartesian",
             k_neighbors=2)
