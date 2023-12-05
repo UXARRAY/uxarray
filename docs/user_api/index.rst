@@ -57,6 +57,7 @@ Remapping
    :toctree: _autosummary
 
    UxDataset.nearest_neighbor_remap
+   UxDataset.inverse_distance_weighted_remap
 
 Plotting
 --------
@@ -113,6 +114,7 @@ Remapping
    :toctree: _autosummary
 
    UxDataArray.nearest_neighbor_remap
+   UxDataArray.inverse_distance_weighted_remap
    UxDataArray.nodal_average
 
 Plotting
