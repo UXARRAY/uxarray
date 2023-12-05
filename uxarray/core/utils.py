@@ -23,7 +23,7 @@ def _map_dims_to_ugrid(ds, _source_dims_dict, grid):
             elif ds.dims[dim] == grid.n_edge:
                 _source_dims_dict[dim] = 'n_edge'
 
-    # TODO: Link Issue #60xx
+    # Possible Issue: https://github.com/UXARRAY/uxarray/issues/610
 
     # rename dimensions to follow the UGRID conventions
     ds = ds.rename_dims(_source_dims_dict)
