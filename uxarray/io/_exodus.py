@@ -7,141 +7,77 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _get_lonlat_from_xyz, _get_xyz_from_lonlat
 
-
 # Exodus Number is one-based.
+
+
 def _read_exodus(ext_ds):
-    """Exodus file reader.
 
-    Parameters: xarray.Dataset, required
-    Returns: ugrid aware xarray.Dataset
-    """
-
-    # TODO: UGRID Variable Mapping
     source_dims_dict = {}
-
-    # Not loading specific variables.
-    # as there is no way to know number of face types etc. without loading
-    # connect1, connect2, connect3, etc..
     ds = xr.Dataset()
 
-    # find max face nodes
-    max_face_nodes = 0
-    for dim in ext_ds.dims:
-        if "num_nod_per_el" in dim:
-            if ext_ds.dims[dim] > max_face_nodes:
-                max_face_nodes = ext_ds.dims[dim]
-
-    # create an empty conn array for storing all blk face_nodes_data
-    conn = np.empty((0, max_face_nodes))
-
-    for key, value in ext_ds.variables.items():
-        if key == "qa_records":
-            # TODO: Use the data here for Mesh2 construct, if required.
-            pass
-        elif key == "coord":
-            ds["node_x"] = xr.DataArray(data=ext_ds.coord[0],
-                                        dims=["n_node"],
-                                        attrs={
-                                            "standard_name": "x",
-                                            "long_name": "cartesian x",
-                                            "units": "m",
-                                        })
-            ds["node_y"] = xr.DataArray(data=ext_ds.coord[1],
-                                        dims=["n_node"],
-                                        attrs={
-                                            "standard_name": "y",
-                                            "long_name": "cartesian y",
-                                            "units": "m",
-                                        })
-            if ext_ds.dims['num_dim'] > 2:
-                ds["node_z"] = xr.DataArray(data=ext_ds.coord[2],
-                                            dims=["n_node"],
-                                            attrs={
-                                                "standard_name": "z",
-                                                "long_name": "cartesian z",
-                                                "units": "m",
-                                            })
-        elif key == "coordx":
-            ds["node_x"] = xr.DataArray(data=ext_ds.coordx,
-                                        dims=["n_node"],
-                                        attrs={
-                                            "standard_name": "x",
-                                            "long_name": "cartesian x",
-                                            "units": "m",
-                                        })
-        elif key == "coordy":
-            ds["node_y"] = xr.DataArray(data=ext_ds.coordx,
-                                        dims=["n_node"],
-                                        attrs={
-                                            "standard_name": "y",
-                                            "long_name": "cartesian y",
-                                            "units": "m",
-                                        })
-        elif key == "coordz":
-            if ext_ds.dims['num_dim'] > 2:
-                ds["node_z"] = xr.DataArray(data=ext_ds.coordx,
-                                            dims=["n_node"],
-                                            attrs={
-                                                "standard_name": "z",
-                                                "long_name": "cartesian z",
-                                                "units": "m",
-                                            })
-        elif "connect" in key:
-            # check if num face nodes is less than max.
-            if value.data.shape[1] <= max_face_nodes:
-                conn = np.full((value.data.shape[1], max_face_nodes),
-                               0,
-                               dtype=conn.dtype)
-                conn = value.data
-            else:
-                raise RuntimeError(
-                    "found face_nodes_dim greater than n_max_face_nodes")
-
-            # find the elem_type as etype for this element
-            for k, v in value.attrs.items():
-                if k == "elem_type":
-                    # TODO: etype if not used now, remove if it'll never be required
-                    etype = v
-
-    # outside the k,v for loop
-    # set the face nodes data compiled in "connect" section
+    # face node connectivity with 0-based indexing
+    face_node_connectivity = ext_ds['connect1'].values - 1
+    n_face_name, n_max_face_nodes_name = ext_ds['connect1'].dims
+    source_dims_dict[n_face_name] = 'n_face'
+    source_dims_dict[n_max_face_nodes_name] = 'n_max_face_nodes'
 
     # standardize fill values and data type face nodes
-    face_nodes = _replace_fill_values(grid_var=conn[:] - 1,
-                                      original_fill=-1,
-                                      new_fill=INT_FILL_VALUE,
-                                      new_dtype=INT_DTYPE)
+    face_node_connectivity = _replace_fill_values(
+        grid_var=face_node_connectivity,
+        original_fill=-1,
+        new_fill=INT_FILL_VALUE,
+        new_dtype=INT_DTYPE)
 
     ds["face_node_connectivity"] = xr.DataArray(
-        data=face_nodes,
+        data=face_node_connectivity,
         dims=["n_face", "n_max_face_nodes"],
         attrs={
-            "cf_role":
-                "face_node_connectivity",
-            "_FillValue":
-                INT_FILL_VALUE,
-            "start_index":
-                INT_DTYPE(
-                    0)  # NOTE: This might cause an error if numbering has holes
+            "cf_role": "face_node_connectivity",
+            "_FillValue": INT_FILL_VALUE,
+            "start_index": INT_DTYPE(0)
         })
 
-    # populate lon/lat coordinates
+    # parse cartesian coordinates
+    n_node_name = ext_ds['coord'].dims[1]
+
+    ds["node_x"] = xr.DataArray(data=ext_ds['coord'][0].values,
+                                dims=["n_node"],
+                                attrs={
+                                    "standard_name": "x",
+                                    "long_name": "cartesian x",
+                                    "units": "m",
+                                })
+    ds["node_y"] = xr.DataArray(data=ext_ds['coord'][1].values,
+                                dims=["n_node"],
+                                attrs={
+                                    "standard_name": "y",
+                                    "long_name": "cartesian y",
+                                    "units": "m",
+                                })
+    ds["node_z"] = xr.DataArray(data=ext_ds['coord'][2].values,
+                                dims=["n_node"],
+                                attrs={
+                                    "standard_name": "z",
+                                    "long_name": "cartesian z",
+                                    "units": "m",
+                                })
+
+    # construct and populate spherical coords
     lon, lat = _get_lonlat_from_xyz(ds["node_x"].values, ds["node_y"].values,
                                     ds["node_z"].values)
 
-    # populate dataset
     ds["node_lon"] = xr.DataArray(data=lon,
                                   dims=["n_node"],
                                   attrs={
                                       "standard_name": "longitude",
-                                      "long_name": "longitude of mesh nodes",
+                                      "long_name": "longitude of corner nodes",
                                       "units": "degrees_east",
                                   })
     ds["node_lat"] = xr.DataArray(data=lat,
                                   dims=["n_node"],
                                   attrs={
                                       "standard_name": "latitude",
-                                      "long_name": "latitude of mesh nodes",
+                                      "long_name": "latitude of corner nodes",
                                       "units": "degrees_north",
                                   })
 
@@ -149,6 +85,149 @@ def _read_exodus(ext_ds):
     ds = ds.set_coords(["node_lon", "node_lat"])
 
     return ds, source_dims_dict
+
+
+# def _read_exodus(ext_ds):
+#     """Exodus file reader.
+#
+#     Parameters: xarray.Dataset, required
+#     Returns: ugrid aware xarray.Dataset
+#     """
+#
+#     source_dims_dict = {}
+#
+#     # Not loading specific variables.
+#     # as there is no way to know number of face types etc. without loading
+#     # connect1, connect2, connect3, etc..
+#     ds = xr.Dataset()
+#
+#     # find max face nodes
+#     max_face_nodes = 0
+#     for dim in ext_ds.dims:
+#         if "num_nod_per_el" in dim:
+#             if ext_ds.dims[dim] > max_face_nodes:
+#                 max_face_nodes = ext_ds.dims[dim]
+#
+#     # create an empty conn array for storing all blk face_nodes_data
+#     conn = np.empty((0, max_face_nodes))
+#
+#     for key, value in ext_ds.variables.items():
+#         if key == "qa_records":
+#             # TODO: Use the data here for Mesh2 construct, if required.
+#             pass
+#         elif key == "coord":
+#             ds["node_x"] = xr.DataArray(data=ext_ds.coord[0],
+#                                         dims=["n_node"],
+#                                         attrs={
+#                                             "standard_name": "x",
+#                                             "long_name": "cartesian x",
+#                                             "units": "m",
+#                                         })
+#             ds["node_y"] = xr.DataArray(data=ext_ds.coord[1],
+#                                         dims=["n_node"],
+#                                         attrs={
+#                                             "standard_name": "y",
+#                                             "long_name": "cartesian y",
+#                                             "units": "m",
+#                                         })
+#             if ext_ds.dims['num_dim'] > 2:
+#                 ds["node_z"] = xr.DataArray(data=ext_ds.coord[2],
+#                                             dims=["n_node"],
+#                                             attrs={
+#                                                 "standard_name": "z",
+#                                                 "long_name": "cartesian z",
+#                                                 "units": "m",
+#                                             })
+#         elif key == "coordx":
+#             ds["node_x"] = xr.DataArray(data=ext_ds.coordx,
+#                                         dims=["n_node"],
+#                                         attrs={
+#                                             "standard_name": "x",
+#                                             "long_name": "cartesian x",
+#                                             "units": "m",
+#                                         })
+#         elif key == "coordy":
+#             ds["node_y"] = xr.DataArray(data=ext_ds.coordx,
+#                                         dims=["n_node"],
+#                                         attrs={
+#                                             "standard_name": "y",
+#                                             "long_name": "cartesian y",
+#                                             "units": "m",
+#                                         })
+#         elif key == "coordz":
+#             if ext_ds.dims['num_dim'] > 2:
+#                 ds["node_z"] = xr.DataArray(data=ext_ds.coordx,
+#                                             dims=["n_node"],
+#                                             attrs={
+#                                                 "standard_name": "z",
+#                                                 "long_name": "cartesian z",
+#                                                 "units": "m",
+#                                             })
+#         elif "connect" in key:
+#             # check if num face nodes is less than max.
+#             if value.data.shape[1] <= max_face_nodes:
+#                 conn = np.full((value.data.shape[1], max_face_nodes),
+#                                0,
+#                                dtype=conn.dtype)
+#                 conn = value.data
+#             else:
+#                 raise RuntimeError(
+#                     "found face_nodes_dim greater than n_max_face_nodes")
+#
+#             # find the elem_type as etype for this element
+#             for k, v in value.attrs.items():
+#                 if k == "elem_type":
+#                     # TODO: etype if not used now, remove if it'll never be required
+#                     etype = v
+#
+#     # outside the k,v for loop
+#     # set the face nodes data compiled in "connect" section
+#
+#     # standardize fill values and data type face nodes
+#     face_nodes = _replace_fill_values(grid_var=conn[:] - 1,
+#                                       original_fill=-1,
+#                                       new_fill=INT_FILL_VALUE,
+#                                       new_dtype=INT_DTYPE)
+#
+#     ds["face_node_connectivity"] = xr.DataArray(
+#         data=face_nodes,
+#         dims=["n_face", "n_max_face_nodes"],
+#         attrs={
+#             "cf_role":
+#                 "face_node_connectivity",
+#             "_FillValue":
+#                 INT_FILL_VALUE,
+#             "start_index":
+#                 INT_DTYPE(
+#                     0)  # NOTE: This might cause an error if numbering has holes
+#         })
+#
+#     # populate lon/lat coordinates
+#     lon, lat = _get_lonlat_from_xyz(ds["node_x"].values, ds["node_y"].values,
+#                                     ds["node_z"].values)
+#
+#     # populate dataset
+#     ds["node_lon"] = xr.DataArray(data=lon,
+#                                   dims=["n_node"],
+#                                   attrs={
+#                                       "standard_name": "longitude",
+#                                       "long_name": "longitude of mesh nodes",
+#                                       "units": "degrees_east",
+#                                   })
+#     ds["node_lat"] = xr.DataArray(data=lat,
+#                                   dims=["n_node"],
+#                                   attrs={
+#                                       "standard_name": "latitude",
+#                                       "long_name": "latitude of mesh nodes",
+#                                       "units": "degrees_north",
+#                                   })
+#
+#     # set lon/lat coordinates
+#     ds = ds.set_coords(["node_lon", "node_lat"])
+#
+#     # face-centered
+#
+#     return ds, source_dims_dict
 
 
 def _encode_exodus(ds, outfile=None):
