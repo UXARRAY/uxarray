@@ -13,12 +13,17 @@ def _map_dims_to_ugrid(ds, _source_dims_dict, grid):
         _source_dims_dict.pop(key)
 
     for dim in set(ds.dims) ^ _source_dims_dict.keys():
-        # attempt to match any missing dimensions
+        # obtain all dimensions that were not parsed source_dims_dict
         if dim not in _source_dims_dict:
+            # attempt to match dim size to a grid element
             if ds.dims[dim] == grid.n_face:
                 _source_dims_dict[dim] = 'n_face'
             elif ds.dims[dim] == grid.n_node:
                 _source_dims_dict[dim] = 'n_node'
+            elif ds.dims[dim] == grid.n_edge:
+                _source_dims_dict[dim] = 'n_edge'
+
+    # TODO: Link Issue #60xx
 
     # rename dimensions to follow the UGRID conventions
     ds = ds.rename_dims(_source_dims_dict)
