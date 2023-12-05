@@ -123,7 +123,8 @@ Plotting
    UxDataArray.plot
    UxDataArray.plot.datashade
    UxDataArray.plot.rasterize
-
+   UxDataArray.plot.polygons
+   UxDataArray.plot.points
 
 
 
@@ -154,7 +155,6 @@ IO
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_linecollection
-   Grid.to_shapely_polygons
    Grid.validate
 
 
@@ -249,6 +249,15 @@ Plotting
    :toctree: _autosummary
 
    Grid.plot
+   Grid.plot.node_coords
+   Grid.plot.nodes
+   Grid.plot.face_coords
+   Grid.plot.face_centers
+   Grid.plot.edge_coords
+   Grid.plot.edge_centers
+   Grid.plot.mesh
+   Grid.plot.edges
+
 
 
 
@@ -264,6 +273,21 @@ Accessors
    plot.accessor.UxDataArrayPlotAccessor
    plot.accessor.UxDatasetPlotAccessor
 
+Grid Plotting Methods
+---------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.grid_plot.mesh
+   plot.grid_plot.edges
+   plot.grid_plot.node_coords
+   plot.grid_plot.nodes
+   plot.grid_plot.face_coords
+   plot.grid_plot.face_centers
+   plot.grid_plot.edge_coords
+   plot.grid_plot.edge_centers
+
+
 UxDataArray Plotting Methods
 ----------------------------
 .. autosummary::
@@ -271,6 +295,9 @@ UxDataArray Plotting Methods
 
    plot.dataarray_plot.datashade
    plot.dataarray_plot.rasterize
+   plot.dataarray_plot.polygons
+   plot.dataarray_plot.points
+
 
 
 

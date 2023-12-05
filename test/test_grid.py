@@ -971,7 +971,7 @@ class TestBallTree(TestCase):
         # single triangle with point on antimeridian
         verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
 
-        uxgrid = ux.open_grid(verts)
+        uxgrid = ux.open_grid(verts, latlon=True)
 
         # point on antimeridian, other side of grid
         d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([180.0, 0.0],
