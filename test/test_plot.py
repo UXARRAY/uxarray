@@ -11,6 +11,10 @@ datafile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.
 
 gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
 
+gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+
+datafile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
+
 grid_files = [gridfile_geoflow, gridfile_mpas]
 
 
@@ -50,6 +54,21 @@ class TestPlot(TestCase):
 
             uxds['bottomDepth'].plot.rasterize(method='polygon',
                                                backend=backend)
+
+    def test_face_centered_remapped_dim(self):
+        """Tests execution of plotting method on a data variable whose
+        dimension needed to be re-mapped."""
+        uxds = ux.open_dataset(gridfile_ne30, datafile_ne30)
+
+        for backend in ['matplotlib', 'bokeh']:
+
+            uxds['psi'].plot(backend=backend)
+
+            uxds['psi'].plot.polygons(backend=backend)
+
+            uxds['psi'].plot.points(backend=backend)
+
+            uxds['psi'].plot.rasterize(method='polygon', backend=backend)
 
     def test_node_centered_data(self):
         """Tests execution of plotting methods on node-centered data."""
