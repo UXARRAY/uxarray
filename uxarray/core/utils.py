@@ -1,6 +1,11 @@
-def _map_dims_to_ugrid(ds, _source_dims_dict, grid):
-    """Given a dataset containing variables residing on an unstructured grid, remaps the original dimension name
-    to match the UGRID conventions (i.e. "nCell" : "n_face")"""
+def _map_dims_to_ugrid(
+    ds,
+    _source_dims_dict,
+    grid,
+):
+    """Given a dataset containing variables residing on an unstructured grid,
+    remaps the original dimension name to match the UGRID conventions (i.e.
+    "nCell": "n_face")"""
 
     keys_to_drop = []
     for key in _source_dims_dict.keys():
@@ -13,7 +18,7 @@ def _map_dims_to_ugrid(ds, _source_dims_dict, grid):
         _source_dims_dict.pop(key)
 
     for dim in set(ds.dims) ^ _source_dims_dict.keys():
-        # obtain all dimensions that were not parsed source_dims_dict
+        # obtain dimensions that were not parsed source_dims_dict
         if dim not in _source_dims_dict:
             # attempt to match dim size to a grid element
             if ds.dims[dim] == grid.n_face:
