@@ -118,6 +118,7 @@ class Grid:
 
         # initialize cached data structures (visualization)
         self._gdf = None
+        self._gdf_exclude_am = None
         self._poly_collection = None
         self._line_collection = None
         self._centroid_points_df_proj = [None, None]
@@ -953,14 +954,10 @@ class Grid:
         """
 
         if self._gdf is not None:
-            # determine if we need to recompute a cached GeoDataFrame
-            if exclude_antimeridian:
-                if len(self._gdf) != self.n_face - len(
-                        self.antimeridian_face_indices):
-                    override = True
-            elif not exclude_antimeridian:
-                if len(self._gdf) != self.n_face:
-                    override = True
+            # determine if we need to recompute a cached GeoDataFrame based on antimeridian
+            if self._gdf_exclude_am != exclude_antimeridian:
+                # cached gdf should match the exclude_antimeridian_flag
+                override = True
 
         # use cached geodataframe
         if self._gdf is not None and not override:
@@ -973,6 +970,7 @@ class Grid:
         # cache computed geodataframe
         if cache:
             self._gdf = gdf
+            self._gdf_exclude_am = exclude_antimeridian
 
         return gdf
 

@@ -306,6 +306,7 @@ class UxDataArrayPlotAccessor:
                   interpolation: Optional[str] = "linear",
                   npartitions: Optional[int] = 1,
                   cache: Optional[bool] = True,
+                  override: Optional[bool] = False,
                   size: Optional[int] = 5,
                   **kwargs):
         """Raster plot of a data variable residing on an unstructured grid
@@ -348,6 +349,7 @@ class UxDataArrayPlotAccessor:
             interpolation=interpolation,
             npartitions=npartitions,
             cache=cache,
+            override=override,
             size=size,
             **kwargs)
 
@@ -359,6 +361,8 @@ class UxDataArrayPlotAccessor:
                  height: Optional[int] = 500,
                  colorbar: Optional[bool] = True,
                  cmap: Optional[str] = "Blues",
+                 cache: Optional[bool] = True,
+                 override: Optional[bool] = False,
                  **kwargs):
         """Vector polygon plot shaded using a face-centered data variable.
 
@@ -382,6 +386,8 @@ class UxDataArrayPlotAccessor:
             height=height,
             colorbar=colorbar,
             cmap=cmap,
+            cache=cache,
+            override=override,
             **kwargs)
 
     @functools.wraps(dataarray_plot.points)
