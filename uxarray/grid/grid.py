@@ -955,11 +955,8 @@ class Grid:
 
         if self._gdf is not None:
             # determine if we need to recompute a cached GeoDataFrame based on antimeridian
-            if self._gdf_exclude_am is True and not exclude_antimeridian:
-                # cached gdf excludes am, but now we want to include
-                override = True
-            elif self._gdf_exclude_am is False and exclude_antimeridian:
-                # cached gdf includes am, but now we want to exclude
+            if self._gdf_exclude_am != exclude_antimeridian:
+                # cached gdf should match the exclude_antimeridian_flag
                 override = True
 
         # use cached geodataframe
