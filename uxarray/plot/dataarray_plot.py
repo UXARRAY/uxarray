@@ -107,6 +107,7 @@ def rasterize(uxda: UxDataArray,
               interpolation: Optional[str] = "linear",
               npartitions: Optional[int] = 1,
               cache: Optional[bool] = True,
+              override: Optional[bool] = False,
               size: Optional[int] = 5,
               **kwargs):
     """Rasterized Plot of a Data Variable Residing on an Unstructured Grid.
@@ -169,6 +170,8 @@ def rasterize(uxda: UxDataArray,
                                  aggregator=aggregator,
                                  interpolation=interpolation,
                                  pixel_ratio=pixel_ratio,
+                                 cache=cache,
+                                 override=override,
                                  **kwargs)
     else:
         raise ValueError(f"Unsupported method: {method}.")
@@ -318,6 +321,8 @@ def _polygon_raster(uxda: UxDataArray,
                     interpolation: Optional[str] = "linear",
                     xlabel: Optional[str] = "Longitude",
                     ylabel: Optional[str] = "Latitude",
+                    cache: Optional[bool] = True,
+                    override: Optional[bool] = False,
                     **kwargs):
     """Implementation of Polygon Rasterization."""
 
@@ -327,7 +332,9 @@ def _polygon_raster(uxda: UxDataArray,
     else:
         clabel = kwargs.get("clabel")
 
-    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian,
+                               cache=cache,
+                               override=override)
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
@@ -382,6 +389,8 @@ def polygons(uxda: UxDataArray,
              cmap: Optional[str] = "Blues",
              xlabel: Optional[str] = "Longitude",
              ylabel: Optional[str] = "Latitude",
+             cache: Optional[bool] = True,
+             override: Optional[bool] = False,
              **kwargs):
     """Vector Polygon Plot of a Data Variable Residing on an Unstructured Grid.
 
@@ -407,7 +416,9 @@ def polygons(uxda: UxDataArray,
     else:
         clabel = kwargs.get("clabel")
 
-    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    gdf = uxda.to_geodataframe(exclude_antimeridian=exclude_antimeridian,
+                               cache=cache,
+                               override=override)
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 

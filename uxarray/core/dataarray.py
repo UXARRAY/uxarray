@@ -149,15 +149,6 @@ class UxDataArray(xr.DataArray):
                 f"for face-centered data.")
 
         if self.values.size == self.uxgrid.n_face:
-            # face-centered data
-            if self.uxgrid._gdf is not None:
-                # determine if we need to re-compute the cached GeoDataFrame
-                if exclude_antimeridian and len(
-                        self.uxgrid.antimeridian_face_indices) != len(
-                            self.uxgrid._gdf):
-                    override = True
-                elif self.uxgrid.n_face != len(self.uxgrid._gdf):
-                    override = True
 
             gdf = self.uxgrid.to_geodataframe(
                 override=override,
