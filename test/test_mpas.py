@@ -19,6 +19,8 @@ class TestMPAS(TestCase):
     mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
     mpas_xr_ds = xr.open_dataset(mpas_grid_path)
 
+    mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
+
     # fill value (remove once there is a unified approach in uxarray)
     fv = INT_FILL_VALUE
 
@@ -30,51 +32,56 @@ class TestMPAS(TestCase):
     def test_mpas_to_grid(self):
         """Tests creation of Grid object from converted MPAS dataset."""
         mpas_uxgrid_primal = ux.open_grid(self.mpas_grid_path, use_dual=False)
-        mpas_uxgrid_primal = ux.open_grid(self.mpas_grid_path, use_dual=True)
+        mpas_uxgrid_dual = ux.open_grid(self.mpas_grid_path, use_dual=True)
+        mpas_uxgrid_dual.__repr__()
+        pass
 
     def test_primal_to_ugrid_conversion(self):
         """Verifies that the Primal-Mesh was converted properly."""
 
-        # primal-mesh encoded in the UGRID conventions
-        ds, _ = _read_mpas(self.mpas_xr_ds, use_dual=False)
+        for path in [self.mpas_grid_path, self.mpas_ocean_mesh]:
+            # dual-mesh encoded in the UGRID conventions
+            uxgrid = ux.open_grid(path, use_dual=False)
+            ds = uxgrid._ds
 
-        # check for correct dimensions
-        expected_ugrid_dims = [
-            'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
-        ]
-        for dim in expected_ugrid_dims:
-            assert dim in ds.sizes
+            # check for correct dimensions
+            expected_ugrid_dims = ['n_node', "n_face", "n_max_face_nodes"]
+            for dim in expected_ugrid_dims:
+                assert dim in ds.sizes
 
-        # check for correct length of coordinates
-        assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
-        assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
+            # check for correct length of coordinates
+            assert len(ds['node_lon']) == len(ds['node_lat'])
+            assert len(ds['face_lon']) == len(ds['face_lat'])
 
-        # check for correct shape of face nodes
-        nMesh2_face = ds.sizes['nMesh2_face']
-        nMaxMesh2_face_nodes = ds.sizes['nMaxMesh2_face_nodes']
-        assert ds['Mesh2_face_nodes'].shape == (nMesh2_face,
-                                                nMaxMesh2_face_nodes)
+            # check for correct shape of face nodes
+            n_face = ds.sizes['n_face']
+            n_max_face_nodes = ds.sizes['n_max_face_nodes']
+            assert ds['face_node_connectivity'].shape == (n_face,
+                                                          n_max_face_nodes)
+
+            pass
 
     def test_dual_to_ugrid_conversion(self):
         """Verifies that the Dual-Mesh was converted properly."""
 
-        # dual-mesh encoded in the UGRID conventions
-        ds, _ = _read_mpas(self.mpas_xr_ds, use_dual=True)
+        for path in [self.mpas_grid_path, self.mpas_ocean_mesh]:
 
-        # check for correct dimensions
-        expected_ugrid_dims = [
-            'nMesh2_node', "nMesh2_face", "nMaxMesh2_face_nodes"
-        ]
-        for dim in expected_ugrid_dims:
-            assert dim in ds.sizes
+            # dual-mesh encoded in the UGRID conventions
+            uxgrid = ux.open_grid(path, use_dual=True)
+            ds = uxgrid._ds
 
-        # check for correct length of coordinates
-        assert len(ds['Mesh2_node_x']) == len(ds['Mesh2_node_y'])
-        assert len(ds['Mesh2_face_x']) == len(ds['Mesh2_face_y'])
+            # check for correct dimensions
+            expected_ugrid_dims = ['n_node', "n_face", "n_max_face_nodes"]
+            for dim in expected_ugrid_dims:
+                assert dim in ds.sizes
 
-        # check for correct shape of face nodes
-        nMesh2_face = ds.sizes['nMesh2_face']
-        assert ds['Mesh2_face_nodes'].shape == (nMesh2_face, 3)
+            # check for correct length of coordinates
+            assert len(ds['node_lon']) == len(ds['node_lat'])
+            assert len(ds['face_lon']) == len(ds['face_lat'])
+
+            # check for correct shape of face nodes
+            nMesh2_face = ds.sizes['n_face']
+            assert ds['face_node_connectivity'].shape == (nMesh2_face, 3)
 
     def test_add_fill_values(self):
         """Test _add_fill_values() implementation, output should be both be
@@ -124,3 +131,9 @@ class TestMPAS(TestCase):
         # check if all expected attributes are set
         for mpas_attr in expected_attrs:
             assert mpas_attr in uxgrid._ds.attrs
+
+    def test_face_mask(self):
+        primal_uxgrid = ux.open_grid(self.mpas_ocean_mesh, use_dual=False)
+        dual_uxgrid = ux.open_grid(self.mpas_ocean_mesh, use_dual=True)
+
+        pass

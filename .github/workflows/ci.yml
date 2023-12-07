@@ -22,7 +22,7 @@ jobs:
         python-version: [ "3.9", "3.10", "3.11"]
     steps:
       - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.11.0
+        uses: styfle/cancel-workflow-action@0.12.0
         with:
           access_token: ${{ github.token }}
       - name: checkout
@@ -30,7 +30,7 @@ jobs:
         with:
           token: ${{ github.token }}
       - name: conda_setup
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: uxarray_build
           channel-priority: strict

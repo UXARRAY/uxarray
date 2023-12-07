@@ -3,6 +3,8 @@ import os
 from unittest import TestCase
 from pathlib import Path
 
+import numpy as np
+
 import uxarray as ux
 
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
@@ -47,14 +49,14 @@ class TestGeometryConversions(TestCase):
         gdf_geoflow_grid = uxds_geoflow.uxgrid.to_geodataframe()
 
         # number of elements
-        assert gdf_geoflow_grid.shape == (uxds_geoflow.uxgrid.nMesh2_face, 1)
+        assert gdf_geoflow_grid.shape == (uxds_geoflow.uxgrid.n_face, 1)
 
         ### n30
         uxds_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
         gdf_geoflow_data = uxds_ne30['psi'].to_geodataframe()
 
-        assert gdf_geoflow_data.shape == (uxds_ne30.uxgrid.nMesh2_face, 2)
+        assert gdf_geoflow_data.shape == (uxds_ne30.uxgrid.n_face, 2)
 
     def test_to_polycollection(self):
         """Tests the conversion to ``PolyCollection``"""
@@ -69,12 +71,11 @@ class TestGeometryConversions(TestCase):
         pc_geoflow_grid, _ = uxds_geoflow.uxgrid.to_polycollection()
 
         polygon_shells = _build_polygon_shells(
-            uxds_geoflow.uxgrid.Mesh2_node_x.values,
-            uxds_geoflow.uxgrid.Mesh2_node_y.values,
-            uxds_geoflow.uxgrid.Mesh2_face_nodes.values,
-            uxds_geoflow.uxgrid.nMesh2_face,
-            uxds_geoflow.uxgrid.nMaxMesh2_face_nodes,
-            uxds_geoflow.uxgrid.nNodes_per_face.values)
+            uxds_geoflow.uxgrid.node_lon.values,
+            uxds_geoflow.uxgrid.node_lat.values,
+            uxds_geoflow.uxgrid.face_node_connectivity.values,
+            uxds_geoflow.uxgrid.n_face, uxds_geoflow.uxgrid.n_max_face_nodes,
+            uxds_geoflow.uxgrid.n_nodes_per_face.values)
 
         corrected_polygon_shells, _ = _build_corrected_polygon_shells(
             polygon_shells)
@@ -86,11 +87,10 @@ class TestGeometryConversions(TestCase):
         uxds_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
         polygon_shells = _build_polygon_shells(
-            uxds_ne30.uxgrid.Mesh2_node_x.values,
-            uxds_ne30.uxgrid.Mesh2_node_y.values,
-            uxds_ne30.uxgrid.Mesh2_face_nodes.values,
-            uxds_ne30.uxgrid.nMesh2_face, uxds_ne30.uxgrid.nMaxMesh2_face_nodes,
-            uxds_ne30.uxgrid.nNodes_per_face.values)
+            uxds_ne30.uxgrid.node_lon.values, uxds_ne30.uxgrid.node_lat.values,
+            uxds_ne30.uxgrid.face_node_connectivity.values,
+            uxds_ne30.uxgrid.n_face, uxds_ne30.uxgrid.n_max_face_nodes,
+            uxds_ne30.uxgrid.n_nodes_per_face.values)
 
         corrected_polygon_shells, _ = _build_corrected_polygon_shells(
             polygon_shells)
@@ -113,3 +113,29 @@ class TestGeometryConversions(TestCase):
 
         # override will recompute the grid
         assert gdf_start is not gdf_end
+
+    def test_nodal_average(self):
+
+        # test on a node-centered dataset
+        uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        v1_nodal_average = uxds['v1'].nodal_average()
+
+        # final dimension should match number of faces
+        self.assertEquals(v1_nodal_average.shape[-1], uxds.uxgrid.n_face)
+
+        # all other dimensions should remain unchanged
+        self.assertEquals(uxds['v1'].shape[0:-1], v1_nodal_average.shape[0:-1])
+
+        # test on a sample mesh with 4 verts
+        verts = [[[-170, 40], [180, 30], [165, 25], [-170, 20]]]
+        data = [1, 2, 3, 4]
+
+        uxgrid = ux.open_grid(verts, latlon=True)
+
+        uxda = ux.UxDataArray(uxgrid=uxgrid, data=data, dims=('n_node'))
+
+        uxda_nodal_average = uxda.nodal_average()
+
+        # resulting data should be the mean of the corner nodes of the single face
+        self.assertEquals(uxda_nodal_average, np.mean(data))

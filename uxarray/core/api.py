@@ -93,8 +93,9 @@ def open_dataset(grid_filename_or_obj: str,
                  use_dual: Optional[bool] = False,
                  grid_kwargs: Optional[Dict[str, Any]] = {},
                  **kwargs: Dict[str, Any]) -> UxDataset:
-    """Wraps ``xarray.open_dataset()``, given a grid topology definition with a
-    single dataset file or object with corresponding data.
+    """Wraps ``xarray.open_dataset()`` and creates a ``uxarray.UxDataset``
+    object, given a grid topology definition with a single dataset file or
+    object with corresponding data.
 
     Parameters
     ----------
@@ -159,7 +160,7 @@ def open_dataset(grid_filename_or_obj: str,
                          **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
@@ -172,8 +173,9 @@ def open_mfdataset(grid_filename_or_obj: str,
                    use_dual: Optional[bool] = False,
                    grid_kwargs: Optional[Dict[str, Any]] = {},
                    **kwargs: Dict[str, Any]) -> UxDataset:
-    """Wraps ``xarray.open_mfdataset()``, given a single grid topology file
-    with multiple dataset paths with corresponding data.
+    """Wraps ``xarray.open_mfdataset()`` and creates a ``uxarray.UxDataset``
+    object, given a single grid topology file with multiple dataset paths with
+    corresponding data.
 
     Parameters
     ----------
@@ -242,7 +244,7 @@ def open_mfdataset(grid_filename_or_obj: str,
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 

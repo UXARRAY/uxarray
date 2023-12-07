@@ -1,3 +1,5 @@
+import warnings
+
 import xarray as xr
 import numpy as np
 import math
@@ -108,8 +110,6 @@ def normalize_in_place(node):
 
 
 def _get_xyz_from_lonlat(node_lon, node_lat):
-
-    # check for units and create Mesh2_node_cart_x/y/z set to grid._ds
     nodes_lon_rad = np.deg2rad(node_lon)
     nodes_lat_rad = np.deg2rad(node_lat)
     nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
@@ -122,56 +122,50 @@ def _populate_cartesian_xyz_coord(grid):
     """A helper function that populates the xyz attribute in UXarray.Grid._ds.
     This function is called when we need to use the cartesian coordinates for
     each node to do the calculation but the input data only has the
-    "Mesh2_node_x" and "Mesh2_node_y" in degree.
+    ``node_lon`` and ``node_lat`` in degree.
 
     Note
     ----
     In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
     corresponding units as stated below:
 
-    Mesh2_node_x
-     unit:  "degree_east" for longitude
-    Mesh2_node_y
-     unit:  "degrees_north" for latitude
-    Mesh2_node_z
-     unit:  "m"
-    Mesh2_node_cart_x
-     unit:  "m"
-    Mesh2_node_cart_y
-     unit:  "m"
-    Mesh2_node_cart_z
-     unit:  "m"
+    node_lon
+        unit:  "degree_east" for longitude
+    node_lat
+        unit:  "degrees_north" for latitude
+    node_x
+        unit:  "m"
+    node_y
+        unit:  "m"
+    node_z
+        unit:  "m"
     """
 
     # Check if the cartesian coordinates are already populated
-    if "Mesh2_node_cart_x" in grid._ds.keys():
+    if "node_x" in grid._ds.keys():
         return
 
     # get Cartesian (x, y, z) coordinates from lon/lat
-    x, y, z = _get_xyz_from_lonlat(grid.Mesh2_node_x.values,
-                                   grid.Mesh2_node_y.values)
+    x, y, z = _get_xyz_from_lonlat(grid.node_lon.values, grid.node_lat.values)
 
-    grid._ds["Mesh2_node_cart_x"] = xr.DataArray(
-        data=x,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "cartesian x",
-            "units": "m",
-        })
-    grid._ds["Mesh2_node_cart_y"] = xr.DataArray(
-        data=y,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "cartesian y",
-            "units": "m",
-        })
-    grid._ds["Mesh2_node_cart_z"] = xr.DataArray(
-        data=z,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "cartesian z",
-            "units": "m",
-        })
+    grid._ds["node_x"] = xr.DataArray(data=x,
+                                      dims=["n_node"],
+                                      attrs={
+                                          "standard_name": "cartesian x",
+                                          "units": "m",
+                                      })
+    grid._ds["node_y"] = xr.DataArray(data=y,
+                                      dims=["n_node"],
+                                      attrs={
+                                          "standard_name": "cartesian y",
+                                          "units": "m",
+                                      })
+    grid._ds["node_z"] = xr.DataArray(data=z,
+                                      dims=["n_node"],
+                                      attrs={
+                                          "standard_name": "cartesian z",
+                                          "units": "m",
+                                      })
 
 
 def _get_lonlat_from_xyz(x, y, z):
@@ -184,54 +178,139 @@ def _get_lonlat_from_xyz(x, y, z):
 
 def _populate_lonlat_coord(grid):
     """Helper function that populates the longitude and latitude and store it
-    into the Mesh2_node_x and Mesh2_node_y. This is called when the input data
-    has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in meters. Since we want
-    "Mesh2_node_x" and "Mesh2_node_y" always have the "degree" units. For more
+    into the ``node_lon`` and ``node_lat``. This is called when the input data
+    has ``node_x``, ``node_y``, ``node_z`` in meters. Since we want
+    ``node_lon`` and ``node_lat`` to always have the "degree" units. For more
     details, please read the following.
-
-    Raises
-    ------
-        RuntimeError
-            Mesh2_node_x/y/z are not represented in the cartesian format with the unit 'm'/'meters' when calling this function"
 
     Note
     ----
     In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
     corresponding units as stated below:
 
-    Mesh2_node_x
-     unit:  "degree_east" for longitude
-    Mesh2_node_y
-     unit:  "degrees_north" for latitude
-    Mesh2_node_z
-     unit:  "m"
-    Mesh2_node_cart_x
-     unit:  "m"
-    Mesh2_node_cart_y
-     unit:  "m"
-    Mesh2_node_cart_z
-     unit:  "m"
+    node_lon
+        unit:  "degree_east" for longitude
+    node_lat
+        unit:  "degrees_north" for latitude
+    node_x
+        unit:  "m"
+    node_y
+        unit:  "m"
+    node_z
+        unit:  "m"
     """
 
     # get lon/lat coordinates from Cartesian (x, y, z)
-    lon, lat = _get_lonlat_from_xyz(grid.Mesh2_node_cart_x.values,
-                                    grid.Mesh2_node_cart_y.values,
-                                    grid.Mesh2_node_cart_z.values)
+    lon, lat = _get_lonlat_from_xyz(grid.node_x.values, grid.node_y.values,
+                                    grid.node_z.values)
 
     # populate dataset
-    grid._ds["Mesh2_node_x"] = xr.DataArray(
+    grid._ds["node_lon"] = xr.DataArray(
         data=lon,
-        dims=["nMesh2_node"],
+        dims=["n_node"],
         attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of mesh nodes",
+            "long_name": "longitude of corner nodes",
             "units": "degrees_east",
         })
-    grid._ds["Mesh2_node_y"] = xr.DataArray(
+    grid._ds["node_lat"] = xr.DataArray(
         data=lat,
-        dims=["nMesh2_node"],
+        dims=["n_node"],
         attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of mesh nodes",
+            "long_name": "latitude of corner nodes",
             "units": "degrees_north",
         })
+
+
+def _populate_centroid_coord(grid, repopulate=False):
+    """Finds the centroids using cartesian averaging of faces based off the
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized. This cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centroids
+    """
+    warnings.warn(
+        "This cannot be guaranteed to work correctly on concave polygons")
+
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+
+    if "face_lon" not in grid._ds or repopulate:
+        # Construct the centroids if there are none stored
+        if "face_x" not in grid._ds:
+            centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(
+                node_x, node_y, node_z, face_nodes, n_nodes_per_face)
+
+        else:
+            # If there are cartesian centroids already use those instead
+            centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
+
+        # Convert from xyz to latlon
+        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
+            centroid_x, centroid_y, centroid_z)
+    else:
+        # Convert to xyz if there are latlon centroids already stored
+        centroid_lon, centroid_lat = grid.face_lon.values, grid.face_lat.values
+        centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
+            centroid_lon, centroid_lat)
+
+    if "face_lon" not in grid._ds or repopulate:
+        grid._ds["face_lon"] = xr.DataArray(centroid_lon,
+                                            dims=["n_face"],
+                                            attrs={"units": "degrees_east"})
+        grid._ds["face_lat"] = xr.DataArray(centroid_lat,
+                                            dims=["n_face"],
+                                            attrs={"units": "degrees_north"})
+
+    if "face_x" not in grid._ds or repopulate:
+        grid._ds["face_x"] = xr.DataArray(centroid_x,
+                                          dims=["n_face"],
+                                          attrs={"units": "meters"})
+
+        grid._ds["face_y"] = xr.DataArray(centroid_y,
+                                          dims=["n_face"],
+                                          attrs={"units": "meters"})
+
+        grid._ds["face_z"] = xr.DataArray(centroid_z,
+                                          dims=["n_face"],
+                                          attrs={"units": "meters"})
+
+
+@njit(cache=ENABLE_JIT_CACHE)
+def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
+                             n_nodes_per_face):
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging."""
+    centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        # compute cartesian average
+        centroid_x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+        # normalize coordinates
+        centroid_normalized_xyz = normalize_in_place(
+            [centroid_x, centroid_y, centroid_z])
+
+        # store xyz
+        centroids[0, face_idx] = centroid_normalized_xyz[0]
+        centroids[1, face_idx] = centroid_normalized_xyz[1]
+        centroids[2, face_idx] = centroid_normalized_xyz[2]
+
+    return centroids[0, :], centroids[1, :], centroids[2, :]
+
+
+def _set_desired_longitude_range(ds):
+    """Sets the longitude range to [-180, 180] for all longitude variables."""
+
+    for lon_name in ['node_lon', 'edge_lon', 'face_lon']:
+        if lon_name in ds:
+            if ds[lon_name].max() > 180:
+                ds[lon_name] = (ds[lon_name] + 180) % 360 - 180

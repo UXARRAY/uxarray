@@ -2,7 +2,10 @@ name: uxarray_build
 channels:
   - conda-forge
 dependencies:
+  - cartopy
   - dask
+  - datashader
+  - holoviews
   - matplotlib-base
   - netcdf4
   - numba
@@ -17,8 +20,8 @@ dependencies:
   - scikit-learn
   - scipy
   - shapely
-  - spatialpandas
   - xarray
   - pip:
     - antimeridian
     - pyfma
+    - git+https://github.com/holoviz/spatialpandas.git

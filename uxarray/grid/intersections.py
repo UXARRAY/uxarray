@@ -1,9 +1,10 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
-from uxarray.grid.utils import cross_fma
-from uxarray.grid.lines import point_within_gca
+from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
+from uxarray.grid.arcs import point_within_gca
 import platform
 import warnings
+from uxarray.utils.computing import cross_fma
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
@@ -115,3 +116,79 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
         res = np.append(res, x2)
 
     return res
+
+
+def gca_constLat_intersection(gca_cart,
+                              constLat,
+                              fma_disabled=False,
+                              verbose=False):
+    """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
+    constant latitude line in a Cartesian coordinate system.
+
+    To reduce relative errors, the Fused Multiply-Add (FMA) operation is utilized.
+    A warning is raised if the given coordinates are not in the cartesian coordinates, or
+    they cannot be accurately handled using floating-point arithmetic.
+
+    Parameters
+    ----------
+    gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
+    constLat : float
+        The constant latitude of the latitude line.
+    fma_disabled : bool, optional (default=False)
+        If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
+
+    Returns
+    -------
+    np.ndarray
+        Cartesian coordinates of the intersection point(s).
+
+    Raises
+    ------
+    ValueError
+        If the input GCA is not in the cartesian [x, y, z] format.
+
+    Warning
+    -------
+        If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
+        is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
+    """
+    constZ = np.sin(constLat)
+    x1, x2 = gca_cart
+
+    if fma_disabled:
+        n = np.cross(x1, x2)
+
+    else:
+        # Raise a warning for Windows users
+        if platform.system() == "Windows":
+
+            warnings.warn(
+                "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
+                "https://bugs.python.org/msg312480)"
+                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
+            )
+        n = cross_fma(x1, x2)
+
+    nx, ny, nz = n
+
+    s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n)**2 * constZ**2)
+    p1_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz + s_tilde * ny)
+    p2_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz - s_tilde * ny)
+    p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
+    p2_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz + s_tilde * nx)
+
+    p1 = np.array([p1_x, p1_y, constZ])
+    p2 = np.array([p2_x, p2_y, constZ])
+
+    # Now test which intersection point is within the GCA range
+    if point_within_gca(p1, gca_cart):
+        converged_pt = _newton_raphson_solver_for_gca_constLat(p1,
+                                                               gca_cart,
+                                                               verbose=verbose)
+    elif point_within_gca(p2, gca_cart):
+        converged_pt = _newton_raphson_solver_for_gca_constLat(p2,
+                                                               gca_cart,
+                                                               verbose=verbose)
+    else:
+        converged_pt = np.array([])
+    return converged_pt
