@@ -332,7 +332,7 @@ class UxDataset(xr.Dataset):
                                destination_obj: Union[Grid, UxDataArray,
                                                       UxDataset],
                                remap_to: str = "nodes",
-                               coord_type: str = "lonlat"):
+                               coord_type: str = "spherical"):
         """Nearest Neighbor Remapping between a source (``UxDataset``) and
         destination.`.
 
@@ -342,9 +342,8 @@ class UxDataset(xr.Dataset):
             Destination for remapping
         remap_to : str, default="nodes"
             Location of where to map data, either "nodes" or "face centers"
-        coord_type : str, default="lonlat"
-            Indicates whether to remap using on latlon or cartesian coordinates
+        coord_type : str, default="spherical"
+            Indicates whether to remap using on spherical or cartesian coordinates
         """
-
         return _nearest_neighbor_uxds(self, destination_obj, remap_to,
                                       coord_type)

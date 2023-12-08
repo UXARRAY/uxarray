@@ -33,14 +33,14 @@ def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     import antimeridian
     from shapely import polygons as Polygons
 
-    face_nodes = grid.Mesh2_face_nodes.values
-    n_nodes_per_face = grid.nNodes_per_face.values
-    n_face = grid.nMesh2_face
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+    n_face = grid.n_face
 
     # obtain polygon shells for shapely polygon construction
-    polygon_shells = _build_polygon_shells(grid.Mesh2_node_x.values,
-                                           grid.Mesh2_node_y.values, face_nodes,
-                                           n_face, grid.nMaxMesh2_face_nodes,
+    polygon_shells = _build_polygon_shells(grid.node_lon.values,
+                                           grid.node_lat.values, face_nodes,
+                                           n_face, grid.n_max_face_nodes,
                                            n_nodes_per_face)
 
     # list of shapely Polygons representing each face in our grid
@@ -64,8 +64,8 @@ def _grid_to_polygons(grid, correct_antimeridian_polygons=True):
     return polygons
 
 
-def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
-                          nMesh2_face, nMaxMesh2_face_nodes, nNodes_per_face):
+def _build_polygon_shells(node_lon, node_lat, face_node_connectivity, n_face,
+                          n_max_face_nodes, n_nodes_per_face):
     """Constructs the shell of each polygon derived from the closed off face
     nodes, which can be used to construct Shapely Polygons.
 
@@ -74,25 +74,25 @@ def _build_polygon_shells(Mesh2_node_x, Mesh2_node_y, Mesh2_face_nodes,
     """
 
     # close face nodes to construct closed polygons
-    closed_face_nodes = close_face_nodes(Mesh2_face_nodes, nMesh2_face,
-                                         nMaxMesh2_face_nodes)
+    closed_face_nodes = close_face_nodes(face_node_connectivity, n_face,
+                                         n_max_face_nodes)
 
     # additional node after closing our faces
-    nNodes_per_face_closed = nNodes_per_face + 1
+    nNodes_per_face_closed = n_nodes_per_face + 1
 
     # longitude should be between [-180, 180]
-    if Mesh2_node_x.max() > 180:
-        Mesh2_node_x = (Mesh2_node_x + 180) % 360 - 180
+    if node_lon.max() > 180:
+        node_lon = (node_lon + 180) % 360 - 180
 
     polygon_shells = []
     for face_nodes, max_n_nodes in zip(closed_face_nodes,
                                        nNodes_per_face_closed):
 
-        polygon_x = np.empty_like(face_nodes, dtype=Mesh2_node_x.dtype)
-        polygon_y = np.empty_like(face_nodes, dtype=Mesh2_node_x.dtype)
+        polygon_x = np.empty_like(face_nodes, dtype=node_lon.dtype)
+        polygon_y = np.empty_like(face_nodes, dtype=node_lon.dtype)
 
-        polygon_x[0:max_n_nodes] = Mesh2_node_x[face_nodes[0:max_n_nodes]]
-        polygon_y[0:max_n_nodes] = Mesh2_node_y[face_nodes[0:max_n_nodes]]
+        polygon_x[0:max_n_nodes] = node_lon[face_nodes[0:max_n_nodes]]
+        polygon_y[0:max_n_nodes] = node_lat[face_nodes[0:max_n_nodes]]
 
         polygon_x[max_n_nodes:] = polygon_x[0]
         polygon_y[max_n_nodes:] = polygon_y[0]
@@ -175,14 +175,14 @@ def _build_antimeridian_face_indices(grid):
     antimeridian_face_indices : np.ndarray
         Array containing Shapely Polygons
     """
-    face_nodes = grid.Mesh2_face_nodes.values
-    n_nodes_per_face = grid.nNodes_per_face.values
-    n_face = grid.nMesh2_face
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+    n_face = grid.n_face
 
     # obtain polygon shells for shapely polygon construction
-    polygon_shells = _build_polygon_shells(grid.Mesh2_node_x.values,
-                                           grid.Mesh2_node_y.values, face_nodes,
-                                           n_face, grid.nMaxMesh2_face_nodes,
+    polygon_shells = _build_polygon_shells(grid.node_lon.values,
+                                           grid.node_lat.values, face_nodes,
+                                           n_face, grid.n_max_face_nodes,
                                            n_nodes_per_face)
 
     antimeridian_face_indices = np.argwhere(
@@ -221,12 +221,11 @@ def _grid_to_matplotlib_polycollection(grid):
     # import optional dependencies
     from matplotlib.collections import PolyCollection
 
-    polygon_shells = _build_polygon_shells(grid.Mesh2_node_x.values,
-                                           grid.Mesh2_node_y.values,
-                                           grid.Mesh2_face_nodes.values,
-                                           grid.nMesh2_face,
-                                           grid.nMaxMesh2_face_nodes,
-                                           grid.nNodes_per_face.values)
+    polygon_shells = _build_polygon_shells(grid.node_lon.values,
+                                           grid.node_lat.values,
+                                           grid.face_node_connectivity.values,
+                                           grid.n_face, grid.n_max_face_nodes,
+                                           grid.n_nodes_per_face.values)
 
     corrected_polygon_shells, corrected_to_original_faces = _build_corrected_polygon_shells(
         polygon_shells)

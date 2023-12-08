@@ -1,6 +1,6 @@
 def _map_dims_to_ugrid(ds, _source_dims_dict):
     """Given a dataset containing variables residing on an unstructured grid, remaps the original dimension name
-    to match the UGRID conventions (i.e. "nCell" : "nMesh2_Face")"""
+    to match the UGRID conventions (i.e. "nCell" : "n_face")"""
 
     keys_to_drop = []
     # obtain all dimensions not present in the original dataset

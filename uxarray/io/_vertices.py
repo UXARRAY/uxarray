@@ -14,18 +14,6 @@ def _read_face_vertices(face_vertices, latlon):
         Input vertex coordinates that form our face(s)
     """
     grid_ds = xr.Dataset()
-    grid_ds["Mesh2"] = xr.DataArray(
-        attrs={
-            "cf_role": "mesh_topology",
-            "long_name": "Topology data of unstructured mesh",
-            "topology_dimension": -1,
-            "node_coordinates": "Mesh2_node_x Mesh2_node_y Mesh2_node_z",
-            "node_dimension": "nMesh2_node",
-            "face_node_connectivity": "Mesh2_face_nodes",
-            "face_dimension": "nMesh2_face"
-        })
-
-    grid_ds.Mesh2.attrs['topology_dimension'] = face_vertices.ndim
 
     if latlon:
         x_units = "degrees_east"
@@ -73,37 +61,35 @@ def _read_face_vertices(face_vertices, latlon):
             indices[(indices > idx) & (indices != INT_FILL_VALUE)] -= 1
 
     if latlon:
-        grid_ds["Mesh2_node_x"] = xr.DataArray(data=unique_verts[:, 0],
-                                               dims=["nMesh2_node"],
-                                               attrs={"units": x_units})
-        grid_ds["Mesh2_node_y"] = xr.DataArray(data=unique_verts[:, 1],
-                                               dims=["nMesh2_node"],
-                                               attrs={"units": y_units})
+        grid_ds["node_lon"] = xr.DataArray(data=unique_verts[:, 0],
+                                           dims=["n_node"],
+                                           attrs={"units": x_units})
+        grid_ds["node_lat"] = xr.DataArray(data=unique_verts[:, 1],
+                                           dims=["n_node"],
+                                           attrs={"units": y_units})
     else:
-        grid_ds["Mesh2_node_cart_x"] = xr.DataArray(data=unique_verts[:, 0],
-                                                    dims=["nMesh2_node"],
-                                                    attrs={"units": x_units})
+        grid_ds["node_x"] = xr.DataArray(data=unique_verts[:, 0],
+                                         dims=["n_node"],
+                                         attrs={"units": x_units})
 
-        grid_ds["Mesh2_node_cart_y"] = xr.DataArray(data=unique_verts[:, 1],
-                                                    dims=["nMesh2_node"],
-                                                    attrs={"units": y_units})
+        grid_ds["node_y"] = xr.DataArray(data=unique_verts[:, 1],
+                                         dims=["n_node"],
+                                         attrs={"units": y_units})
 
         if face_vertices.shape[-1] > 2:
-            grid_ds["Mesh2_node_cart_z"] = xr.DataArray(
-                data=unique_verts[:, 2],
-                dims=["nMesh2_node"],
-                attrs={"units": z_units})
+            grid_ds["node_z"] = xr.DataArray(data=unique_verts[:, 2],
+                                             dims=["n_node"],
+                                             attrs={"units": z_units})
         else:
-            grid_ds["Mesh2_node_cart_z"] = xr.DataArray(
-                data=unique_verts[:, 1] * 0.0,
-                dims=["nMesh2_node"],
-                attrs={"units": z_units})
+            grid_ds["node_z"] = xr.DataArray(data=unique_verts[:, 1] * 0.0,
+                                             dims=["n_node"],
+                                             attrs={"units": z_units})
 
     # Create connectivity array using indices of unique vertices
     connectivity = indices.reshape(face_vertices.shape[:-1])
-    grid_ds["Mesh2_face_nodes"] = xr.DataArray(
+    grid_ds["face_node_connectivity"] = xr.DataArray(
         data=xr.DataArray(connectivity).astype(INT_DTYPE),
-        dims=["nMesh2_face", "nMaxMesh2_face_nodes"],
+        dims=["n_face", "n_max_face_nodes"],
         attrs={
             "cf_role": "face_node_connectivity",
             "_FillValue": INT_FILL_VALUE,

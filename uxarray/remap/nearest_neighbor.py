@@ -17,10 +17,10 @@ def _nearest_neighbor(source_grid: Grid,
                       destination_grid: Grid,
                       source_data: np.ndarray,
                       remap_to: str = "nodes",
-                      coord_type: str = "lonlat") -> np.ndarray:
+                      coord_type: str = "spherical") -> np.ndarray:
     """Nearest Neighbor Remapping between two grids, mapping data that resides
     on either the corner nodes or face centers on the source grid to the corner
-    nodes or face centers of the destination grid..
+    nodes or face centers of the destination grid.
 
     Parameters
     ---------
@@ -32,6 +32,8 @@ def _nearest_neighbor(source_grid: Grid,
         Data variable to remaps
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
+    coord_type: str, default="spherical"
+        Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian"
 
     Returns
     -------
@@ -39,30 +41,28 @@ def _nearest_neighbor(source_grid: Grid,
         Data mapped to destination grid
     """
 
-    # TODO: implementation in latlon, consider cartesiain once KDtree is implemented
-
-    # ensure array is an np.ndarray
+    # ensure array is a np.ndarray
     source_data = np.asarray(source_data)
 
     n_elements = source_data.shape[-1]
 
-    if n_elements == source_grid.nMesh2_node:
+    if n_elements == source_grid.n_node:
         source_data_mapping = "nodes"
-    elif n_elements == source_grid.nMesh2_face:
+    elif n_elements == source_grid.n_face:
         source_data_mapping = "face centers"
     else:
         raise ValueError(
             f"Invalid source_data shape. The final dimension should be either match the number of corner "
-            f"nodes ({source_grid.nMesh2_node}) or face centers ({source_grid.nMesh2_face}) in the "
+            f"nodes ({source_grid.n_node}) or face centers ({source_grid.n_face}) in the "
             f"source grid, but received: {source_data.shape}")
 
-    if coord_type == "lonlat":
+    if coord_type == "spherical":
         # get destination coordinate pairs
         if remap_to == "nodes":
-            lon, lat = destination_grid.Mesh2_node_x.values, destination_grid.Mesh2_node_y.values
+            lon, lat = destination_grid.node_lon.values, destination_grid.node_lat.values
 
         elif remap_to == "face centers":
-            lon, lat = destination_grid.Mesh2_face_x.values, destination_grid.Mesh2_face_y.values
+            lon, lat = destination_grid.face_lon.values, destination_grid.face_lat.values
         else:
             raise ValueError(
                 f"Invalid remap_to. Expected 'nodes' or 'face centers', "
@@ -72,39 +72,57 @@ def _nearest_neighbor(source_grid: Grid,
         _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
 
         # prepare coordinates for query
-        lonlat = np.vstack([lon, lat]).T
+        latlon = np.vstack([lon, lat]).T
 
-        _, nearest_neighbor_indices = _source_tree.query(lonlat, k=1)
-
-        # data values from source data to destination data using nearest neighbor indices
-        if nearest_neighbor_indices.ndim > 1:
-            nearest_neighbor_indices = nearest_neighbor_indices.squeeze()
-
-        # support arbitrary dimension data using Ellipsis "..."
-        destination_data = source_data[..., nearest_neighbor_indices]
-
-        # case for 1D slice of data
-        if source_data.ndim == 1:
-            destination_data = destination_data.squeeze()
-
-        return destination_data
+        _, nearest_neighbor_indices = _source_tree.query(latlon, k=1)
 
     elif coord_type == "cartesian":
-        # TODO: once a cartesian balltree/kdtree is implemented, implement this
-        raise ValueError(
-            f"Nearest Neighbor Remapping using Cartesian coordinates is not yet supported"
-        )
+        # get destination coordinates
+        if remap_to == "nodes":
+            cart_x, cart_y, cart_z = (destination_grid.node_x.values,
+                                      destination_grid.node_y.values,
+                                      destination_grid.node_z.values)
+
+        elif remap_to == "face centers":
+            cart_x, cart_y, cart_z = (destination_grid.face_x.values,
+                                      destination_grid.face_y.values,
+                                      destination_grid.face_z.values)
+        else:
+            raise ValueError(
+                f"Invalid remap_to. Expected 'nodes' or 'face centers', "
+                f"but received: {remap_to}")
+
+        # specify whether to query on the corner nodes or face centers based on source grid
+        _source_tree = source_grid.get_kd_tree(tree_type=source_data_mapping)
+
+        # prepare coordinates for query
+        cartesian = np.vstack([cart_x, cart_y, cart_z]).T
+
+        _, nearest_neighbor_indices = _source_tree.query(cartesian, k=1)
 
     else:
         raise ValueError(
-            f"Invalid coord_type. Expected either 'lonlat' or 'Cartesian', but received {coord_type}"
+            f"Invalid coord_type. Expected either 'spherical' or 'cartesian', but received {coord_type}"
         )
+
+    # data values from source data to destination data using nearest neighbor indices
+    if nearest_neighbor_indices.ndim > 1:
+        nearest_neighbor_indices = nearest_neighbor_indices.squeeze()
+
+    # support arbitrary dimension data using Ellipsis "..."
+    destination_data = source_data[..., nearest_neighbor_indices]
+
+    # case for 1D slice of data
+    if source_data.ndim == 1:
+        destination_data = destination_data.squeeze()
+
+    return destination_data
 
 
 def _nearest_neighbor_uxda(source_uxda: UxDataArray,
                            destination_obj: Union[Grid, UxDataArray, UxDataset],
                            remap_to: str = "nodes",
-                           coord_type: str = "lonlat"):
+                           coord_type: str = "spherical"):
     """Nearest Neighbor Remapping implementation for ``UxDataArray``.
 
     Parameters
@@ -115,8 +133,8 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
         Destination for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
-    coord_type : str, default="lonlat"
-        Indicates whether to remap using on latlon or Cartesian coordinates for nearest neighbor computations when
+    coord_type : str, default="spherical"
+        Indicates whether to remap using on Spherical or Cartesian coordinates for nearest neighbor computations when
         remapping.
     """
 
@@ -165,7 +183,7 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
 def _nearest_neighbor_uxds(source_uxds: UxDataset,
                            destination_obj: Union[Grid, UxDataArray, UxDataset],
                            remap_to: str = "nodes",
-                           coord_type: str = "lonlat"):
+                           coord_type: str = "spherical"):
     """Nearest Neighbor Remapping implementation for ``UxDataset``.
 
     Parameters
@@ -176,8 +194,8 @@ def _nearest_neighbor_uxds(source_uxds: UxDataset,
         Destination for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes" or "face centers"
-    coord_type : str, default="lonlat"
-        Indicates whether to remap using on latlon or cartesiain coordinates
+    coord_type : str, default="spherical"
+        Indicates whether to remap using on Spherical or Cartesian coordinates
     """
 
     if isinstance(destination_obj, Grid):

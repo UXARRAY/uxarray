@@ -8,23 +8,23 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from numba import njit
 
 
-def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
-    """Closes (``Mesh2_face_nodes``) by inserting the first node index after
-    the last non-fill-value node.
+def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
+    """Closes (``face_node_connectivity``) by inserting the first node index
+    after the last non-fill-value node.
 
     Parameters
     ----------
-    Mesh2_face_nodes : np.ndarray
+    face_node_connectivity : np.ndarray
         Connectivity array for constructing a face from its nodes
-    nMesh2_face : constant
+    n_face : constant
         Number of faces
-    nMaxMesh2_face_nodes : constant
+    n_max_face_nodes : constant
         Max number of nodes that compose a face
 
     Returns
     ----------
     closed : ndarray
-        Closed (padded) Mesh2_face_nodes
+        Closed (padded) face_node_connectivity
 
     Example
     ----------
@@ -36,22 +36,22 @@ def close_face_nodes(Mesh2_face_nodes, nMesh2_face, nMaxMesh2_face_nodes):
         [4, 5, 6, 7, 8, 4]
     """
 
-    # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
-    closed = np.ones((nMesh2_face, nMaxMesh2_face_nodes + 1),
-                     dtype=INT_DTYPE) * INT_FILL_VALUE
+    # padding to shape [n_face, n_max_face_nodes + 1]
+    closed = np.ones(
+        (n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
 
     # set all non-paded values to original face nodee values
-    closed[:, :-1] = Mesh2_face_nodes.copy()
+    closed[:, :-1] = face_node_connectivity.copy()
 
     # instance of first fill value
     first_fv_idx_2d = np.argmax(closed == INT_FILL_VALUE, axis=1)
 
     # 2d to 1d index for np.put()
     first_fv_idx_1d = first_fv_idx_2d + (
-        (nMaxMesh2_face_nodes + 1) * np.arange(0, nMesh2_face))
+        (n_max_face_nodes + 1) * np.arange(0, n_face))
 
     # column of first node values
-    first_node_value = Mesh2_face_nodes[:, 0].copy()
+    first_node_value = face_node_connectivity[:, 0].copy()
 
     # insert first node column at occurrence of first fill value
     np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
@@ -119,26 +119,25 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
 
 
 def _populate_n_nodes_per_face(grid):
-    """Constructs the connectivity variable (``nNodes_per_face``) and stores it
-    within the internal (``Grid._ds``) and through the attribute
-    (``Grid.nNodes_per_face``)."""
+    """Constructs the connectivity variable (``n_nodes_per_face``) and stores
+    it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.n_nodes_per_face``)."""
 
-    n_nodes_per_face = _build_n_nodes_per_face(grid.Mesh2_face_nodes.values,
-                                               grid.nMesh2_face,
-                                               grid.nMaxMesh2_face_nodes)
+    n_nodes_per_face = _build_n_nodes_per_face(
+        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes)
 
     # add to internal dataset
-    grid._ds["nNodes_per_face"] = xr.DataArray(
+    grid._ds["n_nodes_per_face"] = xr.DataArray(
         data=n_nodes_per_face,
-        dims=["nMesh2_face"],
+        dims=["n_face"],
         attrs={"long_name": "number of non-fill value nodes for each face"})
 
 
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
-    """Constructs ``nNodes_per_face``, which contains the number of non- fill-
-    value nodes for each face in ``Mesh2_face_nodes``"""
+    """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
+    value nodes for each face in ``face_node_connectivity``"""
 
-    # padding to shape [nMesh2_face, nMaxMesh2_face_nodes + 1]
+    # padding to shape [n_face, n_max_face_nodes + 1]
     closed = np.ones(
         (n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
 
@@ -150,18 +149,17 @@ def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
 
 
 def _populate_edge_node_connectivity(grid):
-    """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``) and
-    stores it within the internal (``Grid._ds``) and through the attribute
-    (``Grid.Mesh2_edge_nodes``)."""
+    """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.edge_node_connectivity``)."""
 
     edge_nodes, inverse_indices, fill_value_mask = _build_edge_node_connectivity(
-        grid.Mesh2_face_nodes.values, grid.nMesh2_face,
-        grid.nMaxMesh2_face_nodes)
+        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes)
 
-    # add Mesh2_edge_nodes to internal dataset
-    grid._ds['Mesh2_edge_nodes'] = xr.DataArray(
+    # add edge_node_connectivity to internal dataset
+    grid._ds['edge_node_connectivity'] = xr.DataArray(
         edge_nodes,
-        dims=["nMesh2_edge", "Two"],
+        dims=["n_edge", "Two"],
         attrs={
             "cf_role": "edge_node_connectivity",
             "_FillValue": INT_FILL_VALUE,
@@ -173,9 +171,9 @@ def _populate_edge_node_connectivity(grid):
 
 
 def _build_edge_node_connectivity(face_nodes, n_face, n_max_face_nodes):
-    """Constructs the UGRID connectivity variable (``Mesh2_edge_nodes``) and
-    stores it within the internal (``Grid._ds``) and through the attribute
-    (``Grid.Mesh2_edge_nodes``).
+    """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.edge_node_connectivity``).
 
     Additionally, the attributes (``inverse_indices``) and
     (``fill_value_mask``) are stored for constructing other
@@ -184,7 +182,7 @@ def _build_edge_node_connectivity(face_nodes, n_face, n_max_face_nodes):
     Parameters
     ----------
     repopulate : bool, optional
-        Flag used to indicate if we want to overwrite the existed `Mesh2_edge_nodes` and generate a new
+        Flag used to indicate if we want to overwrite the existed `edge_node_connectivity` and generate a new
         inverse_indices, default is False
     """
 
@@ -231,16 +229,16 @@ def _build_edge_node_connectivity(face_nodes, n_face, n_max_face_nodes):
 
 
 def _populate_edge_face_connectivity(grid):
-    """Constructs the UGRID connectivity variable (``Mesh2_edge_faces``) and
-    stores it within the internal (``Grid._ds``) and through the attribute
-    (``Grid.Mesh2_edge_faces``)."""
-    edge_faces = _build_edge_face_connectivity(grid.Mesh2_face_edges.values,
-                                               grid.nNodes_per_face.values,
-                                               grid.nMesh2_edge)
+    """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.edge_node_connectivity``)."""
+    edge_faces = _build_edge_face_connectivity(
+        grid.face_edge_connectivity.values, grid.n_nodes_per_face.values,
+        grid.n_edge)
 
-    grid._ds["Mesh2_edge_faces"] = xr.DataArray(
+    grid._ds["edge_face_connectivity"] = xr.DataArray(
         data=edge_faces,
-        dims=["nMesh2_edge", "Two"],
+        dims=["n_edge", "Two"],
         attrs={
             "cf_role": "edge_face_connectivity",
             "start_index": INT_DTYPE(0),
@@ -250,7 +248,7 @@ def _populate_edge_face_connectivity(grid):
 
 @njit
 def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
-    """Helper for (``Mesh2_edge_faces``) construction."""
+    """Helper for (``edge_face_connectivity``) construction."""
     edge_faces = np.ones(shape=(n_edge, 2),
                          dtype=face_edges.dtype) * INT_FILL_VALUE
 
@@ -268,21 +266,21 @@ def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
 
 
 def _populate_face_edge_connectivity(grid):
-    """Constructs the UGRID connectivity variable (``Mesh2_face_edges``) and
-    stores it within the internal (``Grid._ds``) and through the attribute
-    (``Grid.Mesh2_face_edges``)."""
+    """Constructs the UGRID connectivity variable (``face_edge_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.face_edge_connectivity``)."""
 
-    if ("Mesh2_edge_nodes" not in grid._ds or
-            "inverse_indices" not in grid._ds['Mesh2_edge_nodes'].attrs):
+    if ("edge_node_connectivity" not in grid._ds or
+            "inverse_indices" not in grid._ds['edge_node_connectivity'].attrs):
         _populate_edge_node_connectivity(grid)
 
     face_edges = _build_face_edge_connectivity(
-        grid.Mesh2_edge_nodes.attrs['inverse_indices'], grid.nMesh2_face,
-        grid.nMaxMesh2_face_nodes)
+        grid.edge_node_connectivity.attrs['inverse_indices'], grid.n_face,
+        grid.n_max_face_nodes)
 
-    grid._ds["Mesh2_face_edges"] = xr.DataArray(
+    grid._ds["face_edge_connectivity"] = xr.DataArray(
         data=face_edges,
-        dims=["nMesh2_face", "nMaxMesh2_face_edges"],
+        dims=["n_face", "n_max_face_edges"],
         attrs={
             "cf_role": "face_edges_connectivity",
             "start_index": INT_DTYPE(0),
@@ -291,22 +289,22 @@ def _populate_face_edge_connectivity(grid):
 
 
 def _build_face_edge_connectivity(inverse_indices, n_face, n_max_face_nodes):
-    """Helper for (``Mesh2_face_edges``) construction."""
+    """Helper for (``face_edge_connectivity``) construction."""
     inverse_indices = inverse_indices.reshape(n_face, n_max_face_nodes)
     return inverse_indices
 
 
 def _populate_node_face_connectivity(grid):
-    """Constructs the UGRID connectivity variable (``Mesh2_node_faces``) and
-    stores it within the internal (``Grid._ds``) and through the attribute
-    (``Grid.Mesh2_node_faces``)."""
+    """Constructs the UGRID connectivity variable (``node_face_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.node_face_connectivity``)."""
 
     node_faces, n_max_faces_per_node = _build_node_faces_connectivity(
-        grid.Mesh2_face_nodes.values, grid.nMesh2_node)
+        grid.face_node_connectivity.values, grid.n_node)
 
-    grid._ds["Mesh2_node_faces"] = xr.DataArray(
+    grid._ds["node_face_connectivity"] = xr.DataArray(
         node_faces,
-        dims=["nMesh2_node", "nMaxNumFacesPerNode"],
+        dims=["n_node", "n_max_node_faces"],  # TODO
         attrs={
             "long_name": "Maps every node to the faces that "
                          "it connects",
@@ -317,9 +315,9 @@ def _populate_node_face_connectivity(grid):
 
 
 def _build_node_faces_connectivity(face_nodes, n_node):
-    """Builds the `Grid.Mesh2_node_faces`: integer DataArray of size
-    (nMesh2_node, nMaxNumFacesPerNode) (optional) A DataArray of indices
-    indicating faces that are neighboring each node.
+    """Builds the `Grid.node_faces_connectivity`: integer DataArray of size
+    (n_node, n_max_faces_per_node) (optional) A DataArray of indices indicating
+    faces that are neighboring each node.
 
     This function converts the face-node connectivity data into a sparse matrix, and then constructs the node-face
     connectivity by iterating over each node in the mesh and retrieving the set of neighboring faces.
@@ -327,7 +325,7 @@ def _build_node_faces_connectivity(face_nodes, n_node):
     Raises
     ------
     RuntimeError
-        If the Mesh object does not contain a 'Mesh2_face_nodes' variable.
+        If the Mesh object does not contain a 'face_node_connectivity' variable.
     """
     # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
     # indexes (similar to an adjacency matrix)

@@ -92,12 +92,12 @@ def _point_raster(uxda: UxDataArray,
 
     if uxda._face_centered():
         # data mapped to face centroid coordinates
-        lon = uxda.uxgrid.Mesh2_face_x.values
-        lat = uxda.uxgrid.Mesh2_face_y.values
+        lon = uxda.uxgrid.node_lon.values
+        lat = uxda.uxgrid.node_lat.values
     elif uxda._node_centered():
         # data mapped to face corner coordinates
-        lon = uxda.uxgrid.Mesh2_node_x.values
-        lat = uxda.uxgrid.Mesh2_node_y.values
+        lon = uxda.uxgrid.node_lon.values
+        lat = uxda.uxgrid.node_lat.values
     else:
         raise ValueError(
             f"The Dimension of Data Variable {uxda.name} is not Node or Face centered."

@@ -49,7 +49,7 @@ class TestAPI(TestCase):
         uxds_var2_ne30 = ux.open_dataset(self.gridfile_ne30,
                                          self.dsfile_var2_ne30)
 
-        nt.assert_equal(uxds_var2_ne30.uxgrid.Mesh2_node_x.size,
+        nt.assert_equal(uxds_var2_ne30.uxgrid.node_lon.size,
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)
@@ -63,7 +63,7 @@ class TestAPI(TestCase):
         uxds_mf_ne30 = ux.open_mfdataset(self.gridfile_ne30,
                                          self.dsfiles_mf_ne30)
 
-        nt.assert_equal(uxds_mf_ne30.uxgrid.Mesh2_node_x.size,
+        nt.assert_equal(uxds_mf_ne30.uxgrid.node_lon.size,
                         constants.NNODES_outCSne30)
         nt.assert_equal(len(uxds_mf_ne30.uxgrid._ds.data_vars),
                         constants.DATAVARS_outCSne30)

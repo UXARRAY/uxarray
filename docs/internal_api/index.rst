@@ -159,11 +159,21 @@ Utils
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
    grid.utils._get_cartesiain_face_edge_nodes
 
+
+Accurate Computing Utils
+------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   utils.computing._err_fmac
+   utils.computing._fast_two_mult
+   utils.computing._fast_two_sum
+   utils.computing._two_sum
+   utils.computing._two_prod_fma
 
 Remapping
 =========
