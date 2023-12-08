@@ -231,8 +231,8 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
     return np.append(y_new, constZ)
 
 
-def _get_cartesiain_face_edge_nodes(face_nodes_ind, face_edges_ind,
-                                    edge_nodes_grid):
+def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
+                                   edge_nodes_grid, edge_x, edge_y, edge_z):
     """Helper function that constructs the face-edge connectivity for a Cartesian grid.
     Parameters
     ----------
@@ -249,19 +249,22 @@ def _get_cartesiain_face_edge_nodes(face_nodes_ind, face_edges_ind,
     """
 
     # Construct array to hold the face edge data
+
     face_edges = np.zeros((len(face_edges_ind), 2), dtype=INT_DTYPE)
     face_edges = face_edges.astype(INT_DTYPE)
 
     # Assign edge_nodes
+
     for ind in range(0, len(face_edges_ind)):
         edge_idx = face_edges_ind[ind]
-        if edge_idx == INT_FILL_VALUE:
-            edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
-        else:
+        if edge_idx != INT_FILL_VALUE:
             edge_nodes = edge_nodes_grid.values[edge_idx]
+        else:
+            edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
         face_edges[ind] = edge_nodes
 
     # Sort edge nodes in counter-clockwise order
+
     starting_two_nodes_index = [face_nodes_ind[0], face_nodes_ind[1]]
     face_edges[0] = starting_two_nodes_index
     for idx in range(1, len(face_edges)):
@@ -269,7 +272,25 @@ def _get_cartesiain_face_edge_nodes(face_nodes_ind, face_edges_ind,
             continue
         else:
             # Swap the node index in this edge
+
             temp = face_edges[idx][0]
             face_edges[idx][0] = face_edges[idx][1]
             face_edges[idx][1] = temp
-    return face_edges
+
+    # Initialize variable to hold the coordinates
+
+    cartesian_coordinates = []
+
+    # Get the coordinates using the connectivity index
+
+    for edge in range(len(face_edges)):
+        # Assign the coordinates to the nodes that make up a single line
+
+        edge_coordinates = [[edge_x[node], edge_y[node], edge_z[node]]
+                            for node in face_edges[edge]]
+
+        # Append the current array of size (2, 3) to the final array, getting the desired size of (3, 3)
+
+        cartesian_coordinates.append(edge_coordinates)
+
+    return cartesian_coordinates

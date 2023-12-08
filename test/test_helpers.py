@@ -14,7 +14,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
-from uxarray.grid.utils import _get_cartesiain_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 try:
     import constants
@@ -331,17 +331,30 @@ class TestVectorsAngel(TestCase):
 class TestFaceEdgeConnectivityHelper(TestCase):
 
     def test_construction_of_edge_connectivity(self):
-
         # Load the dataset
+
         uxds = ux.open_dataset(gridfile_geoflowsmall_grid,
                                gridfile_geoflowsmall_var)
 
-        # Construct the connectivity
-        for i in range(0, len(uxds.uxgrid.Mesh2_face_nodes)):
-            face_edges_connectivity_cartesian = _get_cartesiain_face_edge_nodes(
-                uxds.uxgrid.Mesh2_face_nodes[i],
-                uxds.uxgrid.Mesh2_face_edges.values[i],
-                uxds.uxgrid.Mesh2_edge_nodes)
-        # Assert the dimension is 3, right now it is 2?
-        dimension_number = face_edges_connectivity_cartesian.ndim
-        assert dimension_number == 3
+        # Initialize array
+
+        face_edges_connectivity_cartesian = []
+
+        # Get the connectivity
+
+        for i in range(len(uxds.uxgrid.Mesh2_face_nodes)):
+            face_edges_connectivity_cartesian.append(
+                _get_cartesian_face_edge_nodes(
+                    uxds.uxgrid.Mesh2_face_nodes[i],
+                    uxds.uxgrid.Mesh2_face_edges.values[i],
+                    uxds.uxgrid.Mesh2_edge_nodes,
+                    uxds.uxgrid.Mesh2_node_cart_x.values,
+                    uxds.uxgrid.Mesh2_node_cart_y.values,
+                    uxds.uxgrid.Mesh2_node_cart_z.values))
+
+        # Stack the arrays to get the desired (3,3) array
+
+        face_edges_connectivity_cartesian = np.vstack(
+            face_edges_connectivity_cartesian)
+
+        assert (face_edges_connectivity_cartesian.ndim == 3)
