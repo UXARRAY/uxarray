@@ -304,7 +304,8 @@ class UxDataset(xr.Dataset):
         integral = 0.0
 
         # call function to get area of all the faces as a np array
-        face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.uxgrid.compute_face_areas(
+            quadrature_rule, order)
 
         # TODO: Should we fix this requirement? Shouldn't it be applicable to
         # TODO: all variables of dataset or a dataarray instead?

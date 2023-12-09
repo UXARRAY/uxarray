@@ -41,8 +41,14 @@ def calculate_face_area(x,
 
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
+
+    Returns
+    -------
+    area : double
+    jacobian: double
     """
     area = 0.0  # set area to 0
+    jacobian = 0.0  # set jacobian to 0
     order = order
 
     if quadrature_rule == "gaussian":
@@ -86,14 +92,16 @@ def calculate_face_area(x,
                     jacobian = calculate_spherical_triangle_jacobian(
                         node1, node2, node3, dA, dB)
                     area += dW[p] * dW[q] * jacobian
+                    jacobian += jacobian
             elif quadrature_rule == "triangular":
                 dA = dG[p][0]
                 dB = dG[p][1]
                 jacobian = calculate_spherical_triangle_jacobian_barycentric(
                     node1, node2, node3, dA, dB)
                 area += dW[p] * jacobian
+                jacobian += jacobian
 
-    return area
+    return area, jacobian
 
 
 @njit(cache=ENABLE_JIT_CACHE)
@@ -145,6 +153,7 @@ def get_all_face_area_from_coords(x,
 
     # set initial area of each face to 0
     area = np.zeros(n_face)
+    jacobian = np.zeros(n_face)
 
     for face_idx, max_nodes in enumerate(face_geometry):
         face_x = x[face_nodes[face_idx, 0:max_nodes]]
@@ -158,12 +167,14 @@ def get_all_face_area_from_coords(x,
             face_z = face_x * 0.0
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
-        face_area = calculate_face_area(face_x, face_y, face_z, quadrature_rule,
-                                        order, coords_type)
+        face_area, face_jacobian = calculate_face_area(face_x, face_y, face_z,
+                                                       quadrature_rule, order,
+                                                       coords_type)
         # store current face area
         area[face_idx] = face_area
+        jacobian[face_idx] = face_jacobian
 
-    return area
+    return area, jacobian
 
 
 @njit(cache=ENABLE_JIT_CACHE)

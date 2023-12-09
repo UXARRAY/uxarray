@@ -12,8 +12,20 @@
 
 - title: Working with MPAS Grids
   path: examples/004-working-with-mpas-grids.ipynb
-  thumbnail: _static/examples/mpas/c-grid.png
+  thumbnail: _static/thumbnails/004-thumbnail.png
 
 - title: Conversion to GeoDataFrame for Visualization with HoloViz Packages
   path: examples/005-to-geodataframe-for-holoviz.ipynb
-  thumbnail: _static/thumbnails/005-thumbnail.png
+  thumbnail: _static/thumbnails/default.svg
+
+- title: Visualizing Grid Topology
+  path: examples/006-plot-api-topology.ipynb
+  thumbnail: _static/thumbnails/006-thumbnail.png
+
+- title: Visualizing Data as Polygons
+  path: examples/007-polygon-viz.ipynb
+  thumbnail: _static/thumbnails/007-thumbnail.png
+
+- title: Visualizing Data as Points
+  path: examples/008-point-viz.ipynb
+  thumbnail: _static/thumbnails/008-thumbnail.png
