@@ -342,15 +342,14 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
         # Get the connectivity
 
-        for i in range(len(uxds.uxgrid.Mesh2_face_nodes)):
+        for i in range(len(uxds.uxgrid.face_node_connectivity)):
             face_edges_connectivity_cartesian.append(
                 _get_cartesian_face_edge_nodes(
-                    uxds.uxgrid.Mesh2_face_nodes[i],
-                    uxds.uxgrid.Mesh2_face_edges.values[i],
-                    uxds.uxgrid.Mesh2_edge_nodes,
-                    uxds.uxgrid.Mesh2_node_cart_x.values,
-                    uxds.uxgrid.Mesh2_node_cart_y.values,
-                    uxds.uxgrid.Mesh2_node_cart_z.values))
+                    uxds.uxgrid.face_node_connectivity[i],
+                    uxds.uxgrid.face_edge_connectivity.values[i],
+                    uxds.uxgrid.edge_node_connectivity,
+                    uxds.uxgrid.node_x.values, uxds.uxgrid.node_y.values,
+                    uxds.uxgrid.node_z.values))
 
         # Stack the arrays to get the desired (3,3) array
 
