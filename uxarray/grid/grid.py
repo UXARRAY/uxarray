@@ -34,6 +34,8 @@ from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
+from uxarray.grid.subgrid import SubgridAccessor
+
 from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
 
 from xarray.core.utils import UncachedAccessor
@@ -135,10 +137,14 @@ class Grid:
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
+    # declare subgrid accessor
+    subgrid = UncachedAccessor(SubgridAccessor)
+
     @classmethod
     def from_dataset(cls,
                      dataset: xr.Dataset,
-                     use_dual: Optional[bool] = False):
+                     use_dual: Optional[bool] = False,
+                     source_grid_spec: Optional[str] = None):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
         Parameters
@@ -147,25 +153,35 @@ class Grid:
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        source_grid_spec: str, default=None
+            TODO
         """
         if not isinstance(dataset, xr.Dataset):
             raise ValueError("Input must be an xarray.Dataset")
 
         # determine grid/mesh specification
-        source_grid_spec = _parse_grid_type(dataset)
 
-        if source_grid_spec == "Exodus":
-            grid_ds, source_dims_dict = _read_exodus(dataset)
-        elif source_grid_spec == "Scrip":
-            grid_ds, source_dims_dict = _read_scrip(dataset)
-        elif source_grid_spec == "UGRID":
-            grid_ds, source_dims_dict = _read_ugrid(dataset)
-        elif source_grid_spec == "MPAS":
-            grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-        elif source_grid_spec == "Shapefile":
-            raise ValueError("Shapefiles not yet supported")
+        if source_grid_spec is None:
+            # parse to detect source grid spec
+
+            source_grid_spec = _parse_grid_type(dataset)
+            if source_grid_spec == "Exodus":
+                grid_ds, source_dims_dict = _read_exodus(dataset)
+            elif source_grid_spec == "Scrip":
+                grid_ds, source_dims_dict = _read_scrip(dataset)
+            elif source_grid_spec == "UGRID":
+                grid_ds, source_dims_dict = _read_ugrid(dataset)
+            elif source_grid_spec == "MPAS":
+                grid_ds, source_dims_dict = _read_mpas(dataset,
+                                                       use_dual=use_dual)
+            elif source_grid_spec == "Shapefile":
+                raise ValueError("Shapefiles not yet supported")
+            else:
+                raise ValueError("Unsupported Grid Format")
         else:
-            raise ValueError("Unsupported Grid Format")
+            # custom source grid spec is provided
+            grid_ds = dataset
+            source_dims_dict = {}
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
