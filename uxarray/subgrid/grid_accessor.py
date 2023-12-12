@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from uxarray.grid import Grid
 
 
-class SubgridAccessor:
+class GridSubgridAccessor:
 
     def __init__(self, uxgrid: Grid) -> None:
         self.uxgrid = uxgrid

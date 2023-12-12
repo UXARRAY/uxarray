@@ -18,6 +18,7 @@ from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 import uxarray.core.dataset
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
+from uxarray.subgrid import DataArraySubgridAccessor
 
 
 class UxDataArray(xr.DataArray):
@@ -63,6 +64,7 @@ class UxDataArray(xr.DataArray):
 
     # declare plotting accessor
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
+    subgrid = UncachedAccessor(DataArraySubgridAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):

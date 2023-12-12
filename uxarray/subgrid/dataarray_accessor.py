@@ -10,10 +10,10 @@ if TYPE_CHECKING:
     from uxarray.grid import Grid
 
 
-class SubgridAccessor:
+class DataArraySubgridAccessor:
 
-    def __init__(self, uxgrid: Grid) -> None:
-        self.uxgrid = uxgrid
+    def __init__(self, uxda) -> None:
+        self.uxda = uxda
 
     def __call__(self):
         pass
@@ -26,26 +26,31 @@ class SubgridAccessor:
 
     def nearest_neighbor(self, coords, k, tree_type='nodes', **kwargs):
 
-        coords = np.asarray(coords)
+        from uxarray.core.dataarray import UxDataArray
 
-        if coords.ndim > 1:
-            raise ValueError("TODO")
+        grid = self.uxda.uxgrid.subgrid.nearest_neighbor(
+            coords, k, tree_type, **kwargs)
 
-        if len(coords) == 2:
-            tree = self.uxgrid.get_ball_tree(tree_type)
-        elif len(coords) == 3:
-            tree = self.uxgrid.get_kd_tree(tree_type)
+        if self.uxda._face_centered():
+            d_var = self.uxda.isel(
+                n_face=grid._ds["subgrid_face_indices"]).values
+
+        elif self.uxda._edge_centered():
+            d_var = self.uxda.isel(
+                n_edge=grid._ds["subgrid_edge_indices"]).values
+
+        elif self.uxda._node_centered():
+            d_var = self.uxda.isel(
+                n_node=grid._ds["subgrid_node_indices"]).values
+
         else:
-            raise ValueError("TODO")
+            raise ValueError
 
-        _, ind = tree.query(coords, k)
-
-        if tree_type == "nodes":
-            return self.from_node_indices(ind)
-        elif tree_type == "edges":
-            return self.from_edge_indices(ind)
-        else:
-            return self.from_face_indices(ind)
+        return UxDataArray(uxgrid=grid,
+                           data=d_var,
+                           name=self.uxda.name,
+                           dims=self.uxda.dims,
+                           attrs=self.uxda.attrs)
 
     def from_node_indices(self, indices):
 

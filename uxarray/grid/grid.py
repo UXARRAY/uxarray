@@ -34,7 +34,7 @@ from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
-from uxarray.grid.subgrid import SubgridAccessor
+from uxarray.subgrid import GridSubgridAccessor
 
 from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
 
@@ -138,7 +138,7 @@ class Grid:
     plot = UncachedAccessor(GridPlotAccessor)
 
     # declare subgrid accessor
-    subgrid = UncachedAccessor(SubgridAccessor)
+    subgrid = UncachedAccessor(GridSubgridAccessor)
 
     @classmethod
     def from_dataset(cls,
@@ -423,6 +423,7 @@ class Grid:
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
+
         return self._ds["n_nodes_per_face"]
 
     # ==================================================================================================================
@@ -625,6 +626,17 @@ class Grid:
 
         Nodes are in counter-clockwise order.
         """
+
+        if self._ds["face_node_connectivity"].values.ndim == 1:
+            face_node_connectivity_1d = self._ds[
+                "face_node_connectivity"].values
+            face_node_connectivity_2d = np.expand_dims(
+                face_node_connectivity_1d, axis=0)
+            self._ds["face_node_connectivity"] = xr.DataArray(
+                data=face_node_connectivity_2d,
+                dims=['n_face', 'n_max_face_nodes'],
+                attrs=self._ds["face_node_connectivity"].attrs)
+
         return self._ds["face_node_connectivity"]
 
     @property
