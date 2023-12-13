@@ -41,8 +41,8 @@ class GridSubsetAccessor:
         _, ind = tree.query(coords, k)
 
         if tree_type == "nodes":
-            return self.from_node_indices(ind)
+            return self.uxgrid.isel(n_node=ind)
         elif tree_type == "edges":
-            return self.from_edge_indices(ind)
+            return self.uxgrid.isel(n_edge=ind)
         else:
-            return self.from_face_indices(ind)
+            return self.uxgrid.isel(n_face=ind)

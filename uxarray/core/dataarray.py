@@ -64,7 +64,7 @@ class UxDataArray(xr.DataArray):
 
     # declare plotting accessor
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
-    subgrid = UncachedAccessor(DataArraySubsetAccessor)
+    subset = UncachedAccessor(DataArraySubsetAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -389,12 +389,12 @@ class UxDataArray(xr.DataArray):
             else:
                 sliced_grid = self.uxgrid.isel(n_face=kwargs['n_face'])
 
-            return self._slice_dataarray(sliced_grid)
+            return self._slice_uxdataarray(sliced_grid)
 
         else:
             return super().isel(*args, **kwargs)
 
-    def _slice_dataarray(self, sliced_grid):
+    def _slice_uxdataarray(self, sliced_grid):
 
         from uxarray.core.dataarray import UxDataArray
 
