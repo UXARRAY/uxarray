@@ -34,6 +34,20 @@ def test_grid_face_isel():
             grid_subset = grid.isel(n_face=face_indices)
 
 
+def test_grid_node_isel():
+    for grid_path in GRID_PATHS:
+        grid = ux.open_grid(grid_path)
+
+        node_indices = [0, 1, 2, 3, 4]
+        for n_max_nodes in range(1, len(node_indices)):
+            grid_subset = grid.isel(n_node=node_indices[:n_max_nodes])
+            assert grid_subset.n_node >= n_max_nodes
+
+        face_indices = [0, 1, 2, grid.n_node]
+        with pytest.raises(IndexError):
+            grid_subset = grid.isel(n_face=face_indices)
+
+
 def test_grid_nn_subset():
     coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
 
