@@ -367,20 +367,24 @@ class UxDataArray(xr.DataArray):
         return "n_edge" in self.dims
 
     def isel(self, ignore_grid=False, *args, **kwargs):
+        """Grid-informed implementation of xarray's ``isel`` method, which
+        enables indexing across grid dimensions (a.k.a.
 
-        grid_dims = ['n_node', 'n_edge', 'n_face']
+        ``n_node``, ``n_edge``, or ``n_face``)
+        """
 
-        if ignore_grid:
-            return super().isel(*args, **kwargs)
+        from uxarray.constants import GRID_DIMS
 
-        if any(grid_dim in kwargs for grid_dim in grid_dims):
+        if any(grid_dim in kwargs
+               for grid_dim in GRID_DIMS) and not ignore_grid:
+            # slicing a grid-dimension through grid object
 
-            dim_mask = [grid_dim in kwargs for grid_dim in grid_dims]
+            dim_mask = [grid_dim in kwargs for grid_dim in GRID_DIMS]
             dim_count = np.count_nonzero(dim_mask)
 
             if dim_count > 1:
                 raise ValueError(
-                    "TODO: Only one grid dimension can be sliced at a time")
+                    "Only one grid dimension can be sliced at a time")
 
             if "n_node" in kwargs:
                 sliced_grid = self.uxgrid.isel(n_node=kwargs['n_node'])
@@ -389,12 +393,13 @@ class UxDataArray(xr.DataArray):
             else:
                 sliced_grid = self.uxgrid.isel(n_face=kwargs['n_face'])
 
-            return self._slice_uxdataarray(sliced_grid)
+            return self._slice_from_grid(sliced_grid)
 
         else:
+            # original xarray implementation for non-grid dimensions
             return super().isel(*args, **kwargs)
 
-    def _slice_uxdataarray(self, sliced_grid):
+    def _slice_from_grid(self, sliced_grid):
 
         from uxarray.core.dataarray import UxDataArray
 

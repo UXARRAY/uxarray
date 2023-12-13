@@ -11,6 +11,17 @@ if TYPE_CHECKING:
 
 
 def _slice_node_indices(grid, indices):
+    """Slices (indexes) an unstructured grid given a list/array of node
+    indices, returning a new Grid composed of elements that contain the nodes
+    specified in the indices.
+
+    Parameters
+    ----------
+    grid : ux.Grid
+        Source unstructured grid
+    indices: array-like
+        A list or 1-D array of node indices
+    """
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
@@ -21,6 +32,17 @@ def _slice_node_indices(grid, indices):
 
 
 def _slice_edge_indices(grid, indices):
+    """Slices (indexes) an unstructured grid given a list/array of edge
+    indices, returning a new Grid composed of elements that contain the edges
+    specified in the indices.
+
+    Parameters
+    ----------
+    grid : ux.Grid
+        Source unstructured grid
+    indices: array-like
+        A list or 1-D array of edge indices
+    """
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
@@ -31,9 +53,24 @@ def _slice_edge_indices(grid, indices):
 
 
 def _slice_face_indices(grid, indices):
+    """Slices (indexes) an unstructured grid given a list/array of face
+    indices, returning a new Grid composed of elements that contain the faces
+    specified in the indices.
+
+    Parameters
+    ----------
+    grid : ux.Grid
+        Source unstructured grid
+    indices: array-like
+        A list or 1-D array of face indices
+    """
 
     from uxarray.grid import Grid
     ds = grid._ds
+
+    indices = np.asarray(indices)
+    if indices.ndim == 0:
+        indices = np.expand_dims(indices, axis=0)
 
     face_indices = indices
 
@@ -64,6 +101,7 @@ def _slice_face_indices(grid, indices):
     node_indices_dict[INT_FILL_VALUE] = INT_FILL_VALUE
 
     for conn_name in grid._ds.data_vars:
+        # update or drop connectivity variables to correctly point to the new index of each element
 
         if "_node_connectivity" in conn_name:
             # update connectivity vars that index into nodes

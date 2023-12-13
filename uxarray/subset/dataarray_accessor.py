@@ -29,4 +29,4 @@ class DataArraySubsetAccessor:
         grid = self.uxda.uxgrid.subset.nearest_neighbor(coords, k, tree_type,
                                                         **kwargs)
 
-        return self.uxda._slice_uxdataarray(grid)
+        return self.uxda._slice_from_grid(grid)
