@@ -24,9 +24,9 @@ class DataArraySubsetAccessor:
     def bounding_sphere(self):
         pass
 
-    def nearest_neighbor(self, coords, k, tree_type='nodes', **kwargs):
+    def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
 
-        grid = self.uxda.uxgrid.subset.nearest_neighbor(coords, k, tree_type,
-                                                        **kwargs)
+        grid = self.uxda.uxgrid.subset.nearest_neighbor(center_coord, k,
+                                                        tree_type, **kwargs)
 
         return self.uxda._slice_from_grid(grid)

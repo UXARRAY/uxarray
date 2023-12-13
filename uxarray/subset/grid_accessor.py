@@ -24,9 +24,9 @@ class GridSubsetAccessor:
     def bounding_sphere(self):
         pass
 
-    def nearest_neighbor(self, coords, k, tree_type='nodes', **kwargs):
+    def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
 
-        coords = np.asarray(coords)
+        coords = np.asarray(center_coord)
 
         if coords.ndim > 1:
             raise ValueError("TODO")
