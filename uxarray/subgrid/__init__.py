@@ -1,2 +1,0 @@
-from .grid_accessor import GridSubgridAccessor
-from .dataarray_accessor import DataArraySubgridAccessor

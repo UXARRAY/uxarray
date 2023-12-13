@@ -18,7 +18,7 @@ from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 import uxarray.core.dataset
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
-from uxarray.subgrid import DataArraySubgridAccessor
+from uxarray.subset import DataArraySubsetAccessor
 
 
 class UxDataArray(xr.DataArray):
@@ -64,7 +64,7 @@ class UxDataArray(xr.DataArray):
 
     # declare plotting accessor
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
-    subgrid = UncachedAccessor(DataArraySubgridAccessor)
+    subgrid = UncachedAccessor(DataArraySubsetAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -365,3 +365,57 @@ class UxDataArray(xr.DataArray):
         """Returns whether the data stored is Edge Centered (i.e. contains the
         "n_edge" dimension)"""
         return "n_edge" in self.dims
+
+    def isel(self, ignore_grid=False, *args, **kwargs):
+
+        grid_dims = ['n_node', 'n_edge', 'n_face']
+
+        if ignore_grid:
+            return super().isel(*args, **kwargs)
+
+        if any(grid_dim in kwargs for grid_dim in grid_dims):
+
+            dim_mask = [grid_dim in kwargs for grid_dim in grid_dims]
+            dim_count = np.count_nonzero(dim_mask)
+
+            if dim_count > 1:
+                raise ValueError(
+                    "TODO: Only one grid dimension can be sliced at a time")
+
+            if "n_node" in kwargs:
+                sliced_grid = self.uxgrid.isel(n_node=kwargs['n_node'])
+            elif "n_edge" in kwargs:
+                sliced_grid = self.uxgrid.isel(n_edge=kwargs['n_edge'])
+            else:
+                sliced_grid = self.uxgrid.isel(n_face=kwargs['n_face'])
+
+            return self._slice_dataarray(sliced_grid)
+
+        else:
+            return super().isel(*args, **kwargs)
+
+    def _slice_dataarray(self, sliced_grid):
+
+        from uxarray.core.dataarray import UxDataArray
+
+        if self._face_centered():
+            d_var = self.isel(n_face=sliced_grid._ds["subgrid_face_indices"],
+                              ignore_grid=True).values
+
+        elif self._edge_centered():
+            d_var = self.isel(n_edge=sliced_grid._ds["subgrid_edge_indices"],
+                              ignore_grid=True).values
+
+        elif self._node_centered():
+            d_var = self.isel(n_node=sliced_grid._ds["subgrid_node_indices"],
+                              ignore_grid=True).values,
+
+        else:
+            raise ValueError(
+                "Data variable must be either node, edge, or face centered.")
+
+        return UxDataArray(uxgrid=sliced_grid,
+                           data=d_var,
+                           name=self.name,
+                           dims=self.dims,
+                           attrs=self.attrs)

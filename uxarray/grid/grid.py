@@ -34,7 +34,7 @@ from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
-from uxarray.subgrid import GridSubgridAccessor
+from uxarray.subset import GridSubsetAccessor
 
 from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
 
@@ -137,8 +137,8 @@ class Grid:
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
-    # declare subgrid accessor
-    subgrid = UncachedAccessor(GridSubgridAccessor)
+    # declare subset accessor
+    subset = UncachedAccessor(GridSubsetAccessor)
 
     @classmethod
     def from_dataset(cls,
@@ -1069,3 +1069,22 @@ class Grid:
             self._line_collection = line_collection
 
         return line_collection
+
+    def isel(self, **dim_kwargs):
+        from .slice import (_slice_node_indices, _slice_edge_indices,
+                            _slice_face_indices)
+
+        if len(dim_kwargs) != 1:
+            raise ValueError("TODO")
+
+        if "n_node" in dim_kwargs:
+            return _slice_node_indices(self, dim_kwargs['n_node'])
+
+        elif "n_edge" in dim_kwargs:
+            return _slice_edge_indices(self, dim_kwargs['n_edge'])
+
+        elif "n_face" in dim_kwargs:
+            return _slice_face_indices(self, dim_kwargs['n_face'])
+
+        else:
+            raise ValueError("TODO:")

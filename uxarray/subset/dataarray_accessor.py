@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from uxarray.grid import Grid
 
 
-class DataArraySubgridAccessor:
+class DataArraySubsetAccessor:
 
     def __init__(self, uxda) -> None:
         self.uxda = uxda
