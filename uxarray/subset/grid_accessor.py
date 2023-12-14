@@ -66,7 +66,7 @@ class GridSubsetAccessor:
 
         _, ind = tree.query_radius(coords, r)
 
-        return self._index_grid(ind, tree)
+        return self._index_grid(ind, tree_type)
 
     def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
 
@@ -76,7 +76,7 @@ class GridSubsetAccessor:
 
         _, ind = tree.query(coords, k)
 
-        return self._index_grid(ind, tree)
+        return self._index_grid(ind, tree_type)
 
     def _get_tree(self, coords, tree_type):
         if coords.ndim > 1:
