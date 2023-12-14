@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import xarray as xr
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 from typing import TYPE_CHECKING
 
@@ -68,7 +68,8 @@ def _slice_face_indices(grid, indices):
     from uxarray.grid import Grid
     ds = grid._ds
 
-    indices = np.asarray(indices)
+    indices = np.asarray(indices, dtype=INT_DTYPE)
+
     if indices.ndim == 0:
         indices = np.expand_dims(indices, axis=0)
 
