@@ -18,8 +18,15 @@ class DataArraySubsetAccessor:
     def __call__(self):
         pass
 
-    def bounding_box(self):
-        pass
+    def bounding_box(self,
+                     lon_bounds,
+                     lat_bounds,
+                     method='naive',
+                     element='nodes'):
+        grid = self.uxda.uxgrid.subset.bounding_box(lon_bounds, lat_bounds,
+                                                    method, element)
+
+        return self.uxda._slice_from_grid(grid)
 
     def bounding_circle(self, center_coord, r, tree_type='nodes', **kwargs):
         grid = self.uxda.uxgrid.subset.bounding_circle(center_coord, r,

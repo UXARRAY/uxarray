@@ -18,7 +18,44 @@ class GridSubsetAccessor:
     def __call__(self):
         pass
 
-    def bounding_box(self):
+    def bounding_box(self,
+                     lon_bounds,
+                     lat_bounds,
+                     method='naive',
+                     element='nodes'):
+
+        if method == "naive":
+
+            # check max lat
+
+            if element == "nodes":
+                lat, lon = self.uxgrid.node_lat.values, self.uxgrid.node_lon.values
+            elif element == "face centers":
+                lat, lon = self.uxgrid.face_lat.values, self.uxgrid.face_lon.values
+            elif element == "edge centers":
+                lat, lon = self.uxgrid.edge_lat.values, self.uxgrid.edge_lon.values
+            else:
+                raise ValueError("TODO")
+
+            # obtain all lat/lon indices that are within the bounds
+            lat_indices = np.argwhere(
+                np.logical_and(lat > lat_bounds[0], lat < lat_bounds[1]))
+            lon_indices = np.argwhere(
+                np.logical_and(lon > lon_bounds[0], lon < lon_bounds[1]))
+
+            # treat both indices as a set, find the intersection of both
+            indices = np.intersect1d(lat_indices, lon_indices)
+
+            if element == "nodes":
+                return self.uxgrid.isel(n_node=indices)
+            elif element == "face centers":
+                return self.uxgrid.isel(n_face=indices)
+            elif element == "edge centers":
+                return self.uxgrid.isel(n_edge=indices)
+
+        else:
+            pass
+
         pass
 
     def bounding_circle(self, center_coord, r, tree_type='nodes', **kwargs):
