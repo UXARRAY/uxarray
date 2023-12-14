@@ -21,13 +21,27 @@ class GridSubsetAccessor:
     def bounding_box(self):
         pass
 
-    def bounding_sphere(self):
-        pass
+    def bounding_circle(self, center_coord, r, tree_type='nodes', **kwargs):
+
+        coords = np.asarray(center_coord)
+
+        tree = self._get_tree(coords, tree_type)
+
+        _, ind = tree.query_radius(coords, r)
+
+        return self._index_grid(ind, tree)
 
     def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
 
         coords = np.asarray(center_coord)
 
+        tree = self._get_tree(coords, tree_type)
+
+        _, ind = tree.query(coords, k)
+
+        return self._index_grid(ind, tree)
+
+    def _get_tree(self, coords, tree_type):
         if coords.ndim > 1:
             raise ValueError("TODO")
 
@@ -38,8 +52,9 @@ class GridSubsetAccessor:
         else:
             raise ValueError("TODO")
 
-        _, ind = tree.query(coords, k)
+        return tree
 
+    def _index_grid(self, ind, tree_type):
         if tree_type == "nodes":
             return self.uxgrid.isel(n_node=ind)
         elif tree_type == "edges":

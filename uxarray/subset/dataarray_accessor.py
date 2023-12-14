@@ -21,8 +21,10 @@ class DataArraySubsetAccessor:
     def bounding_box(self):
         pass
 
-    def bounding_sphere(self):
-        pass
+    def bounding_circle(self, center_coord, r, tree_type='nodes', **kwargs):
+        grid = self.uxda.uxgrid.subset.bounding_circle(center_coord, r,
+                                                       tree_type, **kwargs)
+        return self.uxda._slice_from_grid(grid)
 
     def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
 
