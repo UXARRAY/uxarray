@@ -36,7 +36,8 @@ def _inverse_distance_weighted_remap(source_grid,
     coord_type: str, default="spherical"
         Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian".
     power : float, default=2
-        Power parameter for inverse distance weighting.
+        Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
+        power causes points that are further away to have less influence
     k_neighbors : int, default=8
         Number of nearest neighbors to consider in the weighted calculation.
 
