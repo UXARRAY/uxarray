@@ -160,7 +160,7 @@ def open_dataset(grid_filename_or_obj: str,
                          **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
@@ -244,7 +244,7 @@ def open_mfdataset(grid_filename_or_obj: str,
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
