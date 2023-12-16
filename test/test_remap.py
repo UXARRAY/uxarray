@@ -157,7 +157,8 @@ class TestInverseDistanceWeightedRemapping(TestCase):
 
         data_on_face_centers = dataset['v1'].inverse_distance_weighted_remap(
             destination_uxds.uxgrid, remap_to="face centers")
-        pass
+
+        assert not np.array_equal(dataset['v1'], data_on_face_centers)
 
     def test_remap_corner_nodes(self):
         """Test remapping to corner nodes."""
@@ -168,7 +169,8 @@ class TestInverseDistanceWeightedRemapping(TestCase):
 
         data_on_nodes = dataset['v1'].inverse_distance_weighted_remap(
             destination_uxds.uxgrid, remap_to="nodes")
-        pass
+
+        assert not np.array_equal(dataset['v1'], data_on_nodes)
 
     def test_cartesian_remap_to_nodes(self):
         """Test remapping using cartesian coordinates using nodes."""
@@ -182,15 +184,27 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         source_grid = ux.open_grid(source_verts)
         destination_grid = ux.open_grid(source_verts)
 
-        # create the destination data
-        destination_data = _inverse_distance_weighted_remap(
+        # create the first destination data using two k neighbors
+        destination_data_neighbors_2 = _inverse_distance_weighted_remap(
             source_grid,
             destination_grid,
             source_data,
             remap_to="nodes",
             coord_type="cartesian",
             k_neighbors=2)
-        pass
+
+        # create the second destination data using one k neighbor
+        destination_data_neighbors_1 = _inverse_distance_weighted_remap(
+            source_grid,
+            destination_grid,
+            source_data,
+            remap_to="nodes",
+            coord_type="cartesian",
+            k_neighbors=1)
+
+        # two different k_neighbor remaps are different
+        assert not np.array_equal(destination_data_neighbors_1,
+                                  destination_data_neighbors_2)
 
     def test_remap_return_types(self):
         """Tests the return type of the `UxDataset` and `UxDataArray`
