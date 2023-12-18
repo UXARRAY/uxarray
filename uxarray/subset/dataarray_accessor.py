@@ -16,7 +16,17 @@ class DataArraySubsetAccessor:
         self.uxda = uxda
 
     def __call__(self):
-        pass
+        return repr(self)
+
+    def __repr__(self):
+        prefix = "<uxarray.UxDataArray.subset>\n"
+        methods_heading = "Supported Methods:\n"
+
+        methods_heading += "  * nearest_neighbor(center_coord, k, tree_type, **kwargs)\n"
+        methods_heading += "  * bounding_circle(center_coord, r, tree_type, **kwargs)\n"
+        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, method, element)\n"
+
+        return prefix + methods_heading
 
     def bounding_box(self,
                      lon_bounds,

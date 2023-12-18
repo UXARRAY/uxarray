@@ -1071,11 +1071,19 @@ class Grid:
         return line_collection
 
     def isel(self, **dim_kwargs):
+        """Indexes an unstructured grid along a given dimension (``n_node``,
+        ``n_edge``, or ``n_face``) and returns a new grid.
+
+        Example
+        -------`
+        >> grid = ux.open_grid(grid_path)
+        >> grid.isel(n_face = [1,2,3,4])
+        """
         from .slice import (_slice_node_indices, _slice_edge_indices,
                             _slice_face_indices)
 
         if len(dim_kwargs) != 1:
-            raise ValueError("TODO")
+            raise ValueError("Indexing must be along a single dimension.")
 
         if "n_node" in dim_kwargs:
             return _slice_node_indices(self, dim_kwargs['n_node'])
@@ -1087,4 +1095,6 @@ class Grid:
             return _slice_face_indices(self, dim_kwargs['n_face'])
 
         else:
-            raise ValueError("TODO:")
+            raise ValueError(
+                "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
+            )
