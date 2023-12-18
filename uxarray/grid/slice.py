@@ -106,9 +106,10 @@ def _slice_face_indices(grid, indices):
 
         if "_node_connectivity" in conn_name:
             # update connectivity vars that index into nodes
-            ds[conn_name] = xr.DataArray(np.vectorize(
-                node_indices_dict.__getitem__)(ds[conn_name].values),
-                                         dims=ds[conn_name].dims)
+            ds[conn_name] = xr.DataArray(
+                np.vectorize(node_indices_dict.__getitem__,
+                             otypes=[INT_DTYPE])(ds[conn_name].values),
+                dims=ds[conn_name].dims)
 
         elif "_connectivity" in conn_name:
             # drop any conn that would require re-computation
