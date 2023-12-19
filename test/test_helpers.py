@@ -380,9 +380,8 @@ class TestFaceEdgeConnectivityHelper(TestCase):
                 _get_cartesian_face_edge_nodes(
                     grid.face_node_connectivity[i],
                     grid.face_edge_connectivity.values[i],
-                    grid.edge_node_connectivity,
-                    grid.node_x.values, grid.node_y.values,
-                    grid.node_z.values))
+                    grid.edge_node_connectivity, grid.node_x.values,
+                    grid.node_y.values, grid.node_z.values))
 
         # Stack the arrays to get the desired (3,3) array
 
