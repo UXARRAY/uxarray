@@ -31,6 +31,14 @@ class GridSubsetAccessor:
                      lat_bounds,
                      method='naive',
                      element='nodes'):
+        """Subsets an unstructured grid bounded by a pair of latitude and
+        longitude bounds (i.e. (-180, 180), (-10, 10)) and returns a new
+        ``Grid``.
+
+        Parameters
+        ----------
+        TODO:
+        """
 
         if method == "naive":
 
@@ -60,11 +68,21 @@ class GridSubsetAccessor:
                 return self.uxgrid.isel(n_edge=indices)
 
         else:
-            pass
-
-        pass
+            raise ValueError(f"Method '{method}' not supported.")
 
     def bounding_circle(self, center_coord, r, tree_type='nodes', **kwargs):
+        """Subsets an unstructured grid by returning all elements within some
+        radius (in degrees) from a center coord.
+
+        Parameters
+        ----------
+        center_coord : tuple
+            Longitude and latitude of the center of the bounding circle
+        r: scalar
+            Radius of bounding circle (in degrees)
+        tree_type: str
+            Tree type (either `nodes` or `face centers`) for internal nearest neighbor computations
+        """
 
         coords = np.asarray(center_coord)
 
@@ -75,6 +93,18 @@ class GridSubsetAccessor:
         return self._index_grid(ind, tree_type)
 
     def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
+        """Subsets an unstructured grid by returning the ``k`` closest
+        neighbors from a center coordinate.
+
+        Parameters
+        ----------
+        center_coord : tuple
+            Longitude and latitude of the center of the bounding circle
+        k: int
+            Number of neighbors to query
+        tree_type: str
+            Tree type (either `nodes` or `face centers`) for internal nearest neighbor computations
+        """
 
         coords = np.asarray(center_coord)
 
@@ -85,22 +115,27 @@ class GridSubsetAccessor:
         return self._index_grid(ind, tree_type)
 
     def _get_tree(self, coords, tree_type):
+        """Internal helper for obtaining the desired KDTree or BallTree."""
         if coords.ndim > 1:
-            raise ValueError("TODO")
+            raise ValueError("Coordinates must be one-dimensional")
 
         if len(coords) == 2:
+            # Spherical coordinates
             tree = self.uxgrid.get_ball_tree(tree_type)
         elif len(coords) == 3:
+            # Cartesian coordinates
             tree = self.uxgrid.get_kd_tree(tree_type)
         else:
-            raise ValueError("TODO")
+            raise ValueError("Unsupported coordinates provided.")
 
         return tree
 
     def _index_grid(self, ind, tree_type):
+        """Internal helper for indexing a grid with indices based off the
+        provided tree type."""
         if tree_type == "nodes":
             return self.uxgrid.isel(n_node=ind)
-        elif tree_type == "edges":
+        elif tree_type == "edge centers":
             return self.uxgrid.isel(n_edge=ind)
         else:
             return self.uxgrid.isel(n_face=ind)
