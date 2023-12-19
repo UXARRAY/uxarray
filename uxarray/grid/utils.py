@@ -198,7 +198,6 @@ def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
     # Construct array to hold the face edge data
 
     face_edges = np.zeros((len(face_edges_ind), 2), dtype=INT_DTYPE)
-    face_edges = face_edges.astype(INT_DTYPE)
 
     # Assign edge_nodes
 

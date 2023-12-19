@@ -15,6 +15,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.geometry import _pole_point_inside_polygon
 
 try:
     import constants
@@ -357,3 +358,42 @@ class TestFaceEdgeConnectivityHelper(TestCase):
             face_edges_connectivity_cartesian)
 
         assert (face_edges_connectivity_cartesian.ndim == 3)
+
+    def test_face_edge_to_pole_pont_inside(self):
+        # Create the vertices for the grid, based around the North Pole
+
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
+
+        # Construct the grid from the vertices
+
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Initialize array
+
+        face_edges_connectivity_cartesian = []
+
+        # Get the connectivity
+
+        for i in range(len(grid.face_node_connectivity)):
+            face_edges_connectivity_cartesian.append(
+                _get_cartesian_face_edge_nodes(
+                    grid.face_node_connectivity[i],
+                    grid.face_edge_connectivity.values[i],
+                    grid.edge_node_connectivity,
+                    grid.node_x.values, grid.node_y.values,
+                    grid.node_z.values))
+
+        # Stack the arrays to get the desired (3,3) array
+
+        face_edges_connectivity_cartesian = np.vstack(
+            face_edges_connectivity_cartesian)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', face_edges_connectivity_cartesian)
+
+        # Assert that the result is True
+
+        self.assertTrue(result)
