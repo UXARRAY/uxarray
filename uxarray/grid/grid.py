@@ -11,6 +11,7 @@ from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugri
 from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io._vertices import _read_face_vertices
+from uxarray.io._topology import _read_topology
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
@@ -166,6 +167,17 @@ class Grid:
             raise ValueError("Shapefiles not yet supported")
         else:
             raise ValueError("Unsupported Grid Format")
+
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_topology(cls, node_lon, node_lat, face_node_connectivity,
+                      **kwargs):
+
+        source_grid_spec = "Topology"
+        source_dims_dict = {}
+        grid_ds = _read_topology(node_lon, node_lat, face_node_connectivity,
+                                 **kwargs)
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
