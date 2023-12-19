@@ -20,8 +20,8 @@ dependencies:
   - scikit-learn
   - scipy
   - shapely
-  - spatialpandas
   - xarray
   - pip:
     - antimeridian
     - pyfma
+    - git+https://github.com/holoviz/spatialpandas.git

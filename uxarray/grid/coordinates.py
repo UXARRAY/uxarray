@@ -241,7 +241,7 @@ def _populate_centroid_coord(grid, repopulate=False):
     face_nodes = grid.face_node_connectivity.values
     n_nodes_per_face = grid.n_nodes_per_face.values
 
-    if "node_lon" not in grid._ds or repopulate:
+    if "face_lon" not in grid._ds or repopulate:
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
             centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(
@@ -305,3 +305,12 @@ def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
         centroids[2, face_idx] = centroid_normalized_xyz[2]
 
     return centroids[0, :], centroids[1, :], centroids[2, :]
+
+
+def _set_desired_longitude_range(ds):
+    """Sets the longitude range to [-180, 180] for all longitude variables."""
+
+    for lon_name in ['node_lon', 'edge_lon', 'face_lon']:
+        if lon_name in ds:
+            if ds[lon_name].max() > 180:
+                ds[lon_name] = (ds[lon_name] + 180) % 360 - 180

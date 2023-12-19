@@ -383,3 +383,43 @@ class TestLatlonBound(TestCase):
         self.assertAlmostEqual(min_latitude,
                                expected_min_latitude,
                                delta=ERROR_TOLERANCE)
+
+
+class TestGeoDataFrame(TestCase):
+
+    def test_to_gdf(self):
+        uxgrid = ux.open_grid(gridfile_geoflow)
+
+        gdf_with_am = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        gdf_without_am = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+    def test_cache_and_override(self):
+        """Tests the cache and override functionality for GeoDataFrame
+        conversion."""
+
+        uxgrid = ux.open_grid(gridfile_geoflow)
+
+        gdf_a = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        gdf_b = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        assert gdf_a is gdf_b
+
+        gdf_c = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_a is not gdf_c
+
+        gdf_d = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_d is gdf_c
+
+        gdf_e = uxgrid.to_geodataframe(exclude_antimeridian=True,
+                                       override=True,
+                                       cache=False)
+
+        assert gdf_d is not gdf_e
+
+        gdf_f = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_f is not gdf_e

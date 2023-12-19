@@ -40,6 +40,11 @@ class TestGrid(TestCase):
     grid_RLL1deg = ux.open_grid(gridfile_RLL1deg)
     grid_RLL10deg_CSne4 = ux.open_grid(gridfile_RLL10deg_CSne4)
 
+    def test_validate(self):
+        """Test to check the validate function."""
+        grid_mpas = ux.open_grid(gridfile_mpas)
+        assert (grid_mpas.validate())
+
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
         types."""
@@ -165,6 +170,7 @@ class TestGrid(TestCase):
         assert (vgrid.n_face == 3)
         assert (vgrid.n_node == 14)
         vgrid.encode_as("UGRID")
+        print(vgrid._ds)
 
         # Test initializing Grid from list
         faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30],
@@ -173,9 +179,13 @@ class TestGrid(TestCase):
                              [100, 30], [105, 20]],
                             [[95, 10], [105, 20], [100, 30], [85, 30], [75, 20],
                              [85, 10]]]
-        vgrid = ux.open_grid(faces_verts_list, latlon=False)
+        vgrid = ux.open_grid(faces_verts_list, latlon=True)
         assert (vgrid.n_face == 3)
         assert (vgrid.n_node == 14)
+
+        # validate the grid
+        assert (vgrid.validate())
+
         vgrid.encode_as("UGRID")
 
         # Test initializing Grid from tuples
@@ -184,9 +194,13 @@ class TestGrid(TestCase):
             ((125, 20), (135, 30), (125, 60), (110, 60), (100, 30), (105, 20)),
             ((95, 10), (105, 20), (100, 30), (85, 30), (75, 20), (85, 10))
         ]
-        vgrid = ux.open_grid(faces_verts_tuples, latlon=False)
+        vgrid = ux.open_grid(faces_verts_tuples, latlon=True)
         assert (vgrid.n_face == 3)
         assert (vgrid.n_node == 14)
+
+        # validate the grid
+        assert (vgrid.validate())
+
         vgrid.encode_as("UGRID")
 
     def test_init_verts_fill_values(self):
@@ -283,6 +297,12 @@ class TestFaceAreas(TestCase):
                   [-0.57735027, 5.77350269e-01, -0.57735027]]]
 
         grid_verts = ux.open_grid(verts, latlon=False)
+
+        # validate the grid
+        assert (grid_verts.validate())
+
+        # validate the grid
+        assert (grid_verts.validate())
 
         # calculate area
         area_gaussian = grid_verts.calculate_total_face_area(
@@ -951,7 +971,7 @@ class TestBallTree(TestCase):
         # single triangle with point on antimeridian
         verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
 
-        uxgrid = ux.open_grid(verts)
+        uxgrid = ux.open_grid(verts, latlon=True)
 
         # point on antimeridian, other side of grid
         d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([180.0, 0.0],
