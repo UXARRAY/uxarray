@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 
 
 class GridSubsetAccessor:
+    """Accessor for performing unstructured grid subsetting, accessed through
+    ``Grid.subset``"""
 
     def __init__(self, uxgrid: Grid) -> None:
         self.uxgrid = uxgrid
@@ -29,18 +31,30 @@ class GridSubsetAccessor:
     def bounding_box(self,
                      lon_bounds,
                      lat_bounds,
-                     method='naive',
+                     method='coords',
                      element='nodes'):
-        """Subsets an unstructured grid bounded by a pair of latitude and
-        longitude bounds (i.e. (-180, 180), (-10, 10)) and returns a new
-        ``Grid``.
+        """Subsets an unstructured grid between two latitude and longitude
+        points which form a bounding box.
+
+        A bounding box may span the antimeridian, when the pair of longitude points is given in descending order (
+        i.e. the first longitude point is greater than the second).
 
         Parameters
         ----------
-        TODO:
+        lon_bounds: tuple
+            (lon_left, lon_right) where lon_left < lon_right when the bounding box does not span
+            the antimeridian, otherwise lon_left > lon_right, both between [-180, 180]
+        lat_bounds: tuple
+            (lat_bottom, lat_top) where lat_top > lat_bottom and between [-90, 90]
+        method: str
+            Bounding Box Method, currently supports 'coords', which ensures the coordinates of the corner nodes,
+            face centers, or edge centers lie within the bounds.
+        element: str
+            Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
 
-        if method == "naive":
+        if method == "coords":
+            # coordinate comparison bounding box
 
             if element == "nodes":
                 lat, lon = self.uxgrid.node_lat.values, self.uxgrid.node_lon.values
@@ -51,11 +65,25 @@ class GridSubsetAccessor:
             else:
                 raise ValueError("TODO")
 
-            # obtain all lat/lon indices that are within the bounds
+            if lon_bounds[0] > lon_bounds[1]:
+                # split across antimeridian
+
+                lon_indices_lhs = np.argwhere(
+                    np.logical_and(lon >= -180, lon < lon_bounds[1]))
+
+                lon_indices_rhs = np.argwhere(
+                    np.logical_and(lon >= lon_bounds[0], lon < 180))
+
+                lon_indices = np.union1d(lon_indices_lhs.squeeze(),
+                                         lon_indices_rhs.squeeze())
+            else:
+                # continuous bound
+
+                lon_indices = np.argwhere(
+                    np.logical_and(lon > lon_bounds[0], lon < lon_bounds[1]))
+
             lat_indices = np.argwhere(
                 np.logical_and(lat > lat_bounds[0], lat < lat_bounds[1]))
-            lon_indices = np.argwhere(
-                np.logical_and(lon > lon_bounds[0], lon < lon_bounds[1]))
 
             # treat both indices as a set, find the intersection of both
             indices = np.intersect1d(lat_indices, lon_indices)

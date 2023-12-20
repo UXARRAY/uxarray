@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from uxarray.grid import Grid
 
 
-def _slice_node_indices(grid, indices):
+def _slice_node_indices(grid, indices, inclusive=True):
     """Slices (indexes) an unstructured grid given a list/array of node
     indices, returning a new Grid composed of elements that contain the nodes
     specified in the indices.
@@ -21,7 +21,13 @@ def _slice_node_indices(grid, indices):
         Source unstructured grid
     indices: array-like
         A list or 1-D array of node indices
+    inclusive: bool
+        Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
+        to exclusive (i.e elements be made up all desired features from a slice)
     """
+
+    if inclusive is False:
+        raise ValueError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
@@ -31,7 +37,7 @@ def _slice_node_indices(grid, indices):
     return _slice_face_indices(grid, face_indices)
 
 
-def _slice_edge_indices(grid, indices):
+def _slice_edge_indices(grid, indices, inclusive=True):
     """Slices (indexes) an unstructured grid given a list/array of edge
     indices, returning a new Grid composed of elements that contain the edges
     specified in the indices.
@@ -42,7 +48,13 @@ def _slice_edge_indices(grid, indices):
         Source unstructured grid
     indices: array-like
         A list or 1-D array of edge indices
+    inclusive: bool
+        Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
+        to exclusive (i.e elements be made up all desired features from a slice)
     """
+
+    if inclusive is False:
+        raise ValueError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
@@ -52,7 +64,7 @@ def _slice_edge_indices(grid, indices):
     return _slice_face_indices(grid, face_indices)
 
 
-def _slice_face_indices(grid, indices):
+def _slice_face_indices(grid, indices, inclusive=True):
     """Slices (indexes) an unstructured grid given a list/array of face
     indices, returning a new Grid composed of elements that contain the faces
     specified in the indices.
@@ -63,7 +75,13 @@ def _slice_face_indices(grid, indices):
         Source unstructured grid
     indices: array-like
         A list or 1-D array of face indices
+    inclusive: bool
+        Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
+        to exclusive (i.e elements be made up all desired features from a slice)
     """
+
+    if inclusive is False:
+        raise ValueError("Exclusive slicing is not yet supported.")
 
     from uxarray.grid import Grid
     ds = grid._ds
