@@ -171,15 +171,26 @@ class Grid:
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
-    def from_topology(cls, node_lon, node_lat, face_node_connectivity,
+    def from_topology(cls,
+                      node_lon: np.ndarray,
+                      node_lat: np.ndarray,
+                      face_node_connectivity: np.ndarray,
+                      fill_value: int,
+                      start_index: Optional[int] = 0,
+                      grid_spec: Optional[str] = None,
+                      dims_dict: Optional[dict] = None,
                       **kwargs):
+        """TODO."""
+        if grid_spec is None:
+            grid_spec = "User Defined Topology"
 
-        source_grid_spec = "Topology"
-        source_dims_dict = {}
+        if dims_dict is None:
+            dims_dict = {}
+
         grid_ds = _read_topology(node_lon, node_lat, face_node_connectivity,
-                                 **kwargs)
+                                 fill_value, start_index, **kwargs)
 
-        return cls(grid_ds, source_grid_spec, source_dims_dict)
+        return cls(grid_ds, grid_spec, dims_dict)
 
     @classmethod
     def from_face_vertices(cls,
