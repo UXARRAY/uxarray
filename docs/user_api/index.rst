@@ -67,6 +67,8 @@ Plotting
 
 
 
+
+
 UxDataArray
 ===========
 N-dimensional ``xarray.DataArray``-like array. Inherits from `xarray.DataArray`
@@ -125,6 +127,16 @@ Plotting
    UxDataArray.plot.rasterize
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+
+Subsetting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.subset
+   UxDataArray.plot.nearest_neighbor
+   UxDataArray.plot.bounding_circle
+   UxDataArray.plot.bounding_box
 
 
 
@@ -258,6 +270,16 @@ Plotting
    Grid.plot.mesh
    Grid.plot.edges
 
+Subsetting
+--------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.subset
+   Grid.plot.nearest_neighbor
+   Grid.plot.bounding_circle
+   Grid.plot.bounding_box
+
 
 
 
@@ -297,6 +319,26 @@ UxDataArray Plotting Methods
    plot.dataarray_plot.rasterize
    plot.dataarray_plot.polygons
    plot.dataarray_plot.points
+
+Grid Subsetting Methods
+---------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   subset.grid_accessor.nearest_neighbor
+   subset.grid_accessor.bounding_circle
+   subset.grid_accessor.bounding_neighbor
+
+
+
+UxDataArray Subsetting Methods
+----------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   subset.dataarray_accessor.nearest_neighbor
+   subset.dataarray_accessor.bounding_circle
+   subset.dataarray_accessor.bounding_neighbor
 
 
 
