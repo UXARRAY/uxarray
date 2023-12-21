@@ -8,7 +8,8 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity, _build_edge_face_connectivity
+from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity, \
+    _build_edge_face_connectivity
 
 from uxarray.grid.coordinates import _populate_lonlat_coord
 
@@ -952,6 +953,17 @@ class TestBallTree(TestCase):
             d, ind = uxgrid.get_ball_tree(tree_type="face centers").query(
                 [3.0, 3.0], k=3)
 
+    def test_construction_from_edge_centers(self):
+        """Tests the construction of the ball tree on edge_centers and performs
+        a sample query."""
+
+        for grid_file in self.center_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+
+            # performs a sample query
+            d, ind = uxgrid.get_ball_tree(tree_type="edge centers").query(
+                [3.0, 3.0], k=3)
+
     def test_construction_from_both_sequentially(self):
         """Tests the construction of the ball tree on center nodes and performs
         a sample query."""
@@ -1016,6 +1028,16 @@ class TestKDTree:
         uxgrid = ux.open_grid(self.center_grid_file)
         d, ind = uxgrid.get_kd_tree(tree_type="face centers").query(
             [1.0, 0.0, 0.0], k=5)
+
+    def test_construction_from_edge_centers(self):
+        """Tests the construction of the KDTree on edge_centers and performs a
+        sample query."""
+
+        uxgrid = ux.open_grid(self.center_grid_file)
+
+        # Performs a sample query
+        d, ind = uxgrid.get_kd_tree(tree_type="edge centers").query(
+            [1.0, 0.0, 1.0], k=1)
 
     def test_query_radius(self):
         """Test the KDTree creation and query_radius function using the grids

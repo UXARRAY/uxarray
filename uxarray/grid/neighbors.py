@@ -20,8 +20,8 @@ class KDTree:
     grid : ux.Grid
         Source grid used to construct the KDTree
     tree_type : str, default="nodes"
-            Identifies which tree to construct or select, with "nodes" selecting the corner nodes and "face centers" selecting the face
-            centers of each face
+            Identifies which tree to construct or select, with "nodes" selecting the corner nodes, "face centers" selecting the face
+            centers of each face, and "edge centers" selecting the centers of each edge of a face
     distance_metric : str, default="minkowski"
         Distance metric used to construct the KDTree
 
@@ -43,14 +43,18 @@ class KDTree:
 
         self._tree_from_nodes = None
         self._tree_from_face_centers = None
+        self._tree_from_edge_centers = None
 
-        # Build the tree based on face centers or nodes
+        # Build the tree based on nodes, face centers, or edge centers
         if tree_type == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
             self._n_elements = self._source_grid.n_node
         elif tree_type == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
+        elif tree_type == "edge centers":
+            self._tree_from_edge_centers = self._build_from_edge_centers()
+            self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError
 
@@ -83,6 +87,22 @@ class KDTree:
 
         return self._tree_from_face_centers
 
+    def _build_from_edge_centers(self):
+        """Internal``sklearn.neighbors.KDTree`` constructed from edge
+        centers."""
+        if self._tree_from_edge_centers is None:
+            if self._source_grid.edge_x is None:
+                raise ValueError
+
+            cart_coords = np.stack((self._source_grid.edge_x.values,
+                                    self._source_grid.edge_y.values,
+                                    self._source_grid.edge_z.values),
+                                   axis=-1)
+            self._tree_from_edge_centers = SKKDTree(cart_coords,
+                                                    metric=self.distance_metric)
+
+        return self._tree_from_edge_centers
+
     def _current_tree(self):
         """Creates and returns the current tree."""
         _tree = None
@@ -91,6 +111,8 @@ class KDTree:
             _tree = self._tree_from_nodes
         elif self._tree_type == "face centers":
             _tree = self._tree_from_face_centers
+        elif self._tree_type == "edge centers":
+            _tree = self._tree_from_edge_centers
         else:
             raise TypeError
 
@@ -205,7 +227,6 @@ class KDTree:
                 ind = ind.squeeze()
 
             if return_distance:
-
                 return d, ind
 
             return ind
@@ -227,6 +248,10 @@ class KDTree:
             if self._tree_from_face_centers is None:
                 self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
+        elif self._tree_type == "edge centers":
+            if self._tree_from_edge_centers is None:
+                self._tree_from_edge_centers = self._build_from_edge_centers()
+            self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError
 
@@ -242,8 +267,8 @@ class BallTree:
     grid : ux.Grid
         Source grid used to construct the BallTree
     tree_type : str, default="nodes"
-            Identifies which tree to construct or select, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
-            Centers of each face
+            Identifies which tree to construct or select, with "nodes" selecting the Corner Nodes, "face centers" selecting the Face
+            Centers of each face, and "edge centers" selecting the edge centers of each face.
     distance_metric : str, default="haversine"
         Distance metric used to construct the BallTree
 
@@ -265,6 +290,7 @@ class BallTree:
 
         self._tree_from_nodes = None
         self._tree_from_face_centers = None
+        self._tree_from_edge_centers = None
 
         # set up appropriate reference to tree
         if tree_type == "nodes":
@@ -273,6 +299,9 @@ class BallTree:
         elif tree_type == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
+        elif tree_type == "edge centers":
+            self._tree_from_edge_centers = self._build_from_edge_centers()
+            self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError
 
@@ -302,6 +331,17 @@ class BallTree:
 
         return self._tree_from_nodes
 
+    def _build_from_edge_centers(self):
+        """Internal``sklearn.neighbors.BallTree`` constructed from edge
+        centers."""
+        if self._tree_from_edge_centers is None:
+            latlon = np.vstack((deg2rad(self._source_grid.edge_lat.values),
+                                deg2rad(self._source_grid.edge_lon.values))).T
+            self._tree_from_edge_centers = SKBallTree(
+                latlon, metric=self.distance_metric)
+
+        return self._tree_from_edge_centers
+
     def _current_tree(self):
 
         _tree = None
@@ -310,6 +350,8 @@ class BallTree:
             _tree = self._tree_from_nodes
         elif self._tree_type == "face centers":
             _tree = self._tree_from_face_centers
+        elif self._tree_type == "edge centers":
+            _tree = self._tree_from_edge_centers
         else:
             raise TypeError
 
@@ -458,6 +500,10 @@ class BallTree:
             if self._tree_from_face_centers is None:
                 self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
+        elif self._tree_type == "edge centers":
+            if self._tree_from_edge_centers is None:
+                self._tree_from_edge_centers = self._build_from_edge_centers()
+            self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError
 
