@@ -175,7 +175,7 @@ class Grid:
                       node_lon: np.ndarray,
                       node_lat: np.ndarray,
                       face_node_connectivity: np.ndarray,
-                      fill_value: int,
+                      fill_value: Optional = None,
                       start_index: Optional[int] = 0,
                       grid_spec: Optional[str] = None,
                       dims_dict: Optional[dict] = None,

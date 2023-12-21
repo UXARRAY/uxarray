@@ -1,41 +1,48 @@
 import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
+from uxarray.grid.connectivity import _replace_fill_values
+from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 
 def _read_topology(node_lon, node_lat, face_node_connectivity, fill_value,
                    start_index, **kwargs):
+    ds = xr.Dataset()
 
-    ds = xr.DataArray()
+    for coord in ugrid.COORD_NAMES:
+        if coord in ["node_lon", "node_lat"] or coord in kwargs:
+            if coord == "node_lon":
+                coord_arr = node_lon
+            elif coord == "node_lat":
+                coord_arr = node_lat
+            else:
+                coord_arr = kwargs[coord]
 
-    ds['node_lon'] = xr.DataArray(data=node_lon,
-                                  dims=ugrid.NODE_DIMS,
-                                  attrs=ugrid.NODE_LON_ATTRS)
+            ds[coord] = xr.DataArray(data=coord_arr,
+                                     dims=ugrid.COORDS[coord]['dims'],
+                                     attrs=ugrid.COORDS[coord]['attrs'])
 
-    ds['node_lat'] = xr.DataArray(data=node_lat,
-                                  dims=ugrid.NODE_DIMS,
-                                  attrs=ugrid.NODE_LAT_ATTRS)
+    for conn in ugrid.CONNECTIVITY_NAMES:
+        if conn == "face_node_connectivity" or conn in kwargs:
 
-    if "edge_lon" in kwargs:
-        # store edge coordinates, if present
-        ds['edge_lon'] = xr.DataArray(data=kwargs['edge_lon'],
-                                      dims=ugrid.EDGE_DIMS,
-                                      attrs=ugrid.EDGE_LON_ATTRS)
+            if conn == "face_node_connectivity":
+                conn_arr = face_node_connectivity
+            else:
+                conn_arr = kwargs[conn]
 
-        ds['edge_lat'] = xr.DataArray(data=kwargs['edge_lat'],
-                                      dims=ugrid.EDGE_DIMS,
-                                      attrs=ugrid.EDGE_LAT_ATTRS)
-
-    if "face_lon" in kwargs:
-        # store face coordinates, if present
-        ds['face_lon'] = xr.DataArray(data=kwargs['face_lon'],
-                                      dims=ugrid.FACE_DIMS,
-                                      attrs=ugrid.FACE_LON_ATTRS)
-
-        ds['face_lat'] = xr.DataArray(data=kwargs['face_lat'],
-                                      dims=ugrid.FACE_DIMS,
-                                      attrs=ugrid.FACE_LAT_ATTRS)
-
-    # TODO: Connectivity
+            ds[conn] = xr.DataArray(data=_process_connectivity(
+                conn_arr, fill_value, start_index),
+                                    dims=ugrid.CONNECTIVITY[conn]['dims'],
+                                    attrs=ugrid.CONNECTIVITY[conn]['attrs'])
 
     return ds
+
+
+def _process_connectivity(conn, orig_fv, start_index):
+    """Internal helper for processing connectivity variables, standardizing
+    fill values and converting to zero-index."""
+    conn = _replace_fill_values(conn, orig_fv, INT_FILL_VALUE, INT_DTYPE)
+
+    conn[conn != INT_FILL_VALUE] -= start_index
+
+    return conn
