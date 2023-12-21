@@ -172,9 +172,8 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
 
 
 def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
-                                   edge_nodes_grid, node_x_values,
-                                   node_y_values, node_z_values):
-    """Helper function that constructs the face-edge connectivity for a Cartesian grid.
+                                   edge_nodes_grid, node_x, node_y, node_z):
+    """Helper function that constructs an array to hold the edge cartesian coordinates for a face in a grid.
     Parameters
     ----------
     face_nodes_ind :
@@ -183,11 +182,11 @@ def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
         The ith entry of Grid.face_edge_connectivity
     edge_nodes_grid :
         The entire Grid.edge_node_connectivity
-    node_x_values :
+    node_x :
         The values of Grid.node_x
-    node_y_values :
+    node_y :
         The values of Grid.node_y
-    node_z_values :
+    node_z :
         The values of Grid.node_z
     Returns
     -------
@@ -232,9 +231,8 @@ def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
     for edge in range(len(face_edges)):
         # Assign the coordinates to the nodes that make up a single line
 
-        edge_coordinates = [[
-            node_x_values[node], node_y_values[node], node_z_values[node]
-        ] for node in face_edges[edge]]
+        edge_coordinates = [[node_x[node], node_y[node], node_z[node]]
+                            for node in face_edges[edge]]
 
         # Append the current array of size (2, 3) to the final array, getting the desired size of (3, 3)
 
