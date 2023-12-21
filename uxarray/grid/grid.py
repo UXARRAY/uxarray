@@ -738,7 +738,11 @@ class Grid:
             self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_jacobian
 
-    def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
+    def get_ball_tree(self,
+                      tree_type: Optional[str] = "nodes",
+                      coordinate_type="spherical",
+                      distance_metric="haversine",
+                      reconstruct=False):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_lon``, ``node_lat``) or face centers (``face_lon``,
@@ -749,23 +753,36 @@ class Grid:
         tree_type : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
+        coordinate_type : str, default="cartesian"
+            Selects which coordinate type to use to create the tree, "cartesian" selection cartesian coordinates, and
+            "spherical" selecting spherical coordinates.
+        distance_metric : str, default="haversine"
+            Distance metric used to construct the BallTree
+        reconstruct : bool, default=False
+            If true, reconstructs the tree
 
         Returns
         -------
         self._ball_tree : grid.Neighbors.BallTree
             BallTree instance
         """
-        if self._ball_tree is None:
+        if self._ball_tree is None or reconstruct:
             self._ball_tree = BallTree(self,
                                        tree_type=tree_type,
-                                       distance_metric='haversine')
+                                       distance_metric=distance_metric,
+                                       coordinate_type=coordinate_type,
+                                       reconstruct=reconstruct)
         else:
             if tree_type != self._ball_tree._tree_type:
                 self._ball_tree.tree_type = tree_type
 
         return self._ball_tree
 
-    def get_kd_tree(self, tree_type: Optional[str] = "nodes"):
+    def get_kd_tree(self,
+                    tree_type: Optional[str] = "nodes",
+                    coordinate_type="cartesian",
+                    distance_metric="minkowski",
+                    reconstruct=False):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
@@ -776,16 +793,25 @@ class Grid:
         tree_type : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
+        coordinate_type : str, default="cartesian"
+            Selects which coordinate type to use to create the tree, "cartesian" selection cartesian coordinates, and
+            "spherical" selecting spherical coordinates.
+        distance_metric : str, default="minkowski"
+            Distance metric used to construct the KDTree
+        reconstruct : bool, default=False
+            If true, reconstructs the tree
 
         Returns
         -------
         self._kd_tree : grid.Neighbors.KDTree
             KDTree instance
         """
-        if self._kd_tree is None:
+        if self._kd_tree is None or reconstruct:
             self._kd_tree = KDTree(self,
                                    tree_type=tree_type,
-                                   distance_metric='minkowski')
+                                   distance_metric=distance_metric,
+                                   coordinate_type=coordinate_type,
+                                   reconstruct=reconstruct)
         else:
             if tree_type != self._kd_tree._tree_type:
                 self._kd_tree.tree_type = tree_type

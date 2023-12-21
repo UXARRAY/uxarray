@@ -1007,6 +1007,32 @@ class TestBallTree(TestCase):
         """TODO: Write addition tests once construction and representation of face centers is implemented."""
         pass
 
+    def test_construction_using_cartesian_coords(self):
+        """Test the BallTree creation and query function using cartesian
+        coordinates."""
+
+        for grid_file in self.corner_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+            d, ind = uxgrid.get_ball_tree(tree_type="nodes",
+                                          coordinate_type="cartesian",
+                                          distance_metric="minkowski").query(
+                                              [1.0, 0.0, 0.0])
+
+    def test_query_radius(self):
+        """Test the BallTree creation and query_radius function using the grids
+        face centers."""
+        for grid_file in self.center_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+            d, ind = uxgrid.get_ball_tree(
+                tree_type="face centers",
+                coordinate_type="spherical").query_radius([3.0, 3.0], r=5)
+
+            d, ind = uxgrid.get_ball_tree(tree_type="face centers",
+                                          coordinate_type="cartesian",
+                                          distance_metric="minkowski",
+                                          reconstruct=True).query_radius(
+                                              [0.0, 0.0, 1.0], r=5)
+
 
 class TestKDTree:
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
@@ -1020,6 +1046,16 @@ class TestKDTree:
             uxgrid = ux.open_grid(grid_file)
             d, ind = uxgrid.get_kd_tree(tree_type="nodes").query(
                 [0.0, 0.0, 1.0])
+
+    def test_construction_using_spherical_coords(self):
+        """Test the KDTree creation and query function using spherical
+        coordinates."""
+
+        for grid_file in self.corner_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+            d, ind = uxgrid.get_kd_tree(tree_type="nodes",
+                                        coordinate_type="spherical").query(
+                                            [3.0, 3.0])
 
     def test_construction_from_face_centers(self):
         """Test the KDTree creation and query function using the grids face
@@ -1044,5 +1080,11 @@ class TestKDTree:
         face centers."""
 
         uxgrid = ux.open_grid(self.center_grid_file)
-        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query_radius(
-            [0.0, 0.0, 1.0], r=5)
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers",
+                                    coordinate_type="cartesian").query_radius(
+                                        [0.0, 0.0, 1.0], r=5)
+
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers",
+                                    coordinate_type="spherical",
+                                    reconstruct=True).query_radius([3.0, 3.0],
+                                                                   r=5)
