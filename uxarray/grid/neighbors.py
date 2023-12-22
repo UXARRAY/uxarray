@@ -181,7 +181,7 @@ class KDTree:
         return_distance : bool, optional
             Indicates whether distances should be returned
         in_radians : bool, optional
-            if True, queries assuming xy are inputted in radians, not degrees
+            if True, queries assuming coords are inputted in radians, not degrees. Only applies for spherical coordinates
         dualtree : bool, default=False
             Indicates whether to use the dual-tree formalism for node queries
         breadth_first : bool, default=False
@@ -248,7 +248,7 @@ class KDTree:
         return_distance : bool, default=False
             Indicates whether distances should be returned
         in_radians : bool, optional
-            if True, queries assuming xy are inputted in radians, not degrees
+            if True, queries assuming coords are inputted in radians, not degrees. Only applies to spherical coordinates
         count_only : bool, default=False
             Indicates whether only counts should be returned
         sort_results : bool, default=False
@@ -310,15 +310,15 @@ class KDTree:
 
         # set up appropriate reference to tree
         if self._tree_type == "nodes":
-            if self._tree_from_nodes is None:
+            if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
             self._n_elements = self._source_grid.n_node
         elif self._tree_type == "face centers":
-            if self._tree_from_face_centers is None:
+            if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
         elif self._tree_type == "edge centers":
-            if self._tree_from_edge_centers is None:
+            if self._tree_from_edge_centers is None or self.reconstruct:
                 self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
@@ -485,7 +485,7 @@ class BallTree:
         k: int, default=1
             The number of nearest neighbors to return
         in_radians : bool, optional
-            if True, queries assuming xy are inputted in radians, not degrees
+            if True, queries assuming coords are inputted in radians, not degrees. Only applies to spherical coords
         return_distance : bool, optional
             Indicates whether distances should be returned
         dualtree : bool, default=False
@@ -497,10 +497,10 @@ class BallTree:
 
         Returns
         -------
-        d : ndarray of shape (xy.shape[0], k), dtype=double
-            Distance array that keeps the distances of the k-nearest neighbors to the entries from xy in each row
-        ind : ndarray of shape (xy.shape[0], k), dtype=INT_DTYPE
-            Index array that keeps the indices of the k-nearest neighbors to the entries from xy in each row
+        d : ndarray of shape (coords.shape[0], k), dtype=double
+            Distance array that keeps the distances of the k-nearest neighbors to the entries from coords in each row
+        ind : ndarray of shape (coords.shape[0], k), dtype=INT_DTYPE
+            Index array that keeps the indices of the k-nearest neighbors to the entries from coords in each row
         """
 
         if k < 1 or k > self._n_elements:
@@ -553,7 +553,7 @@ class BallTree:
         r: distance in degrees within which neighbors are returned
             r is a single value for the radius of which to query
         in_radians : bool, optional
-            if True, queries assuming xy are inputted in radians, not degrees
+            if True, queries assuming coords are inputted in radians, not degrees. Only applies to spherical coordinates
         return_distance : bool, default=False
             Indicates whether distances should be returned
         count_only : bool, default=False
@@ -563,10 +563,10 @@ class BallTree:
 
         Returns
         -------
-        d : ndarray of shape (xy.shape[0], k), dtype=double
-            Distance array that keeps the distances of all neighbors within some radius to the entries from xy in each row
-        ind : ndarray of shape (xy.shape[0], k), dtype=INT_DTYPE
-            Index array that keeps the indices of all neighbors within some radius to the entries from xy in each row
+        d : ndarray of shape (coords.shape[0], k), dtype=double
+            Distance array that keeps the distances of all neighbors within some radius to the entries from coords in each row
+        ind : ndarray of shape (coords.shape[0], k), dtype=INT_DTYPE
+            Index array that keeps the indices of all neighbors within some radius to the entries from coords in each row
         """
 
         if r < 0.0:
@@ -617,15 +617,15 @@ class BallTree:
 
         # set up appropriate reference to tree
         if self._tree_type == "nodes":
-            if self._tree_from_nodes is None:
+            if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
             self._n_elements = self._source_grid.n_node
         elif self._tree_type == "face centers":
-            if self._tree_from_face_centers is None:
+            if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
         elif self._tree_type == "edge centers":
-            if self._tree_from_edge_centers is None:
+            if self._tree_from_edge_centers is None or self.reconstruct:
                 self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
@@ -633,7 +633,8 @@ class BallTree:
 
 
 def _prepare_xy_for_query(xy, use_radians):
-    """Prepares xy coordinates for query with the sklearn BallTree."""
+    """Prepares xy coordinates for query with the sklearn BallTree or
+    KDTree."""
 
     xy = np.asarray(xy)
 
@@ -662,7 +663,8 @@ def _prepare_xy_for_query(xy, use_radians):
 
 
 def _prepare_xyz_for_query(xyz):
-    """Prepares xyz coordinates for query with the sklearn KDTree."""
+    """Prepares xyz coordinates for query with the sklearn BallTree and
+    KDTree."""
 
     xyz = np.asarray(xyz)
 
