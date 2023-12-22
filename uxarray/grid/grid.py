@@ -571,7 +571,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_x" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
 
         return self._ds['face_x']
 
@@ -583,7 +583,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_y" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
         return self._ds['face_y']
 
     @property
@@ -594,7 +594,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_z" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
         return self._ds['face_z']
 
     # ==================================================================================================================
@@ -754,7 +754,7 @@ class Grid:
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
         coordinate_type : str, default="cartesian"
-            Selects which coordinate type to use to create the tree, "cartesian" selection cartesian coordinates, and
+            Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="haversine"
             Distance metric used to construct the BallTree
@@ -794,7 +794,7 @@ class Grid:
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
         coordinate_type : str, default="cartesian"
-            Selects which coordinate type to use to create the tree, "cartesian" selection cartesian coordinates, and
+            Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="minkowski"
             Distance metric used to construct the KDTree

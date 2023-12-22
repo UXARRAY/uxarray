@@ -95,8 +95,6 @@ class KDTree:
         """Internal``sklearn.neighbors.KDTree`` constructed from face
         centers."""
         if self._tree_from_face_centers is None or self.reconstruct:
-            if self._source_grid.face_x is None:
-                raise ValueError
 
             # Sets which values to use for the tree based on the coordinate_type
             if self.coordinate_type == "cartesian":
@@ -122,17 +120,21 @@ class KDTree:
         """Internal``sklearn.neighbors.KDTree`` constructed from edge
         centers."""
         if self._tree_from_edge_centers is None or self.reconstruct:
-            if self._source_grid.edge_x is None:
-                raise ValueError
 
             # Sets which values to use for the tree based on the coordinate_type
             if self.coordinate_type == "cartesian":
+                if self._source_grid.edge_x is None:
+                    raise ValueError
+
                 coords = np.stack((self._source_grid.edge_x.values,
                                    self._source_grid.edge_y.values,
                                    self._source_grid.edge_z.values),
                                   axis=-1)
 
             elif self.coordinate_type == "spherical":
+                if self._source_grid.edge_lat is None:
+                    raise ValueError
+
                 coords = np.vstack(
                     (deg2rad(self._source_grid.edge_lat.values),
                      deg2rad(self._source_grid.edge_lon.values))).T
@@ -380,8 +382,6 @@ class BallTree:
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
         if self._tree_from_face_centers is None or self.reconstruct:
-            if self._source_grid.node_lon is None:
-                raise ValueError
 
             # Sets which values to use for the tree based on the coordinate_type
             if self.coordinate_type == "spherical":
@@ -430,11 +430,17 @@ class BallTree:
 
             # Sets which values to use for the tree based on the coordinate_type
             if self.coordinate_type == "spherical":
+                if self._source_grid.edge_lat is None:
+                    raise ValueError
+
                 coords = np.vstack(
                     (deg2rad(self._source_grid.edge_lat.values),
                      deg2rad(self._source_grid.edge_lon.values))).T
 
             elif self.coordinate_type == "cartesian":
+                if self._source_grid.edge_x is None:
+                    raise ValueError
+
                 coords = np.stack((self._source_grid.edge_x.values,
                                    self._source_grid.edge_y.values,
                                    self._source_grid.edge_z.values),
