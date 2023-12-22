@@ -321,6 +321,13 @@ class Grid:
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
             connectivity_heading + connectivity_str
 
+    def __getitem__(self, item):
+        """TODO: """
+        if item in self._ds:
+            return self._ds[item]
+        else:
+            raise ValueError("TODO")
+
     def __eq__(self, other) -> bool:
         """Two grids are equal if they have matching grid topology variables,
         coordinates, and dims all of which are equal.
@@ -365,11 +372,13 @@ class Grid:
         """
         return not self.__eq__(other)
 
+    # TODO: rename to attrs?
     @property
     def parsed_attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
+    # TODO: Rename to 'topology_descriptor' or similar
     @property
     def Mesh2(self) -> xr.DataArray:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D

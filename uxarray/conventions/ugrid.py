@@ -24,38 +24,38 @@ FACE_DIMS = ['n_face']
 # coordinates
 NODE_LON_ATTRS = {
     "standard_name": "longitude",
-    "long name": "Longitude of Face Corner Nodes",
+    "long name": "Longitude of the corner nodes of each face",
     "units": "degrees_east"
 }
 
 NODE_LAT_ATTRS = {
     "standard_name": "latitude",
-    "long name": "Latitude of Face Corner Nodes",
-    "units": "degrees_east"
+    "long name": "Latitude of the corner nodes of each face",
+    "units": "degrees_north"
 }
 
 EDGE_LON_ATTRS = {
     "standard_name": "longitude",
-    "long name": "Longitude of Edge Centers",
+    "long name": "Longitude of the center of each edge",
     "units": "degrees_east"
 }
 
 EDGE_LAT_ATTRS = {
     "standard_name": "latitude",
-    "long name": "Latitude of Edge Centers",
-    "units": "degrees_east"
+    "long name": "Latitude of the center of each edge",
+    "units": "degrees_north"
 }
 
 FACE_LON_ATTRS = {
     "standard_name": "longitude",
-    "long name": "Longitude of Face Centers",
+    "long name": "Longitude of the center of each face",
     "units": "degrees_east"
 }
 
 FACE_LAT_ATTRS = {
     "standard_name": "latitude",
-    "long name": "Latitude of Face Centers",
-    "units": "degrees_east"
+    "long name": "Latitude of the center of each face",
+    "units": "degrees_north"
 }
 
 # connectivity (face_)
@@ -81,7 +81,7 @@ FACE_FACE_CONNECTIVITY_ATTRS = {
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE
 }
-FACE_FACE_CONNECTIVITY_DIMS = ["n_face", "n_max_face_nodes"]
+FACE_FACE_CONNECTIVITY_DIMS = ["n_face", "n_max_face_faces"]  # todo: check grid
 
 # connectivity (edge_)
 EDGE_NODE_CONNECTIVITY_ATTRS = {
@@ -89,59 +89,64 @@ EDGE_NODE_CONNECTIVITY_ATTRS = {
     "long name": "Maps every edge to the two nodes that it connects.",
     "start_index": 0,
 }
-EDGE_NODE_CONNECTIVITY_DIMS = ["n_edge", "n_max_face_nodes"]
+EDGE_NODE_CONNECTIVITY_DIMS = ["n_edge", "two"]
 
-# todo
-# EDGE_EDGE_CONNECTIVITY_ATTRS = {
-#     "cf_role": None,
-#     "long name": None,
-#     "start_index": None,
-#     "_FillValue": None
-# }
-#
-# EDGE_EDGE_CONNECTIVITY_DIMS = ['n_edge', 'n_max_face_nodes_two']
-
-EDGE_FACE_CONNECTIVITY_ATTRS = {
-    "cf_role": "edge_face_connectivity",
-    "long name": "Faces that neighbor each edge.",
+EDGE_EDGE_CONNECTIVITY_ATTRS = {
+    "cf_role": "edge_edge_connectivity",
+    "long name": "Edges that neighbor each edge",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE
 }
-EDGE_FACE_CONNECTIVITY_DIMS = ["n_edge", "two"]
+
+EDGE_EDGE_CONNECTIVITY_DIMS = ['n_edge', 'n_max_edge_edges']  # todo: check grid
+
+EDGE_FACE_CONNECTIVITY_ATTRS = {
+    "cf_role": "edge_face_connectivity",
+    "long name": "Faces that neighbor each edge",
+    "start_index": 0,
+    "_FillValue": INT_FILL_VALUE
+}
+EDGE_FACE_CONNECTIVITY_DIMS = ["n_edge", "two"]  # todo: check grid
 
 # connectivity (node_)
 NODE_NODE_CONNECTIVITY_ATTRS = {
     "cf_role": "node_node_connectivity",
-    "long name": None,
+    "long name": "Nodes that neighbor each node",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE
 }
 
-NODE_NODE_CONNECTIVITY_DIMS = ["n_node", "n_max_face_nodes"]
+NODE_NODE_CONNECTIVITY_DIMS = ["n_node", "n_max_face_nodes"]  # todo: check grid
 
 NODE_EDGE_CONNECTIVITY_ATTRS = {
-    "cf_role": None,
-    "long name": None,
+    "cf_role": "node_edge_connectivity",
+    "long name": "Edges that neighbor each node",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE
 }
 
-NODE_EDGE_CONNECTIVITY_DIMS = ["n_node", "n_max_face_nodes"]
+NODE_EDGE_CONNECTIVITY_DIMS = ["n_node", "n_max_edge_nodes"]  # todo: check grid
 
 NODE_FACE_CONNECTIVITY_ATTRS = {
-    "cf_role": None,
-    "long name": None,
+    "cf_role": "node_face_connectivity",
+    "long name": "Faces that neighbor each node",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE
 }
 
-NODE_FACE_CONNECTIVITY_DIMS = ["n_node", "n_max_face_nodes"]
+NODE_FACE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_faces"]  # todo: check grid
 
 CONNECTIVITY_NAMES = [
     "face_node_connectivity", "face_edge_connectivity",
     "face_face_connectivity", "edge_node_connectivity",
     "edge_edge_connectivity", "edge_face_connectivity",
     "node_node_connectivity", "node_edge_connectivity", "node_face_connectivity"
+]
+
+# as of UGRID v1.0
+UGRID_COMPLIANT_CONNECTIVITY_NAMES = [
+    "edge_node_connectivity", "face_node_connectivity",
+    "face_edge_connectivity", "edge_face_connectivity", "face_face_connectivity"
 ]
 
 CONNECTIVITY = {
