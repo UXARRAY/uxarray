@@ -18,9 +18,8 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 class KDTree:
     """Custom KDTree data structure written around the
     ``sklearn.neighbors.KDTree`` implementation for use with either the corner
-    (``Mesh2_node_cart_x``, ``Mesh2_node_cart_y``, ``Mesh2_node_cart_z``) or
-    center (``Mesh2_face_cart_x``, ``Mesh2_face_cart_y``,
-    ``Mesh2_face_cart_z``) nodes of the inputted unstructured grid.
+    (``node_x``, ``node_y``, ``node_z``) or center (``face_x``, ``face_y``,
+    ``face_z``) nodes of the inputted unstructured grid.
 
     Parameters
     ----------
@@ -54,10 +53,10 @@ class KDTree:
         # Build the tree based on face centers or nodes
         if tree_type == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.nMesh2_node
+            self._n_elements = self._source_grid.n_node
         elif tree_type == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
-            self._n_elements = self._source_grid.nMesh2_face
+            self._n_elements = self._source_grid.n_face
         else:
             raise ValueError
 
@@ -65,9 +64,9 @@ class KDTree:
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
         nodes."""
         if self._tree_from_nodes is None:
-            cart_coords = np.stack((self._source_grid.Mesh2_node_cart_x.values,
-                                    self._source_grid.Mesh2_node_cart_y.values,
-                                    self._source_grid.Mesh2_node_cart_z.values),
+            cart_coords = np.stack((self._source_grid.node_x.values,
+                                    self._source_grid.node_y.values,
+                                    self._source_grid.node_z.values),
                                    axis=-1)
             self._tree_from_nodes = SKKDTree(cart_coords,
                                              metric=self.distance_metric)
@@ -78,12 +77,12 @@ class KDTree:
         """Internal``sklearn.neighbors.KDTree`` constructed from face
         centers."""
         if self._tree_from_face_centers is None:
-            if self._source_grid.Mesh2_face_cart_x is None:
+            if self._source_grid.face_x is None:
                 raise ValueError
 
-            cart_coords = np.stack((self._source_grid.Mesh2_face_cart_x.values,
-                                    self._source_grid.Mesh2_face_cart_y.values,
-                                    self._source_grid.Mesh2_face_cart_z.values),
+            cart_coords = np.stack((self._source_grid.face_x.values,
+                                    self._source_grid.face_y.values,
+                                    self._source_grid.face_z.values),
                                    axis=-1)
             self._tree_from_face_centers = SKKDTree(cart_coords,
                                                     metric=self.distance_metric)
@@ -229,11 +228,11 @@ class KDTree:
         if self._tree_type == "nodes":
             if self._tree_from_nodes is None:
                 self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.nMesh2_node
+            self._n_elements = self._source_grid.n_node
         elif self._tree_type == "face centers":
             if self._tree_from_face_centers is None:
                 self._tree_from_face_centers = self._build_from_face_centers()
-            self._n_elements = self._source_grid.nMesh2_face
+            self._n_elements = self._source_grid.n_face
         else:
             raise ValueError
 
@@ -241,8 +240,8 @@ class KDTree:
 class BallTree:
     """Custom BallTree data structure written around the
     ``sklearn.neighbors.BallTree`` implementation for use with either the
-    corner (``Mesh2_node_x``, ``Mesh2_node_y``) or center (``Mesh2_face_x``,
-    ``Mesh2_face_y``) nodes of the inputted unstructured grid.
+    corner (``node_lon``, ``node_lat``) or center (``face_lon``, ``face_lat``)
+    nodes of the inputted unstructured grid.
 
     Parameters
     ----------
@@ -276,10 +275,10 @@ class BallTree:
         # set up appropriate reference to tree
         if tree_type == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.nMesh2_node
+            self._n_elements = self._source_grid.n_node
         elif tree_type == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
-            self._n_elements = self._source_grid.nMesh2_face
+            self._n_elements = self._source_grid.n_face
         else:
             raise ValueError
 
@@ -287,12 +286,11 @@ class BallTree:
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
         if self._tree_from_face_centers is None:
-            if self._source_grid.Mesh2_face_x is None:
+            if self._source_grid.node_lon is None:
                 raise ValueError
 
-            latlon = np.vstack(
-                (deg2rad(self._source_grid.Mesh2_face_y.values),
-                 deg2rad(self._source_grid.Mesh2_face_x.values))).T
+            latlon = np.vstack((deg2rad(self._source_grid.node_lat.values),
+                                deg2rad(self._source_grid.node_lon.values))).T
 
             self._tree_from_face_centers = SKBallTree(
                 latlon, metric=self.distance_metric)
@@ -303,9 +301,8 @@ class BallTree:
         """Internal``sklearn.neighbors.BallTree`` constructed from corner
         nodes."""
         if self._tree_from_nodes is None:
-            latlon = np.vstack(
-                (deg2rad(self._source_grid.Mesh2_node_y.values),
-                 deg2rad(self._source_grid.Mesh2_node_x.values))).T
+            latlon = np.vstack((deg2rad(self._source_grid.node_lat.values),
+                                deg2rad(self._source_grid.node_lon.values))).T
             self._tree_from_nodes = SKBallTree(latlon,
                                                metric=self.distance_metric)
 
@@ -462,11 +459,11 @@ class BallTree:
         if self._tree_type == "nodes":
             if self._tree_from_nodes is None:
                 self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.nMesh2_node
+            self._n_elements = self._source_grid.n_node
         elif self._tree_type == "face centers":
             if self._tree_from_face_centers is None:
                 self._tree_from_face_centers = self._build_from_face_centers()
-            self._n_elements = self._source_grid.nMesh2_face
+            self._n_elements = self._source_grid.n_face
         else:
             raise ValueError
 

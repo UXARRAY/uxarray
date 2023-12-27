@@ -14,7 +14,8 @@ from uxarray.io._vertices import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.coordinates import _populate_centroid_coord
+from uxarray.grid.coordinates import (_populate_centroid_coord,
+                                      _set_desired_longitude_range)
 from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
                                        _populate_face_edge_connectivity,
                                        _populate_n_nodes_per_face,
@@ -24,17 +25,18 @@ from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
 from uxarray.grid.coordinates import (_populate_lonlat_coord,
                                       _populate_cartesian_xyz_coord)
 
-from uxarray.grid.geometry import (_build_antimeridian_face_indices,
+from uxarray.grid.geometry import (_populate_antimeridian_face_indices,
                                    _grid_to_polygon_geodataframe,
                                    _grid_to_matplotlib_polycollection,
-                                   _grid_to_matplotlib_linecollection,
-                                   _grid_to_polygons)
+                                   _grid_to_matplotlib_linecollection)
 
 from uxarray.grid.neighbors import (BallTree, KDTree,
                                     _populate_edge_face_distances,
                                     _populate_edge_node_distances)
 
 from uxarray.plot.accessor import GridPlotAccessor
+
+from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
 
 from xarray.core.utils import UncachedAccessor
 
@@ -61,7 +63,7 @@ class Grid:
         Original unstructured grid format (i.e. UGRID, MPAS, etc.)
 
     source_dims_dict : dict, default={}
-        Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : nMesh2_face})
+        Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : n_face})
 
     Examples
     ----------
@@ -118,6 +120,7 @@ class Grid:
 
         # initialize cached data structures (visualization)
         self._gdf = None
+        self._gdf_exclude_am = None
         self._poly_collection = None
         self._line_collection = None
         self._centroid_points_df_proj = [None, None]
@@ -128,21 +131,11 @@ class Grid:
         self._ball_tree = None
         self._kd_tree = None
 
-        self._mesh2_warning_raised = False
+        # set desired longitude range to [-180, 180]
+        _set_desired_longitude_range(self._ds)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
-
-    def _mesh2_future_warning(self):
-        """Raises a FutureWarning about the 'Mesh2' prefix removal.
-
-        Only raises the warning once when a effected property is called.
-        """
-        if not self._mesh2_warning_raised:
-            self._mesh2_warning_raised = True
-            warn(
-                "'Mesh2' prefix used in dimension, coordinate, and connectivity attributes (i.e. Mesh2_face_nodes) will"
-                " be dropped in a future release.", FutureWarning, 1)
 
     @classmethod
     def from_dataset(cls,
@@ -206,10 +199,36 @@ class Grid:
         else:
             raise RuntimeError(
                 f"Invalid Input Dimension: {face_vertices.ndim}. Expected dimension should be "
-                f"3: [nMesh2_face, nMesh2_node, Two/Three] or 2 when only "
+                f"3: [n_face, n_node, two/three] or 2 when only "
                 f"one face is passed in.")
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
+
+    def validate(self):
+        """Validate a grid object check for common errors, such as:
+
+            - Duplicate nodes
+            - Connectivity
+            - Face areas (non zero)
+        Raises
+        ------
+        RuntimeError
+            If unsupported grid type provided
+        """
+        # If the mesh file is loaded correctly, we have the underlying file format as UGRID
+        # Test if the file is a valid ugrid file format or not
+        print("Validating the mesh...")
+
+        # call the check_connectivity and check_duplicate_nodes functions from validation.py
+        checkDN = _check_duplicate_nodes(self)
+        check_C = _check_connectivity(self)
+        check_A = _check_area(self)
+
+        if checkDN and check_C and check_A:
+            print("Mesh validation successful.")
+            return True
+        else:
+            raise RuntimeError("Mesh validation failed.")
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
@@ -217,63 +236,66 @@ class Grid:
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
-        # if self.grid_var_names["Mesh2_node_x"] in self._ds:
-        #     dims_str += f"  * nMesh2_node: {self.nMesh2_node}\n"
-        # if self.grid_var_names["Mesh2_face_nodes"] in self._ds:
-        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
-        #     dims_str += f"  * nMesh2_face: {self.nMesh2_face}\n"
 
         for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
             dims_str += f"  * {key}: {value}\n"
-            # if key in self._inverse_grid_var_names:
-            #     dims_str += f"  * {self._inverse_grid_var_names[key]}: {value}\n"
 
-        # if "nMesh2_edge" in self._ds.dims:
-        #     dims_str += f"  * nMesh2_edge: {self.nMesh2_edge}\n"
+        dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
 
-        if "nMaxMesh2_face_edges" in self._ds.dims:
-            dims_str += f"  * nMaxMesh2_face_edges: {self.nMaxMesh2_face_edges}\n"
-
-        coord_heading = "Grid Coordinates (Latitude & Longitude):\n"
+        coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        if "Mesh2_node_x" in self._ds:
-            coords_str += f"  * Mesh2_node_x: {self.Mesh2_node_x.shape}\n"
-            coords_str += f"  * Mesh2_node_y: {self.Mesh2_node_y.shape}\n"
-        if "Mesh2_edge_x" in self._ds:
-            coords_str += f"  * Mesh2_edge_x: {self.Mesh2_edge_x.shape}\n"
-            coords_str += f"  * Mesh2_edge_y: {self.Mesh2_edge_y.shape}\n"
-        if "Mesh2_face_x" in self._ds:
-            coords_str += f"  * Mesh2_face_x: {self.Mesh2_face_x.shape}\n"
-            coords_str += f"  * Mesh2_face_y: {self.Mesh2_face_y.shape}\n"
+        if "node_lon" in self._ds:
+            coords_str += f"  * node_lon: {self.node_lon.shape}\n"
+            coords_str += f"  * node_lat: {self.node_lat.shape}\n"
+        if "edge_lon" in self._ds:
+            coords_str += f"  * edge_lon: {self.edge_lon.shape}\n"
+            coords_str += f"  * edge_lat: {self.edge_lat.shape}\n"
+        if "face_lon" in self._ds:
+            coords_str += f"  * face_lon: {self.face_lon.shape}\n"
+            coords_str += f"  * face_lat: {self.face_lat.shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        if "Mesh2_node_cart_x" in self._ds:
-            coords_str += f"  * Mesh2_node_cart_x: {self.Mesh2_node_cart_x.shape}\n"
-            coords_str += f"  * Mesh2_node_cart_y: {self.Mesh2_node_cart_y.shape}\n"
-            coords_str += f"  * Mesh2_node_cart_z: {self.Mesh2_node_cart_z.shape}\n"
-        if "Mesh2_edge_cart_x" in self._ds:
-            coords_str += f"  * Mesh2_edge_cart_x: {self.Mesh2_edge_cart_x.shape}\n"
-            coords_str += f"  * Mesh2_edge_cart_y: {self.Mesh2_edge_cart_y.shape}\n"
-            coords_str += f"  * Mesh2_edge_cart_z: {self.Mesh2_edge_cart_z.shape}\n"
-        if "Mesh2_face_cart_x" in self._ds:
-            coords_str += f"  * Mesh2_face_cart_x: {self.Mesh2_face_cart_x.shape}\n"
-            coords_str += f"  * Mesh2_face_cart_y: {self.Mesh2_face_cart_y.shape}\n"
-            coords_str += f"  * Mesh2_face_cart_z: {self.Mesh2_face_cart_z.shape}\n"
+        if "node_x" in self._ds:
+            coords_str += f"  * node_x: {self.node_x.shape}\n"
+            coords_str += f"  * node_y: {self.node_y.shape}\n"
+            coords_str += f"  * node_z: {self.node_z.shape}\n"
+        if "edge_x" in self._ds:
+            coords_str += f"  * edge_x: {self.edge_x.shape}\n"
+            coords_str += f"  * edge_y: {self.edge_y.shape}\n"
+            coords_str += f"  * edge_z: {self.edge_z.shape}\n"
+        if "face_x" in self._ds:
+            coords_str += f"  * face_x: {self.face_x.shape}\n"
+            coords_str += f"  * face_y: {self.face_y.shape}\n"
+            coords_str += f"  * face_z: {self.face_z.shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
-        if "Mesh2_node_faces" in self._ds:
-            connectivity_str += f"  * Mesh2_node_faces: {self.Mesh2_node_faces.shape}\n"
+        if "face_node_connectivity" in self._ds:
+            connectivity_str += f"  * face_node_connectivity: {self.face_node_connectivity.shape}\n"
 
-        if "Mesh2_edge_nodes" in self._ds:
-            connectivity_str += f"  * Mesh2_edge_nodes: {self.Mesh2_edge_nodes.shape}\n"
+        if "edge_node_connectivity" in self._ds:
+            connectivity_str += f"  * edge_node_connectivity: {self.edge_node_connectivity.shape}\n"
 
-        if "Mesh2_face_nodes" in self._ds:
-            connectivity_str += f"  * Mesh2_face_nodes: {self.Mesh2_face_nodes.shape}\n"
-        if "Mesh2_face_edges" in self._ds:
-            connectivity_str += f"  * Mesh2_face_edges: {self.Mesh2_face_edges.shape}\n"
+        if "node_node_connectivity" in self._ds:
+            connectivity_str += f"  * node_node_connectivity: {self.node_node_connectivity.shape}\n"
 
-        connectivity_str += f"  * nNodes_per_face: {self.nNodes_per_face.shape}\n"
+        if "face_edge_connectivity" in self._ds:
+            connectivity_str += f"  * face_edge_connectivity: {self.face_edge_connectivity.shape}\n"
+
+        if "edge_edge_connectivity" in self._ds:
+            connectivity_str += f"  * edge_edge_connectivity: {self.edge_edge_connectivity.shape}\n"
+
+        if "node_edge_connectivity" in self._ds:
+            connectivity_str += f"  * node_edge_connectivity: {self.node_edge_connectivity.shape}\n"
+
+        if "face_face_connectivity" in self._ds:
+            connectivity_str += f"  * face_face_connectivity: {self.face_face_connectivity.shape}\n"
+
+        if "edge_face_connectivity" in self._ds:
+            connectivity_str += f"  * edge_face_connectivity: {self.edge_face_connectivity.shape}\n"
+
+        if "node_face_connectivity" in self._ds:
+            connectivity_str += f"  * node_face_connectivity: {self.node_face_connectivity.shape}\n"
 
         return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
             connectivity_heading + connectivity_str
@@ -298,11 +320,11 @@ class Grid:
         if self.source_grid_spec != other.source_grid_spec:
             return False
 
-        if not (self.Mesh2_node_x.equals(other.Mesh2_node_x) or
-                self.Mesh2_node_y.equals(other.Mesh2_node_y)):
+        if not (self.node_lon.equals(other.node_lon) or
+                self.node_lat.equals(other.node_lat)):
             return False
 
-        if not self.Mesh2_face_nodes.equals(other.Mesh2_face_nodes):
+        if not self.face_node_connectivity.equals(other.face_node_connectivity):
             return False
 
         return True
@@ -330,374 +352,373 @@ class Grid:
     @property
     def Mesh2(self) -> xr.DataArray:
         """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
-        unstructured mesh."""
-        self._mesh2_future_warning()
+        unstructured mesh.
+
+        Internal use has been deprecated.
+        """
         return self._ds["Mesh2"]
 
+    # ==================================================================================================================
+    # Grid Dimensions
     @property
-    def nMesh2_node(self) -> int:
-        """UGRID Dimension ``nMesh2_node``, which represents the total number
-        of nodes."""
-        self._mesh2_future_warning()
-        return self._ds.dims["nMesh2_node"]
+    def n_node(self) -> int:
+        """Dimension ``n_node``, which represents the total number of unique
+        corner nodes."""
+        return self._ds.dims["n_node"]
 
     @property
-    def nMesh2_face(self) -> int:
-        """UGRID Dimension ``nMesh2_face``, which represents the total number
-        of faces."""
-        self._mesh2_future_warning()
-        return self._ds["Mesh2_face_nodes"].shape[0]
+    def n_face(self) -> int:
+        """Dimension ``n_face``, which represents the total number of unique
+        faces."""
+        return self._ds.dims["n_face"]
 
     @property
-    def nMesh2_edge(self) -> int:
-        """UGRID Dimension ``nMesh2_edge``, which represents the total number
-        of edges."""
-        self._mesh2_future_warning()
-
-        if "Mesh2_edge_nodes" not in self._ds:
+    def n_edge(self) -> int:
+        """Dimension ``n_edge``, which represents the total number of unique
+        edges."""
+        if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
 
-        return self._ds['Mesh2_edge_nodes'].shape[0]
+        return self._ds.dims["n_edge"]
+
+    # ==================================================================================================================
+    @property
+    def n_max_face_nodes(self) -> int:
+        """Dimension ``n_max_face_nodes``, which represents the maximum number
+        of nodes that a face may contain."""
+        return self.face_node_connectivity.shape[1]
 
     @property
-    def nMaxMesh2_face_nodes(self) -> int:
-        """UGRID Dimension ``nMaxMesh2_face_nodes``, which represents the
-        maximum number of nodes that a face may contain."""
-        self._mesh2_future_warning()
-        return self.Mesh2_face_nodes.shape[1]
+    def n_max_face_edges(self) -> xr.DataArray:
+        """Dimension ``n_max_face_edges``, which represents the maximum number
+        of edges per face.
 
-    @property
-    def nMaxMesh2_face_edges(self) -> xr.DataArray:
-        """Dimension ``nMaxMesh2_face_edges``, which represents the maximum
-        number of edges per face.
-
-        Equivalent to ``nMaxMesh2_face_nodes``
+        Equivalent to ``n_max_face_nodes``
         """
-        self._mesh2_future_warning()
-        if "Mesh2_face_edges" not in self._ds:
+        if "n_max_face_edges" not in self._ds:
             _populate_face_edge_connectivity(self)
 
-        return self._ds["Mesh2_face_edges"].shape[1]
+        return self._ds["face_edge_connectivity"].shape[1]
 
     @property
-    def nNodes_per_face(self) -> xr.DataArray:
-        """Dimension Variable ``nNodes_per_face``, which contains the number of
-        non-fill-value nodes per face.
+    def n_nodes_per_face(self) -> xr.DataArray:
+        """Dimension Variable ``n_nodes_per_face``, which contains the number
+        of non-fill-value nodes per face.
 
-        Dimensions (``nMesh2_nodes``) and DataType ``INT_DTYPE``.
+        Dimensions (``n_node``) and DataType ``INT_DTYPE``.
         """
-        self._mesh2_future_warning()
-        if "nNodes_per_face" not in self._ds:
+        if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
-        return self._ds["nNodes_per_face"]
+        return self._ds["n_nodes_per_face"]
 
+    # ==================================================================================================================
+    # Spherical Node Coordinates
     @property
-    def Mesh2_node_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_node_x``, which contains the longitude of each
-        node in degrees.
+    def node_lon(self) -> xr.DataArray:
+        """Coordinate ``node_lon``, which contains the longitude of each node
+        in degrees.
 
-        Dimensions (``nMesh2_node``)
+        Dimensions (``n_node``)
         """
-        self._mesh2_future_warning()
-        if "Mesh2_node_x" not in self._ds:
+        if "node_lon" not in self._ds:
+            _set_desired_longitude_range(self._ds)
             _populate_lonlat_coord(self)
-        return self._ds["Mesh2_node_x"]
+        return self._ds["node_lon"]
 
     @property
-    def Mesh2_node_cart_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_node_cart_x``, which contains the Cartesian x of
+    def node_lat(self) -> xr.DataArray:
+        """Coordinate ``node_lat``, which contains the latitude of each node in
+        degrees.
+
+        Dimensions (``n_node``)
+        """
+        if "node_lat" not in self._ds:
+            _set_desired_longitude_range(self._ds)
+            _populate_lonlat_coord(self)
+        return self._ds["node_lat"]
+
+    # ==================================================================================================================
+    # Cartesian Node Coordinates
+    @property
+    def node_x(self) -> xr.DataArray:
+        """Coordinate ``node_x``, which contains the Cartesian x location of
         each node in meters.
 
-        Dimensions (``nMesh2_node``)
+        Dimensions (``n_node``)
         """
-        self._mesh2_future_warning()
-        if "Mesh2_node_cart_x" not in self._ds:
+        if "node_x" not in self._ds:
             _populate_cartesian_xyz_coord(self)
 
-        return self._ds['Mesh2_node_cart_x']
+        return self._ds['node_x']
 
     @property
-    def Mesh2_face_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_x``, which contains the longitude of each
-        face center in degrees.
+    def node_y(self) -> xr.DataArray:
+        """Coordinate ``node_y``, which contains the Cartesian y location of
+        each node in meters.
 
-        Dimensions (``nMesh2_face``)
+        Dimensions (``n_node``)
         """
-        self._mesh2_future_warning()
-        if "Mesh2_face_x" not in self._ds:
-            _populate_centroid_coord(self)
-        return self._ds['Mesh2_face_x']
-
-    @property
-    def Mesh2_face_cart_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_x``, which contains the Cartesian y of
-        each face center in meters.
-
-        Dimensions (``nMesh2_face``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_face_cart_x" in self._ds:
-            return self._ds["Mesh2_face_cart_x"]
-        else:
-            return None
-
-    @property
-    def Mesh2_edge_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_edge_x``, which contains the longitude of the
-        center of each edge in degrees.
-
-        Dimensions (``nMesh2_edge``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_x" in self._ds:
-            return self._ds["Mesh2_edge_x"]
-        else:
-            return None
-
-    @property
-    def Mesh2_edge_cart_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_edge_cart_x``, which contains the Cartesian x of
-        each edge center in meters.
-
-        Dimensions (``nMesh2_edge``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_cart_x" in self._ds:
-            return self._ds["Mesh2_edge_cart_x"]
-        else:
-            return None
-
-    @property
-    def Mesh2_node_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_node_y``, which contains the latitude of each
-        node in degrees.
-
-        Dimensions (``nMesh2_node``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_node_y" not in self._ds:
-            _populate_lonlat_coord(self)
-
-        return self._ds["Mesh2_node_y"]
-
-    @property
-    def Mesh2_node_cart_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_node_cart_y``, which contains the Cartesian y
-        location of each node in meters.
-
-        Dimensions (``nMesh2_node``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_node_cart_y" not in self._ds:
+        if "node_y" not in self._ds:
             _populate_cartesian_xyz_coord(self)
-        return self._ds['Mesh2_node_cart_y']
+        return self._ds['node_y']
 
     @property
-    def Mesh2_face_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_y``, which contains the latitude of each
-        face center in degrees.
+    def node_z(self) -> xr.DataArray:
+        """Coordinate ``node_z``, which contains the Cartesian y location of
+        each node in meters.
 
-        Dimensions (``nMesh2_face``)
+        Dimensions (``n_node``)
         """
-        self._mesh2_future_warning()
+        if "node_z" not in self._ds:
+            _populate_cartesian_xyz_coord(self)
+        return self._ds['node_z']
 
-        if "Mesh2_face_y" not in self._ds:
+    # ==================================================================================================================
+    # Spherical Edge Coordinates
+    @property
+    def edge_lon(self) -> xr.DataArray:
+        """Coordinate ``edge_lon``, which contains the longitude of each edge
+        in degrees.
+
+        Dimensions (``n_edge``)
+        """
+        if "edge_lon" not in self._ds:
+            return None
+        # temp until we construct edge lon
+        _set_desired_longitude_range(self._ds)
+        return self._ds["edge_lon"]
+
+    @property
+    def edge_lat(self) -> xr.DataArray:
+        """Coordinate ``edge_lat``, which contains the latitude of each edge in
+        degrees.
+
+        Dimensions (``n_edge``)
+        """
+        if "edge_lat" not in self._ds:
+            return None
+        _set_desired_longitude_range(self._ds)
+        return self._ds["edge_lat"]
+
+    # ==================================================================================================================
+    # Cartesian Edge Coordinates
+    @property
+    def edge_x(self) -> xr.DataArray:
+        """Coordinate ``edge_x``, which contains the Cartesian x location of
+        each edge in meters.
+
+        Dimensions (``n_edge``)
+        """
+        if "edge_x" not in self._ds:
+            return None
+
+        return self._ds['edge_x']
+
+    @property
+    def edge_y(self) -> xr.DataArray:
+        """Coordinate ``edge_y``, which contains the Cartesian y location of
+        each edge in meters.
+
+        Dimensions (``n_edge``)
+        """
+        if "edge_y" not in self._ds:
+            return None
+        return self._ds['edge_y']
+
+    @property
+    def edge_z(self) -> xr.DataArray:
+        """Coordinate ``edge_z``, which contains the Cartesian z location of
+        each edge in meters.
+
+        Dimensions (``n_edge``)
+        """
+        if "edge_z" not in self._ds:
+            return None
+        return self._ds['edge_z']
+
+    # ==================================================================================================================
+    # Spherical Face Coordinates
+    @property
+    def face_lon(self) -> xr.DataArray:
+        """Coordinate ``face_lon``, which contains the longitude of each face
+        in degrees.
+
+        Dimensions (``n_face``)
+        """
+        if "face_lon" not in self._ds:
             _populate_centroid_coord(self)
-        return self._ds['Mesh2_face_y']
+            _set_desired_longitude_range(self._ds)
+        return self._ds["face_lon"]
 
     @property
-    def Mesh2_face_cart_x(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_x``, which contains the Cartesian x
-        location of each face center in meters.
+    def face_lat(self) -> xr.DataArray:
+        """Coordinate ``face_lat``, which contains the latitude of each face in
+        degrees.
 
-        Dimensions (``nMesh2_face``)
+        Dimensions (``n_face``)
         """
-        self._mesh2_future_warning()
-        if "Mesh2_face_cart_x" not in self._ds:
+        if "face_lat" not in self._ds:
             _populate_centroid_coord(self)
-        return self._ds["Mesh2_face_cart_x"]
+            _set_desired_longitude_range(self._ds)
 
+        return self._ds["face_lat"]
+
+    # ==================================================================================================================
+    # Cartesian Face Coordinates
     @property
-    def Mesh2_face_cart_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_y``, which contains the Cartesian y
-        location of each face center in meters.
+    def face_x(self) -> xr.DataArray:
+        """Coordinate ``face_x``, which contains the Cartesian x location of
+        each face in meters.
 
-        Dimensions (``nMesh2_face``)
+        Dimensions (``n_face``)
         """
-        self._mesh2_future_warning()
-        if "Mesh2_face_cart_y" not in self._ds:
-            _populate_centroid_coord(self)
-        return self._ds["Mesh2_face_cart_y"]
-
-    @property
-    def Mesh2_face_cart_z(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_z``, which contains the Cartesian z
-        location of each face center in meters.
-
-        Dimensions (``nMesh2_face``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_face_cart_z" not in self._ds:
-            _populate_centroid_coord(self)
-        return self._ds["Mesh2_face_cart_z"]
-
-    @property
-    def Mesh2_face_cart_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_y``, which contains the Cartesian y
-        location of each face center in meters.
-
-        Dimensions (``nMesh2_face``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_face_cart_y" in self._ds:
-            return self._ds["Mesh2_face_cart_y"]
-        else:
+        if "face_x" not in self._ds:
             return None
 
-    @property
-    def Mesh2_edge_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_node_cart_z``, which contains the latitude on
-        each edge center in degrees.
+        return self._ds['face_x']
 
-        Dimensions (``nMesh2_edge``)
+    @property
+    def face_y(self) -> xr.DataArray:
+        """Coordinate ``face_y``, which contains the Cartesian y location of
+        each face in meters.
+
+        Dimensions (``n_face``)
         """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_y" in self._ds:
-            return self._ds["Mesh2_edge_y"]
-        else:
+        if "face_y" not in self._ds:
             return None
+        return self._ds['face_y']
 
     @property
-    def Mesh2_edge_cart_y(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_edge_cart_y``, which contains the Cartesian y
-        location of each edge center in meters.
+    def face_z(self) -> xr.DataArray:
+        """Coordinate ``face_z``, which contains the Cartesian z location of
+        each face in meters.
 
-        Dimensions (``nMesh2_edge``)
+        Dimensions (``n_face``)
         """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_cart_y" in self._ds:
-            return self._ds["Mesh2_edge_cart_y"]
-        else:
+        if "face_z" not in self._ds:
             return None
+        return self._ds['face_z']
 
+    # ==================================================================================================================
+    # (, node) Connectivity
     @property
-    def Mesh2_node_cart_z(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_node_cart_z``, which contains the Cartesian z
-        location of each node in meters.
-
-        Dimensions (``nMesh2_node``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_node_cart_z" not in self._ds:
-            self._populate_cartesian_xyz_coord()
-        return self._ds['Mesh2_node_cart_z']
-
-    @property
-    def Mesh2_face_cart_z(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_face_cart_z``, which contains the Cartesian z
-        location of each face center in meters.
-
-        Dimensions (``nMesh2_face``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_face_cart_z" in self._ds:
-            return self._ds["Mesh2_face_cart_z"]
-        else:
-            return None
-
-    @property
-    def Mesh2_edge_cart_z(self) -> xr.DataArray:
-        """Coordinate ``Mesh2_edge_cart_z``, which contains the Cartesian z
-        location of each edge center in meters.
-
-        Dimensions (``nMesh2_edge``)
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_cart_z" in self._ds:
-            return self._ds["Mesh2_edge_cart_z"]
-        else:
-            return None
-
-    @property
-    def Mesh2_face_nodes(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``Mesh2_face_nodes``, which maps each
+    def face_node_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``face_node_connectivity``, which maps each
         face to its corner nodes.
 
-        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
+        Dimensions (``n_face``, ``n_max_face_nodes``) and
         DataType ``INT_DTYPE``.
-
-        Faces can have arbitrary length, with _FillValue=-1 used when faces
-        have fewer nodes than MaxNumNodesPerFace.
 
         Nodes are in counter-clockwise order.
         """
-        self._mesh2_future_warning()
-        return self._ds["Mesh2_face_nodes"]
+        return self._ds["face_node_connectivity"]
 
     @property
-    def Mesh2_edge_nodes(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``Mesh2_edge_nodes``, which maps every
+    def edge_node_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``edge_node_connectivity``, which maps every
         edge to the two nodes that it connects.
 
-        Dimensions (``nMesh2_edge``, ``Two``) and DataType
+        Dimensions (``n_edge``, ``two``) and DataType
         ``INT_DTYPE``.
 
         Nodes are in arbitrary order.
         """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_nodes" not in self._ds:
+        if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
 
-        return self._ds['Mesh2_edge_nodes']
+        return self._ds['edge_node_connectivity']
 
     @property
-    def Mesh2_face_edges(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``Mesh2_face_edges``, which maps every
+    def node_node_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``node_node_connectivity``."""
+        return None
+
+    # ==================================================================================================================
+    # (, edge) Connectivity
+    @property
+    def face_edge_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``face_edge_connectivity``, which maps every
         face to its edges.
 
-        Dimensions (``nMesh2_face``, ``nMaxMesh2_face_nodes``) and
-        DataType ``INT_DTYPE``.
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_face_edges" not in self._ds:
-            _populate_face_edge_connectivity(self)
-
-        return self._ds["Mesh2_face_edges"]
-
-    @property
-    def Mesh2_edge_faces(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``Mesh2_edge_faces``, which contains the
-        index of the faces that saddle a given edge.
-
-        Dimensions (``nMesh2_edge``, ``TWO``) and DataType
+        Dimensions (``n_face``, ``n_max_face_nodes``) and DataType
         ``INT_DTYPE``.
         """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_faces" not in self._ds:
-            _populate_edge_face_connectivity(self)
+        if "face_edge_connectivity" not in self._ds:
+            _populate_face_edge_connectivity(self)
 
-        return self._ds["Mesh2_edge_faces"]
+        return self._ds["face_edge_connectivity"]
 
     @property
-    def Mesh2_node_faces(self) -> xr.DataArray:
-        """UGRID Connectivity Variable ``Mesh2_node_faces``, which maps every
+    def edge_edge_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``edge_edge_connectivity``."""
+        return None
+
+    @property
+    def node_edge_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``node_edge_connectivity``."""
+        return None
+
+    # ==================================================================================================================
+    # (, face) Connectivity
+    @property
+    def face_face_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``face_face_connectivity``."""
+        return None
+
+    @property
+    def edge_face_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``edge_face_connectivity``, which contains the
+        index of the faces that saddle a given edge.
+
+        Dimensions (``n_edge``, ``TWO``) and DataType ``INT_DTYPE``.
+        """
+        if "edge_face_connectivity" not in self._ds:
+            _populate_edge_face_connectivity(self)
+
+        return self._ds["edge_face_connectivity"]
+
+    @property
+    def node_face_connectivity(self) -> xr.DataArray:
+        """Connectivity Variable ``node_face_connectivity``, which maps every
         node to its faces.
 
-        Dimensions (``nMesh2_node``, ``nMaxNumFacesPerNode``) and
-        DataType ``INT_DTYPE``.
+        Dimensions (``n_node``, ``n_max_faces_per_node``) and DataType
+        ``INT_DTYPE``.
         """
-        self._mesh2_future_warning()
-        if "Mesh2_node_faces" not in self._ds:
+        if "node_face_connectivity" not in self._ds:
             _populate_node_face_connectivity(self)
 
-        return self._ds["Mesh2_node_faces"]
+        return self._ds["node_face_connectivity"]
 
-    # other properties
+    # ==================================================================================================================
+    # Distance Quantities
+    @property
+    def edge_node_distances(self):
+        """Contains the distance between the nodes that saddle a given edge.
+
+        Dimensions (``n_edge``) and DataType float.
+        """
+        if "edge_node_distances" not in self._ds:
+            return None
+        return self._ds["edge_node_distances"]
+
+    @property
+    def edge_face_distances(self):
+        """Contains the distance between the faces that saddle a given edge.
+
+        Dimensions (``n_edge``) and DataType float.
+        """
+        if "edge_face_distances" not in self._ds:
+            return None
+        return self._ds["edge_face_distances"]
+
+    # ==================================================================================================================
+    # Other Grid Descriptor Quantities
     @property
     def antimeridian_face_indices(self) -> np.ndarray:
         """Index of each face that crosses the antimeridian."""
         if self._antimeridian_face_indices is None:
-            self._antimeridian_face_indices = _build_antimeridian_face_indices(
+            self._antimeridian_face_indices = _populate_antimeridian_face_indices(
                 self)
         return self._antimeridian_face_indices
 
@@ -706,36 +727,24 @@ class Grid:
         """Declare face_areas as a property."""
         # if self._face_areas is not None: it allows for using the cached result
         if self._face_areas is None:
-            self.compute_face_areas()
+            self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_areas
 
-    @property
-    def Mesh2_edge_node_distances(self):
-        """Contains the distance between the nodes that saddle a given edge.
-
-        Dimensions (``nMesh2_edge``) and DataType float.
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_node_distances" not in self._ds:
-            _populate_edge_node_distances(self)
-        return self._ds["Mesh2_edge_node_distances"]
+    # ==================================================================================================================
 
     @property
-    def Mesh2_edge_face_distances(self):
-        """Contains the distance between the faces that saddle a given edge.
-
-        Dimensions (``nMesh2_edge``) and DataType float.
-        """
-        self._mesh2_future_warning()
-        if "Mesh2_edge_face_distances" not in self._ds:
-            _populate_edge_face_distances(self)
-        return self._ds["Mesh2_edge_face_distances"]
+    def face_jacobian(self):
+        """Declare face_jacobian as a property."""
+        # if self._face_jacobian is not None: it allows for using the cached result
+        if self._face_jacobian is None:
+            self._face_areas, self._face_jacobian = self.compute_face_areas()
+        return self._face_jacobian
 
     def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
-        (``Mesh2_node_x``, ``Mesh2_node_y``) or face centers (``Mesh2_face_x``,
-        ``Mesh2_face_y``).
+        (``node_lon``, ``node_lat``) or face centers (``face_lon``,
+        ``face_lat``).
 
         Parameters
         ----------
@@ -761,9 +770,8 @@ class Grid:
     def get_kd_tree(self, tree_type: Optional[str] = "nodes"):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
-        (``Mesh2_node_cart_x``, ``Mesh2_node_cart_y``, ``Mesh2_node_cart_z``)
-        or face centers (``Mesh2_face_cart_x``, ``Mesh2_face_cart_y``,
-        ``Mesh2_face_cart_z``).
+        (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
+        ``face_y``, ``face_z``).
 
         Parameters
         ----------
@@ -821,8 +829,8 @@ class Grid:
             out_ds = _encode_exodus(self._ds)
 
         elif grid_type == "SCRIP":
-            out_ds = _encode_scrip(self.Mesh2_face_nodes, self.Mesh2_node_x,
-                                   self.Mesh2_node_y, self.face_areas)
+            out_ds = _encode_scrip(self.face_node_connectivity, self.node_lon,
+                                   self.node_lat, self.face_areas)
         else:
             raise RuntimeError("The grid type not supported: ", grid_type)
 
@@ -847,7 +855,8 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas = self.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(
+            quadrature_rule, order)
 
         return np.sum(face_areas)
 
@@ -867,7 +876,8 @@ class Grid:
 
         Returns
         -------
-        Area of all the faces in the mesh : np.ndarray
+        1. Area of all the faces in the mesh : np.ndarray
+        2. Jacobian of all the faces in the mesh : np.ndarray
 
         Examples
         --------
@@ -875,7 +885,6 @@ class Grid:
 
         >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
 
-        Get area of all faces in the same order as listed in grid._ds.Mesh2_face_nodes
 
         >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
@@ -885,18 +894,17 @@ class Grid:
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
         if latlon:
-            x = self.Mesh2_node_x.data
-            y = self.Mesh2_node_y.data
-            z = np.zeros((self.nMesh2_node))
-            coords_type = "spherical"  # TODO: should really be called latlon?
+            x = self.node_lon.data
+            y = self.node_lat.data
+            z = np.zeros((self.n_node))
+            coords_type = "spherical"
         else:
-            x = self.Mesh2_node_cart_x.data
-            y = self.Mesh2_node_cart_y.data
-            z = self.Mesh2_node_cart_z.data
+            x = self.node_x.data
+            y = self.node_y.data
+            z = self.node_z.data
             coords_type = "cartesian"
 
-        # TODO: we dont really need this, but keep for now
-        dim = self.Mesh2.attrs['topology_dimension']
+        dim = 2
 
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float
@@ -905,20 +913,28 @@ class Grid:
                    if not np.issubdtype(arr[0], np.floating) else arr
                    for arr in (x, y, z))
 
-        face_nodes = self.Mesh2_face_nodes.values
-        n_nodes_per_face = self.nNodes_per_face.values
+        face_nodes = self.face_node_connectivity.values
+        n_nodes_per_face = self.n_nodes_per_face.values
 
         # call function to get area of all the faces as a np array
-        self._face_areas = get_all_face_area_from_coords(
+        self._face_areas, self._face_jacobian = get_all_face_area_from_coords(
             x, y, z, face_nodes, n_nodes_per_face, dim, quadrature_rule, order,
             coords_type)
 
-        return self._face_areas
+        min_jacobian = np.min(self._face_jacobian)
+        max_jacobian = np.max(self._face_jacobian)
+
+        if np.any(self._face_jacobian < 0):
+            raise ValueError(
+                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".
+                format(min_jacobian, max_jacobian))
+
+        return self._face_areas, self._face_jacobian
 
     def to_geodataframe(self,
                         override: Optional[bool] = False,
                         cache: Optional[bool] = True,
-                        correct_antimeridian_polygons: Optional[bool] = True):
+                        exclude_antimeridian: Optional[bool] = False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -930,8 +946,8 @@ class Grid:
             Flag to recompute the ``GeoDataFrame`` if one is already cached
         cache : bool
             Flag to indicate if the computed ``GeoDataFrame`` should be cached
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
+        exclude_antimeridian: bool
+            Selects whether to exclude any face that contains an edge that crosses the antimeridian
 
         Returns
         -------
@@ -939,16 +955,24 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
+        if self._gdf is not None:
+            # determine if we need to recompute a cached GeoDataFrame based on antimeridian
+            if self._gdf_exclude_am != exclude_antimeridian:
+                # cached gdf should match the exclude_antimeridian_flag
+                override = True
+
         # use cached geodataframe
         if self._gdf is not None and not override:
             return self._gdf
 
         # construct a geodataframe with the faces stored as polygons as the geometry
-        gdf = _grid_to_polygon_geodataframe(self, correct_antimeridian_polygons)
+        gdf = _grid_to_polygon_geodataframe(
+            self, exclude_antimeridian=exclude_antimeridian)
 
         # cache computed geodataframe
         if cache:
             self._gdf = gdf
+            self._gdf_exclude_am = exclude_antimeridian
 
         return gdf
 
@@ -1019,22 +1043,3 @@ class Grid:
             self._line_collection = line_collection
 
         return line_collection
-
-    def to_shapely_polygons(self,
-                            correct_antimeridian_polygons: Optional[bool] = True
-                           ):
-        """Constructs an array of Shapely Polygons representing each face, with
-        antimeridian polygons split according to the GeoJSON standards.
-
-         Parameters
-        ----------
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
-
-        Returns
-        -------
-        polygons : np.ndarray
-            Array containing Shapely Polygons
-        """
-        polygons = _grid_to_polygons(self, correct_antimeridian_polygons)
-        return polygons

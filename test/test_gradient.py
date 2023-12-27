@@ -33,15 +33,15 @@ class TestGrad(TestCase):
         xrds = xr.open_dataset(self.mpas_ocean_path)
 
         edge_face_d = _construct_edge_face_distances(
-            uxgrid.Mesh2_face_x.values, uxgrid.Mesh2_face_y.values,
-            uxgrid.Mesh2_edge_faces.values)
+            uxgrid.face_lon.values, uxgrid.face_lat.values,
+            uxgrid.face_node_connectivity.values)
 
         grad = _calculate_grad_on_edge(uxds['areaCell'].values,
-                                       uxgrid.Mesh2_edge_faces.values,
-                                       uxgrid.Mesh2_edge_face_distances.values,
-                                       uxgrid.nMesh2_edge)
+                                       uxgrid.edge_face_connectivity.values,
+                                       uxgrid.edge_face_distances.values,
+                                       uxgrid.n_edge)
 
-        mpas_d = uxgrid.Mesh2_edge_face_distances
+        mpas_d = uxgrid.edge_face_distances
 
         pass
 
@@ -53,19 +53,18 @@ class TestGrad(TestCase):
         ]:
             uxgrid = ux.open_grid(grid_path)
 
-            uxda_zeros = ux.UxDataArray(data=np.zeros(uxgrid.nMesh2_face),
+            uxda_zeros = ux.UxDataArray(data=np.zeros(uxgrid.n_face),
                                         uxgrid=uxgrid,
                                         name="zeros")
 
             zero_grad = uxda_zeros.gradient(normalize=False)
 
-            nt.assert_array_equal(zero_grad.values,
-                                  np.zeros(uxgrid.nMesh2_edge))
+            nt.assert_array_equal(zero_grad.values, np.zeros(uxgrid.n_edge))
 
-            uxda_ones = ux.UxDataArray(data=np.ones(uxgrid.nMesh2_face),
+            uxda_ones = ux.UxDataArray(data=np.ones(uxgrid.n_face),
                                        uxgrid=uxgrid,
                                        name="zeros")
 
             one_grad = uxda_ones.gradient(normalize=False)
 
-            nt.assert_array_equal(one_grad.values, np.zeros(uxgrid.nMesh2_edge))
+            nt.assert_array_equal(one_grad.values, np.zeros(uxgrid.n_edge))

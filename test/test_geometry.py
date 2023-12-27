@@ -8,6 +8,7 @@ from pathlib import Path
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
+import uxarray.utils.computing as ac_utils
 
 from spatialpandas.geometry import MultiPolygon
 
@@ -190,8 +191,8 @@ class TestLatlonBound(TestCase):
         c_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(v2_cart.tolist())
 
         # Initialize variables for the iterative process
-        v_temp = ux.grid.utils.cross_fma(v1_cart, v2_cart)
-        v0 = ux.grid.utils.cross_fma(v_temp, v1_cart)
+        v_temp = ac_utils.cross_fma(v1_cart, v2_cart)
+        v0 = ac_utils.cross_fma(v_temp, v1_cart)
         v0 = ux.grid.coordinates.normalize_in_place(v0.tolist())
         max_section = [v1_cart, v2_cart]
 
@@ -201,7 +202,7 @@ class TestLatlonBound(TestCase):
             max_lat = -np.pi
             v_b, v_c = max_section
             angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
-            v0 = ux.grid.utils.cross_fma(v_temp, v_b)
+            v0 = ac_utils.cross_fma(v_temp, v_b)
             v0 = ux.grid.coordinates.normalize_in_place(v0.tolist())
             avg_angle_rad = angle_v1_v2_rad / 10.0
 
@@ -274,8 +275,8 @@ class TestLatlonBound(TestCase):
         c_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(v2_cart.tolist())
 
         # Initialize variables for the iterative process
-        v_temp = ux.grid.utils.cross_fma(v1_cart, v2_cart)
-        v0 = ux.grid.utils.cross_fma(v_temp, v1_cart)
+        v_temp = ac_utils.cross_fma(v1_cart, v2_cart)
+        v0 = ac_utils.cross_fma(v_temp, v1_cart)
         v0 = np.array(ux.grid.coordinates.normalize_in_place(v0.tolist()))
         min_section = [v1_cart, v2_cart]
 
@@ -285,7 +286,7 @@ class TestLatlonBound(TestCase):
             min_lat = np.pi
             v_b, v_c = min_section
             angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
-            v0 = ux.grid.utils.cross_fma(v_temp, v_b)
+            v0 = ac_utils.cross_fma(v_temp, v_b)
             v0 = np.array(ux.grid.coordinates.normalize_in_place(v0.tolist()))
             avg_angle_rad = angle_v1_v2_rad / 10.0
 
@@ -382,3 +383,43 @@ class TestLatlonBound(TestCase):
         self.assertAlmostEqual(min_latitude,
                                expected_min_latitude,
                                delta=ERROR_TOLERANCE)
+
+
+class TestGeoDataFrame(TestCase):
+
+    def test_to_gdf(self):
+        uxgrid = ux.open_grid(gridfile_geoflow)
+
+        gdf_with_am = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        gdf_without_am = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+    def test_cache_and_override(self):
+        """Tests the cache and override functionality for GeoDataFrame
+        conversion."""
+
+        uxgrid = ux.open_grid(gridfile_geoflow)
+
+        gdf_a = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        gdf_b = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        assert gdf_a is gdf_b
+
+        gdf_c = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_a is not gdf_c
+
+        gdf_d = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_d is gdf_c
+
+        gdf_e = uxgrid.to_geodataframe(exclude_antimeridian=True,
+                                       override=True,
+                                       cache=False)
+
+        assert gdf_d is not gdf_e
+
+        gdf_f = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_f is not gdf_e
