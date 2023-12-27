@@ -21,7 +21,7 @@ NODE_DIMS = ['n_node']
 EDGE_DIMS = ['n_edge']
 FACE_DIMS = ['n_face']
 
-# coordinates
+# coordinates (spherical)
 NODE_LON_ATTRS = {
     "standard_name": "longitude",
     "long name": "Longitude of the corner nodes of each face",
@@ -57,6 +57,25 @@ FACE_LAT_ATTRS = {
     "long name": "Latitude of the center of each face",
     "units": "degrees_north"
 }
+
+# coordinates (cartesian)
+NODE_X_ATTRS = {"standard_name": "x", "long name": "TODO", "units": "meters"}
+
+NODE_Y_ATTRS = {"standard_name": "y", "long name": "TODO", "units": "meters"}
+
+NODE_Z_ATTRS = {"standard_name": "z", "long name": "TODO", "units": "meters"}
+
+EDGE_X_ATTRS = {"standard_name": "x", "long name": "TODO", "units": "meters"}
+
+EDGE_Y_ATTRS = {"standard_name": "y", "long name": "TODO", "units": "meters"}
+
+EDGE_Z_ATTRS = {"standard_name": "z", "long name": "TODO", "units": "meters"}
+
+FACE_X_ATTRS = {"standard_name": "x", "long name": "TODO", "units": "meters"}
+
+FACE_Y_ATTRS = {"standard_name": "y", "long name": "TODO", "units": "meters"}
+
+FACE_Z_ATTRS = {"standard_name": "z", "long name": "TODO", "units": "meters"}
 
 # connectivity (face_)
 FACE_NODE_CONNECTIVITY_ATTRS = {
@@ -148,7 +167,6 @@ UGRID_COMPLIANT_CONNECTIVITY_NAMES = [
     "edge_node_connectivity", "face_node_connectivity",
     "face_edge_connectivity", "edge_face_connectivity", "face_face_connectivity"
 ]
-
 CONNECTIVITY = {
     "face_node_connectivity": {
         "dims": FACE_NODE_CONNECTIVITY_DIMS,
@@ -186,11 +204,11 @@ CONNECTIVITY = {
     }
 }
 
-COORD_NAMES = [
+SPHERICAL_COORD_NAMES = [
     "node_lon", "node_lat", "edge_lon", "edge_lat", "face_lon", "face_lat"
 ]
 
-COORDS = {
+SPHERICAL_COORDS = {
     "node_lon": {
         "dims": NODE_DIMS,
         "attrs": NODE_LON_ATTRS
@@ -216,3 +234,10 @@ COORDS = {
         "attrs": FACE_LAT_ATTRS
     },
 }
+
+CARTESIAN_COORD_NAMES = [
+    "node_x", "node_y", "node_z", "edge_x", "edge_y", "edge_z", "face_x",
+    "face_y", "face_z"
+]
+
+CARTESIAN_COORDS = {}
