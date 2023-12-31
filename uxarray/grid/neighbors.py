@@ -283,8 +283,8 @@ class BallTree:
             if self._source_grid.node_lon is None:
                 raise ValueError
 
-            latlon = np.vstack((deg2rad(self._source_grid.node_lat.values),
-                                deg2rad(self._source_grid.node_lon.values))).T
+            latlon = np.vstack((deg2rad(self._source_grid.face_lat.values),
+                                deg2rad(self._source_grid.face_lon.values))).T
 
             self._tree_from_face_centers = SKBallTree(
                 latlon, metric=self.distance_metric)
