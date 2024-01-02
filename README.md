@@ -1,3 +1,12 @@
+
+
+
+<img src='https://github.com/UXARRAY/uxarray/assets/67855069/64883abb-1334-48a1-b1aa-859609119f2d' width='500'>
+
+---
+
+
+
 | CI           | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![Code Coverage Status][codecov-badge]][codecov-link]          |
 | :----------- | :--------------------------------------------------------------------------------------------------------------------------: |
 | **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]            |
@@ -23,7 +32,7 @@ community. Any contributions to this repository in pure Python are welcome and
 documentation for contribution guidelines can be found when clicking `New Issue`
 under the `Issues` tab in the UXarray repository.
 
-# Why is the name "UXarray"?
+## Why is the name "UXarray"?
 
 We have created UXarray based on [Xarray](https://docs.xarray.dev/en/stable/)
 (via inheritance of Xarray Dataset and DataArray classes), a Pangeo ecosystem package
@@ -32,7 +41,7 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
 (pronounced "you-ex-array") and preferred to capitalize the first two letters to
 emphasize it builds upon Xarray for Unstructured grids.
 
-# UXarray Functionality
+## UXarray Functionality
 
 The following intended functionality has been inspired by discussions with
 members of the scientific community, within the SEATS Project and Project
@@ -40,7 +49,7 @@ Raijin, and on several community platforms such as [Xarray GitHub
 Repository](https://github.com/pydata/xarray/issues/4222). The UXarray team
 is receptive to additional functionality requests.
 
-# Intended Functionality for Grids
+## Intended Functionality for Grids
 
 * Support for reading and writing UGRID, SCRIP and Exodus formatted grids.
 * Support for reading and writing shapefiles.
@@ -62,7 +71,7 @@ is receptive to additional functionality requests.
   and gradient.
 * Snapshots and composites following particular features.
 
-# Documentation
+## Documentation
 
 [UXarray Documentation](https://uxarray.readthedocs.io/en/latest)
 
@@ -74,12 +83,12 @@ is receptive to additional functionality requests.
 
 [SEATS Project Homepage](https://seatstandards.org)
 
-# Citing UXarray
+## Citing UXarray
 
 If you'd like to cite our work, please follow [How to cite
 UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 
-# Support
+## Support
 
 <table>
   <tr>
