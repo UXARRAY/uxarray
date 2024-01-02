@@ -1,7 +1,7 @@
 
 
 
-<img src='https://github.com/UXARRAY/uxarray/assets/67855069/060884c8-a059-4e2c-8c16-0fe81b951e54' width='500'>
+<img src='https://github.com/UXARRAY/uxarray/assets/67855069/64883abb-1334-48a1-b1aa-859609119f2d' width='500'>
 
 ---
 
