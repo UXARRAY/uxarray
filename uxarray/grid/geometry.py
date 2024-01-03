@@ -1,5 +1,6 @@
 import numpy as np
-from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE
+import copy
+from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
@@ -396,3 +397,122 @@ def _classify_polygon_location(face_edge_cart):
         return "South"
     else:
         return "Equator"
+
+def get_latlonbox_width(latlonbox, is_lon_periodic=True):
+    """
+    Calculate the width of a latitude-longitude box.
+
+    This function computes the width of a given latitude-longitude box. It
+    accounts for periodicity in the longitude direction.
+
+    Parameters
+    ----------
+    latlonbox : np.ndarray
+        A latitude-longitude box represented by a 2x2 array:
+        [[lat_0, lat_1], [lon_0, lon_1]].
+    is_lon_periodic : bool, optional
+        Flag indicating if the latitude-longitude box is periodic in the
+        longitude direction (default is True).
+
+    Returns
+    -------
+    float
+        The width of the latitude-longitude box.
+
+    Raises
+    ------
+    Exception
+        If logic errors occur in the calculation process.
+
+    Examples
+    --------
+    >>> get_latlonbox_width(np.array([[10, 20], [30, 40]]))
+    10.0
+
+    >>> get_latlonbox_width(np.array([[10, 20], [350, 10]]), is_lon_periodic=True)
+    20.0
+    """
+
+    lon0, lon1 = latlonbox[1]
+
+    if not is_lon_periodic:
+        return lon1 - lon0
+
+    if lon0 == lon1:
+        return 0.0
+
+    # Adjust for periodicity
+    return (lon1 - lon0) % (2 * np.pi)
+
+
+def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
+    """
+    Update the latitude-longitude box to include a new point.
+
+    This function compares the new point's latitude and longitude with the
+    existing latitude-longitude box and updates the box if necessary to include the new point.
+
+    Parameters
+    ----------
+    old_box : np.ndarray
+        The original latitude-longitude box, a 2x2 array: [[lat_0, lat_1],[lon_0, lon_1]].
+    new_pt : np.ndarray
+        The new latitude-longitude point, an array: [lat, lon].
+    is_lon_periodic : bool, optional
+        Flag indicating if the latitude-longitude box is periodic in longitude (default is True).
+
+    Returns
+    -------
+    np.ndarray
+        Updated latitude-longitude box including the new point.
+
+    Raises
+    ------
+    Exception
+        If logic errors occur in the calculation process.
+
+    Examples
+    --------
+    >>> insert_pt_in_latlonbox(np.array([[10, 20], [30, 40]]), np.array([15, 35]))
+    array([[10, 20], [30, 40]])
+    """
+    # Check for initial 'empty' state and update lat/lon if necessary
+    latlon_box = copy.deepcopy(old_box)  # Create a copy of the old box
+    lat_pt, lon_pt = new_pt
+
+    # Check longitude range validity
+    if lon_pt < 0.0 or lon_pt > 2.0 * np.pi:
+        raise Exception('lon_pt out of range ({} not in [0, 2π])'.format(lon_pt))
+
+    # Check for pole points and update latitudes
+    is_pole_point = new_pt[1] == INT_FILL_VALUE and \
+                    np.isclose(new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE).any()
+
+    if is_pole_point:
+        latlon_box[0] = np.where(np.isclose(new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE),
+                                 new_pt[0], latlon_box[0])
+    else:
+        latlon_box[0] = [min(latlon_box[0][0], lat_pt), max(latlon_box[0][1], lat_pt)]
+
+    # Update longitude if non-periodic
+    if not is_lon_periodic:
+        latlon_box[1] = [min(latlon_box[1][0], lon_pt), max(latlon_box[1][1], lon_pt)]
+        return latlon_box
+
+    # For periodic case, check if new longitude lies within existing range
+    if not ((latlon_box[1][0] > latlon_box[1][1] and (lon_pt < latlon_box[1][0] and lon_pt > latlon_box[1][1])) or
+            (latlon_box[1][0] <= latlon_box[1][1] and not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1]))):
+        return latlon_box
+
+    # Calculate new boxes and widths for comparison
+    box_a, box_b = copy.deepcopy(latlon_box), copy.deepcopy(latlon_box)
+    box_a[1][0], box_b[1][1] = lon_pt, lon_pt
+
+    d_width_a, d_width_b = get_latlonbox_width(box_a), get_latlonbox_width(box_b)
+
+    # Check for logic error
+    if d_width_a < 0 or d_width_b < 0:
+        raise Exception('logic error')
+
+    return box_a if d_width_a < d_width_b else box_b
+
