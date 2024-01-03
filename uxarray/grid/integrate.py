@@ -1,13 +1,35 @@
 """uxarray grid module."""
 
 import numpy as np
-from intervaltree import Interval, IntervalTree
-# reader and writer imports
+import uxarray as ux
+from uxarray.grid.intersections import gca_constLat_intersection
 
-from .helpers import get_all_face_area_from_coords, parse_grid_type, _convert_node_xyz_to_lonlat_rad, _convert_node_lonlat_rad_to_xyz, _normalize_in_place, _within, _get_radius_of_latitude_rad, get_intersection_point_gcr_constlat, _close_face_nodes
-from .constants import INT_DTYPE, INT_FILL_VALUE
-from ._latlonbound_utilities import insert_pt_in_latlonbox, get_intersection_point_gcr_gcr
 
+def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
+    '''
+
+    Parameters
+    ----------
+    face_edges_cart : np.ndarray
+        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+
+    latitude_cart : float
+        The latitude in Cartesian coordinates (The normalized z coordinate)
+
+    Returns
+    -------
+    float
+        The weight of the face
+    '''
+    intersections_pts_list = np.array([])
+    for edge in face_edges_cart:
+
+        # calculate the intersection points between the edge and the constant latitude
+        intersections = gca_constLat_intersection(edge, latitude_cart)
+
+        # Only proceed if there are intersections
+        if intersections.size > 0:
+            intersections_pts_list = np.append(intersections_pts_list, intersections)
 
 def _get_zonal_face_weights_at_constlat(self, candidate_faces_index_list, latitude_rad):
     # Then calculate the weight of each face
