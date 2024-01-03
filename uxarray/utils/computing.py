@@ -98,7 +98,8 @@ def dot_fma(v1, v2):
 
     References
     ----------
-    S. Graillat, Ph. Langlois, and N. Louvet. "Accurate dot products with FMA." Presented at RNC 7, 2007, Nancy, France. DALI-LP2A Laboratory, University of Perpignan, France.
+    S. Graillat, Ph. Langlois, and N. Louvet. "Accurate dot products with FMA." Presented at RNC 7, 2007, Nancy, France.
+    DALI-LP2A Laboratory, University of Perpignan, France.
     [Poster](https://www-pequan.lip6.fr/~graillat/papers/posterRNC7.pdf)
     """
     if len(v1) != len(v2):
@@ -131,6 +132,11 @@ def _two_prod_fma(a, b):
     --------
     >>> _two_prod_fma(1.0, 2.0)
     (2.0, 0.0)
+
+    Reference
+    ---------
+    Stef Graillat. Accurate Floating Point Product and Exponentiation.
+    IEEE Transactions on Computers, 58(7), 994–1000, 2009.10.1109/TC.2008.215.
     """
     import pyfma
     x = a * b
@@ -157,6 +163,9 @@ def _err_fmac(a, b, c):
     ----------
     Graillat, Stef & Langlois, Philippe & Louvet, Nicolas. (2006). Improving the compensated Horner scheme with
     a Fused Multiply and Add. 2. 1323-1327. 10.1145/1141277.1141585.
+
+    Ogita, Takeshi & Rump, Siegfried & Oishi, Shin’ichi. (2005). Accurate Sum and Dot Product.
+    SIAM J. Scientific Computing. 26. 1955-1988. 10.1137/030601818.
     """
     if sys.float_info.rounds == 1:
         import pyfma
@@ -191,6 +200,10 @@ def _two_sum(a, b):
     --------
     >>> _two_sum(1.0, 2.0)
     (3.0, 0.0)
+
+    Reference
+    ---------
+    D. Knuth. 1998. The Art of Computer Programming (3rd ed.). Vol. 2. Addison-Wesley, Reading, MA.
     """
     x = a + b
     z = x - a
@@ -203,9 +216,27 @@ def _fast_two_mult(a, b):
     Error-free transformation of the product of two floating-point numbers such that a * b = x + y exactly.
 
     This function is faster than the _two_prod_fma function.
+
+    Parameters
+    ----------
+    a, b : float
+        The floating-point numbers to be multiplied.
+
+    Returns
+    -------
+    tuple of float
+        The product and the error term.
+
+    References
+    ----------
+    Vincent Lefèvre, Nicolas Louvet, Jean-Michel Muller, Joris Picot, and Laurence Rideau. 2023.
+    Accurate Calculation of Euclidean Norms Using Double-word Arithmetic.
+    ACM Trans. Math. Softw. 49, 1, Article 1 (March 2023), 34 pages. https://doi.org/10.1145/3568672
+
     """
+    import pyfma
     x = a * b
-    y = a * b - x
+    y = pyfma.fma(a, b, -x)
     return x, y
 
 
@@ -241,6 +272,13 @@ def _fast_two_sum(a, b):
     Traceback (most recent call last):
         ...
     ValueError: |a| must be greater than or equal to |b|.
+
+    Reference
+    ---------
+    T. J. Dekker. A Floating-Point Technique for Extending the Available Precision.
+    Numerische Mathematik, 18(3), 224–242,1971. 10.1007/BF01397083.
+    Available at: https://doi.org/10.1007/BF01397083.
+
     """
     if abs(a) >= abs(b):
         x = a + b
@@ -272,6 +310,11 @@ def _comp_prod_FMA(vec):
     --------
     >>> _comp_prod_FMA([1.1, 2.2, 3.3])
     7.986000000000001
+
+    Reference
+    ---------
+    Takeshi Ogita, Siegfried M. Rump, and Shin'ichi Oishi. 2005. Accurate Sum and Dot Product.
+    SIAM J. Sci. Comput. 26, 6 (2005), 1955–1988. https://doi.org/10.1137/030601818
     """
     import pyfma
     p1 = vec[0]
@@ -305,6 +348,14 @@ def _sum_of_squares_re(vec):
     --------
     >>> _sum_of_squares_re([1.0, 2.0, 3.0])
     14.0
+
+    Reference
+    ---------
+    Stef Graillat, Christoph Lauter, PING Tak Peter Tang,
+    Naoya Yamanaka, and Shin’ichi Oishi. Efficient Calculations of Faith-
+    fully Rounded L2-Norms of n-Vectors. ACM Transactions on Mathemat-
+    ical Software, 41(4), Article 24, 2015. 10.1145/2699469. Available at:
+    https://doi.org/10.1145/2699469.
     """
     P, p = _two_square(vec)
     S, s = _two_sum(P[0], P[1])
@@ -337,6 +388,11 @@ def _vec_sum(p):
     --------
     >>> _vec_sum([1.0, 2.0, 3.0])
     6.0
+
+    Reference
+    ---------
+    Takeshi Ogita, Siegfried M. Rump, and Shin'ichi Oishi. 2005. Accurate Sum and Dot Product.
+    SIAM J. Sci. Comput. 26, 6 (2005), 1955–1988. https://doi.org/10.1137/030601818
     """
     pi_1 = p[0]
     sigma_i1 = 0
@@ -371,6 +427,7 @@ def _norm_faithful(x):
     --------
     >>> _norm_faithful([1.0, 2.0, 3.0])
     3.7416573867739413
+
     """
     return _normL(x)
 
@@ -397,6 +454,13 @@ def _normL(x):
     --------
     >>> _normL([1.0, 2.0, 3.0])
     3.7416573867739413
+
+    Reference
+    ---------
+    Vincent Lef`evre, Nicolas Louvet, Jean-Michel Muller,
+    Joris Picot, and Laurence Rideau. Accurate Calculation of Euclidean
+    Norms Using Double-Word Arithmetic. ACM Transactions on Mathemat-
+    ical Software, 49(1), 1–34, March 2023. 10.1145/3568672
     """
     P, p = _two_square(x)
     S, s = _two_sum(P[0], P[1])
@@ -430,6 +494,14 @@ def _normG(x):
     --------
     >>> _normG([1.0, 2.0, 3.0])
     3.7416573867739413
+
+    Reference
+    ---------
+    Stef Graillat, Christoph Lauter, PING Tak Peter Tang,
+    Naoya Yamanaka, and Shin’ichi Oishi. Efficient Calculations of Faith-
+    fully Rounded L2-Norms of n-Vectors. ACM Transactions on Mathemat-
+    ical Software, 41(4), Article 24, 2015. 10.1145/2699469. Available at:
+    https://doi.org/10.1145/2699469.
     """
     S = 0
     s = 0
@@ -464,6 +536,11 @@ def _two_square(Aa):
     --------
     >>> _two_square(2.0)
     (4.0, 0.0)
+
+    Reference
+    ---------
+    Siegfried Rump. Fast and accurate computation of the Euclidean norm of a vector. J
+    apan Journal of Industrial and Applied Mathematics, 40, 2023. 10.1007/s13160-023-00593-8
     """
     P = Aa * Aa
     A, a = _split(Aa)
@@ -494,6 +571,16 @@ def _acc_sqrt(T, t):
     --------
     >>> _acc_sqrt(9.0, 0.0)
     3.0
+
+    References
+    ----------
+    Vincent Lef`evre, Nicolas Louvet, Jean-Michel Muller,
+    Joris Picot, and Laurence Rideau. Accurate Calculation of Euclidean
+    Norms Using Double-Word Arithmetic. ACM Transactions on Mathematical Software, 49(1), 1–34, March 2023. 10.1145/3568672
+
+    Marko Lange and Siegfried Rump. Faithfully Rounded
+    Floating-point Computations. ACM Transactions on Mathematical Soft-
+    ware, 46, 1-20, 2020. 10.1145/3290955
     """
     P = np.sqrt(T)
     H, h = _two_square(P)
@@ -523,6 +610,15 @@ def _split(a):
     --------
     >>> _split(12345.6789)
     (12345.67578125, 0.00311875)
+
+    Reference
+    ---------
+     T. J. Dekker. A Floating-Point Technique for Extending the Available Precision.
+     Numerische Mathematik, 18(3), 224–242,
+    1971. 10.1007/BF01397083. Available at: https://doi.org/10.1007/
+    BF01397083.
+    27
+
     """
     y = (2**27 + 1) * a
     x = y - (y - a)
