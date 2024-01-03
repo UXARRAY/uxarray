@@ -537,7 +537,8 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
             # Calculate and compare new box widths
             box_a, box_b = copy.deepcopy(latlon_box), copy.deepcopy(latlon_box)
             box_a[1][0], box_b[1][1] = lon_pt, lon_pt
-            d_width_a, d_width_b = _get_latlonbox_width(box_a), _get_latlonbox_width(box_b)
+            d_width_a, d_width_b = _get_latlonbox_width(
+                box_a), _get_latlonbox_width(box_b)
 
             if d_width_a < 0 or d_width_b < 0:
                 raise Exception('logic error')

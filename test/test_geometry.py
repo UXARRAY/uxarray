@@ -401,7 +401,8 @@ class TestLatlonBound(TestCase):
         old_box = np.array([[0.1, 0.2], [0.3, 0.4]])  # Radians
         new_pt = np.array([0.15, 0.35])
         expected = np.array([[0.1, 0.2], [0.3, 0.4]])
-        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt, False)
+        result = ux.grid.geometry._insert_pt_in_latlonbox(
+            old_box, new_pt, False)
         np.testing.assert_array_equal(result, expected)
 
     def test_insert_pt_in_latlonbox_periodic(self):
