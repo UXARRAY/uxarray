@@ -23,7 +23,6 @@ dependencies:
     - sphinx-design
     - nbsphinx
     - matplotlib-base
-    - spatialpandas
     - shapely
     - hvplot
     - holoviews
@@ -33,3 +32,4 @@ dependencies:
     - pip:
       - antimeridian
       - pyfma
+      - git+https://github.com/holoviz/spatialpandas.git

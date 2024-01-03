@@ -304,7 +304,8 @@ class UxDataset(xr.Dataset):
         integral = 0.0
 
         # call function to get area of all the faces as a np array
-        face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.uxgrid.compute_face_areas(
+            quadrature_rule, order)
 
         # TODO: Should we fix this requirement? Shouldn't it be applicable to
         # TODO: all variables of dataset or a dataarray instead?
@@ -332,7 +333,7 @@ class UxDataset(xr.Dataset):
                                destination_obj: Union[Grid, UxDataArray,
                                                       UxDataset],
                                remap_to: str = "nodes",
-                               coord_type: str = "lonlat"):
+                               coord_type: str = "spherical"):
         """Nearest Neighbor Remapping between a source (``UxDataset``) and
         destination.`.
 
@@ -342,9 +343,8 @@ class UxDataset(xr.Dataset):
             Destination for remapping
         remap_to : str, default="nodes"
             Location of where to map data, either "nodes" or "face centers"
-        coord_type : str, default="lonlat"
-            Indicates whether to remap using on latlon or cartesian coordinates
+        coord_type : str, default="spherical"
+            Indicates whether to remap using on spherical or cartesian coordinates
         """
-
         return _nearest_neighbor_uxds(self, destination_obj, remap_to,
                                       coord_type)

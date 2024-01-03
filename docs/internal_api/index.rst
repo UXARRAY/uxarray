@@ -121,11 +121,15 @@ Geometry
 --------
 .. autosummary::
    :toctree: _autosummary
-
+   grid.geometry._pad_closed_face_nodes
    grid.geometry._build_polygon_shells
-   grid.geometry._build_corrected_polygon_shells
-   grid.geometry._build_antimeridian_face_indices
    grid.geometry._grid_to_polygon_geodataframe
+   grid.geometry._build_geodataframe_without_antimeridian
+   grid.geometry._build_geodataframe_with_antimeridian
+   grid.geometry._build_corrected_shapely_polygons
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._populate_antimeridian_face_indices
+   grid.geometry._build_corrected_polygon_shells
    grid.geometry._grid_to_matplotlib_polycollection
    grid.geometry._grid_to_matplotlib_linecollection
    grid.geometry._pole_point_inside_polygon
@@ -143,6 +147,7 @@ Coordinates
    grid.coordinates._populate_lonlat_coord
    grid.coordinates._populate_centroid_coord
    grid.coordinates._construct_xyz_centroids
+   grid.coordinates._set_desired_longitude_range
 
 
 Arcs
@@ -159,10 +164,30 @@ Utils
 .. autosummary::
    :toctree: _autosummary
 
-   grid.utils._fmms
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
 
+
+
+Validation
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.validation._check_connectivity
+   grid.validation._check_duplicate_nodes
+   grid.validation._check_area
+
+Accurate Computing Utils
+------------------------
+.. autosummary::
+   :toctree: _autosummary
+
+   utils.computing._err_fmac
+   utils.computing._fast_two_mult
+   utils.computing._fast_two_sum
+   utils.computing._two_sum
+   utils.computing._two_prod_fma
 
 Remapping
 =========
@@ -173,8 +198,6 @@ Remapping
    remap.nearest_neighbor._nearest_neighbor
    remap.nearest_neighbor._nearest_neighbor_uxda
    remap.nearest_neighbor._nearest_neighbor_uxds
-
-
 
 
 Grid Parsing and Encoding
@@ -251,3 +274,14 @@ Core Utils
    :toctree: _autosummary
 
    core.utils._map_dims_to_ugrid
+
+
+Visualization
+-------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.grid_plot._plot_coords_as_points
+   plot.dataarray_plot._plot_data_as_points
+   plot.dataarray_plot._polygon_raster
+   plot.dataarray_plot._point_raster
