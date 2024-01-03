@@ -208,17 +208,17 @@ class KDTree:
         else:
             raise ValueError
 
-        d, ind = self._current_tree().query(coords, k, return_distance,
-                                            dualtree, breadth_first,
-                                            sort_results)
-
-        ind = np.asarray(ind, dtype=INT_DTYPE)
-
-        if coords.shape[0] == 1:
-            ind = ind.squeeze()
-
         # perform query with distance
         if return_distance:
+            d, ind = self._current_tree().query(coords, k, return_distance,
+                                                dualtree, breadth_first,
+                                                sort_results)
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if coords.shape[0] == 1:
+                ind = ind.squeeze()
+
             # only one pair was queried
             if coords.shape[0] == 1:
                 d = d.squeeze()
@@ -228,12 +228,22 @@ class KDTree:
 
             return d, ind
 
+        # perform query without distance
+        else:
+            ind = self._current_tree().query(coords, k, return_distance,
+                                             dualtree, breadth_first,
+                                             sort_results)
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if coords.shape[0] == 1:
+                ind = ind.squeeze()
         return ind
 
     def query_radius(self,
                      coords: Union[np.ndarray, list, tuple],
                      r: Optional[int] = 1.0,
-                     return_distance: Optional[bool] = True,
+                     return_distance: Optional[bool] = False,
                      in_radians: Optional[bool] = False,
                      count_only: Optional[bool] = False,
                      sort_results: Optional[bool] = False):
@@ -281,7 +291,7 @@ class KDTree:
 
             return count
 
-        else:
+        elif return_distance:
 
             ind, d = self._current_tree().query_radius(coords, r,
                                                        return_distance,
@@ -292,11 +302,18 @@ class KDTree:
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
-            if return_distance:
-                if not in_radians and self.coordinate_type == "spherical":
-                    d = np.rad2deg(d[0])
+            if not in_radians and self.coordinate_type == "spherical":
+                d = np.rad2deg(d[0])
 
-                return d, ind
+            return d, ind
+        else:
+            ind = self._current_tree().query_radius(coords, r, return_distance,
+                                                    count_only, sort_results)
+
+            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+
+            if coords.shape[0] == 1:
+                ind = ind.squeeze()
 
             return ind
 
@@ -515,17 +532,17 @@ class BallTree:
         elif self.coordinate_type == "cartesian":
             coords = _prepare_xyz_for_query(coords)
 
-        d, ind = self._current_tree().query(coords, k, return_distance,
-                                            dualtree, breadth_first,
-                                            sort_results)
-
-        ind = np.asarray(ind, dtype=INT_DTYPE)
-
-        if coords.shape[0] == 1:
-            ind = ind.squeeze()
-
         # perform query with distance
         if return_distance:
+            d, ind = self._current_tree().query(coords, k, return_distance,
+                                                dualtree, breadth_first,
+                                                sort_results)
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if coords.shape[0] == 1:
+                ind = ind.squeeze()
+
             # only one pair was queried
             if coords.shape[0] == 1:
                 d = d.squeeze()
@@ -535,13 +552,24 @@ class BallTree:
 
             return d, ind
 
-        return ind
+        # perform query without distance
+        else:
+            ind = self._current_tree().query(coords, k, return_distance,
+                                             dualtree, breadth_first,
+                                             sort_results)
+
+            ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if coords.shape[0] == 1:
+                ind = ind.squeeze()
+
+            return ind
 
     def query_radius(self,
                      coords: Union[np.ndarray, list, tuple],
                      r: Optional[int] = 1.0,
                      in_radians: Optional[bool] = False,
-                     return_distance: Optional[bool] = True,
+                     return_distance: Optional[bool] = False,
                      count_only: Optional[bool] = False,
                      sort_results: Optional[bool] = False):
         """Queries the tree for all neighbors within a radius ``r``.
@@ -588,8 +616,7 @@ class BallTree:
 
             return count
 
-        else:
-
+        elif return_distance:
             ind, d = self._current_tree().query_radius(coords, r,
                                                        return_distance,
                                                        count_only, sort_results)
@@ -599,11 +626,17 @@ class BallTree:
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
-            if return_distance:
-                if not in_radians and self.coordinate_type == "spherical":
-                    d = np.rad2deg(d[0])
+            if not in_radians and self.coordinate_type == "spherical":
+                d = np.rad2deg(d[0])
 
-                return d, ind
+            return d, ind
+        else:
+            ind = self._current_tree().query_radius(coords, r, return_distance,
+                                                    count_only, sort_results)
+            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+
+            if coords.shape[0] == 1:
+                ind = ind.squeeze()
 
             return ind
 

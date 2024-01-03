@@ -997,7 +997,7 @@ class TestBallTree(TestCase):
 
         # point on antimeridian, other side of grid, slightly larger than 90 due to floating point calcs
         d, ind = uxgrid.get_ball_tree(tree_type="nodes").query_radius(
-            [-180, 0.0], r=90.01)
+            [-180, 0.0], r=90.01, return_distance=True)
 
         expected_d = np.array([0.0, 90.0, 90.0])
 
@@ -1025,13 +1025,43 @@ class TestBallTree(TestCase):
             uxgrid = ux.open_grid(grid_file)
             d, ind = uxgrid.get_ball_tree(
                 tree_type="face centers",
-                coordinate_type="spherical").query_radius([3.0, 3.0], r=5)
+                coordinate_type="spherical").query_radius([3.0, 3.0],
+                                                          r=5,
+                                                          return_distance=True)
 
+            # Return just index without distance
+            ind = uxgrid.get_ball_tree(tree_type="face centers",
+                                       coordinate_type="cartesian",
+                                       distance_metric="minkowski",
+                                       reconstruct=True).query_radius(
+                                           [0.0, 0.0, 1.0],
+                                           r=5,
+                                           return_distance=False)
+
+            # Return index and distance
             d, ind = uxgrid.get_ball_tree(tree_type="face centers",
                                           coordinate_type="cartesian",
                                           distance_metric="minkowski",
                                           reconstruct=True).query_radius(
-                                              [0.0, 0.0, 1.0], r=5)
+                                              [0.0, 0.0, 1.0],
+                                              r=5,
+                                              return_distance=True)
+
+    def test_query(self):
+        """Test the creation and querying function of the BallTree
+        structure."""
+        for grid_file in self.center_grid_files:
+            uxgrid = ux.open_grid(grid_file)
+
+        # Test querying with distance and indexes
+        d, ind = uxgrid.get_ball_tree(tree_type="face centers",
+                                      coordinate_type="spherical").query(
+                                          [0.0, 0.0], return_distance=True)
+
+        # Test querying with just indexes
+        ind = uxgrid.get_ball_tree(tree_type="face centers",
+                                   coordinate_type="spherical").query(
+                                       [0.0, 0.0], return_distance=False)
 
 
 class TestKDTree:
@@ -1062,8 +1092,8 @@ class TestKDTree:
         centers."""
 
         uxgrid = ux.open_grid(self.center_grid_file)
-        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query(
-            [1.0, 0.0, 0.0], k=5)
+        ind = uxgrid.get_kd_tree(tree_type="face centers").query(
+            [1.0, 0.0, 0.0], k=5, return_distance=True)
 
     def test_construction_from_edge_centers(self):
         """Tests the construction of the KDTree on edge_centers and performs a
@@ -1082,9 +1112,32 @@ class TestKDTree:
         uxgrid = ux.open_grid(self.center_grid_file)
         d, ind = uxgrid.get_kd_tree(tree_type="face centers",
                                     coordinate_type="cartesian").query_radius(
-                                        [0.0, 0.0, 1.0], r=5)
+                                        [0.0, 0.0, 1.0],
+                                        r=5,
+                                        return_distance=True)
 
+        # Test returning distance and indexes
         d, ind = uxgrid.get_kd_tree(tree_type="face centers",
                                     coordinate_type="spherical",
-                                    reconstruct=True).query_radius([3.0, 3.0],
-                                                                   r=5)
+                                    reconstruct=True).query_radius(
+                                        [3.0, 3.0], r=5, return_distance=True)
+
+        # Test returning just the indexes
+        ind = uxgrid.get_kd_tree(tree_type="face centers",
+                                 coordinate_type="spherical",
+                                 reconstruct=True).query_radius(
+                                     [3.0, 3.0], r=5, return_distance=False)
+
+    def test_query(self):
+        """Test the creation and querying function of the KDTree structure."""
+        uxgrid = ux.open_grid(self.center_grid_file)
+
+        # Test querying with distance and indexes
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers",
+                                    coordinate_type="spherical").query(
+                                        [0.0, 0.0], return_distance=True)
+
+        # Test querying with just indexes
+        ind = uxgrid.get_kd_tree(tree_type="face centers",
+                                 coordinate_type="spherical").query(
+                                     [0.0, 0.0], return_distance=False)
