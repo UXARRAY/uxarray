@@ -541,10 +541,10 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
     edge_lon_a = np.deg2rad((node_lon[edge_nodes[:, 0]]))
     edge_lon_b = np.deg2rad((node_lon[edge_nodes[:, 1]]))
 
-    # need to handle INT_FILL_VALUE
     edge_lat_a = np.deg2rad((node_lat[edge_nodes[:, 0]]))
     edge_lat_b = np.deg2rad((node_lat[edge_nodes[:, 1]]))
 
+    # arc length
     edge_node_distances = np.arccos(
         np.sin(edge_lat_a) * np.sin(edge_lat_b) + np.cos(edge_lat_a) *
         np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b))
@@ -582,6 +582,7 @@ def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
     edge_lat_a = np.deg2rad((node_lat[edge_faces[saddle_mask, 0]]))
     edge_lat_b = np.deg2rad((node_lat[edge_faces[saddle_mask, 1]]))
 
+    # arc length
     edge_face_distances[saddle_mask] = np.arccos(
         np.sin(edge_lat_a) * np.sin(edge_lat_b) + np.cos(edge_lat_a) *
         np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b))

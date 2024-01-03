@@ -28,26 +28,12 @@ class TestGrad(TestCase):
     def test_grad_mpas(self):
         """TODO:"""
         uxds = ux.open_dataset(self.mpas_ocean_path, self.mpas_ocean_path)
-        uxgrid = uxds.uxgrid
 
-        xrds = xr.open_dataset(self.mpas_ocean_path)
-
-        edge_face_d = _construct_edge_face_distances(
-            uxgrid.face_lon.values, uxgrid.face_lat.values,
-            uxgrid.face_node_connectivity.values)
-
-        grad = _calculate_grad_on_edge(uxds['areaCell'].values,
-                                       uxgrid.edge_face_connectivity.values,
-                                       uxgrid.edge_face_distances.values,
-                                       uxgrid.n_edge)
-
-        mpas_d = uxgrid.edge_face_distances
-
-        pass
+        grad = uxds['areaCell'].gradient()
 
     def test_grad_uniform_data(self):
         """Computes the gradient on meshes with uniform data, with the expected
-        gradient being zero."""
+        gradient being zero on all edges."""
         for grid_path in [
                 self.mpas_atmo_path, self.mpas_ocean_path, self.CSne30_grid_path
         ]:
@@ -55,7 +41,8 @@ class TestGrad(TestCase):
 
             uxda_zeros = ux.UxDataArray(data=np.zeros(uxgrid.n_face),
                                         uxgrid=uxgrid,
-                                        name="zeros")
+                                        name="zeros",
+                                        dims=['n_face'])
 
             zero_grad = uxda_zeros.gradient(normalize=False)
 
@@ -63,7 +50,8 @@ class TestGrad(TestCase):
 
             uxda_ones = ux.UxDataArray(data=np.ones(uxgrid.n_face),
                                        uxgrid=uxgrid,
-                                       name="zeros")
+                                       name="zeros",
+                                       dims=['n_face'])
 
             one_grad = uxda_ones.gradient(normalize=False)
 

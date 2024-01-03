@@ -355,17 +355,34 @@ class UxDataArray(xr.DataArray):
                  use_magnitude: Optional[bool] = True,
                  normalize: Optional[bool] = True):
         """Computes the gradient of a data variable residing on an unstructured
-        grid."""
+        grid.
+
+        Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
+        on each edge.
+
+        Parameters
+        ----------
+        use_magnitude : bool, default=True
+            Whether to use the magnitude (aboslute value) of the resulting gradient
+        normalize: bool, default=True
+            Whether to normalize the resulting gradient to the range [0, 1]
+        """
+
+        if not self._face_centered():
+            raise ValueError(
+                "Gradient computations are currently only supported for face-centered data variables."
+            )
 
         _grad = _calculate_grad_on_edge(
             self.values, self.uxgrid.edge_face_connectivity.values,
-            self.uxgrid.edge_node_distances.values, self.uxgrid.n_edge,
+            self.uxgrid.edge_face_distances.values, self.uxgrid.n_edge,
             use_magnitude, normalize)
 
         uxda = UxDataArray(_grad,
                            uxgrid=self.uxgrid,
                            dims=("n_edge"),
-                           name=self.name + "_grad")
+                           name=self.name +
+                           "_grad" if self.name is not None else "grad")
 
         return uxda
 

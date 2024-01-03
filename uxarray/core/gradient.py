@@ -1,18 +1,17 @@
 # (cellVar[cellsOnEdge[edgeInd,1],k]-cellVar[cellsOnEdge[edgeInd,0],k]) / dcEdge[edgeInd]
 import numpy as np
 
-from numba import njit
-
+from typing import Optional
 from uxarray.constants import INT_FILL_VALUE
 
 
 # @njit
 def _calculate_grad_on_edge(d_var,
                             edge_faces,
-                            edge_node_distances,
+                            edge_face_distances,
                             n_edge,
-                            use_magnitude=True,
-                            normalize=True):
+                            use_magnitude: Optional[bool] = True,
+                            normalize: Optional[bool] = True):
     """Helper function for computing the gradient on each edge.
 
     TODO: add algorithmic outline
@@ -23,11 +22,11 @@ def _calculate_grad_on_edge(d_var,
         todo
     edge_faces
         todo
-    edge_node_distances
+    edge_face_distances
         todo
     n_edge
         todo
-    use_magnitude
+    use_magnitude: bool, optional=True
         todo
     normalize
         todo
@@ -43,10 +42,10 @@ def _calculate_grad_on_edge(d_var,
     # gradient initialized to zero
     grad = np.zeros(n_edge)
 
-    # compute gradient
+    # compute gradient (difference between cell-center value divided by arc length)
     grad[saddle_mask] = (d_var[..., edge_faces[saddle_mask, 0]] -
                          d_var[..., edge_faces[saddle_mask, 1]]
-                        ) / edge_node_distances[saddle_mask]
+                        ) / edge_face_distances[saddle_mask]
     if use_magnitude:
         # obtain magnitude if desired
         grad = np.abs(grad)
