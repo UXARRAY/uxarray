@@ -135,6 +135,8 @@ Geometry
    grid.geometry._pole_point_inside_polygon
    grid.geometry._classify_polygon_location
    grid.geometry._check_intersection
+   grid.geometry._get_latlonbox_width
+   grid.geometry._insert_pt_in_latlonbox
 
 Coordinates
 -----------

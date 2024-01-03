@@ -399,7 +399,7 @@ def _classify_polygon_location(face_edge_cart):
         return "Equator"
 
 
-def get_latlonbox_width(latlonbox_rad):
+def _get_latlonbox_width(latlonbox_rad):
     """Calculate the width of a latitude-longitude box in degrees. The box
     should be represented by a 2x2 array in radians and lon0 represent the
     "left" side of the box. while lon1 represent the "right" side of the box.
@@ -451,7 +451,7 @@ def get_latlonbox_width(latlonbox_rad):
         return 2 * np.pi - lon0 + lon1
 
 
-def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
+def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     """Update the latitude-longitude box to include a new point in radians.
 
     This function compares the new point's latitude and longitude with the
@@ -478,7 +478,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     Examples
     --------
-    >>> insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]), np.array([1.5, 3.5]))
+    >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
     array([[1.0, 2.0], [3.0, 4.0]])
     """
     if np.all(new_pt == INT_FILL_VALUE):
@@ -537,8 +537,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
             # Calculate and compare new box widths
             box_a, box_b = copy.deepcopy(latlon_box), copy.deepcopy(latlon_box)
             box_a[1][0], box_b[1][1] = lon_pt, lon_pt
-            d_width_a, d_width_b = get_latlonbox_width(
-                box_a), get_latlonbox_width(box_b)
+            d_width_a, d_width_b = _get_latlonbox_width(box_a), _get_latlonbox_width(box_b)
 
             if d_width_a < 0 or d_width_b < 0:
                 raise Exception('logic error')

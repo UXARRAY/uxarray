@@ -389,33 +389,33 @@ class TestLatlonBound(TestCase):
         gca_latlon = np.array([[0.0, 0.0], [0.0, 3.0]])
 
         # Calculate the width of the latlonbox
-        width = ux.grid.geometry.get_latlonbox_width(gca_latlon)
+        width = ux.grid.geometry._get_latlonbox_width(gca_latlon)
         self.assertEquals(width, 3.0)
 
         # Define a great circle arc that is not wrapping around the meridian
         gca_latlon = np.array([[0.0, 0.0], [2 * np.pi - 1.0, 1.0]])
-        width = ux.grid.geometry.get_latlonbox_width(gca_latlon)
+        width = ux.grid.geometry._get_latlonbox_width(gca_latlon)
         self.assertEquals(width, 2.0)
 
     def test_insert_pt_in_latlonbox_non_periodic(self):
         old_box = np.array([[0.1, 0.2], [0.3, 0.4]])  # Radians
         new_pt = np.array([0.15, 0.35])
         expected = np.array([[0.1, 0.2], [0.3, 0.4]])
-        result = ux.grid.geometry.insert_pt_in_latlonbox(old_box, new_pt, False)
+        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt, False)
         np.testing.assert_array_equal(result, expected)
 
     def test_insert_pt_in_latlonbox_periodic(self):
         old_box = np.array([[0.1, 0.2], [6.0, 0.1]])  # Radians, periodic
         new_pt = np.array([0.15, 6.2])
         expected = np.array([[0.1, 0.2], [6.0, 0.1]])
-        result = ux.grid.geometry.insert_pt_in_latlonbox(old_box, new_pt, True)
+        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt, True)
         np.testing.assert_array_equal(result, expected)
 
     def test_insert_pt_in_latlonbox_pole(self):
         old_box = np.array([[0.1, 0.2], [0.3, 0.4]])
         new_pt = np.array([np.pi / 2, INT_FILL_VALUE])  # Pole point
         expected = np.array([[0.1, np.pi / 2], [0.3, 0.4]])
-        result = ux.grid.geometry.insert_pt_in_latlonbox(old_box, new_pt)
+        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt)
         np.testing.assert_array_equal(result, expected)
 
     def test_insert_pt_in_empty_state(self):
@@ -423,7 +423,7 @@ class TestLatlonBound(TestCase):
                             [INT_FILL_VALUE, INT_FILL_VALUE]])  # Empty state
         new_pt = np.array([0.15, 0.35])
         expected = np.array([[0.15, 0.15], [0.35, 0.35]])
-        result = ux.grid.geometry.insert_pt_in_latlonbox(old_box, new_pt)
+        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt)
         np.testing.assert_array_equal(result, expected)
 
 
