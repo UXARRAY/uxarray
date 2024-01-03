@@ -133,4 +133,4 @@ def _slice_face_indices(grid, indices, inclusive=True):
             # drop any conn that would require re-computation
             ds = ds.drop_vars(conn_name)
 
-    return Grid.from_dataset(ds, grid.source_grid_spec)
+    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec)
