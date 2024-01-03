@@ -278,7 +278,6 @@ def _fast_two_sum(a, b):
     T. J. Dekker. A Floating-Point Technique for Extending the Available Precision.
     Numerische Mathematik, 18(3), 224–242,1971. 10.1007/BF01397083.
     Available at: https://doi.org/10.1007/BF01397083.
-
     """
     if abs(a) >= abs(b):
         x = a + b
@@ -427,7 +426,6 @@ def _norm_faithful(x):
     --------
     >>> _norm_faithful([1.0, 2.0, 3.0])
     3.7416573867739413
-
     """
     return _normL(x)
 
@@ -618,7 +616,6 @@ def _split(a):
     1971. 10.1007/BF01397083. Available at: https://doi.org/10.1007/
     BF01397083.
     27
-
     """
     y = (2**27 + 1) * a
     x = y - (y - a)
