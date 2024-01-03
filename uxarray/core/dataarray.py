@@ -119,12 +119,10 @@ class UxDataArray(xr.DataArray):
         xrds = super().to_dataset()
         return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
-    def to_geodataframe(
-        self,
-        override=False,
-        cache=True,
-        correct_antimeridian_polygons=True,
-    ):
+    def to_geodataframe(self,
+                        override=False,
+                        cache=True,
+                        exclude_antimeridian=False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
@@ -135,8 +133,8 @@ class UxDataArray(xr.DataArray):
             Flag to recompute the ``GeoDataFrame`` stored under the ``uxgrid`` if one is already cached
         cache: bool
             Flag to indicate if the computed ``GeoDataFrame`` stored under the ``uxgrid`` accessor should be cached
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
+        exclude_antimeridian: bool, Optional
+            Selects whether to exclude any face that contains an edge that crosses the antimeridian
 
         Returns
         -------
@@ -144,26 +142,31 @@ class UxDataArray(xr.DataArray):
             The output `GeoDataFrame` with a filled out "geometry" and 1D data column representing the geometry of the unstructured grid
         """
 
-        # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
+            # data is multidimensional, must be a 1D slice
             raise ValueError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data.")
 
-        # face-centered data
         if self.values.size == self.uxgrid.n_face:
+
             gdf = self.uxgrid.to_geodataframe(
                 override=override,
                 cache=cache,
-                correct_antimeridian_polygons=correct_antimeridian_polygons)
-            gdf[self.name] = self.values
+                exclude_antimeridian=exclude_antimeridian)
+
+            if exclude_antimeridian:
+                gdf[self.name] = np.delete(
+                    self.values, self.uxgrid.antimeridian_face_indices, axis=0)
+            else:
+                gdf[self.name] = self.values
             return gdf
 
-        # TODO: Mapping Node Data to Each Polygon
         elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
-                f"Data Variable with size {self.values.size} mapped on the nodes of each polygon"
-                f"not supported yet.")
+                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"({self.uxgrid.n_face}. Current size matches the number of nodes."
+            )
 
         # data not mapped to faces or nodes
         else:
@@ -285,7 +288,8 @@ class UxDataArray(xr.DataArray):
         >>> integral = uxds['psi'].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
-            face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
+            face_areas, face_jacobian = self.uxgrid.compute_face_areas(
+                quadrature_rule, order)
 
             # perform dot product between face areas and last dimension of data
             integral = np.einsum('i,...i', face_areas, self.values)
@@ -313,14 +317,49 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
+    def nodal_average(self):
+        """Computes the Nodal Average of a Data Variable, which is the mean of
+        the nodes that surround each face.
+
+        Can be used for remapping node-centered data to each face.
+        """
+
+        if not self._node_centered():
+            # nodal average expects node-centered data
+            raise ValueError(
+                f"Data Variable must be mapped to the corner nodes of each face, with dimension "
+                f"{self.uxgrid.n_face}.")
+
+        data = self.values
+        face_nodes = self.uxgrid.face_node_connectivity.values
+        n_nodes_per_face = self.uxgrid.n_nodes_per_face.values
+
+        # compute the nodal average while preserving original dimensions
+        data_nodal_average = np.array([
+            np.mean(data[..., cur_face[0:n_max_nodes]], axis=-1)
+            for cur_face, n_max_nodes in zip(face_nodes, n_nodes_per_face)
+        ])
+
+        # set `n_nodes` as final dimension
+        data_nodal_average = np.moveaxis(data_nodal_average, 0, -1)
+
+        return UxDataArray(uxgrid=self.uxgrid,
+                           data=data_nodal_average,
+                           dims=self.dims,
+                           name=self.name + "_nodal_average" if self.name
+                           is not None else None).rename({"n_node": "n_face"})
+
     def _face_centered(self) -> bool:
-        """Returns whether the data stored is Face Centered (i.e. dimensions
-        match up with the number of faces)"""
-        return (self.uxgrid.n_face == self.shape[-1] and
-                self.uxgrid.n_node not in self.shape)
+        """Returns whether the data stored is Face Centered (i.e. contains the
+        "n_face" dimension)"""
+        return "n_face" in self.dims
 
     def _node_centered(self) -> bool:
-        """Returns whether the data stored is Node Centered (i.e. dimensions
-        match up with the number of nodes)"""
-        return (self.uxgrid.n_node == self.shape[-1] and
-                self.uxgrid.n_face not in self.shape)
+        """Returns whether the data stored is Node Centered (i.e. contains the
+        "n_node" dimension)"""
+        return "n_node" in self.dims
+
+    def _edge_centered(self) -> bool:
+        """Returns whether the data stored is Edge Centered (i.e. contains the
+        "n_edge" dimension)"""
+        return "n_edge" in self.dims
