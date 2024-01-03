@@ -250,3 +250,281 @@ def _fast_two_sum(a, b):
 
     else:
         raise ValueError("|a| must be greater than or equal to |b|.")
+
+
+def _comp_prod_FMA(vec):
+    """Compute the compensated product using Fused Multiply-Add (FMA).
+
+    This function computes the product of elements in a vector using a
+    compensated algorithm with Fused Multiply-Add to reduce numerical errors.
+
+    Parameters
+    ----------
+    vec : list of float
+        The vector whose elements are to be multiplied.
+
+    Returns
+    -------
+    float
+        The compensated product of the elements in the vector.
+
+    Examples
+    --------
+    >>> _comp_prod_FMA([1.1, 2.2, 3.3])
+    7.986000000000001
+    """
+    import pyfma
+    p1 = vec[0]
+    e1 = 0.0
+    for i in range(1, len(vec)):
+        p_i, pi = _two_prod_fma(p1, vec[i])
+        ei = pyfma.fma(e1, vec[i], pi)
+        p1 = p_i
+        e1 = ei
+    res = p1 + e1
+    return res
+
+
+def _sum_of_squares_re(vec):
+    """Compute the sum of squares of a vector using a compensated algorithm.
+
+    This function calculates the sum of squares of the elements in a vector,
+    employing a compensation technique to reduce numerical errors.
+
+    Parameters
+    ----------
+    vec : list of float
+        The vector whose elements' squares are to be summed.
+
+    Returns
+    -------
+    float
+        The compensated sum of the squares of the elements in the vector.
+
+    Examples
+    --------
+    >>> _sum_of_squares_re([1.0, 2.0, 3.0])
+    14.0
+    """
+    P, p = _two_square(vec)
+    S, s = _two_sum(P[0], P[1])
+    for i in range(2, len(vec)):
+        H, h = _two_sum(S, P[i])
+        S, s = _two_sum(H, s + h)
+    sump = sum(p)
+    H, h = _two_sum(S, sump)
+    S, s = _fast_two_sum(H, s + h)
+    return S + s
+
+
+def _vec_sum(p):
+    """Compute the sum of a vector using a compensated summation algorithm.
+
+    This function calculates the sum of the elements in a vector using a
+    compensated summation algorithm to reduce numerical errors.
+
+    Parameters
+    ----------
+    p : list of float
+        The vector whose elements are to be summed.
+
+    Returns
+    -------
+    float
+        The compensated sum of the elements in the vector.
+
+    Examples
+    --------
+    >>> _vec_sum([1.0, 2.0, 3.0])
+    6.0
+    """
+    pi_1 = p[0]
+    sigma_i1 = 0
+
+    for i in range(1, len(p)):
+        pi, qi = _two_sum(pi_1, p[i])
+        sigma_i = sigma_i1 + qi
+        pi_1 = pi
+        sigma_i1 = sigma_i
+
+    res = pi_1 + sigma_i1
+    return res
+
+
+def _norm_faithful(x):
+    """Compute the faithful norm of a vector.
+
+    This function calculates the faithful norm (L2 norm) of a vector,
+    which is a more numerically stable version of the Euclidean norm.
+
+    Parameters
+    ----------
+    x : list of float
+        The vector whose norm is to be computed.
+
+    Returns
+    -------
+    float
+        The faithful norm of the vector.
+
+    Examples
+    --------
+    >>> _norm_faithful([1.0, 2.0, 3.0])
+    3.7416573867739413
+    """
+    return _normL(x)
+
+
+def _normL(x):
+    """Compute the L2 norm (Euclidean norm) of a vector using a compensated
+    algorithm.
+
+    This function calculates the L2 norm of a vector, employing a compensation
+    technique to reduce numerical errors during the computation. It involves
+    computing the sum of squares of the vector elements in a numerically stable way.
+
+    Parameters
+    ----------
+    x : list of float
+        The vector whose L2 norm is to be computed.
+
+    Returns
+    -------
+    float
+        The compensated L2 norm of the vector.
+
+    Examples
+    --------
+    >>> _normL([1.0, 2.0, 3.0])
+    3.7416573867739413
+    """
+    P, p = _two_square(x)
+    S, s = _two_sum(P[0], P[1])
+    for i in range(2, len(x)):
+        H, h = _two_sum(S, P[i])
+        S, s = _two_sum(H, s + h)
+    sump = sum(p)
+    H, h = _two_sum(S, sump)
+    S, s = _fast_two_sum(H, s + h)
+    res = _acc_sqrt(S, s)
+    return res
+
+
+def _normG(x):
+    """Compute the compensated Euclidean norm of a vector.
+
+    This function calculates the Euclidean norm (L2 norm) of a vector,
+    using a compensated algorithm to reduce numerical errors.
+
+    Parameters
+    ----------
+    x : list of float
+        The vector whose norm is to be computed.
+
+    Returns
+    -------
+    float
+        The compensated Euclidean norm of the vector.
+
+    Examples
+    --------
+    >>> _normG([1.0, 2.0, 3.0])
+    3.7416573867739413
+    """
+    S = 0
+    s = 0
+    for x_i in x:
+        P, p = _two_prod_fma(x_i, x_i)
+        H, h = _two_sum(S, P)
+        c = s + p
+        d = h + c
+        S, s = _fast_two_sum(H, d)
+    res = _acc_sqrt(S, s)
+    return res
+
+
+def _two_square(Aa):
+    """Compute the square of a number with a compensation for the round-off
+    error.
+
+    This function calculates the square of a given number and compensates
+    for the round-off error that occurs during the squaring.
+
+    Parameters
+    ----------
+    Aa : float
+        The number to be squared.
+
+    Returns
+    -------
+    tuple of float
+        The square of the number and the compensated round-off error.
+
+    Examples
+    --------
+    >>> _two_square(2.0)
+    (4.0, 0.0)
+    """
+    P = Aa * Aa
+    A, a = _split(Aa)
+    p = a * a - ((P - A * A) - 2 * a * A)
+    return P, p
+
+
+def _acc_sqrt(T, t):
+    """Compute the accurate square root of a number with a compensation for
+    round-off error.
+
+    This function calculates the square root of a number, taking into account
+    a compensation term for the round-off error.
+
+    Parameters
+    ----------
+    T : float
+        The number whose square root is to be computed.
+    t : float
+        The compensation term for round-off error.
+
+    Returns
+    -------
+    float
+        The accurate square root of the number.
+
+    Examples
+    --------
+    >>> _acc_sqrt(9.0, 0.0)
+    3.0
+    """
+    P = np.sqrt(T)
+    H, h = _two_square(P)
+    r = (T - H) - h
+    r = t + r
+    p = r / (2 * P)
+    res = P + p
+    return res
+
+
+def _split(a):
+    """Split a floating-point number into two parts: The rounded floating point
+    presentation and its error. This can be utlized to substitute the FMA
+    operation on the software level.
+
+    Parameters
+    ----------
+    a : float
+        The number to be split.
+
+    Returns
+    -------
+    tuple of float
+        The high and low precision parts of the number.
+
+    Examples
+    --------
+    >>> _split(12345.6789)
+    (12345.67578125, 0.00311875)
+    """
+    y = (2**27 + 1) * a
+    x = y - (y - a)
+    y = a - x
+    return x, y
