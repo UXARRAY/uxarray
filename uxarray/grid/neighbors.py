@@ -25,7 +25,8 @@ class KDTree:
     coordinate_type : str, default="cartesian"
             Sets the coordinate type used to construct the KDTree, either cartesian coordinates or spherical coordinates.
     distance_metric : str, default="minkowski"
-        Distance metric used to construct the KDTree
+        Distance metric used to construct the KDTree, available options include:
+        'euclidean', 'l2', 'minkowski', 'p', 'manhattan', 'cityblock', 'l1', 'chebyshev', 'infinity'
     reconstruct : bool, default=False
         If true, reconstructs the tree
 
@@ -204,7 +205,9 @@ class KDTree:
         if self.coordinate_type == "cartesian":
             coords = _prepare_xyz_for_query(coords)
         elif self.coordinate_type == "spherical":
-            coords = _prepare_xy_for_query(coords, in_radians)
+            coords = _prepare_xy_for_query(coords,
+                                           in_radians,
+                                           distance_metric=self.distance_metric)
         else:
             raise ValueError
 
@@ -280,7 +283,9 @@ class KDTree:
         if self.coordinate_type == "cartesian":
             coords = _prepare_xyz_for_query(coords)
         elif self.coordinate_type == "spherical":
-            coords = _prepare_xy_for_query(coords, in_radians)
+            coords = _prepare_xy_for_query(coords,
+                                           in_radians,
+                                           distance_metric=self.distance_metric)
         else:
             raise ValueError
 
@@ -356,7 +361,10 @@ class BallTree:
             Identifies which tree to construct or select, with "nodes" selecting the Corner Nodes, "face centers" selecting the Face
             Centers of each face, and "edge centers" selecting the edge centers of each face.
     distance_metric : str, default="haversine"
-        Distance metric used to construct the BallTree
+        Distance metric used to construct the BallTree, options include:
+        'euclidean', 'l2', 'minkowski', 'p','manhattan', 'cityblock', 'l1', 'chebyshev', 'infinity', 'seuclidean',
+        'mahalanobis', 'hamming', 'canberra', 'braycurtis', 'jaccard', 'dice', 'rogerstanimoto', 'russellrao',
+        'sokalmichener', 'sokalsneath', 'haversine'
 
     Notes
     -----
@@ -527,7 +535,9 @@ class BallTree:
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_type == "spherical":
-            coords = _prepare_xy_for_query(coords, in_radians)
+            coords = _prepare_xy_for_query(coords,
+                                           in_radians,
+                                           distance_metric=self.distance_metric)
 
         elif self.coordinate_type == "cartesian":
             coords = _prepare_xyz_for_query(coords)
@@ -604,7 +614,9 @@ class BallTree:
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_type == "spherical":
             r = np.deg2rad(r)
-            coords = _prepare_xy_for_query(coords, in_radians)
+            coords = _prepare_xy_for_query(coords,
+                                           in_radians,
+                                           distance_metric=self.distance_metric)
 
         if self.coordinate_type == "cartesian":
             coords = _prepare_xyz_for_query(coords)
@@ -665,7 +677,7 @@ class BallTree:
             raise ValueError
 
 
-def _prepare_xy_for_query(xy, use_radians):
+def _prepare_xy_for_query(xy, use_radians, distance_metric):
     """Prepares xy coordinates for query with the sklearn BallTree or
     KDTree."""
 
@@ -685,8 +697,10 @@ def _prepare_xy_for_query(xy, use_radians):
         raise AssertionError(
             f"The dimension of each coordinate pair must be two (lon, lat).)")
 
-    # swap X and Y for query
-    xy[:, [0, 1]] = xy[:, [1, 0]]
+    # swap x and y if the distance metric used is haversine
+    if distance_metric == "haversine":
+        # swap X and Y for query
+        xy[:, [0, 1]] = xy[:, [1, 0]]
 
     # balltree expects units in radians for query
     if not use_radians:

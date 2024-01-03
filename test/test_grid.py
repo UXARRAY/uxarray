@@ -8,8 +8,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity, \
-    _build_edge_face_connectivity
+from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity
 
 from uxarray.grid.coordinates import _populate_lonlat_coord
 
@@ -942,6 +941,10 @@ class TestBallTree(TestCase):
             d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([3.0, 3.0],
                                                                    k=3)
 
+            # assert it returns the correct k neighbors and is not empty
+            self.assertEqual(len(d), len(ind))
+            self.assertTrue(len(d) and len(ind) != 0)
+
     def test_construction_from_face_centers(self):
         """Tests the construction of the ball tree on center nodes and performs
         a sample query."""
@@ -953,6 +956,10 @@ class TestBallTree(TestCase):
             d, ind = uxgrid.get_ball_tree(tree_type="face centers").query(
                 [3.0, 3.0], k=3)
 
+            # assert it returns the correct k neighbors and is not empty
+            self.assertEqual(len(d), len(ind))
+            self.assertTrue(len(d) and len(ind) != 0)
+
     def test_construction_from_edge_centers(self):
         """Tests the construction of the ball tree on edge_centers and performs
         a sample query."""
@@ -963,6 +970,10 @@ class TestBallTree(TestCase):
             # performs a sample query
             d, ind = uxgrid.get_ball_tree(tree_type="edge centers").query(
                 [3.0, 3.0], k=3)
+
+            # assert it returns the correct k neighbors and is not empty
+            self.assertEqual(len(d), len(ind))
+            self.assertTrue(len(d) and len(ind) != 0)
 
     def test_construction_from_both_sequentially(self):
         """Tests the construction of the ball tree on center nodes and performs
@@ -1016,36 +1027,41 @@ class TestBallTree(TestCase):
             d, ind = uxgrid.get_ball_tree(tree_type="nodes",
                                           coordinate_type="cartesian",
                                           distance_metric="minkowski").query(
-                                              [1.0, 0.0, 0.0])
+                                              [1.0, 0.0, 0.0], k=2)
+
+            # assert it returns the correct k neighbors and is not empty
+            self.assertEqual(len(d), len(ind))
+            self.assertTrue(len(d) and len(ind) != 0)
 
     def test_query_radius(self):
         """Test the BallTree creation and query_radius function using the grids
         face centers."""
         for grid_file in self.center_grid_files:
             uxgrid = ux.open_grid(grid_file)
-            d, ind = uxgrid.get_ball_tree(
-                tree_type="face centers",
-                coordinate_type="spherical").query_radius([3.0, 3.0],
-                                                          r=5,
-                                                          return_distance=True)
 
-            # Return just index without distance
+            # Return just index without distance on a spherical grid
             ind = uxgrid.get_ball_tree(tree_type="face centers",
-                                       coordinate_type="cartesian",
-                                       distance_metric="minkowski",
+                                       coordinate_type="spherical",
+                                       distance_metric="haversine",
                                        reconstruct=True).query_radius(
-                                           [0.0, 0.0, 1.0],
-                                           r=5,
+                                           [3.0, 3.0],
+                                           r=15,
                                            return_distance=False)
 
-            # Return index and distance
+            # assert the indexes have been populated
+            self.assertTrue(len(ind) != 0)
+
+            # Return index and distance on a cartesian grid
             d, ind = uxgrid.get_ball_tree(tree_type="face centers",
                                           coordinate_type="cartesian",
                                           distance_metric="minkowski",
                                           reconstruct=True).query_radius(
                                               [0.0, 0.0, 1.0],
-                                              r=5,
+                                              r=15,
                                               return_distance=True)
+
+            # assert the distance and indexes have been populated
+            self.assertTrue(len(d) and len(ind) != 0)
 
     def test_query(self):
         """Test the creation and querying function of the BallTree
@@ -1056,15 +1072,21 @@ class TestBallTree(TestCase):
         # Test querying with distance and indexes
         d, ind = uxgrid.get_ball_tree(tree_type="face centers",
                                       coordinate_type="spherical").query(
-                                          [0.0, 0.0], return_distance=True)
+                                          [0.0, 0.0], return_distance=True, k=3)
+
+        # assert the distance and indexes have been populated
+        self.assertTrue(len(d) and len(ind) != 0)
 
         # Test querying with just indexes
         ind = uxgrid.get_ball_tree(tree_type="face centers",
                                    coordinate_type="spherical").query(
-                                       [0.0, 0.0], return_distance=False)
+                                       [0.0, 0.0], return_distance=False, k=3)
+
+        # assert the indexes have been populated
+        self.assertTrue(len(ind) != 0)
 
 
-class TestKDTree:
+class TestKDTree(TestCase):
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_file = gridfile_mpas
 
@@ -1075,7 +1097,11 @@ class TestKDTree:
         for grid_file in self.corner_grid_files:
             uxgrid = ux.open_grid(grid_file)
             d, ind = uxgrid.get_kd_tree(tree_type="nodes").query(
-                [0.0, 0.0, 1.0])
+                [0.0, 0.0, 1.0], k=5)
+
+            # assert it returns the correct k neighbors and is not empty
+            self.assertEqual(len(d), len(ind))
+            self.assertTrue(len(d) and len(ind) != 0)
 
     def test_construction_using_spherical_coords(self):
         """Test the KDTree creation and query function using spherical
@@ -1085,36 +1111,43 @@ class TestKDTree:
             uxgrid = ux.open_grid(grid_file)
             d, ind = uxgrid.get_kd_tree(tree_type="nodes",
                                         coordinate_type="spherical").query(
-                                            [3.0, 3.0])
+                                            [3.0, 3.0], k=5)
+
+            # assert it returns the correct k neighbors and is not empty
+            self.assertEqual(len(d), len(ind))
+            self.assertTrue(len(d) and len(ind) != 0)
 
     def test_construction_from_face_centers(self):
         """Test the KDTree creation and query function using the grids face
         centers."""
 
         uxgrid = ux.open_grid(self.center_grid_file)
-        ind = uxgrid.get_kd_tree(tree_type="face centers").query(
+        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query(
             [1.0, 0.0, 0.0], k=5, return_distance=True)
 
+        # assert it returns the correct k neighbors and is not empty
+        self.assertEqual(len(d), len(ind))
+        self.assertTrue(len(d) and len(ind) != 0)
+
     def test_construction_from_edge_centers(self):
-        """Tests the construction of the KDTree on edge_centers and performs a
-        sample query."""
+        """Tests the construction of the KDTree with cartesian coordinates on
+        edge_centers and performs a sample query."""
 
         uxgrid = ux.open_grid(self.center_grid_file)
 
         # Performs a sample query
         d, ind = uxgrid.get_kd_tree(tree_type="edge centers").query(
-            [1.0, 0.0, 1.0], k=1)
+            [1.0, 0.0, 1.0], k=2, return_distance=True)
+
+        # assert it returns the correct k neighbors and is not empty
+        self.assertEqual(len(d), len(ind))
+        self.assertTrue(len(d) and len(ind) != 0)
 
     def test_query_radius(self):
         """Test the KDTree creation and query_radius function using the grids
         face centers."""
 
         uxgrid = ux.open_grid(self.center_grid_file)
-        d, ind = uxgrid.get_kd_tree(tree_type="face centers",
-                                    coordinate_type="cartesian").query_radius(
-                                        [0.0, 0.0, 1.0],
-                                        r=5,
-                                        return_distance=True)
 
         # Test returning distance and indexes
         d, ind = uxgrid.get_kd_tree(tree_type="face centers",
@@ -1122,22 +1155,34 @@ class TestKDTree:
                                     reconstruct=True).query_radius(
                                         [3.0, 3.0], r=5, return_distance=True)
 
+        # assert the distance and indexes have been populated
+        self.assertTrue(len(d), len(ind))
         # Test returning just the indexes
         ind = uxgrid.get_kd_tree(tree_type="face centers",
                                  coordinate_type="spherical",
                                  reconstruct=True).query_radius(
                                      [3.0, 3.0], r=5, return_distance=False)
 
+        # assert the indexes have been populated
+        self.assertTrue(len(ind))
+
     def test_query(self):
         """Test the creation and querying function of the KDTree structure."""
         uxgrid = ux.open_grid(self.center_grid_file)
 
-        # Test querying with distance and indexes
+        # Test querying with distance and indexes with spherical coordinates
         d, ind = uxgrid.get_kd_tree(tree_type="face centers",
                                     coordinate_type="spherical").query(
                                         [0.0, 0.0], return_distance=True)
 
-        # Test querying with just indexes
+        # assert the distance and indexes have been populated
+        assert d, ind
+
+        # Test querying with just indexes with cartesian coordinates
         ind = uxgrid.get_kd_tree(tree_type="face centers",
-                                 coordinate_type="spherical").query(
-                                     [0.0, 0.0], return_distance=False)
+                                 coordinate_type="cartesian",
+                                 reconstruct=True).query([0.0, 0.0, 1.0],
+                                                         return_distance=False)
+
+        # assert the indexes have been populated
+        assert ind
