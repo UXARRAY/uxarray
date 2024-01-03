@@ -520,14 +520,14 @@ def _prepare_xyz_for_query(xyz):
 
 
 def _populate_edge_node_distances(grid):
-    """Populates ``Mesh2_edge_node_distances``"""
+    """Populates ``edge_node_distances``"""
     edge_node_distances = _construct_edge_node_distances(
-        grid.Mesh2_node_x.values, grid.Mesh2_node_y.values,
-        grid.Mesh2_edge_nodes.values)
+        grid.node_lon.values, grid.node_lat.values,
+        grid.edge_node_connectivity.values)
 
-    grid._ds["Mesh2_edge_node_distances"] = xr.DataArray(
+    grid._ds["edge_node_distances"] = xr.DataArray(
         data=edge_node_distances,
-        dims=["nMesh2_edge"],
+        dims=["n_edge"],
         attrs={
             "long_name": "arc distance between the nodes of each edge",
         })
@@ -553,14 +553,14 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
 
 
 def _populate_edge_face_distances(grid):
-    """Populates ``Mesh2_edge_face_distances``"""
+    """Populates ``edge_face_distances``"""
     edge_face_distances = _construct_edge_face_distances(
-        grid.Mesh2_node_x.values, grid.Mesh2_node_y.values,
-        grid.Mesh2_edge_faces.values)
+        grid.node_lon.values, grid.node_lat.values,
+        grid.edge_face_connectivity.values)
 
-    grid._ds["Mesh2_edge_face_distances"] = xr.DataArray(
+    grid._ds["edge_face_distances"] = xr.DataArray(
         data=edge_face_distances,
-        dims=["nMesh2_edge"],
+        dims=["n_edge"],
         attrs={
             "long_name":
                 "arc distance between the face centers that saddle a given edge",

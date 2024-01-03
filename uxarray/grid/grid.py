@@ -699,7 +699,7 @@ class Grid:
         Dimensions (``n_edge``) and DataType float.
         """
         if "edge_node_distances" not in self._ds:
-            return None
+            _populate_edge_node_distances(self)
         return self._ds["edge_node_distances"]
 
     @property
@@ -709,7 +709,7 @@ class Grid:
         Dimensions (``n_edge``) and DataType float.
         """
         if "edge_face_distances" not in self._ds:
-            return None
+            _populate_edge_face_distances(self)
         return self._ds["edge_face_distances"]
 
     # ==================================================================================================================
