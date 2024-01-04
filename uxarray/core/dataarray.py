@@ -372,7 +372,7 @@ class UxDataArray(xr.DataArray):
 
         if any(grid_dim in kwargs
                for grid_dim in GRID_DIMS) and not ignore_grid:
-            # slicing a grid-dimension through grid object
+            # slicing a grid-dimension through Grid object
 
             dim_mask = [grid_dim in kwargs for grid_dim in GRID_DIMS]
             dim_count = np.count_nonzero(dim_mask)
@@ -395,6 +395,8 @@ class UxDataArray(xr.DataArray):
             return super().isel(*args, **kwargs)
 
     def _slice_from_grid(self, sliced_grid):
+        """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
+        indices to correctly slice the data variable."""
 
         from uxarray.core.dataarray import UxDataArray
 
