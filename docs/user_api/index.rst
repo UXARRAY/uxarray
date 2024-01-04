@@ -129,7 +129,7 @@ Plotting
    UxDataArray.plot.points
 
 Subsetting
---------
+----------
 .. autosummary::
    :toctree: _autosummary
 
