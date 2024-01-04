@@ -1,7 +1,7 @@
 
 
 
-<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='600'>
+<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='400'>
 
 ---
 
