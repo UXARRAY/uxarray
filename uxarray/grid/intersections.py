@@ -140,7 +140,7 @@ def gca_constLat_intersection(gca_cart,
     Returns
     -------
     np.ndarray
-        Cartesian coordinates of the intersection point(s).
+        Cartesian coordinates of the intersection point(s) the shape is [n_intersext_pts, 3].
 
     Raises
     ------
@@ -180,15 +180,21 @@ def gca_constLat_intersection(gca_cart,
     p1 = np.array([p1_x, p1_y, constZ])
     p2 = np.array([p2_x, p2_y, constZ])
 
+    res = None
+
     # Now test which intersection point is within the GCA range
     if point_within_gca(p1, gca_cart):
         converged_pt = _newton_raphson_solver_for_gca_constLat(p1,
                                                                gca_cart,
                                                                verbose=verbose)
-    elif point_within_gca(p2, gca_cart):
+        res = np.array([converged_pt]) if res is None else np.vstack(
+            (res, converged_pt))
+
+    if point_within_gca(p2, gca_cart):
         converged_pt = _newton_raphson_solver_for_gca_constLat(p2,
                                                                gca_cart,
                                                                verbose=verbose)
-    else:
-        converged_pt = np.array([])
-    return converged_pt
+        res = np.array([converged_pt]) if res is None else np.vstack(
+            (res, converged_pt))
+
+    return res if res is not None else np.array([])

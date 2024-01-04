@@ -115,11 +115,6 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
-    def to_dataset(self) -> UxDataset:
-        """Convert a UxDataArray to a UxDataset."""
-        xrds = super().to_dataset()
-        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
-
     def to_geodataframe(self,
                         override=False,
                         cache=True,
