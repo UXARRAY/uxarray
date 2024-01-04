@@ -1070,14 +1070,16 @@ class Grid:
 
         return line_collection
 
-    def isel(self, method="inclusive", **dim_kwargs):
+    def isel(self, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
+        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
+        any face that contains that element is included in the resulting subset. This means that additional elements
+        beyond those that were initially provided in the indices will be included. Support for more methods, such as
+        exclusive and clipped indexing is in the works.
+
         Parameters
-        ----------
-        method: str
-            Method for performing indexing, currently only supports ['inclusive']
         **dims_kwargs: kwargs
             Dimension to index, one of ['n_node', 'n_edge', 'n_face']
 
@@ -1089,11 +1091,6 @@ class Grid:
         """
         from .slice import (_slice_node_indices, _slice_edge_indices,
                             _slice_face_indices)
-
-        if method is not "inclusive":
-            warn(
-                "Only inclusive indexing is currently supported, defaulting to 'inclusive'"
-            )
 
         if len(dim_kwargs) != 1:
             raise ValueError("Indexing must be along a single dimension.")
