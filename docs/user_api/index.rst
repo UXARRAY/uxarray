@@ -271,7 +271,7 @@ Plotting
    Grid.plot.edges
 
 Subsetting
---------
+----------
 .. autosummary::
    :toctree: _autosummary
 
