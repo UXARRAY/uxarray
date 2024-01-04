@@ -192,8 +192,8 @@ Accurate Computing Utils
    utils.computing._sum_of_squares_re
    utils.computing._vec_sum
    utils.computing._norm_faithful
-   utils.computing._normL
-   utils.computing._normG
+   utils.computing._norm_l
+   utils.computing._norm_g
    utils.computing._two_square
    utils.computing._acc_sqrt
    utils.computing._split

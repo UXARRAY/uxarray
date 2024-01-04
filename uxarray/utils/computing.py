@@ -289,7 +289,7 @@ def _fast_two_sum(a, b):
         raise ValueError("|a| must be greater than or equal to |b|.")
 
 
-def _comp_prod_FMA(vec):
+def _comp_prod_fma(vec):
     """Compute the compensated product using Fused Multiply-Add (FMA).
 
     This function computes the product of elements in a vector using a
@@ -307,7 +307,7 @@ def _comp_prod_FMA(vec):
 
     Examples
     --------
-    >>> _comp_prod_FMA([1.1, 2.2, 3.3])
+    >>> _comp_prod_fma([1.1, 2.2, 3.3])
     7.986000000000001
 
     Reference
@@ -427,10 +427,10 @@ def _norm_faithful(x):
     >>> _norm_faithful([1.0, 2.0, 3.0])
     3.7416573867739413
     """
-    return _normL(x)
+    return _norm_l(x)
 
 
-def _normL(x):
+def _norm_l(x):
     """Compute the L2 norm (Euclidean norm) of a vector using a compensated
     algorithm.
 
@@ -450,7 +450,7 @@ def _normL(x):
 
     Examples
     --------
-    >>> _normL([1.0, 2.0, 3.0])
+    >>> _norm_l([1.0, 2.0, 3.0])
     3.7416573867739413
 
     Reference
@@ -472,7 +472,7 @@ def _normL(x):
     return res
 
 
-def _normG(x):
+def _norm_g(x):
     """Compute the compensated Euclidean norm of a vector.
 
     This function calculates the Euclidean norm (L2 norm) of a vector,
@@ -490,7 +490,7 @@ def _normG(x):
 
     Examples
     --------
-    >>> _normG([1.0, 2.0, 3.0])
+    >>> _norm_g([1.0, 2.0, 3.0])
     3.7416573867739413
 
     Reference
