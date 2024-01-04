@@ -400,7 +400,7 @@ def _classify_polygon_location(face_edge_cart):
 
 
 def _get_latlonbox_width(latlonbox_rad):
-    """Calculate the width of a latitude-longitude box in degrees. The box
+    """Calculate the width of a latitude-longitude box in radians. The box
     should be represented by a 2x2 array in radians and lon0 represent the
     "left" side of the box. while lon1 represent the "right" side of the box.
 
@@ -426,7 +426,7 @@ def _get_latlonbox_width(latlonbox_rad):
     Returns
     -------
     float
-        The width of the latitude-longitude box.
+        The width of the latitude-longitude box in radians.
 
     Raises
     ------
