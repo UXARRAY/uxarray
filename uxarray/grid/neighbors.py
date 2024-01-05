@@ -19,10 +19,10 @@ class KDTree:
     ----------
     grid : ux.Grid
         Source grid used to construct the KDTree
-    tree_type : str, default="nodes"
+    coordinates : str, default="nodes"
             Identifies which tree to construct or select, with "nodes" selecting the corner nodes, "face centers" selecting the face
             centers of each face, and "edge centers" selecting the centers of each edge of a face
-    coordinate_type : str, default="cartesian"
+    coordinate_system : str, default="cartesian"
             Sets the coordinate type used to construct the KDTree, either cartesian coordinates or spherical coordinates.
     distance_metric : str, default="minkowski"
         Distance metric used to construct the KDTree, available options include:
@@ -38,15 +38,15 @@ class KDTree:
 
     def __init__(self,
                  grid,
-                 tree_type: Optional[str] = "nodes",
-                 coordinate_type="cartesian",
+                 coordinates: Optional[str] = "nodes",
+                 coordinate_system="cartesian",
                  distance_metric="minkowski",
                  reconstruct=False):
 
         # Set up references
         self._source_grid = grid
-        self._tree_type = tree_type
-        self.coordinate_type = coordinate_type
+        self._coordinates = coordinates
+        self.coordinate_system = coordinate_system
         self.distance_metric = distance_metric
         self.reconstruct = reconstruct
 
@@ -55,13 +55,13 @@ class KDTree:
         self._tree_from_edge_centers = None
 
         # Build the tree based on nodes, face centers, or edge centers
-        if tree_type == "nodes":
+        if coordinates == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
             self._n_elements = self._source_grid.n_node
-        elif tree_type == "face centers":
+        elif coordinates == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
-        elif tree_type == "edge centers":
+        elif coordinates == "edge centers":
             self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
@@ -72,14 +72,14 @@ class KDTree:
         nodes."""
         if self._tree_from_nodes is None or self.reconstruct:
 
-            # Sets which values to use for the tree based on the coordinate_type
-            if self.coordinate_type == "cartesian":
+            # Sets which values to use for the tree based on the coordinate_system
+            if self.coordinate_system == "cartesian":
                 coords = np.stack((self._source_grid.node_x.values,
                                    self._source_grid.node_y.values,
                                    self._source_grid.node_z.values),
                                   axis=-1)
 
-            elif self.coordinate_type == "spherical":
+            elif self.coordinate_system == "spherical":
                 coords = np.vstack(
                     (deg2rad(self._source_grid.node_lat.values),
                      deg2rad(self._source_grid.node_lon.values))).T
@@ -97,14 +97,14 @@ class KDTree:
         centers."""
         if self._tree_from_face_centers is None or self.reconstruct:
 
-            # Sets which values to use for the tree based on the coordinate_type
-            if self.coordinate_type == "cartesian":
+            # Sets which values to use for the tree based on the coordinate_system
+            if self.coordinate_system == "cartesian":
                 coords = np.stack((self._source_grid.face_x.values,
                                    self._source_grid.face_y.values,
                                    self._source_grid.face_z.values),
                                   axis=-1)
 
-            elif self.coordinate_type == "spherical":
+            elif self.coordinate_system == "spherical":
                 coords = np.vstack(
                     (deg2rad(self._source_grid.face_lat.values),
                      deg2rad(self._source_grid.face_lon.values))).T
@@ -122,8 +122,8 @@ class KDTree:
         centers."""
         if self._tree_from_edge_centers is None or self.reconstruct:
 
-            # Sets which values to use for the tree based on the coordinate_type
-            if self.coordinate_type == "cartesian":
+            # Sets which values to use for the tree based on the coordinate_system
+            if self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
                     raise ValueError
 
@@ -132,7 +132,7 @@ class KDTree:
                                    self._source_grid.edge_z.values),
                                   axis=-1)
 
-            elif self.coordinate_type == "spherical":
+            elif self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
                     raise ValueError
 
@@ -152,11 +152,11 @@ class KDTree:
         """Creates and returns the current tree."""
         _tree = None
 
-        if self._tree_type == "nodes":
+        if self._coordinates == "nodes":
             _tree = self._tree_from_nodes
-        elif self._tree_type == "face centers":
+        elif self._coordinates == "face centers":
             _tree = self._tree_from_face_centers
-        elif self._tree_type == "edge centers":
+        elif self._coordinates == "edge centers":
             _tree = self._tree_from_edge_centers
         else:
             raise TypeError
@@ -202,9 +202,9 @@ class KDTree:
             raise AssertionError(
                 f"The value of k must be greater than 1 and less than the number of elements used to construct "
                 f"the tree ({self._n_elements}).")
-        if self.coordinate_type == "cartesian":
+        if self.coordinate_system == "cartesian":
             coords = _prepare_xyz_for_query(coords)
-        elif self.coordinate_type == "spherical":
+        elif self.coordinate_system == "spherical":
             coords = _prepare_xy_for_query(coords,
                                            in_radians,
                                            distance_metric=self.distance_metric)
@@ -226,7 +226,7 @@ class KDTree:
             if coords.shape[0] == 1:
                 d = d.squeeze()
 
-            if not in_radians and self.coordinate_type == "spherical":
+            if not in_radians and self.coordinate_system == "spherical":
                 d = np.rad2deg(d)
 
             return d, ind
@@ -280,9 +280,9 @@ class KDTree:
                 f"The value of r must be greater than or equal to zero.")
 
         # Use the correct function to prepare for query based on coordinate type
-        if self.coordinate_type == "cartesian":
+        if self.coordinate_system == "cartesian":
             coords = _prepare_xyz_for_query(coords)
-        elif self.coordinate_type == "spherical":
+        elif self.coordinate_system == "spherical":
             coords = _prepare_xy_for_query(coords,
                                            in_radians,
                                            distance_metric=self.distance_metric)
@@ -307,7 +307,7 @@ class KDTree:
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
-            if not in_radians and self.coordinate_type == "spherical":
+            if not in_radians and self.coordinate_system == "spherical":
                 d = np.rad2deg(d[0])
 
             return d, ind
@@ -323,23 +323,23 @@ class KDTree:
             return ind
 
     @property
-    def tree_type(self):
-        return self._tree_type
+    def coordinates(self):
+        return self._coordinates
 
-    @tree_type.setter
-    def tree_type(self, value):
-        self._tree_type = value
+    @coordinates.setter
+    def coordinates(self, value):
+        self._coordinates = value
 
         # set up appropriate reference to tree
-        if self._tree_type == "nodes":
+        if self._coordinates == "nodes":
             if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
             self._n_elements = self._source_grid.n_node
-        elif self._tree_type == "face centers":
+        elif self._coordinates == "face centers":
             if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
-        elif self._tree_type == "edge centers":
+        elif self._coordinates == "edge centers":
             if self._tree_from_edge_centers is None or self.reconstruct:
                 self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
@@ -357,7 +357,7 @@ class BallTree:
     ----------
     grid : ux.Grid
         Source grid used to construct the BallTree
-    tree_type : str, default="nodes"
+    coordinates : str, default="nodes"
             Identifies which tree to construct or select, with "nodes" selecting the Corner Nodes, "face centers" selecting the Face
             Centers of each face, and "edge centers" selecting the edge centers of each face.
     distance_metric : str, default="haversine"
@@ -374,16 +374,16 @@ class BallTree:
 
     def __init__(self,
                  grid,
-                 tree_type: Optional[str] = "nodes",
-                 coordinate_type="spherical",
+                 coordinates: Optional[str] = "nodes",
+                 coordinate_system="spherical",
                  distance_metric='haversine',
                  reconstruct=False):
 
         # maintain a reference to the source grid
         self._source_grid = grid
         self.distance_metric = distance_metric
-        self._tree_type = tree_type
-        self.coordinate_type = coordinate_type
+        self._coordinates = coordinates
+        self.coordinate_system = coordinate_system
         self.reconstruct = reconstruct
 
         self._tree_from_nodes = None
@@ -391,13 +391,13 @@ class BallTree:
         self._tree_from_edge_centers = None
 
         # set up appropriate reference to tree
-        if tree_type == "nodes":
+        if coordinates == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
             self._n_elements = self._source_grid.n_node
-        elif tree_type == "face centers":
+        elif coordinates == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
-        elif tree_type == "edge centers":
+        elif coordinates == "edge centers":
             self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
@@ -408,13 +408,13 @@ class BallTree:
         centers."""
         if self._tree_from_face_centers is None or self.reconstruct:
 
-            # Sets which values to use for the tree based on the coordinate_type
-            if self.coordinate_type == "spherical":
+            # Sets which values to use for the tree based on the coordinate_system
+            if self.coordinate_system == "spherical":
                 coords = np.vstack(
                     (deg2rad(self._source_grid.face_lat.values),
                      deg2rad(self._source_grid.face_lon.values))).T
 
-            elif self.coordinate_type == "cartesian":
+            elif self.coordinate_system == "cartesian":
                 coords = np.stack((self._source_grid.face_x.values,
                                    self._source_grid.face_y.values,
                                    self._source_grid.face_z.values),
@@ -432,13 +432,13 @@ class BallTree:
         nodes."""
         if self._tree_from_nodes is None or self.reconstruct:
 
-            # Sets which values to use for the tree based on the coordinate_type
-            if self.coordinate_type == "spherical":
+            # Sets which values to use for the tree based on the coordinate_system
+            if self.coordinate_system == "spherical":
                 coords = np.vstack(
                     (deg2rad(self._source_grid.node_lat.values),
                      deg2rad(self._source_grid.node_lon.values))).T
 
-            if self.coordinate_type == "cartesian":
+            if self.coordinate_system == "cartesian":
                 coords = np.stack((self._source_grid.node_x.values,
                                    self._source_grid.node_y.values,
                                    self._source_grid.node_z.values),
@@ -453,8 +453,8 @@ class BallTree:
         centers."""
         if self._tree_from_edge_centers is None or self.reconstruct:
 
-            # Sets which values to use for the tree based on the coordinate_type
-            if self.coordinate_type == "spherical":
+            # Sets which values to use for the tree based on the coordinate_system
+            if self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
                     raise ValueError
 
@@ -462,7 +462,7 @@ class BallTree:
                     (deg2rad(self._source_grid.edge_lat.values),
                      deg2rad(self._source_grid.edge_lon.values))).T
 
-            elif self.coordinate_type == "cartesian":
+            elif self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
                     raise ValueError
 
@@ -482,11 +482,11 @@ class BallTree:
 
         _tree = None
 
-        if self._tree_type == "nodes":
+        if self._coordinates == "nodes":
             _tree = self._tree_from_nodes
-        elif self._tree_type == "face centers":
+        elif self._coordinates == "face centers":
             _tree = self._tree_from_face_centers
-        elif self._tree_type == "edge centers":
+        elif self._coordinates == "edge centers":
             _tree = self._tree_from_edge_centers
         else:
             raise TypeError
@@ -534,12 +534,12 @@ class BallTree:
                 f"the tree ({self._n_elements}).")
 
         # Use the correct function to prepare for query based on coordinate type
-        if self.coordinate_type == "spherical":
+        if self.coordinate_system == "spherical":
             coords = _prepare_xy_for_query(coords,
                                            in_radians,
                                            distance_metric=self.distance_metric)
 
-        elif self.coordinate_type == "cartesian":
+        elif self.coordinate_system == "cartesian":
             coords = _prepare_xyz_for_query(coords)
 
         # perform query with distance
@@ -557,7 +557,7 @@ class BallTree:
             if coords.shape[0] == 1:
                 d = d.squeeze()
 
-            if not in_radians and self.coordinate_type == "spherical":
+            if not in_radians and self.coordinate_system == "spherical":
                 d = np.rad2deg(d)
 
             return d, ind
@@ -612,13 +612,13 @@ class BallTree:
                 f"The value of r must be greater than or equal to zero.")
 
         # Use the correct function to prepare for query based on coordinate type
-        if self.coordinate_type == "spherical":
+        if self.coordinate_system == "spherical":
             r = np.deg2rad(r)
             coords = _prepare_xy_for_query(coords,
                                            in_radians,
                                            distance_metric=self.distance_metric)
 
-        if self.coordinate_type == "cartesian":
+        if self.coordinate_system == "cartesian":
             coords = _prepare_xyz_for_query(coords)
 
         if count_only:
@@ -638,7 +638,7 @@ class BallTree:
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
-            if not in_radians and self.coordinate_type == "spherical":
+            if not in_radians and self.coordinate_system == "spherical":
                 d = np.rad2deg(d[0])
 
             return d, ind
@@ -653,23 +653,23 @@ class BallTree:
             return ind
 
     @property
-    def tree_type(self):
-        return self._tree_type
+    def coordinates(self):
+        return self._coordinates
 
-    @tree_type.setter
-    def tree_type(self, value):
-        self._tree_type = value
+    @coordinates.setter
+    def coordinates(self, value):
+        self._coordinates = value
 
         # set up appropriate reference to tree
-        if self._tree_type == "nodes":
+        if self._coordinates == "nodes":
             if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
             self._n_elements = self._source_grid.n_node
-        elif self._tree_type == "face centers":
+        elif self._coordinates == "face centers":
             if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
-        elif self._tree_type == "edge centers":
+        elif self._coordinates == "edge centers":
             if self._tree_from_edge_centers is None or self.reconstruct:
                 self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge

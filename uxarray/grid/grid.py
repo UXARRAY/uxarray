@@ -739,8 +739,8 @@ class Grid:
         return self._face_jacobian
 
     def get_ball_tree(self,
-                      tree_type: Optional[str] = "nodes",
-                      coordinate_type="spherical",
+                      coordinates: Optional[str] = "nodes",
+                      coordinate_system="spherical",
                       distance_metric="haversine",
                       reconstruct=False):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -750,10 +750,10 @@ class Grid:
 
         Parameters
         ----------
-        tree_type : str, default="nodes"
+        coordinates : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
-        coordinate_type : str, default="cartesian"
+        coordinate_system : str, default="cartesian"
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="haversine"
@@ -768,19 +768,19 @@ class Grid:
         """
         if self._ball_tree is None or reconstruct:
             self._ball_tree = BallTree(self,
-                                       tree_type=tree_type,
+                                       coordinates=coordinates,
                                        distance_metric=distance_metric,
-                                       coordinate_type=coordinate_type,
+                                       coordinate_system=coordinate_system,
                                        reconstruct=reconstruct)
         else:
-            if tree_type != self._ball_tree._tree_type:
-                self._ball_tree.tree_type = tree_type
+            if coordinates != self._ball_tree._coordinates:
+                self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
 
     def get_kd_tree(self,
-                    tree_type: Optional[str] = "nodes",
-                    coordinate_type="cartesian",
+                    coordinates: Optional[str] = "nodes",
+                    coordinate_system="cartesian",
                     distance_metric="minkowski",
                     reconstruct=False):
         """Get the KDTree data structure of this Grid that allows for nearest
@@ -790,10 +790,10 @@ class Grid:
 
         Parameters
         ----------
-        tree_type : str, default="nodes"
+        coordinates : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
-        coordinate_type : str, default="cartesian"
+        coordinate_system : str, default="cartesian"
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="minkowski"
@@ -808,13 +808,13 @@ class Grid:
         """
         if self._kd_tree is None or reconstruct:
             self._kd_tree = KDTree(self,
-                                   tree_type=tree_type,
+                                   coordinates=coordinates,
                                    distance_metric=distance_metric,
-                                   coordinate_type=coordinate_type,
+                                   coordinate_system=coordinate_system,
                                    reconstruct=reconstruct)
         else:
-            if tree_type != self._kd_tree._tree_type:
-                self._kd_tree.tree_type = tree_type
+            if coordinates != self._kd_tree._coordinates:
+                self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
 
