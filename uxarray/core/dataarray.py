@@ -62,7 +62,7 @@ class UxDataArray(xr.DataArray):
 
         super().__init__(*args, **kwargs)
 
-    # declare plotting accessor
+    # declare various accessors
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
 
