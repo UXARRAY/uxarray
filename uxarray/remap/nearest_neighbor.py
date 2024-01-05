@@ -69,7 +69,8 @@ def _nearest_neighbor(source_grid: Grid,
                 f"but received: {remap_to}")
 
         # specify whether to query on the corner nodes or face centers based on source grid
-        _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
+        _source_tree = source_grid.get_ball_tree(
+            coordinates=source_data_mapping)
 
         # prepare coordinates for query
         latlon = np.vstack([lon, lat]).T
@@ -93,7 +94,7 @@ def _nearest_neighbor(source_grid: Grid,
                 f"but received: {remap_to}")
 
         # specify whether to query on the corner nodes or face centers based on source grid
-        _source_tree = source_grid.get_kd_tree(tree_type=source_data_mapping)
+        _source_tree = source_grid.get_kd_tree(coordinates=source_data_mapping)
 
         # prepare coordinates for query
         cartesian = np.vstack([cart_x, cart_y, cart_z]).T
