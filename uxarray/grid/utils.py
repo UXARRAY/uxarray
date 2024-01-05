@@ -173,69 +173,52 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
 
 def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
                                    edge_nodes_grid, node_x, node_y, node_z):
-    """Helper function that constructs an array to hold the edge cartesian coordinates for a face in a grid.
+    """Construct an array to hold the edge Cartesian coordinates connectivity
+    for a face in a grid.
+
     Parameters
     ----------
-    face_nodes_ind :
-        The ith entry of Grid.face_node_connectivity
-    face_edges_ind :
-        The ith entry of Grid.face_edge_connectivity
-    edge_nodes_grid :
-        The entire Grid.edge_node_connectivity
-    node_x :
-        The values of Grid.node_x
-    node_y :
-        The values of Grid.node_y
-    node_z :
-        The values of Grid.node_z
+    face_nodes_ind : np.ndarray, shape (n_nodes,)
+        The ith entry of Grid.face_node_connectivity, where n_nodes is the number of nodes in the face.
+    face_edges_ind : np.ndarray, shape (n_edges,)
+        The ith entry of Grid.face_edge_connectivity, where n_edges is the number of edges in the face.
+    edge_nodes_grid : np.ndarray, shape (n_edges, 2)
+        The entire Grid.edge_node_connectivity, where n_edges is the total number of edges in the grid.
+    node_x : np.ndarray, shape (n_nodes,)
+        The values of Grid.node_x, where n_nodes_total is the total number of nodes in the grid.
+    node_y : np.ndarray, shape (n_nodes,)
+        The values of Grid.node_y.
+    node_z : np.ndarray, shape (n_nodes,)
+        The values of Grid.node_z.
+
     Returns
     -------
-    face_edges : np.ndarray
-        Face edge connectivity for Cartesian grid
+    face_edges : np.ndarray, shape (n_edges, 2, 3)
+        Face edge connectivity in Cartesian coordinates, where n_edges is the number of edges for the specific face.
+
+    Notes
+    -----
+    - The function assumes that the inputs are well-formed and correspond to the same face.
+    - The output array contains the Cartesian coordinates for each edge of the face.
     """
 
-    # Construct array to hold the face edge data
+    valid_edges = np.where(face_edges_ind != INT_FILL_VALUE, face_edges_ind,
+                           None).tolist()
+    face_edges = edge_nodes_grid[valid_edges]
 
-    face_edges = np.zeros((len(face_edges_ind), 2), dtype=INT_DTYPE)
+    # Ensure counter-clockwise order of edge nodes
+    # Start with the first two nodes
+    face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
 
-    # Assign edge_nodes
-
-    for ind in range(0, len(face_edges_ind)):
-        edge_idx = face_edges_ind[ind]
-        if edge_idx != INT_FILL_VALUE:
-            edge_nodes = edge_nodes_grid.values[edge_idx]
-        else:
-            edge_nodes = [INT_FILL_VALUE, INT_FILL_VALUE]
-        face_edges[ind] = edge_nodes
-
-    # Sort edge nodes in counter-clockwise order
-
-    starting_two_nodes_index = [face_nodes_ind[0], face_nodes_ind[1]]
-    face_edges[0] = starting_two_nodes_index
     for idx in range(1, len(face_edges)):
-        if face_edges[idx][0] == face_edges[idx - 1][1]:
-            continue
-        else:
-            # Swap the node index in this edge
+        if face_edges[idx][0] != face_edges[idx - 1][1]:
+            # Swap the node index in this edge if not in counter-clockwise order
+            face_edges[idx] = face_edges[idx][::-1]
 
-            temp = face_edges[idx][0]
-            face_edges[idx][0] = face_edges[idx][1]
-            face_edges[idx][1] = temp
-
-    # Initialize variable to hold the coordinates
-
-    cartesian_coordinates = []
-
-    # Get the coordinates using the connectivity index
-
-    for edge in range(len(face_edges)):
-        # Assign the coordinates to the nodes that make up a single line
-
-        edge_coordinates = [[node_x[node], node_y[node], node_z[node]]
-                            for node in face_edges[edge]]
-
-        # Append the current array of size (2, 3) to the final array, getting the desired size of (3, 3)
-
-        cartesian_coordinates.append(edge_coordinates)
+    # Fetch coordinates for each node in the face edges
+    cartesian_coordinates = np.array(
+        [[[node_x[node], node_y[node], node_z[node]]
+          for node in edge]
+         for edge in face_edges])
 
     return cartesian_coordinates
