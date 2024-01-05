@@ -369,7 +369,6 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         vertices = [x / np.linalg.norm(x) for x in vertices]
 
         # Construct the grid from the vertices
-
         grid = ux.Grid.from_face_vertices(vertices, latlon=False)
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values[0],
