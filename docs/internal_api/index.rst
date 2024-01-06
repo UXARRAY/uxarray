@@ -190,6 +190,15 @@ Accurate Computing Utils
    utils.computing._fast_two_sum
    utils.computing._two_sum
    utils.computing._two_prod_fma
+   utils.computing._comp_prod_fma
+   utils.computing._sum_of_squares_re
+   utils.computing._vec_sum
+   utils.computing._norm_faithful
+   utils.computing._norm_l
+   utils.computing._norm_g
+   utils.computing._two_square
+   utils.computing._acc_sqrt
+   utils.computing._split
 
 Remapping
 =========
