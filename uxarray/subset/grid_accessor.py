@@ -88,6 +88,11 @@ class GridSubsetAccessor:
             # treat both indices as a set, find the intersection of both
             indices = np.intersect1d(lat_indices, lon_indices)
 
+            if len(indices) == 0:
+                raise ValueError(
+                    f"No elements founding within the bounding box when querying {element}"
+                )
+
             if element == "nodes":
                 return self.uxgrid.isel(n_node=indices)
             elif element == "face centers":
@@ -98,7 +103,7 @@ class GridSubsetAccessor:
         else:
             raise ValueError(f"Method '{method}' not supported.")
 
-    def bounding_circle(self, center_coord, r, tree_type='nodes', **kwargs):
+    def bounding_circle(self, center_coord, r, element='nodes', **kwargs):
         """Subsets an unstructured grid by returning all elements within some
         radius (in degrees) from a center coord.
 
@@ -108,19 +113,24 @@ class GridSubsetAccessor:
             Longitude and latitude of the center of the bounding circle
         r: scalar
             Radius of bounding circle (in degrees)
-        tree_type: str
-            Tree type (either `nodes` or `face centers`) for internal nearest neighbor computations
+        element: str
+            Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
 
         coords = np.asarray(center_coord)
 
-        tree = self._get_tree(coords, tree_type)
+        tree = self._get_tree(coords, element)
 
         _, ind = tree.query_radius(coords, r)
 
-        return self._index_grid(ind, tree_type)
+        if len(ind) == 0:
+            raise ValueError(
+                f"No elements founding within the bounding circle with radius {r} when querying {element}"
+            )
 
-    def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
+        return self._index_grid(ind, element)
+
+    def nearest_neighbor(self, center_coord, k, element='nodes', **kwargs):
         """Subsets an unstructured grid by returning the ``k`` closest
         neighbors from a center coordinate.
 
@@ -130,17 +140,17 @@ class GridSubsetAccessor:
             Longitude and latitude of the center of the bounding circle
         k: int
             Number of neighbors to query
-        tree_type: str
-            Tree type (either `nodes` or `face centers`) for internal nearest neighbor computations
+        element: str
+            Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
 
         coords = np.asarray(center_coord)
 
-        tree = self._get_tree(coords, tree_type)
+        tree = self._get_tree(coords, element)
 
         _, ind = tree.query(coords, k)
 
-        return self._index_grid(ind, tree_type)
+        return self._index_grid(ind, element)
 
     def _get_tree(self, coords, tree_type):
         """Internal helper for obtaining the desired KDTree or BallTree."""

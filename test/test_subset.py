@@ -60,7 +60,7 @@ def test_grid_nn_subset():
             for k in ks:
                 grid_subset = grid.subset.nearest_neighbor(coord,
                                                            k,
-                                                           tree_type="nodes")
+                                                           element="nodes")
                 assert grid_subset.n_node >= k
 
         # face-centers
@@ -68,5 +68,11 @@ def test_grid_nn_subset():
         for coord in coord_locs:
             for k in ks:
                 grid_subset = grid.subset.nearest_neighbor(
-                    coord, k, tree_type="face centers")
+                    coord, k, element="face centers")
                 assert grid_subset.n_face == k
+
+
+def test_grid_bounding_circle_subset():
+    coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
+
+    # TODO

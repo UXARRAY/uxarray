@@ -24,8 +24,8 @@ class DataArraySubsetAccessor:
         prefix = "<uxarray.UxDataArray.subset>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "  * nearest_neighbor(center_coord, k, tree_type, **kwargs)\n"
-        methods_heading += "  * bounding_circle(center_coord, r, tree_type, **kwargs)\n"
+        methods_heading += "  * nearest_neighbor(center_coord, k, element, **kwargs)\n"
+        methods_heading += "  * bounding_circle(center_coord, r, element, **kwargs)\n"
         methods_heading += "  * bounding_box(lon_bounds, lat_bounds, method, element)\n"
 
         return prefix + methods_heading
@@ -59,7 +59,7 @@ class DataArraySubsetAccessor:
 
         return self.uxda._slice_from_grid(grid)
 
-    def bounding_circle(self, center_coord, r, tree_type='nodes', **kwargs):
+    def bounding_circle(self, center_coord, r, element='nodes', **kwargs):
         """Subsets an unstructured grid by returning all elements within some
         radius (in degrees) from a center coord.
 
@@ -69,14 +69,14 @@ class DataArraySubsetAccessor:
             Longitude and latitude of the center of the bounding circle
         r: scalar
             Radius of bounding circle (in degrees)
-        tree_type: str
-            Tree type (either `nodes` or `face centers`) for internal nearest neighbor computations
+        element: str
+            Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
-        grid = self.uxda.uxgrid.subset.bounding_circle(center_coord, r,
-                                                       tree_type, **kwargs)
+        grid = self.uxda.uxgrid.subset.bounding_circle(center_coord, r, element,
+                                                       **kwargs)
         return self.uxda._slice_from_grid(grid)
 
-    def nearest_neighbor(self, center_coord, k, tree_type='nodes', **kwargs):
+    def nearest_neighbor(self, center_coord, k, element='nodes', **kwargs):
         """Subsets an unstructured grid by returning the ``k`` closest
         neighbors from a center coordinate.
 
@@ -86,11 +86,11 @@ class DataArraySubsetAccessor:
             Longitude and latitude of the center of the bounding circle
         k: int
             Number of neighbors to query
-        tree_type: str
-            Tree type (either `nodes` or `face centers`) for internal nearest neighbor computations
+        element: str
+            Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
 
         grid = self.uxda.uxgrid.subset.nearest_neighbor(center_coord, k,
-                                                        tree_type, **kwargs)
+                                                        element, **kwargs)
 
         return self.uxda._slice_from_grid(grid)

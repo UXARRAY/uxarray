@@ -19,7 +19,7 @@ REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 # General Helpers for Polygon Viz
 # ----------------------------------------------------------------------------------------------------------------------
-# @njit
+#@njit
 def _pad_closed_face_nodes(face_node_connectivity, n_face, n_max_face_nodes,
                            n_nodes_per_face):
     """Pads a closed array of face nodes by inserting the first element at any
