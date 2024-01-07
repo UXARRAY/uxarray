@@ -383,3 +383,29 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         # Assert that the result is True
 
         self.assertTrue(result)
+
+    def test_get_cartesian_face_edge_nodes_filled_value(self):
+        # Create the vertices for the grid, based around the North Pole
+
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
+
+        #Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+        vertices.append([INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE])
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', face_edges_connectivity_cartesian)
+
+        # Assert that the result is True
+
+        self.assertTrue(result)

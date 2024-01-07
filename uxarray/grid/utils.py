@@ -202,8 +202,11 @@ def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
     - The output array contains the Cartesian coordinates for each edge of the face.
     """
 
-    valid_edges = np.where(face_edges_ind != INT_FILL_VALUE, face_edges_ind,
-                           None).tolist()
+    # Create a mask that is True for all values not equal to INT_FILL_VALUE
+    mask = face_edges_ind != INT_FILL_VALUE
+
+    # Use the mask to select only the elements not equal to INT_FILL_VALUE
+    valid_edges = face_edges_ind[mask]
     face_edges = edge_nodes_grid[valid_edges]
 
     # Ensure counter-clockwise order of edge nodes
