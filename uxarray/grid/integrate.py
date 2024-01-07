@@ -25,7 +25,7 @@ def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
     pt_lon_min = 3 * np.pi
     pt_lon_max = -3 * np.pi
 
-    intersections_pts_list_lonlat = []
+    intersections_pts_list_cart = []
     for edge in face_edges_cart:
         n1 = edge[0]
         n2 = edge[1]
@@ -33,24 +33,21 @@ def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
         # Skip the dummy edge
         if np.any(n1 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]) or np.any(n2 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]):
             continue
-        n1_lonlat = _convert_node_xyz_to_lonlat_rad(n1)
-        n2_lonlat = _convert_node_xyz_to_lonlat_rad(n2)
-        intersections = get_intersection_point_gcr_constlat([n1, n2], latitude_rad)
-        if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
+        intersections = gca_constLat_intersection([n1, n2], latitude_cart)
+        if intersections.size == 0:
             # The constant latitude didn't cross this edge
             continue
-        elif intersections[0] != [-1, -1, -1] and intersections[1] != [-1, -1, -1]:
-            # The constant latitude goes across this edge ( 1 in and 1 out):
-            intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[0]))
-            intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[1]))
+        elif intersections.shape[0] == 2:
+            # The constant latitude goes across this edge twice
+            intersections_pts_list_cart.append(intersections[0])
+            intersections_pts_list_cart.append(intersections[1])
         else:
-            if intersections[0] != [-1, -1, -1]:
-                intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[0]))
-            else:
-                intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[1]))
+            intersections_pts_list_cart.append(intersections[0])
+
 
     # If an edge of a face is overlapped by the constant lat, then it will have 4 non-unique intersection pts
-    unique_intersection = np.unique(intersections_pts_list_lonlat, axis=0)
+    # (A point is counted twice for two edges)
+    unique_intersection = np.unique(intersections_pts_list_cart, axis=0)
     if len(unique_intersection) == 2:
         # The normal convex case:
         [pt_lon_min, pt_lon_max] = np.sort(
@@ -58,12 +55,11 @@ def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
     elif len(unique_intersection) != 0:
         # The concave cases
         raise ValueError(
-            "UXarray doesn't support concave face [" + str(face_index) + "] with intersections points as [" + str(
+            "UXarray doesn't support concave face with intersections points as [" + str(
                 len(unique_intersection)) + "] currently, please modify your grids accordingly")
     elif len(unique_intersection) == 0:
         # No intersections are found in this face
-        raise ValueError("No intersections are found for face [" + str(
-            face_index) + "], please make sure the buil_latlon_box generates the correct results")
+        raise ValueError("No intersections are found for the face , please make sure the buil_latlon_box generates the correct results")
     if face_lon_bound_min < face_lon_bound_max:
         # Normal case
         cur_face_mag_rad = pt_lon_max - pt_lon_min

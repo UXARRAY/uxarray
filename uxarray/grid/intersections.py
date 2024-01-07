@@ -131,7 +131,8 @@ def gca_constLat_intersection(gca_cart,
 
     Parameters
     ----------
-    gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
+    gca_cart : [2, 3] np.ndarray
+        Cartesian coordinates of the two end points GCA.
     constLat : float
         The constant latitude of the latitude line.
     fma_disabled : bool, optional (default=False)
