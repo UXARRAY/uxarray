@@ -2,6 +2,7 @@
 
 import numpy as np
 import uxarray as ux
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 from uxarray.grid.intersections import gca_constLat_intersection
 
 
@@ -21,15 +22,76 @@ def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
     float
         The weight of the face
     '''
-    intersections_pts_list = np.array([])
+    pt_lon_min = 3 * np.pi
+    pt_lon_max = -3 * np.pi
+
+    intersections_pts_list_lonlat = []
     for edge in face_edges_cart:
+        n1 = edge[0]
+        n2 = edge[1]
 
-        # calculate the intersection points between the edge and the constant latitude
-        intersections = gca_constLat_intersection(edge, latitude_cart)
+        # Skip the dummy edge
+        if np.any(n1 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]) or np.any(n2 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]):
+            continue
+        n1_lonlat = _convert_node_xyz_to_lonlat_rad(n1)
+        n2_lonlat = _convert_node_xyz_to_lonlat_rad(n2)
+        intersections = get_intersection_point_gcr_constlat([n1, n2], latitude_rad)
+        if intersections[0] == [-1, -1, -1] and intersections[1] == [-1, -1, -1]:
+            # The constant latitude didn't cross this edge
+            continue
+        elif intersections[0] != [-1, -1, -1] and intersections[1] != [-1, -1, -1]:
+            # The constant latitude goes across this edge ( 1 in and 1 out):
+            intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[0]))
+            intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[1]))
+        else:
+            if intersections[0] != [-1, -1, -1]:
+                intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[0]))
+            else:
+                intersections_pts_list_lonlat.append(_convert_node_xyz_to_lonlat_rad(intersections[1]))
 
-        # Only proceed if there are intersections
-        if intersections.size > 0:
-            intersections_pts_list = np.append(intersections_pts_list, intersections)
+    # If an edge of a face is overlapped by the constant lat, then it will have 4 non-unique intersection pts
+    unique_intersection = np.unique(intersections_pts_list_lonlat, axis=0)
+    if len(unique_intersection) == 2:
+        # The normal convex case:
+        [pt_lon_min, pt_lon_max] = np.sort(
+            [unique_intersection[0][0], unique_intersection[1][0]])
+    elif len(unique_intersection) != 0:
+        # The concave cases
+        raise ValueError(
+            "UXarray doesn't support concave face [" + str(face_index) + "] with intersections points as [" + str(
+                len(unique_intersection)) + "] currently, please modify your grids accordingly")
+    elif len(unique_intersection) == 0:
+        # No intersections are found in this face
+        raise ValueError("No intersections are found for face [" + str(
+            face_index) + "], please make sure the buil_latlon_box generates the correct results")
+    if face_lon_bound_min < face_lon_bound_max:
+        # Normal case
+        cur_face_mag_rad = pt_lon_max - pt_lon_min
+    else:
+        # Longitude wrap-around
+        # TODO: Need to think more marginal cases
+
+        if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
+            # They're both on the "left side" of the 0-lon
+            cur_face_mag_rad = pt_lon_max - pt_lon_min
+        if pt_lon_max <= np.pi and pt_lon_min <= np.pi:
+            # They're both on the "right side" of the 0-lon
+            cur_face_mag_rad = pt_lon_max - pt_lon_min
+        else:
+            # They're at the different side of the 0-lon
+            cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
+    if np.abs(cur_face_mag_rad) > 2 * np.pi:
+        print("At face: " + str(face_index) + "Problematic lat is " + str(
+            latitude_rad) + " And the cur_face_mag_rad is " + str(cur_face_mag_rad))
+        # assert(cur_face_mag_rad <= np.pi)
+
+    # TODO：Marginal Case when two faces share an edge that overlaps with the constant latitude
+    if n1_lonlat[1] == n2_lonlat[1] and (
+            np.abs(np.abs(n1_lonlat[1] - n2_lonlat[1]) - np.abs(cur_face_mag_rad)) < 1e-12):
+        # An edge overlaps with the constant latitude
+        overlap_interval_tree.addi(n1_lonlat[0], n2_lonlat[0], face_index)
+
+    candidate_faces_weight_list[i] = cur_face_mag_rad
 
 def _get_zonal_face_weights_at_constlat(self, candidate_faces_index_list, latitude_rad):
     # Then calculate the weight of each face
