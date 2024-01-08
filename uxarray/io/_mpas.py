@@ -165,7 +165,7 @@ def _parse_node_xyz_coords(in_ds, out_ds, mesh_type):
         node_y = in_ds['yVertex'].values
         node_z = in_ds['zVertex'].values
     else:
-        # corners of dual-mesh cells (artesian)
+        # corners of dual-mesh cells (cartesian)
         node_x = in_ds['xCell'].values
         node_y = in_ds['yCell'].values
         node_z = in_ds['zCell'].values
