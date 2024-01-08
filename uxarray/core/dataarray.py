@@ -363,9 +363,24 @@ class UxDataArray(xr.DataArray):
 
     def isel(self, ignore_grid=False, *args, **kwargs):
         """Grid-informed implementation of xarray's ``isel`` method, which
-        enables indexing across grid dimensions (a.k.a.
+        enables indexing across grid dimensions.
 
-        ``n_node``, ``n_edge``, or ``n_face``)
+        Subsetting across grid dimensions ('n_node', 'n_edge', or 'n_face') returns will return a new UxDataArray with
+        a newly initialized Grid only containing those elements.
+
+        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
+        any face that contains that element is included in the resulting subset. This means that additional elements
+        beyond those that were initially provided in the indices will be included. Support for more methods, such as
+        exclusive and clipped indexing is in the works.
+
+        Parameters
+        **kwargs: kwargs
+            Dimension to index, one of ['n_node', 'n_edge', 'n_face'] for grid-indexing, or any other dimension for
+            regular xarray indexing
+
+        Example
+        -------
+        > uxda.subset(n_node=[1, 2, 3])
         """
 
         from uxarray.constants import GRID_DIMS
