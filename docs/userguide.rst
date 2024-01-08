@@ -12,9 +12,10 @@ common tasks that you can accomplish with UXarray.
    :maxdepth: 2
 
    user-guide/terminology.rst
-   user-guide/data-structures.rst
    user-guide/representation.rst
-   user-guide/coordinates.rst
-   user-guide/connectivity.rst
-   user-guide/grid-quantities.rst
    user-guide/grid-formats.rst
+   user-guide/data-structures.ipynb
+   user-guide/plotting.ipynb
+   user-guide/face-area.ipynb
+   user-guide/distance.ipynb
+   user-guide/remapping.ipynb

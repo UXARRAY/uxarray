@@ -1,12 +1,14 @@
 .. currentmodule:: uxarray
 
 
+=================
+Supported Formats
+=================
 
-=================================
-Grid File Formats and Differences
-=================================
+Overview
+=========
 
-.. list-table:: Comparison Grids Supported by UXARRAY
+.. list-table:: Comparison of Supported Grid Formats
    :header-rows: 1
 
    * - Feature
@@ -56,7 +58,6 @@ Grid File Formats and Differences
      - \*.scrip, \*.nc
 
 
-================================
 Specific Details of Grid Formats
 ================================
 
