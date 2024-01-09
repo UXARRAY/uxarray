@@ -8,7 +8,8 @@ from uxarray.grid.intersections import gca_constLat_intersection
 
 def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon_bound):
     '''
-
+    Requires the face edges to be sorted in counter-clockwise order. And the span of the face in longitude is less than pi.
+    And all arcs/edges length are within pi.
     Parameters
     ----------
     face_edges_cart : np.ndarray
@@ -68,7 +69,7 @@ def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon
     elif len(unique_intersection) == 0:
         # No intersections are found in this face
         raise ValueError("No intersections are found for the face , please make sure the buil_latlon_box generates the correct results")
-
+    cur_face_mag_rad = 0.0
     # Calculate the weight of the face in radian
     if face_lon_bound_min < face_lon_bound_max:
         # Normal case
@@ -76,11 +77,10 @@ def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon
     else:
         # Longitude wrap-around
         # TODO: Need to think more marginal cases
-
         if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
             # They're both on the "left side" of the 0-lon
             cur_face_mag_rad = pt_lon_max - pt_lon_min
-        if pt_lon_max <= np.pi and pt_lon_min <= np.pi:
+        if 0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi:
             # They're both on the "right side" of the 0-lon
             cur_face_mag_rad = pt_lon_max - pt_lon_min
         else:
