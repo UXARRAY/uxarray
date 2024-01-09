@@ -126,6 +126,10 @@ def _populate_n_nodes_per_face(grid):
     n_nodes_per_face = _build_n_nodes_per_face(
         grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes)
 
+    if n_nodes_per_face.ndim == 0:
+        # convert scalar value into a [1, 1] array
+        n_nodes_per_face = np.expand_dims(n_nodes_per_face, 0)
+
     # add to internal dataset
     grid._ds["n_nodes_per_face"] = xr.DataArray(
         data=n_nodes_per_face,
