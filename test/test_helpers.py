@@ -280,7 +280,11 @@ class TestIntersectionPoint(TestCase):
         gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
                                                           0.593]])
         with self.assertRaises(ValueError):
-            point_within_gca(pt_cart, gcr_cart_flip)
+            point_within_gca(pt_cart, gcr_cart_flip, is_directed=True)
+
+        # If we flip the gcr in the undirected mode, it should still work
+        self.assertTrue(
+            point_within_gca(pt_cart, gcr_cart_flip, is_directed=False))
 
         # 2nd anti-meridian case
         # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
@@ -290,7 +294,10 @@ class TestIntersectionPoint(TestCase):
                                                          -0.007]])
         pt_cart_within = np.array(
             [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
-        self.assertFalse(point_within_gca(pt_cart_within, gcr_cart_1))
+        self.assertFalse(
+            point_within_gca(pt_cart_within, gcr_cart_1, is_directed=True))
+        self.assertFalse(
+            point_within_gca(pt_cart_within, gcr_cart_1, is_directed=False))
 
         # The first case should not work and the second should work
         v1_rad = [0.1, 0.0]
