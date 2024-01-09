@@ -6,7 +6,7 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 from uxarray.grid.intersections import gca_constLat_intersection
 
 
-def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon_bound):
+def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound):
     '''
     Requires the face edges to be sorted in counter-clockwise order. And the span of the face in longitude is less than pi.
     And all arcs/edges length are within pi.
@@ -30,7 +30,7 @@ def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon
     pt_lon_max = -3 * np.pi
 
     intersections_pts_list_cart = []
-    face_lon_bound_min, face_lon_bound_max = face_latlon_bound[1]
+    face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
 
     for edge in face_edges_cart:
         n1 = edge[0]
@@ -71,12 +71,11 @@ def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon
         raise ValueError("No intersections are found for the face , please make sure the buil_latlon_box generates the correct results")
     cur_face_mag_rad = 0.0
     # Calculate the weight of the face in radian
-    if face_lon_bound_min < face_lon_bound_max:
+    if face_lon_bound_left < face_lon_bound_right:
         # Normal case
         cur_face_mag_rad = pt_lon_max - pt_lon_min
     else:
         # Longitude wrap-around
-        # TODO: Need to think more marginal cases
         if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
             # They're both on the "left side" of the 0-lon
             cur_face_mag_rad = pt_lon_max - pt_lon_min
@@ -86,18 +85,11 @@ def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon
         else:
             # They're at the different side of the 0-lon
             cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
-    if np.abs(cur_face_mag_rad) > 2 * np.pi:
-        print("At face: " + str(face_index) + "Problematic lat is " + str(
-            latitude_rad) + " And the cur_face_mag_rad is " + str(cur_face_mag_rad))
-        # assert(cur_face_mag_rad <= np.pi)
+    if np.abs(cur_face_mag_rad) >= 2 * np.pi:
+        print("Problematic face: the face span is " + str(cur_face_mag_rad) + ". The span should be less than 2pi")
 
-    # TODO：Marginal Case when two faces share an edge that overlaps with the constant latitude
-    if n1_lonlat[1] == n2_lonlat[1] and (
-            np.abs(np.abs(n1_lonlat[1] - n2_lonlat[1]) - np.abs(cur_face_mag_rad)) < 1e-12):
-        # An edge overlaps with the constant latitude
-        overlap_interval_tree.addi(n1_lonlat[0], n2_lonlat[0], face_index)
+    return cur_face_mag_rad
 
-    candidate_faces_weight_list[i] = cur_face_mag_rad
 
 def _get_zonal_face_weights_at_constlat(self, candidate_faces_index_list, latitude_rad):
     # Then calculate the weight of each face
