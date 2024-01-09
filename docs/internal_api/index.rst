@@ -76,6 +76,7 @@ Methods
    UxDataArray._replace
    UxDataArray._face_centered
    UxDataArray._node_centered
+   UxDataArray._slice_from_grid
 
 Grid
 ====
@@ -294,3 +295,22 @@ Visualization
    plot.dataarray_plot._plot_data_as_points
    plot.dataarray_plot._polygon_raster
    plot.dataarray_plot._point_raster
+
+Slicing
+-------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.slice._slice_node_indices
+   grid._slice_edge_indices
+   grid._slice_face_indices
+
+
+
+Subsetting
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   subset.grid_accessor.GridSubsetAccessor
+   subset.dataarray_accessor.DataArraySubsetAccessor
