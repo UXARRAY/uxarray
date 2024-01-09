@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 from uxarray.constants import INT_FILL_VALUE
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, Tuple, List, Optional
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -17,9 +17,6 @@ class DataArraySubsetAccessor:
     def __init__(self, uxda) -> None:
         self.uxda = uxda
 
-    def __call__(self):
-        return repr(self)
-
     def __repr__(self):
         prefix = "<uxarray.UxDataArray.subset>\n"
         methods_heading = "Supported Methods:\n"
@@ -31,10 +28,10 @@ class DataArraySubsetAccessor:
         return prefix + methods_heading
 
     def bounding_box(self,
-                     lon_bounds,
-                     lat_bounds,
-                     method='coords',
-                     element='nodes'):
+                     lon_bounds: Union[Tuple, List, np.ndarray],
+                     lat_bounds: Union[Tuple, List, np.ndarray],
+                     method: Optional[str] = 'coords',
+                     element: Optional[str] = 'nodes'):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
 
@@ -43,10 +40,10 @@ class DataArraySubsetAccessor:
 
         Parameters
         ----------
-        lon_bounds: tuple
+        lon_bounds: tuple, list, np.ndarray
             (lon_left, lon_right) where lon_left < lon_right when the bounding box does not span
             the antimeridian, otherwise lon_left > lon_right, both between [-180, 180]
-        lat_bounds: tuple
+        lat_bounds: tuple, list, np.ndarray
             (lat_bottom, lat_top) where lat_top > lat_bottom and between [-90, 90]
         method: str
             Bounding Box Method, currently supports 'coords', which ensures the coordinates of the corner nodes,
@@ -59,15 +56,19 @@ class DataArraySubsetAccessor:
 
         return self.uxda._slice_from_grid(grid)
 
-    def bounding_circle(self, center_coord, r, element='nodes', **kwargs):
+    def bounding_circle(self,
+                        center_coord: Union[Tuple, List, np.ndarray],
+                        r: Union[float, int],
+                        element: Optional[str] = 'nodes',
+                        **kwargs):
         """Subsets an unstructured grid by returning all elements within some
         radius (in degrees) from a center coord.
 
         Parameters
         ----------
-        center_coord : tuple
+        center_coord : tuple, list, np.ndarray
             Longitude and latitude of the center of the bounding circle
-        r: scalar
+        r: scalar, int, float
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
@@ -76,13 +77,17 @@ class DataArraySubsetAccessor:
                                                        **kwargs)
         return self.uxda._slice_from_grid(grid)
 
-    def nearest_neighbor(self, center_coord, k, element='nodes', **kwargs):
+    def nearest_neighbor(self,
+                         center_coord: Union[Tuple, List, np.ndarray],
+                         k: int,
+                         element: Optional[str] = 'nodes',
+                         **kwargs):
         """Subsets an unstructured grid by returning the ``k`` closest
         neighbors from a center coordinate.
 
         Parameters
         ----------
-        center_coord : tuple
+        center_coord : tuple, list, np.ndarray
             Longitude and latitude of the center of the bounding circle
         k: int
             Number of neighbors to query
