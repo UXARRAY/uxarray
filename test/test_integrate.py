@@ -7,6 +7,8 @@ import numpy as np
 import numpy.testing as nt
 
 import uxarray as ux
+from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
+from uxarray.grid.integrate import _get_zonal_face_weight_rad
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -54,3 +56,21 @@ class TestIntegrate(TestCase):
         assert integral.ndim == len(dims) - 1
 
         nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)
+
+class TestFaceWeights(TestCase):
+
+    def test_get_zonal_face_weight_rad(self):
+        """Test that the zonal face weights are correct."""
+        vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi], [-0.4 * np.pi, - 0.25 * np.pi],
+                           [0.4*np.pi, -0.25 * np.pi], [0.4 * np.pi, 0.25 * np.pi]]
+        vertices = [node_lonlat_rad_to_xyz(v) for v in vertices_lonlat]
+
+        face_edge_nodes = np.array([[vertices[0], vertices[1]], [vertices[1], vertices[2]],
+                           [vertices[2], vertices[3]], [vertices[3], vertices[0]]])
+
+        # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
+        weight = _get_zonal_face_weight_rad(face_edge_nodes, 0.20, np.array([[-0.25 * np.pi, 0.25 * np.pi],[-0.4 * np.pi,0.4 * np.pi]]))
+        pass
+
+
+
