@@ -39,9 +39,9 @@ class KDTree:
     def __init__(self,
                  grid,
                  coordinates: Optional[str] = "nodes",
-                 coordinate_system="cartesian",
-                 distance_metric="minkowski",
-                 reconstruct=False):
+                 coordinate_system: Optional[str] = "cartesian",
+                 distance_metric: Optional[str] = "minkowski",
+                 reconstruct: bool = False):
 
         # Set up references
         self._source_grid = grid
@@ -65,7 +65,9 @@ class KDTree:
             self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
-            raise ValueError
+            raise ValueError(
+                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
+                f"or 'edge centers'")
 
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
@@ -85,7 +87,9 @@ class KDTree:
                      deg2rad(self._source_grid.node_lon.values))).T
 
             else:
-                raise TypeError
+                raise TypeError(
+                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
+                    f"'spherical'")
 
             self._tree_from_nodes = SKKDTree(coords,
                                              metric=self.distance_metric)
@@ -110,7 +114,9 @@ class KDTree:
                      deg2rad(self._source_grid.face_lon.values))).T
 
             else:
-                raise ValueError
+                raise ValueError(
+                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
+                    f"'spherical'")
 
             self._tree_from_face_centers = SKKDTree(coords,
                                                     metric=self.distance_metric)
@@ -125,7 +131,7 @@ class KDTree:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
-                    raise ValueError
+                    raise ValueError("edge_x isn't populated")
 
                 coords = np.stack((self._source_grid.edge_x.values,
                                    self._source_grid.edge_y.values,
@@ -134,14 +140,16 @@ class KDTree:
 
             elif self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
-                    raise ValueError
+                    raise ValueError("edge_lat isn't populated")
 
                 coords = np.vstack(
                     (deg2rad(self._source_grid.edge_lat.values),
                      deg2rad(self._source_grid.edge_lon.values))).T
 
             else:
-                raise ValueError
+                raise ValueError(
+                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
+                    f"'spherical'")
 
             self._tree_from_edge_centers = SKKDTree(coords,
                                                     metric=self.distance_metric)
@@ -159,7 +167,9 @@ class KDTree:
         elif self._coordinates == "edge centers":
             _tree = self._tree_from_edge_centers
         else:
-            raise TypeError
+            raise TypeError(
+                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
+                f"or 'edge centers'")
 
         return _tree
 
@@ -209,7 +219,9 @@ class KDTree:
                                            in_radians,
                                            distance_metric=self.distance_metric)
         else:
-            raise ValueError
+            raise ValueError(
+                f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
+                f"'spherical'")
 
         # perform query with distance
         if return_distance:
@@ -287,7 +299,9 @@ class KDTree:
                                            in_radians,
                                            distance_metric=self.distance_metric)
         else:
-            raise ValueError
+            raise ValueError(
+                f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
+                f"'spherical'")
 
         if count_only:
             count = self._current_tree().query_radius(coords, r,
@@ -344,7 +358,9 @@ class KDTree:
                 self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
-            raise ValueError
+            raise ValueError(
+                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
+                f"or 'edge centers'")
 
 
 class BallTree:
@@ -375,9 +391,9 @@ class BallTree:
     def __init__(self,
                  grid,
                  coordinates: Optional[str] = "nodes",
-                 coordinate_system="spherical",
-                 distance_metric='haversine',
-                 reconstruct=False):
+                 coordinate_system: Optional[str] = "spherical",
+                 distance_metric: Optional[str] = 'haversine',
+                 reconstruct: bool = False):
 
         # maintain a reference to the source grid
         self._source_grid = grid
@@ -401,7 +417,9 @@ class BallTree:
             self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
-            raise ValueError
+            raise ValueError(
+                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
+                f"or 'edge centers'")
 
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from face
@@ -420,7 +438,9 @@ class BallTree:
                                    self._source_grid.face_z.values),
                                   axis=-1)
             else:
-                raise ValueError
+                raise ValueError(
+                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
+                    f"'spherical'")
 
             self._tree_from_face_centers = SKBallTree(
                 coords, metric=self.distance_metric)
@@ -456,7 +476,7 @@ class BallTree:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
-                    raise ValueError
+                    raise ValueError("edge_lat isn't populated")
 
                 coords = np.vstack(
                     (deg2rad(self._source_grid.edge_lat.values),
@@ -464,14 +484,16 @@ class BallTree:
 
             elif self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
-                    raise ValueError
+                    raise ValueError("edge_x isn't populated")
 
                 coords = np.stack((self._source_grid.edge_x.values,
                                    self._source_grid.edge_y.values,
                                    self._source_grid.edge_z.values),
                                   axis=-1)
             else:
-                raise ValueError
+                raise ValueError(
+                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
+                    f"'spherical'")
 
             self._tree_from_edge_centers = SKBallTree(
                 coords, metric=self.distance_metric)
@@ -489,7 +511,9 @@ class BallTree:
         elif self._coordinates == "edge centers":
             _tree = self._tree_from_edge_centers
         else:
-            raise TypeError
+            raise TypeError(
+                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
+                f"or 'edge centers'")
 
         return _tree
 
@@ -674,7 +698,9 @@ class BallTree:
                 self._tree_from_edge_centers = self._build_from_edge_centers()
             self._n_elements = self._source_grid.n_edge
         else:
-            raise ValueError
+            raise ValueError(
+                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
+                f"or 'edge centers'")
 
 
 def _prepare_xy_for_query(xy, use_radians, distance_metric):

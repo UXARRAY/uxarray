@@ -740,9 +740,9 @@ class Grid:
 
     def get_ball_tree(self,
                       coordinates: Optional[str] = "nodes",
-                      coordinate_system="spherical",
-                      distance_metric="haversine",
-                      reconstruct=False):
+                      coordinate_system: Optional[str] = "spherical",
+                      distance_metric: Optional[str] = "haversine",
+                      reconstruct: bool = False):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_lon``, ``node_lat``) or face centers (``face_lon``,
@@ -780,9 +780,9 @@ class Grid:
 
     def get_kd_tree(self,
                     coordinates: Optional[str] = "nodes",
-                    coordinate_system="cartesian",
-                    distance_metric="minkowski",
-                    reconstruct=False):
+                    coordinate_system: Optional[str] = "cartesian",
+                    distance_metric: Optional[str] = "minkowski",
+                    reconstruct: bool = False):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
