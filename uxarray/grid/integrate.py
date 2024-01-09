@@ -6,7 +6,7 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 from uxarray.grid.intersections import gca_constLat_intersection
 
 
-def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
+def _get_zonal_face_weight_rad(self, face_edges_cart, latitude_cart, face_latlon_bound):
     '''
 
     Parameters
@@ -17,15 +17,20 @@ def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
     latitude_cart : float
         The latitude in Cartesian coordinates (The normalized z coordinate)
 
+    face_latlon_bound : np.ndarray
+        The latitude and longitude bounds of the face. Shape: (2, 2), [[lat_min, lat_max], [lon_min, lon_max]]
+
     Returns
     -------
     float
-        The weight of the face
+        The weight of the face in radian
     '''
     pt_lon_min = 3 * np.pi
     pt_lon_max = -3 * np.pi
 
     intersections_pts_list_cart = []
+    face_lon_bound_min, face_lon_bound_max = face_latlon_bound[1]
+
     for edge in face_edges_cart:
         n1 = edge[0]
         n2 = edge[1]
@@ -50,8 +55,11 @@ def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
     unique_intersection = np.unique(intersections_pts_list_cart, axis=0)
     if len(unique_intersection) == 2:
         # The normal convex case:
+
+        #Convert the intersection points back to lonlat
+        unique_intersection_lonlat = np.array([ux.grid.arcs.node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection])
         [pt_lon_min, pt_lon_max] = np.sort(
-            [unique_intersection[0][0], unique_intersection[1][0]])
+            [unique_intersection_lonlat[0][0], unique_intersection_lonlat[1][0]])
     elif len(unique_intersection) != 0:
         # The concave cases
         raise ValueError(
@@ -60,6 +68,8 @@ def _get_zonal_face_weight(self, face_edges_cart, latitude_cart):
     elif len(unique_intersection) == 0:
         # No intersections are found in this face
         raise ValueError("No intersections are found for the face , please make sure the buil_latlon_box generates the correct results")
+
+    # Calculate the weight of the face in radian
     if face_lon_bound_min < face_lon_bound_max:
         # Normal case
         cur_face_mag_rad = pt_lon_max - pt_lon_min
