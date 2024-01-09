@@ -53,7 +53,7 @@ class DataArraySubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
         grid = self.uxda.uxgrid.subset.bounding_box(lon_bounds, lat_bounds,
-                                                    method, element)
+                                                    element, method)
 
         return self.uxda._slice_from_grid(grid)
 
