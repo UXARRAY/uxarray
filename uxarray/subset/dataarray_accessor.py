@@ -23,15 +23,16 @@ class DataArraySubsetAccessor:
 
         methods_heading += "  * nearest_neighbor(center_coord, k, element, **kwargs)\n"
         methods_heading += "  * bounding_circle(center_coord, r, element, **kwargs)\n"
-        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, method, element)\n"
+        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
 
         return prefix + methods_heading
 
     def bounding_box(self,
                      lon_bounds: Union[Tuple, List, np.ndarray],
                      lat_bounds: Union[Tuple, List, np.ndarray],
+                     element: Optional[str] = 'nodes',
                      method: Optional[str] = 'coords',
-                     element: Optional[str] = 'nodes'):
+                     **kwargs):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
 

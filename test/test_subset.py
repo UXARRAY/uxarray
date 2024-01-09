@@ -68,11 +68,37 @@ def test_grid_nn_subset():
         for coord in coord_locs:
             for k in ks:
                 grid_subset = grid.subset.nearest_neighbor(
-                    coord, k, element="face centers")
+                    coord, k, "face centers")
+
                 assert grid_subset.n_face == k
+                assert isinstance(grid_subset, ux.Grid)
 
 
 def test_grid_bounding_circle_subset():
     coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
+    rs = [45, 90, 180]
 
-    # TODO
+    for grid_path in GRID_PATHS:
+        grid = ux.open_grid(grid_path)
+        for element in ["nodes", "face centers"]:
+            for coord in coord_locs:
+                for r in rs:
+                    grid_subset = grid.subset.bounding_circle(coord, r, element)
+
+                    assert isinstance(grid_subset, ux.Grid)
+
+
+def test_grid_bounding_box_subset():
+    bbox = [(-10, 10), (-10, 10)]
+    bbox_antimeridian = [(-170, 170), (-45, 45)]
+
+    for element in ["nodes", "face centers"]:
+        for grid_path in GRID_PATHS:
+            grid = ux.open_grid(grid_path)
+
+            grid_subset = grid.subset.bounding_box(bbox[0],
+                                                   bbox[1],
+                                                   element=element)
+
+            grid_subset_antimeridian = grid.subset.bounding_box(
+                bbox_antimeridian[0], bbox_antimeridian[1], element=element)
