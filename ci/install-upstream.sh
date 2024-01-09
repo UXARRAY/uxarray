@@ -22,23 +22,16 @@ conda remove -y --force \
 # conda list
 conda list
 
-# if available install from scipy nightly wheels
-python -m pip install \
-    -i https://pypi.anaconda.org/scipy-wheels-nightly/simple \
-    --no-deps \
-    --pre \
-    --upgrade \
-    numpy \
-    pandas \
-    scikit-learn \
-    scipy
-
 # if available install from scientific-python nightly wheels
 python -m pip install \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --no-deps \
     --pre \
     --upgrade \
+    numpy \
+    pandas \
+    scikit-learn \
+    scipy \
     xarray
 
 # install rest from source
