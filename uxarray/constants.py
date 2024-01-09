@@ -8,3 +8,5 @@ ERROR_TOLERANCE = 1.0e-15
 
 ENABLE_JIT_CACHE = True
 ENABLE_JIT = True
+
+GRID_DIMS = ['n_node', 'n_edge', 'n_face']
