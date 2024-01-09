@@ -26,17 +26,17 @@ Overview
      - Unstructured
      - Unstructured
      - Unstructured
-   * - Topology
+   * - Topology variables
      - Nodes, Cells, Faces. (Can read primal and dual meshes)
      - Nodes, Elements
      - Nodes, Edges, Faces
      - Nodes, Elements
-   * - Coordinates
+   * - Coordinates variables
      - Cartesian: xVertex, yVertex, zVertex. Spherical: lonVertex, latVertex.
      - Cartesian: coordx, coordy, coordz
      - Spherical: node_lon, node_lat
      - Spherical: grid_corner_lon, grid_corner_lat
-   * - Connectivity
+   * - Connectivity variables
      - verticesOnEdge, verticesOnCell, edgesOnVertex, edgesOnCell, cellsOnVertex
      - connect
      - face_node_connectivity
@@ -53,7 +53,7 @@ Overview
      - Arbitrary shaped 2D polygons
    * - File Extension
      - \*.nc
-     - \*.exo, \*.e
+     - \*.exo, \*.e, *.g
      - \*.nc
      - \*.scrip, \*.nc
 
