@@ -29,6 +29,7 @@ dependencies:
     - geoviews
     - cartopy
     - pandas<2.1.0
+    - geocat-datafiles
     - pip:
       - antimeridian
       - pyfma
