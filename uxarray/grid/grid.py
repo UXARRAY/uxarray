@@ -144,7 +144,7 @@ class Grid:
     def from_dataset(cls,
                      dataset: xr.Dataset,
                      use_dual: Optional[bool] = False,
-                     source_grid_spec: Optional[str] = None):
+                     **kwargs):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
         Parameters
@@ -153,15 +153,13 @@ class Grid:
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
-        source_grid_spec: str, default=None
-            TODO
         """
         if not isinstance(dataset, xr.Dataset):
             raise ValueError("Input must be an xarray.Dataset")
 
         # determine grid/mesh specification
 
-        if source_grid_spec is None:
+        if "source_grid_spec" not in kwargs:
             # parse to detect source grid spec
 
             source_grid_spec = _parse_grid_type(dataset)
@@ -180,6 +178,7 @@ class Grid:
                 raise ValueError("Unsupported Grid Format")
         else:
             # custom source grid spec is provided
+            source_grid_spec = kwargs.get("source_grid_spec", None)
             grid_ds = dataset
             source_dims_dict = {}
 
