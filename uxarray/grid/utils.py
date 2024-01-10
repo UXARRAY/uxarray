@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import warnings
 import uxarray.utils.computing as ac_utils
 
@@ -42,8 +42,10 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
         int_max = np.iinfo(grid_var.dtype).max
         # ensure new_fill is in range [int_min, int_max]
         if new_fill < int_min or new_fill > int_max:
-            raise ValueError(f'New fill value: {new_fill} not representable by'
-                             f' integer dtype: {grid_var.dtype}')
+            raise ValueError(
+                f"New fill value: {new_fill} not representable by"
+                f" integer dtype: {grid_var.dtype}"
+            )
 
     # ensure non-nan fill value can be represented with current float data type
     elif np.issubdtype(new_dtype, np.floating) and not np.isnan(new_fill):
@@ -51,11 +53,14 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
         float_max = np.finfo(grid_var.dtype).max
         # ensure new_fill is in range [float_min, float_max]
         if new_fill < float_min or new_fill > float_max:
-            raise ValueError(f'New fill value: {new_fill} not representable by'
-                             f' float dtype: {grid_var.dtype}')
+            raise ValueError(
+                f"New fill value: {new_fill} not representable by"
+                f" float dtype: {grid_var.dtype}"
+            )
     else:
-        raise ValueError(f'Data type {grid_var.dtype} not supported'
-                         f'for grid variables')
+        raise ValueError(
+            f"Data type {grid_var.dtype} not supported" f"for grid variables"
+        )
 
     # replace all zeros with a fill value
     grid_var[fill_val_idx] = new_fill
@@ -107,10 +112,10 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
     # The Jacobian Matrix
-    jacobian = [[
-        ac_utils._fmms(y0, z1, z0, y1),
-        ac_utils._fmms(x0, z1, z0, x1)
-    ], [2 * x_i_old, 2 * y_i_old]]
+    jacobian = [
+        [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
+        [2 * x_i_old, 2 * y_i_old],
+    ]
     try:
         inverse_jacobian = np.linalg.inv(jacobian)
     except np.linalg.LinAlgError:
@@ -120,10 +125,9 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     return inverse_jacobian
 
 
-def _newton_raphson_solver_for_gca_constLat(init_cart,
-                                            gca_cart,
-                                            max_iter=1000,
-                                            verbose=False):
+def _newton_raphson_solver_for_gca_constLat(
+    init_cart, gca_cart, max_iter=1000, verbose=False
+):
     """Solve for the intersection point between a great circle arc and a
     constant latitude.
 
@@ -139,7 +143,7 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
     """
     tolerance = ERROR_TOLERANCE
     w0_cart, w1_cart = gca_cart
-    error = float('inf')
+    error = float("inf")
     constZ = init_cart[2]
     y_guess = np.array(init_cart[0:2])
     y_new = y_guess
@@ -147,15 +151,29 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
     _iter = 0
 
     while error > tolerance and _iter < max_iter:
-        f_vector = np.array([
-            np.dot(np.cross(w0_cart, w1_cart),
-                   np.array([y_guess[0], y_guess[1],
-                             constZ])), y_guess[0] * y_guess[0] +
-            y_guess[1] * y_guess[1] + constZ * constZ - 1.0
-        ])
+        f_vector = np.array(
+            [
+                np.dot(
+                    np.cross(w0_cart, w1_cart),
+                    np.array([y_guess[0], y_guess[1], constZ]),
+                ),
+                y_guess[0] * y_guess[0]
+                + y_guess[1] * y_guess[1]
+                + constZ * constZ
+                - 1.0,
+            ]
+        )
 
-        j_inv = _inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1],
-                              w0_cart[2], w1_cart[2], y_guess[0], y_guess[1])
+        j_inv = _inv_jacobian(
+            w0_cart[0],
+            w1_cart[0],
+            w0_cart[1],
+            w1_cart[1],
+            w0_cart[2],
+            w1_cart[2],
+            y_guess[0],
+            y_guess[1],
+        )
 
         if j_inv is None:
             return None
@@ -172,8 +190,9 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
 
 
 # TODO: Consider re-implementation in the future / better integration with API
-def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
-                                   edge_nodes_grid, node_x, node_y, node_z):
+def _get_cartesian_face_edge_nodes(
+    face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+):
     """Construct an array to hold the edge Cartesian coordinates connectivity
     for a face in a grid.
 
@@ -221,8 +240,10 @@ def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
 
     # Fetch coordinates for each node in the face edges
     cartesian_coordinates = np.array(
-        [[[node_x[node], node_y[node], node_z[node]]
-          for node in edge]
-         for edge in face_edges])
+        [
+            [[node_x[node], node_y[node], node_z[node]] for node in edge]
+            for edge in face_edges
+        ]
+    )
 
     return cartesian_coordinates
