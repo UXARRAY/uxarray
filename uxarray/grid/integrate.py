@@ -6,7 +6,7 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 from uxarray.grid.intersections import gca_constLat_intersection
 
 
-def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound):
+def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound, is_directed=True):
     '''
     Requires the face edges to be sorted in counter-clockwise order. And the span of the face in longitude is less than pi.
     And all arcs/edges length are within pi.
@@ -20,6 +20,10 @@ def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound
 
     face_latlon_bound : np.ndarray
         The latitude and longitude bounds of the face. Shape: (2, 2), [[lat_min, lat_max], [lon_min, lon_max]]
+
+    is_directed : bool, optional (default=True)
+        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
     Returns
     -------
@@ -39,7 +43,7 @@ def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound
         # Skip the dummy edge
         if np.any(n1 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]) or np.any(n2 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]):
             continue
-        intersections = gca_constLat_intersection([n1, n2], latitude_cart)
+        intersections = gca_constLat_intersection([n1, n2], latitude_cart, is_directed=is_directed)
         if intersections.size == 0:
             # The constant latitude didn't cross this edge
             continue
