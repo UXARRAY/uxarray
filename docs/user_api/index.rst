@@ -62,6 +62,7 @@ Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
+   :template: autosummary/accessor_method.rst
 
    UxDataset.plot
 
@@ -122,6 +123,7 @@ Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
+   :template: autosummary/accessor_method.rst
 
    UxDataArray.plot
    UxDataArray.plot.datashade
@@ -133,6 +135,7 @@ Subsetting
 ----------
 .. autosummary::
    :toctree: _autosummary
+   :template: autosummary/accessor_method.rst
 
    UxDataArray.subset
    UxDataArray.subset.nearest_neighbor
@@ -261,6 +264,7 @@ Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
+   :template: autosummary/accessor_method.rst
 
    Grid.plot
    Grid.plot.node_coords
@@ -276,52 +280,12 @@ Subsetting
 ----------
 .. autosummary::
    :toctree: _autosummary
+   :template: autosummary/accessor_method.rst
 
    Grid.subset
    Grid.subset.nearest_neighbor
    Grid.subset.bounding_circle
    Grid.subset.bounding_box
-
-
-
-
-Visualization
-=============
-
-Accessors
----------
-.. autosummary::
-   :toctree: _autosummary
-
-   plot.accessor.GridPlotAccessor
-   plot.accessor.UxDataArrayPlotAccessor
-   plot.accessor.UxDatasetPlotAccessor
-
-Grid Plotting Methods
----------------------
-.. autosummary::
-   :toctree: _autosummary
-
-   plot.grid_plot.mesh
-   plot.grid_plot.edges
-   plot.grid_plot.node_coords
-   plot.grid_plot.nodes
-   plot.grid_plot.face_coords
-   plot.grid_plot.face_centers
-   plot.grid_plot.edge_coords
-   plot.grid_plot.edge_centers
-
-
-UxDataArray Plotting Methods
-----------------------------
-.. autosummary::
-   :toctree: _autosummary
-
-   plot.dataarray_plot.datashade
-   plot.dataarray_plot.rasterize
-   plot.dataarray_plot.polygons
-   plot.dataarray_plot.points
-
 
 
 Nearest Neighbor Data Structures
