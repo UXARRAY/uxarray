@@ -80,11 +80,14 @@ def point_within_gca(pt, gca_cart, is_directed=False):
                        atol=ERROR_TOLERANCE):
         return False
 
-    # Special case: If the gcr goes across the anti-meridian
-    # If the pt and the GCR are on the same longitude (the y coordinates are the same)
-    if GCRv0_lonlat[0] == GCRv1_lonlat[0] == pt_lonlat[0]:
-        # Now use the latitude to determine if the pt falls between the interval
-        return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+    if GCRv0_lonlat[0] == GCRv1_lonlat[0]:
+        # If the pt and the GCA are on the same longitude (the y coordinates are the same)
+        if GCRv0_lonlat[0] == pt_lonlat[0]:
+            # Now use the latitude to determine if the pt falls between the interval
+            return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+        else:
+            # If the pt and the GCA are not on the same longitude when the GCA is a longnitude arc, then the pt is not on the GCA
+            return False
 
     if is_directed:
         # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
@@ -113,7 +116,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
         # sort the longitude
         GCRv0_lonlat_min, GCRv1_lonlat_max = sorted(
             [GCRv0_lonlat[0], GCRv1_lonlat[0]])
-        if np.pi > GCRv1_lonlat_max - GCRv0_lonlat_min > 0.0:
+        if np.pi > GCRv1_lonlat_max - GCRv0_lonlat_min >= 0.0:
             return in_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
         else:
             return in_between(GCRv1_lonlat_max,
