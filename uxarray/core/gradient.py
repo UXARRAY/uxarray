@@ -6,12 +6,14 @@ from uxarray.constants import INT_FILL_VALUE
 
 
 # @njit
-def _calculate_grad_on_edge(d_var,
-                            edge_faces,
-                            edge_face_distances,
-                            n_edge,
-                            use_magnitude: Optional[bool] = True,
-                            normalize: Optional[bool] = True):
+def _calculate_grad_on_edge(
+    d_var,
+    edge_faces,
+    edge_face_distances,
+    n_edge,
+    use_magnitude: Optional[bool] = True,
+    normalize: Optional[bool] = True,
+):
     """Helper function for computing the gradient on each edge.
 
     TODO: add algorithmic outline
@@ -43,9 +45,9 @@ def _calculate_grad_on_edge(d_var,
     grad = np.zeros(n_edge)
 
     # compute gradient (difference between cell-center value divided by arc length)
-    grad[saddle_mask] = (d_var[..., edge_faces[saddle_mask, 0]] -
-                         d_var[..., edge_faces[saddle_mask, 1]]
-                        ) / edge_face_distances[saddle_mask]
+    grad[saddle_mask] = (
+        d_var[..., edge_faces[saddle_mask, 0]] - d_var[..., edge_faces[saddle_mask, 1]]
+    ) / edge_face_distances[saddle_mask]
     if use_magnitude:
         # obtain magnitude if desired
         grad = np.abs(grad)

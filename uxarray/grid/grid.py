@@ -37,9 +37,12 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
 )
 
-from uxarray.grid.neighbors import (BallTree, KDTree,
-                                    _populate_edge_face_distances,
-                                    _populate_edge_node_distances)
+from uxarray.grid.neighbors import (
+    BallTree,
+    KDTree,
+    _populate_edge_face_distances,
+    _populate_edge_node_distances,
+)
 
 from uxarray.plot.accessor import GridPlotAccessor
 

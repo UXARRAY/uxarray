@@ -7,7 +7,6 @@ from numba import njit
 
 from sklearn.neighbors import BallTree as SKBallTree
 from sklearn.neighbors import KDTree as SKKDTree
-from sklearn.metrics.pairwise import haversine_distances
 
 from typing import Optional, Union
 
@@ -551,15 +550,16 @@ def _prepare_xyz_for_query(xyz):
 def _populate_edge_node_distances(grid):
     """Populates ``edge_node_distances``"""
     edge_node_distances = _construct_edge_node_distances(
-        grid.node_lon.values, grid.node_lat.values,
-        grid.edge_node_connectivity.values)
+        grid.node_lon.values, grid.node_lat.values, grid.edge_node_connectivity.values
+    )
 
     grid._ds["edge_node_distances"] = xr.DataArray(
         data=edge_node_distances,
         dims=["n_edge"],
         attrs={
             "long_name": "arc distance between the nodes of each edge",
-        })
+        },
+    )
 
 
 @njit
@@ -575,8 +575,9 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
 
     # arc length
     edge_node_distances = np.arccos(
-        np.sin(edge_lat_a) * np.sin(edge_lat_b) + np.cos(edge_lat_a) *
-        np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b))
+        np.sin(edge_lat_a) * np.sin(edge_lat_b)
+        + np.cos(edge_lat_a) * np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b)
+    )
 
     return edge_node_distances
 
@@ -584,16 +585,16 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
 def _populate_edge_face_distances(grid):
     """Populates ``edge_face_distances``"""
     edge_face_distances = _construct_edge_face_distances(
-        grid.node_lon.values, grid.node_lat.values,
-        grid.edge_face_connectivity.values)
+        grid.node_lon.values, grid.node_lat.values, grid.edge_face_connectivity.values
+    )
 
     grid._ds["edge_face_distances"] = xr.DataArray(
         data=edge_face_distances,
         dims=["n_edge"],
         attrs={
-            "long_name":
-                "arc distance between the face centers that saddle a given edge",
-        })
+            "long_name": "arc distance between the face centers that saddle a given edge",
+        },
+    )
 
 
 @njit
@@ -613,7 +614,8 @@ def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
 
     # arc length
     edge_face_distances[saddle_mask] = np.arccos(
-        np.sin(edge_lat_a) * np.sin(edge_lat_b) + np.cos(edge_lat_a) *
-        np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b))
+        np.sin(edge_lat_a) * np.sin(edge_lat_b)
+        + np.cos(edge_lat_a) * np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b)
+    )
 
     return edge_face_distances

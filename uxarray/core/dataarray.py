@@ -355,9 +355,9 @@ class UxDataArray(xr.DataArray):
             name=self.name + "_nodal_average" if self.name is not None else None,
         ).rename({"n_node": "n_face"})
 
-    def gradient(self,
-                 use_magnitude: Optional[bool] = True,
-                 normalize: Optional[bool] = True):
+    def gradient(
+        self, use_magnitude: Optional[bool] = True, normalize: Optional[bool] = True
+    ):
         """Computes the gradient of a data variable residing on an unstructured
         grid.
 
@@ -378,15 +378,20 @@ class UxDataArray(xr.DataArray):
             )
 
         _grad = _calculate_grad_on_edge(
-            self.values, self.uxgrid.edge_face_connectivity.values,
-            self.uxgrid.edge_face_distances.values, self.uxgrid.n_edge,
-            use_magnitude, normalize)
+            self.values,
+            self.uxgrid.edge_face_connectivity.values,
+            self.uxgrid.edge_face_distances.values,
+            self.uxgrid.n_edge,
+            use_magnitude,
+            normalize,
+        )
 
-        uxda = UxDataArray(_grad,
-                           uxgrid=self.uxgrid,
-                           dims=("n_edge"),
-                           name=self.name +
-                           "_grad" if self.name is not None else "grad")
+        uxda = UxDataArray(
+            _grad,
+            uxgrid=self.uxgrid,
+            dims=("n_edge"),
+            name=self.name + "_grad" if self.name is not None else "grad",
+        )
 
         return uxda
 
