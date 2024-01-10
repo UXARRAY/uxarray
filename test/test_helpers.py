@@ -14,6 +14,8 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.geometry import _pole_point_inside_polygon
 
 try:
     import constants
@@ -25,6 +27,8 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
 gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
+gridfile_geoflowsmall_grid = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'grid.nc'
+gridfile_geoflowsmall_var = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'v1.nc'
 
 err_tolerance = 1.0e-12
 
@@ -219,7 +223,6 @@ class TestSparseMatrix(TestCase):
 class TestIntersectionPoint(TestCase):
 
     def test_pt_within_gcr(self):
-
         # The GCR that's eexactly 180 degrees will have Value Error raised
         gcr_180degree_cart = [
             ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0]),
@@ -337,3 +340,85 @@ class TestVectorsAngel(TestCase):
         v1 = np.array([1.0, 0.0, 0.0])
         v2 = np.array([1.0, 0.0, 0.0])
         self.assertAlmostEqual(_angle_of_2_vectors(v1, v2), 0.0)
+
+
+class TestFaceEdgeConnectivityHelper(TestCase):
+
+    def test_get_cartesian_face_edge_nodes(self):
+        # Load the dataset
+
+        uxds = ux.open_dataset(gridfile_geoflowsmall_grid,
+                               gridfile_geoflowsmall_var)
+
+        # Initialize array
+
+        face_edges_connectivity_cartesian = []
+
+        # Get the connectivity
+
+        for i in range(len(uxds.uxgrid.face_node_connectivity)):
+            face_edges_connectivity_cartesian.append(
+                _get_cartesian_face_edge_nodes(
+                    uxds.uxgrid.face_node_connectivity.values[i],
+                    uxds.uxgrid.face_edge_connectivity.values[i],
+                    uxds.uxgrid.edge_node_connectivity.values,
+                    uxds.uxgrid.node_x.values, uxds.uxgrid.node_y.values,
+                    uxds.uxgrid.node_z.values))
+
+        # Stack the arrays to get the desired (3,3) array
+
+        face_edges_connectivity_cartesian = np.vstack(
+            face_edges_connectivity_cartesian)
+
+        assert (face_edges_connectivity_cartesian.ndim == 3)
+
+    def test_get_cartesian_face_edge_nodes_pipeline(self):
+        # Create the vertices for the grid, based around the North Pole
+
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
+
+        #Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', face_edges_connectivity_cartesian)
+
+        # Assert that the result is True
+
+        self.assertTrue(result)
+
+    def test_get_cartesian_face_edge_nodes_filled_value(self):
+        # Create the vertices for the grid, based around the North Pole
+
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
+
+        #Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+        vertices.append([INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE])
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', face_edges_connectivity_cartesian)
+
+        # Assert that the result is True
+
+        self.assertTrue(result)
