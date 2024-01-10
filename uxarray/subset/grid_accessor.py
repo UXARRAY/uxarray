@@ -123,7 +123,7 @@ class GridSubsetAccessor:
 
         tree = self._get_tree(coords, element)
 
-        _, ind = tree.query_radius(coords, r)
+        ind = tree.query_radius(coords, r)
 
         if len(ind) == 0:
             raise ValueError(
