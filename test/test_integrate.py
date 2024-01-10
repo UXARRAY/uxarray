@@ -90,5 +90,30 @@ class TestFaceWeights(TestCase):
         self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
         self.assertTrue(overlap_flag)
 
+    def test_get_zonal_face_weight_rad_equator(self):
+        """Test that the zonal face weights are correct."""
+        vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi], [-0.4 * np.pi, 0.0],
+                           [0.4*np.pi, 0.0], [0.4 * np.pi, 0.25 * np.pi]]
+
+        vertices = [node_lonlat_rad_to_xyz(v) for v in vertices_lonlat]
+
+        face_edge_nodes = np.array([[vertices[0], vertices[1]], [vertices[1], vertices[2]],
+                           [vertices[2], vertices[3]], [vertices[3], vertices[0]]])
+
+        weight, overlap_flag = _get_zonal_face_weight_rad(  face_edge_nodes, 0.0
+                                                            , np.array([[-0.25 * np.pi, 0.25 * np.pi]
+                                                            , [1.6 * np.pi,0.4 * np.pi]]),is_directed=False,
+                                                            is_GCA_list=np.array([True, True, True, True]))
+        self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
+        self.assertTrue(overlap_flag)
+
+        # Even if we change the is_GCA_list to False, the result should be the same
+        weight, overlap_flag = _get_zonal_face_weight_rad(  face_edge_nodes, 0.0
+                                                            , np.array([[-0.25 * np.pi, 0.25 * np.pi]
+                                                            , [1.6 * np.pi,0.4 * np.pi]]),is_directed=False,
+                                                            is_GCA_list=np.array([True, False, True, False]))
+        self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
+        self.assertTrue(overlap_flag)
+
 
 

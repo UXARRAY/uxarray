@@ -6,7 +6,7 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 from uxarray.grid.intersections import gca_constLat_intersection
 import pandas as pd
 
-def _get_zonal_faces_weight_at_constLat(faces_edges_cart, latitude_cart, face_latlon_bound, is_directed=False):
+def _get_zonal_faces_weight_at_constLat(faces_edges_cart, latitude_cart, face_latlon_bound, is_directed=False, is_face_GCA_list=None):
     '''
     Utilize the sweep line algorithm to calculate the weight of each face at a constant latitude.
 
@@ -26,29 +26,46 @@ def _get_zonal_faces_weight_at_constLat(faces_edges_cart, latitude_cart, face_la
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
         and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
+    is_face_GCA_list : np.ndarray, optional (default=None)
+        A list of boolean values that indicates if the edge in that face is a GCA. Shape: (n_faces,n_edges).
+        True means edge face is a GCA.
+        False mean this edge is a constant latitude.
+        If None, all edges are considered as GCA.
+
     Returns
     -------
     weights : np.ndarray
         The weights of the faces in radian. Shape: (n_faces,)
 
     '''
+    if is_face_GCA_list is None:
+        is_face_GCA_list = np.ones(faces_edges_cart.shape[:-1], dtype=bool)
     # The sweep line algorithm
-    all_intervals = []
+    overlap_intervals = []
 
     # Iterate through all faces
     for face_index in range(len(faces_edges_cart)):
         # Iterate through all edges of the face
-        weight, overlap_flag = _get_zonal_face_weight_rad(faces_edges_cart[face_index], latitude_cart, face_latlon_bound[face_index], is_directed=is_directed)
+        is_GCA_list = is_face_GCA_list[face_index]
+        weight, overlap_flag = _get_zonal_face_weight_rad(faces_edges_cart[face_index]
+                                                          , latitude_cart, face_latlon_bound[face_index]
+                                                          , is_directed=is_directed
+                                                          , is_GCA_list=is_GCA_list)
+        if overlap_flag:
+            # If the face has an edge that overlaps with the constant latitude, then we need to calculate the weight separately
+            # and add it back to the total weight
+            overlap_intervals.append((pd.Interval(-np.pi, np.pi), face_index))
+            continue
 
     # Manage all intervals collectively
-    interval_index = pd.IntervalIndex([interval for interval, _ in all_intervals])
+    interval_index = pd.IntervalIndex([interval for interval, _ in overlap_intervals])
     combined_intervals = combine_overlapping_intervals(interval_index)
 
     # Initialize weights array
     weights = np.zeros(len(faces_edges_cart))
 
     # Calculate weights using combined intervals
-    for interval, face_index in all_intervals:
+    for interval, face_index in overlap_intervals:
         weight = calculate_face_weight(interval, combined_intervals, face_latlon_bound[face_index][1])
         weights[face_index] += weight
 
@@ -58,6 +75,9 @@ def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound
     '''
     Requires the face edges to be sorted in counter-clockwise order. And the span of the face in longitude is less than pi.
     And all arcs/edges length are within pi.
+
+    User can use the is_GCA_list to specify which edge is a GCA and which edge is a constant latitude. However, if
+    we detect an edge is on the equator, we will treat it as a constant latitude edge regardless of the is_GCA_list.
 
     Parameters
     ----------
@@ -106,8 +126,15 @@ def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound
         n1 = edge[0]
         n2 = edge[1]
 
-        # Check if the edge is overlapped with the constant latitude
-        if n1[2] == latitude_cart == n2[2] and is_GCA == False:
+        # Check if the edge is on the equator within the error tolerance
+        if np.isclose(n1[2], 0.0, rtol=0, atol=ERROR_TOLERANCE) and np.isclose(n2[2], 0.0, rtol=0, atol=ERROR_TOLERANCE):
+            # This is a constant latitude edge
+            is_GCA = False
+
+        # Check if the edge is overlapped with the constant latitude within the error tolerance
+        if np.isclose(n1[2], latitude_cart, rtol=0, atol=ERROR_TOLERANCE) \
+                and np.isclose(n2[2], latitude_cart, rtol=0, atol=ERROR_TOLERANCE) \
+                and is_GCA == False:
             overlap_flag = True
 
         # Skip the dummy edge
