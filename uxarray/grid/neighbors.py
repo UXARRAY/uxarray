@@ -726,7 +726,7 @@ def _prepare_xy_for_query(xy, use_radians, distance_metric):
     # swap x and y if the distance metric used is haversine
     if distance_metric == "haversine":
         # swap X and Y for query
-        np.flip(xy, axis=0)
+        xy = np.flip(xy, axis=1)
 
     # balltree expects units in radians for query
     if not use_radians:
