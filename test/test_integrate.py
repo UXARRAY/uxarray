@@ -69,8 +69,8 @@ class TestFaceWeights(TestCase):
                            [vertices[2], vertices[3]], [vertices[3], vertices[0]]])
 
         # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
-        weight = _get_zonal_face_weight_rad(face_edge_nodes, 0.20, np.array([[-0.25 * np.pi, 0.25 * np.pi],[-0.4 * np.pi,0.4 * np.pi]]),is_directed=False)
-        pass
+        weight = _get_zonal_face_weight_rad(face_edge_nodes, 0.20, np.array([[-0.25 * np.pi, 0.25 * np.pi],[1.6 * np.pi,0.4 * np.pi]]),is_directed=False)
+        self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
 
 
 
