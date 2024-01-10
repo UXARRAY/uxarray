@@ -16,7 +16,7 @@ def _to_list(obj):
     return obj
 
 
-def point_within_gca(pt, gca_cart, is_directed=True):
+def point_within_gca(pt, gca_cart, is_directed=False):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
 
@@ -26,7 +26,7 @@ def point_within_gca(pt, gca_cart, is_directed=True):
         Cartesian coordinates of the point.
     gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
         Cartesian coordinates of the Great Circle Arc (GCR).
-    is_directed : bool, optional, default = True
+    is_directed : bool, optional, default = False
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
         and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
