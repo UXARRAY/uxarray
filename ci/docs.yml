@@ -23,13 +23,14 @@ dependencies:
     - sphinx-design
     - nbsphinx
     - matplotlib-base
-    - spatialpandas
     - shapely
     - hvplot
     - holoviews
     - geoviews
     - cartopy
     - pandas<2.1.0
+    - geocat-datafiles
     - pip:
       - antimeridian
       - pyfma
+      - git+https://github.com/holoviz/spatialpandas.git

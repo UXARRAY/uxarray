@@ -105,8 +105,35 @@ class TestGCAconstLatIntersection(TestCase):
         res = gca_constLat_intersection(GCR1_cart,
                                         np.deg2rad(60.0),
                                         verbose=True)
-        res_lonlat_rad = node_xyz_to_lonlat_rad(res.tolist())
+        res_lonlat_rad = node_xyz_to_lonlat_rad(res[0].tolist())
         self.assertTrue(
             np.allclose(res_lonlat_rad,
                         np.array([np.deg2rad(170.0),
                                   np.deg2rad(60.0)])))
+
+    def test_GCA_constLat_intersections_empty(self):
+        GCR1_cart = np.array([
+            node_lonlat_rad_to_xyz([np.deg2rad(170.0),
+                                    np.deg2rad(89.99)]),
+            node_lonlat_rad_to_xyz([np.deg2rad(170.0),
+                                    np.deg2rad(10.0)])
+        ])
+
+        res = gca_constLat_intersection(GCR1_cart,
+                                        np.deg2rad(-10.0),
+                                        verbose=False)
+        self.assertTrue(res.size == 0)
+
+    def test_GCA_constLat_intersections_two_pts(self):
+        GCR1_cart = np.array([
+            node_lonlat_rad_to_xyz([np.deg2rad(10.0),
+                                    np.deg2rad(10)]),
+            node_lonlat_rad_to_xyz([np.deg2rad(170.0),
+                                    np.deg2rad(10.0)])
+        ])
+        max_lat = ux.grid.arcs.extreme_gca_latitude(GCR1_cart, 'max')
+
+        query_lat = (np.deg2rad(10.0) + max_lat) / 2.0
+
+        res = gca_constLat_intersection(GCR1_cart, query_lat, verbose=False)
+        self.assertTrue(res.shape[0] == 2)

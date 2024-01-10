@@ -76,6 +76,7 @@ Methods
    UxDataArray._replace
    UxDataArray._face_centered
    UxDataArray._node_centered
+   UxDataArray._slice_from_grid
 
 Grid
 ====
@@ -121,11 +122,15 @@ Geometry
 --------
 .. autosummary::
    :toctree: _autosummary
-
+   grid.geometry._pad_closed_face_nodes
    grid.geometry._build_polygon_shells
-   grid.geometry._build_corrected_polygon_shells
-   grid.geometry._build_antimeridian_face_indices
    grid.geometry._grid_to_polygon_geodataframe
+   grid.geometry._build_geodataframe_without_antimeridian
+   grid.geometry._build_geodataframe_with_antimeridian
+   grid.geometry._build_corrected_shapely_polygons
+   grid.geometry._build_antimeridian_face_indices
+   grid.geometry._populate_antimeridian_face_indices
+   grid.geometry._build_corrected_polygon_shells
    grid.geometry._grid_to_matplotlib_polycollection
    grid.geometry._grid_to_matplotlib_linecollection
    grid.geometry._pole_point_inside_polygon
@@ -143,6 +148,7 @@ Coordinates
    grid.coordinates._populate_lonlat_coord
    grid.coordinates._populate_centroid_coord
    grid.coordinates._construct_xyz_centroids
+   grid.coordinates._set_desired_longitude_range
 
 
 Arcs
@@ -161,6 +167,7 @@ Utils
 
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+   grid.utils._get_cartesiain_face_edge_nodes
 
 
 
@@ -183,6 +190,15 @@ Accurate Computing Utils
    utils.computing._fast_two_sum
    utils.computing._two_sum
    utils.computing._two_prod_fma
+   utils.computing._comp_prod_fma
+   utils.computing._sum_of_squares_re
+   utils.computing._vec_sum
+   utils.computing._norm_faithful
+   utils.computing._norm_l
+   utils.computing._norm_g
+   utils.computing._two_square
+   utils.computing._acc_sqrt
+   utils.computing._split
 
 Remapping
 =========
@@ -269,3 +285,33 @@ Core Utils
    :toctree: _autosummary
 
    core.utils._map_dims_to_ugrid
+
+
+Visualization
+-------------
+.. autosummary::
+   :toctree: _autosummary
+
+   plot.grid_plot._plot_coords_as_points
+   plot.dataarray_plot._plot_data_as_points
+   plot.dataarray_plot._polygon_raster
+   plot.dataarray_plot._point_raster
+
+Slicing
+-------
+.. autosummary::
+   :toctree: _autosummary
+
+   grid.slice._slice_node_indices
+   grid._slice_edge_indices
+   grid._slice_face_indices
+
+
+
+Subsetting
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   subset.grid_accessor.GridSubsetAccessor
+   subset.dataarray_accessor.DataArraySubsetAccessor
