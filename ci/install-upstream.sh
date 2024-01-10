@@ -3,7 +3,6 @@
 
 # forcibly remove packages to avoid artifacts
 conda remove -y --force \
-    antimeridian \
     cartopy \
     dask \
     datashader \
@@ -16,8 +15,11 @@ conda remove -y --force \
     scikit-learn \
     scipy \
     shapely \
-    spatialpandas \
     xarray
+
+python -m pip uninstall \
+    antimeridian \
+    spatialpandas
 
 # conda list
 conda list
