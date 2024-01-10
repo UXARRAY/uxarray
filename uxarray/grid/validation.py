@@ -19,33 +19,28 @@ def _check_connectivity(self):
     nodes_in_conn = nodes_in_conn[nodes_in_conn >= 0]
 
     # check if the size of unique nodes in connectivity is equal to the number of nodes
-    if nodes_in_conn.size == self.n_node:
+    if (nodes_in_conn.size == self.n_node):
         print("-All nodes are referenced by at least one element.")
         return True
     else:
         warn(
-            "Some nodes may not be referenced by any element. {0} and {1}".format(
-                nodes_in_conn.size, self.n_node
-            ),
-            RuntimeWarning,
-        )
+            "Some nodes may not be referenced by any element. {0} and {1}".
+            format(nodes_in_conn.size, self.n_node), RuntimeWarning)
         return False
 
 
 def _check_duplicate_nodes(self):
     """Check if there are duplicate nodes in the mesh."""
 
-    coords1 = np.column_stack((np.vstack(self.node_lon), np.vstack(self.node_lat)))
+    coords1 = np.column_stack(
+        (np.vstack(self.node_lon), np.vstack(self.node_lat)))
     unique_nodes, indices = np.unique(coords1, axis=0, return_index=True)
     duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
 
     if duplicate_indices.size > 0:
         warn(
-            "Duplicate nodes found in the mesh. {0} nodes are duplicates.".format(
-                duplicate_indices.size
-            ),
-            RuntimeWarning,
-        )
+            "Duplicate nodes found in the mesh. {0} nodes are duplicates.".
+            format(duplicate_indices.size), RuntimeWarning)
         return False
     else:
         print("-No duplicate nodes found in the mesh.")
@@ -59,8 +54,7 @@ def _check_area(self):
     if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
         warn(
             "At least one face area is close to zero. Mesh may contain inverted elements",
-            RuntimeWarning,
-        )
+            RuntimeWarning)
         return False
     else:
         print("-No face area is close to zero.")

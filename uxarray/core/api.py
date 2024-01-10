@@ -4,8 +4,10 @@ import os
 import numpy as np
 import xarray as xr
 
+from pathlib import Path, PurePath
 from typing import Any, Dict, Optional, Union
 
+import uxarray.constants
 from uxarray.grid import Grid
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import _map_dims_to_ugrid
@@ -13,14 +15,11 @@ from uxarray.core.utils import _map_dims_to_ugrid
 from warnings import warn
 
 
-def open_grid(
-    grid_filename_or_obj: Union[
-        str, os.PathLike, xr.DataArray, np.ndarray, list, tuple
-    ],
-    latlon: Optional[bool] = False,
-    use_dual: Optional[bool] = False,
-    **kwargs: Dict[str, Any],
-) -> Grid:
+def open_grid(grid_filename_or_obj: Union[str, os.PathLike, xr.DataArray,
+                                          np.ndarray, list, tuple],
+              latlon: Optional[bool] = False,
+              use_dual: Optional[bool] = False,
+              **kwargs: Dict[str, Any]) -> Grid:
     """Creates a ``uxarray.Grid`` object from a grid topology definition.
 
     Parameters
@@ -60,27 +59,26 @@ def open_grid(
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
-    if "source_grid" in kwargs.keys():
-        warn(
-            "source_grid is no longer a supported kwarg",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    if 'source_grid' in kwargs.keys():
+        warn('source_grid is no longer a supported kwarg',
+             DeprecationWarning,
+             stacklevel=2)
 
     # construct Grid from dataset
     if isinstance(grid_filename_or_obj, xr.Dataset):
         uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
 
     # construct Grid from face vertices
-    elif isinstance(grid_filename_or_obj, (list, tuple, np.ndarray, xr.DataArray)):
+    elif isinstance(grid_filename_or_obj,
+                    (list, tuple, np.ndarray, xr.DataArray)):
         uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon=latlon)
 
     # attempt to use Xarray directly for remaining input types
     else:
         try:
-            grid_ds = xr.open_dataset(
-                grid_filename_or_obj, decode_times=False, **kwargs
-            )
+            grid_ds = xr.open_dataset(grid_filename_or_obj,
+                                      decode_times=False,
+                                      **kwargs)
 
             uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
         except ValueError:
@@ -89,14 +87,12 @@ def open_grid(
     return uxgrid
 
 
-def open_dataset(
-    grid_filename_or_obj: str,
-    filename_or_obj: str,
-    latlon: Optional[bool] = False,
-    use_dual: Optional[bool] = False,
-    grid_kwargs: Optional[Dict[str, Any]] = {},
-    **kwargs: Dict[str, Any],
-) -> UxDataset:
+def open_dataset(grid_filename_or_obj: str,
+                 filename_or_obj: str,
+                 latlon: Optional[bool] = False,
+                 use_dual: Optional[bool] = False,
+                 grid_kwargs: Optional[Dict[str, Any]] = {},
+                 **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_dataset()`` and creates a ``uxarray.UxDataset``
     object, given a grid topology definition with a single dataset file or
     object with corresponding data.
@@ -148,37 +144,35 @@ def open_dataset(
     :param grid_kwargs:
     """
 
-    if "source_grid" in kwargs.keys():
-        warn(
-            "source_grid is no longer a supported kwarg",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    if 'source_grid' in kwargs.keys():
+        warn('source_grid is no longer a supported kwarg',
+             DeprecationWarning,
+             stacklevel=2)
 
     # Grid definition
-    uxgrid = open_grid(
-        grid_filename_or_obj, latlon=latlon, use_dual=use_dual, **grid_kwargs
-    )
+    uxgrid = open_grid(grid_filename_or_obj,
+                       latlon=latlon,
+                       use_dual=use_dual,
+                       **grid_kwargs)
 
     # UxDataset
-    ds = xr.open_dataset(filename_or_obj, decode_times=False, **kwargs)  # type: ignore
+    ds = xr.open_dataset(filename_or_obj, decode_times=False,
+                         **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
 
     return uxds
 
 
-def open_mfdataset(
-    grid_filename_or_obj: str,
-    paths: Union[str, os.PathLike],
-    latlon: Optional[bool] = False,
-    use_dual: Optional[bool] = False,
-    grid_kwargs: Optional[Dict[str, Any]] = {},
-    **kwargs: Dict[str, Any],
-) -> UxDataset:
+def open_mfdataset(grid_filename_or_obj: str,
+                   paths: Union[str, os.PathLike],
+                   latlon: Optional[bool] = False,
+                   use_dual: Optional[bool] = False,
+                   grid_kwargs: Optional[Dict[str, Any]] = {},
+                   **kwargs: Dict[str, Any]) -> UxDataset:
     """Wraps ``xarray.open_mfdataset()`` and creates a ``uxarray.UxDataset``
     object, given a single grid topology file with multiple dataset paths with
     corresponding data.
@@ -235,23 +229,22 @@ def open_mfdataset(
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
-    if "source_grid" in kwargs.keys():
-        warn(
-            "source_grid is no longer a supported kwarg",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    if 'source_grid' in kwargs.keys():
+        warn('source_grid is no longer a supported kwarg',
+             DeprecationWarning,
+             stacklevel=2)
 
     # Grid definition
-    uxgrid = open_grid(
-        grid_filename_or_obj, latlon=latlon, use_dual=use_dual, **grid_kwargs
-    )
+    uxgrid = open_grid(grid_filename_or_obj,
+                       latlon=latlon,
+                       use_dual=use_dual,
+                       **grid_kwargs)
 
     # UxDataset
     ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
-    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict)
+    ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
