@@ -3,21 +3,22 @@
 
 # forcibly remove packages to avoid artifacts
 conda remove -y --force \
-    antimeridian \
     cartopy \
     dask \
     datashader \
     distributed \
     gmpy2 \
     holoviews \
-    numba \
     numpy \
     pandas \
     scikit-learn \
     scipy \
     shapely \
-    spatialpandas \
     xarray
+
+python -m pip uninstall \
+    antimeridian \
+    spatialpandas
 
 # conda list
 conda list
@@ -43,6 +44,5 @@ python -m pip install \
     git+https://github.com/dask/distributed.git \
     git+https://github.com/aleaxit/gmpy.git \
     git+https://github.com/holoviz/holoviews.git \
-    git+https://github.com/numba/numba.git \
     git+https://github.com/shapely/shapely.git \
     git+https://github.com/holoviz/spatialpandas.git
