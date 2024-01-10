@@ -19,6 +19,7 @@ from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_r
 import uxarray.core.dataset
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
+from uxarray.subset import DataArraySubsetAccessor
 
 
 class UxDataArray(xr.DataArray):
@@ -62,8 +63,9 @@ class UxDataArray(xr.DataArray):
 
         super().__init__(*args, **kwargs)
 
-    # declare plotting accessor
+    # declare various accessors
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
+    subset = UncachedAccessor(DataArraySubsetAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -114,11 +116,6 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
-
-    def to_dataset(self) -> UxDataset:
-        """Convert a UxDataArray to a UxDataset."""
-        xrds = super().to_dataset()
-        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
     def to_geodataframe(self,
                         override=False,
@@ -386,3 +383,79 @@ class UxDataArray(xr.DataArray):
         """Returns whether the data stored is Edge Centered (i.e. contains the
         "n_edge" dimension)"""
         return "n_edge" in self.dims
+
+    def isel(self, ignore_grid=False, *args, **kwargs):
+        """Grid-informed implementation of xarray's ``isel`` method, which
+        enables indexing across grid dimensions.
+
+        Subsetting across grid dimensions ('n_node', 'n_edge', or 'n_face') returns will return a new UxDataArray with
+        a newly initialized Grid only containing those elements.
+
+        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
+        any face that contains that element is included in the resulting subset. This means that additional elements
+        beyond those that were initially provided in the indices will be included. Support for more methods, such as
+        exclusive and clipped indexing is in the works.
+
+        Parameters
+        **kwargs: kwargs
+            Dimension to index, one of ['n_node', 'n_edge', 'n_face'] for grid-indexing, or any other dimension for
+            regular xarray indexing
+
+        Example
+        -------
+        > uxda.subset(n_node=[1, 2, 3])
+        """
+
+        from uxarray.constants import GRID_DIMS
+
+        if any(grid_dim in kwargs
+               for grid_dim in GRID_DIMS) and not ignore_grid:
+            # slicing a grid-dimension through Grid object
+
+            dim_mask = [grid_dim in kwargs for grid_dim in GRID_DIMS]
+            dim_count = np.count_nonzero(dim_mask)
+
+            if dim_count > 1:
+                raise ValueError(
+                    "Only one grid dimension can be sliced at a time")
+
+            if "n_node" in kwargs:
+                sliced_grid = self.uxgrid.isel(n_node=kwargs['n_node'])
+            elif "n_edge" in kwargs:
+                sliced_grid = self.uxgrid.isel(n_edge=kwargs['n_edge'])
+            else:
+                sliced_grid = self.uxgrid.isel(n_face=kwargs['n_face'])
+
+            return self._slice_from_grid(sliced_grid)
+
+        else:
+            # original xarray implementation for non-grid dimensions
+            return super().isel(*args, **kwargs)
+
+    def _slice_from_grid(self, sliced_grid):
+        """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
+        indices to correctly slice the data variable."""
+
+        from uxarray.core.dataarray import UxDataArray
+
+        if self._face_centered():
+            d_var = self.isel(n_face=sliced_grid._ds["subgrid_face_indices"],
+                              ignore_grid=True).values
+
+        elif self._edge_centered():
+            d_var = self.isel(n_edge=sliced_grid._ds["subgrid_edge_indices"],
+                              ignore_grid=True).values
+
+        elif self._node_centered():
+            d_var = self.isel(n_node=sliced_grid._ds["subgrid_node_indices"],
+                              ignore_grid=True).values,
+
+        else:
+            raise ValueError(
+                "Data variable must be either node, edge, or face centered.")
+
+        return UxDataArray(uxgrid=sliced_grid,
+                           data=d_var,
+                           name=self.name,
+                           dims=self.dims,
+                           attrs=self.attrs)

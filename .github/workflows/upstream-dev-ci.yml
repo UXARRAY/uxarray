@@ -1,47 +1,45 @@
-name: Upstream-dev CI
+name: CI Upstream
 on:
   workflow_dispatch:
   schedule:
      - cron: '0 0 * * *' # Daily “At 00:00”
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   upstream-dev:
-    if: |
-      github.repository == 'UXARRAY/uxarray'
-    name:  upstream-dev-py310
+    name: upstream-dev-py311
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.11" ]
 
     steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.12.0
-        with:
-          access_token: ${{ github.token }}
-
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ github.token }}
 
-      - name: conda_setup
-        uses: conda-incubator/setup-miniconda@v3
+      - name: Set up environment
+        uses: mamba-org/setup-micromamba@v1
         with:
-          activate-environment: uxarray_upstream_build
-          channel-priority: strict
-          miniconda-version: "latest"
-          python-version: "3.10"
-          channels: conda-forge
+          environment-file: ci/environment.yml
+          create-args: >-
+            python=${{ matrix.python-version }}
 
-      - name: Install select upstream dependencies
+      - name: conda list
         run: |
-          pip install https://github.com/pydata/xarray/archive/main.zip
-          pip install https://github.com/dask/dask/archive/main.zip
+          conda list
 
-      - name: Install conda dependencies
+      - name: Install upstream versions
         run: |
-          conda env update --file ci/upstream-dev-environment.yml
+          bash ci/install-upstream.sh
 
       - name: Install uxarray
         run: |
