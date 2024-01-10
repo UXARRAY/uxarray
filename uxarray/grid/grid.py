@@ -34,6 +34,8 @@ from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
+from uxarray.subset import GridSubsetAccessor
+
 from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
 
 from xarray.core.utils import UncachedAccessor
@@ -135,10 +137,14 @@ class Grid:
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
+    # declare subset accessor
+    subset = UncachedAccessor(GridSubsetAccessor)
+
     @classmethod
     def from_dataset(cls,
                      dataset: xr.Dataset,
-                     use_dual: Optional[bool] = False):
+                     use_dual: Optional[bool] = False,
+                     **kwargs):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
         Parameters
@@ -152,20 +158,29 @@ class Grid:
             raise ValueError("Input must be an xarray.Dataset")
 
         # determine grid/mesh specification
-        source_grid_spec = _parse_grid_type(dataset)
 
-        if source_grid_spec == "Exodus":
-            grid_ds, source_dims_dict = _read_exodus(dataset)
-        elif source_grid_spec == "Scrip":
-            grid_ds, source_dims_dict = _read_scrip(dataset)
-        elif source_grid_spec == "UGRID":
-            grid_ds, source_dims_dict = _read_ugrid(dataset)
-        elif source_grid_spec == "MPAS":
-            grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-        elif source_grid_spec == "Shapefile":
-            raise ValueError("Shapefiles not yet supported")
+        if "source_grid_spec" not in kwargs:
+            # parse to detect source grid spec
+
+            source_grid_spec = _parse_grid_type(dataset)
+            if source_grid_spec == "Exodus":
+                grid_ds, source_dims_dict = _read_exodus(dataset)
+            elif source_grid_spec == "Scrip":
+                grid_ds, source_dims_dict = _read_scrip(dataset)
+            elif source_grid_spec == "UGRID":
+                grid_ds, source_dims_dict = _read_ugrid(dataset)
+            elif source_grid_spec == "MPAS":
+                grid_ds, source_dims_dict = _read_mpas(dataset,
+                                                       use_dual=use_dual)
+            elif source_grid_spec == "Shapefile":
+                raise ValueError("Shapefiles not yet supported")
+            else:
+                raise ValueError("Unsupported Grid Format")
         else:
-            raise ValueError("Unsupported Grid Format")
+            # custom source grid spec is provided
+            source_grid_spec = kwargs.get("source_grid_spec", None)
+            grid_ds = dataset
+            source_dims_dict = {}
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
@@ -407,6 +422,7 @@ class Grid:
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
+
         return self._ds["n_nodes_per_face"]
 
     # ==================================================================================================================
@@ -609,6 +625,17 @@ class Grid:
 
         Nodes are in counter-clockwise order.
         """
+
+        if self._ds["face_node_connectivity"].values.ndim == 1:
+            face_node_connectivity_1d = self._ds[
+                "face_node_connectivity"].values
+            face_node_connectivity_2d = np.expand_dims(
+                face_node_connectivity_1d, axis=0)
+            self._ds["face_node_connectivity"] = xr.DataArray(
+                data=face_node_connectivity_2d,
+                dims=['n_face', 'n_max_face_nodes'],
+                attrs=self._ds["face_node_connectivity"].attrs)
+
         return self._ds["face_node_connectivity"]
 
     @property
@@ -1041,3 +1068,42 @@ class Grid:
             self._line_collection = line_collection
 
         return line_collection
+
+    def isel(self, **dim_kwargs):
+        """Indexes an unstructured grid along a given dimension (``n_node``,
+        ``n_edge``, or ``n_face``) and returns a new grid.
+
+        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
+        any face that contains that element is included in the resulting subset. This means that additional elements
+        beyond those that were initially provided in the indices will be included. Support for more methods, such as
+        exclusive and clipped indexing is in the works.
+
+        Parameters
+        **dims_kwargs: kwargs
+            Dimension to index, one of ['n_node', 'n_edge', 'n_face']
+
+
+        Example
+        -------`
+        >> grid = ux.open_grid(grid_path)
+        >> grid.isel(n_face = [1,2,3,4])
+        """
+        from .slice import (_slice_node_indices, _slice_edge_indices,
+                            _slice_face_indices)
+
+        if len(dim_kwargs) != 1:
+            raise ValueError("Indexing must be along a single dimension.")
+
+        if "n_node" in dim_kwargs:
+            return _slice_node_indices(self, dim_kwargs['n_node'])
+
+        elif "n_edge" in dim_kwargs:
+            return _slice_edge_indices(self, dim_kwargs['n_edge'])
+
+        elif "n_face" in dim_kwargs:
+            return _slice_face_indices(self, dim_kwargs['n_face'])
+
+        else:
+            raise ValueError(
+                "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
+            )

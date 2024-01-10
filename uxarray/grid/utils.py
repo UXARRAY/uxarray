@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 import warnings
 import uxarray.utils.computing as ac_utils
 
@@ -169,3 +169,60 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
         _iter += 1
 
     return np.append(y_new, constZ)
+
+
+# TODO: Consider re-implementation in the future / better integration with API
+def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
+                                   edge_nodes_grid, node_x, node_y, node_z):
+    """Construct an array to hold the edge Cartesian coordinates connectivity
+    for a face in a grid.
+
+    Parameters
+    ----------
+    face_nodes_ind : np.ndarray, shape (n_nodes,)
+        The ith entry of Grid.face_node_connectivity, where n_nodes is the number of nodes in the face.
+    face_edges_ind : np.ndarray, shape (n_edges,)
+        The ith entry of Grid.face_edge_connectivity, where n_edges is the number of edges in the face.
+    edge_nodes_grid : np.ndarray, shape (n_edges, 2)
+        The entire Grid.edge_node_connectivity, where n_edges is the total number of edges in the grid.
+    node_x : np.ndarray, shape (n_nodes,)
+        The values of Grid.node_x, where n_nodes_total is the total number of nodes in the grid.
+    node_y : np.ndarray, shape (n_nodes,)
+        The values of Grid.node_y.
+    node_z : np.ndarray, shape (n_nodes,)
+        The values of Grid.node_z.
+
+    Returns
+    -------
+    face_edges : np.ndarray, shape (n_edges, 2, 3)
+        Face edge connectivity in Cartesian coordinates, where n_edges is the number of edges for the specific face.
+
+    Notes
+    -----
+    - The function assumes that the inputs are well-formed and correspond to the same face.
+    - The output array contains the Cartesian coordinates for each edge of the face.
+    """
+
+    # Create a mask that is True for all values not equal to INT_FILL_VALUE
+    mask = face_edges_ind != INT_FILL_VALUE
+
+    # Use the mask to select only the elements not equal to INT_FILL_VALUE
+    valid_edges = face_edges_ind[mask]
+    face_edges = edge_nodes_grid[valid_edges]
+
+    # Ensure counter-clockwise order of edge nodes
+    # Start with the first two nodes
+    face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+
+    for idx in range(1, len(face_edges)):
+        if face_edges[idx][0] != face_edges[idx - 1][1]:
+            # Swap the node index in this edge if not in counter-clockwise order
+            face_edges[idx] = face_edges[idx][::-1]
+
+    # Fetch coordinates for each node in the face edges
+    cartesian_coordinates = np.array(
+        [[[node_x[node], node_y[node], node_z[node]]
+          for node in edge]
+         for edge in face_edges])
+
+    return cartesian_coordinates
