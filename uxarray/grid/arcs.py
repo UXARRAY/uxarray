@@ -16,7 +16,7 @@ def _to_list(obj):
     return obj
 
 
-def point_within_gca(pt, gca_cart, is_directed=True):
+def point_within_gca(pt, gca_cart, is_directed=False):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
 
@@ -26,9 +26,9 @@ def point_within_gca(pt, gca_cart, is_directed=True):
         Cartesian coordinates of the point.
     gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
         Cartesian coordinates of the Great Circle Arc (GCR).
-    is_directed : bool, optional, default = True
+    is_directed : bool, optional, default = False
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
 
     Returns
     -------
@@ -80,11 +80,14 @@ def point_within_gca(pt, gca_cart, is_directed=True):
                        atol=ERROR_TOLERANCE):
         return False
 
-    # Special case: If the gcr goes across the anti-meridian
-    # If the pt and the GCR are on the same longitude (the y coordinates are the same)
-    if GCRv0_lonlat[0] == GCRv1_lonlat[0] == pt_lonlat[0]:
-        # Now use the latitude to determine if the pt falls between the interval
-        return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+    if GCRv0_lonlat[0] == GCRv1_lonlat[0]:
+        # If the pt and the GCA are on the same longitude (the y coordinates are the same)
+        if GCRv0_lonlat[0] == pt_lonlat[0]:
+            # Now use the latitude to determine if the pt falls between the interval
+            return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+        else:
+            # If the pt and the GCA are not on the same longitude when the GCA is a longnitude arc, then the pt is not on the GCA
+            return False
 
     if is_directed:
         # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
@@ -113,7 +116,7 @@ def point_within_gca(pt, gca_cart, is_directed=True):
         # sort the longitude
         GCRv0_lonlat_min, GCRv1_lonlat_max = sorted(
             [GCRv0_lonlat[0], GCRv1_lonlat[0]])
-        if np.pi > GCRv1_lonlat_max - GCRv0_lonlat_min > 0.0:
+        if np.pi > GCRv1_lonlat_max - GCRv0_lonlat_min >= 0.0:
             return in_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
         else:
             return in_between(GCRv1_lonlat_max,

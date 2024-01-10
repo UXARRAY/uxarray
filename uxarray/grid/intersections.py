@@ -122,7 +122,7 @@ def gca_constLat_intersection(gca_cart,
                               constLat,
                               fma_disabled=False,
                               verbose=False,
-                              is_directed=True):
+                              is_directed=False):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -140,7 +140,7 @@ def gca_constLat_intersection(gca_cart,
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
-    is_directed : bool, optional (default=True)
+    is_directed : bool, optional (default=False)
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
         and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
