@@ -2,10 +2,9 @@ from warnings import warn
 
 
 def _read_shpfile(filepath):
-    """Read shape file, use geopandas.
+    """Read shape file.
 
-    Parameters: xarray.Dataset, required
-    Returns: ugrid aware xarray.Dataset
+    Not implemented.
     """
     raise RuntimeError(
         "Function not implemented yet. FYI, attempted to read SHAPE file: " +
