@@ -9,7 +9,6 @@ conda remove -y --force \
     distributed \
     gmpy2 \
     holoviews \
-    numba \
     numpy \
     pandas \
     scikit-learn \
