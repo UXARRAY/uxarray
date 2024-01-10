@@ -170,6 +170,7 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
 
     return np.append(y_new, constZ)
 
+
 # TODO: Consider re-implementation in the future / better integration with API
 def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
                                    edge_nodes_grid, node_x, node_y, node_z):
