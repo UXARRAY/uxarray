@@ -12,11 +12,14 @@ import yaml
 from sphinx.application import Sphinx
 from sphinx.util import logging
 from textwrap import dedent, indent
-
-sys.path.insert(0,
-                os.path.abspath('../'))  # Source code dir relative to this file
+import datetime
 
 import uxarray
+import matplotlib.pyplot
+
+__all__ = (uxarray, matplotlib.pyplot)
+
+sys.path.insert(0, os.path.abspath("../"))  # Source code dir relative to this file
 
 LOGGER = logging.getLogger("conf")
 
@@ -25,11 +28,8 @@ try:
 except ImportError:
     from mock import Mock as MagicMock
 
-import matplotlib.pyplot
-
 
 class Mock(MagicMock):
-
     @classmethod
     def __getattr__(cls, name):
         return MagicMock()
@@ -44,48 +44,33 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.mathjax',
-    'myst_nb',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.mathjax",
+    "myst_nb",
     "sphinx_design",
     "nbsphinx",
 ]
 
 mathjax_config = {
-    'tex2jax': {
-        'inlineMath': [['$', '$'], ['\\(', '\\)']],
-        'displayMath': [['$$', '$$'], ['\\[', '\\]']],
-        'processEscapes': True,
+    "tex2jax": {
+        "inlineMath": [["$", "$"], ["\\(", "\\)"]],
+        "displayMath": [["$$", "$$"], ["\\[", "\\]"]],
+        "processEscapes": True,
     },
-    'HTML-CSS': {
-        'linebreaks': {
-            'automatic': True,
-            'width': 'container'
-        },
-        'fonts': {
-            'availableFonts': ['TeX'],
-            'preferredFont': 'TeX',
-            'webFont': 'TeX'
-        }
+    "HTML-CSS": {
+        "linebreaks": {"automatic": True, "width": "container"},
+        "fonts": {"availableFonts": ["TeX"], "preferredFont": "TeX", "webFont": "TeX"},
     },
-    'CommonHTML': {
-        'linebreaks': {
-            'automatic': True,
-            'width': 'container'
-        }
-    },
-    'SVG': {
-        'linebreaks': {
-            'automatic': True,
-            'width': 'container'
-        }
-    }
+    "CommonHTML": {"linebreaks": {"automatic": True, "width": "container"}},
+    "SVG": {"linebreaks": {"automatic": True, "width": "container"}},
 }
 
-mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+mathjax_path = (
+    "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+)
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
@@ -104,7 +89,7 @@ intersphinx_mapping = {
     "cftime": ("https://unidata.github.io/cftime", None),
     "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
-    'xarray': ('http://xarray.pydata.org/en/stable/', None),
+    "xarray": ("http://xarray.pydata.org/en/stable/", None),
 }
 
 napoleon_use_admonition_for_examples = True
@@ -113,36 +98,34 @@ napoleon_include_special_with_doc = True
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.ipynb': 'myst-nb',
-    '.myst': 'myst-nb',
+    ".rst": "restructuredtext",
+    ".ipynb": "myst-nb",
+    ".myst": "myst-nb",
 }
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # General information about the project.
-project = u'uxarray'
-
-import datetime
+project = "uxarray"
 
 current_year = datetime.datetime.now().year
-copyright = u'{}, Uxarray'.format(current_year)
-author = u'UXARRAY'
+copyright = "{}, Uxarray".format(current_year)
+author = "UXARRAY"
 
 
 # The version info for the project being documented
 def read_version():
-    for line in open('../meta.yaml').readlines():
-        index = line.find('set version')
+    for line in open("../meta.yaml").readlines():
+        index = line.find("set version")
         if index > -1:
-            return line[index + 15:].replace('\" %}', '').strip()
+            return line[index + 15 :].replace('" %}', "").strip()
 
 
 # The short X.Y version.
@@ -163,7 +146,7 @@ language = "en"
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = "sphinx"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -199,7 +182,7 @@ html_theme_options = dict(
     use_issues_button=True,
     home_page_in_toc=False,
     navbar_footer_text="",
-    #extra_footer="""<p></p>""",
+    # extra_footer="""<p></p>""",
 )
 
 # The name for this set of Sphinx documents.
@@ -208,23 +191,23 @@ html_theme_options = dict(
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = '_static/images/logos/uxarray_temp_logo.png'
+html_logo = "_static/images/logos/uxarray_temp_logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = '_static/images/logos/uxarray_temp_logo.png'
+html_favicon = "_static/images/logos/uxarray_temp_logo.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 html_css_files = ["style.css"]
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'uxarraydoc'
+htmlhelp_basename = "uxarraydoc"
 
-autodoc_typehints = 'none'
+autodoc_typehints = "none"
 
 
 # custom scripts for making a gallery of examples notebooks
@@ -233,8 +216,7 @@ def update_gallery(app: Sphinx):
 
     LOGGER.info("creating gallery...")
 
-    notebooks = yaml.safe_load(
-        pathlib.Path(app.srcdir, "gallery.yml").read_bytes())
+    notebooks = yaml.safe_load(pathlib.Path(app.srcdir, "gallery.yml").read_bytes())
 
     items = [
         f"""
@@ -246,7 +228,8 @@ def update_gallery(app: Sphinx):
                 :alt: {item['title']}
             +++
             {item['title']}
-            """ for item in notebooks
+            """
+        for item in notebooks
     ]
 
     items_md = indent(dedent("\n".join(items)), prefix="    ")
@@ -264,5 +247,5 @@ def update_gallery(app: Sphinx):
 
 # Allow for changes to be made to the css in the theme_overrides file
 def setup(app):
-    app.add_css_file('theme_overrides.css')
+    app.add_css_file("theme_overrides.css")
     app.connect("builder-inited", update_gallery)
