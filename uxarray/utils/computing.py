@@ -33,6 +33,7 @@ def _fmms(a, b, c, d):
     [Read more](https://ens-lyon.hal.science/ensl-00649347) (DOI: 10.1090/S0025-5718-2013-02679-8)
     """
     import pyfma
+
     cd = c * d
     err = pyfma.fma(-c, d, cd)
     dop = pyfma.fma(a, b, -cd)
@@ -139,6 +140,7 @@ def _two_prod_fma(a, b):
     IEEE Transactions on Computers, 58(7), 994–1000, 2009.10.1109/TC.2008.215.
     """
     import pyfma
+
     x = a * b
     y = pyfma.fma(a, b, -x)
     return x, y
@@ -169,6 +171,7 @@ def _err_fmac(a, b, c):
     """
     if sys.float_info.rounds == 1:
         import pyfma
+
         x = pyfma.fma(a, b, c)
         u1, u2 = _fast_two_mult(a, b)
         alpha1, alpha2 = _two_sum(c, u2)
@@ -179,7 +182,8 @@ def _err_fmac(a, b, c):
     else:
         raise ValueError(
             "3FMA operation is only available in round to the nearest mode. and the current mode is "
-            + str(sys.float_info.rounds))
+            + str(sys.float_info.rounds)
+        )
 
 
 def _two_sum(a, b):
@@ -235,6 +239,7 @@ def _fast_two_mult(a, b):
 
     """
     import pyfma
+
     x = a * b
     y = pyfma.fma(a, b, -x)
     return x, y
@@ -316,6 +321,7 @@ def _comp_prod_fma(vec):
     SIAM J. Sci. Comput. 26, 6 (2005), 1955–1988. https://doi.org/10.1137/030601818
     """
     import pyfma
+
     p1 = vec[0]
     e1 = 0.0
     for i in range(1, len(vec)):
