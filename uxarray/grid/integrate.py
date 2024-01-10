@@ -4,12 +4,61 @@ import numpy as np
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 from uxarray.grid.intersections import gca_constLat_intersection
+import pandas as pd
 
+def _get_zonal_faces_weight_at_constLat(faces_edges_cart, latitude_cart, face_latlon_bound, is_directed=False):
+    '''
+    Utilize the sweep line algorithm to calculate the weight of each face at a constant latitude.
 
-def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound, is_directed=True):
+     Parameters
+    ----------
+    face_edges_cart : np.ndarray
+        A list of face polygon represented by edges in Cartesian coordinates. Shape: (n_faces, n_edges, 2, 3)
+
+    latitude_cart : float
+        The latitude in Cartesian coordinates (The normalized z coordinate)
+
+    face_latlon_bound : np.ndarray
+        The list of latitude and longitude bounds of faces. Shape: (n_faces,2, 2),
+        [...,[lat_min, lat_max], [lon_min, lon_max],...]
+
+    is_directed : bool, optional (default=False)
+        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
+
+    Returns
+    -------
+    weights : np.ndarray
+        The weights of the faces in radian. Shape: (n_faces,)
+
+    '''
+    # The sweep line algorithm
+    all_intervals = []
+
+    # Iterate through all faces
+    for face_index in range(len(faces_edges_cart)):
+        # Iterate through all edges of the face
+        weight, overlap_flag = _get_zonal_face_weight_rad(faces_edges_cart[face_index], latitude_cart, face_latlon_bound[face_index], is_directed=is_directed)
+
+    # Manage all intervals collectively
+    interval_index = pd.IntervalIndex([interval for interval, _ in all_intervals])
+    combined_intervals = combine_overlapping_intervals(interval_index)
+
+    # Initialize weights array
+    weights = np.zeros(len(faces_edges_cart))
+
+    # Calculate weights using combined intervals
+    for interval, face_index in all_intervals:
+        weight = calculate_face_weight(interval, combined_intervals, face_latlon_bound[face_index][1])
+        weights[face_index] += weight
+
+    return weights
+
+def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound, is_directed=False, is_GCA_list=None):
     '''
     Requires the face edges to be sorted in counter-clockwise order. And the span of the face in longitude is less than pi.
     And all arcs/edges length are within pi.
+
     Parameters
     ----------
     face_edges_cart : np.ndarray
@@ -21,38 +70,66 @@ def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound
     face_latlon_bound : np.ndarray
         The latitude and longitude bounds of the face. Shape: (2, 2), [[lat_min, lat_max], [lon_min, lon_max]]
 
-    is_directed : bool, optional (default=True)
+    is_directed : bool, optional (default=False)
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
         and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
+    is_GCA_list : np.ndarray, optional (default=None)
+        A list of boolean values that indicates if the edge is a GCA. Shape: (n_edges,). True means this edge is a GCA.
+        False mean this edge is a constant latitude.
+        If None, all edges are considered as GCA.
+
+
     Returns
     -------
-    float
+    Tuple[float, bool]
+    weight: float
         The weight of the face in radian
+
+    over_lap_flag: boolean
+        A flag indicates that the one of the edge of the face might overlap with the query constant latitude
     '''
     pt_lon_min = 3 * np.pi
     pt_lon_max = -3 * np.pi
 
+    if is_GCA_list is None:
+        is_GCA_list = np.ones(len(face_edges_cart), dtype=bool)
+
+    overlap_flag = False
+
     intersections_pts_list_cart = []
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
 
-    for edge in face_edges_cart:
+    for edge_idx in range(len(face_edges_cart)):
+        edge = face_edges_cart[edge_idx]
+        is_GCA = is_GCA_list[edge_idx]
         n1 = edge[0]
         n2 = edge[1]
+
+        # Check if the edge is overlapped with the constant latitude
+        if n1[2] == latitude_cart == n2[2] and is_GCA == False:
+            overlap_flag = True
 
         # Skip the dummy edge
         if np.any(n1 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]) or np.any(n2 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]):
             continue
-        intersections = gca_constLat_intersection([n1, n2], latitude_cart, is_directed=is_directed)
-        if intersections.size == 0:
-            # The constant latitude didn't cross this edge
-            continue
-        elif intersections.shape[0] == 2:
-            # The constant latitude goes across this edge twice
-            intersections_pts_list_cart.append(intersections[0])
-            intersections_pts_list_cart.append(intersections[1])
+
+        if is_GCA:
+            intersections = gca_constLat_intersection([n1, n2], latitude_cart, is_directed=is_directed)
+            if intersections.size == 0:
+                # The constant latitude didn't cross this edge
+                continue
+            elif intersections.shape[0] == 2:
+                # The constant latitude goes across this edge twice
+                intersections_pts_list_cart.append(intersections[0])
+                intersections_pts_list_cart.append(intersections[1])
+            else:
+                intersections_pts_list_cart.append(intersections[0])
         else:
-            intersections_pts_list_cart.append(intersections[0])
+            # This is a constant latitude edge, we just need to check if the edge is overlapped with the constant latitude
+            if overlap_flag:
+                intersections_pts_list_cart = [n1, n2]
+                break
 
 
     # If an edge of a face is overlapped by the constant lat, then it will have 4 non-unique intersection pts
@@ -60,7 +137,6 @@ def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound
     unique_intersection = np.unique(intersections_pts_list_cart, axis=0)
     if len(unique_intersection) == 2:
         # The normal convex case:
-
         #Convert the intersection points back to lonlat
         unique_intersection_lonlat = np.array([ux.grid.arcs.node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection])
         [pt_lon_min, pt_lon_max] = np.sort(
@@ -92,7 +168,7 @@ def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound
     if np.abs(cur_face_mag_rad) >= 2 * np.pi:
         print("Problematic face: the face span is " + str(cur_face_mag_rad) + ". The span should be less than 2pi")
 
-    return cur_face_mag_rad
+    return cur_face_mag_rad, overlap_flag
 
 
 def _get_zonal_face_weights_at_constlat(self, candidate_faces_index_list, latitude_rad):
