@@ -28,7 +28,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
         Cartesian coordinates of the Great Circle Arc (GCR).
     is_directed : bool, optional, default = False
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
 
     Returns
     -------
