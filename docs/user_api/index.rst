@@ -68,6 +68,8 @@ Plotting
 
 
 
+
+
 UxDataArray
 ===========
 N-dimensional ``xarray.DataArray``-like array. Inherits from `xarray.DataArray`
@@ -106,6 +108,7 @@ Methods
    :toctree: _autosummary
 
    UxDataArray.integrate
+   UxDataArray.isel
 
 
 Remapping
@@ -127,6 +130,16 @@ Plotting
    UxDataArray.plot.rasterize
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+
+Subsetting
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   UxDataArray.subset
+   UxDataArray.subset.nearest_neighbor
+   UxDataArray.subset.bounding_circle
+   UxDataArray.subset.bounding_box
 
 
 
@@ -171,6 +184,7 @@ Methods
    Grid.get_ball_tree
    Grid.get_kd_tree
    Grid.copy
+   Grid.isel
 
 
 Dimensions
@@ -260,6 +274,16 @@ Plotting
    Grid.plot.mesh
    Grid.plot.edges
 
+Subsetting
+----------
+.. autosummary::
+   :toctree: _autosummary
+
+   Grid.subset
+   Grid.subset.nearest_neighbor
+   Grid.subset.bounding_circle
+   Grid.subset.bounding_box
+
 
 
 
@@ -299,7 +323,6 @@ UxDataArray Plotting Methods
    plot.dataarray_plot.rasterize
    plot.dataarray_plot.polygons
    plot.dataarray_plot.points
-
 
 
 
