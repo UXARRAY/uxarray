@@ -62,7 +62,7 @@ Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor.rst
+   :template: _autosummary/accessor.rst
 
    UxDataset.plot
 
@@ -123,13 +123,13 @@ Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor.rst
+   :template: _autosummary/accessor.rst
 
    UxDataArray.plot
 
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor_method.rst
+   :template: _autosummary/accessor_method.rst
 
    UxDataArray.plot.datashade
    UxDataArray.plot.rasterize
@@ -140,13 +140,13 @@ Subsetting
 ----------
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor.rst
+   :template: _autosummary/accessor.rst
 
    UxDataArray.subset
 
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor_method.rst
+   :template: _autosummary/accessor_method.rst
 
    UxDataArray.subset.nearest_neighbor
    UxDataArray.subset.bounding_circle
@@ -274,7 +274,7 @@ Plotting
 --------
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor.rst
+   :template: _autosummary/accessor.rst
 
    Grid.plot
 
@@ -295,13 +295,13 @@ Subsetting
 ----------
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor.rst
+   :template: _autosummary/accessor.rst
 
    Grid.subset
 
 .. autosummary::
    :toctree: _autosummary
-   :template: autosummary/accessor_method.rst
+   :template: _autosummary/accessor_method.rst
 
    Grid.subset.nearest_neighbor
    Grid.subset.bounding_circle
