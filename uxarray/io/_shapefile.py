@@ -8,6 +8,7 @@ def _read_shpfile(filepath):
     Returns: ugrid aware xarray.Dataset
     """
     raise RuntimeError(
-        "Function not implemented yet. FYI, attempted to read SHAPE file: " +
-        str(filepath))
+        "Function not implemented yet. FYI, attempted to read SHAPE file: "
+        + str(filepath)
+    )
     # TODO: create ds

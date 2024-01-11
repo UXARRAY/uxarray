@@ -36,7 +36,7 @@ def _parse_grid_type(dataset):
     elif "verticesOnCell" in dataset:
         mesh_type = "MPAS"
     else:
-        raise RuntimeError(f"Could not recognize dataset format.")
+        raise RuntimeError("Could not recognize dataset format.")
     return mesh_type
 
     # check mesh topology and dimension

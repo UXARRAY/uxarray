@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import numpy as np
-import xarray as xr
-from uxarray.constants import INT_FILL_VALUE
 
 from typing import TYPE_CHECKING, Union, Tuple, List, Optional
 
 if TYPE_CHECKING:
-    from uxarray.grid import Grid
+    pass
 
 
 class DataArraySubsetAccessor:
@@ -23,16 +21,20 @@ class DataArraySubsetAccessor:
 
         methods_heading += "  * nearest_neighbor(center_coord, k, element, **kwargs)\n"
         methods_heading += "  * bounding_circle(center_coord, r, element, **kwargs)\n"
-        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
+        methods_heading += (
+            "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
+        )
 
         return prefix + methods_heading
 
-    def bounding_box(self,
-                     lon_bounds: Union[Tuple, List, np.ndarray],
-                     lat_bounds: Union[Tuple, List, np.ndarray],
-                     element: Optional[str] = 'nodes',
-                     method: Optional[str] = 'coords',
-                     **kwargs):
+    def bounding_box(
+        self,
+        lon_bounds: Union[Tuple, List, np.ndarray],
+        lat_bounds: Union[Tuple, List, np.ndarray],
+        element: Optional[str] = "nodes",
+        method: Optional[str] = "coords",
+        **kwargs,
+    ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
 
@@ -52,16 +54,19 @@ class DataArraySubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
-        grid = self.uxda.uxgrid.subset.bounding_box(lon_bounds, lat_bounds,
-                                                    element, method)
+        grid = self.uxda.uxgrid.subset.bounding_box(
+            lon_bounds, lat_bounds, element, method
+        )
 
         return self.uxda._slice_from_grid(grid)
 
-    def bounding_circle(self,
-                        center_coord: Union[Tuple, List, np.ndarray],
-                        r: Union[float, int],
-                        element: Optional[str] = 'nodes',
-                        **kwargs):
+    def bounding_circle(
+        self,
+        center_coord: Union[Tuple, List, np.ndarray],
+        r: Union[float, int],
+        element: Optional[str] = "nodes",
+        **kwargs,
+    ):
         """Subsets an unstructured grid by returning all elements within some
         radius (in degrees) from a center coord.
 
@@ -74,15 +79,18 @@ class DataArraySubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
-        grid = self.uxda.uxgrid.subset.bounding_circle(center_coord, r, element,
-                                                       **kwargs)
+        grid = self.uxda.uxgrid.subset.bounding_circle(
+            center_coord, r, element, **kwargs
+        )
         return self.uxda._slice_from_grid(grid)
 
-    def nearest_neighbor(self,
-                         center_coord: Union[Tuple, List, np.ndarray],
-                         k: int,
-                         element: Optional[str] = 'nodes',
-                         **kwargs):
+    def nearest_neighbor(
+        self,
+        center_coord: Union[Tuple, List, np.ndarray],
+        k: int,
+        element: Optional[str] = "nodes",
+        **kwargs,
+    ):
         """Subsets an unstructured grid by returning the ``k`` closest
         neighbors from a center coordinate.
 
@@ -96,7 +104,8 @@ class DataArraySubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
 
-        grid = self.uxda.uxgrid.subset.nearest_neighbor(center_coord, k,
-                                                        element, **kwargs)
+        grid = self.uxda.uxgrid.subset.nearest_neighbor(
+            center_coord, k, element, **kwargs
+        )
 
         return self.uxda._slice_from_grid(grid)
