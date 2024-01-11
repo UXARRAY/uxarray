@@ -100,7 +100,7 @@ napoleon_include_special_with_doc = True
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates = ["_templates", sphinx_autosummary_accessors.templates_path]
+templates_path = ["_templates", sphinx_autosummary_accessors.templates_path]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
