@@ -805,11 +805,13 @@ class Grid:
             self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_jacobian
 
-    def get_ball_tree(self,
-                      coordinates: Optional[str] = "nodes",
-                      coordinate_system: Optional[str] = "spherical",
-                      distance_metric: Optional[str] = "haversine",
-                      reconstruct: bool = False):
+    def get_ball_tree(
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "spherical",
+        distance_metric: Optional[str] = "haversine",
+        reconstruct: bool = False,
+    ):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_lon``, ``node_lat``) or face centers (``face_lon``,
@@ -833,24 +835,28 @@ class Grid:
         self._ball_tree : grid.Neighbors.BallTree
             BallTree instance
         """
-        
+
         if self._ball_tree is None or reconstruct:
-            self._ball_tree = BallTree(self,
-                                       coordinates=coordinates,
-                                       distance_metric=distance_metric,
-                                       coordinate_system=coordinate_system,
-                                       reconstruct=reconstruct)
+            self._ball_tree = BallTree(
+                self,
+                coordinates=coordinates,
+                distance_metric=distance_metric,
+                coordinate_system=coordinate_system,
+                reconstruct=reconstruct,
+            )
         else:
             if coordinates != self._ball_tree._coordinates:
                 self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
 
-    def get_kd_tree(self,
-                    coordinates: Optional[str] = "nodes",
-                    coordinate_system: Optional[str] = "cartesian",
-                    distance_metric: Optional[str] = "minkowski",
-                    reconstruct: bool = False):
+    def get_kd_tree(
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "cartesian",
+        distance_metric: Optional[str] = "minkowski",
+        reconstruct: bool = False,
+    ):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
@@ -876,12 +882,14 @@ class Grid:
         """
 
         if self._kd_tree is None or reconstruct:
-            self._kd_tree = KDTree(self,
-                                   coordinates=coordinates,
-                                   distance_metric=distance_metric,
-                                   coordinate_system=coordinate_system,
-                                   reconstruct=reconstruct)
-            
+            self._kd_tree = KDTree(
+                self,
+                coordinates=coordinates,
+                distance_metric=distance_metric,
+                coordinate_system=coordinate_system,
+                reconstruct=reconstruct,
+            )
+
         else:
             if coordinates != self._kd_tree._coordinates:
                 self._kd_tree.coordinates = coordinates

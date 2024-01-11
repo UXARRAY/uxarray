@@ -78,8 +78,7 @@ def _nearest_neighbor(
             )
 
         # specify whether to query on the corner nodes or face centers based on source grid
-        _source_tree = source_grid.get_ball_tree(
-            coordinates=source_data_mapping)
+        _source_tree = source_grid.get_ball_tree(coordinates=source_data_mapping)
 
         # prepare coordinates for query
         latlon = np.vstack([lon, lat]).T
