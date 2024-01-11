@@ -162,8 +162,8 @@ def _inverse_distance_weighted_remap_uxda(
     """
 
     # check dimensions remapped to and from
-    if (source_uxda.dims[-1] == "n_node" and remap_to != "nodes") or (
-        source_uxda.dims[-1] == "n_face" and remap_to != "face centers"
+    if (source_uxda._node_centered() and remap_to != "nodes") or (
+        source_uxda._face_centered() and remap_to != "face centers"
     ):
         warnings.warn(
             f"Your data is stored on {source_uxda.dims[-1]}, but you are remapping to {remap_to}"
