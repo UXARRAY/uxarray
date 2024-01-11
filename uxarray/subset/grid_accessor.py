@@ -21,16 +21,20 @@ class GridSubsetAccessor:
 
         methods_heading += "  * nearest_neighbor(center_coord, k, element, **kwargs)\n"
         methods_heading += "  * bounding_circle(center_coord, r, element, **kwargs)\n"
-        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
+        methods_heading += (
+            "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
+        )
 
         return prefix + methods_heading
 
-    def bounding_box(self,
-                     lon_bounds: Union[Tuple, List, np.ndarray],
-                     lat_bounds: Union[Tuple, List, np.ndarray],
-                     element: Optional[str] = 'nodes',
-                     method: Optional[str] = 'coords',
-                     **kwargs):
+    def bounding_box(
+        self,
+        lon_bounds: Union[Tuple, List, np.ndarray],
+        lat_bounds: Union[Tuple, List, np.ndarray],
+        element: Optional[str] = "nodes",
+        method: Optional[str] = "coords",
+        **kwargs,
+    ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
 
@@ -67,21 +71,26 @@ class GridSubsetAccessor:
                 # split across antimeridian
 
                 lon_indices_lhs = np.argwhere(
-                    np.logical_and(lon >= -180, lon < lon_bounds[1]))
+                    np.logical_and(lon >= -180, lon < lon_bounds[1])
+                )
 
                 lon_indices_rhs = np.argwhere(
-                    np.logical_and(lon >= lon_bounds[0], lon < 180))
+                    np.logical_and(lon >= lon_bounds[0], lon < 180)
+                )
 
-                lon_indices = np.union1d(lon_indices_lhs.squeeze(),
-                                         lon_indices_rhs.squeeze())
+                lon_indices = np.union1d(
+                    lon_indices_lhs.squeeze(), lon_indices_rhs.squeeze()
+                )
             else:
                 # continuous bound
 
                 lon_indices = np.argwhere(
-                    np.logical_and(lon > lon_bounds[0], lon < lon_bounds[1]))
+                    np.logical_and(lon > lon_bounds[0], lon < lon_bounds[1])
+                )
 
             lat_indices = np.argwhere(
-                np.logical_and(lat > lat_bounds[0], lat < lat_bounds[1]))
+                np.logical_and(lat > lat_bounds[0], lat < lat_bounds[1])
+            )
 
             # treat both indices as a set, find the intersection of both
             indices = np.intersect1d(lat_indices, lon_indices)
@@ -101,11 +110,13 @@ class GridSubsetAccessor:
         else:
             raise ValueError(f"Method '{method}' not supported.")
 
-    def bounding_circle(self,
-                        center_coord: Union[Tuple, List, np.ndarray],
-                        r: Union[float, int],
-                        element: Optional[str] = 'nodes',
-                        **kwargs):
+    def bounding_circle(
+        self,
+        center_coord: Union[Tuple, List, np.ndarray],
+        r: Union[float, int],
+        element: Optional[str] = "nodes",
+        **kwargs,
+    ):
         """Subsets an unstructured grid by returning all elements within some
         radius (in degrees) from a center coord.
 
@@ -132,11 +143,13 @@ class GridSubsetAccessor:
 
         return self._index_grid(ind, element)
 
-    def nearest_neighbor(self,
-                         center_coord: Union[Tuple, List, np.ndarray],
-                         k: int,
-                         element: Optional[str] = 'nodes',
-                         **kwargs):
+    def nearest_neighbor(
+        self,
+        center_coord: Union[Tuple, List, np.ndarray],
+        k: int,
+        element: Optional[str] = "nodes",
+        **kwargs,
+    ):
         """Subsets an unstructured grid by returning the ``k`` closest
         neighbors from a center coordinate.
 

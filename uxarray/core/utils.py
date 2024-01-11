@@ -20,11 +20,11 @@ def _map_dims_to_ugrid(
     for dim in set(ds.dims) ^ _source_dims_dict.keys():
         # obtain dimensions that were not parsed source_dims_dict and attempt to match to a grid element
         if ds.dims[dim] == grid.n_face:
-            _source_dims_dict[dim] = 'n_face'
+            _source_dims_dict[dim] = "n_face"
         elif ds.dims[dim] == grid.n_node:
-            _source_dims_dict[dim] = 'n_node'
+            _source_dims_dict[dim] = "n_node"
         elif ds.dims[dim] == grid.n_edge:
-            _source_dims_dict[dim] = 'n_edge'
+            _source_dims_dict[dim] = "n_edge"
 
     # Possible Issue: https://github.com/UXARRAY/uxarray/issues/610
 

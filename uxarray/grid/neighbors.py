@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import deg2rad
-import warnings
 
 from sklearn.neighbors import BallTree as SKBallTree
 from sklearn.neighbors import KDTree as SKKDTree
@@ -72,6 +71,7 @@ class KDTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
         nodes."""
+
         if self._tree_from_nodes is None or self.reconstruct:
 
             # Sets which values to use for the tree based on the coordinate_system
@@ -99,6 +99,7 @@ class KDTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from face
         centers."""
+
         if self._tree_from_face_centers is None or self.reconstruct:
 
             # Sets which values to use for the tree based on the coordinate_system
@@ -181,6 +182,7 @@ class KDTree:
               dualtree: Optional[bool] = False,
               breadth_first: Optional[bool] = False,
               sort_results: Optional[bool] = True):
+    
         """Queries the tree for the ``k`` nearest neighbors.
 
         Parameters
@@ -211,6 +213,7 @@ class KDTree:
         if k < 1 or k > self._n_elements:
             raise AssertionError(
                 f"The value of k must be greater than 1 and less than the number of elements used to construct "
+
                 f"the tree ({self._n_elements}).")
         if self.coordinate_system == "cartesian":
             coords = _prepare_xyz_for_query(coords)
@@ -262,6 +265,7 @@ class KDTree:
                      in_radians: Optional[bool] = False,
                      count_only: Optional[bool] = False,
                      sort_results: Optional[bool] = False):
+
         """Queries the tree for all neighbors within a radius ``r``.
 
         Parameters
@@ -289,7 +293,8 @@ class KDTree:
 
         if r < 0.0:
             raise AssertionError(
-                f"The value of r must be greater than or equal to zero.")
+                "The value of r must be greater than or equal to zero."
+            )
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_system == "cartesian":
@@ -424,6 +429,7 @@ class BallTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
+        
         if self._tree_from_face_centers is None or self.reconstruct:
 
             # Sets which values to use for the tree based on the coordinate_system
@@ -450,6 +456,7 @@ class BallTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from corner
         nodes."""
+
         if self._tree_from_nodes is None or self.reconstruct:
 
             # Sets which values to use for the tree based on the coordinate_system
@@ -501,7 +508,6 @@ class BallTree:
         return self._tree_from_edge_centers
 
     def _current_tree(self):
-
         _tree = None
 
         if self._coordinates == "nodes":
@@ -525,6 +531,7 @@ class BallTree:
               dualtree: Optional[bool] = False,
               breadth_first: Optional[bool] = False,
               sort_results: Optional[bool] = True):
+      
         """Queries the tree for the ``k`` nearest neighbors.
 
         Parameters
@@ -555,7 +562,8 @@ class BallTree:
         if k < 1 or k > self._n_elements:
             raise AssertionError(
                 f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({self._n_elements}).")
+                f"the tree ({self._n_elements})."
+            )
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_system == "spherical":
@@ -606,6 +614,7 @@ class BallTree:
                      return_distance: Optional[bool] = False,
                      count_only: Optional[bool] = False,
                      sort_results: Optional[bool] = False):
+      
         """Queries the tree for all neighbors within a radius ``r``.
 
         Parameters
@@ -633,7 +642,8 @@ class BallTree:
 
         if r < 0.0:
             raise AssertionError(
-                f"The value of r must be greater than or equal to zero.")
+                "The value of r must be greater than or equal to zero."
+            )
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_system == "spherical":
@@ -716,12 +726,14 @@ def _prepare_xy_for_query(xy, use_radians, distance_metric):
     # expected shape is [n_pairs, 2]
     if xy.shape[1] == 3:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be two (lon, lat). Did you attempt to query using Cartesian "
-            f"(x, y, z) coordinates?")
+            "The dimension of each coordinate pair must be two (lon, lat). Did you attempt to query using Cartesian "
+            "(x, y, z) coordinates?"
+        )
 
     if xy.shape[1] != 2:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be two (lon, lat).)")
+            "The dimension of each coordinate pair must be two (lon, lat).)"
+        )
 
     # swap x and y if the distance metric used is haversine
     if distance_metric == "haversine":
@@ -748,11 +760,13 @@ def _prepare_xyz_for_query(xyz):
     # expected shape is [n_pairs, 3]
     if xyz.shape[1] == 2:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be three (x, y, z). Did you attempt to query using latlon "
-            f"(lat, lon) coordinates?")
+            "The dimension of each coordinate pair must be three (x, y, z). Did you attempt to query using latlon "
+            "(lat, lon) coordinates?"
+        )
 
     if xyz.shape[1] != 3:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be three (x, y, z).)")
+            "The dimension of each coordinate pair must be three (x, y, z).)"
+        )
 
     return xyz
