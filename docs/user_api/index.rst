@@ -123,11 +123,13 @@ Remapping
 Plotting
 --------
 .. autosummary::
+   :toctree: generated/
    :template: autosummary/accessor.rst
 
    UxDataArray.plot
 
 .. autosummary::
+   :toctree: generated/
    :template: autosummary/accessor_method.rst
 
    UxDataArray.plot.datashade
