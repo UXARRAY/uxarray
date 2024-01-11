@@ -19,7 +19,7 @@ dependencies:
     - jupyter_client
     - scikit-learn
     - sphinx-book-theme
-    - sphinx_autosummary_accessors
+    - sphinx-autosummary-accessors
     - myst-nb
     - sphinx-design
     - nbsphinx
