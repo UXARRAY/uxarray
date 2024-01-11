@@ -15,7 +15,9 @@ from uxarray.plot.accessor import UxDatasetPlotAccessor
 from xarray.core.utils import UncachedAccessor
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxds
-from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap_uxds
+from uxarray.remap.inverse_distance_weighted import (
+    _inverse_distance_weighted_remap_uxds,
+)
 
 from warnings import warn
 
@@ -345,15 +347,14 @@ class UxDataset(xr.Dataset):
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
-        return _nearest_neighbor_uxds(self, destination_obj, remap_to,
-                                      coord_type)
+        return _nearest_neighbor_uxds(self, destination_obj, remap_to, coord_type)
 
-    def inverse_distance_weighted_remap(self,
-                                        destination_obj: Union[Grid,
-                                                               UxDataArray,
-                                                               UxDataset],
-                                        remap_to: str = "nodes",
-                                        coord_type: str = "spherical"):
+    def inverse_distance_weighted_remap(
+        self,
+        destination_obj: Union[Grid, UxDataArray, UxDataset],
+        remap_to: str = "nodes",
+        coord_type: str = "spherical",
+    ):
         """Inverse Distance Weighted Remapping between a source (``UxDataset``)
         and destination.`.
 
@@ -366,5 +367,6 @@ class UxDataset(xr.Dataset):
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
-        return _inverse_distance_weighted_remap_uxds(self, destination_obj,
-                                                     remap_to, coord_type)
+        return _inverse_distance_weighted_remap_uxds(
+            self, destination_obj, remap_to, coord_type
+        )
