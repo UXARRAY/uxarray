@@ -308,7 +308,7 @@ def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
 
 
 def _populate_edge_centroids(grid, repopulate=False):
-    """Finds the centroids using cartesian averaging of faces based off the
+    """Finds the centroids using cartesian averaging of the edges based off the
     vertices. The centroid is defined as the average of the x, y, z
     coordinates, normalized. This cannot be guaranteed to work on concave
     polygons.
@@ -316,7 +316,7 @@ def _populate_edge_centroids(grid, repopulate=False):
     Parameters
     ----------
     repopulate : bool, optional
-        Bool used to turn on/off repopulating the face coordinates of the centroids
+        Bool used to turn on/off repopulating the edge coordinates of the centroids
     """
 
     node_x = grid.node_x.values
@@ -366,7 +366,7 @@ def _populate_edge_centroids(grid, repopulate=False):
 
 
 def _construct_edge_centroids(node_x, node_y, node_z, edge_nodes_con):
-    """Constructs the xyz centroid coordinate for each face using Cartesian
+    """Constructs the xyz centroid coordinate for each edge using Cartesian
     Averaging."""
     centroids = np.zeros((3, edge_nodes_con.shape[0]), dtype=np.float64)
 
