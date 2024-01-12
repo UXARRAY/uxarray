@@ -33,7 +33,8 @@ def node_lonlat_rad_to_xyz(node_coord):
     """
     if len(node_coord) != 2:
         raise RuntimeError(
-            "Input array should have a length of 2: [longitude, latitude]")
+            "Input array should have a length of 2: [longitude, latitude]"
+        )
     lon = node_coord[0]
     lat = node_coord[1]
     return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
@@ -148,24 +149,30 @@ def _populate_cartesian_xyz_coord(grid):
     # get Cartesian (x, y, z) coordinates from lon/lat
     x, y, z = _get_xyz_from_lonlat(grid.node_lon.values, grid.node_lat.values)
 
-    grid._ds["node_x"] = xr.DataArray(data=x,
-                                      dims=["n_node"],
-                                      attrs={
-                                          "standard_name": "cartesian x",
-                                          "units": "m",
-                                      })
-    grid._ds["node_y"] = xr.DataArray(data=y,
-                                      dims=["n_node"],
-                                      attrs={
-                                          "standard_name": "cartesian y",
-                                          "units": "m",
-                                      })
-    grid._ds["node_z"] = xr.DataArray(data=z,
-                                      dims=["n_node"],
-                                      attrs={
-                                          "standard_name": "cartesian z",
-                                          "units": "m",
-                                      })
+    grid._ds["node_x"] = xr.DataArray(
+        data=x,
+        dims=["n_node"],
+        attrs={
+            "standard_name": "cartesian x",
+            "units": "m",
+        },
+    )
+    grid._ds["node_y"] = xr.DataArray(
+        data=y,
+        dims=["n_node"],
+        attrs={
+            "standard_name": "cartesian y",
+            "units": "m",
+        },
+    )
+    grid._ds["node_z"] = xr.DataArray(
+        data=z,
+        dims=["n_node"],
+        attrs={
+            "standard_name": "cartesian z",
+            "units": "m",
+        },
+    )
 
 
 def _get_lonlat_from_xyz(x, y, z):
@@ -201,8 +208,9 @@ def _populate_lonlat_coord(grid):
     """
 
     # get lon/lat coordinates from Cartesian (x, y, z)
-    lon, lat = _get_lonlat_from_xyz(grid.node_x.values, grid.node_y.values,
-                                    grid.node_z.values)
+    lon, lat = _get_lonlat_from_xyz(
+        grid.node_x.values, grid.node_y.values, grid.node_z.values
+    )
 
     # populate dataset
     grid._ds["node_lon"] = xr.DataArray(
@@ -211,14 +219,16 @@ def _populate_lonlat_coord(grid):
         attrs={
             "long_name": "longitude of corner nodes",
             "units": "degrees_east",
-        })
+        },
+    )
     grid._ds["node_lat"] = xr.DataArray(
         data=lat,
         dims=["n_node"],
         attrs={
             "long_name": "latitude of corner nodes",
             "units": "degrees_north",
-        })
+        },
+    )
 
 
 def _populate_centroid_coord(grid, repopulate=False):
@@ -232,8 +242,7 @@ def _populate_centroid_coord(grid, repopulate=False):
     repopulate : bool, optional
         Bool used to turn on/off repopulating the face coordinates of the centroids
     """
-    warnings.warn(
-        "This cannot be guaranteed to work correctly on concave polygons")
+    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     node_x = grid.node_x.values
     node_y = grid.node_y.values
@@ -245,7 +254,8 @@ def _populate_centroid_coord(grid, repopulate=False):
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
             centroid_x, centroid_y, centroid_z = _construct_xyz_centroids(
-                node_x, node_y, node_z, face_nodes, n_nodes_per_face)
+                node_x, node_y, node_z, face_nodes, n_nodes_per_face
+            )
 
         else:
             # If there are cartesian centroids already use those instead
@@ -253,38 +263,39 @@ def _populate_centroid_coord(grid, repopulate=False):
 
         # Convert from xyz to latlon
         centroid_lon, centroid_lat = _get_lonlat_from_xyz(
-            centroid_x, centroid_y, centroid_z)
+            centroid_x, centroid_y, centroid_z
+        )
     else:
         # Convert to xyz if there are latlon centroids already stored
         centroid_lon, centroid_lat = grid.face_lon.values, grid.face_lat.values
         centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
-            centroid_lon, centroid_lat)
+            centroid_lon, centroid_lat
+        )
 
     if "face_lon" not in grid._ds or repopulate:
-        grid._ds["face_lon"] = xr.DataArray(centroid_lon,
-                                            dims=["n_face"],
-                                            attrs={"units": "degrees_east"})
-        grid._ds["face_lat"] = xr.DataArray(centroid_lat,
-                                            dims=["n_face"],
-                                            attrs={"units": "degrees_north"})
+        grid._ds["face_lon"] = xr.DataArray(
+            centroid_lon, dims=["n_face"], attrs={"units": "degrees_east"}
+        )
+        grid._ds["face_lat"] = xr.DataArray(
+            centroid_lat, dims=["n_face"], attrs={"units": "degrees_north"}
+        )
 
     if "face_x" not in grid._ds or repopulate:
-        grid._ds["face_x"] = xr.DataArray(centroid_x,
-                                          dims=["n_face"],
-                                          attrs={"units": "meters"})
+        grid._ds["face_x"] = xr.DataArray(
+            centroid_x, dims=["n_face"], attrs={"units": "meters"}
+        )
 
-        grid._ds["face_y"] = xr.DataArray(centroid_y,
-                                          dims=["n_face"],
-                                          attrs={"units": "meters"})
+        grid._ds["face_y"] = xr.DataArray(
+            centroid_y, dims=["n_face"], attrs={"units": "meters"}
+        )
 
-        grid._ds["face_z"] = xr.DataArray(centroid_z,
-                                          dims=["n_face"],
-                                          attrs={"units": "meters"})
+        grid._ds["face_z"] = xr.DataArray(
+            centroid_z, dims=["n_face"], attrs={"units": "meters"}
+        )
 
 
 @njit(cache=ENABLE_JIT_CACHE)
-def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
-                             n_nodes_per_face):
+def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging."""
     centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
@@ -297,7 +308,8 @@ def _construct_xyz_centroids(node_x, node_y, node_z, face_nodes,
 
         # normalize coordinates
         centroid_normalized_xyz = normalize_in_place(
-            [centroid_x, centroid_y, centroid_z])
+            [centroid_x, centroid_y, centroid_z]
+        )
 
         # store xyz
         centroids[0, face_idx] = centroid_normalized_xyz[0]
@@ -391,7 +403,7 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_nodes_con):
 def _set_desired_longitude_range(ds):
     """Sets the longitude range to [-180, 180] for all longitude variables."""
 
-    for lon_name in ['node_lon', 'edge_lon', 'face_lon']:
+    for lon_name in ["node_lon", "edge_lon", "face_lon"]:
         if lon_name in ds:
             if ds[lon_name].max() > 180:
                 ds[lon_name] = (ds[lon_name] + 180) % 360 - 180

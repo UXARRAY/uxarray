@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import deg2rad
-import warnings
 
 from sklearn.neighbors import BallTree as SKBallTree
 from sklearn.neighbors import KDTree as SKKDTree
@@ -31,11 +30,9 @@ class KDTree:
     for further information about the wrapped data structures.
     """
 
-    def __init__(self,
-                 grid,
-                 tree_type: Optional[str] = "nodes",
-                 distance_metric="minkowski"):
-
+    def __init__(
+        self, grid, tree_type: Optional[str] = "nodes", distance_metric="minkowski"
+    ):
         # Set up references
         self._source_grid = grid
         self._tree_type = tree_type
@@ -58,12 +55,15 @@ class KDTree:
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
         nodes."""
         if self._tree_from_nodes is None:
-            cart_coords = np.stack((self._source_grid.node_x.values,
-                                    self._source_grid.node_y.values,
-                                    self._source_grid.node_z.values),
-                                   axis=-1)
-            self._tree_from_nodes = SKKDTree(cart_coords,
-                                             metric=self.distance_metric)
+            cart_coords = np.stack(
+                (
+                    self._source_grid.node_x.values,
+                    self._source_grid.node_y.values,
+                    self._source_grid.node_z.values,
+                ),
+                axis=-1,
+            )
+            self._tree_from_nodes = SKKDTree(cart_coords, metric=self.distance_metric)
 
         return self._tree_from_nodes
 
@@ -74,12 +74,17 @@ class KDTree:
             if self._source_grid.face_x is None:
                 raise ValueError
 
-            cart_coords = np.stack((self._source_grid.face_x.values,
-                                    self._source_grid.face_y.values,
-                                    self._source_grid.face_z.values),
-                                   axis=-1)
-            self._tree_from_face_centers = SKKDTree(cart_coords,
-                                                    metric=self.distance_metric)
+            cart_coords = np.stack(
+                (
+                    self._source_grid.face_x.values,
+                    self._source_grid.face_y.values,
+                    self._source_grid.face_z.values,
+                ),
+                axis=-1,
+            )
+            self._tree_from_face_centers = SKKDTree(
+                cart_coords, metric=self.distance_metric
+            )
 
         return self._tree_from_face_centers
 
@@ -96,13 +101,15 @@ class KDTree:
 
         return _tree
 
-    def query(self,
-              xyz: Union[np.ndarray, list, tuple],
-              k: Optional[int] = 1,
-              return_distance: Optional[bool] = True,
-              dualtree: Optional[bool] = False,
-              breadth_first: Optional[bool] = False,
-              sort_results: Optional[bool] = True):
+    def query(
+        self,
+        xyz: Union[np.ndarray, list, tuple],
+        k: Optional[int] = 1,
+        return_distance: Optional[bool] = True,
+        dualtree: Optional[bool] = False,
+        breadth_first: Optional[bool] = False,
+        sort_results: Optional[bool] = True,
+    ):
         """Queries the tree for the ``k`` nearest neighbors.
 
         Parameters
@@ -131,12 +138,14 @@ class KDTree:
         if k < 1 or k > self._n_elements:
             raise AssertionError(
                 f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({self._n_elements}).")
+                f"the tree ({self._n_elements})."
+            )
 
         xyz = _prepare_xyz_for_query(xyz)
 
-        d, ind = self._current_tree().query(xyz, k, return_distance, dualtree,
-                                            breadth_first, sort_results)
+        d, ind = self._current_tree().query(
+            xyz, k, return_distance, dualtree, breadth_first, sort_results
+        )
 
         ind = np.asarray(ind, dtype=INT_DTYPE)
 
@@ -153,12 +162,14 @@ class KDTree:
 
         return ind
 
-    def query_radius(self,
-                     xyz: Union[np.ndarray, list, tuple],
-                     r: Optional[int] = 1.0,
-                     return_distance: Optional[bool] = True,
-                     count_only: Optional[bool] = False,
-                     sort_results: Optional[bool] = False):
+    def query_radius(
+        self,
+        xyz: Union[np.ndarray, list, tuple],
+        r: Optional[int] = 1.0,
+        return_distance: Optional[bool] = True,
+        count_only: Optional[bool] = False,
+        sort_results: Optional[bool] = False,
+    ):
         """Queries the tree for all neighbors within a radius ``r``.
 
         Parameters
@@ -184,20 +195,22 @@ class KDTree:
 
         if r < 0.0:
             raise AssertionError(
-                f"The value of r must be greater than or equal to zero.")
+                "The value of r must be greater than or equal to zero."
+            )
 
         xyz = _prepare_xyz_for_query(xyz)
 
         if count_only:
-            count = self._current_tree().query_radius(xyz, r, return_distance,
-                                                      count_only, sort_results)
+            count = self._current_tree().query_radius(
+                xyz, r, return_distance, count_only, sort_results
+            )
 
             return count
 
         else:
-
-            ind, d = self._current_tree().query_radius(xyz, r, return_distance,
-                                                       count_only, sort_results)
+            ind, d = self._current_tree().query_radius(
+                xyz, r, return_distance, count_only, sort_results
+            )
 
             ind = np.asarray(ind[0], dtype=INT_DTYPE)
 
@@ -205,7 +218,6 @@ class KDTree:
                 ind = ind.squeeze()
 
             if return_distance:
-
                 return d, ind
 
             return ind
@@ -253,11 +265,9 @@ class BallTree:
     for further information about the wrapped data structures.
     """
 
-    def __init__(self,
-                 grid,
-                 tree_type: Optional[str] = "nodes",
-                 distance_metric='haversine'):
-
+    def __init__(
+        self, grid, tree_type: Optional[str] = "nodes", distance_metric="haversine"
+    ):
         # maintain a reference to the source grid
         self._source_grid = grid
         self.distance_metric = distance_metric
@@ -283,11 +293,16 @@ class BallTree:
             if self._source_grid.node_lon is None:
                 raise ValueError
 
-            latlon = np.vstack((deg2rad(self._source_grid.node_lat.values),
-                                deg2rad(self._source_grid.node_lon.values))).T
+            latlon = np.vstack(
+                (
+                    deg2rad(self._source_grid.face_lat.values),
+                    deg2rad(self._source_grid.face_lon.values),
+                )
+            ).T
 
             self._tree_from_face_centers = SKBallTree(
-                latlon, metric=self.distance_metric)
+                latlon, metric=self.distance_metric
+            )
 
         return self._tree_from_face_centers
 
@@ -295,15 +310,17 @@ class BallTree:
         """Internal``sklearn.neighbors.BallTree`` constructed from corner
         nodes."""
         if self._tree_from_nodes is None:
-            latlon = np.vstack((deg2rad(self._source_grid.node_lat.values),
-                                deg2rad(self._source_grid.node_lon.values))).T
-            self._tree_from_nodes = SKBallTree(latlon,
-                                               metric=self.distance_metric)
+            latlon = np.vstack(
+                (
+                    deg2rad(self._source_grid.node_lat.values),
+                    deg2rad(self._source_grid.node_lon.values),
+                )
+            ).T
+            self._tree_from_nodes = SKBallTree(latlon, metric=self.distance_metric)
 
         return self._tree_from_nodes
 
     def _current_tree(self):
-
         _tree = None
 
         if self._tree_type == "nodes":
@@ -315,14 +332,16 @@ class BallTree:
 
         return _tree
 
-    def query(self,
-              xy: Union[np.ndarray, list, tuple],
-              k: Optional[int] = 1,
-              xy_in_radians: Optional[bool] = False,
-              return_distance: Optional[bool] = True,
-              dualtree: Optional[bool] = False,
-              breadth_first: Optional[bool] = False,
-              sort_results: Optional[bool] = True):
+    def query(
+        self,
+        xy: Union[np.ndarray, list, tuple],
+        k: Optional[int] = 1,
+        xy_in_radians: Optional[bool] = False,
+        return_distance: Optional[bool] = True,
+        dualtree: Optional[bool] = False,
+        breadth_first: Optional[bool] = False,
+        sort_results: Optional[bool] = True,
+    ):
         """Queries the tree for the ``k`` nearest neighbors.
 
         Parameters
@@ -353,12 +372,14 @@ class BallTree:
         if k < 1 or k > self._n_elements:
             raise AssertionError(
                 f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({self._n_elements}).")
+                f"the tree ({self._n_elements})."
+            )
 
         xy = _prepare_xy_for_query(xy, xy_in_radians)
 
-        d, ind = self._current_tree().query(xy, k, return_distance, dualtree,
-                                            breadth_first, sort_results)
+        d, ind = self._current_tree().query(
+            xy, k, return_distance, dualtree, breadth_first, sort_results
+        )
 
         ind = np.asarray(ind, dtype=INT_DTYPE)
 
@@ -378,13 +399,15 @@ class BallTree:
 
         return ind
 
-    def query_radius(self,
-                     xy: Union[np.ndarray, list, tuple],
-                     r: Optional[int] = 1.0,
-                     xy_in_radians: Optional[bool] = False,
-                     return_distance: Optional[bool] = True,
-                     count_only: Optional[bool] = False,
-                     sort_results: Optional[bool] = False):
+    def query_radius(
+        self,
+        xy: Union[np.ndarray, list, tuple],
+        r: Optional[int] = 1.0,
+        xy_in_radians: Optional[bool] = False,
+        return_distance: Optional[bool] = True,
+        count_only: Optional[bool] = False,
+        sort_results: Optional[bool] = False,
+    ):
         """Queries the tree for all neighbors within a radius ``r``.
 
         Parameters
@@ -412,21 +435,23 @@ class BallTree:
 
         if r < 0.0:
             raise AssertionError(
-                f"The value of r must be greater than or equal to zero.")
+                "The value of r must be greater than or equal to zero."
+            )
 
         r = np.deg2rad(r)
         xy = _prepare_xy_for_query(xy, xy_in_radians)
 
         if count_only:
-            count = self._current_tree().query_radius(xy, r, return_distance,
-                                                      count_only, sort_results)
+            count = self._current_tree().query_radius(
+                xy, r, return_distance, count_only, sort_results
+            )
 
             return count
 
         else:
-
-            ind, d = self._current_tree().query_radius(xy, r, return_distance,
-                                                       count_only, sort_results)
+            ind, d = self._current_tree().query_radius(
+                xy, r, return_distance, count_only, sort_results
+            )
 
             ind = np.asarray(ind[0], dtype=INT_DTYPE)
 
@@ -474,12 +499,14 @@ def _prepare_xy_for_query(xy, use_radians):
     # expected shape is [n_pairs, 2]
     if xy.shape[1] == 3:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be two (lon, lat). Did you attempt to query using Cartesian "
-            f"(x, y, z) coordinates?")
+            "The dimension of each coordinate pair must be two (lon, lat). Did you attempt to query using Cartesian "
+            "(x, y, z) coordinates?"
+        )
 
     if xy.shape[1] != 2:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be two (lon, lat).)")
+            "The dimension of each coordinate pair must be two (lon, lat).)"
+        )
 
     # swap X and Y for query
     xy[:, [0, 1]] = xy[:, [1, 0]]
@@ -503,11 +530,13 @@ def _prepare_xyz_for_query(xyz):
     # expected shape is [n_pairs, 3]
     if xyz.shape[1] == 2:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be three (x, y, z). Did you attempt to query using latlon "
-            f"(lat, lon) coordinates?")
+            "The dimension of each coordinate pair must be three (x, y, z). Did you attempt to query using latlon "
+            "(lat, lon) coordinates?"
+        )
 
     if xyz.shape[1] != 3:
         raise AssertionError(
-            f"The dimension of each coordinate pair must be three (x, y, z).)")
+            "The dimension of each coordinate pair must be three (x, y, z).)"
+        )
 
     return xyz
