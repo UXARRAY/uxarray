@@ -3,12 +3,13 @@ import os
 from unittest import TestCase
 from pathlib import Path
 import numpy as np
+import pandas as pd
 
 import numpy.testing as nt
 
 import uxarray as ux
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.integrate import _get_zonal_face_weight_rad
+from uxarray.grid.integrate import _get_zonal_face_weight_rad, _process_overlapped_intervals
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -114,6 +115,27 @@ class TestFaceWeights(TestCase):
                                                             is_GCA_list=np.array([True, False, True, False]))
         self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
         self.assertTrue(overlap_flag)
+
+    def test_process_overlapped_intervals(self):
+        # Example data
+        intervals_data = [
+            {'start': 0.0, 'end': 100.0, 'face_index': 0},
+            {'start': 50.0, 'end': 150.0, 'face_index': 1},
+            {'start': 140.0, 'end': 150.0, 'face_index': 2},
+            {'start': 150.0, 'end': 250.0, 'face_index': 3},
+            {'start': 260.0, 'end': 350.0, 'face_index': 4},
+        ]
+
+        df = pd.DataFrame(intervals_data)
+        df['interval'] = df.apply(lambda row: pd.Interval(left=row['start'], right=row['end'], closed='both'), axis=1)
+        df['interval'] = df['interval'].astype('interval[float64]')
+
+        # Expected result
+        expected_overlap_contributions = np.array({0: 75.0, 1: 70.0, 2: 5.0, 3: 100.0, 4: 90.0})
+        overlap_contributions, total_length = _process_overlapped_intervals(df)
+        self.assertEqual(total_length, 340.0)
+        nt.assert_array_equal(overlap_contributions, expected_overlap_contributions)
+
 
 
 
