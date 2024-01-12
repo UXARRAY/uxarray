@@ -1,11 +1,12 @@
-# (cellVar[cellsOnEdge[edgeInd,1],k]-cellVar[cellsOnEdge[edgeInd,0],k]) / dcEdge[edgeInd]
 import numpy as np
+
+from numba import njit
 
 from typing import Optional
 from uxarray.constants import INT_FILL_VALUE
 
 
-# @njit
+@njit
 def _calculate_grad_on_edge(
     d_var,
     edge_faces,
