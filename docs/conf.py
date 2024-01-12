@@ -10,6 +10,7 @@ import sys
 import pathlib
 import yaml
 from sphinx.application import Sphinx
+import sphinx_autosummary_accessors
 from sphinx.util import logging
 from textwrap import dedent, indent
 import datetime
@@ -49,6 +50,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
+    "sphinx_autosummary_accessors",
     "myst_nb",
     "sphinx_design",
     "nbsphinx",
@@ -98,7 +100,7 @@ napoleon_include_special_with_doc = True
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ["_templates"]
+templates_path = ["_templates", sphinx_autosummary_accessors.templates_path]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:

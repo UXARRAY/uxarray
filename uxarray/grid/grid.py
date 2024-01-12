@@ -632,7 +632,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_x" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
 
         return self._ds["face_x"]
 
@@ -644,7 +644,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_y" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
         return self._ds["face_y"]
 
     @property
@@ -655,7 +655,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_z" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
         return self._ds["face_z"]
 
     # ==================================================================================================================
