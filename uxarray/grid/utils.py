@@ -2,6 +2,7 @@ import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 import warnings
 import uxarray.utils.computing as ac_utils
+import pandas as pd
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
@@ -151,7 +152,7 @@ def _newton_raphson_solver_for_gca_constLat(init_cart,
             np.dot(np.cross(w0_cart, w1_cart),
                    np.array([y_guess[0], y_guess[1],
                              constZ])), y_guess[0] * y_guess[0] +
-            y_guess[1] * y_guess[1] + constZ * constZ - 1.0
+                                        y_guess[1] * y_guess[1] + constZ * constZ - 1.0
         ])
 
         j_inv = _inv_jacobian(w0_cart[0], w1_cart[0], w0_cart[1], w1_cart[1],
@@ -225,3 +226,65 @@ def _get_cartesian_face_edge_nodes(face_nodes_ind, face_edges_ind,
          for edge in face_edges])
 
     return cartesian_coordinates
+
+
+def _convert_intervals_to_dataframe(overlap_intervals):
+    """
+    Converts a list of tuples containing intervals and face indices into a DataFrame.
+
+    This function processes a list where each element is a tuple of a pandas.Interval object and a corresponding face index.
+    It extracts the start and end points of each interval and the face index, and constructs a DataFrame with this data.
+    Additionally, it includes a column in the DataFrame with the interval objects converted to 'interval[float64]' type.
+
+    Parameters
+    ----------
+    overlap_intervals : list of tuples
+        A list where each tuple contains:
+        - A pandas.Interval object representing the interval.
+        - An integer representing the face index associated with the interval.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with the following columns:
+        - 'start': The starting point of the interval.
+        - 'end': The ending point of the interval.
+        - 'face_index': The index of the face associated with the interval.
+        - 'interval': The pandas.Interval object, cast to 'interval[float64]' type.
+
+    Notes
+    -----
+    - The function assumes that each tuple in the input list correctly contains a pandas.Interval object and an integer face index.
+    - The 'interval' column in the output DataFrame is specifically cast to 'interval[float64]' type to ensure consistent data typing.
+
+    Examples
+    --------
+    >>> overlap_intervals = [
+    ...     (pd.Interval(0.0, 100.0), 0),
+    ...     (pd.Interval(50.0, 150.0), 1),
+    ...     (pd.Interval(140.0, 150.0), 2)
+    ... ]
+    >>> df = convert_intervals_to_dataframe(overlap_intervals)
+    >>> print(df)
+         start    end  face_index            interval
+    0     0.0  100.0           0    (0.0, 100.0]
+    1    50.0  150.0           1   (50.0, 150.0]
+    2   140.0  150.0           2  (140.0, 150.0]
+    """
+    intervals_data = []
+
+    for interval, face_index in overlap_intervals:
+        # Extract start and end points from each interval
+        interval_data = {
+            'start': interval.left,
+            'end': interval.right,
+            'face_index': face_index
+        }
+        intervals_data.append(interval_data)
+
+    df = pd.DataFrame(intervals_data)
+    # Create a pandas.Interval column
+    df['interval'] = df.apply(lambda row: pd.Interval(left=row['start'], right=row['end'], closed='both'), axis=1)
+    df['interval'] = df['interval'].astype('interval[float64]')
+
+    return df

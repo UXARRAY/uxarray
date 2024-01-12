@@ -4,6 +4,7 @@ import numpy as np
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
 from uxarray.grid.intersections import gca_constLat_intersection
+from uxarray.grid.utils import _convert_intervals_to_dataframe
 import pandas as pd
 
 def _get_zonal_faces_weight_at_constLat(faces_edges_cart, latitude_cart, face_latlon_bound, is_directed=False, is_face_GCA_list=None):
@@ -58,18 +59,11 @@ def _get_zonal_faces_weight_at_constLat(faces_edges_cart, latitude_cart, face_la
             continue
 
     # Manage all intervals collectively
-    interval_index = pd.IntervalIndex([interval for interval, _ in overlap_intervals])
-    combined_intervals = combine_overlapping_intervals(interval_index)
+    intervals_df = _convert_intervals_to_dataframe(overlap_intervals)
+    overlap_contributions, total_length = _process_overlapped_intervals(intervals_df)
 
-    # Initialize weights array
-    weights = np.zeros(len(faces_edges_cart))
-
-    # Calculate weights using combined intervals
-    for interval, face_index in overlap_intervals:
-        weight = calculate_face_weight(interval, combined_intervals, face_latlon_bound[face_index][1])
-        weights[face_index] += weight
-
-    return weights
+    df['weight'] = df.index.map(lambda idx: overlap_contributions.get(idx, 0) / total_length)
+    return df[['interval', 'face_index', 'weight']]
 
 def _get_zonal_face_weight_rad(face_edges_cart, latitude_cart, face_latlon_bound, is_directed=False, is_GCA_list=None):
     '''
