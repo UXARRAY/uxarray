@@ -1,7 +1,6 @@
 import numpy as np
 
 from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
-from enum import Enum
 from uxarray.constants import ERROR_TOLERANCE
 
 
@@ -72,12 +71,12 @@ def point_within_gca(pt, gca_cart, is_directed=False):
         raise ValueError(
             "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
             "Consider breaking the Great Circle Arc"
-            "into two Great Circle Arcs")
+            "into two Great Circle Arcs"
+        )
 
-    if not np.allclose(np.dot(np.cross(gca_cart[0], gca_cart[1]), pt),
-                       0,
-                       rtol=0,
-                       atol=ERROR_TOLERANCE):
+    if not np.allclose(
+        np.dot(np.cross(gca_cart[0], gca_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE
+    ):
         return False
 
     if GCRv0_lonlat[0] == GCRv1_lonlat[0]:
@@ -194,7 +193,7 @@ def extreme_gca_latitude(gca_cart, extreme_type):
     """
     extreme_type = extreme_type.lower()
 
-    if extreme_type not in ('max', 'min'):
+    if extreme_type not in ("max", "min"):
         raise ValueError("extreme_type must be either 'max' or 'min'")
 
     n1, n2 = gca_cart
@@ -202,18 +201,25 @@ def extreme_gca_latitude(gca_cart, extreme_type):
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
-    d_a_max = np.clip(d_a_max, 0, 1) if np.isclose(
-        d_a_max, [0, 1], atol=ERROR_TOLERANCE).any() else d_a_max
-    lat_n1, lat_n2 = node_xyz_to_lonlat_rad(
-        n1.tolist())[1], node_xyz_to_lonlat_rad(n2.tolist())[1]
+    d_a_max = (
+        np.clip(d_a_max, 0, 1)
+        if np.isclose(d_a_max, [0, 1], atol=ERROR_TOLERANCE).any()
+        else d_a_max
+    )
+    lat_n1, lat_n2 = (
+        node_xyz_to_lonlat_rad(n1.tolist())[1],
+        node_xyz_to_lonlat_rad(n2.tolist())[1],
+    )
 
     if 0 < d_a_max < 1:
         node3 = (1 - d_a_max) * n1 + d_a_max * n2
         node3 = np.array(normalize_in_place(node3.tolist()))
         d_lat_rad = np.arcsin(np.clip(node3[2], -1, 1))
 
-        return max(d_lat_rad, lat_n1, lat_n2) if extreme_type == 'max' else min(
-            d_lat_rad, lat_n1, lat_n2)
+        return (
+            max(d_lat_rad, lat_n1, lat_n2)
+            if extreme_type == "max"
+            else min(d_lat_rad, lat_n1, lat_n2)
+        )
     else:
-        return max(lat_n1, lat_n2) if extreme_type == 'max' else min(
-            lat_n1, lat_n2)
+        return max(lat_n1, lat_n2) if extreme_type == "max" else min(lat_n1, lat_n2)

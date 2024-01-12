@@ -49,8 +49,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     gca2_cart = np.asarray(gca2_cart)
     # Check if the two GCAs are in the cartesian format (size of three)
     if gca1_cart.shape[1] != 3 or gca2_cart.shape[1] != 3:
-        raise ValueError(
-            "The two GCAs must be in the cartesian [x, y, z] format")
+        raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
@@ -67,7 +66,6 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
         # Raise a warning for windows users
         if platform.system() == "Windows":
-
             warnings.warn(
                 "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
                 "https://bugs.python.org/msg312480)"
@@ -75,24 +73,23 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
             )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not np.allclose(np.dot(w0w1_norm, w0), 0,
-                       atol=ERROR_TOLERANCE) or not np.allclose(
-                           np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
+    if not np.allclose(
+        np.dot(w0w1_norm, w0), 0, atol=ERROR_TOLERANCE
+    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
-    if not np.allclose(np.dot(v0v1_norm, v0), 0,
-                       atol=ERROR_TOLERANCE) or not np.allclose(
-                           np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
+    if not np.allclose(
+        np.dot(v0v1_norm, v0), 0, atol=ERROR_TOLERANCE
+    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
 
     if not np.allclose(
-            np.dot(cross_norms,
-                   v0v1_norm), 0, atol=ERROR_TOLERANCE) or not np.allclose(
-                       np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
+        np.dot(cross_norms, v0v1_norm), 0, atol=ERROR_TOLERANCE
+    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
         )
