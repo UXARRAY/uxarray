@@ -115,11 +115,9 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     return res
 
 
-def gca_constLat_intersection(gca_cart,
-                              constLat,
-                              fma_disabled=False,
-                              verbose=False,
-                              is_directed=False):
+def gca_constLat_intersection(
+    gca_cart, constLat, fma_disabled=False, verbose=False, is_directed=False
+):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -164,7 +162,6 @@ def gca_constLat_intersection(gca_cart,
     else:
         # Raise a warning for Windows users
         if platform.system() == "Windows":
-
             warnings.warn(
                 "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
                 "https://bugs.python.org/msg312480)"
@@ -174,7 +171,7 @@ def gca_constLat_intersection(gca_cart,
 
     nx, ny, nz = n
 
-    s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n)**2 * constZ**2)
+    s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n) ** 2 * constZ**2)
     p1_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz + s_tilde * ny)
     p2_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz - s_tilde * ny)
     p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
@@ -187,17 +184,19 @@ def gca_constLat_intersection(gca_cart,
 
     # Now test which intersection point is within the GCA range
     if point_within_gca(p1, gca_cart, is_directed=is_directed):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(p1,
-                                                               gca_cart,
-                                                               verbose=verbose)
-        res = np.array([converged_pt]) if res is None else np.vstack(
-            (res, converged_pt))
+        converged_pt = _newton_raphson_solver_for_gca_constLat(
+            p1, gca_cart, verbose=verbose
+        )
+        res = (
+            np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+        )
 
     if point_within_gca(p2, gca_cart, is_directed=is_directed):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(p2,
-                                                               gca_cart,
-                                                               verbose=verbose)
-        res = np.array([converged_pt]) if res is None else np.vstack(
-            (res, converged_pt))
+        converged_pt = _newton_raphson_solver_for_gca_constLat(
+            p2, gca_cart, verbose=verbose
+        )
+        res = (
+            np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+        )
 
     return res if res is not None else np.array([])
