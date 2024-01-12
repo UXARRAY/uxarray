@@ -14,28 +14,11 @@ def _calculate_grad_on_edge(
     use_magnitude: Optional[bool] = True,
     normalize: Optional[bool] = True,
 ):
-    """Helper function for computing the gradient on each edge.
+    """Helper function for computing the horizontal gradient of a field on each
+    cell using values at adjacent cells.
 
-    TODO: add algorithmic outline
-
-    Parameters
-    ----------
-    d_var
-        todo
-    edge_faces
-        todo
-    edge_face_distances
-        todo
-    n_edge
-        todo
-    use_magnitude: bool, optional=True
-        todo
-    normalize
-        todo
-    Returns
-    -------
-    grad
-        todo
+    The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
+    And code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
     """
 
     # obtain all edges that saddle two faces
@@ -48,6 +31,7 @@ def _calculate_grad_on_edge(
     grad[saddle_mask] = (
         d_var[..., edge_faces[saddle_mask, 0]] - d_var[..., edge_faces[saddle_mask, 1]]
     ) / edge_face_distances[saddle_mask]
+
     if use_magnitude:
         # obtain magnitude if desired
         grad = np.abs(grad)

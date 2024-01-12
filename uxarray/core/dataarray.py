@@ -386,10 +386,13 @@ class UxDataArray(xr.DataArray):
             normalize,
         )
 
+        dims = list(self.dims)
+        dims[-1] = "n_edge"
+
         uxda = UxDataArray(
             _grad,
             uxgrid=self.uxgrid,
-            dims=("n_edge"),
+            dims=dims,
             name=self.name + "_grad" if self.name is not None else "grad",
         )
 

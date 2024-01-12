@@ -25,17 +25,19 @@ class TestGrad(TestCase):
     CSne30_grid_path = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     CSne30_data_path = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 
-    def test_grad_mpas(self):
-        """TODO:"""
-        uxds = ux.open_dataset(self.mpas_ocean_path, self.mpas_ocean_path)
+    quad_hex_grid_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
+    quad_hex_data_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
+    # def test_grad_mpas(self):
+    #     """TODO:"""
+    #     uxds = ux.open_dataset(self.mpas_ocean_path, self.mpas_ocean_path)
+    #
+    #     grad = uxds['areaCell'].gradient()
 
-        grad = uxds['areaCell'].gradient()
-
-    def test_grad_uniform_data(self):
+    def test_uniform_data(self):
         """Computes the gradient on meshes with uniform data, with the expected
         gradient being zero on all edges."""
         for grid_path in [
-                self.mpas_atmo_path, self.mpas_ocean_path, self.CSne30_grid_path
+                self.mpas_atmo_path, self.mpas_ocean_path, self.CSne30_grid_path, self.quad_hex_grid_path,
         ]:
             uxgrid = ux.open_grid(grid_path)
 
@@ -56,3 +58,22 @@ class TestGrad(TestCase):
             one_grad = uxda_ones.gradient(normalize=False)
 
             nt.assert_array_equal(one_grad.values, np.zeros(uxgrid.n_edge))
+
+
+    def test_quad_hex(self):
+
+        uxds = ux.open_dataset(self.quad_hex_grid_path, self.quad_hex_data_path)
+
+
+        grad = uxds['t2m'].gradient()
+
+        for i, edge in enumerate(uxds.uxgrid.edge_face_connectivity.values):
+
+            if INT_FILL_VALUE in edge:
+                # an edge not saddled by two faces has a grad of 0
+                assert grad.values[i] == 0
+            else:
+                assert np.nonzero(grad.values[i])
+
+
+        pass

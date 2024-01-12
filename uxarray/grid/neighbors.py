@@ -592,7 +592,7 @@ def _populate_edge_face_distances(grid):
         data=edge_face_distances,
         dims=["n_edge"],
         attrs={
-            "long_name": "arc distance between the face centers that saddle a given edge",
+            "long_name": "arc distance between the face centers that saddle each edge",
         },
     )
 
