@@ -27,11 +27,6 @@ class TestGrad(TestCase):
 
     quad_hex_grid_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
     quad_hex_data_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
-    # def test_grad_mpas(self):
-    #     """TODO:"""
-    #     uxds = ux.open_dataset(self.mpas_ocean_path, self.mpas_ocean_path)
-    #
-    #     grad = uxds['areaCell'].gradient()
 
     def test_uniform_data(self):
         """Computes the gradient on meshes with uniform data, with the expected
@@ -61,9 +56,9 @@ class TestGrad(TestCase):
 
 
     def test_quad_hex(self):
+        """Computes the gradient on a mesh of 4 hexagons."""
 
         uxds = ux.open_dataset(self.quad_hex_grid_path, self.quad_hex_data_path)
-
 
         grad = uxds['t2m'].gradient()
 
@@ -73,7 +68,5 @@ class TestGrad(TestCase):
                 # an edge not saddled by two faces has a grad of 0
                 assert grad.values[i] == 0
             else:
+                # a non zero gradient for edges sadled by two faces
                 assert np.nonzero(grad.values[i])
-
-
-        pass
