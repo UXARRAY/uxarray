@@ -31,7 +31,7 @@ dependencies:
     - cartopy
     - pandas<2.1.0
     - geocat-datafiles
+    - spatialpandas
     - pip:
       - antimeridian
       - pyfma
-      - git+https://github.com/holoviz/spatialpandas.git
