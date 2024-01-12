@@ -33,7 +33,7 @@ def _inverse_distance_weighted_remap(
     source_data : np.ndarray
         Data variable to remap.
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes" or "face centers".
+        Location of where to map data, either "nodes", "edges", or "face centers".
     coord_type: str, default="spherical"
         Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian".
     power : float, default=2
@@ -63,6 +63,8 @@ def _inverse_distance_weighted_remap(
         source_data_mapping = "nodes"
     elif n_elements == source_grid.n_face:
         source_data_mapping = "face centers"
+    elif n_elements == source_grid.n_edge:
+        source_data_mapping = "edges"
     else:
         raise ValueError(
             f"Invalid source_data shape. The final dimension should match the number of corner "
@@ -80,6 +82,11 @@ def _inverse_distance_weighted_remap(
             lon, lat = (
                 destination_grid.face_lon.values,
                 destination_grid.face_lat.values,
+            )
+        elif remap_to == "edges":
+            lon, lat = (
+                destination_grid.edge_lon.values,
+                destination_grid.edge_lat.values,
             )
         else:
             raise ValueError(
@@ -107,6 +114,12 @@ def _inverse_distance_weighted_remap(
                 destination_grid.face_x.values,
                 destination_grid.face_y.values,
                 destination_grid.face_z.values,
+            )
+        elif remap_to == "edges":
+            x, y, z = (
+                destination_grid.edge_x.values,
+                destination_grid.edge_y.values,
+                destination_grid.edge_z.values,
             )
         else:
             raise ValueError(
@@ -155,15 +168,17 @@ def _inverse_distance_weighted_remap_uxda(
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes" or "face centers"
+        Location of where to map data, either "nodes", "edges", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates for the computations when
         remapping.
     """
 
     # check dimensions remapped to and from
-    if (source_uxda._node_centered() and remap_to != "nodes") or (
-        source_uxda._face_centered() and remap_to != "face centers"
+    if (
+        (source_uxda._node_centered() and remap_to != "nodes")
+        or (source_uxda._face_centered() and remap_to != "face centers")
+        or (source_uxda._edge_centered() and remap_to != "edges")
     ):
         warnings.warn(
             f"Your data is stored on {source_uxda.dims[-1]}, but you are remapping to {remap_to}"
@@ -172,8 +187,10 @@ def _inverse_distance_weighted_remap_uxda(
     # prepare dimensions
     if remap_to == "nodes":
         destination_dim = "n_node"
-    else:
+    elif remap_to == "face centers":
         destination_dim = "n_face"
+    else:
+        destination_dim = "edges"
 
     destination_dims = list(source_uxda.dims)
     destination_dims[-1] = destination_dim
@@ -230,7 +247,7 @@ def _inverse_distance_weighted_remap_uxds(
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes" or "face centers"
+        Location of where to map data, either "nodes", "edges", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates
     """
