@@ -22,14 +22,14 @@ Unstructured Grids:
 Class
 -----
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataset
 
 IO
 --
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    open_dataset
    open_mfdataset
@@ -37,7 +37,7 @@ IO
 Attributes
 ----------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataset.uxgrid
    UxDataset.source_datasets
@@ -45,7 +45,7 @@ Attributes
 Methods
 -------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataset.info
    UxDataset.integrate
@@ -54,16 +54,19 @@ Methods
 Remapping
 ---------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataset.nearest_neighbor_remap
 
 Plotting
 --------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
+   :template: autosummary/accessor.rst
 
    UxDataset.plot
+
+
 
 
 
@@ -79,14 +82,14 @@ Unstructured Grids:
 Class
 -----
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataArray
 
 IO
 --
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataArray.to_dataset
    UxDataArray.to_geodataframe
@@ -96,21 +99,23 @@ IO
 Attributes
 ----------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
+
    UxDataArray.uxgrid
 
 Methods
 -------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataArray.integrate
+   UxDataArray.isel
 
 
 Remapping
 ---------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    UxDataArray.nearest_neighbor_remap
    UxDataArray.nodal_average
@@ -118,13 +123,35 @@ Remapping
 Plotting
 --------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
+   :template: autosummary/accessor.rst
 
    UxDataArray.plot
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
+
    UxDataArray.plot.datashade
    UxDataArray.plot.rasterize
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+
+Subsetting
+----------
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor.rst
+
+   UxDataArray.subset
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
+
+   UxDataArray.subset.nearest_neighbor
+   UxDataArray.subset.bounding_circle
+   UxDataArray.subset.bounding_box
 
 
 
@@ -140,14 +167,14 @@ them unstructured grid-aware data sets and arrays.
 Class
 -----
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid
 
 IO
 --
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    open_grid
    Grid.from_dataset
@@ -155,14 +182,13 @@ IO
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_linecollection
-   Grid.to_shapely_polygons
    Grid.validate
 
 
 Methods
 -------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid.calculate_total_face_area
    Grid.compute_face_areas
@@ -170,12 +196,13 @@ Methods
    Grid.get_ball_tree
    Grid.get_kd_tree
    Grid.copy
+   Grid.isel
 
 
 Dimensions
 ----------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid.n_node
    Grid.n_edge
@@ -187,7 +214,7 @@ Dimensions
 Spherical Coordinates
 ---------------------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid.node_lon
    Grid.node_lat
@@ -199,7 +226,7 @@ Spherical Coordinates
 Cartesian Coordinates
 ---------------------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid.node_x
    Grid.node_y
@@ -214,7 +241,7 @@ Cartesian Coordinates
 Connectivity
 ------------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid.face_node_connectivity
    Grid.edge_node_connectivity
@@ -229,7 +256,7 @@ Connectivity
 Grid Descriptors
 ----------------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid.face_areas
    Grid.antimeridian_face_indices
@@ -238,7 +265,7 @@ Grid Descriptors
 Attributes
 ----------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    Grid.grid_spec
    Grid.parsed_attrs
@@ -247,9 +274,15 @@ Attributes
 Plotting
 --------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
+   :template: autosummary/accessor.rst
 
    Grid.plot
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
+
    Grid.plot.node_coords
    Grid.plot.nodes
    Grid.plot.face_coords
@@ -259,47 +292,21 @@ Plotting
    Grid.plot.mesh
    Grid.plot.edges
 
-
-
-
-Visualization
-=============
-
-Accessors
----------
+Subsetting
+----------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
+   :template: autosummary/accessor.rst
 
-   plot.accessor.GridPlotAccessor
-   plot.accessor.UxDataArrayPlotAccessor
-   plot.accessor.UxDatasetPlotAccessor
+   Grid.subset
 
-Grid Plotting Methods
----------------------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
 
-   plot.grid_plot.mesh
-   plot.grid_plot.edges
-   plot.grid_plot.node_coords
-   plot.grid_plot.nodes
-   plot.grid_plot.face_coords
-   plot.grid_plot.face_centers
-   plot.grid_plot.edge_coords
-   plot.grid_plot.edge_centers
-
-
-UxDataArray Plotting Methods
-----------------------------
-.. autosummary::
-   :toctree: _autosummary
-
-   plot.dataarray_plot.datashade
-   plot.dataarray_plot.rasterize
-   plot.dataarray_plot.polygons
-   plot.dataarray_plot.points
-
-
+   Grid.subset.nearest_neighbor
+   Grid.subset.bounding_circle
+   Grid.subset.bounding_box
 
 
 Nearest Neighbor Data Structures
@@ -308,7 +315,7 @@ Nearest Neighbor Data Structures
 KDTree
 ------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    grid.neighbors.KDTree
    grid.neighbors.KDTree.query
@@ -317,7 +324,7 @@ KDTree
 BallTree
 --------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    grid.neighbors.BallTree
    grid.neighbors.BallTree.query
@@ -330,7 +337,7 @@ Helpers
 Face Area
 ----------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    grid.area.calculate_face_area
    grid.area.get_all_face_area_from_coords
@@ -342,14 +349,14 @@ Face Area
 Connectivity
 ------------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    grid.connectivity.close_face_nodes
 
 Coordinates
 -----------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    grid.coordinates.node_lonlat_rad_to_xyz
    grid.coordinates.node_xyz_to_lonlat_rad
@@ -359,7 +366,7 @@ Coordinates
 Arcs
 ----
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    grid.arcs.in_between
    grid.arcs.point_within_gca
@@ -368,7 +375,7 @@ Arcs
 Intersections
 -------------
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    grid.intersections.gca_gca_intersection
    grid.intersections.gca_constLat_intersection
@@ -376,7 +383,7 @@ Intersections
 Accurate Computing Utils
 -----
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    utils.computing.cross_fma
    utils.computing.dot_fma
@@ -384,7 +391,7 @@ Accurate Computing Utils
 Numba
 -----
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: generated/
 
    utils.enable_jit_cache
    utils.disable_jit_cache
