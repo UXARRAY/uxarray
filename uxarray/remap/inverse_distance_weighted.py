@@ -68,8 +68,8 @@ def _inverse_distance_weighted_remap(
     else:
         raise ValueError(
             f"Invalid source_data shape. The final dimension should match the number of corner "
-            f"nodes ({source_grid.n_node}) or face centers ({source_grid.n_face}) in the "
-            f"source grid, but received: {source_data.shape}"
+            f"nodes ({source_grid.n_node}), edge nodes ({source_grid.n_edge}), or face centers ({source_grid.n_face}) "
+            f"in the source grid, but received: {source_data.shape}"
         )
 
     if coord_type == "spherical":
@@ -90,11 +90,11 @@ def _inverse_distance_weighted_remap(
             )
         else:
             raise ValueError(
-                f"Invalid remap_to. Expected 'nodes' or 'face centers', "
+                f"Invalid remap_to. Expected 'nodes', 'edges', or 'face centers', "
                 f"but received: {remap_to}"
             )
 
-        _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
+        _source_tree = source_grid.get_ball_tree(coordinates=source_data_mapping)
 
         dest_coords = np.vstack([lon, lat]).T
 
@@ -123,11 +123,11 @@ def _inverse_distance_weighted_remap(
             )
         else:
             raise ValueError(
-                f"Invalid remap_to. Expected 'nodes' or 'face centers', "
+                f"Invalid remap_to. Expected 'nodes', 'edges', or 'face centers', "
                 f"but received: {remap_to}"
             )
 
-        _source_tree = source_grid.get_kd_tree(tree_type=source_data_mapping)
+        _source_tree = source_grid.get_kd_tree(coordinates=source_data_mapping)
 
         dest_coords = np.vstack([x, y, z]).T
 

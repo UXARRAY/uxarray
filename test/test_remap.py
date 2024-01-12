@@ -160,8 +160,8 @@ class TestInverseDistanceWeightedRemapping(TestCase):
 
         assert not np.array_equal(dataset['v1'], data_on_face_centers)
 
-    def test_remap_corner_nodes(self):
-        """Test remapping to corner nodes."""
+    def test_remap_nodes(self):
+        """Test remapping to nodes."""
 
         # datasets to use for remap
         dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
