@@ -1,18 +1,19 @@
 """uxarray grid module."""
 
 import numpy as np
-import uxarray as ux
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, INT_DTYPE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_constLat_intersection
 from uxarray.grid.arcs import node_xyz_to_lonlat_rad
 import pandas as pd
 
 
-def _get_zonal_faces_weight_at_constLat(faces_edges_cart,
-                                        latitude_cart,
-                                        face_latlon_bound,
-                                        is_directed=False,
-                                        is_face_GCA_list=None):
+def _get_zonal_faces_weight_at_constLat(
+    faces_edges_cart,
+    latitude_cart,
+    face_latlon_bound,
+    is_directed=False,
+    is_face_GCA_list=None,
+):
     """Utilize the sweep line algorithm to calculate the weight of each face at
     a constant latitude.
 
@@ -50,23 +51,22 @@ def _get_zonal_faces_weight_at_constLat(faces_edges_cart,
 
     # Iterate through all faces and their edges
     for face_index, (face_edges, is_GCA_list) in enumerate(
-            zip(faces_edges_cart, is_face_GCA_list)):
+        zip(faces_edges_cart, is_face_GCA_list)
+    ):
         face_interval_df = _get_zonal_face_interval(
             face_edges,
             latitude_cart,
             face_latlon_bound[face_index],
             is_directed=is_directed,
-            is_GCA_list=is_GCA_list)
+            is_GCA_list=is_GCA_list,
+        )
         for _, row in face_interval_df.iterrows():
-            intervals_list.append({
-                'start': row['start'],
-                'end': row['end'],
-                'face_index': face_index
-            })
+            intervals_list.append(
+                {"start": row["start"], "end": row["end"], "face_index": face_index}
+            )
 
     intervals_df = pd.DataFrame(intervals_list)
-    overlap_contributions, total_length = _process_overlapped_intervals(
-        intervals_df)
+    overlap_contributions, total_length = _process_overlapped_intervals(intervals_df)
 
     # Calculate weights for each face
     weights = {
@@ -75,16 +75,17 @@ def _get_zonal_faces_weight_at_constLat(faces_edges_cart,
     }
 
     # Convert weights to DataFrame
-    weights_df = pd.DataFrame(list(weights.items()),
-                              columns=['face_index', 'weight'])
+    weights_df = pd.DataFrame(list(weights.items()), columns=["face_index", "weight"])
     return weights_df
 
 
-def _get_zonal_face_interval(face_edges_cart,
-                             latitude_rad,
-                             face_latlon_bound,
-                             is_directed=False,
-                             is_GCA_list=None):
+def _get_zonal_face_interval(
+    face_edges_cart,
+    latitude_rad,
+    face_latlon_bound,
+    is_directed=False,
+    is_GCA_list=None,
+):
     """Processes a face polygon represented by edges in Cartesian coordinates
     to find intervals where the face intersects with a given latitude. This
     function handles directed and undirected Great Circle Arcs (GCAs) and edges
@@ -131,7 +132,7 @@ def _get_zonal_face_interval(face_edges_cart,
     intersections_pts_list_cart = []
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
 
-    Intervals_df = pd.DataFrame(columns=['start', 'end'])
+    Intervals_df = pd.DataFrame(columns=["start", "end"])
 
     for edge_idx, edge in enumerate(face_edges_cart):
         n1, n2 = edge
@@ -141,26 +142,29 @@ def _get_zonal_face_interval(face_edges_cart,
 
         # Check if the edge is on the equator within the error tolerance
         if np.isclose(n1[2], 0.0, rtol=0, atol=ERROR_TOLERANCE) and np.isclose(
-                n2[2], 0.0, rtol=0, atol=ERROR_TOLERANCE):
+            n2[2], 0.0, rtol=0, atol=ERROR_TOLERANCE
+        ):
             # This is a constant latitude edge
             is_GCA = False
 
         # Check if the edge is overlapped with the constant latitude within the error tolerance
-        if np.isclose(n1[2], latZ, rtol=0, atol=ERROR_TOLERANCE) \
-                and np.isclose(n2[2], latZ, rtol=0, atol=ERROR_TOLERANCE) \
-                and is_GCA == False:
+        if (
+            np.isclose(n1[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
+            and np.isclose(n2[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
+            and is_GCA is False
+        ):
             overlap_flag = True
 
         # Skip the dummy edge
-        if np.any(n1 ==
-                  [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]) or np.any(
-                      n2 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]):
+        if np.any(n1 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]) or np.any(
+            n2 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
+        ):
             continue
 
         if is_GCA:
-            intersections = gca_constLat_intersection([n1, n2],
-                                                      latitude_rad,
-                                                      is_directed=is_directed)
+            intersections = gca_constLat_intersection(
+                [n1, n2], latitude_rad, is_directed=is_directed
+            )
             if intersections.size == 0:
                 # The constant latitude didn't cross this edge
                 continue
@@ -182,18 +186,20 @@ def _get_zonal_face_interval(face_edges_cart,
     unique_intersection = np.unique(intersections_pts_list_cart, axis=0)
     if len(unique_intersection) == 2:
         # The normal convex case:
-        #Convert the intersection points back to lonlat
+        # Convert the intersection points back to lonlat
         unique_intersection_lonlat = np.array(
-            [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection])
-        [pt_lon_min, pt_lon_max] = np.sort([
-            unique_intersection_lonlat[0][0], unique_intersection_lonlat[1][0]
-        ])
+            [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
+        )
+        [pt_lon_min, pt_lon_max] = np.sort(
+            [unique_intersection_lonlat[0][0], unique_intersection_lonlat[1][0]]
+        )
     elif len(unique_intersection) != 0:
         # The concave cases
         raise ValueError(
             "UXarray doesn't support concave face with intersections points as ["
-            + str(len(unique_intersection)) +
-            "] currently, please modify your grids accordingly")
+            + str(len(unique_intersection))
+            + "] currently, please modify your grids accordingly"
+        )
     elif len(unique_intersection) == 0:
         # No intersections are found in this face
         raise ValueError(
@@ -205,52 +211,47 @@ def _get_zonal_face_interval(face_edges_cart,
     if face_lon_bound_left < face_lon_bound_right:
         # Normal case, The interval is not across the 0-lon
         Intervals_df = Intervals_df.append(
-            {
-                'start': pt_lon_min,
-                'end': pt_lon_max
-            }, ignore_index=True)
+            {"start": pt_lon_min, "end": pt_lon_max}, ignore_index=True
+        )
         cur_face_mag_rad = pt_lon_max - pt_lon_min
     else:
         # Longitude wrap-around
         if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
             # They're both on the "left side" of the 0-lon
             Intervals_df = Intervals_df.append(
-                {
-                    'start': pt_lon_min,
-                    'end': pt_lon_max
-                }, ignore_index=True)
+                {"start": pt_lon_min, "end": pt_lon_max}, ignore_index=True
+            )
             cur_face_mag_rad = pt_lon_max - pt_lon_min
         if 0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi:
             # They're both on the "right side" of the 0-lon
             Intervals_df = Intervals_df.append(
-                {
-                    'start': pt_lon_min,
-                    'end': pt_lon_max
-                }, ignore_index=True)
+                {"start": pt_lon_min, "end": pt_lon_max}, ignore_index=True
+            )
             cur_face_mag_rad = pt_lon_max - pt_lon_min
         else:
             # They're at the different side of the 0-lon
             Intervals_df = Intervals_df.append(
-                {
-                    'start': pt_lon_max,
-                    'end': 2 * np.pi
-                }, ignore_index=True)
-            Intervals_df = Intervals_df.append({
-                'start': 0.0,
-                'end': pt_lon_min
-            },
-                                               ignore_index=True)
+                {"start": pt_lon_max, "end": 2 * np.pi}, ignore_index=True
+            )
+            Intervals_df = Intervals_df.append(
+                {"start": 0.0, "end": pt_lon_min}, ignore_index=True
+            )
             cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
     if np.abs(cur_face_mag_rad) >= 2 * np.pi:
-        print("Problematic face: the face span is " + str(cur_face_mag_rad) +
-              ". The span should be less than 2pi")
+        print(
+            "Problematic face: the face span is "
+            + str(cur_face_mag_rad)
+            + ". The span should be less than 2pi"
+        )
 
     if overlap_flag:
         # If the overlap_flag is true, check if we have the overlap_edge, if not, raise an error
         if overlap_edge.shape[0] != 2:
             raise ValueError(
-                "The overlap_flag is true, but the overlap_edge size is " +
-                str(overlap_edge.size) + " instead of 2, please check the code")
+                "The overlap_flag is true, but the overlap_edge size is "
+                + str(overlap_edge.size)
+                + " instead of 2, please check the code"
+            )
 
     return Intervals_df
 
@@ -286,8 +287,8 @@ def _process_overlapped_intervals(intervals_df):
     """
     events = []
     for idx, row in intervals_df.iterrows():
-        events.append((row['start'], 'start', row['face_index']))
-        events.append((row['end'], 'end', row['face_index']))
+        events.append((row["start"], "start", row["face_index"]))
+        events.append((row["end"], "end", row["face_index"]))
 
     events.sort()  # Sort by position and then by start/end
 
@@ -299,16 +300,16 @@ def _process_overlapped_intervals(intervals_df):
     for position, event_type, face_idx in events:
         if last_position is not None and active_faces:
             segment_length = position - last_position
-            segment_weight = segment_length / len(
-                active_faces) if active_faces else 0
+            segment_weight = segment_length / len(active_faces) if active_faces else 0
             for active_face in active_faces:
-                overlap_contributions[active_face] = overlap_contributions.get(
-                    active_face, 0) + segment_weight
+                overlap_contributions[active_face] = (
+                    overlap_contributions.get(active_face, 0) + segment_weight
+                )
             total_length += segment_length
 
-        if event_type == 'start':
+        if event_type == "start":
             active_faces.add(face_idx)
-        elif event_type == 'end':
+        elif event_type == "end":
             active_faces.remove(face_idx)
 
         last_position = position
