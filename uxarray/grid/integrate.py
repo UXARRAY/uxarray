@@ -134,8 +134,7 @@ def _get_zonal_face_interval(
 
     intersections_pts_list_cart = []
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
-
-    Intervals_df = pd.DataFrame(columns=["start", "end"])
+    interval_rows = []  # List to store interval data for DataFrame
 
     for edge_idx, edge in enumerate(face_edges_cart):
         n1, n2 = edge
@@ -213,32 +212,22 @@ def _get_zonal_face_interval(
     # Calculate the weight of the face in radian
     if face_lon_bound_left < face_lon_bound_right:
         # Normal case, The interval is not across the 0-lon
-        Intervals_df = Intervals_df.append(
-            {"start": pt_lon_min, "end": pt_lon_max}, ignore_index=True
-        )
+        interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
         cur_face_mag_rad = pt_lon_max - pt_lon_min
     else:
         # Longitude wrap-around
         if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
             # They're both on the "left side" of the 0-lon
-            Intervals_df = Intervals_df.append(
-                {"start": pt_lon_min, "end": pt_lon_max}, ignore_index=True
-            )
+            interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
             cur_face_mag_rad = pt_lon_max - pt_lon_min
         if 0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi:
             # They're both on the "right side" of the 0-lon
-            Intervals_df = Intervals_df.append(
-                {"start": pt_lon_min, "end": pt_lon_max}, ignore_index=True
-            )
+            interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
             cur_face_mag_rad = pt_lon_max - pt_lon_min
         else:
             # They're at the different side of the 0-lon
-            Intervals_df = Intervals_df.append(
-                {"start": pt_lon_max, "end": 2 * np.pi}, ignore_index=True
-            )
-            Intervals_df = Intervals_df.append(
-                {"start": 0.0, "end": pt_lon_min}, ignore_index=True
-            )
+            interval_rows.append({"start": pt_lon_max, "end": 2 * np.pi})
+            interval_rows.append({"start": 0.0, "end": pt_lon_min})
             cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
     if np.abs(cur_face_mag_rad) >= 2 * np.pi:
         print(
@@ -256,6 +245,8 @@ def _get_zonal_face_interval(
                 + " instead of 2, please check the code"
             )
 
+    # Creating DataFrame from interval_rows
+    Intervals_df = pd.DataFrame(interval_rows, columns=["start", "end"])
     return Intervals_df
 
 
