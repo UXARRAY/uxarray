@@ -74,7 +74,7 @@ class TestCentroids(TestCase):
     def test_edge_centroids_from_triangle(self):
         """Test finding the centroid of a triangle."""
         # Create a triangle
-        test_triangle = np.array([(0, 0, 0), (-1, 1, 0), (-1, -1, 0)])
+        test_triangle = np.array([(0.0, 0.0, 0.0), (-1.0, 1.0, 0.0), (-1.0, -1.0, 0.0)])
 
         # Open the dataset and find the centroids
         grid = ux.open_grid(test_triangle)
@@ -90,8 +90,8 @@ class TestCentroids(TestCase):
         self.assertEqual(centroid_y, grid.edge_y[0])
         self.assertEqual(centroid_z, grid.edge_z[0])
 
-    def test_edge_centroids_from_scrip(self):
-        """Test computed centroid values compared to values from a SCRIP
+    def test_edge_centroids_from_mpas(self):
+        """Test computed centroid values compared to values from a MPAS
         dataset."""
 
         uxgrid = ux.open_grid(mpasfile_QU)

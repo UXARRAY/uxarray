@@ -295,7 +295,7 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@njit()
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging."""
@@ -361,30 +361,49 @@ def _populate_edge_centroids(grid, repopulate=False):
     # Populate the centroids
     if "edge_lon" not in grid._ds or repopulate:
         grid._ds["edge_lon"] = xr.DataArray(
-            centroid_lon, dims=["n_edge"], attrs={"units": "degrees_east"}
+            centroid_lon,
+            dims=["n_edge"],
+            attrs={
+                "standard_name": "longitude",
+                "long name": "Longitude of the center of each edge",
+                "units": "degrees_east",
+            },
         )
         grid._ds["edge_lat"] = xr.DataArray(
-            centroid_lat, dims=["n_edge"], attrs={"units": "degrees_north"}
+            centroid_lat,
+            dims=["n_edge"],
+            attrs={
+                "standard_name": "latitude",
+                "long name": "Latitude of the center of each edge",
+                "units": "degrees_north",
+            },
         )
 
     if "edge_x" not in grid._ds or repopulate:
         grid._ds["edge_x"] = xr.DataArray(
-            centroid_x, dims=["n_edge"], attrs={"units": "meters"}
+            centroid_x,
+            dims=["n_edge"],
+            attrs={"standard_name": "x", "long name": "TODO", "units": "meters"},
         )
 
         grid._ds["edge_y"] = xr.DataArray(
-            centroid_y, dims=["n_edge"], attrs={"units": "meters"}
+            centroid_y,
+            dims=["n_edge"],
+            attrs={"standard_name": "y", "long name": "TODO", "units": "meters"},
         )
 
         grid._ds["edge_z"] = xr.DataArray(
-            centroid_z, dims=["n_edge"], attrs={"units": "meters"}
+            centroid_z,
+            dims=["n_edge"],
+            attrs={"standard_name": "z", "long name": "TODO", "units": "meters"},
         )
 
 
+@njit()
 def _construct_edge_centroids(node_x, node_y, node_z, edge_nodes_con):
     """Constructs the xyz centroid coordinate for each edge using Cartesian
     Averaging."""
-    centroids = np.zeros((3, edge_nodes_con.shape[0]), dtype=np.float64)
+    centroids = np.zeros((3, edge_nodes_con.shape[0]), dtype=node_x.dtype)
 
     for edge_idx, connectivity in enumerate(edge_nodes_con):
         # compute cartesian average
