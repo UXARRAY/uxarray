@@ -2,39 +2,52 @@
 import xarray as xr
 import numpy as np
 
-from typing import Any, Dict, Optional, Union
+from typing import Optional, Union
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
 from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugrid
-from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io._vertices import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.coordinates import (_populate_centroid_coord,
-                                      _set_desired_longitude_range)
-from uxarray.grid.connectivity import (_populate_edge_node_connectivity,
-                                       _populate_face_edge_connectivity,
-                                       _populate_n_nodes_per_face,
-                                       _populate_node_face_connectivity,
-                                       _populate_edge_face_connectivity)
+from uxarray.grid.coordinates import (
+    _populate_centroid_coord,
+    _set_desired_longitude_range,
+)
+from uxarray.grid.connectivity import (
+    _populate_edge_node_connectivity,
+    _populate_face_edge_connectivity,
+    _populate_n_nodes_per_face,
+    _populate_node_face_connectivity,
+    _populate_edge_face_connectivity,
+)
 
-from uxarray.grid.coordinates import (_populate_lonlat_coord,
-                                      _populate_cartesian_xyz_coord)
+from uxarray.grid.coordinates import (
+    _populate_lonlat_coord,
+    _populate_cartesian_xyz_coord,
+)
 
-from uxarray.grid.geometry import (_populate_antimeridian_face_indices,
-                                   _grid_to_polygon_geodataframe,
-                                   _grid_to_matplotlib_polycollection,
-                                   _grid_to_matplotlib_linecollection)
+from uxarray.grid.geometry import (
+    _populate_antimeridian_face_indices,
+    _grid_to_polygon_geodataframe,
+    _grid_to_matplotlib_polycollection,
+    _grid_to_matplotlib_linecollection,
+)
 
 from uxarray.grid.neighbors import BallTree, KDTree
 
 from uxarray.plot.accessor import GridPlotAccessor
 
-from uxarray.grid.validation import _check_connectivity, _check_duplicate_nodes, _check_area
+from uxarray.subset import GridSubsetAccessor
+
+from uxarray.grid.validation import (
+    _check_connectivity,
+    _check_duplicate_nodes,
+    _check_area,
+)
 
 from xarray.core.utils import UncachedAccessor
 
@@ -81,11 +94,12 @@ class Grid:
     >>> uxds.uxgrid
     """
 
-    def __init__(self,
-                 grid_ds: xr.Dataset,
-                 source_grid_spec: Optional[str] = None,
-                 source_dims_dict: Optional[dict] = {}):
-
+    def __init__(
+        self,
+        grid_ds: xr.Dataset,
+        source_grid_spec: Optional[str] = None,
+        source_dims_dict: Optional[dict] = {},
+    ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
             raise ValueError(
@@ -100,7 +114,8 @@ class Grid:
                 "Attempting to construct a Grid without passing in source_grid_spec. Direct use of Grid constructor"
                 "is only advised if grid_ds is following the internal unstructured grid definition, including"
                 "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
-                Warning)
+                Warning,
+            )
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
@@ -135,10 +150,13 @@ class Grid:
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
+    # declare subset accessor
+    subset = UncachedAccessor(GridSubsetAccessor)
+
     @classmethod
-    def from_dataset(cls,
-                     dataset: xr.Dataset,
-                     use_dual: Optional[bool] = False):
+    def from_dataset(
+        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
+    ):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
         Parameters
@@ -152,27 +170,37 @@ class Grid:
             raise ValueError("Input must be an xarray.Dataset")
 
         # determine grid/mesh specification
-        source_grid_spec = _parse_grid_type(dataset)
 
-        if source_grid_spec == "Exodus":
-            grid_ds, source_dims_dict = _read_exodus(dataset)
-        elif source_grid_spec == "Scrip":
-            grid_ds, source_dims_dict = _read_scrip(dataset)
-        elif source_grid_spec == "UGRID":
-            grid_ds, source_dims_dict = _read_ugrid(dataset)
-        elif source_grid_spec == "MPAS":
-            grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-        elif source_grid_spec == "Shapefile":
-            raise ValueError("Shapefiles not yet supported")
+        if "source_grid_spec" not in kwargs:
+            # parse to detect source grid spec
+
+            source_grid_spec = _parse_grid_type(dataset)
+            if source_grid_spec == "Exodus":
+                grid_ds, source_dims_dict = _read_exodus(dataset)
+            elif source_grid_spec == "Scrip":
+                grid_ds, source_dims_dict = _read_scrip(dataset)
+            elif source_grid_spec == "UGRID":
+                grid_ds, source_dims_dict = _read_ugrid(dataset)
+            elif source_grid_spec == "MPAS":
+                grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+            elif source_grid_spec == "Shapefile":
+                raise ValueError("Shapefiles not yet supported")
+            else:
+                raise ValueError("Unsupported Grid Format")
         else:
-            raise ValueError("Unsupported Grid Format")
+            # custom source grid spec is provided
+            source_grid_spec = kwargs.get("source_grid_spec", None)
+            grid_ds = dataset
+            source_dims_dict = {}
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
-    def from_face_vertices(cls,
-                           face_vertices: Union[list, tuple, np.ndarray],
-                           latlon: Optional[bool] = True):
+    def from_face_vertices(
+        cls,
+        face_vertices: Union[list, tuple, np.ndarray],
+        latlon: Optional[bool] = True,
+    ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
         Parameters
@@ -183,8 +211,7 @@ class Grid:
             Indicates whether the inputted vertices are in lat/lon, with units in degrees
         """
         if not isinstance(face_vertices, (list, tuple, np.ndarray)):
-            raise ValueError(
-                "Input must be either a list, tuple, or np.ndarray")
+            raise ValueError("Input must be either a list, tuple, or np.ndarray")
 
         face_vertices = np.asarray(face_vertices)
 
@@ -198,7 +225,8 @@ class Grid:
             raise RuntimeError(
                 f"Invalid Input Dimension: {face_vertices.ndim}. Expected dimension should be "
                 f"3: [n_face, n_node, two/three] or 2 when only "
-                f"one face is passed in.")
+                f"one face is passed in."
+            )
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
@@ -269,34 +297,60 @@ class Grid:
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
         if "face_node_connectivity" in self._ds:
-            connectivity_str += f"  * face_node_connectivity: {self.face_node_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * face_node_connectivity: {self.face_node_connectivity.shape}\n"
+            )
 
         if "edge_node_connectivity" in self._ds:
-            connectivity_str += f"  * edge_node_connectivity: {self.edge_node_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * edge_node_connectivity: {self.edge_node_connectivity.shape}\n"
+            )
 
         if "node_node_connectivity" in self._ds:
-            connectivity_str += f"  * node_node_connectivity: {self.node_node_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * node_node_connectivity: {self.node_node_connectivity.shape}\n"
+            )
 
         if "face_edge_connectivity" in self._ds:
-            connectivity_str += f"  * face_edge_connectivity: {self.face_edge_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * face_edge_connectivity: {self.face_edge_connectivity.shape}\n"
+            )
 
         if "edge_edge_connectivity" in self._ds:
-            connectivity_str += f"  * edge_edge_connectivity: {self.edge_edge_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * edge_edge_connectivity: {self.edge_edge_connectivity.shape}\n"
+            )
 
         if "node_edge_connectivity" in self._ds:
-            connectivity_str += f"  * node_edge_connectivity: {self.node_edge_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * node_edge_connectivity: {self.node_edge_connectivity.shape}\n"
+            )
 
         if "face_face_connectivity" in self._ds:
-            connectivity_str += f"  * face_face_connectivity: {self.face_face_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * face_face_connectivity: {self.face_face_connectivity.shape}\n"
+            )
 
         if "edge_face_connectivity" in self._ds:
-            connectivity_str += f"  * edge_face_connectivity: {self.edge_face_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * edge_face_connectivity: {self.edge_face_connectivity.shape}\n"
+            )
 
         if "node_face_connectivity" in self._ds:
-            connectivity_str += f"  * node_face_connectivity: {self.node_face_connectivity.shape}\n"
+            connectivity_str += (
+                f"  * node_face_connectivity: {self.node_face_connectivity.shape}\n"
+            )
 
-        return prefix + original_grid_str + dims_heading + dims_str + coord_heading + coords_str + \
-            connectivity_heading + connectivity_str
+        return (
+            prefix
+            + original_grid_str
+            + dims_heading
+            + dims_str
+            + coord_heading
+            + coords_str
+            + connectivity_heading
+            + connectivity_str
+        )
 
     def __eq__(self, other) -> bool:
         """Two grids are equal if they have matching grid topology variables,
@@ -318,8 +372,9 @@ class Grid:
         if self.source_grid_spec != other.source_grid_spec:
             return False
 
-        if not (self.node_lon.equals(other.node_lon) or
-                self.node_lat.equals(other.node_lat)):
+        if not (
+            self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
+        ):
             return False
 
         if not self.face_node_connectivity.equals(other.face_node_connectivity):
@@ -407,6 +462,7 @@ class Grid:
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
+
         return self._ds["n_nodes_per_face"]
 
     # ==================================================================================================================
@@ -447,7 +503,7 @@ class Grid:
         if "node_x" not in self._ds:
             _populate_cartesian_xyz_coord(self)
 
-        return self._ds['node_x']
+        return self._ds["node_x"]
 
     @property
     def node_y(self) -> xr.DataArray:
@@ -458,7 +514,7 @@ class Grid:
         """
         if "node_y" not in self._ds:
             _populate_cartesian_xyz_coord(self)
-        return self._ds['node_y']
+        return self._ds["node_y"]
 
     @property
     def node_z(self) -> xr.DataArray:
@@ -469,7 +525,7 @@ class Grid:
         """
         if "node_z" not in self._ds:
             _populate_cartesian_xyz_coord(self)
-        return self._ds['node_z']
+        return self._ds["node_z"]
 
     # ==================================================================================================================
     # Spherical Edge Coordinates
@@ -510,7 +566,7 @@ class Grid:
         if "edge_x" not in self._ds:
             return None
 
-        return self._ds['edge_x']
+        return self._ds["edge_x"]
 
     @property
     def edge_y(self) -> xr.DataArray:
@@ -521,7 +577,7 @@ class Grid:
         """
         if "edge_y" not in self._ds:
             return None
-        return self._ds['edge_y']
+        return self._ds["edge_y"]
 
     @property
     def edge_z(self) -> xr.DataArray:
@@ -532,7 +588,7 @@ class Grid:
         """
         if "edge_z" not in self._ds:
             return None
-        return self._ds['edge_z']
+        return self._ds["edge_z"]
 
     # ==================================================================================================================
     # Spherical Face Coordinates
@@ -571,9 +627,9 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_x" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
 
-        return self._ds['face_x']
+        return self._ds["face_x"]
 
     @property
     def face_y(self) -> xr.DataArray:
@@ -583,8 +639,8 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_y" not in self._ds:
-            return None
-        return self._ds['face_y']
+            _populate_centroid_coord(self)
+        return self._ds["face_y"]
 
     @property
     def face_z(self) -> xr.DataArray:
@@ -594,8 +650,8 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_z" not in self._ds:
-            return None
-        return self._ds['face_z']
+            _populate_centroid_coord(self)
+        return self._ds["face_z"]
 
     # ==================================================================================================================
     # (, node) Connectivity
@@ -609,6 +665,18 @@ class Grid:
 
         Nodes are in counter-clockwise order.
         """
+
+        if self._ds["face_node_connectivity"].values.ndim == 1:
+            face_node_connectivity_1d = self._ds["face_node_connectivity"].values
+            face_node_connectivity_2d = np.expand_dims(
+                face_node_connectivity_1d, axis=0
+            )
+            self._ds["face_node_connectivity"] = xr.DataArray(
+                data=face_node_connectivity_2d,
+                dims=["n_face", "n_max_face_nodes"],
+                attrs=self._ds["face_node_connectivity"].attrs,
+            )
+
         return self._ds["face_node_connectivity"]
 
     @property
@@ -624,7 +692,7 @@ class Grid:
         if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
 
-        return self._ds['edge_node_connectivity']
+        return self._ds["edge_node_connectivity"]
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
@@ -716,8 +784,7 @@ class Grid:
     def antimeridian_face_indices(self) -> np.ndarray:
         """Index of each face that crosses the antimeridian."""
         if self._antimeridian_face_indices is None:
-            self._antimeridian_face_indices = _populate_antimeridian_face_indices(
-                self)
+            self._antimeridian_face_indices = _populate_antimeridian_face_indices(self)
         return self._antimeridian_face_indices
 
     @property
@@ -738,7 +805,13 @@ class Grid:
             self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_jacobian
 
-    def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
+    def get_ball_tree(
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "spherical",
+        distance_metric: Optional[str] = "haversine",
+        reconstruct: bool = False,
+    ):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_lon``, ``node_lat``) or face centers (``face_lon``,
@@ -746,26 +819,44 @@ class Grid:
 
         Parameters
         ----------
-        tree_type : str, default="nodes"
+        coordinates : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
+        coordinate_system : str, default="cartesian"
+            Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
+            "spherical" selecting spherical coordinates.
+        distance_metric : str, default="haversine"
+            Distance metric used to construct the BallTree
+        reconstruct : bool, default=False
+            If true, reconstructs the tree
 
         Returns
         -------
         self._ball_tree : grid.Neighbors.BallTree
             BallTree instance
         """
-        if self._ball_tree is None:
-            self._ball_tree = BallTree(self,
-                                       tree_type=tree_type,
-                                       distance_metric='haversine')
+
+        if self._ball_tree is None or reconstruct:
+            self._ball_tree = BallTree(
+                self,
+                coordinates=coordinates,
+                distance_metric=distance_metric,
+                coordinate_system=coordinate_system,
+                reconstruct=reconstruct,
+            )
         else:
-            if tree_type != self._ball_tree._tree_type:
-                self._ball_tree.tree_type = tree_type
+            if coordinates != self._ball_tree._coordinates:
+                self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
 
-    def get_kd_tree(self, tree_type: Optional[str] = "nodes"):
+    def get_kd_tree(
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "cartesian",
+        distance_metric: Optional[str] = "minkowski",
+        reconstruct: bool = False,
+    ):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
@@ -773,31 +864,46 @@ class Grid:
 
         Parameters
         ----------
-        tree_type : str, default="nodes"
+        coordinates : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
+        coordinate_system : str, default="cartesian"
+            Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
+            "spherical" selecting spherical coordinates.
+        distance_metric : str, default="minkowski"
+            Distance metric used to construct the KDTree
+        reconstruct : bool, default=False
+            If true, reconstructs the tree
 
         Returns
         -------
         self._kd_tree : grid.Neighbors.KDTree
             KDTree instance
         """
-        if self._kd_tree is None:
-            self._kd_tree = KDTree(self,
-                                   tree_type=tree_type,
-                                   distance_metric='minkowski')
+
+        if self._kd_tree is None or reconstruct:
+            self._kd_tree = KDTree(
+                self,
+                coordinates=coordinates,
+                distance_metric=distance_metric,
+                coordinate_system=coordinate_system,
+                reconstruct=reconstruct,
+            )
+
         else:
-            if tree_type != self._kd_tree._tree_type:
-                self._kd_tree.tree_type = tree_type
+            if coordinates != self._kd_tree._coordinates:
+                self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
 
     def copy(self):
         """Returns a deep copy of this grid."""
 
-        return Grid(self._ds,
-                    source_grid_spec=self.source_grid_spec,
-                    source_dims_dict=self._source_dims_dict)
+        return Grid(
+            self._ds,
+            source_grid_spec=self.source_grid_spec,
+            source_dims_dict=self._source_dims_dict,
+        )
 
     def encode_as(self, grid_type: str) -> xr.Dataset:
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
@@ -827,16 +933,20 @@ class Grid:
             out_ds = _encode_exodus(self._ds)
 
         elif grid_type == "SCRIP":
-            out_ds = _encode_scrip(self.face_node_connectivity, self.node_lon,
-                                   self.node_lat, self.face_areas)
+            out_ds = _encode_scrip(
+                self.face_node_connectivity,
+                self.node_lon,
+                self.node_lat,
+                self.face_areas,
+            )
         else:
             raise RuntimeError("The grid type not supported: ", grid_type)
 
         return out_ds
 
-    def calculate_total_face_area(self,
-                                  quadrature_rule: Optional[str] = "triangular",
-                                  order: Optional[int] = 4) -> float:
+    def calculate_total_face_area(
+        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+    ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
 
@@ -853,15 +963,16 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas, face_jacobian = self.compute_face_areas(
-            quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(quadrature_rule, order)
 
         return np.sum(face_areas)
 
-    def compute_face_areas(self,
-                           quadrature_rule: Optional[str] = "triangular",
-                           order: Optional[int] = 4,
-                           latlon: Optional[bool] = True):
+    def compute_face_areas(
+        self,
+        quadrature_rule: Optional[str] = "triangular",
+        order: Optional[int] = 4,
+        latlon: Optional[bool] = True,
+    ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -907,32 +1018,45 @@ class Grid:
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float
         # if not (int etc.), convert to float, this is to avoid numba errors
-        x, y, z = (arr.astype(float)
-                   if not np.issubdtype(arr[0], np.floating) else arr
-                   for arr in (x, y, z))
+        x, y, z = (
+            arr.astype(float) if not np.issubdtype(arr[0], np.floating) else arr
+            for arr in (x, y, z)
+        )
 
         face_nodes = self.face_node_connectivity.values
         n_nodes_per_face = self.n_nodes_per_face.values
 
         # call function to get area of all the faces as a np array
         self._face_areas, self._face_jacobian = get_all_face_area_from_coords(
-            x, y, z, face_nodes, n_nodes_per_face, dim, quadrature_rule, order,
-            coords_type)
+            x,
+            y,
+            z,
+            face_nodes,
+            n_nodes_per_face,
+            dim,
+            quadrature_rule,
+            order,
+            coords_type,
+        )
 
         min_jacobian = np.min(self._face_jacobian)
         max_jacobian = np.max(self._face_jacobian)
 
         if np.any(self._face_jacobian < 0):
             raise ValueError(
-                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".
-                format(min_jacobian, max_jacobian))
+                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".format(
+                    min_jacobian, max_jacobian
+                )
+            )
 
         return self._face_areas, self._face_jacobian
 
-    def to_geodataframe(self,
-                        override: Optional[bool] = False,
-                        cache: Optional[bool] = True,
-                        exclude_antimeridian: Optional[bool] = False):
+    def to_geodataframe(
+        self,
+        override: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        exclude_antimeridian: Optional[bool] = False,
+    ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid. Additionally, any
@@ -965,7 +1089,8 @@ class Grid:
 
         # construct a geodataframe with the faces stored as polygons as the geometry
         gdf = _grid_to_polygon_geodataframe(
-            self, exclude_antimeridian=exclude_antimeridian)
+            self, exclude_antimeridian=exclude_antimeridian
+        )
 
         # cache computed geodataframe
         if cache:
@@ -974,10 +1099,12 @@ class Grid:
 
         return gdf
 
-    def to_polycollection(self,
-                          override: Optional[bool] = False,
-                          cache: Optional[bool] = True,
-                          correct_antimeridian_polygons: Optional[bool] = True):
+    def to_polycollection(
+        self,
+        override: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        correct_antimeridian_polygons: Optional[bool] = True,
+    ):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
         polygons that cross the antimeridian split.
@@ -1001,8 +1128,10 @@ class Grid:
         if self._poly_collection is not None and not override:
             return self._poly_collection
 
-        poly_collection, corrected_to_original_faces = _grid_to_matplotlib_polycollection(
-            self)
+        (
+            poly_collection,
+            corrected_to_original_faces,
+        ) = _grid_to_matplotlib_polycollection(self)
 
         # cache computed polycollection
         if cache:
@@ -1010,9 +1139,9 @@ class Grid:
 
         return poly_collection, corrected_to_original_faces
 
-    def to_linecollection(self,
-                          override: Optional[bool] = False,
-                          cache: Optional[bool] = True):
+    def to_linecollection(
+        self, override: Optional[bool] = False, cache: Optional[bool] = True
+    ):
         """Constructs a ``matplotlib.collections.LineCollection`` object with
         line segments representing the geometry of the unstructured grid,
         corrected near the antimeridian.
@@ -1041,3 +1170,41 @@ class Grid:
             self._line_collection = line_collection
 
         return line_collection
+
+    def isel(self, **dim_kwargs):
+        """Indexes an unstructured grid along a given dimension (``n_node``,
+        ``n_edge``, or ``n_face``) and returns a new grid.
+
+        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
+        any face that contains that element is included in the resulting subset. This means that additional elements
+        beyond those that were initially provided in the indices will be included. Support for more methods, such as
+        exclusive and clipped indexing is in the works.
+
+        Parameters
+        **dims_kwargs: kwargs
+            Dimension to index, one of ['n_node', 'n_edge', 'n_face']
+
+
+        Example
+        -------`
+        >> grid = ux.open_grid(grid_path)
+        >> grid.isel(n_face = [1,2,3,4])
+        """
+        from .slice import _slice_node_indices, _slice_edge_indices, _slice_face_indices
+
+        if len(dim_kwargs) != 1:
+            raise ValueError("Indexing must be along a single dimension.")
+
+        if "n_node" in dim_kwargs:
+            return _slice_node_indices(self, dim_kwargs["n_node"])
+
+        elif "n_edge" in dim_kwargs:
+            return _slice_edge_indices(self, dim_kwargs["n_edge"])
+
+        elif "n_face" in dim_kwargs:
+            return _slice_face_indices(self, dim_kwargs["n_face"])
+
+        else:
+            raise ValueError(
+                "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
+            )
