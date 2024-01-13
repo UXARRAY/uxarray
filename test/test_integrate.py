@@ -9,7 +9,7 @@ import numpy.testing as nt
 
 import uxarray as ux
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.integrate import _get_zonal_face_weight_rad, _process_overlapped_intervals
+from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -60,7 +60,7 @@ class TestIntegrate(TestCase):
 
 class TestFaceWeights(TestCase):
 
-    def test_get_zonal_face_weight_rad_GCA(self):
+    def test_get_zonal_face_interval(self):
         """Test that the zonal face weights are correct."""
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi], [-0.4 * np.pi, - 0.25 * np.pi],
                            [0.4*np.pi, -0.25 * np.pi], [0.4 * np.pi, 0.25 * np.pi]]
@@ -70,9 +70,10 @@ class TestFaceWeights(TestCase):
                            [vertices[2], vertices[3]], [vertices[3], vertices[0]]])
 
         # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
-        weight, overlap_flag = _get_zonal_face_weight_rad(face_edge_nodes, 0.20, np.array([[-0.25 * np.pi, 0.25 * np.pi],[1.6 * np.pi,0.4 * np.pi]]),is_directed=False)
-        self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
-        self.assertFalse(overlap_flag)
+        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.20, np.array(
+            [[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi, 0.4 * np.pi]]), is_directed=False)
+        expected_interval_df = pd.DataFrame({'start': [1.6 * np.pi, 0.0], 'end': [2.0 * np.pi, 00.4 * np.pi]})
+        nt.assert_array_equal(interval_df, expected_interval_df)
 
     def test_get_zonal_face_weight_rad_GCA_constLat(self):
         """Test that the zonal face weights are correct."""
@@ -84,12 +85,12 @@ class TestFaceWeights(TestCase):
         face_edge_nodes = np.array([[vertices[0], vertices[1]], [vertices[1], vertices[2]],
                            [vertices[2], vertices[3]], [vertices[3], vertices[0]]])
 
-        weight, overlap_flag = _get_zonal_face_weight_rad(  face_edge_nodes, np.sin(0.25 * np.pi)
-                                                            , np.array([[-0.25 * np.pi, 0.25 * np.pi]
-                                                            , [1.6 * np.pi,0.4 * np.pi]]),is_directed=False,
-                                                            is_GCA_list=np.array([True, False, True, False]))
-        self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
-        self.assertTrue(overlap_flag)
+        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.25 * np.pi,
+                                               np.array([[-0.25 * np.pi, 0.25 * np.pi]
+                                                            , [1.6 * np.pi, 0.4 * np.pi]]), is_directed=False,
+                                               is_GCA_list=np.array([True, False, True, False]))
+        expected_interval_df = pd.DataFrame({'start': [1.6 * np.pi, 0.0], 'end': [2.0 * np.pi, 00.4 * np.pi]})
+        nt.assert_array_equal(interval_df, expected_interval_df)
 
     def test_get_zonal_face_weight_rad_equator(self):
         """Test that the zonal face weights are correct."""
@@ -101,23 +102,24 @@ class TestFaceWeights(TestCase):
         face_edge_nodes = np.array([[vertices[0], vertices[1]], [vertices[1], vertices[2]],
                            [vertices[2], vertices[3]], [vertices[3], vertices[0]]])
 
-        weight, overlap_flag = _get_zonal_face_weight_rad(  face_edge_nodes, 0.0
-                                                            , np.array([[-0.25 * np.pi, 0.25 * np.pi]
-                                                            , [1.6 * np.pi,0.4 * np.pi]]),is_directed=False,
-                                                            is_GCA_list=np.array([True, True, True, True]))
-        self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
-        self.assertTrue(overlap_flag)
+        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0, np.array([[-0.25 * np.pi, 0.25 * np.pi]
+                                                                                  ,
+                                                                               [1.6 * np.pi, 0.4 * np.pi]]),
+                                               is_directed=False, is_GCA_list=np.array([True, True, True, True]))
+        expected_interval_df = pd.DataFrame({'start': [1.6 * np.pi, 0.0], 'end': [2.0 * np.pi, 00.4 * np.pi]})
+        nt.assert_array_equal(interval_df, expected_interval_df)
+
 
         # Even if we change the is_GCA_list to False, the result should be the same
-        weight, overlap_flag = _get_zonal_face_weight_rad(  face_edge_nodes, 0.0
-                                                            , np.array([[-0.25 * np.pi, 0.25 * np.pi]
-                                                            , [1.6 * np.pi,0.4 * np.pi]]),is_directed=False,
-                                                            is_GCA_list=np.array([True, False, True, False]))
-        self.assertAlmostEqual(weight, 0.8 * np.pi, places=15)
-        self.assertTrue(overlap_flag)
+        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0, np.array([[-0.25 * np.pi, 0.25 * np.pi]
+                                                                                  ,
+                                                                               [1.6 * np.pi, 0.4 * np.pi]]),
+                                               is_directed=False, is_GCA_list=np.array([True, False, True, False]))
+        expected_interval_df = pd.DataFrame({'start': [1.6 * np.pi, 0.0], 'end': [2.0 * np.pi, 00.4 * np.pi]})
+        nt.assert_array_equal(interval_df, expected_interval_df)
 
     def test_process_overlapped_intervals(self):
-        # Example data
+        # Example data that has overlapping intervals and gap
         intervals_data = [
             {'start': 0.0, 'end': 100.0, 'face_index': 0},
             {'start': 50.0, 'end': 150.0, 'face_index': 1},
@@ -135,6 +137,107 @@ class TestFaceWeights(TestCase):
         overlap_contributions, total_length = _process_overlapped_intervals(df)
         self.assertEqual(total_length, 340.0)
         nt.assert_array_equal(overlap_contributions, expected_overlap_contributions)
+
+    def test_process_overlapped_intervals_antimerdian(self):
+        intervals_data = [
+            {'start': 350.0, 'end': 360.0, 'face_index': 0},
+            {'start': 0.0, 'end': 100.0, 'face_index': 0},
+            {'start': 100.0, 'end': 150.0, 'face_index': 1},
+            {'start': 100.0, 'end': 300.0, 'face_index': 2},
+            {'start': 310.0, 'end': 360.0, 'face_index': 3},
+        ]
+
+        df = pd.DataFrame(intervals_data)
+        df['interval'] = df.apply(lambda row: pd.Interval(left=row['start'], right=row['end'], closed='both'), axis=1)
+        df['interval'] = df['interval'].astype('interval[float64]')
+
+        # Expected result
+        expected_overlap_contributions = np.array({0: 105.0, 1: 25.0, 2: 175.0, 3: 45.0})
+        overlap_contributions, total_length = _process_overlapped_intervals(df)
+        self.assertEqual(total_length, 350.0)
+        nt.assert_array_equal(overlap_contributions, expected_overlap_contributions)
+
+    def test_get_zonal_faces_weight_at_constLat_equator(self):
+        face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
+                           [0.3*np.pi, 0.0], [0.3 * np.pi, 0.25 * np.pi]]
+        face_1 = [[0.3*np.pi, 0.0], [0.3*np.pi, -0.25 * np.pi],
+                           [0.6*np.pi, -0.25 * np.pi], [0.6*np.pi, 0.0]]
+        face_2 = [[0.3 * np.pi, 0.25 * np.pi], [0.3*np.pi, 0.0],
+                           [np.pi, 0.0], [np.pi, 0.25 * np.pi]]
+        face_3 = [[0.7 * np.pi, 0.0], [0.7*np.pi, -0.25 * np.pi],
+                            [np.pi, -0.25 * np.pi], [np.pi, 0.0]]
+
+        # Convert the face vertices to xyz coordinates
+        face_0 = [node_lonlat_rad_to_xyz(v) for v in face_0]
+        face_1 = [node_lonlat_rad_to_xyz(v) for v in face_1]
+        face_2 = [node_lonlat_rad_to_xyz(v) for v in face_2]
+        face_3 = [node_lonlat_rad_to_xyz(v) for v in face_3]
+
+        face_0_edge_nodes = np.array([[face_0[0], face_0[1]], [face_0[1], face_0[2]],
+                           [face_0[2], face_0[3]], [face_0[3], face_0[0]]])
+        face_1_edge_nodes = np.array([[face_1[0], face_1[1]], [face_1[1], face_1[2]],
+                            [face_1[2], face_1[3]], [face_1[3], face_1[0]]])
+        face_2_edge_nodes = np.array([[face_2[0], face_2[1]], [face_2[1], face_2[2]],
+                            [face_2[2], face_2[3]], [face_2[3], face_2[0]]])
+        face_3_edge_nodes = np.array([[face_3[0], face_3[1]], [face_3[1], face_3[2]],
+                            [face_3[2], face_3[3]], [face_3[3], face_3[0]]])
+
+        face_0_latlon_bound = np.array([[0.0, 0.25 * np.pi], [1.7 * np.pi, 0.3 * np.pi]])
+        face_1_latlon_bound = np.array([[-0.25 * np.pi, 0.0], [0.3 * np.pi, 0.6 * np.pi]])
+        face_2_latlon_bound = np.array([[0.0, 0.25 * np.pi], [0.3 * np.pi, np.pi]])
+        face_3_latlon_bound = np.array([[-0.25 * np.pi, 0.0], [0.7 * np.pi, np.pi]])
+
+        latlon_bounds = np.array([face_0_latlon_bound, face_1_latlon_bound, face_2_latlon_bound, face_3_latlon_bound])
+
+        expected_weight_df = pd.DataFrame({'face_index': [0, 1, 2, 3], 'weight': [0.46153, 0.11538,
+                                                                                  0.30769, 0.11538]})
+
+        # Assert the results is the same to the 3 decimal places
+        weight_df = _get_zonal_faces_weight_at_constLat(np.array([face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes, face_3_edge_nodes]), 0.0, latlon_bounds,
+                                                        is_directed=False)
+
+        nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+
+    def test_get_zonal_faces_weight_at_constLat_regular(self):
+        face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
+                           [0.3*np.pi, 0.0], [0.3 * np.pi, 0.25 * np.pi]]
+        face_1 = [[0.4*np.pi, 0.3 * np.pi], [0.4*np.pi, 0.0],
+                           [0.5*np.pi, 0.0], [0.5*np.pi, 0.3 * np.pi]]
+        face_2 = [[0.5 * np.pi, 0.25 * np.pi], [0.5*np.pi, 0.0],
+                           [np.pi, 0.0], [np.pi, 0.25 * np.pi]]
+        face_3 = [[1.2 * np.pi, 0.25 * np.pi], [1.2*np.pi, 0.0],
+                            [1.6*np.pi, -0.5 * np.pi], [1.6*np.pi, 0.25 * np.pi]]
+
+        # Convert the face vertices to xyz coordinates
+        face_0 = [node_lonlat_rad_to_xyz(v) for v in face_0]
+        face_1 = [node_lonlat_rad_to_xyz(v) for v in face_1]
+        face_2 = [node_lonlat_rad_to_xyz(v) for v in face_2]
+        face_3 = [node_lonlat_rad_to_xyz(v) for v in face_3]
+
+        face_0_edge_nodes = np.array([[face_0[0], face_0[1]], [face_0[1], face_0[2]],
+                           [face_0[2], face_0[3]], [face_0[3], face_0[0]]])
+        face_1_edge_nodes = np.array([[face_1[0], face_1[1]], [face_1[1], face_1[2]],
+                            [face_1[2], face_1[3]], [face_1[3], face_1[0]]])
+        face_2_edge_nodes = np.array([[face_2[0], face_2[1]], [face_2[1], face_2[2]],
+                            [face_2[2], face_2[3]], [face_2[3], face_2[0]]])
+        face_3_edge_nodes = np.array([[face_3[0], face_3[1]], [face_3[1], face_3[2]],
+                            [face_3[2], face_3[3]], [face_3[3], face_3[0]]])
+
+        face_0_latlon_bound = np.array([[0.0, 0.25 * np.pi], [1.7 * np.pi, 0.3 * np.pi]])
+        face_1_latlon_bound = np.array([[0, 0.3 * np.pi], [0.4 * np.pi, 0.5 * np.pi]])
+        face_2_latlon_bound = np.array([[0.0, 0.25 * np.pi], [0.5 * np.pi, np.pi]])
+        face_3_latlon_bound = np.array([[-0.5 * np.pi, 0.25 * np.pi], [1.2 * np.pi, 1.6 * np.pi]])
+
+        latlon_bounds = np.array([face_0_latlon_bound, face_1_latlon_bound, face_2_latlon_bound, face_3_latlon_bound])
+
+        expected_weight_df = pd.DataFrame({'face_index': [0, 1, 2, 3], 'weight': [0.375, 0.0625,
+                                                                                  0.3125, 0.25]})
+
+        # Assert the results is the same to the 3 decimal places
+        weight_df = _get_zonal_faces_weight_at_constLat(np.array([face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes, face_3_edge_nodes]), 0.01, latlon_bounds,
+                                                        is_directed=False)
+
+        nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
 
 
