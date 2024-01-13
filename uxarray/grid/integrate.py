@@ -41,8 +41,11 @@ def _get_zonal_faces_weight_at_constLat(
 
     Returns
     -------
-    weights : np.ndarray
-        The weights of the faces in radian. Shape: (n_faces,)
+    weights_df : pandas.DataFrame
+        A DataFrame with the calculated weights of each face. The DataFrame has two columns:
+        - 'face_index': The index of the face (integer).
+        - 'weight': The calculated weight of the face in radian (float).
+        The DataFrame is indexed by the face indices, providing a mapping from each face to its corresponding weight.
     """
     if is_face_GCA_list is None:
         is_face_GCA_list = np.ones(faces_edges_cart.shape[:2], dtype=bool)
