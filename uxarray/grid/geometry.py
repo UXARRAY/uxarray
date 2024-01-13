@@ -1,5 +1,7 @@
 import numpy as np
-from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE
+import copy
+from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
@@ -235,7 +237,6 @@ def _build_corrected_polygon_shells(polygon_shells):
     corrected_polygon_shells = []
 
     for i, polygon in enumerate(corrected_polygons):
-
         # Convert MultiPolygons into individual Polygon Vertices
         if polygon.geom_type == "MultiPolygon":
             for individual_polygon in polygon.geoms:
