@@ -19,6 +19,7 @@ dependencies:
     - jupyter_client
     - scikit-learn
     - sphinx-book-theme
+    - sphinx-autosummary-accessors
     - myst-nb
     - sphinx-design
     - nbsphinx
@@ -29,7 +30,8 @@ dependencies:
     - geoviews
     - cartopy
     - pandas<2.1.0
+    - geocat-datafiles
+    - spatialpandas
     - pip:
       - antimeridian
       - pyfma
-      - git+https://github.com/holoviz/spatialpandas.git

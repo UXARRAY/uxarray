@@ -29,3 +29,7 @@
 - title: Visualizing Data as Points
   path: examples/008-point-viz.ipynb
   thumbnail: _static/thumbnails/008-thumbnail.png
+
+- title: Subsetting an Unstructured Grid
+  path: examples/009-subsetting.ipynb
+  thumbnail: _static/thumbnails/009-thumbnail.png
