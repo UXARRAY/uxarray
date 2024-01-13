@@ -115,7 +115,9 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     return res
 
 
-def gca_constLat_intersection(gca_cart, constLat, fma_disabled=False, verbose=False):
+def gca_constLat_intersection(
+    gca_cart, constLat, fma_disabled=False, verbose=False, is_directed=False
+):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -130,6 +132,11 @@ def gca_constLat_intersection(gca_cart, constLat, fma_disabled=False, verbose=Fa
         The constant latitude of the latitude line.
     fma_disabled : bool, optional (default=False)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
+    verbose : bool, optional (default=False)
+        If True, the function prints out the intermediate results.
+    is_directed : bool, optional (default=False)
+        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
     Returns
     -------
@@ -176,7 +183,7 @@ def gca_constLat_intersection(gca_cart, constLat, fma_disabled=False, verbose=Fa
     res = None
 
     # Now test which intersection point is within the GCA range
-    if point_within_gca(p1, gca_cart):
+    if point_within_gca(p1, gca_cart, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
             p1, gca_cart, verbose=verbose
         )
@@ -184,7 +191,7 @@ def gca_constLat_intersection(gca_cart, constLat, fma_disabled=False, verbose=Fa
             np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
         )
 
-    if point_within_gca(p2, gca_cart):
+    if point_within_gca(p2, gca_cart, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
             p2, gca_cart, verbose=verbose
         )
