@@ -48,7 +48,7 @@ def _inverse_distance_weighted_remap(
         Data mapped to the destination grid.
     """
 
-    if power >= 6:
+    if power > 5:
         warnings.warn("It is recommended not to exceed a power of 5.0.")
     if k_neighbors > source_grid.n_node:
         raise ValueError(
