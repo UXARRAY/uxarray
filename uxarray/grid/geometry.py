@@ -1,7 +1,6 @@
 import numpy as np
 import copy
 from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.connectivity import close_face_nodes
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
@@ -476,7 +475,7 @@ def _get_latlonbox_width(latlonbox_rad):
 
     # Check longitude range validity
     if (lon0 < 0.0 or lon0 > 2.0 * np.pi) and lon0 != INT_FILL_VALUE:
-        raise Exception('lon0 out of range ({} not in [0, 2π])'.format(lon0))
+        raise Exception("lon0 out of range ({} not in [0, 2π])".format(lon0))
 
     if lon0 <= lon1:
         return lon1 - lon0
@@ -534,14 +533,17 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         latlon_box[1] = np.array([lon_pt, lon_pt])
 
     if lon_pt != INT_FILL_VALUE and (lon_pt < 0.0 or lon_pt > 2.0 * np.pi):
-        raise Exception(f'lon_pt out of range ({lon_pt} not in [0, 2π])')
+        raise Exception(f"lon_pt out of range ({lon_pt} not in [0, 2π])")
 
     # Check for pole points and update latitudes
-    is_pole_point = lon_pt == INT_FILL_VALUE and \
-                    np.isclose(new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE).any()
+    is_pole_point = (
+        lon_pt == INT_FILL_VALUE
+        and np.isclose(
+            new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE
+        ).any()
+    )
 
     if is_pole_point:
-
         # Check if the new point is close to the North Pole
         if np.isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
             latlon_box[0][1] = 0.5 * np.pi
@@ -552,30 +554,29 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
         return latlon_box
     else:
-        latlon_box[0] = [
-            min(latlon_box[0][0], lat_pt),
-            max(latlon_box[0][1], lat_pt)
-        ]
+        latlon_box[0] = [min(latlon_box[0][0], lat_pt), max(latlon_box[0][1], lat_pt)]
 
     # Update longitude range for non-periodic or periodic cases
     if not is_lon_periodic:
-        latlon_box[1] = [
-            min(latlon_box[1][0], lon_pt),
-            max(latlon_box[1][1], lon_pt)
-        ]
+        latlon_box[1] = [min(latlon_box[1][0], lon_pt), max(latlon_box[1][1], lon_pt)]
     else:
-        if ((latlon_box[1][0] > latlon_box[1][1] and
-             (lon_pt < latlon_box[1][0] and lon_pt > latlon_box[1][1])) or
-            (latlon_box[1][0] <= latlon_box[1][1] and
-             not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1]))):
+        if (
+            latlon_box[1][0] > latlon_box[1][1]
+            and (lon_pt < latlon_box[1][0] and lon_pt > latlon_box[1][1])
+        ) or (
+            latlon_box[1][0] <= latlon_box[1][1]
+            and not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1])
+        ):
             # Calculate and compare new box widths
             box_a, box_b = copy.deepcopy(latlon_box), copy.deepcopy(latlon_box)
             box_a[1][0], box_b[1][1] = lon_pt, lon_pt
-            d_width_a, d_width_b = _get_latlonbox_width(
-                box_a), _get_latlonbox_width(box_b)
+            d_width_a, d_width_b = (
+                _get_latlonbox_width(box_a),
+                _get_latlonbox_width(box_b),
+            )
 
             if d_width_a < 0 or d_width_b < 0:
-                raise Exception('logic error')
+                raise Exception("logic error")
 
             latlon_box = box_a if d_width_a < d_width_b else box_b
 
