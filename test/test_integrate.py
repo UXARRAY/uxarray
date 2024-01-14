@@ -369,7 +369,7 @@ class TestFaceWeights(TestCase):
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
             face_3_edge_nodes
         ]),
-                                                        0.01,
+                                                        0.1 * np.pi,
                                                         latlon_bounds,
                                                         is_directed=False)
 
