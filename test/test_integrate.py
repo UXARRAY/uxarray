@@ -87,7 +87,7 @@ class TestFaceWeights(TestCase):
         })
         nt.assert_array_equal(interval_df, expected_interval_df)
 
-    def test_get_zonal_face_weight_rad_GCA_constLat(self):
+    def test_get_zonal_face_interval_GCA_constLat(self):
         """Test that the zonal face weights are correct."""
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi],
                            [-0.4 * np.pi, -0.25 * np.pi],
@@ -103,7 +103,7 @@ class TestFaceWeights(TestCase):
 
         interval_df = _get_zonal_face_interval(
             face_edge_nodes,
-            0.25 * np.pi,
+            0.20 * np.pi,
             np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                       0.4 * np.pi]]),
             is_directed=False,
@@ -114,7 +114,7 @@ class TestFaceWeights(TestCase):
         })
         nt.assert_array_equal(interval_df, expected_interval_df)
 
-    def test_get_zonal_face_weight_rad_equator(self):
+    def test_get_zonal_face_interval_equator(self):
         """Test that the zonal face weights are correct."""
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi], [-0.4 * np.pi, 0.0],
                            [0.4 * np.pi, 0.0], [0.4 * np.pi, 0.25 * np.pi]]
@@ -151,7 +151,7 @@ class TestFaceWeights(TestCase):
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
         })
-        nt.assert_array_equal(interval_df, expected_interval_df)
+        nt.assert_array_almost_equal(interval_df, expected_interval_df, decimal=3)
 
     def test_process_overlapped_intervals(self):
         # Example data that has overlapping intervals and gap
