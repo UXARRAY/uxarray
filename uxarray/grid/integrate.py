@@ -139,8 +139,6 @@ def _get_zonal_face_interval(
     for edge_idx, edge in enumerate(face_edges_cart):
         n1, n2 = edge
         is_GCA = is_GCA_list[edge_idx]
-        n1 = edge[0]
-        n2 = edge[1]
 
         # Check if the edge is on the equator within the error tolerance
         if np.isclose(n1[2], 0.0, rtol=0, atol=ERROR_TOLERANCE) and np.isclose(

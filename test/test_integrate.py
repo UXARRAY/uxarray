@@ -320,7 +320,7 @@ class TestFaceWeights(TestCase):
         face_2 = [[0.5 * np.pi, 0.25 * np.pi], [0.5 * np.pi, 0.0], [np.pi, 0.0],
                   [np.pi, 0.25 * np.pi]]
         face_3 = [[1.2 * np.pi, 0.25 * np.pi], [1.2 * np.pi, 0.0],
-                  [1.6 * np.pi, -0.5 * np.pi], [1.6 * np.pi, 0.25 * np.pi]]
+                  [1.6 * np.pi, -0.25 * np.pi], [1.6 * np.pi, 0.25 * np.pi]]
 
         # Convert the face vertices to xyz coordinates
         face_0 = [node_lonlat_rad_to_xyz(v) for v in face_0]
