@@ -259,16 +259,16 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         assert len(remap_uxds_to_uxds.data_vars) == 4
 
     def test_edge_remapping(self):
-        """Tests the ability to remap on edges using Inverse Distance Weighted
-        Remapping."""
+        """Tests the ability to remap on edge centers using Inverse Distance
+        Weighted Remapping."""
 
         # Open source and destination datasets to remap to
         source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
         destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
 
-        # Perform remapping to the edges of the dataset
-        remap_to_edges = source_grid['v1'].inverse_distance_weighted_remap(destination_obj=destination_grid,
-                                                                           remap_to="edges")
+        # Perform remapping to the edge centers of the dataset
+        remap_to_edge_centers = source_grid['v1'].inverse_distance_weighted_remap(destination_obj=destination_grid,
+                                                                           remap_to="edge centers")
 
-        # Assert the data variable lies on the "edges"
+        # Assert the data variable lies on the "edge centers"
         self.assertTrue(destination_grid['v1']._edge_centered())
