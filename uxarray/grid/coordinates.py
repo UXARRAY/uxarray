@@ -383,19 +383,31 @@ def _populate_edge_centroids(grid, repopulate=False):
         grid._ds["edge_x"] = xr.DataArray(
             centroid_x,
             dims=["n_edge"],
-            attrs={"standard_name": "x", "long name": "TODO", "units": "meters"},
+            attrs={
+                "standard_name": "x",
+                "long name": "x coordinate of the center of each edge",
+                "units": "meters",
+            },
         )
 
         grid._ds["edge_y"] = xr.DataArray(
             centroid_y,
             dims=["n_edge"],
-            attrs={"standard_name": "y", "long name": "TODO", "units": "meters"},
+            attrs={
+                "standard_name": "y",
+                "long name": "y coordinate of the center of each edge",
+                "units": "meters",
+            },
         )
 
         grid._ds["edge_z"] = xr.DataArray(
             centroid_z,
             dims=["n_edge"],
-            attrs={"standard_name": "z", "long name": "TODO", "units": "meters"},
+            attrs={
+                "standard_name": "z",
+                "long name": "z coordinate of the center of each edge",
+                "units": "meters",
+            },
         )
 
 
@@ -403,7 +415,7 @@ def _populate_edge_centroids(grid, repopulate=False):
 def _construct_edge_centroids(node_x, node_y, node_z, edge_nodes_con):
     """Constructs the xyz centroid coordinate for each edge using Cartesian
     Averaging."""
-    centroids = np.zeros((3, edge_nodes_con.shape[0]), dtype=node_x.dtype)
+    centroids = np.zeros((3, edge_nodes_con.shape[0]), dtype=np.float64)
 
     for edge_idx, connectivity in enumerate(edge_nodes_con):
         # compute cartesian average

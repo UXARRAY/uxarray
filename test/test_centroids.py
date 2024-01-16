@@ -74,7 +74,7 @@ class TestCentroids(TestCase):
     def test_edge_centroids_from_triangle(self):
         """Test finding the centroid of a triangle."""
         # Create a triangle
-        test_triangle = np.array([(0.0, 0.0, 0.0), (-1.0, 1.0, 0.0), (-1.0, -1.0, 0.0)])
+        test_triangle = np.array([(0, 0, 0), (-1, 1, 0), (-1, -1, 0)])
 
         # Open the dataset and find the centroids
         grid = ux.open_grid(test_triangle)
