@@ -353,7 +353,7 @@ class KDTree:
                 d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = [np.radians(cur_d) for cur_d in d]
+                d = [np.rad2deg(cur_d) for cur_d in d]
 
             return d, ind
         else:
@@ -729,7 +729,7 @@ class BallTree:
                 d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = [np.radians(cur_d) for cur_d in d]
+                d = [np.rad2deg(cur_d) for cur_d in d]
 
             return d, ind
         else:

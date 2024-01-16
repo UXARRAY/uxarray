@@ -335,6 +335,6 @@ class TestKDTree(TestCase):
             multi_ind = uxgrid.get_kd_tree(coordinates="nodes").query_radius(c, 45)
 
             for i, cur_c in enumerate(c):
-                single_ind = ind = uxgrid.get_kd_tree(coordinates="nodes").query_radius(cur_c, 45)
+                single_ind = uxgrid.get_kd_tree(coordinates="nodes").query_radius(cur_c, 45)
 
                 assert np.array_equal(single_ind, multi_ind[i])
