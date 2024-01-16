@@ -16,7 +16,7 @@ conda remove -y --force \
     shapely \
     xarray
 
-python -m pip uninstall \
+pip uninstall -y \
     antimeridian \
     spatialpandas
 
