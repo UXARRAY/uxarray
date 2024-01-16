@@ -345,10 +345,10 @@ class KDTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             if not in_radians and self.coordinate_system == "spherical":
                 d = np.rad2deg(d[0])
@@ -359,10 +359,10 @@ class KDTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             return ind
 
@@ -719,10 +719,10 @@ class BallTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             if not in_radians and self.coordinate_system == "spherical":
                 d = np.rad2deg(d[0])
@@ -732,10 +732,11 @@ class BallTree:
             ind = self._current_tree().query_radius(
                 coords, r, return_distance, count_only, sort_results
             )
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             return ind
 
