@@ -346,12 +346,14 @@ class KDTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
                 ind = ind[0]
+                d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = np.rad2deg(d[0])
+                d = [np.radians(cur_d) for cur_d in d]
 
             return d, ind
         else:
@@ -720,12 +722,14 @@ class BallTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
                 ind = ind[0]
+                d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = np.rad2deg(d[0])
+                d = [np.radians(cur_d) for cur_d in d]
 
             return d, ind
         else:
