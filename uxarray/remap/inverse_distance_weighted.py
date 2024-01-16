@@ -190,7 +190,7 @@ def _inverse_distance_weighted_remap_uxda(
     elif remap_to == "face centers":
         destination_dim = "n_face"
     else:
-        destination_dim = "edges"
+        destination_dim = "n_edge"
 
     destination_dims = list(source_uxda.dims)
     destination_dims[-1] = destination_dim

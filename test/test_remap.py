@@ -19,6 +19,7 @@ gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "gri
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
 dsfile_v2_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v2.nc"
 dsfile_v3_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v3.nc"
+mpasfile_QU = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
 
 
 class TestNearestNeighborRemap(TestCase):
@@ -256,3 +257,18 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_uxds, UxDataset)
         assert len(remap_uxds_to_uxds.data_vars) == 4
+
+    def test_edge_remapping(self):
+        """Tests the ability to remap on edges using Inverse Distance Weighted
+        Remapping."""
+
+        # Open source and destination datasets to remap to
+        source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+
+        # Perform remapping to the edges of the dataset
+        remap_to_edges = source_grid['v1'].inverse_distance_weighted_remap(destination_obj=destination_grid,
+                                                                           remap_to="edges")
+
+        # Assert the data variable lies on the "edges"
+        self.assertTrue(destination_grid['v1']._edge_centered())
