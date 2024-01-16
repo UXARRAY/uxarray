@@ -32,7 +32,7 @@ def _nearest_neighbor(
     source_data : np.ndarray
         Data variable to remaps
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edges", or "face centers"
+        Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type: str, default="spherical"
         Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian"
 
@@ -49,14 +49,14 @@ def _nearest_neighbor(
 
     if n_elements == source_grid.n_node:
         source_data_mapping = "nodes"
-    elif n_elements == source_grid.n_face:
-        source_data_mapping = "edges"
     elif n_elements == source_grid.n_edge:
+        source_data_mapping = "edge centers"
+    elif n_elements == source_grid.n_face:
         source_data_mapping = "face centers"
     else:
         raise ValueError(
             f"Invalid source_data shape. The final dimension should be either match the number of corner "
-            f"nodes ({source_grid.n_node}), edges ({source_grid.n_edge}), or face centers ({source_grid.n_face}) in the"
+            f"nodes ({source_grid.n_node}), edge centers ({source_grid.n_edge}), or face centers ({source_grid.n_face}) in the"
             f" source grid, but received: {source_data.shape}"
         )
 
@@ -67,7 +67,7 @@ def _nearest_neighbor(
                 destination_grid.node_lon.values,
                 destination_grid.node_lat.values,
             )
-        elif remap_to == "edges":
+        elif remap_to == "edge centers":
             lon, lat = (
                 destination_grid.edge_lon.values,
                 destination_grid.edge_lat.values,
@@ -79,7 +79,7 @@ def _nearest_neighbor(
             )
         else:
             raise ValueError(
-                f"Invalid remap_to. Expected 'nodes', 'edges', or 'face centers', "
+                f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
                 f"but received: {remap_to}"
             )
 
@@ -99,7 +99,7 @@ def _nearest_neighbor(
                 destination_grid.node_y.values,
                 destination_grid.node_z.values,
             )
-        elif remap_to == "edges":
+        elif remap_to == "edge centers":
             cart_x, cart_y, cart_z = (
                 destination_grid.edge_x.values,
                 destination_grid.edge_y.values,
@@ -113,7 +113,7 @@ def _nearest_neighbor(
             )
         else:
             raise ValueError(
-                f"Invalid remap_to. Expected 'nodes', 'edges', or 'face centers', "
+                f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
                 f"but received: {remap_to}"
             )
 
@@ -159,7 +159,7 @@ def _nearest_neighbor_uxda(
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edges", or "face centers"
+        Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates for nearest neighbor computations when
         remapping.
@@ -168,7 +168,7 @@ def _nearest_neighbor_uxda(
     # prepare dimensions
     if remap_to == "nodes":
         destination_dim = "n_node"
-    elif remap_to == "edges":
+    elif remap_to == "edge centers":
         destination_dim = "n_edge"
     else:
         destination_dim = "n_face"
@@ -228,7 +228,7 @@ def _nearest_neighbor_uxds(
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edges", or "face centers"
+        Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates
     """
