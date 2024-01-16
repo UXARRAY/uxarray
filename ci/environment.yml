@@ -5,6 +5,7 @@ dependencies:
   - cartopy
   - dask
   - datashader
+  - gmpy2
   - holoviews
   - matplotlib-base
   - netcdf4
@@ -20,8 +21,8 @@ dependencies:
   - scikit-learn
   - scipy
   - shapely
+  - spatialpandas
   - xarray
   - pip:
     - antimeridian
     - pyfma
-    - git+https://github.com/holoviz/spatialpandas.git
