@@ -196,16 +196,17 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
-
-    def from_topology(cls,
-                      node_lon: np.ndarray,
-                      node_lat: np.ndarray,
-                      face_node_connectivity: np.ndarray,
-                      fill_value: Optional = None,
-                      start_index: Optional[int] = 0,
-                      grid_spec: Optional[str] = None,
-                      dims_dict: Optional[dict] = None,
-                      **kwargs):
+    def from_topology(
+        cls,
+        node_lon: np.ndarray,
+        node_lat: np.ndarray,
+        face_node_connectivity: np.ndarray,
+        fill_value: Optional = None,
+        start_index: Optional[int] = 0,
+        grid_spec: Optional[str] = None,
+        dims_dict: Optional[dict] = None,
+        **kwargs,
+    ):
         """TODO."""
         if grid_spec is None:
             grid_spec = "User Defined Topology"
@@ -213,22 +214,22 @@ class Grid:
         if dims_dict is None:
             dims_dict = {}
 
-        grid_ds = _read_topology(node_lon, node_lat, face_node_connectivity,
-                                 fill_value, start_index, **kwargs)
+        grid_ds = _read_topology(
+            node_lon,
+            node_lat,
+            face_node_connectivity,
+            fill_value,
+            start_index,
+            **kwargs,
+        )
 
         return cls(grid_ds, grid_spec, dims_dict)
-
-    @classmethod
-    def from_face_vertices(cls,
-                           face_vertices: Union[list, tuple, np.ndarray],
-                           latlon: Optional[bool] = True):
 
     def from_face_vertices(
         cls,
         face_vertices: Union[list, tuple, np.ndarray],
         latlon: Optional[bool] = True,
     ):
-
         """Constructs a ``Grid`` object from user-defined face vertices.
 
         Parameters
@@ -381,7 +382,7 @@ class Grid:
         )
 
     def __getitem__(self, item):
-        """TODO: """
+        """TODO:"""
         if item in self._ds:
             return self._ds[item]
         else:

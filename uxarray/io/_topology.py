@@ -5,8 +5,9 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 
-def _read_topology(node_lon, node_lat, face_node_connectivity, fill_value,
-                   start_index, **kwargs):
+def _read_topology(
+    node_lon, node_lat, face_node_connectivity, fill_value, start_index, **kwargs
+):
     ds = xr.Dataset()
 
     for coord in ugrid.COORD_NAMES:
@@ -18,22 +19,24 @@ def _read_topology(node_lon, node_lat, face_node_connectivity, fill_value,
             else:
                 coord_arr = kwargs[coord]
 
-            ds[coord] = xr.DataArray(data=coord_arr,
-                                     dims=ugrid.COORDS[coord]['dims'],
-                                     attrs=ugrid.COORDS[coord]['attrs'])
+            ds[coord] = xr.DataArray(
+                data=coord_arr,
+                dims=ugrid.COORDS[coord]["dims"],
+                attrs=ugrid.COORDS[coord]["attrs"],
+            )
 
     for conn in ugrid.CONNECTIVITY_NAMES:
         if conn == "face_node_connectivity" or conn in kwargs:
-
             if conn == "face_node_connectivity":
                 conn_arr = face_node_connectivity
             else:
                 conn_arr = kwargs[conn]
 
-            ds[conn] = xr.DataArray(data=_process_connectivity(
-                conn_arr, fill_value, start_index),
-                                    dims=ugrid.CONNECTIVITY[conn]['dims'],
-                                    attrs=ugrid.CONNECTIVITY[conn]['attrs'])
+            ds[conn] = xr.DataArray(
+                data=_process_connectivity(conn_arr, fill_value, start_index),
+                dims=ugrid.CONNECTIVITY[conn]["dims"],
+                attrs=ugrid.CONNECTIVITY[conn]["attrs"],
+            )
 
     return ds
 
