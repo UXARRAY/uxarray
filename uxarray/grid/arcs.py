@@ -15,7 +15,7 @@ def _to_list(obj):
     return obj
 
 
-def point_within_gca(pt, gca_cart):
+def point_within_gca(pt, gca_cart, is_directed=False):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
 
@@ -25,6 +25,9 @@ def point_within_gca(pt, gca_cart):
         Cartesian coordinates of the point.
     gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
         Cartesian coordinates of the Great Circle Arc (GCR).
+    is_directed : bool, optional, default = False
+        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
 
     Returns
     -------
@@ -76,32 +79,46 @@ def point_within_gca(pt, gca_cart):
     ):
         return False
 
-    # Special case: If the gcr goes across the anti-meridian
-    # If the pt and the GCR are on the same longitude (the y coordinates are the same)
-    if GCRv0_lonlat[0] == GCRv1_lonlat[0] == pt_lonlat[0]:
-        # Now use the latitude to determine if the pt falls between the interval
-        return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+    if GCRv0_lonlat[0] == GCRv1_lonlat[0]:
+        # If the pt and the GCA are on the same longitude (the y coordinates are the same)
+        if GCRv0_lonlat[0] == pt_lonlat[0]:
+            # Now use the latitude to determine if the pt falls between the interval
+            return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+        else:
+            # If the pt and the GCA are not on the same longitude when the GCA is a longnitude arc, then the pt is not on the GCA
+            return False
 
-    # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
-    # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
-    if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi:
-        # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
-        # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
-        if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
-            raise ValueError(
-                "The input Great Circle Arc span is larger than 180 degree, please break it into two."
-            )
+    if is_directed:
+        # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
+        # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
+        if abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]) > np.pi:
+            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+            # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
+            if GCRv0_lonlat[0] <= np.pi <= GCRv1_lonlat[0]:
+                raise ValueError(
+                    "The input Great Circle Arc span is larger than 180 degree, please break it into two."
+                )
 
-        # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
-        # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 lon
-        elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
-            return in_between(GCRv0_lonlat[0], pt_lonlat[0], 2 * np.pi) or in_between(
-                0, pt_lonlat[0], GCRv1_lonlat[0]
-            )
+            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
+            # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 lon
+            elif 2 * np.pi > GCRv0_lonlat[0] > np.pi > GCRv1_lonlat[0] > 0:
+                return in_between(
+                    GCRv0_lonlat[0], pt_lonlat[0], 2 * np.pi
+                ) or in_between(0, pt_lonlat[0], GCRv1_lonlat[0])
 
-    # The non-anti-meridian case.
+        # The non-anti-meridian case.
+        else:
+            return in_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
     else:
-        return in_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+        # The undirected case
+        # sort the longitude
+        GCRv0_lonlat_min, GCRv1_lonlat_max = sorted([GCRv0_lonlat[0], GCRv1_lonlat[0]])
+        if np.pi > GCRv1_lonlat_max - GCRv0_lonlat_min >= 0.0:
+            return in_between(GCRv0_lonlat[0], pt_lonlat[0], GCRv1_lonlat[0])
+        else:
+            return in_between(GCRv1_lonlat_max, pt_lonlat[0], 2 * np.pi) or in_between(
+                0.0, pt_lonlat[0], GCRv0_lonlat_min
+            )
 
 
 def in_between(p, q, r) -> bool:
