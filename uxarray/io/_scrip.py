@@ -22,81 +22,77 @@ def _to_ugrid(in_ds, out_ds):
 
     source_dims_dict = {}
 
-    if in_ds['grid_area'].all():
-
+    if in_ds["grid_area"].all():
         # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude scrip array into 1D instead of 2D
-        corner_lat = in_ds['grid_corner_lat'].values.ravel()
+        corner_lat = in_ds["grid_corner_lat"].values.ravel()
 
         # Repeat above steps with longitude data instead
-        corner_lon = in_ds['grid_corner_lon'].values.ravel()
+        corner_lon = in_ds["grid_corner_lon"].values.ravel()
 
         # Combine flat lat and lon arrays
         corner_lon_lat = np.vstack((corner_lon, corner_lat)).T
 
         # Run numpy unique to determine which rows/values are actually unique
-        _, unq_ind, unq_inv = np.unique(corner_lon_lat,
-                                        return_index=True,
-                                        return_inverse=True,
-                                        axis=0)
+        _, unq_ind, unq_inv = np.unique(
+            corner_lon_lat, return_index=True, return_inverse=True, axis=0
+        )
 
         # Now, calculate unique lon and lat values to account for 'node_lon' and 'node_lat'
         unq_lon = corner_lon_lat[unq_ind, :][:, 0]
         unq_lat = corner_lon_lat[unq_ind, :][:, 1]
 
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
-        unq_inv = np.reshape(unq_inv,
-                             (len(in_ds.grid_size), len(in_ds.grid_corners)))
+        unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
         # Create node_lon & node_lat from unsorted, unique grid_corner_lat/lon
-        out_ds['node_lon'] = xr.DataArray(
+        out_ds["node_lon"] = xr.DataArray(
             unq_lon,
             dims=["n_node"],
             attrs={
                 "standard_name": "longitude",
                 "long_name": "longitude of mesh nodes",
                 "units": "degrees_east",
-            })
+            },
+        )
 
-        out_ds['node_lat'] = xr.DataArray(
+        out_ds["node_lat"] = xr.DataArray(
             unq_lat,
             dims=["n_node"],
             attrs={
                 "standard_name": "latitude",
                 "long_name": "latitude of mesh nodes",
                 "units": "degrees_north",
-            })
+            },
+        )
 
         # Create face_lon & face_lat from grid_center_lat/lon
-        out_ds['face_lon'] = in_ds['grid_center_lon']
-        out_ds['face_lat'] = in_ds['grid_center_lat']
+        out_ds["face_lon"] = in_ds["grid_center_lon"]
+        out_ds["face_lat"] = in_ds["grid_center_lat"]
 
         # standardize fill values and data type face nodes
-        face_nodes = _replace_fill_values(unq_inv,
-                                          original_fill=-1,
-                                          new_fill=INT_FILL_VALUE,
-                                          new_dtype=INT_DTYPE)
+        face_nodes = _replace_fill_values(
+            unq_inv, original_fill=-1, new_fill=INT_FILL_VALUE, new_dtype=INT_DTYPE
+        )
 
         # set the face nodes data compiled in "connect" section
         out_ds["face_node_connectivity"] = xr.DataArray(
             data=face_nodes,
             dims=["n_face", "n_max_face_nodes"],
             attrs={
-                "cf_role":
-                    "face_node_connectivity",
-                "_FillValue":
-                    INT_FILL_VALUE,
-                "start_index":
-                    INT_DTYPE(
-                        0
-                    )  # NOTE: This might cause an error if numbering has holes
-            })
+                "cf_role": "face_node_connectivity",
+                "_FillValue": INT_FILL_VALUE,
+                "start_index": INT_DTYPE(
+                    0
+                ),  # NOTE: This might cause an error if numbering has holes
+            },
+        )
 
     else:
         raise Exception("Structured scrip files are not yet supported")
 
     # populate source dims
-    source_dims_dict[in_ds['grid_center_lon'].dims[0]] = "n_face"
+    source_dims_dict[in_ds["grid_center_lon"].dims[0]] = "n_face"
 
     return source_dims_dict
 
@@ -125,14 +121,7 @@ def _read_scrip(ext_ds):
     """
     ds = xr.Dataset()
 
-    try:
-        # If not ugrid compliant, translates scrip to ugrid conventions
-        source_dims_dict = _to_ugrid(ext_ds, ds)
-    except:
-        print(
-            "Variables not in recognized SCRIP form. Please refer to",
-            "https://earthsystemmodeling.org/docs/release/ESMF_6_2_0/ESMF_refdoc/node3.html#SECTION03024000000000000000",
-            "for more information on SCRIP Grid file formatting")
+    source_dims_dict = _to_ugrid(ext_ds, ds)
 
     return ds, source_dims_dict
 
@@ -189,18 +178,20 @@ def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
 
     # Reshape arrays to be 2D instead of 1D
     reshp_lat = np.reshape(
-        lat_nodes,
-        [face_node_connectivity.shape[0], face_node_connectivity.shape[1]])
+        lat_nodes, [face_node_connectivity.shape[0], face_node_connectivity.shape[1]]
+    )
     reshp_lon = np.reshape(
-        lon_nodes,
-        [face_node_connectivity.shape[0], face_node_connectivity.shape[1]])
+        lon_nodes, [face_node_connectivity.shape[0], face_node_connectivity.shape[1]]
+    )
 
     # Add data to new scrip output file
-    ds['grid_corner_lat'] = xr.DataArray(data=reshp_lat,
-                                         dims=["grid_size", 'grid_corners'])
+    ds["grid_corner_lat"] = xr.DataArray(
+        data=reshp_lat, dims=["grid_size", "grid_corners"]
+    )
 
-    ds['grid_corner_lon'] = xr.DataArray(data=reshp_lon,
-                                         dims=["grid_size", 'grid_corners'])
+    ds["grid_corner_lon"] = xr.DataArray(
+        data=reshp_lon, dims=["grid_size", "grid_corners"]
+    )
 
     # Create Grid rank, always 1 for unstructured grids
     ds["grid_rank"] = xr.DataArray(data=[1], dims=["grid_rank"])
@@ -209,17 +200,18 @@ def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
     ds["grid_dims"] = xr.DataArray(data=[len(lon_nodes)], dims=["grid_rank"])
 
     # Create grid_imask representing fill values
-    ds["grid_imask"] = xr.DataArray(data=np.ones(len(reshp_lon), dtype=int),
-                                    dims=["grid_size"])
+    ds["grid_imask"] = xr.DataArray(
+        data=np.ones(len(reshp_lon), dtype=int), dims=["grid_size"]
+    )
 
     ds["grid_area"] = xr.DataArray(data=face_areas, dims=["grid_size"])
 
     # Calculate and create grid center lat/lon using helper function
     center_lat, center_lon = grid_center_lat_lon(ds)
 
-    ds['grid_center_lon'] = xr.DataArray(data=center_lon, dims=["grid_size"])
+    ds["grid_center_lon"] = xr.DataArray(data=center_lon, dims=["grid_size"])
 
-    ds['grid_center_lat'] = xr.DataArray(data=center_lat, dims=["grid_size"])
+    ds["grid_center_lat"] = xr.DataArray(data=center_lat, dims=["grid_size"])
 
     return ds
 
@@ -245,8 +237,8 @@ def grid_center_lat_lon(ds):
     """
 
     # Calculate and create grid center lat/lon
-    scrip_corner_lon = ds['grid_corner_lon']
-    scrip_corner_lat = ds['grid_corner_lat']
+    scrip_corner_lon = ds["grid_corner_lon"]
+    scrip_corner_lat = ds["grid_corner_lat"]
 
     # convert to radians
     rad_corner_lon = np.deg2rad(scrip_corner_lon)
@@ -256,10 +248,8 @@ def grid_center_lat_lon(ds):
     nodes_per_face = rad_corner_lat.shape[1]
 
     # geographic center of each cell
-    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon),
-               axis=1) / nodes_per_face
-    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon),
-               axis=1) / nodes_per_face
+    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon), axis=1) / nodes_per_face
+    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon), axis=1) / nodes_per_face
     z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
 
     center_lon = np.rad2deg(np.arctan2(y, x))
