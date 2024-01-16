@@ -17,6 +17,8 @@ GRID_TOPOLOGY_ATTRS = {
     "face_node_connectivity": "face_node_connectivity",
 }
 
+DIM_NAMES = ["n_node", "n_edge", "n_face"]
+
 NODE_DIMS = ["n_node"]
 EDGE_DIMS = ["n_edge"]
 FACE_DIMS = ["n_face"]

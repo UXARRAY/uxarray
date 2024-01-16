@@ -225,6 +225,7 @@ class Grid:
 
         return cls(grid_ds, grid_spec, dims_dict)
 
+    @classmethod
     def from_face_vertices(
         cls,
         face_vertices: Union[list, tuple, np.ndarray],
@@ -432,6 +433,26 @@ class Grid:
         If two grids are not equal : bool
         """
         return not self.__eq__(other)
+
+    @property
+    def dims(self) -> set:
+        from uxarray.conventions.ugrid import DIM_NAMES
+
+        return set([dim for dim in DIM_NAMES if dim in self._ds])
+
+    @property
+    def sizes(self) -> dict:
+        pass
+
+    @property
+    def coordinates(self) -> set:
+        pass
+
+    @property
+    def connectivity(self) -> set:
+        from uxarray.conventions.ugrid import CONNECTIVITY_NAMES
+
+        return set([conn for conn in CONNECTIVITY_NAMES if conn in self._ds])
 
     # TODO: rename to attrs?
     @property
