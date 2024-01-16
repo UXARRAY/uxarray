@@ -436,20 +436,31 @@ class Grid:
 
     @property
     def dims(self) -> set:
+        "TODO:"
         from uxarray.conventions.ugrid import DIM_NAMES
 
-        return set([dim for dim in DIM_NAMES if dim in self._ds])
+        return set([dim for dim in DIM_NAMES if dim in self._ds.dims])
 
     @property
     def sizes(self) -> dict:
-        pass
+        "TODO:"
+        return {dim: self._ds.dims[dim] for dim in self.dims}
 
     @property
     def coordinates(self) -> set:
-        pass
+        # TODO:
+        from uxarray.conventions.ugrid import (
+            SPHERICAL_COORD_NAMES,
+            CARTESIAN_COORD_NAMES,
+        )
+
+        return set(
+            [coord for coord in SPHERICAL_COORD_NAMES if coord in self._ds]
+        ).union(set([coord for coord in CARTESIAN_COORD_NAMES if coord in self._ds]))
 
     @property
     def connectivity(self) -> set:
+        # TODO:
         from uxarray.conventions.ugrid import CONNECTIVITY_NAMES
 
         return set([conn for conn in CONNECTIVITY_NAMES if conn in self._ds])
@@ -462,12 +473,8 @@ class Grid:
 
     # TODO: Rename to 'topology_descriptor' or similar
     @property
-    def Mesh2(self) -> xr.DataArray:
-        """UGRID Attribute ``Mesh2``, which indicates the topology data of a 2D
-        unstructured mesh.
-
-        Internal use has been deprecated.
-        """
+    def grid_topology(self) -> xr.DataArray:
+        """TODO:"""
         return self._ds["Mesh2"]
 
     # ==================================================================================================================
