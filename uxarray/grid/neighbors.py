@@ -350,13 +350,15 @@ class KDTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
+                d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = np.rad2deg(d[0])
+                d = [np.rad2deg(cur_d) for cur_d in d]
 
             return d, ind
         else:
@@ -364,10 +366,10 @@ class KDTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             return ind
 
@@ -724,23 +726,26 @@ class BallTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
+                d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = np.rad2deg(d[0])
+                d = [np.rad2deg(cur_d) for cur_d in d]
 
             return d, ind
         else:
             ind = self._current_tree().query_radius(
                 coords, r, return_distance, count_only, sort_results
             )
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             return ind
 
