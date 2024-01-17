@@ -12,6 +12,7 @@ def _get_zonal_faces_weight_at_constLat(
     latitude_cart,
     face_latlon_bound,
     is_directed=False,
+    is_latlonface=False,
     is_face_GCA_list=None,
 ):
     """Utilize the sweep line algorithm to calculate the weight of each face at
@@ -33,11 +34,16 @@ def _get_zonal_faces_weight_at_constLat(
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
         and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
+    is_latlonface : bool, optional, default=False
+        A global flag to indicate if faces are latlon face. If True, then treat all faces as latlon faces. Latlon face means
+        That all edge is either a longitude or constant latitude line. If False, then all edges are GCA.
+         Default is False.
+
     is_face_GCA_list : np.ndarray, optional (default=None)
         A list of boolean values that indicates if the edge in that face is a GCA. Shape: (n_faces,n_edges).
         True means edge face is a GCA.
         False mean this edge is a constant latitude.
-        If None, all edges are considered as GCA.
+        If None, all edges are considered as GCA. This attribute will overwrite the is_latlonface attribute.
 
     Returns
     -------
@@ -47,20 +53,20 @@ def _get_zonal_faces_weight_at_constLat(
         - 'weight': The calculated weight of the face in radian (float).
         The DataFrame is indexed by the face indices, providing a mapping from each face to its corresponding weight.
     """
-    if is_face_GCA_list is None:
-        is_face_GCA_list = np.ones(faces_edges_cart.shape[:2], dtype=bool)
-
     intervals_list = []
 
     # Iterate through all faces and their edges
-    for face_index, (face_edges, is_GCA_list) in enumerate(
-        zip(faces_edges_cart, is_face_GCA_list)
-    ):
+    for face_index, face_edges in enumerate(faces_edges_cart):
+        if is_face_GCA_list is not None:
+            is_GCA_list = is_face_GCA_list[face_index]
+        else:
+            is_GCA_list = None
         face_interval_df = _get_zonal_face_interval(
             face_edges,
             latitude_cart,
             face_latlon_bound[face_index],
             is_directed=is_directed,
+            is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
         for _, row in face_interval_df.iterrows():
@@ -87,6 +93,7 @@ def _get_zonal_face_interval(
     latitude_rad,
     face_latlon_bound,
     is_directed=False,
+    is_latlonface=False,
     is_GCA_list=None,
 ):
     """Processes a face polygon represented by edges in Cartesian coordinates
@@ -112,7 +119,11 @@ def _get_zonal_face_interval(
     is_directed : bool, optional
         If True, the GCA is considered to be directed (from v0 to v1). If False, the GCA is undirected,
         and the smaller circle (less than 180 degrees) side of the GCA is used. Default is False.
-    is_GCA_list : np.ndarray, optional
+    is_latlonface : bool, optional, default=False
+        A global flag to indicate if faces are latlon face. If True, then treat all faces as latlon faces. Latlon face means
+        That all edge is either a longitude or constant latitude line. If False, then all edges are GCA.
+         Default is False. This attribute will overwrite the is_latlonface attribute.
+    is_GCA_list : np.ndarray, optional, default=False
         An array indicating if each edge is a GCA (True) or a constant latitude (False). Shape: (n_edges,).
         If None, all edges are considered as GCAs. Default is None.
 
@@ -126,9 +137,6 @@ def _get_zonal_face_interval(
     pt_lon_max = -3 * np.pi
     latZ = np.sin(latitude_rad)
 
-    if is_GCA_list is None:
-        is_GCA_list = np.ones(len(face_edges_cart), dtype=bool)
-
     overlap_flag = False
     overlap_edge = np.array([])
 
@@ -138,14 +146,20 @@ def _get_zonal_face_interval(
 
     for edge_idx, edge in enumerate(face_edges_cart):
         n1, n2 = edge
-        is_GCA = is_GCA_list[edge_idx]
 
-        # Check if the edge is on the equator within the error tolerance
-        if np.isclose(n1[2], 0.0, rtol=0, atol=ERROR_TOLERANCE) and np.isclose(
-            n2[2], 0.0, rtol=0, atol=ERROR_TOLERANCE
-        ):
-            # This is a constant latitude edge
-            is_GCA = False
+        # First check the is_GCA_list, if it's not None, then use the is_GCA_list to determine if the edge is GCA
+        if is_GCA_list is not None:
+            is_GCA = is_GCA_list[edge_idx]
+        else:
+            # If the is_GCA_list is None, then use the is_latlonface to determine if the edge is GCA
+            if is_latlonface:
+                if np.isclose(n1[2], n2[2], rtol=0, atol=ERROR_TOLERANCE):
+                    is_GCA = False
+                else:
+                    is_GCA = True
+            # If the is_latlonface is False, then all edges are GCA
+            else:
+                is_GCA = True
 
         # Check if the edge is overlapped with the constant latitude within the error tolerance
         if (

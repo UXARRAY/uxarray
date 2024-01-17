@@ -137,7 +137,7 @@ class TestFaceWeights(TestCase):
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
         })
-        nt.assert_array_equal(interval_df, expected_interval_df)
+        nt.assert_array_almost_equal(interval_df, expected_interval_df, decimal=13)
 
         # Even if we change the is_GCA_list to False, the result should be the same
         interval_df = _get_zonal_face_interval(
@@ -374,3 +374,71 @@ class TestFaceWeights(TestCase):
                                                         is_directed=False)
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+
+    def test_get_zonal_faces_weight_at_constLat_latlonface(self):
+        face_0 = [[np.deg2rad(350), np.deg2rad(40)], [np.deg2rad(350), np.deg2rad(20)],
+                  [np.deg2rad(10), np.deg2rad(20)], [np.deg2rad(10), np.deg2rad(40)]]
+        face_1 = [[np.deg2rad(5), np.deg2rad(20)], [np.deg2rad(5), np.deg2rad(10)],
+                  [np.deg2rad(25), np.deg2rad(10)], [np.deg2rad(25), np.deg2rad(20)]]
+        face_2 = [[np.deg2rad(30), np.deg2rad(40)], [np.deg2rad(30), np.deg2rad(20)],
+                  [np.deg2rad(40), np.deg2rad(20)], [np.deg2rad(40), np.deg2rad(40)]]
+
+        # Convert the face vertices to xyz coordinates
+        face_0 = [node_lonlat_rad_to_xyz(v) for v in face_0]
+        face_1 = [node_lonlat_rad_to_xyz(v) for v in face_1]
+        face_2 = [node_lonlat_rad_to_xyz(v) for v in face_2]
+
+
+        face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
+                                      [face_0[1], face_0[2]],
+                                      [face_0[2], face_0[3]],
+                                      [face_0[3], face_0[0]]])
+        face_1_edge_nodes = np.array([[face_1[0], face_1[1]],
+                                      [face_1[1], face_1[2]],
+                                      [face_1[2], face_1[3]],
+                                      [face_1[3], face_1[0]]])
+        face_2_edge_nodes = np.array([[face_2[0], face_2[1]],
+                                      [face_2[1], face_2[2]],
+                                      [face_2[2], face_2[3]],
+                                      [face_2[3], face_2[0]]])
+
+        face_0_latlon_bound = np.array([[np.deg2rad(20), np.deg2rad(40)],
+                                        [np.deg2rad(350), np.deg2rad(10)]])
+        face_1_latlon_bound = np.array([[np.deg2rad(10), np.deg2rad(20)],
+                                        [np.deg2rad(5), np.deg2rad(25)]])
+        face_2_latlon_bound = np.array([[np.deg2rad(20), np.deg2rad(40)],
+                                        [np.deg2rad(30), np.deg2rad(40)]])
+
+
+        latlon_bounds = np.array([
+            face_0_latlon_bound, face_1_latlon_bound, face_2_latlon_bound
+        ])
+
+        sum = 17.5 + 17.5 + 10
+        expected_weight_df = pd.DataFrame({
+            'face_index': [0, 1, 2],
+            'weight': [17.5 / sum, 17.5/sum, 10/sum]
+        })
+
+        # Assert the results is the same to the 3 decimal places
+        weight_df = _get_zonal_faces_weight_at_constLat(np.array([
+            face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
+        ]),
+                                                        np.deg2rad(20),
+                                                        latlon_bounds,
+                                                        is_directed=False, is_latlonface=True)
+
+
+        nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+
+
+
+        # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
+        # It's edges are all GCA
+        with self.assertRaises(ValueError):
+            _get_zonal_faces_weight_at_constLat(np.array([
+            face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
+        ]),
+                                                        np.deg2rad(20),
+                                                        latlon_bounds,
+                                                        is_directed=False)
