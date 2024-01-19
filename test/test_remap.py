@@ -145,7 +145,7 @@ class TestNearestNeighborRemap(TestCase):
         # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_uxds, UxDataset)
         assert len(remap_uxds_to_uxds.data_vars) == 4
-        
+
     def test_edge_centers_remapping(self):
         """Tests the ability to remap on edge centers using Nearest Neighbor
         Remapping."""
@@ -153,7 +153,7 @@ class TestNearestNeighborRemap(TestCase):
         # Open source and destination datasets to remap to
         source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
         destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-        
+
         remap_to_edge_centers = source_grid['v1'].nearest_neighbor_remap(destination_obj=destination_grid,
                                                                   remap_to="edge centers")
 
