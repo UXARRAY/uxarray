@@ -86,14 +86,15 @@ class TestNearestNeighborRemap(TestCase):
         2. Open the grid to remap dataset in 1
         3. Remap the dataset in 1 to the grid in 2
         """
-        # TODO; write better test
         uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
         uxgrid = ux.open_grid(gridfile_ne30)
 
         uxda = uxds['v1']
-        out_da = uxda.nearest_neighbor_remap(destination_obj=uxgrid)
-        pass
+        out_da = uxda.nearest_neighbor_remap(destination_obj=uxgrid, remap_to="nodes")
+
+        # Assert the remapping was successful and the variable is populated
+        self.assertTrue(len(out_da) != 0)
 
     def test_remap_return_types(self):
         """Tests the return type of the `UxDataset` and `UxDataArray`
@@ -144,6 +145,20 @@ class TestNearestNeighborRemap(TestCase):
         # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_uxds, UxDataset)
         assert len(remap_uxds_to_uxds.data_vars) == 4
+        
+    def test_edge_centers_remapping(self):
+        """Tests the ability to remap on edge centers using Nearest Neighbor
+        Remapping."""
+
+        # Open source and destination datasets to remap to
+        source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+        
+        remap_to_edge_centers = source_grid['v1'].nearest_neighbor_remap(destination_obj=destination_grid,
+                                                                  remap_to="edge centers")
+
+        # Assert the data variable lies on the "edge centers"
+        self.assertTrue(destination_grid['v1']._edge_centered())
 
 
 class TestInverseDistanceWeightedRemapping(TestCase):
@@ -267,6 +282,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
 
         # Perform remapping to the edge centers of the dataset
+
         remap_to_edge_centers = source_grid['v1'].inverse_distance_weighted_remap(destination_obj=destination_grid,
                                                                            remap_to="edge centers")
 

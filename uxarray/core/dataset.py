@@ -343,7 +343,7 @@ class UxDataset(xr.Dataset):
         destination_obj : Grid, UxDataArray, UxDataset
             Destination for remapping
         remap_to : str, default="nodes"
-            Location of where to map data, either "nodes" or "face centers"
+            Location of where to map data, either "nodes", "edge centers", or "face centers"
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
