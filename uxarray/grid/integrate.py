@@ -3,7 +3,7 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_constLat_intersection
-from uxarray.grid.arcs import node_xyz_to_lonlat_rad
+from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
 import pandas as pd
 
 
@@ -198,6 +198,7 @@ def _get_zonal_face_interval(
     # If an edge of a face is overlapped by the constant lat, then it will have 4 non-unique intersection pts
     # (A point is counted twice for two edges)
     unique_intersection = np.unique(intersections_pts_list_cart, axis=0)
+    is_convex = False
     if len(unique_intersection) == 2:
         # The normal convex case:
         # Convert the intersection points back to lonlat
@@ -207,13 +208,16 @@ def _get_zonal_face_interval(
         [pt_lon_min, pt_lon_max] = np.sort(
             [unique_intersection_lonlat[0][0], unique_intersection_lonlat[1][0]]
         )
+
+        is_convex = True
     elif len(unique_intersection) != 0:
         # The concave cases
-        raise ValueError(
-            "UXarray doesn't support concave face with intersections points as ["
-            + str(len(unique_intersection))
-            + "] currently, please modify your grids accordingly"
-        )
+        is_convex = False
+        # raise ValueError(
+        #     "UXarray doesn't support concave face with intersections points as ["
+        #     + str(len(unique_intersection))
+        #     + "] currently, please modify your grids accordingly"
+        # )
     elif len(unique_intersection) == 0:
         # No intersections are found in this face
         raise ValueError(
@@ -224,8 +228,22 @@ def _get_zonal_face_interval(
     # Calculate the weight of the face in radian
     if face_lon_bound_left < face_lon_bound_right:
         # Normal case, The interval is not across the 0-lon
-        interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
-        cur_face_mag_rad = pt_lon_max - pt_lon_min
+        if is_convex:
+            interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
+            cur_face_mag_rad = pt_lon_max - pt_lon_min
+        else:
+            # Sort the intersection points by longitude
+            unique_intersection_lonlat = np.array(
+                [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
+            )
+            unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
+
+            # Started from the smallest longitude, and ended at the largest longitude
+            x_pt_idx = 0
+            while x_pt_idx < len(unique_intersection_lonlat):
+                pass
+
+
     else:
         # Longitude wrap-around
         if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
@@ -321,3 +339,31 @@ def _process_overlapped_intervals(intervals_df):
         last_position = position
 
     return overlap_contributions, total_length
+
+def _is_constLatrad_interval_inside_face(interval_cart,face_edges_cart,
+    latitude_rad, face_latlon_bound):
+    """
+    Check if the constant latitude interval is inside the face
+    """
+    latZ = np.sin(latitude_rad)
+    n1, n2 = interval_cart
+    n1_lonlat = node_xyz_to_lonlat_rad(n1.tolist())
+    n2_lonlat = node_xyz_to_lonlat_rad(n2.tolist())
+
+    # If the interval length is smaller than error tolerance, then raise an error
+    if np.abs(n1_lonlat[0]-n2_lonlat[0]) < ERROR_TOLERANCE:
+        raise ValueError("The interval length is smaller than error tolerance, please check the code")
+    mid = (n1+n2)/2.0
+
+    # Now get the reference point using the information from the latlon box
+    # Check if the face has the pole point or not
+    max_lat = np.max(abs(face_latlon_bound[0][0]), abs(face_latlon_bound[0][1]))
+    if np.isclose(max_lat, np.pi/2.0, rtol=0, atol=ERROR_TOLERANCE):
+        # The face has the pole point
+        pass
+    else:
+        # The face doesn't have the pole point, set the reference point latitue as the middle between the maximum
+        # latitude and the north pole
+        ref_pt_lon = face_latlon_bound[1][0] + (face_latlon_bound[1][1] - face_latlon_bound[1][0])/2.0
+        ref_pt_lat = face_latlon_bound[0][1] + (np.pi - face_latlon_bound[0][1])/2.0
+        ref_pt_cart = np.array(node_lonlat_rad_to_xyz([ref_pt_lon, ref_pt_lat]))
