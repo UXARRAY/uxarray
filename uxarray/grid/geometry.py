@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
@@ -517,7 +516,7 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     if np.all(new_pt == INT_FILL_VALUE):
         return old_box
 
-    latlon_box = copy.deepcopy(old_box)  # Create a copy of the old box
+    latlon_box = np.copy(old_box)  # Create a copy of the old box
     latlon_box = np.array(
         latlon_box, dtype=np.float64
     )  # Cast to float64, otherwise the following update might fail
@@ -568,16 +567,18 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
             and not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1])
         ):
             # Calculate and compare new box widths
-            box_a, box_b = copy.deepcopy(latlon_box), copy.deepcopy(latlon_box)
+            box_a, box_b = np.copy(latlon_box), np.copy(latlon_box)
             box_a[1][0], box_b[1][1] = lon_pt, lon_pt
             d_width_a, d_width_b = (
                 _get_latlonbox_width(box_a),
                 _get_latlonbox_width(box_b),
             )
 
+            # The width should not be negative, if so, raise an exception
             if d_width_a < 0 or d_width_b < 0:
                 raise Exception("logic error")
 
+            # Return the arc with the smaller width
             latlon_box = box_a if d_width_a < d_width_b else box_b
 
     return latlon_box
