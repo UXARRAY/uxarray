@@ -155,7 +155,7 @@ class TestNearestNeighborRemap(TestCase):
         destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
 
         remap_to_edge_centers = source_grid['v1'].nearest_neighbor_remap(destination_obj=destination_grid,
-                                                                  remap_to="edge centers")
+                                                                         remap_to="edge centers")
 
         # Assert the data variable lies on the "edge centers"
         self.assertTrue(destination_grid['v1']._edge_centered())
@@ -237,6 +237,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
             destination_uxds.uxgrid, power=3, k_neighbors=10)
 
         assert isinstance(remap_uxda_to_grid, UxDataArray)
+        assert len(remap_uxda_to_grid) == 1
 
         remap_uxda_to_uxda = source_uxds['v1'].inverse_distance_weighted_remap(
             destination_uxds['psi'], power=3, k_neighbors=10)
@@ -284,7 +285,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         # Perform remapping to the edge centers of the dataset
 
         remap_to_edge_centers = source_grid['v1'].inverse_distance_weighted_remap(destination_obj=destination_grid,
-                                                                           remap_to="edge centers")
+                                                                                  remap_to="edge centers")
 
         # Assert the data variable lies on the "edge centers"
         self.assertTrue(destination_grid['v1']._edge_centered())
