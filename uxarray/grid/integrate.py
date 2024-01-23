@@ -243,7 +243,6 @@ def _get_zonal_face_interval(
             while x_pt_idx < len(unique_intersection_lonlat):
                 pass
 
-
     else:
         # Longitude wrap-around
         if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
@@ -340,30 +339,35 @@ def _process_overlapped_intervals(intervals_df):
 
     return overlap_contributions, total_length
 
-def _is_constLatrad_interval_inside_face(interval_cart,face_edges_cart,
-    latitude_rad, face_latlon_bound):
-    """
-    Check if the constant latitude interval is inside the face
-    """
+
+def _is_constLatrad_interval_inside_face(
+    interval_cart, face_edges_cart, latitude_rad, face_latlon_bound
+):
+    """Check if the constant latitude interval is inside the face."""
     latZ = np.sin(latitude_rad)
     n1, n2 = interval_cart
     n1_lonlat = node_xyz_to_lonlat_rad(n1.tolist())
     n2_lonlat = node_xyz_to_lonlat_rad(n2.tolist())
 
     # If the interval length is smaller than error tolerance, then raise an error
-    if np.abs(n1_lonlat[0]-n2_lonlat[0]) < ERROR_TOLERANCE:
-        raise ValueError("The interval length is smaller than error tolerance, please check the code")
-    mid = (n1+n2)/2.0
+    if np.abs(n1_lonlat[0] - n2_lonlat[0]) < ERROR_TOLERANCE:
+        raise ValueError(
+            "The interval length is smaller than error tolerance, please check the code"
+        )
+    mid = (n1 + n2) / 2.0
 
     # Now get the reference point using the information from the latlon box
     # Check if the face has the pole point or not
     max_lat = np.max(abs(face_latlon_bound[0][0]), abs(face_latlon_bound[0][1]))
-    if np.isclose(max_lat, np.pi/2.0, rtol=0, atol=ERROR_TOLERANCE):
+    if np.isclose(max_lat, np.pi / 2.0, rtol=0, atol=ERROR_TOLERANCE):
         # The face has the pole point
         pass
     else:
         # The face doesn't have the pole point, set the reference point latitue as the middle between the maximum
         # latitude and the north pole
-        ref_pt_lon = face_latlon_bound[1][0] + (face_latlon_bound[1][1] - face_latlon_bound[1][0])/2.0
-        ref_pt_lat = face_latlon_bound[0][1] + (np.pi - face_latlon_bound[0][1])/2.0
+        ref_pt_lon = (
+            face_latlon_bound[1][0]
+            + (face_latlon_bound[1][1] - face_latlon_bound[1][0]) / 2.0
+        )
+        ref_pt_lat = face_latlon_bound[0][1] + (np.pi - face_latlon_bound[0][1]) / 2.0
         ref_pt_cart = np.array(node_lonlat_rad_to_xyz([ref_pt_lon, ref_pt_lat]))
