@@ -234,19 +234,19 @@ class TestInverseDistanceWeightedRemapping(TestCase):
                                            dsfile_vortex_CSne30)
 
         remap_uxda_to_grid = source_uxds['v1'].inverse_distance_weighted_remap(
-            destination_uxds.uxgrid)
+            destination_uxds.uxgrid, power=3, k_neighbors=10)
 
         assert isinstance(remap_uxda_to_grid, UxDataArray)
 
         remap_uxda_to_uxda = source_uxds['v1'].inverse_distance_weighted_remap(
-            destination_uxds['psi'])
+            destination_uxds['psi'], power=3, k_neighbors=10)
 
         # Dataset with two vars: original "psi" and remapped "v1"
         assert isinstance(remap_uxda_to_uxda, UxDataset)
         assert len(remap_uxda_to_uxda.data_vars) == 2
 
         remap_uxda_to_uxds = source_uxds['v1'].inverse_distance_weighted_remap(
-            destination_uxds)
+            destination_uxds, power=3, k_neighbors=10)
 
         # Dataset with two vars: original "psi" and remapped "v1"
         assert isinstance(remap_uxda_to_uxds, UxDataset)

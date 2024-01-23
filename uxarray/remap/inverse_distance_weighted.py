@@ -36,7 +36,7 @@ def _inverse_distance_weighted_remap(
         Location of where to map data, either "nodes", "edge centers", or "face centers".
     coord_type: str, default="spherical"
         Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian".
-    power : float, default=2
+    power : int, default=2
         Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
         power causes points that are further away to have less influence
     k_neighbors : int, default=8
@@ -161,6 +161,8 @@ def _inverse_distance_weighted_remap_uxda(
     destination_obj: Union[Grid, UxDataArray, UxDataset],
     remap_to: str = "nodes",
     coord_type: str = "spherical",
+    power=2,
+    k_neighbors=8,
 ):
     """Inverse Distance Weighted Remapping implementation for ``UxDataArray``.
 
@@ -175,6 +177,11 @@ def _inverse_distance_weighted_remap_uxda(
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates for the computations when
         remapping.
+    power : int, default=2
+        Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
+        power causes points that are further away to have less influence
+    k_neighbors : int, default=8
+        Number of nearest neighbors to consider in the weighted calculation.
     """
 
     # check dimensions remapped to and from
@@ -210,7 +217,13 @@ def _inverse_distance_weighted_remap_uxda(
 
     # perform remapping
     destination_data = _inverse_distance_weighted_remap(
-        source_uxda.uxgrid, destination_grid, source_uxda.data, remap_to, coord_type
+        source_uxda.uxgrid,
+        destination_grid,
+        source_uxda.data,
+        remap_to,
+        coord_type,
+        power,
+        k_neighbors,
     )
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
@@ -240,6 +253,8 @@ def _inverse_distance_weighted_remap_uxds(
     destination_obj: Union[Grid, UxDataArray, UxDataset],
     remap_to: str = "nodes",
     coord_type: str = "spherical",
+    power=2,
+    k_neighbors=8,
 ):
     """Inverse Distance Weighted implementation for ``UxDataset``.
 
@@ -253,6 +268,11 @@ def _inverse_distance_weighted_remap_uxds(
         Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates
+    power : int, default=2
+        Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
+        power causes points that are further away to have less influence
+    k_neighbors : int, default=8
+        Number of nearest neighbors to consider in the weighted calculation.
     """
 
     if isinstance(destination_obj, Grid):
@@ -266,7 +286,12 @@ def _inverse_distance_weighted_remap_uxds(
 
     for var_name in source_uxds.data_vars:
         destination_uxds = _inverse_distance_weighted_remap_uxda(
-            source_uxds[var_name], destination_uxds, remap_to, coord_type
+            source_uxds[var_name],
+            destination_uxds,
+            remap_to,
+            coord_type,
+            power,
+            k_neighbors,
         )
 
     return destination_uxds
