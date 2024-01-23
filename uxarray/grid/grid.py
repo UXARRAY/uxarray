@@ -627,7 +627,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_x" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
 
         return self._ds["face_x"]
 
@@ -639,7 +639,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_y" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
         return self._ds["face_y"]
 
     @property
@@ -650,7 +650,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_z" not in self._ds:
-            return None
+            _populate_centroid_coord(self)
         return self._ds["face_z"]
 
     # ==================================================================================================================
@@ -805,7 +805,13 @@ class Grid:
             self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_jacobian
 
-    def get_ball_tree(self, tree_type: Optional[str] = "nodes"):
+    def get_ball_tree(
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "spherical",
+        distance_metric: Optional[str] = "haversine",
+        reconstruct: bool = False,
+    ):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_lon``, ``node_lat``) or face centers (``face_lon``,
@@ -813,26 +819,44 @@ class Grid:
 
         Parameters
         ----------
-        tree_type : str, default="nodes"
+        coordinates : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
+        coordinate_system : str, default="cartesian"
+            Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
+            "spherical" selecting spherical coordinates.
+        distance_metric : str, default="haversine"
+            Distance metric used to construct the BallTree
+        reconstruct : bool, default=False
+            If true, reconstructs the tree
 
         Returns
         -------
         self._ball_tree : grid.Neighbors.BallTree
             BallTree instance
         """
-        if self._ball_tree is None:
+
+        if self._ball_tree is None or reconstruct:
             self._ball_tree = BallTree(
-                self, tree_type=tree_type, distance_metric="haversine"
+                self,
+                coordinates=coordinates,
+                distance_metric=distance_metric,
+                coordinate_system=coordinate_system,
+                reconstruct=reconstruct,
             )
         else:
-            if tree_type != self._ball_tree._tree_type:
-                self._ball_tree.tree_type = tree_type
+            if coordinates != self._ball_tree._coordinates:
+                self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
 
-    def get_kd_tree(self, tree_type: Optional[str] = "nodes"):
+    def get_kd_tree(
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "cartesian",
+        distance_metric: Optional[str] = "minkowski",
+        reconstruct: bool = False,
+    ):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the nodes
         (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
@@ -840,22 +864,35 @@ class Grid:
 
         Parameters
         ----------
-        tree_type : str, default="nodes"
+        coordinates : str, default="nodes"
             Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
             Centers of each face
+        coordinate_system : str, default="cartesian"
+            Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
+            "spherical" selecting spherical coordinates.
+        distance_metric : str, default="minkowski"
+            Distance metric used to construct the KDTree
+        reconstruct : bool, default=False
+            If true, reconstructs the tree
 
         Returns
         -------
         self._kd_tree : grid.Neighbors.KDTree
             KDTree instance
         """
-        if self._kd_tree is None:
+
+        if self._kd_tree is None or reconstruct:
             self._kd_tree = KDTree(
-                self, tree_type=tree_type, distance_metric="minkowski"
+                self,
+                coordinates=coordinates,
+                distance_metric=distance_metric,
+                coordinate_system=coordinate_system,
+                reconstruct=reconstruct,
             )
+
         else:
-            if tree_type != self._kd_tree._tree_type:
-                self._kd_tree.tree_type = tree_type
+            if coordinates != self._kd_tree._coordinates:
+                self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
 
