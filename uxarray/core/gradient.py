@@ -7,12 +7,13 @@ from uxarray.constants import INT_FILL_VALUE
 
 
 @njit
-def _calculate_grad_on_edge(
+def _calculate_grad_on_edge_from_faces(
     d_var,
     edge_faces,
     edge_face_distances,
     n_edge,
     use_magnitude: Optional[bool] = True,
+    use_distance: Optional[bool] = True,
     normalize: Optional[bool] = True,
 ):
     """Helper function for computing the horizontal gradient of a field on each
@@ -28,10 +29,14 @@ def _calculate_grad_on_edge(
     # gradient initialized to zero
     grad = np.zeros(n_edge)
 
-    # compute gradient (difference between cell-center value divided by arc length)
+    # compute difference between face values saddling each edge
     grad[saddle_mask] = (
         d_var[..., edge_faces[saddle_mask, 0]] - d_var[..., edge_faces[saddle_mask, 1]]
-    ) / edge_face_distances[saddle_mask]
+    )
+
+    if use_distance:
+        # compute gradient (difference between cell-center value divided by arc length)
+        grad[saddle_mask] / edge_face_distances[saddle_mask]
 
     if use_magnitude:
         # obtain magnitude if desired
@@ -39,6 +44,7 @@ def _calculate_grad_on_edge(
 
     if normalize:
         # normalize to [0, 1] if desired
-        grad = grad / np.linalg.norm(grad)
+        grad = (grad - np.min(grad)) / (np.max(grad) - np.min(grad))
+        # grad = grad / np.linalg.norm(grad)
 
     return grad

@@ -15,7 +15,7 @@ from xarray.core.utils import UncachedAccessor
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 
-from uxarray.core.gradient import _calculate_grad_on_edge
+from uxarray.core.gradient import _calculate_grad_on_edge_from_faces
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
@@ -358,8 +358,8 @@ class UxDataArray(xr.DataArray):
     def gradient(
         self, use_magnitude: Optional[bool] = True, normalize: Optional[bool] = True
     ):
-        """Computes the gradient of a data variable residing on an unstructured
-        grid.
+        """Computes the horizontal gradient of a data variable residing on an
+        unstructured grid.
 
         Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
         on each edge.
@@ -377,13 +377,14 @@ class UxDataArray(xr.DataArray):
                 "Gradient computations are currently only supported for face-centered data variables."
             )
 
-        _grad = _calculate_grad_on_edge(
-            self.values,
-            self.uxgrid.edge_face_connectivity.values,
-            self.uxgrid.edge_face_distances.values,
-            self.uxgrid.n_edge,
-            use_magnitude,
-            normalize,
+        _grad = _calculate_grad_on_edge_from_faces(
+            d_var=self.values,
+            edge_faces=self.uxgrid.edge_face_connectivity.values,
+            edge_face_distances=self.uxgrid.edge_face_distances.values,
+            n_edge=self.uxgrid.n_edge,
+            use_magnitude=use_magnitude,
+            normalize=normalize,
+            use_distance=True,
         )
 
         dims = list(self.dims)

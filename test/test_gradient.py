@@ -12,10 +12,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-from uxarray.core.gradient import _calculate_grad_on_edge
-from uxarray.grid.neighbors import _construct_edge_node_distances, _construct_edge_face_distances
 
-import xarray as xr
 
 
 class TestGrad(TestCase):
