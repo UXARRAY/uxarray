@@ -96,13 +96,13 @@ class TestCentroids(TestCase):
 
         uxgrid = ux.open_grid(mpasfile_QU)
 
-        expected_face_x = uxgrid.edge_lon.values
-        expected_face_y = uxgrid.edge_lat.values
+        expected_edge_lon = uxgrid.edge_lon.values
+        expected_edge_lat = uxgrid.edge_lat.values
 
         _populate_edge_centroids(uxgrid, repopulate=True)
 
-        computed_face_x = (uxgrid.edge_lon.values + 180) % 360 - 180
-        computed_face_y = uxgrid.edge_lat.values
+        computed_edge_lon = (uxgrid.edge_lon.values + 180) % 360 - 180
+        computed_edge_lat = uxgrid.edge_lat.values
 
-        nt.assert_array_almost_equal(expected_face_x, computed_face_x)
-        nt.assert_array_almost_equal(expected_face_y, computed_face_y)
+        nt.assert_array_almost_equal(expected_edge_lon, computed_edge_lon)
+        nt.assert_array_almost_equal(expected_edge_lat, computed_edge_lat)
