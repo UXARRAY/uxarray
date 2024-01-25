@@ -67,6 +67,36 @@ def _build_polygon_shells(
     return polygon_shells
 
 
+def _grid_to_edge_geodataframe(grid, exclude_antimeridian):
+    from spatialpandas.geometry import LineArray, MultiLineArray
+    from antimeridian import fix_line_string
+    import spatialpandas as sp
+
+    # obtain coordinates and connectivity
+    lon, lat = grid.node_lon.values, grid.node_lat.values
+    edge_ind = grid.edge_node_connectivity.values
+
+    # create a (n, 4) array representing the start and edge coordinates of each edge
+    edges = np.vstack(
+        [
+            lon[edge_ind[:, 0]],
+            lat[edge_ind[:, 0]],
+            lon[edge_ind[:, 1]],
+            lat[edge_ind[:, 1]],
+        ]
+    ).T
+
+    edges = LineArray(edges)
+
+    if not exclude_antimeridian:
+        edges = [fix_line_string(e.to_shapely()) for e in edges]
+        edges = MultiLineArray(edges)
+
+    gdf = sp.GeoDataFrame({"geometry": edges})
+
+    return gdf
+
+
 def _grid_to_polygon_geodataframe(grid, exclude_antimeridian):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     with a geometry column of polygons."""

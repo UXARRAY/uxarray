@@ -1053,6 +1053,7 @@ class Grid:
 
     def to_geodataframe(
         self,
+        element: Optional[str] = "faces",
         override: Optional[bool] = False,
         cache: Optional[bool] = True,
         exclude_antimeridian: Optional[bool] = False,
