@@ -81,3 +81,13 @@ class TestPlot(TestCase):
             uxds['v1'][0][0].plot.points(backend=backend)
 
             uxds['v1'][0][0].nodal_average().plot.polygons(backend=backend)
+
+
+    def test_clabel(self):
+        """Tests the execution of passing in a custom clabel."""
+
+        uxds = ux.open_dataset(gridfile_geoflow, datafile_geoflow)
+
+        raster_no_clabel = uxds['v1'][0][0].plot.rasterize(method='point')
+
+        raster_no_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel="Foo")
