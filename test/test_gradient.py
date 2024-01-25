@@ -38,7 +38,7 @@ class TestGrad(TestCase):
                                         name="zeros",
                                         dims=['n_face'])
 
-            zero_grad = uxda_zeros.gradient(normalize=False)
+            zero_grad = uxda_zeros.gradient()
 
             nt.assert_array_equal(zero_grad.values, np.zeros(uxgrid.n_edge))
 
@@ -47,7 +47,7 @@ class TestGrad(TestCase):
                                        name="zeros",
                                        dims=['n_face'])
 
-            one_grad = uxda_ones.gradient(normalize=False)
+            one_grad = uxda_ones.gradient()
 
             nt.assert_array_equal(one_grad.values, np.zeros(uxgrid.n_edge))
 
@@ -67,3 +67,16 @@ class TestGrad(TestCase):
             else:
                 # a non zero gradient for edges sadled by two faces
                 assert np.nonzero(grad.values[i])
+
+    def test_normalization(self):
+        """Tests the normalization gradient values."""
+
+        uxds = ux.open_dataset(self.quad_hex_grid_path, self.quad_hex_data_path)
+
+        grad_l2_norm = uxds['t2m'].gradient(norm='l2')
+
+        assert np.isclose(np.sum(grad_l2_norm.values**2), 1)
+
+        grad_l1_norm = uxds['t2m'].gradient(norm='l1')
+
+        assert np.isclose(np.sum(grad_l1_norm.values), 1)

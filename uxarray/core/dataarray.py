@@ -20,6 +20,8 @@ from uxarray.core.gradient import _calculate_grad_on_edge_from_faces
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
+import warnings
+
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from
@@ -356,25 +358,40 @@ class UxDataArray(xr.DataArray):
         ).rename({"n_node": "n_face"})
 
     def gradient(
-        self, use_magnitude: Optional[bool] = True, normalize: Optional[bool] = True
+        self, norm: Optional[str] = None, use_magnitude: Optional[bool] = True
     ):
         """Computes the horizontal gradient of a data variable residing on an
         unstructured grid.
 
         Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
-        on each edge.
+        on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
+        and then computing the gradient.
 
         Parameters
         ----------
         use_magnitude : bool, default=True
             Whether to use the magnitude (aboslute value) of the resulting gradient
-        normalize: bool, default=True
-            Whether to normalize the resulting gradient to the range [0, 1]
+        norm: {‘l1’, ‘l2’, ‘max’, None}, default=None
+            Method of normalization to perform (if any)
+
+        Example
+        -------
+        Face-centered variable
+        >>> uxds['var'].gradient()
+        Node-centered variable
+        >>> uxds['var'].nodal_average().gradient()
         """
 
         if not self._face_centered():
             raise ValueError(
-                "Gradient computations are currently only supported for face-centered data variables."
+                "Gradient computations are currently only supported for face-centered data variables. For node-centered"
+                "data, consider performing a nodal average or remapping to faces."
+            )
+
+        if use_magnitude is False:
+            warnings.warn(
+                "Gradients can only be represented in terms of their aboslute value, since UXarray does not "
+                "currently store any information for representing the sign."
             )
 
         _grad = _calculate_grad_on_edge_from_faces(
@@ -382,9 +399,7 @@ class UxDataArray(xr.DataArray):
             edge_faces=self.uxgrid.edge_face_connectivity.values,
             edge_face_distances=self.uxgrid.edge_face_distances.values,
             n_edge=self.uxgrid.n_edge,
-            use_magnitude=use_magnitude,
-            normalize=normalize,
-            use_distance=True,
+            norm=norm,
         )
 
         dims = list(self.dims)
@@ -398,6 +413,9 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
+
+    def difference(self):
+        pass
 
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the
