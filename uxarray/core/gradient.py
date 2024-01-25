@@ -1,6 +1,5 @@
 import numpy as np
 
-from numba import njit
 
 from typing import Optional
 from uxarray.constants import INT_FILL_VALUE
@@ -8,10 +7,9 @@ from uxarray.constants import INT_FILL_VALUE
 from sklearn import preprocessing
 
 
-@njit
 def _calculate_edge_face_difference(d_var, edge_faces, n_edge):
     """Helper function for computing the aboslute difference between the data
-    values on each face that saddle a each edge.
+    values on each face that saddle each edge.
 
     Edges with only a single neighbor will default to a value of zero.
     """
@@ -26,8 +24,12 @@ def _calculate_edge_face_difference(d_var, edge_faces, n_edge):
     return np.abs(edge_face_diff)
 
 
-def _calculate_edge_node_difference():
-    pass
+def _calculate_edge_node_difference(d_var, edge_nodes):
+    """Helper function for computing the aboslute difference between the data
+    values on each node that saddle each edge."""
+    edge_node_diff = d_var[..., edge_nodes[:, 0]] - d_var[..., edge_nodes[:, 1]]
+
+    return np.abs(edge_node_diff)
 
 
 def _calculate_grad_on_edge_from_faces(

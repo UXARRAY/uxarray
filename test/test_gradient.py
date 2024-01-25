@@ -80,3 +80,52 @@ class TestGrad(TestCase):
         grad_l1_norm = uxds['t2m'].gradient(norm='l1')
 
         assert np.isclose(np.sum(grad_l1_norm.values), 1)
+
+
+class TestDifference(TestCase):
+
+    quad_hex_grid_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
+    quad_hex_data_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
+
+    geoflow_grid_path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+    geoflow_data_path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
+
+    mpas_atmo_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+    mpas_ocean_path = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
+
+    CSne30_grid_path = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    CSne30_data_path = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
+
+
+    def test_face_centered_difference(self):
+
+        uxds = ux.open_dataset(self.CSne30_grid_path, self.CSne30_data_path)
+
+        uxda_diff = uxds['psi'].difference(destination='edge')
+
+        assert uxda_diff._edge_centered()
+
+        uxds = ux.open_dataset(self.mpas_atmo_path, self.mpas_atmo_path)
+
+        uxda_diff = uxds['areaCell'].difference(destination='edge')
+
+        assert uxda_diff._edge_centered()
+
+
+
+    def test_node_centered_difference(self):
+        uxds = ux.open_dataset(self.geoflow_grid_path, self.geoflow_data_path)
+
+        uxda_diff = uxds['v1'][0][0].difference(destination='edge')
+
+        assert uxda_diff._edge_centered()
+
+
+    def test_hexagon(self):
+        uxds = ux.open_dataset(self.quad_hex_grid_path, self.quad_hex_data_path)
+
+        uxda_diff = uxds['t2m'].difference(destination='edge')
+
+
+        # expected number of edges is n_face + 1, since we have 4 polygons
+        assert len(np.nonzero(uxda_diff.values)[0]) == uxds.uxgrid.n_face + 1
