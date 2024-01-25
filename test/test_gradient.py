@@ -25,6 +25,9 @@ class TestGrad(TestCase):
     quad_hex_grid_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
     quad_hex_data_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
 
+    geoflow_grid_path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+    geoflow_data_path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
+
     def test_uniform_data(self):
         """Computes the gradient on meshes with uniform data, with the expected
         gradient being zero on all edges."""
@@ -73,13 +76,26 @@ class TestGrad(TestCase):
 
         uxds = ux.open_dataset(self.quad_hex_grid_path, self.quad_hex_data_path)
 
-        grad_l2_norm = uxds['t2m'].gradient(norm='l2')
+        grad_l2_norm = uxds['t2m'].gradient(normalize=True)
 
         assert np.isclose(np.sum(grad_l2_norm.values**2), 1)
 
-        grad_l1_norm = uxds['t2m'].gradient(norm='l1')
 
-        assert np.isclose(np.sum(grad_l1_norm.values), 1)
+    def test_grad_multi_dim(self):
+
+        uxgrid = ux.open_grid(self.quad_hex_grid_path)
+
+        sample_data = np.random.randint(-10, 10, (5, 5, 4))
+
+        uxda = ux.UxDataArray(uxgrid=uxgrid,
+                              data=sample_data,
+                              dims=["time", "lev", "n_face"])
+
+        grad = uxda.gradient(normalize=True)
+
+        assert grad.shape[:-1] == uxda.shape[:-1]
+
+
 
 
 class TestDifference(TestCase):

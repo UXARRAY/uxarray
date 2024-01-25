@@ -362,7 +362,7 @@ class UxDataArray(xr.DataArray):
         ).rename({"n_node": "n_face"})
 
     def gradient(
-        self, norm: Optional[str] = None, use_magnitude: Optional[bool] = True
+        self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
     ):
         """Computes the horizontal gradient of a data variable residing on an
         unstructured grid.
@@ -383,8 +383,8 @@ class UxDataArray(xr.DataArray):
         ----------
         use_magnitude : bool, default=True
             Whether to use the magnitude (aboslute value) of the resulting gradient
-        norm: {‘l1’, ‘l2’, ‘max’, None}, default=None
-            Method of normalization to perform (if any)
+        normalize: bool, default=None
+            Whether to normalize (l2) the resulting gradient
 
         Example
         -------
@@ -411,7 +411,7 @@ class UxDataArray(xr.DataArray):
             edge_faces=self.uxgrid.edge_face_connectivity.values,
             edge_face_distances=self.uxgrid.edge_face_distances.values,
             n_edge=self.uxgrid.n_edge,
-            norm=norm,
+            normalize=normalize,
         )
 
         dims = list(self.dims)
