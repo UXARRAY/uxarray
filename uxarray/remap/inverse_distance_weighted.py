@@ -143,11 +143,8 @@ def _inverse_distance_weighted_remap(
     if nearest_neighbor_indices.ndim > 1:
         nearest_neighbor_indices = nearest_neighbor_indices.squeeze()
 
-    weights = []
-    for ind in range(len(distances)):
-        weight = 1 / (distances[ind] ** power + 1e-6)
-        weight /= np.sum(weight)
-        weights.append(weight)
+    weights = 1 / (distances**power + 1e-6)
+    weights /= np.sum(weights, axis=1, keepdims=True)
 
     destination_data = np.sum(
         source_data[..., nearest_neighbor_indices] * weights, axis=-1
