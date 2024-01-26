@@ -14,7 +14,8 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import (
-    _populate_centroid_coord,
+    _populate_face_centroids,
+    _populate_edge_centroids,
     _set_desired_longitude_range,
 )
 from uxarray.grid.connectivity import (
@@ -537,7 +538,7 @@ class Grid:
         Dimensions (``n_edge``)
         """
         if "edge_lon" not in self._ds:
-            return None
+            _populate_edge_centroids(self)
         # temp until we construct edge lon
         _set_desired_longitude_range(self._ds)
         return self._ds["edge_lon"]
@@ -550,7 +551,7 @@ class Grid:
         Dimensions (``n_edge``)
         """
         if "edge_lat" not in self._ds:
-            return None
+            _populate_edge_centroids(self)
         _set_desired_longitude_range(self._ds)
         return self._ds["edge_lat"]
 
@@ -564,7 +565,7 @@ class Grid:
         Dimensions (``n_edge``)
         """
         if "edge_x" not in self._ds:
-            return None
+            _populate_edge_centroids(self)
 
         return self._ds["edge_x"]
 
@@ -576,7 +577,7 @@ class Grid:
         Dimensions (``n_edge``)
         """
         if "edge_y" not in self._ds:
-            return None
+            _populate_edge_centroids(self)
         return self._ds["edge_y"]
 
     @property
@@ -587,7 +588,7 @@ class Grid:
         Dimensions (``n_edge``)
         """
         if "edge_z" not in self._ds:
-            return None
+            _populate_edge_centroids(self)
         return self._ds["edge_z"]
 
     # ==================================================================================================================
@@ -600,7 +601,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lon" not in self._ds:
-            _populate_centroid_coord(self)
+            _populate_face_centroids(self)
             _set_desired_longitude_range(self._ds)
         return self._ds["face_lon"]
 
@@ -612,7 +613,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_lat" not in self._ds:
-            _populate_centroid_coord(self)
+            _populate_face_centroids(self)
             _set_desired_longitude_range(self._ds)
 
         return self._ds["face_lat"]
@@ -627,7 +628,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_x" not in self._ds:
-            _populate_centroid_coord(self)
+            _populate_face_centroids(self)
 
         return self._ds["face_x"]
 
@@ -639,7 +640,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_y" not in self._ds:
-            _populate_centroid_coord(self)
+            _populate_face_centroids(self)
         return self._ds["face_y"]
 
     @property
@@ -650,7 +651,7 @@ class Grid:
         Dimensions (``n_face``)
         """
         if "face_z" not in self._ds:
-            _populate_centroid_coord(self)
+            _populate_face_centroids(self)
         return self._ds["face_z"]
 
     # ==================================================================================================================
