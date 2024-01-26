@@ -814,15 +814,17 @@ class Grid:
         reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
-        neighbor queries (k nearest or within some radius) on either the nodes
-        (``node_lon``, ``node_lat``) or face centers (``face_lon``,
-        ``face_lat``).
+        neighbor queries (k nearest or within some radius) on either the
+        (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``),
+        edge (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``,
+        ``edge_lat``), or center (``face_x``, ``face_y``, ``face_z``) and
+        (``face_lon``, `   `face_lat``) nodes.
 
         Parameters
         ----------
         coordinates : str, default="nodes"
-            Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
-            Centers of each face
+            Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
+            Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
@@ -859,15 +861,17 @@ class Grid:
         reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
-        neighbor queries (k nearest or within some radius) on either the nodes
-        (``node_x``, ``node_y``, ``node_z``) or face centers (``face_x``,
-        ``face_y``, ``face_z``).
+        neighbor queries (k nearest or within some radius) on either the
+        (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``),
+        edge (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``,
+        ``edge_lat``), or center (``face_x``, ``face_y``, ``face_z``) and
+        (``face_lon``, ``face_lat``) nodes.
 
         Parameters
         ----------
         coordinates : str, default="nodes"
-            Selects which tree to query, with "nodes" selecting the Corner Nodes and "face centers" selecting the Face
-            Centers of each face
+            Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
+            Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
