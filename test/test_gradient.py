@@ -56,7 +56,25 @@ class TestGrad(TestCase):
 
 
     def test_quad_hex(self):
-        """Computes the gradient on a mesh of 4 hexagons."""
+        """Computes the gradient on a mesh of 4 hexagons.
+
+        Computations
+        ------------
+
+        [0, 1, 2, 3]    [BotLeft, TopRight, TopLeft, BotRight]
+
+        0.00475918                      [0, 2]
+        0.00302971                      [0, 1]
+        0.00241687                      [1, 2]
+        0.00549181                      [0, 3]
+        0.00458049                      [1, 3]
+
+        |297.716 - 297.646| / 0.00241687        Top Two         28.96
+        |297.583 - 297.250| / 0.00549181        Bot Two         60.64
+        |297.716 - 297.583| / 0.00475918        Lft Two         27.95
+        |297.646 - 297.250| / 0.00458049        Rht Two         86.45
+        |297.583 - 297.646| / 0.00302971        Bl  Tr          20.79
+        """
 
         uxds = ux.open_dataset(self.quad_hex_grid_path, self.quad_hex_data_path)
 
@@ -70,6 +88,11 @@ class TestGrad(TestCase):
             else:
                 # a non zero gradient for edges sadled by two faces
                 assert np.nonzero(grad.values[i])
+
+        # expected grad values computed by hand
+        expected_values = np.array([27.95, 20.79, 28.96, 0, 0, 0, 0, 60.64, 0, 86.45, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+        nt.assert_almost_equal(grad.values, expected_values, 1e-2)
 
     def test_normalization(self):
         """Tests the normalization gradient values."""
