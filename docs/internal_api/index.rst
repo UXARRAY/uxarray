@@ -146,9 +146,11 @@ Coordinates
    grid.coordinates._get_xyz_from_lonlat
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
-   grid.coordinates._populate_centroid_coord
-   grid.coordinates._construct_xyz_centroids
+   grid.coordinates._populate_face_centroids
+   grid.coordinates._construct_face_centroids
    grid.coordinates._set_desired_longitude_range
+   grid.coordinates._populate_edge_centroids
+   grid.coordinates._construct_edge_centroids
 
 
 Arcs

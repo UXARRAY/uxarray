@@ -210,9 +210,7 @@ def _point_raster(
 
     if "clabel" not in kwargs:
         # set default label for color bar
-        clabel = uxda.name
-    else:
-        clabel = kwargs.get("clabel")
+        kwargs["clabel"] = uxda.name
 
     if uxda._face_centered():
         # data mapped to face centroid coordinates
@@ -291,7 +289,6 @@ def _point_raster(
             cmap=cmap,
             xlabel=xlabel,
             ylabel=ylabel,
-            clabel=clabel,
             **kwargs,
         )
     elif backend == "bokeh":
@@ -311,7 +308,6 @@ def _point_raster(
             cmap=cmap,
             xlabel=xlabel,
             ylabel=ylabel,
-            clabel=clabel,
             **kwargs,
         )
 
@@ -346,9 +342,7 @@ def _polygon_raster(
 
     if "clabel" not in kwargs:
         # set default label for color bar
-        clabel = uxda.name
-    else:
-        clabel = kwargs.get("clabel")
+        kwargs["clabel"] = uxda.name
 
     gdf = uxda.to_geodataframe(
         exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
@@ -371,7 +365,6 @@ def _polygon_raster(
             cmap=cmap,
             xlabel=xlabel,
             ylabel=ylabel,
-            clabel=clabel,
             **kwargs,
         )
     elif backend == "bokeh":
@@ -391,7 +384,6 @@ def _polygon_raster(
             cmap=cmap,
             xlabel=xlabel,
             ylabel=ylabel,
-            clabel=clabel,
             **kwargs,
         )
 
@@ -439,9 +431,7 @@ def polygons(
 
     if "clabel" not in kwargs:
         # set default label for color bar
-        clabel = uxda.name
-    else:
-        clabel = kwargs.get("clabel")
+        kwargs["clabel"] = uxda.name
 
     gdf = uxda.to_geodataframe(
         exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
@@ -465,7 +455,6 @@ def polygons(
             cmap=cmap,
             xlabel=xlabel,
             ylabel=ylabel,
-            clabel=clabel,
             **kwargs,
         )
 
@@ -549,9 +538,7 @@ def _plot_data_as_points(
 
     if "clabel" not in kwargs:
         # set default label for color bar
-        clabel = uxda.name
-    else:
-        clabel = kwargs.get("clabel")
+        kwargs["clabel"] = uxda.name
 
     uxgrid = uxda.uxgrid
     if element == "node":
@@ -578,7 +565,6 @@ def _plot_data_as_points(
             cmap=cmap,
             xlabel=xlabel,
             ylabel=ylabel,
-            clabel=clabel,
             **kwargs,
         )
 
@@ -593,6 +579,5 @@ def _plot_data_as_points(
             cmap=cmap,
             xlabel=xlabel,
             ylabel=ylabel,
-            clabel=clabel,
             **kwargs,
         )
