@@ -10,9 +10,11 @@ from uxarray.constants import INT_DTYPE
 
 class KDTree:
     """Custom KDTree data structure written around the
-    ``sklearn.neighbors.KDTree`` implementation for use with either the corner
-    (``node_x``, ``node_y``, ``node_z``) or center (``face_x``, ``face_y``,
-    ``face_z``) nodes of the inputted unstructured grid.
+    ``sklearn.neighbors.KDTree`` implementation for use with corner
+    (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``), edge
+    (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``, ``edge_lat``), or
+    center (``face_x``, ``face_y``, ``face_z``) and (``face_lon``,
+    ``face_lat``) nodes of the inputted unstructured grid.
 
     Parameters
     ----------
@@ -345,13 +347,15 @@ class KDTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
+                d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = np.rad2deg(d[0])
+                d = [np.rad2deg(cur_d) for cur_d in d]
 
             return d, ind
         else:
@@ -359,10 +363,10 @@ class KDTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             return ind
 
@@ -397,8 +401,10 @@ class KDTree:
 class BallTree:
     """Custom BallTree data structure written around the
     ``sklearn.neighbors.BallTree`` implementation for use with either the
-    corner (``node_lon``, ``node_lat``) or center (``face_lon``, ``face_lat``)
-    nodes of the inputted unstructured grid.
+    (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``), edge
+    (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``, ``edge_lat``), or
+    center (``face_x``, ``face_y``, ``face_z``) and (``face_lon``,
+    ``face_lat``) nodes of the inputted unstructured grid.
 
     Parameters
     ----------
@@ -719,23 +725,26 @@ class BallTree:
                 coords, r, return_distance, count_only, sort_results
             )
 
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
+                d = d[0]
 
             if not in_radians and self.coordinate_system == "spherical":
-                d = np.rad2deg(d[0])
+                d = [np.rad2deg(cur_d) for cur_d in d]
 
             return d, ind
         else:
             ind = self._current_tree().query_radius(
                 coords, r, return_distance, count_only, sort_results
             )
-            ind = np.asarray(ind[0], dtype=INT_DTYPE)
+
+            ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
 
             if coords.shape[0] == 1:
-                ind = ind.squeeze()
+                ind = ind[0]
 
             return ind
 
