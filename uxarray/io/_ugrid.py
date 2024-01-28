@@ -4,6 +4,9 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
+import uxarray.conventions.ugrid as ugrid
+
+
 def _read_ugrid(xr_ds):
     """UGRID file reader.
 
@@ -55,6 +58,49 @@ def _read_ugrid(xr_ds):
     source_dims_dict[xr_ds["face_node_connectivity"].dims[1]] = "n_max_face_nodes"
 
     return xr_ds, source_dims_dict
+
+
+def tmp_read_ugrid(ds):
+    # source_dims_dict = {}
+
+    # --- Grid Topology
+    grid_topology_name = list(ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
+    ds = ds.rename({grid_topology_name: "grid_topology"})
+
+    # --- Rename Core Dims (node, edge, face)
+    dim_dict = {
+        ds["grid_topology"].node_dimension: ugrid.NODE_DIM,
+        ds["grid_topology"].face_dimension: ugrid.FACE_DIM,
+    }
+
+    if "edge_dimension" in ds["grid_topology"]:
+        dim_dict[ds["grid_topology"].edge_dimension] = ugrid.EDGE_DIM
+
+    ds = ds.swap_dims(dim_dict)
+
+    # --- Coordinates
+    node_lon_name, node_lat_name = ds["grid_topology"].node_coordinates.split()
+
+    coord_dict = {
+        node_lon_name: ugrid.NODE_COORDINATES[0],
+        node_lat_name: ugrid.NODE_COORDINATES[1],
+    }
+
+    if "edge_coordinates" in ds["grid_topology"]:
+        edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
+        coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
+        coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
+
+    if "face_coordinates" in ds["grid_topology"]:
+        face_lon_name, face_lat_name = ds["grid_topology"].edge_coordinates.split()
+        coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
+        coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
+
+    ds = ds.rename(coord_dict)
+
+    # --- Connectivity
+
+    pass
 
 
 def _encode_ugrid(ds):

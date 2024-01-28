@@ -19,9 +19,11 @@ GRID_TOPOLOGY_ATTRS = {
 
 DIM_NAMES = ["n_node", "n_edge", "n_face"]
 
-NODE_DIMS = ["n_node"]
-EDGE_DIMS = ["n_edge"]
-FACE_DIMS = ["n_face"]
+NODE_DIM = "n_node"
+EDGE_DIM = "n_edge"
+FACE_DIM = "n_face"
+
+NODE_COORDINATES = ["node_lon", "node_lat"]
 
 # coordinates (spherical)
 NODE_LON_ATTRS = {
@@ -36,6 +38,8 @@ NODE_LAT_ATTRS = {
     "units": "degrees_north",
 }
 
+EDGE_COORDINATES = ["edge_lon", "edge_lat"]
+
 EDGE_LON_ATTRS = {
     "standard_name": "longitude",
     "long name": "Longitude of the center of each edge",
@@ -47,6 +51,8 @@ EDGE_LAT_ATTRS = {
     "long name": "Latitude of the center of each edge",
     "units": "degrees_north",
 }
+
+FACE_COORDINATES = ["face_lon", "face_lat"]
 
 FACE_LON_ATTRS = {
     "standard_name": "longitude",
@@ -224,12 +230,12 @@ SPHERICAL_COORD_NAMES = [
 ]
 
 SPHERICAL_COORDS = {
-    "node_lon": {"dims": NODE_DIMS, "attrs": NODE_LON_ATTRS},
-    "node_lat": {"dims": NODE_DIMS, "attrs": NODE_LAT_ATTRS},
-    "edge_lon": {"dims": EDGE_DIMS, "attrs": EDGE_LON_ATTRS},
-    "edge_lat": {"dims": EDGE_DIMS, "attrs": EDGE_LAT_ATTRS},
-    "face_lon": {"dims": FACE_DIMS, "attrs": FACE_LON_ATTRS},
-    "face_lat": {"dims": FACE_DIMS, "attrs": FACE_LAT_ATTRS},
+    "node_lon": {"dims": [NODE_DIM], "attrs": NODE_LON_ATTRS},
+    "node_lat": {"dims": [NODE_DIM], "attrs": NODE_LAT_ATTRS},
+    "edge_lon": {"dims": [EDGE_DIM], "attrs": EDGE_LON_ATTRS},
+    "edge_lat": {"dims": [EDGE_DIM], "attrs": EDGE_LAT_ATTRS},
+    "face_lon": {"dims": [FACE_DIM], "attrs": FACE_LON_ATTRS},
+    "face_lat": {"dims": [FACE_DIM], "attrs": FACE_LAT_ATTRS},
 }
 
 CARTESIAN_COORD_NAMES = [
