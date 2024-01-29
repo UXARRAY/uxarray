@@ -320,3 +320,22 @@ Subsetting
 
    subset.grid_accessor.GridSubsetAccessor
    subset.dataarray_accessor.DataArraySubsetAccessor
+
+Neighbor
+--------
+.. autosummary::
+   :toctree: generated/
+
+   grid.neighbors._populate_edge_node_distances
+   grid.neighbors._construct_edge_node_distances
+   grid.neighbors._populate_edge_face_distances
+   grid.neighbors._construct_edge_face_distances
+
+Gradients
+---------
+.. autosummary::
+   :toctree: generated/
+
+   core.gradient._calculate_edge_face_difference
+   core.gradient._calculate_edge_node_difference
+   core.gradient._calculate_grad_on_edge_from_faces

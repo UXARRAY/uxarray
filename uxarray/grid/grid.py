@@ -38,7 +38,12 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
 )
 
-from uxarray.grid.neighbors import BallTree, KDTree
+from uxarray.grid.neighbors import (
+    BallTree,
+    KDTree,
+    _populate_edge_face_distances,
+    _populate_edge_node_distances,
+)
 
 from uxarray.plot.accessor import GridPlotAccessor
 
@@ -766,7 +771,7 @@ class Grid:
         Dimensions (``n_edge``) and DataType float.
         """
         if "edge_node_distances" not in self._ds:
-            return None
+            _populate_edge_node_distances(self)
         return self._ds["edge_node_distances"]
 
     @property
@@ -776,7 +781,7 @@ class Grid:
         Dimensions (``n_edge``) and DataType float.
         """
         if "edge_face_distances" not in self._ds:
-            return None
+            _populate_edge_face_distances(self)
         return self._ds["edge_face_distances"]
 
     # ==================================================================================================================
