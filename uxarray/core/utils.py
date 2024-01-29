@@ -29,6 +29,6 @@ def _map_dims_to_ugrid(
     # Possible Issue: https://github.com/UXARRAY/uxarray/issues/610
 
     # rename dimensions to follow the UGRID conventions
-    ds = ds.rename_dims(_source_dims_dict)
+    ds = ds.swap_dims(_source_dims_dict)
 
     return ds
