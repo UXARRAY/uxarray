@@ -22,7 +22,7 @@ jobs:
         python-version: [ "3.9", "3.10", "3.11"]
     steps:
       - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.12.0
+        uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
       - name: checkout
@@ -55,7 +55,7 @@ jobs:
           python -m pytest test -v --cov=./uxarray --cov-report=xml
 
       - name: Upload code coverage to Codecov
-        uses: codecov/codecov-action@v3.1.4
+        uses: codecov/codecov-action@v3.1.5
         with:
           file: ./coverage.xml
           flags: unittests
