@@ -10,9 +10,11 @@ from uxarray.constants import INT_DTYPE
 
 class KDTree:
     """Custom KDTree data structure written around the
-    ``sklearn.neighbors.KDTree`` implementation for use with either the corner
-    (``node_x``, ``node_y``, ``node_z``) or center (``face_x``, ``face_y``,
-    ``face_z``) nodes of the inputted unstructured grid.
+    ``sklearn.neighbors.KDTree`` implementation for use with corner
+    (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``), edge
+    (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``, ``edge_lat``), or
+    center (``face_x``, ``face_y``, ``face_z``) and (``face_lon``,
+    ``face_lat``) nodes of the inputted unstructured grid.
 
     Parameters
     ----------
@@ -399,8 +401,10 @@ class KDTree:
 class BallTree:
     """Custom BallTree data structure written around the
     ``sklearn.neighbors.BallTree`` implementation for use with either the
-    corner (``node_lon``, ``node_lat``) or center (``face_lon``, ``face_lat``)
-    nodes of the inputted unstructured grid.
+    (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``), edge
+    (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``, ``edge_lat``), or
+    center (``face_x``, ``face_y``, ``face_z``) and (``face_lon``,
+    ``face_lat``) nodes of the inputted unstructured grid.
 
     Parameters
     ----------
