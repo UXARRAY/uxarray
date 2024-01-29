@@ -33,6 +33,7 @@ from uxarray.grid.coordinates import (
 from uxarray.grid.geometry import (
     _populate_antimeridian_face_indices,
     _grid_to_polygon_geodataframe,
+    _grid_to_edge_geodataframe,
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
 )
@@ -132,8 +133,17 @@ class Grid:
         self._face_areas = None
 
         # initialize cached data structures (visualization)
-        self._gdf = None
-        self._gdf_exclude_am = None
+
+        # cached GeoDataFrame and Antimeridian flag for Polygons
+        self._gdf_polygon = None
+        self._exclude_am_polygon = None
+
+        # cached GeoDataFrame and Antimeridian flag for Edges
+        self._gdf_edge = None
+        self._exclude_am_edge = None
+
+        # self._gdf = None
+        # self._gdf_exclude_am = None
         self._poly_collection = None
         self._line_collection = None
         self._centroid_points_df_proj = [None, None]
@@ -1053,7 +1063,7 @@ class Grid:
 
     def to_geodataframe(
         self,
-        element: Optional[str] = "faces",
+        geometry: Optional[str] = "polygon",
         override: Optional[bool] = False,
         cache: Optional[bool] = True,
         exclude_antimeridian: Optional[bool] = False,
@@ -1065,6 +1075,8 @@ class Grid:
 
         Parameters
         ----------
+        geometry: str, default='polygon'
+            TODO
         override : bool
             Flag to recompute the ``GeoDataFrame`` if one is already cached
         cache : bool
@@ -1078,25 +1090,34 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
-        if self._gdf is not None:
+        if geometry == "polygon":
+            gdf_attr = "_gdf_polygon"
+            am_attr = "_exclude_am_polygon"
+            gdf_conversion_method = _grid_to_polygon_geodataframe
+        elif geometry == "edge":
+            gdf_attr = "_gdf_edge"
+            am_attr = "_exclude_am_edge"
+            gdf_conversion_method = _grid_to_edge_geodataframe
+        else:
+            raise ValueError("TODO:")
+
+        if getattr(self, gdf_attr) is not None:
             # determine if we need to recompute a cached GeoDataFrame based on antimeridian
-            if self._gdf_exclude_am != exclude_antimeridian:
+            if getattr(self, am_attr) != exclude_antimeridian:
                 # cached gdf should match the exclude_antimeridian_flag
                 override = True
 
-        # use cached geodataframe
-        if self._gdf is not None and not override:
-            return self._gdf
+        if getattr(self, gdf_attr) is not None and not override:
+            # use cached GeoDataFrame
+            return getattr(self, gdf_attr)
 
-        # construct a geodataframe with the faces stored as polygons as the geometry
-        gdf = _grid_to_polygon_geodataframe(
-            self, exclude_antimeridian=exclude_antimeridian
-        )
+        # construct a GeoDataFrame using selected conversion method
+        gdf = gdf_conversion_method(self, exclude_antimeridian=exclude_antimeridian)
 
-        # cache computed geodataframe
         if cache:
-            self._gdf = gdf
-            self._gdf_exclude_am = exclude_antimeridian
+            # cache computed GeoDataFrame
+            setattr(self, gdf_attr, gdf)
+            setattr(self, am_attr, exclude_antimeridian)
 
         return gdf
 
