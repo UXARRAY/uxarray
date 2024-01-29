@@ -89,8 +89,11 @@ def _grid_to_edge_geodataframe(grid, exclude_antimeridian):
     edges = LineArray(edges)
 
     if not exclude_antimeridian:
+        # TODO: slow
         edges = [fix_line_string(e.to_shapely()) for e in edges]
         edges = MultiLineArray(edges)
+
+    # TODO: projections?
 
     gdf = sp.GeoDataFrame({"geometry": edges})
 
@@ -229,6 +232,16 @@ def _populate_antimeridian_face_indices(grid):
     )
 
     return antimeridian_face_indices
+
+
+def _populate_antimeridian_face_indices(grid):
+    """TODO:"""
+
+    edge_node_lon = grid.node_lon.values[grid.edge_node_connectivity.values]
+
+    edge_node_lon_mag = np.abs(edge_node_lon[:, 0] - edge_node_lon[:, 1])
+
+    return np.argwhere(edge_node_lon_mag >= 180)
 
 
 def _build_corrected_polygon_shells(polygon_shells):
