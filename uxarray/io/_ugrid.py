@@ -100,6 +100,16 @@ def tmp_read_ugrid(ds):
 
     # --- Connectivity
 
+    conn_dict = {}
+    for conn_name in ugrid.CONNECTIVITY_NAMES:
+        orig_conn_name = list(ds.filter_by_attrs(cf_role=conn_name).keys())[0]
+        conn_dict[orig_conn_name] = conn_name
+
+    ds = ds.rename(conn_dict)
+
+    for conn_name in conn_dict.values():
+        pass
+
     pass
 
 
