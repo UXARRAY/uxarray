@@ -28,8 +28,8 @@ def _to_ugrid(in_ds, out_ds):
         node_lon = in_ds["nodeCoords"].isel(coordDim=0)
         node_lat = in_ds["nodeCoords"].isel(coordDim=1)
 
-        face_lon = in_ds["faceCoords"].isel(coordDim=0)
-        face_lat = in_ds["faceCoords"].isel(coordDim=1)
+        face_lon = in_ds["centerCoords"].isel(coordDim=0)
+        face_lat = in_ds["centerCoords"].isel(coordDim=1)
 
         out_ds["node_lon"] = xr.DataArray(
             data=node_lon.values,
@@ -60,7 +60,11 @@ def _to_ugrid(in_ds, out_ds):
 
     n_nodes_per_face = in_ds["numElementConn"].values
 
-    start_index = in_ds["elementConn"].start_index
+    if "start_index" in in_ds["elementConn"]:
+        start_index = in_ds["elementConn"].start_index
+    else:
+        # assume start index is 1 (TODO)
+        start_index = 1
 
     face_node_connectivity = in_ds["elementConn"].values.astype(INT_DTYPE)
     for i, max_nodes in enumerate(n_nodes_per_face):
@@ -69,7 +73,7 @@ def _to_ugrid(in_ds, out_ds):
         face_node_connectivity[i, max_nodes:] = INT_FILL_VALUE
 
     out_ds["face_node_connectivity"] = xr.DataArray(
-        data=face_node_connectivity.values,
+        data=face_node_connectivity,
         dims=["n_face", "n_nodes_per_face"],
         attrs={"_FillValue": INT_FILL_VALUE},
     )
