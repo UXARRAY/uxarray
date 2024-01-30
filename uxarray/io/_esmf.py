@@ -5,10 +5,17 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _read_esmf(ext_ds):
-    pass
+    """TODO:"""
+
+    out_ds = xr.Dataset()
+
+    source_dims_dict = _to_ugrid(ext_ds, out_ds)
+
+    return out_ds, source_dims_dict
 
 
 def _to_ugrid(in_ds, out_ds):
+    """TODO:"""
     # dimensions
     source_dims_dict = {
         "n_node": "nodeCount",
@@ -16,7 +23,7 @@ def _to_ugrid(in_ds, out_ds):
         "n_max_face_nodes": "maxNodePElement",
     }
 
-    if in_ds["nodeCoords"]["units"] == "degrees":
+    if in_ds["nodeCoords"].units == "degrees":
         # Spherical Coordinates (in degrees)
         node_lon = in_ds["nodeCoords"].isel(coordDim=0)
         node_lat = in_ds["nodeCoords"].isel(coordDim=1)
@@ -67,4 +74,4 @@ def _to_ugrid(in_ds, out_ds):
         attrs={"_FillValue": INT_FILL_VALUE},
     )
 
-    return out_ds, source_dims_dict
+    return source_dims_dict
