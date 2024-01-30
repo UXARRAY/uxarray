@@ -207,7 +207,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
             source_data,
             remap_to="nodes",
             coord_type="cartesian",
-            k_neighbors=2)
+            k=2)
 
         # create the second destination data using one k neighbor
         destination_data_neighbors_1 = _inverse_distance_weighted_remap(
@@ -216,9 +216,9 @@ class TestInverseDistanceWeightedRemapping(TestCase):
             source_data,
             remap_to="nodes",
             coord_type="cartesian",
-            k_neighbors=1)
+            k=1)
 
-        # two different k_neighbor remaps are different
+        # two different k remaps are different
         assert not np.array_equal(destination_data_neighbors_1,
                                   destination_data_neighbors_2)
 
@@ -234,20 +234,20 @@ class TestInverseDistanceWeightedRemapping(TestCase):
                                            dsfile_vortex_CSne30)
 
         remap_uxda_to_grid = source_uxds['v1'].inverse_distance_weighted_remap(
-            destination_uxds.uxgrid, power=3, k_neighbors=10)
+            destination_uxds.uxgrid, power=3, k=10)
 
         assert isinstance(remap_uxda_to_grid, UxDataArray)
         assert len(remap_uxda_to_grid) == 1
 
         remap_uxda_to_uxda = source_uxds['v1'].inverse_distance_weighted_remap(
-            destination_uxds['psi'], power=3, k_neighbors=10)
+            destination_uxds['psi'], power=3, k=10)
 
         # Dataset with two vars: original "psi" and remapped "v1"
         assert isinstance(remap_uxda_to_uxda, UxDataset)
         assert len(remap_uxda_to_uxda.data_vars) == 2
 
         remap_uxda_to_uxds = source_uxds['v1'].inverse_distance_weighted_remap(
-            destination_uxds, power=3, k_neighbors=10)
+            destination_uxds, power=3, k=10)
 
         # Dataset with two vars: original "psi" and remapped "v1"
         assert isinstance(remap_uxda_to_uxds, UxDataset)

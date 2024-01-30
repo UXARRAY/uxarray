@@ -20,7 +20,7 @@ def _inverse_distance_weighted_remap(
     remap_to="nodes",
     coord_type="spherical",
     power=2,
-    k_neighbors=8,
+    k=8,
 ):
     """Inverse Distance Weighted Remapping between two grids.
 
@@ -39,7 +39,7 @@ def _inverse_distance_weighted_remap(
     power : int, default=2
         Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
         power causes points that are further away to have less influence
-    k_neighbors : int, default=8
+    k : int, default=8
         Number of nearest neighbors to consider in the weighted calculation.
 
     Returns:
@@ -50,9 +50,9 @@ def _inverse_distance_weighted_remap(
 
     if power > 5:
         warnings.warn("It is recommended not to exceed a power of 5.0.")
-    if k_neighbors > source_grid.n_node:
+    if k > source_grid.n_node:
         raise ValueError(
-            f"Number of nearest neighbors to be used in the calculation is {k_neighbors}, but should not exceed the "
+            f"Number of nearest neighbors to be used in the calculation is {k}, but should not exceed the "
             f"number of nodes in the source grid of {source_grid.n_node}"
         )
 
@@ -98,9 +98,7 @@ def _inverse_distance_weighted_remap(
 
         dest_coords = np.vstack([lon, lat]).T
 
-        distances, nearest_neighbor_indices = _source_tree.query(
-            dest_coords, k=k_neighbors
-        )
+        distances, nearest_neighbor_indices = _source_tree.query(dest_coords, k=k)
 
     elif coord_type == "cartesian":
         if remap_to == "nodes":
@@ -131,9 +129,7 @@ def _inverse_distance_weighted_remap(
 
         dest_coords = np.vstack([x, y, z]).T
 
-        distances, nearest_neighbor_indices = _source_tree.query(
-            dest_coords, k=k_neighbors
-        )
+        distances, nearest_neighbor_indices = _source_tree.query(dest_coords, k=k)
 
     else:
         raise ValueError(
@@ -159,7 +155,7 @@ def _inverse_distance_weighted_remap_uxda(
     remap_to: str = "nodes",
     coord_type: str = "spherical",
     power=2,
-    k_neighbors=8,
+    k=8,
 ):
     """Inverse Distance Weighted Remapping implementation for ``UxDataArray``.
 
@@ -177,7 +173,7 @@ def _inverse_distance_weighted_remap_uxda(
     power : int, default=2
         Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
         power causes points that are further away to have less influence
-    k_neighbors : int, default=8
+    k : int, default=8
         Number of nearest neighbors to consider in the weighted calculation.
     """
 
@@ -220,7 +216,7 @@ def _inverse_distance_weighted_remap_uxda(
         remap_to,
         coord_type,
         power,
-        k_neighbors,
+        k,
     )
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
@@ -251,7 +247,7 @@ def _inverse_distance_weighted_remap_uxds(
     remap_to: str = "nodes",
     coord_type: str = "spherical",
     power=2,
-    k_neighbors=8,
+    k=8,
 ):
     """Inverse Distance Weighted implementation for ``UxDataset``.
 
@@ -268,7 +264,7 @@ def _inverse_distance_weighted_remap_uxds(
     power : int, default=2
         Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
         power causes points that are further away to have less influence
-    k_neighbors : int, default=8
+    k : int, default=8
         Number of nearest neighbors to consider in the weighted calculation.
     """
 
@@ -288,7 +284,7 @@ def _inverse_distance_weighted_remap_uxds(
             remap_to,
             coord_type,
             power,
-            k_neighbors,
+            k,
         )
 
     return destination_uxds
