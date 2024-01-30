@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE
+from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_gca_intersection
 import warnings
 
@@ -429,3 +429,156 @@ def _classify_polygon_location(face_edge_cart):
         return "South"
     else:
         return "Equator"
+
+
+def _get_latlonbox_width(latlonbox_rad):
+    """Calculate the width of a latitude-longitude box in radians. The box
+    should be represented by a 2x2 array in radians and lon0 represent the
+    "left" side of the box. while lon1 represent the "right" side of the box.
+
+    This function computes the width of a given latitude-longitude box. It
+    accounts for periodicity in the longitude direction.
+
+    Non-Periodic Longitude: This is the usual case where longitude values are considered within a fixed range,
+            typically between -180 and 180 degrees, or 0 and 360 degrees.
+            Here, the longitude does not "wrap around" when it reaches the end of this range.
+
+    Periodic Longitude: In this case, the longitude is considered to wrap around the globe.
+            This means that if you have a longitude range from 350 to 10 degrees,
+            it is understood to cross the 0-degree meridian and actually represents a 20-degree span
+            (350 to 360 degrees, then 0 to 10 degrees).
+
+    Parameters
+    ----------
+    latlonbox_rad : np.ndarray
+        A latitude-longitude box represented by a 2x2 array in radians and lon0 represent the "left" side of the box.
+        while lon1 represent the "right" side of the box:
+        [[lat_0, lat_1], [lon_0, lon_1]].
+
+    Returns
+    -------
+    float
+        The width of the latitude-longitude box in radians.
+
+    Raises
+    ------
+    Exception
+        If the input longitude range is invalid.
+
+    Warning
+        If the input longitude range is flagged as periodic but in the form [lon0, lon1] where lon0 < lon1.
+        The function will automatically use the is_lon_periodic=False instead.
+    """
+
+    lon0, lon1 = latlonbox_rad[1]
+
+    # Check longitude range validity
+    if (lon0 < 0.0 or lon0 > 2.0 * np.pi) and lon0 != INT_FILL_VALUE:
+        raise Exception("lon0 out of range ({} not in [0, 2π])".format(lon0))
+
+    if lon0 <= lon1:
+        return lon1 - lon0
+    else:
+        # Adjust for periodicity
+        return 2 * np.pi - lon0 + lon1
+
+
+def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
+    """Update the latitude-longitude box to include a new point in radians.
+
+    This function compares the new point's latitude and longitude with the
+    existing latitude-longitude box and updates the box if necessary to include the new point.
+
+    Parameters
+    ----------
+    old_box : np.ndarray
+        The original latitude-longitude box in radian, a 2x2 array: [min_lat, max_lat],[left_lon, right_lon]].
+    new_pt : np.ndarray
+        The new latitude-longitude point in radian, an array: [lat, lon].
+    is_lon_periodic : bool, optional
+        Flag indicating if the latitude-longitude box is periodic in longitude (default is True).
+
+    Returns
+    -------
+    np.ndarray
+        Updated latitude-longitude box including the new point in radians.
+
+    Raises
+    ------
+    Exception
+        If logic errors occur in the calculation process.
+
+    Examples
+    --------
+    >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
+    array([[1.0, 2.0], [3.0, 4.0]])
+    """
+    if np.all(new_pt == INT_FILL_VALUE):
+        return old_box
+
+    latlon_box = np.copy(old_box)  # Create a copy of the old box
+    latlon_box = np.array(
+        latlon_box, dtype=np.float64
+    )  # Cast to float64, otherwise the following update might fail
+
+    lat_pt, lon_pt = new_pt
+
+    # Check if the latitude range is uninitialized and update it
+    if old_box[0][0] == old_box[0][1] == INT_FILL_VALUE:
+        latlon_box[0] = np.array([lat_pt, lat_pt])
+
+    # Check if the longitude range is uninitialized and update it
+    if old_box[1][0] == old_box[1][1] == INT_FILL_VALUE:
+        latlon_box[1] = np.array([lon_pt, lon_pt])
+
+    if lon_pt != INT_FILL_VALUE and (lon_pt < 0.0 or lon_pt > 2.0 * np.pi):
+        raise Exception(f"lon_pt out of range ({lon_pt} not in [0, 2π])")
+
+    # Check for pole points and update latitudes
+    is_pole_point = (
+        lon_pt == INT_FILL_VALUE
+        and np.isclose(
+            new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE
+        ).any()
+    )
+
+    if is_pole_point:
+        # Check if the new point is close to the North Pole
+        if np.isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
+            latlon_box[0][1] = 0.5 * np.pi
+
+        # Check if the new point is close to the South Pole
+        elif np.isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
+            latlon_box[0][0] = -0.5 * np.pi
+
+        return latlon_box
+    else:
+        latlon_box[0] = [min(latlon_box[0][0], lat_pt), max(latlon_box[0][1], lat_pt)]
+
+    # Update longitude range for non-periodic or periodic cases
+    if not is_lon_periodic:
+        latlon_box[1] = [min(latlon_box[1][0], lon_pt), max(latlon_box[1][1], lon_pt)]
+    else:
+        if (
+            latlon_box[1][0] > latlon_box[1][1]
+            and (lon_pt < latlon_box[1][0] and lon_pt > latlon_box[1][1])
+        ) or (
+            latlon_box[1][0] <= latlon_box[1][1]
+            and not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1])
+        ):
+            # Calculate and compare new box widths
+            box_a, box_b = np.copy(latlon_box), np.copy(latlon_box)
+            box_a[1][0], box_b[1][1] = lon_pt, lon_pt
+            d_width_a, d_width_b = (
+                _get_latlonbox_width(box_a),
+                _get_latlonbox_width(box_b),
+            )
+
+            # The width should not be negative, if so, raise an exception
+            if d_width_a < 0 or d_width_b < 0:
+                raise Exception("logic error")
+
+            # Return the arc with the smaller width
+            latlon_box = box_a if d_width_a < d_width_b else box_b
+
+    return latlon_box
