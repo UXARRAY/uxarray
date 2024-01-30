@@ -18,8 +18,16 @@ from uxarray.remap.inverse_distance_weighted import (
     _inverse_distance_weighted_remap_uxda,
 )
 
+from uxarray.core.gradient import (
+    _calculate_grad_on_edge_from_faces,
+    _calculate_edge_face_difference,
+    _calculate_edge_node_difference,
+)
+
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
+
+import warnings
 
 
 class UxDataArray(xr.DataArray):
@@ -385,6 +393,159 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             name=self.name + "_nodal_average" if self.name is not None else None,
         ).rename({"n_node": "n_face"})
+
+    def gradient(
+        self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
+    ):
+        """Computes the horizontal gradient of a data variable residing on an
+        unstructured grid.
+
+        Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
+        on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
+        and then computing the gradient.
+
+        The aboslute value of the gradient is used, since UXarray does not yet support representing the direction
+        of the gradient.
+
+        The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
+
+        Code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
+
+
+        Parameters
+        ----------
+        use_magnitude : bool, default=True
+            Whether to use the magnitude (aboslute value) of the resulting gradient
+        normalize: bool, default=None
+            Whether to normalize (l2) the resulting gradient
+
+        Example
+        -------
+        Face-centered variable
+        >>> uxds['var'].gradient()
+        Node-centered variable
+        >>> uxds['var'].nodal_average().gradient()
+        """
+
+        if not self._face_centered():
+            raise ValueError(
+                "Gradient computations are currently only supported for face-centered data variables. For node-centered"
+                "data, consider performing a nodal average or remapping to faces."
+            )
+
+        if use_magnitude is False:
+            warnings.warn(
+                "Gradients can only be represented in terms of their aboslute value, since UXarray does not "
+                "currently store any information for representing the sign."
+            )
+
+        _grad = _calculate_grad_on_edge_from_faces(
+            d_var=self.values,
+            edge_faces=self.uxgrid.edge_face_connectivity.values,
+            edge_face_distances=self.uxgrid.edge_face_distances.values,
+            n_edge=self.uxgrid.n_edge,
+            normalize=normalize,
+        )
+
+        dims = list(self.dims)
+        dims[-1] = "n_edge"
+
+        uxda = UxDataArray(
+            _grad,
+            uxgrid=self.uxgrid,
+            dims=dims,
+            name=self.name + "_grad" if self.name is not None else "grad",
+        )
+
+        return uxda
+
+    def difference(self, destination: Optional[str] = "edge"):
+        """Computes the absolute difference between a data variable.
+
+        The difference for a face-centered data variable can be computed on each edge using the ``edge_face_connectivity``,
+        specified by ``destination='edge'``.
+
+        The difference for a node-centered data variable can be computed on each edge using the ``edge_node_connectivity``,
+        specified by ``destination='edge'``.
+
+        Computing the difference for an edge-centered data variable is not yet supported.
+
+        Note
+        ----
+        Not to be confused with the ``.diff()`` method from xarray.
+        https://docs.xarray.dev/en/stable/generated/xarray.DataArray.diff.html
+
+        Parameters
+        ----------
+        destination: {‘node’, ‘edge’, ‘face’}, default='edge''
+            The desired destination for computing the difference across and storing on
+        """
+
+        if destination not in ["node", "edge", "face"]:
+            raise ValueError(
+                f"Invalid destination '{destination}'. Must be one of ['node', 'edge', 'face']"
+            )
+
+        dims = list(self.dims)
+        var_name = str(self.name) + "_" if self.name is not None else " "
+
+        if self._face_centered():
+            if destination == "edge":
+                _difference = _calculate_edge_face_difference(
+                    self.values,
+                    self.uxgrid.edge_face_connectivity.values,
+                    self.uxgrid.n_edge,
+                )
+                dims[-1] = "n_edge"
+                name = f"{var_name}edge_face_difference"
+            elif destination == "face":
+                raise ValueError(
+                    "Invalid destination 'face' for a face-centered data variable, computing"
+                    "the difference and storing it on each face is not possible"
+                )
+            elif destination == "node":
+                raise ValueError(
+                    "Support for computing the difference of a face-centered data variable and storing"
+                    "the result on each node not yet supported."
+                )
+
+        elif self._node_centered():
+            if destination == "edge":
+                _difference = _calculate_edge_node_difference(
+                    self.values, self.uxgrid.edge_node_connectivity.values
+                )
+                dims[-1] = "n_edge"
+                name = f"{var_name}edge_node_difference"
+            elif destination == "node":
+                raise ValueError(
+                    "Invalid destination 'node' for a node-centered data variable, computing"
+                    "the difference and storing it on each node is not possible"
+                )
+
+            elif destination == "face":
+                raise ValueError(
+                    "Support for computing the difference of a node-centered data variable and storing"
+                    "the result on each face not yet supported."
+                )
+
+        elif self._edge_centered():
+            raise NotImplementedError(
+                "Difference for edge centered data variables not yet implemented"
+            )
+
+        else:
+            raise ValueError("TODO: ")
+
+        uxda = UxDataArray(
+            _difference,
+            uxgrid=self.uxgrid,
+            name=name,
+            dims=dims,
+        )
+
+        return uxda
+
+        pass
 
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the
