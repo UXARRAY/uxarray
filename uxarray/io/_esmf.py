@@ -11,6 +11,16 @@ def _read_esmf(in_ds):
     Adheres to the ESMF Unstructrued Grid Format (ESMFMESH) outlined in the ESMF documentation:
     https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/node3.html#SECTION03028200000000000000
 
+    Conversion
+    ----------
+    Coordinates stored in "nodeCoords" and "centerCoords" are split and stored in (``node_lon``, ``node_lat``) and
+    (``face_lon``, ``face_lat``) respectively.
+
+    Node connectivity stored in "elementConn" is converted to zero-index, with fill values standardized to
+    INT_FILL_VALUE and stored in ``face_node_connectivity``.
+
+    The Number of nodes per element ``numElementConn`` is stored in ``n_nodes_per_face``.
+
     Parameters
     ----------
     in_ds: xr.Dataset
@@ -78,8 +88,9 @@ def _read_esmf(in_ds):
         )
 
     else:
-        # TODO: Cartesian support
-        pass
+        raise ValueError(
+            "Reading in ESMF grids with Cartesian coordinates not yet supported"
+        )
 
     n_nodes_per_face = in_ds["numElementConn"].values
 
