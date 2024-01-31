@@ -21,7 +21,7 @@ standard data analysis techniques to operate directly on unstructured grid
 data. UXarray provides Xarray-styled functionality to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
 MPAS, SCRIP, and Exodus formats. This effort is a result of the
-collaboration between Project Raijin (NCAR and Pennsylvania State University)
+collaboration between Project Raijin (NSF NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
 Livermore National Laboratory). The UXarray team welcomes community
 members to become part of this collaboration at any level of contribution.
