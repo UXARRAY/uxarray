@@ -92,7 +92,7 @@ def _read_esmf(in_ds):
     if "start_index" in in_ds["elementConn"]:
         start_index = in_ds["elementConn"].start_index
     else:
-        # assume start index is 1 (TODO)
+        # assume start index is 1 if one is not provided
         start_index = 1
 
     face_node_connectivity = in_ds["elementConn"].values.astype(INT_DTYPE)
