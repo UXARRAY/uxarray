@@ -115,7 +115,7 @@ def _read_esmf(in_ds):
 
     out_ds["face_node_connectivity"] = xr.DataArray(
         data=face_node_connectivity,
-        dims=["n_face", "n_nodes_per_face"],
+        dims=["n_face", "n_max_face_nodes"],
         attrs={
             "cf_role": "face_node_connectivity",
             "_FillValue": INT_FILL_VALUE,
