@@ -55,6 +55,10 @@ def _inverse_distance_weighted_remap(
             f"Number of nearest neighbors to be used in the calculation is {k}, but should not exceed the "
             f"number of nodes in the source grid of {source_grid.n_node}"
         )
+    if k <= 1:
+        raise ValueError(
+            f"Number of nearest neighbors to be used in the calculation is {k}, but should be greater than 1"
+        )
 
     source_data = np.asarray(source_data)
     n_elements = source_data.shape[-1]

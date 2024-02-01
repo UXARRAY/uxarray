@@ -207,7 +207,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
             source_data,
             remap_to="nodes",
             coord_type="cartesian",
-            k=2)
+            k=3)
 
         # create the second destination data using one k neighbor
         destination_data_neighbors_1 = _inverse_distance_weighted_remap(
@@ -216,7 +216,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
             source_data,
             remap_to="nodes",
             coord_type="cartesian",
-            k=1)
+            k=2)
 
         # two different k remaps are different
         assert not np.array_equal(destination_data_neighbors_1,
