@@ -2,17 +2,14 @@ from uxarray.constants import INT_FILL_VALUE
 
 CONVENTIONS_ATTR = "UGRID-v1.0"
 
-GRID_TOPOLOGY_ATTRS = {
+BASE_GRID_TOPOLOGY_ATTRS = {
     "cf_role": "mesh_topology",
     "topology_dimension": 2,
     # dimensions
     "face_dimension": "n_face",
     "node_dimension": "n_node",
-    "edge_dimension": "n_edge",
     # coordinates
     "node_coordinates": "node_lon node_lat",
-    "edge_coordinates": "edge_lon edge_lat",
-    "face_coordinates": "face_lon face_lat",
     # connectivity
     "face_node_connectivity": "face_node_connectivity",
 }
@@ -22,6 +19,7 @@ DIM_NAMES = ["n_node", "n_edge", "n_face"]
 NODE_DIM = "n_node"
 EDGE_DIM = "n_edge"
 FACE_DIM = "n_face"
+N_MAX_FACE_NODES_DIM = "n_max_face_nodes"
 
 NODE_COORDINATES = ["node_lon", "node_lat"]
 
@@ -162,6 +160,15 @@ NODE_FACE_CONNECTIVITY_ATTRS = {
 }
 
 NODE_FACE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_faces"]  # todo: check grid
+
+
+N_NODES_PER_FACE_ATTRS = {
+    "cf_role": "n_nodes_per_face",
+    "long name": "Number of nodes per face",
+}
+
+N_NODES_PER_FACE_DIMS = ["n_face"]
+
 
 CONNECTIVITY_NAMES = [
     "face_node_connectivity",
