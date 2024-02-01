@@ -35,7 +35,7 @@ def _parse_grid_type(dataset):
         mesh_type = "UGRID"
     elif "verticesOnCell" in dataset:
         mesh_type = "MPAS"
-    elif "maxNodePElement" in dataset.dims:
+    elif "elementConn" in dataset:
         mesh_type = "ESMF"
     else:
         raise RuntimeError("Could not recognize dataset format.")
