@@ -213,6 +213,9 @@ Remapping
    remap.nearest_neighbor._nearest_neighbor
    remap.nearest_neighbor._nearest_neighbor_uxda
    remap.nearest_neighbor._nearest_neighbor_uxds
+   remap.inverse_distance_weighted._inverse_distance_weighted_remap
+   remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxda
+   remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxds
 
 
 Grid Parsing and Encoding
