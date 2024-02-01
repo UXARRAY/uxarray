@@ -35,18 +35,23 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         if: matrix.os != 'macos-14'
         with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
           activate-environment: uxarray_build
           channel-priority: strict
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: ci/environment.yml
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
 
       - name: conda_setup (ARM64)
         uses: conda-incubator/setup-miniconda@v3
         if: matrix.os == 'macos-14'
         with:
+          activate-environment: uxarray_build
+          channel-priority: strict
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          environment-file: ci/environment.yml
           installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Mambaforge-23.11.0-0-MacOSX-arm64.sh
 
       - name: Install uxarray
