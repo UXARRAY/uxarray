@@ -9,6 +9,7 @@ from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
 from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugrid
 from uxarray.io._scrip import _read_scrip, _encode_scrip
+from uxarray.io._esmf import _read_esmf
 from uxarray.io._vertices import _read_face_vertices
 
 from uxarray.io.utils import _parse_grid_type
@@ -189,6 +190,8 @@ class Grid:
                 grid_ds, source_dims_dict = _read_ugrid(dataset)
             elif source_grid_spec == "MPAS":
                 grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+            elif source_grid_spec == "ESMF":
+                grid_ds, source_dims_dict = _read_esmf(dataset)
             elif source_grid_spec == "Shapefile":
                 raise ValueError("Shapefiles not yet supported")
             else:
