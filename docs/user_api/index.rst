@@ -48,7 +48,6 @@ Methods
    :toctree: generated/
 
    UxDataset.info
-   UxDataset.integrate
 
 
 Remapping
@@ -152,6 +151,16 @@ Subsetting
    UxDataArray.subset.nearest_neighbor
    UxDataArray.subset.bounding_circle
    UxDataArray.subset.bounding_box
+
+Calculus Operators
+------------------
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.integrate
+   UxDataArray.gradient
+   UxDataArray.difference
+
 
 
 
