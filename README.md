@@ -19,7 +19,7 @@ UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
 data. UXarray provides Xarray-styled functionality to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
-MPAS, SCRIP, and Exodus formats. This effort is a result of the
+MPAS, SCRIP, ESMF, and Exodus grid formats. This effort is a result of the
 collaboration between Project Raijin (NSF NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
 Livermore National Laboratory). The UXarray team welcomes community
@@ -50,7 +50,7 @@ is receptive to additional functionality requests.
 
 ## Intended Functionality for Grids
 
-* Support for reading and writing UGRID, SCRIP and Exodus formatted grids.
+* Support for reading and writing UGRID, SCRIP ESMF, and Exodus formatted grids.
 * Support for reading and writing shapefiles.
 * Support for arbitrary structured and unstructured grids on the sphere,
   including latitude-longitude grids, grids with only partial coverage of
