@@ -5,6 +5,7 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_constLat_intersection
 from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
 import pandas as pd
+from queue import Queue
 
 
 def _get_zonal_faces_weight_at_constLat(
@@ -237,27 +238,153 @@ def _get_zonal_face_interval(
                 [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
             )
             unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
+            # Initialize a queue and fill it with the sorted longitudes
+            lon_queue = Queue()
+            for lonlat in unique_intersection_lonlat:
+                lon_queue.put(lonlat)
 
-            # Started from the smallest longitude, and ended at the largest longitude
-            x_pt_idx = 0
-            while x_pt_idx < len(unique_intersection_lonlat):
-                pass
+            # Variables to track the intervals
+            in_flag = False
+            prev_pt_lon = 0.0
+            interval_rows = []
+            cur_face_mag_rad = 0.0
+
+            # Process the queue
+            while not lon_queue.empty():
+                cur_pt_lonlat = lon_queue.get()
+                cur_pt_lon = cur_pt_lonlat[0]
+
+                # The current status for the visiting point
+                in_flag = not in_flag
+
+                if in_flag:
+                    # The start of the interval
+                    pass
+                else:
+                    # The end of the interval
+                    interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
+                    cur_face_mag_rad += cur_pt_lon - prev_pt_lon
+                prev_pt_lon = cur_pt_lon
 
     else:
         # Longitude wrap-around
         if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
             # They're both on the "left side" of the 0-lon
-            interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
-            cur_face_mag_rad = pt_lon_max - pt_lon_min
+            if is_convex:
+                interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
+                cur_face_mag_rad = pt_lon_max - pt_lon_min
+            else:
+                # Sort the intersection points by longitude
+                unique_intersection_lonlat = np.array(
+                    [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
+                )
+                unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
+                # Initialize a queue and fill it with the sorted longitudes
+                lon_queue = Queue()
+                for lonlat in unique_intersection_lonlat:
+                    lon_queue.put(lonlat)
+
+                # Variables to track the intervals
+                in_flag = False
+                prev_pt_lon = 0.0
+                interval_rows = []
+                cur_face_mag_rad = 0.0
+
+                # Process the queue
+                while not lon_queue.empty():
+                    cur_pt_lonlat = lon_queue.get()
+                    cur_pt_lon = cur_pt_lonlat[0]
+
+                    # The current status for the visiting point
+                    in_flag = not in_flag
+
+                    if in_flag:
+                        # The start of the interval
+                        pass
+                    else:
+                        # The end of the interval
+                        interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
+                        cur_face_mag_rad += cur_pt_lon - prev_pt_lon
+                    prev_pt_lon = cur_pt_lon
         if 0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi:
             # They're both on the "right side" of the 0-lon
-            interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
-            cur_face_mag_rad = pt_lon_max - pt_lon_min
+            if is_convex:
+                interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
+                cur_face_mag_rad = pt_lon_max - pt_lon_min
+            else:
+                # Sort the intersection points by longitude
+                unique_intersection_lonlat = np.array(
+                    [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
+                )
+                unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
+                # Initialize a queue and fill it with the sorted longitudes
+                lon_queue = Queue()
+                for lonlat in unique_intersection_lonlat:
+                    lon_queue.put(lonlat)
+
+                # Variables to track the intervals
+                in_flag = False
+                prev_pt_lon = 0.0
+                interval_rows = []
+                cur_face_mag_rad = 0.0
+
+                # Process the queue
+                while not lon_queue.empty():
+                    cur_pt_lonlat = lon_queue.get()
+                    cur_pt_lon = cur_pt_lonlat[0]
+
+                    # The current status for the visiting point
+                    in_flag = not in_flag
+
+                    if in_flag:
+                        # The start of the interval
+                        pass
+                    else:
+                        # The end of the interval
+                        interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
+                        cur_face_mag_rad += cur_pt_lon - prev_pt_lon
+                    prev_pt_lon = cur_pt_lon
         else:
             # They're at the different side of the 0-lon
-            interval_rows.append({"start": pt_lon_max, "end": 2 * np.pi})
-            interval_rows.append({"start": 0.0, "end": pt_lon_min})
-            cur_face_mag_rad = 2 * np.pi - pt_lon_max + pt_lon_min
+
+            # We will break the face at the 360/0 lon, and then process the two parts separately
+            # Sort the intersection points by longitude
+            unique_intersection_lonlat = np.array(
+                [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
+            )
+            unique_intersection_lonlat = unique_intersection_lonlat.append([2 * np.pi, latitude_rad])
+            unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
+            # Initialize a queue and fill it with the sorted longitudes
+            lon_queue = Queue()
+            for lonlat in unique_intersection_lonlat:
+                lon_queue.put(lonlat)
+
+            # Variables to track the intervals
+            in_flag = False
+            prev_pt_lon = 0.0
+            interval_rows = []
+            cur_face_mag_rad = 0.0
+
+            # Process the queue
+            while not lon_queue.empty():
+                cur_pt_lonlat = lon_queue.get()
+                cur_pt_lon = cur_pt_lonlat[0]
+
+                # The current status for the visiting point
+                in_flag = not in_flag
+
+                if in_flag:
+                    # The start of the interval
+                    pass
+                else:
+                    # The end of the interval
+                    if prev_pt_lon == 2 * np.pi:
+                        interval_rows.append({"start": 0.0, "end": cur_pt_lon})
+                        cur_face_mag_rad += cur_pt_lon
+                    else:
+                        interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
+                        cur_face_mag_rad += cur_pt_lon - prev_pt_lon
+                prev_pt_lon = cur_pt_lon
     if np.abs(cur_face_mag_rad) >= 2 * np.pi:
         print(
             "Problematic face: the face span is "
@@ -339,35 +466,3 @@ def _process_overlapped_intervals(intervals_df):
 
     return overlap_contributions, total_length
 
-
-def _is_constLatrad_interval_inside_face(
-    interval_cart, face_edges_cart, latitude_rad, face_latlon_bound
-):
-    """Check if the constant latitude interval is inside the face."""
-    latZ = np.sin(latitude_rad)
-    n1, n2 = interval_cart
-    n1_lonlat = node_xyz_to_lonlat_rad(n1.tolist())
-    n2_lonlat = node_xyz_to_lonlat_rad(n2.tolist())
-
-    # If the interval length is smaller than error tolerance, then raise an error
-    if np.abs(n1_lonlat[0] - n2_lonlat[0]) < ERROR_TOLERANCE:
-        raise ValueError(
-            "The interval length is smaller than error tolerance, please check the code"
-        )
-    mid = (n1 + n2) / 2.0
-
-    # Now get the reference point using the information from the latlon box
-    # Check if the face has the pole point or not
-    max_lat = np.max(abs(face_latlon_bound[0][0]), abs(face_latlon_bound[0][1]))
-    if np.isclose(max_lat, np.pi / 2.0, rtol=0, atol=ERROR_TOLERANCE):
-        # The face has the pole point
-        pass
-    else:
-        # The face doesn't have the pole point, set the reference point latitue as the middle between the maximum
-        # latitude and the north pole
-        ref_pt_lon = (
-            face_latlon_bound[1][0]
-            + (face_latlon_bound[1][1] - face_latlon_bound[1][0]) / 2.0
-        )
-        ref_pt_lat = face_latlon_bound[0][1] + (np.pi - face_latlon_bound[0][1]) / 2.0
-        ref_pt_cart = np.array(node_lonlat_rad_to_xyz([ref_pt_lon, ref_pt_lat]))
