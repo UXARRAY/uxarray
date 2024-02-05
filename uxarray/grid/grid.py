@@ -804,6 +804,22 @@ class Grid:
             self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_areas
 
+    @property
+    def bounds(self):
+        """TODO: This property will access the bounds of each face in the grid."""
+
+        # if self._bounds is None:
+        #   self._bounds = _populate_bounds(self)
+        # return self._bounds
+
+    @property
+    def bounding_box(self):
+        """TODO: This property will access a global bounding box that contains all elements in the grid"""
+
+        # if self._bounding_box is None:
+        #   self._bounding_box = _populate_bounding_box(self)
+        # return self._bounding_box
+
     # ==================================================================================================================
 
     @property
