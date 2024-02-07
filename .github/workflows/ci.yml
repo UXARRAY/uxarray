@@ -18,25 +18,41 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-latest", "macos-latest", "windows-latest"]
+        os: [ "ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]
         python-version: [ "3.9", "3.10", "3.11"]
     steps:
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
+
       - name: checkout
         uses: actions/checkout@v4
         with:
           token: ${{ github.token }}
-      - name: conda_setup
+
+      - name: conda_setup (x64)
         uses: conda-incubator/setup-miniconda@v3
+        if: matrix.os != 'macos-14'
         with:
           activate-environment: uxarray_build
           channel-priority: strict
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: ci/environment.yml
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+
+      - name: conda_setup (ARM64)
+        uses: conda-incubator/setup-miniconda@v3
+        if: matrix.os == 'macos-14'
+        with:
+          activate-environment: uxarray_build
+          channel-priority: strict
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          environment-file: ci/environment.yml
+          installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Mambaforge-23.11.0-0-MacOSX-arm64.sh
 
       - name: Install uxarray
         run: |
@@ -55,7 +71,7 @@ jobs:
           python -m pytest test -v --cov=./uxarray --cov-report=xml
 
       - name: Upload code coverage to Codecov
-        uses: codecov/codecov-action@v3.1.5
+        uses: codecov/codecov-action@v4.0.1
         with:
           file: ./coverage.xml
           flags: unittests
