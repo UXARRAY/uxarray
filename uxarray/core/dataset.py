@@ -14,10 +14,7 @@ from uxarray.plot.accessor import UxDatasetPlotAccessor
 
 from xarray.core.utils import UncachedAccessor
 
-from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxds
-from uxarray.remap.inverse_distance_weighted import (
-    _inverse_distance_weighted_remap_uxds,
-)
+from uxarray.remap import UXDatasetRemapAccessor
 
 from warnings import warn
 
@@ -77,6 +74,7 @@ class UxDataset(xr.Dataset):
 
     # declare plotting accessor
     plot = UncachedAccessor(UxDatasetPlotAccessor)
+    remap = UncachedAccessor(UXDatasetRemapAccessor)
 
     def __getitem__(self, key):
         """Override to make sure the result is an instance of
@@ -347,7 +345,13 @@ class UxDataset(xr.Dataset):
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
-        return _nearest_neighbor_uxds(self, destination_obj, remap_to, coord_type)
+        warn(
+            "This implementation of using remapping is being removed in the near future. It is advised to use "
+            "'uxds.remap.nearest_neighbor'",
+            DeprecationWarning,
+        )
+
+        return self.remap.nearest_neighbor(destination_obj, remap_to, coord_type)
 
     def inverse_distance_weighted_remap(
         self,
@@ -374,6 +378,12 @@ class UxDataset(xr.Dataset):
         k : int, default=8
             Number of nearest neighbors to consider in the weighted calculation.
         """
-        return _inverse_distance_weighted_remap_uxds(
-            self, destination_obj, remap_to, coord_type, power, k
+        warn(
+            "This implementation of using remapping is being removed in the near future. It is advised to use "
+            "'uxds.remap.inverse_distance_weighted'",
+            DeprecationWarning,
+        )
+
+        return self.remap.inverse_distance_weighted(
+            destination_obj, remap_to, coord_type, power, k
         )
