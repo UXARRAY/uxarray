@@ -10,7 +10,7 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     env:
-      CONDA_ENV_FILE: ./build_envs/asv-bench.yml
+      CONDA_ENV_FILE: ./ci/asv.yml
       ASV_DIR: ./benchmarks
 
     steps:
