@@ -45,7 +45,7 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           download-micromamba: false
-          environment-file: ./ci/asv-asv.yml
+          environment-file: ./ci/asv.yml
           cache-environment: true
           cache-environment-key: "benchmark-${{runner.os}}-${{runner.arch}}-${{env.TODAY}}"
 
