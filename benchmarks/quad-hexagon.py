@@ -1,7 +1,7 @@
 import uxarray as ux
 
-grid_path = "../tests/meshfiles/ugrid/quad-hexagon/grid.nc"
-data_path = grid_path = "../tests/meshfiles/ugrid/quad-hexagon/grid.nc"
+grid_path = "../test/meshfiles/ugrid/quad-hexagon/grid.nc"
+data_path = "../test/meshfiles/ugrid/quad-hexagon/data.nc"
 
 
 class QuadHexagon:
