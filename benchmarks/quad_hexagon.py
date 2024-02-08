@@ -1,7 +1,12 @@
+import os
+from pathlib import Path
+
 import uxarray as ux
 
-grid_path = "../test/meshfiles/ugrid/quad-hexagon/grid.nc"
-data_path = "../test/meshfiles/ugrid/quad-hexagon/data.nc"
+current_path = Path(os.path.dirname(os.path.realpath(__file__))).parents[1]
+
+grid_path = current_path / "test" / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
+data_path = current_path / "test" / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
 
 
 class QuadHexagon:
@@ -13,3 +18,6 @@ class QuadHexagon:
 
     def peakmem_open_grid(self):
         uxgrid = ux.open_grid(grid_path)
+
+
+QuadHexagon()
