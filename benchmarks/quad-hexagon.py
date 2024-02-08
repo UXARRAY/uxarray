@@ -6,10 +6,10 @@ data_path = "../test/meshfiles/ugrid/quad-hexagon/data.nc"
 
 class QuadHexagon:
     def time_open_grid(self):
-        ux.open_grid(data_path)
+        ux.open_grid(grid_path)
 
     def mem_open_grid(self):
-        return ux.open_grid(data_path)
+        return ux.open_grid(grid_path)
 
     def peakmem_open_grid(self):
-        uxgrid = ux.open_grid(data_path)
+        uxgrid = ux.open_grid(grid_path)
