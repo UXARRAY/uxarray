@@ -1,0 +1,86 @@
+name: ASV Benchmarking
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    env:
+      CONDA_ENV_FILE: ./ci/asv.yml
+      ASV_DIR: ./benchmarks
+
+    steps:
+      - name: Checkout uxarray
+        uses: actions/checkout@v4
+        with:
+          repository: UXARRAY/uxarray
+          fetch-depth: 0
+      - name: Checkout uxarray-asv
+        uses: actions/checkout@v4
+        with:
+          repository: uxarray/uxarray-asv
+          persist-credentials: false
+          fetch-depth: 0
+          ref: main
+          path: uxarray-asv
+      - name: Set environment variables
+        run: |
+          echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Set up conda environment
+        id: env-setup
+        continue-on-error: true
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: ./ci/asv.yml
+          cache-environment: true
+          cache-environment-key: "benchmark-${{runner.os}}-${{runner.arch}}-${{env.TODAY}}"
+
+      - name: retry environment set up if failed
+        if: steps.env-setup.outcome == 'failure'
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          download-micromamba: false
+          environment-file: ./ci/asv.yml
+          cache-environment: true
+          cache-environment-key: "benchmark-${{runner.os}}-${{runner.arch}}-${{env.TODAY}}"
+
+      - name: Copy existing results
+        run: |
+          if [ -d "uxarray-asv/results" ]; then
+            cp -r uxarray-asv/results benchmarks/
+          fi
+
+      - name: Run benchmarks
+        shell: bash -l {0}
+        id: benchmark
+        run: |
+          cd benchmarks
+          asv machine --machine GH-Actions --os ubuntu-latest --arch x64 --cpu "2-core unknown" --ram 7GB
+          asv run v2024.02.0..main --skip-existing --parallel || true
+
+      - name: Commit and push benchmark results
+        run: |
+          if [ -d "uxarray-asv/results" ]; then
+            rm -r uxarray-asv/results
+          fi
+          cp -r benchmarks/results/ uxarray-asv/
+          cd uxarray-asv
+          git config --local user.email "chmielowiec.philip@gmail.com"
+          git config --local user.name "philipc2"
+          git add results
+          git commit -m "[🤖] Update benchmark results"
+
+      - name: Push to uxarray-asv
+        if: github.ref == 'refs/heads/main' && github.repository == 'UXARRAY/uxarray'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.UXARRAY_ASV_PAT }}
+          branch: main
+          force: true
+          repository: UXARRAY/uxarray-asv
+          directory: uxarray-asv
