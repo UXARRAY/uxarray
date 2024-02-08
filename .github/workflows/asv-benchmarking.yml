@@ -45,7 +45,7 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           download-micromamba: false
-          environment-file: ./build_envs/asv-bench.yml
+          environment-file: ./ci/asv-asv.yml
           cache-environment: true
           cache-environment-key: "benchmark-${{runner.os}}-${{runner.arch}}-${{env.TODAY}}"
 
@@ -70,7 +70,7 @@ jobs:
           fi
           cp -r benchmarks/results/ uxarray-asv/
           cd uxarray-asv
-          git config --local user.email "philipc@ucar.edu"
+          git config --local user.email "chmielowiec.philip@gmail.com"
           git config --local user.name "philipc2"
           git add results
           git commit -m "[🤖] Update benchmark results"
@@ -79,7 +79,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.repository == 'UXARRAY/uxarray'
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ secrets.COMP_ASV_PAT }}
+          github_token: ${{ secrets.UXARRAY_ASV_PAT }}
           branch: main
           force: true
           repository: UXARRAY/uxarray-asv
