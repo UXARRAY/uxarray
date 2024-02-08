@@ -3,7 +3,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+current_path = Path(os.path.dirname(os.path.realpath(__file__))).parent[0]
 
 grid_path = current_path / "test" / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
 data_path = current_path / "test" / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
