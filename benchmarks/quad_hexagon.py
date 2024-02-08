@@ -31,6 +31,6 @@ class QuadHexagon:
         """Memory occupied by a `UxDataset`"""
         return ux.open_dataset(grid_path, data_path)
 
-    def peakmem_open_grid_open_dataset(self):
+    def peakmem_open_dataset(self):
         """Peak memory usage of a `UxDataset`"""
         uxds = ux.open_dataset(grid_path, data_path)
