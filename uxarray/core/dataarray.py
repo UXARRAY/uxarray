@@ -302,8 +302,7 @@ class UxDataArray(xr.DataArray):
             Number of nearest neighbors to consider in the weighted calculation.
         """
         warn(
-            "This implementation of using remapping is being removed in the near future. It is advised to use "
-            "'uxda.remap.inverse_distance_weighted'",
+            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.inverse_distance_weighted() instead.",
             DeprecationWarning,
         )
 
