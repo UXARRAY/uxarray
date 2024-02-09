@@ -14,7 +14,7 @@ from uxarray.plot.accessor import UxDatasetPlotAccessor
 
 from xarray.core.utils import UncachedAccessor
 
-from uxarray.remap import UXDatasetRemapAccessor
+from uxarray.remap import UxDatasetRemapAccessor
 
 from warnings import warn
 
@@ -74,7 +74,7 @@ class UxDataset(xr.Dataset):
 
     # declare plotting accessor
     plot = UncachedAccessor(UxDatasetPlotAccessor)
-    remap = UncachedAccessor(UXDatasetRemapAccessor)
+    remap = UncachedAccessor(UxDatasetRemapAccessor)
 
     def __getitem__(self, key):
         """Override to make sure the result is an instance of
@@ -346,8 +346,7 @@ class UxDataset(xr.Dataset):
             Indicates whether to remap using on spherical or cartesian coordinates
         """
         warn(
-            "This implementation of using remapping is being removed in the near future. It is advised to use "
-            "'uxds.remap.nearest_neighbor'",
+            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.nearest_neighbor() instead.",
             DeprecationWarning,
         )
 

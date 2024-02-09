@@ -1,7 +1,7 @@
-from .dataarray_accessor import UXDataArrayRemapAccessor
-from .dataset_accessor import UXDatasetRemapAccessor
+from .dataarray_accessor import UxDataArrayRemapAccessor
+from .dataset_accessor import UxDatasetRemapAccessor
 
 __all__ = (
-    "UXDataArrayRemapAccessor",
-    "UXDatasetRemapAccessor",
+    "UxDataArrayRemapAccessor",
+    "UxDatasetRemapAccessor",
 )

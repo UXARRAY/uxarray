@@ -23,7 +23,7 @@ from uxarray.core.gradient import (
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
-from uxarray.remap import UXDataArrayRemapAccessor
+from uxarray.remap import UxDataArrayRemapAccessor
 
 import warnings
 
@@ -72,7 +72,7 @@ class UxDataArray(xr.DataArray):
     # declare various accessors
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
-    remap = UncachedAccessor(UXDataArrayRemapAccessor)
+    remap = UncachedAccessor(UxDataArrayRemapAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -270,8 +270,7 @@ class UxDataArray(xr.DataArray):
             Indicates whether to remap using on spherical or cartesian coordinates
         """
         warn(
-            "This implementation of using remapping is being removed in the near future. It is advised to use "
-            "'uxda.remap.nearest_neighbor'",
+            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.nearest_neighbor() instead.",
             DeprecationWarning,
         )
 

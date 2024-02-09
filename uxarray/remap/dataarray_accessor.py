@@ -13,9 +13,20 @@ if TYPE_CHECKING:
 from uxarray.grid import Grid
 
 
-class UXDataArrayRemapAccessor:
+class UxDataArrayRemapAccessor:
     def __init__(self, uxda: UxDataArray):
         self.uxda = uxda
+
+    def __repr__(self):
+        prefix = "<uxarray.UxDataArray.remap>\n"
+        methods_heading = "Supported Methods:\n"
+
+        methods_heading += (
+            "  * nearest_neighbor(destination_obj, remap_to, coord_type)\n"
+        )
+        methods_heading += "  * inverse_distance_weighted(destination_obj, remap_to, coord_type, power, k)\n"
+
+        return prefix + methods_heading
 
     def nearest_neighbor(
         self,
