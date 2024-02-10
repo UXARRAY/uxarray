@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 from xarray.core.utils import UncachedAccessor
 
-from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
+from warnings import warn
 
 from uxarray.core.gradient import (
     _calculate_grad_on_edge_from_faces,
@@ -23,6 +23,7 @@ from uxarray.core.gradient import (
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
+from uxarray.remap import UxDataArrayRemapAccessor
 
 import warnings
 
@@ -71,6 +72,7 @@ class UxDataArray(xr.DataArray):
     # declare various accessors
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
+    remap = UncachedAccessor(UxDataArrayRemapAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -267,8 +269,46 @@ class UxDataArray(xr.DataArray):
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
+        warn(
+            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.nearest_neighbor() instead.",
+            DeprecationWarning,
+        )
 
-        return _nearest_neighbor_uxda(self, destination_obj, remap_to, coord_type)
+        return self.remap.nearest_neighbor(destination_obj, remap_to, coord_type)
+
+    def inverse_distance_weighted_remap(
+        self,
+        destination_obj: Union[Grid, UxDataArray, UxDataset],
+        remap_to: str = "nodes",
+        coord_type: str = "spherical",
+        power=2,
+        k=8,
+    ):
+        """Inverse Distance Weighted Remapping between a source
+        (``UxDataArray``) and destination.`.
+
+        Parameters
+        ---------
+        destination_obj : Grid, UxDataArray, UxDataset
+            Destination for remapping
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        coord_type : str, default="spherical"
+            Indicates whether to remap using on spherical or cartesian coordinates
+        power : int, default=2
+            Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
+            power causes points that are further away to have less influence
+        k : int, default=8
+            Number of nearest neighbors to consider in the weighted calculation.
+        """
+        warn(
+            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.inverse_distance_weighted() instead.",
+            DeprecationWarning,
+        )
+
+        return self.remap.inverse_distance_weighted(
+            destination_obj, remap_to, coord_type, power, k
+        )
 
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
