@@ -1,7 +1,7 @@
-from .nearest_neighbor import _nearest_neighbor
-from .inverse_distance_weighted import _inverse_distance_weighted_remap
+from .dataarray_accessor import UxDataArrayRemapAccessor
+from .dataset_accessor import UxDatasetRemapAccessor
 
 __all__ = (
-    "_nearest_neighbor",
-    "_inverse_distance_weighted_remap",
+    "UxDataArrayRemapAccessor",
+    "UxDatasetRemapAccessor",
 )
