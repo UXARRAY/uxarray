@@ -13,10 +13,7 @@ if TYPE_CHECKING:
 
 from xarray.core.utils import UncachedAccessor
 
-from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
-from uxarray.remap.inverse_distance_weighted import (
-    _inverse_distance_weighted_remap_uxda,
-)
+from warnings import warn
 
 from uxarray.core.gradient import (
     _calculate_grad_on_edge_from_faces,
@@ -26,6 +23,7 @@ from uxarray.core.gradient import (
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
+from uxarray.remap import UxDataArrayRemapAccessor
 
 import warnings
 
@@ -74,6 +72,7 @@ class UxDataArray(xr.DataArray):
     # declare various accessors
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
+    remap = UncachedAccessor(UxDataArrayRemapAccessor)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -270,8 +269,12 @@ class UxDataArray(xr.DataArray):
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
+        warn(
+            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.nearest_neighbor() instead.",
+            DeprecationWarning,
+        )
 
-        return _nearest_neighbor_uxda(self, destination_obj, remap_to, coord_type)
+        return self.remap.nearest_neighbor(destination_obj, remap_to, coord_type)
 
     def inverse_distance_weighted_remap(
         self,
@@ -298,9 +301,13 @@ class UxDataArray(xr.DataArray):
         k : int, default=8
             Number of nearest neighbors to consider in the weighted calculation.
         """
+        warn(
+            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.inverse_distance_weighted() instead.",
+            DeprecationWarning,
+        )
 
-        return _inverse_distance_weighted_remap_uxda(
-            self, destination_obj, remap_to, coord_type, power, k
+        return self.remap.inverse_distance_weighted(
+            destination_obj, remap_to, coord_type, power, k
         )
 
     def integrate(
