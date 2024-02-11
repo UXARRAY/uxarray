@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from uxarray.grid import Grid
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
 
@@ -13,14 +12,16 @@ import uxarray.core.dataset
 from uxarray.grid import Grid
 
 
-def _nearest_neighbor(source_grid: Grid,
-                      destination_grid: Grid,
-                      source_data: np.ndarray,
-                      remap_to: str = "nodes",
-                      coord_type: str = "spherical") -> np.ndarray:
+def _nearest_neighbor(
+    source_grid: Grid,
+    destination_grid: Grid,
+    source_data: np.ndarray,
+    remap_to: str = "nodes",
+    coord_type: str = "spherical",
+) -> np.ndarray:
     """Nearest Neighbor Remapping between two grids, mapping data that resides
-    on either the corner nodes or face centers on the source grid to the corner
-    nodes or face centers of the destination grid.
+    on the corner nodes, edge centers, or face centers on the source grid to
+    the corner nodes, edge centers, or face centers of the destination grid.
 
     Parameters
     ---------
@@ -31,7 +32,7 @@ def _nearest_neighbor(source_grid: Grid,
     source_data : np.ndarray
         Data variable to remaps
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes" or "face centers"
+        Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type: str, default="spherical"
         Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian"
 
@@ -48,28 +49,42 @@ def _nearest_neighbor(source_grid: Grid,
 
     if n_elements == source_grid.n_node:
         source_data_mapping = "nodes"
+    elif n_elements == source_grid.n_edge:
+        source_data_mapping = "edge centers"
     elif n_elements == source_grid.n_face:
         source_data_mapping = "face centers"
     else:
         raise ValueError(
             f"Invalid source_data shape. The final dimension should be either match the number of corner "
-            f"nodes ({source_grid.n_node}) or face centers ({source_grid.n_face}) in the "
-            f"source grid, but received: {source_data.shape}")
+            f"nodes ({source_grid.n_node}), edge centers ({source_grid.n_edge}), or face centers ({source_grid.n_face}) in the"
+            f" source grid, but received: {source_data.shape}"
+        )
 
     if coord_type == "spherical":
         # get destination coordinate pairs
         if remap_to == "nodes":
-            lon, lat = destination_grid.node_lon.values, destination_grid.node_lat.values
-
+            lon, lat = (
+                destination_grid.node_lon.values,
+                destination_grid.node_lat.values,
+            )
+        elif remap_to == "edge centers":
+            lon, lat = (
+                destination_grid.edge_lon.values,
+                destination_grid.edge_lat.values,
+            )
         elif remap_to == "face centers":
-            lon, lat = destination_grid.face_lon.values, destination_grid.face_lat.values
+            lon, lat = (
+                destination_grid.face_lon.values,
+                destination_grid.face_lat.values,
+            )
         else:
             raise ValueError(
-                f"Invalid remap_to. Expected 'nodes' or 'face centers', "
-                f"but received: {remap_to}")
+                f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
+                f"but received: {remap_to}"
+            )
 
         # specify whether to query on the corner nodes or face centers based on source grid
-        _source_tree = source_grid.get_ball_tree(tree_type=source_data_mapping)
+        _source_tree = source_grid.get_ball_tree(coordinates=source_data_mapping)
 
         # prepare coordinates for query
         latlon = np.vstack([lon, lat]).T
@@ -79,21 +94,31 @@ def _nearest_neighbor(source_grid: Grid,
     elif coord_type == "cartesian":
         # get destination coordinates
         if remap_to == "nodes":
-            cart_x, cart_y, cart_z = (destination_grid.node_x.values,
-                                      destination_grid.node_y.values,
-                                      destination_grid.node_z.values)
-
+            cart_x, cart_y, cart_z = (
+                destination_grid.node_x.values,
+                destination_grid.node_y.values,
+                destination_grid.node_z.values,
+            )
+        elif remap_to == "edge centers":
+            cart_x, cart_y, cart_z = (
+                destination_grid.edge_x.values,
+                destination_grid.edge_y.values,
+                destination_grid.edge_z.values,
+            )
         elif remap_to == "face centers":
-            cart_x, cart_y, cart_z = (destination_grid.face_x.values,
-                                      destination_grid.face_y.values,
-                                      destination_grid.face_z.values)
+            cart_x, cart_y, cart_z = (
+                destination_grid.face_x.values,
+                destination_grid.face_y.values,
+                destination_grid.face_z.values,
+            )
         else:
             raise ValueError(
-                f"Invalid remap_to. Expected 'nodes' or 'face centers', "
-                f"but received: {remap_to}")
+                f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
+                f"but received: {remap_to}"
+            )
 
         # specify whether to query on the corner nodes or face centers based on source grid
-        _source_tree = source_grid.get_kd_tree(tree_type=source_data_mapping)
+        _source_tree = source_grid.get_kd_tree(coordinates=source_data_mapping)
 
         # prepare coordinates for query
         cartesian = np.vstack([cart_x, cart_y, cart_z]).T
@@ -119,10 +144,12 @@ def _nearest_neighbor(source_grid: Grid,
     return destination_data
 
 
-def _nearest_neighbor_uxda(source_uxda: UxDataArray,
-                           destination_obj: Union[Grid, UxDataArray, UxDataset],
-                           remap_to: str = "nodes",
-                           coord_type: str = "spherical"):
+def _nearest_neighbor_uxda(
+    source_uxda: UxDataArray,
+    destination_obj: Union[Grid, UxDataArray, UxDataset],
+    remap_to: str = "nodes",
+    coord_type: str = "spherical",
+):
     """Nearest Neighbor Remapping implementation for ``UxDataArray``.
 
     Parameters
@@ -132,7 +159,7 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes" or "face centers"
+        Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates for nearest neighbor computations when
         remapping.
@@ -141,6 +168,8 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     # prepare dimensions
     if remap_to == "nodes":
         destination_dim = "n_node"
+    elif remap_to == "edge centers":
+        destination_dim = "n_edge"
     else:
         destination_dim = "n_face"
 
@@ -150,20 +179,24 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
     if isinstance(destination_obj, Grid):
         destination_grid = destination_obj
     elif isinstance(
-            destination_obj,
-        (uxarray.core.dataarray.UxDataArray, uxarray.core.dataset.UxDataset)):
+        destination_obj,
+        (uxarray.core.dataarray.UxDataArray, uxarray.core.dataset.UxDataset),
+    ):
         destination_grid = destination_obj.uxgrid
     else:
         raise ValueError("TODO: Invalid Input")
 
     # perform remapping
-    destination_data = _nearest_neighbor(source_uxda.uxgrid, destination_grid,
-                                         source_uxda.data, remap_to, coord_type)
+    destination_data = _nearest_neighbor(
+        source_uxda.uxgrid, destination_grid, source_uxda.data, remap_to, coord_type
+    )
     # construct data array for remapping variable
-    uxda_remap = uxarray.core.dataarray.UxDataArray(data=destination_data,
-                                                    name=source_uxda.name,
-                                                    dims=destination_dims,
-                                                    uxgrid=destination_grid)
+    uxda_remap = uxarray.core.dataarray.UxDataArray(
+        data=destination_data,
+        name=source_uxda.name,
+        dims=destination_dims,
+        uxgrid=destination_grid,
+    )
     # add remapped variable to existing UxDataset
     if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
         destination_obj[source_uxda.name] = uxda_remap
@@ -180,10 +213,12 @@ def _nearest_neighbor_uxda(source_uxda: UxDataArray,
         return uxda_remap
 
 
-def _nearest_neighbor_uxds(source_uxds: UxDataset,
-                           destination_obj: Union[Grid, UxDataArray, UxDataset],
-                           remap_to: str = "nodes",
-                           coord_type: str = "spherical"):
+def _nearest_neighbor_uxds(
+    source_uxds: UxDataset,
+    destination_obj: Union[Grid, UxDataArray, UxDataset],
+    remap_to: str = "nodes",
+    coord_type: str = "spherical",
+):
     """Nearest Neighbor Remapping implementation for ``UxDataset``.
 
     Parameters
@@ -193,14 +228,13 @@ def _nearest_neighbor_uxds(source_uxds: UxDataset,
     destination_obj : Grid, UxDataArray, UxDataset
         Destination for remapping
     remap_to : str, default="nodes"
-        Location of where to map data, either "nodes" or "face centers"
+        Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates
     """
 
     if isinstance(destination_obj, Grid):
-        destination_uxds = uxarray.core.dataset.UxDataset(
-            uxgrid=destination_obj)
+        destination_uxds = uxarray.core.dataset.UxDataset(uxgrid=destination_obj)
     elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
         destination_uxds = destination_obj.to_dataset()
     elif isinstance(destination_obj, uxarray.core.dataset.UxDataset):
@@ -209,8 +243,8 @@ def _nearest_neighbor_uxds(source_uxds: UxDataset,
         raise ValueError
 
     for var_name in source_uxds.data_vars:
-        destination_uxds = _nearest_neighbor_uxda(source_uxds[var_name],
-                                                  destination_uxds, remap_to,
-                                                  coord_type)
+        destination_uxds = _nearest_neighbor_uxda(
+            source_uxds[var_name], destination_uxds, remap_to, coord_type
+        )
 
     return destination_uxds

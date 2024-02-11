@@ -19,17 +19,19 @@ dependencies:
     - jupyter_client
     - scikit-learn
     - sphinx-book-theme
+    - sphinx-autosummary-accessors
     - myst-nb
     - sphinx-design
     - nbsphinx
     - matplotlib-base
-    - spatialpandas
     - shapely
     - hvplot
     - holoviews
     - geoviews
     - cartopy
     - pandas<2.1.0
+    - geocat-datafiles
+    - spatialpandas
     - pip:
       - antimeridian
       - pyfma

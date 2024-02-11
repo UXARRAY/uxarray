@@ -7,7 +7,7 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
-from uxarray.constants import ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
 
 from spatialpandas.geometry import MultiPolygon
@@ -383,3 +383,86 @@ class TestLatlonBound(TestCase):
         self.assertAlmostEqual(min_latitude,
                                expected_min_latitude,
                                delta=ERROR_TOLERANCE)
+
+    def test_get_latlonbox_width(self):
+        # Define a great circle arc that is not wrapping around the meridian
+        gca_latlon = np.array([[0.0, 0.0], [0.0, 3.0]])
+
+        # Calculate the width of the latlonbox
+        width = ux.grid.geometry._get_latlonbox_width(gca_latlon)
+        self.assertEquals(width, 3.0)
+
+        # Define a great circle arc that is not wrapping around the meridian
+        gca_latlon = np.array([[0.0, 0.0], [2 * np.pi - 1.0, 1.0]])
+        width = ux.grid.geometry._get_latlonbox_width(gca_latlon)
+        self.assertEquals(width, 2.0)
+
+    def test_insert_pt_in_latlonbox_non_periodic(self):
+        old_box = np.array([[0.1, 0.2], [0.3, 0.4]])  # Radians
+        new_pt = np.array([0.15, 0.35])
+        expected = np.array([[0.1, 0.2], [0.3, 0.4]])
+        result = ux.grid.geometry._insert_pt_in_latlonbox(
+            old_box, new_pt, False)
+        np.testing.assert_array_equal(result, expected)
+
+    def test_insert_pt_in_latlonbox_periodic(self):
+        old_box = np.array([[0.1, 0.2], [6.0, 0.1]])  # Radians, periodic
+        new_pt = np.array([0.15, 6.2])
+        expected = np.array([[0.1, 0.2], [6.0, 0.1]])
+        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt, True)
+        np.testing.assert_array_equal(result, expected)
+
+    def test_insert_pt_in_latlonbox_pole(self):
+        old_box = np.array([[0.1, 0.2], [0.3, 0.4]])
+        new_pt = np.array([np.pi / 2, INT_FILL_VALUE])  # Pole point
+        expected = np.array([[0.1, np.pi / 2], [0.3, 0.4]])
+        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt)
+        np.testing.assert_array_equal(result, expected)
+
+    def test_insert_pt_in_empty_state(self):
+        old_box = np.array([[INT_FILL_VALUE, INT_FILL_VALUE],
+                            [INT_FILL_VALUE, INT_FILL_VALUE]])  # Empty state
+        new_pt = np.array([0.15, 0.35])
+        expected = np.array([[0.15, 0.15], [0.35, 0.35]])
+        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt)
+        np.testing.assert_array_equal(result, expected)
+
+
+class TestGeoDataFrame(TestCase):
+
+    def test_to_gdf(self):
+        uxgrid = ux.open_grid(gridfile_geoflow)
+
+        gdf_with_am = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        gdf_without_am = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+    def test_cache_and_override(self):
+        """Tests the cache and override functionality for GeoDataFrame
+        conversion."""
+
+        uxgrid = ux.open_grid(gridfile_geoflow)
+
+        gdf_a = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        gdf_b = uxgrid.to_geodataframe(exclude_antimeridian=False)
+
+        assert gdf_a is gdf_b
+
+        gdf_c = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_a is not gdf_c
+
+        gdf_d = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_d is gdf_c
+
+        gdf_e = uxgrid.to_geodataframe(exclude_antimeridian=True,
+                                       override=True,
+                                       cache=False)
+
+        assert gdf_d is not gdf_e
+
+        gdf_f = uxgrid.to_geodataframe(exclude_antimeridian=True)
+
+        assert gdf_f is not gdf_e

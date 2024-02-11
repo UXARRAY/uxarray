@@ -5,6 +5,7 @@ dependencies:
   - cartopy
   - dask
   - datashader
+  - gmpy2
   - holoviews
   - matplotlib-base
   - netcdf4
