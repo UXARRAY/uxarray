@@ -70,8 +70,8 @@ jobs:
           fi
           cp -r benchmarks/results/ uxarray-asv/
           cd uxarray-asv
-          git config --local user.email "chmielowiec.philip@gmail.com"
-          git config --local user.name "philipc2"
+          git config --local user.email "${{ secrets.UXARRAY_ASV_EMAIL }}"
+          git config --local user.name "${{ secrets.UXARRAY_ASV_USER_NAME }}"
           git add results
           git commit -m "[🤖] Update benchmark results"
 
