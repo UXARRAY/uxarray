@@ -1274,59 +1274,37 @@ class Grid:
                     if np.any(edge == INT_FILL_VALUE):
                         continue
 
-                    # Get the cartesian coordinates of the edge
+                    # Get the cartesian coordinates of the first point of the edge
                     n1_cart = [self.node_x[edge[0]], self.node_y[edge[0]], self.node_z[edge[0]]]
-                    n2_cart = [self.node_x[edge[1]], self.node_y[edge[1]], self.node_z[edge[1]]]
 
-                    n1_latlon_rad = np.array(
-                        [np.deg2rad(self.node_lat.values[edge[0]]), np.deg2rad(self.node_lon.values[edge[0]])])
-                    n2_latlon_rad = np.array(
-                        [np.deg2rad(self.node_lat.values[edge[1]]), np.deg2rad(self.node_lon.values[edge[1]])])
-
-                    # And to create the longitude bound, we need to know there is the pole point inside the polygon
                     if has_north_pole:
                         pole_point = np.array([0.0, 0.0, 1.0])
                     else:
                         pole_point = np.array([0.0, 0.0, -1.0])
-                    if np.isclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or np.isclose(n2_cart, pole_point,
-                                                                                             atol=ERROR_TOLERANCE):
-                        new_pt_latlon = np.array([INT_FILL_VALUE, INT_FILL_VALUE]
-                                                 , dtype=np.float)
-                        if has_north_pole:
-                            new_pt_latlon[0] = np.pi / 2
-                        else:
-                            new_pt_latlon[0] = -np.pi / 2
-                        #One of the edge's node is the pole point
-                        #Only insert the point that's not the pole point
-                        if np.isclose(n1_cart, pole_point, atol=ERROR_TOLERANCE):
-                            new_pt_latlon[1] = n2_latlon_rad[1]
-                            temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
-                                copy.copy(temp_latlon_array[face_idx]),
-                                new_pt_latlon)
-                        else:
-                            new_pt_latlon[1] = n1_latlon_rad[1]
-                            temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
-                                copy.copy(temp_latlon_array[face_idx]),
-                                new_pt_latlon)
+
+                    new_pt_latlon = np.array([INT_FILL_VALUE, INT_FILL_VALUE]
+                                             , dtype=np.float)
+                    if has_north_pole:
+                        new_pt_latlon[0] = np.pi / 2
+                    else:
+                        new_pt_latlon[0] = -np.pi / 2
+
+                    # If the node is the pole point, we need to insert the pole point into the latlonbox
+                    if np.isclose(n1_cart, pole_point, atol=ERROR_TOLERANCE):
+
+                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                            copy.copy(temp_latlon_array[face_idx]), new_pt_latlon)
+
                     elif point_within_gca( pole_point,n1_cart, n2_cart):
                         #The pole point is within the edge
-                        new_pt_latlon = np.array([INT_FILL_VALUE, INT_FILL_VALUE]
-                                                 , dtype=np.float)
-                        if has_north_pole:
-                            new_pt_latlon[0] = np.pi / 2
-                        else:
-                            new_pt_latlon[0] = -np.pi / 2
+                        #Now we need to insert an extra pole point in the latlonbox
+                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                            copy.copy(temp_latlon_array[face_idx]), new_pt_latlon)
+                        n1_latlon = np.array([np.deg2rad(self.node_lat.values[edge[0]]),
+                                              np.deg2rad(self.node_lon.values[edge[0]])])
 
-
-
-
-
-
-
-
-
-
-
+                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                            copy.copy(temp_latlon_array[face_idx]), n1_latlon)
 
             else:
                 # Normal Face
