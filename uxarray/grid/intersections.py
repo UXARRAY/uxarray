@@ -49,8 +49,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     gca2_cart = np.asarray(gca2_cart)
     # Check if the two GCAs are in the cartesian format (size of three)
     if gca1_cart.shape[1] != 3 or gca2_cart.shape[1] != 3:
-        raise ValueError(
-            "The two GCAs must be in the cartesian [x, y, z] format")
+        raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
@@ -67,7 +66,6 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
         # Raise a warning for windows users
         if platform.system() == "Windows":
-
             warnings.warn(
                 "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
                 "https://bugs.python.org/msg312480)"
@@ -75,24 +73,23 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
             )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not np.allclose(np.dot(w0w1_norm, w0), 0,
-                       atol=ERROR_TOLERANCE) or not np.allclose(
-                           np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
+    if not np.allclose(
+        np.dot(w0w1_norm, w0), 0, atol=ERROR_TOLERANCE
+    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
-    if not np.allclose(np.dot(v0v1_norm, v0), 0,
-                       atol=ERROR_TOLERANCE) or not np.allclose(
-                           np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
+    if not np.allclose(
+        np.dot(v0v1_norm, v0), 0, atol=ERROR_TOLERANCE
+    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
 
     if not np.allclose(
-            np.dot(cross_norms,
-                   v0v1_norm), 0, atol=ERROR_TOLERANCE) or not np.allclose(
-                       np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
+        np.dot(cross_norms, v0v1_norm), 0, atol=ERROR_TOLERANCE
+    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
         )
@@ -118,10 +115,9 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     return res
 
 
-def gca_constLat_intersection(gca_cart,
-                              constLat,
-                              fma_disabled=False,
-                              verbose=False):
+def gca_constLat_intersection(
+    gca_cart, constLat, fma_disabled=False, verbose=False, is_directed=False
+):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -136,6 +132,11 @@ def gca_constLat_intersection(gca_cart,
         The constant latitude of the latitude line.
     fma_disabled : bool, optional (default=False)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
+    verbose : bool, optional (default=False)
+        If True, the function prints out the intermediate results.
+    is_directed : bool, optional (default=False)
+        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
     Returns
     -------
@@ -161,7 +162,6 @@ def gca_constLat_intersection(gca_cart,
     else:
         # Raise a warning for Windows users
         if platform.system() == "Windows":
-
             warnings.warn(
                 "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
                 "https://bugs.python.org/msg312480)"
@@ -171,7 +171,7 @@ def gca_constLat_intersection(gca_cart,
 
     nx, ny, nz = n
 
-    s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n)**2 * constZ**2)
+    s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n) ** 2 * constZ**2)
     p1_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz + s_tilde * ny)
     p2_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz - s_tilde * ny)
     p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
@@ -183,18 +183,20 @@ def gca_constLat_intersection(gca_cart,
     res = None
 
     # Now test which intersection point is within the GCA range
-    if point_within_gca(p1, gca_cart):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(p1,
-                                                               gca_cart,
-                                                               verbose=verbose)
-        res = np.array([converged_pt]) if res is None else np.vstack(
-            (res, converged_pt))
+    if point_within_gca(p1, gca_cart, is_directed=is_directed):
+        converged_pt = _newton_raphson_solver_for_gca_constLat(
+            p1, gca_cart, verbose=verbose
+        )
+        res = (
+            np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+        )
 
-    if point_within_gca(p2, gca_cart):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(p2,
-                                                               gca_cart,
-                                                               verbose=verbose)
-        res = np.array([converged_pt]) if res is None else np.vstack(
-            (res, converged_pt))
+    if point_within_gca(p2, gca_cart, is_directed=is_directed):
+        converged_pt = _newton_raphson_solver_for_gca_constLat(
+            p2, gca_cart, verbose=verbose
+        )
+        res = (
+            np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+        )
 
     return res if res is not None else np.array([])

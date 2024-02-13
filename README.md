@@ -1,9 +1,8 @@
 
 
 
-<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='400'>
+[comment]: <> (<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='400'>)
 
----
 
 
 
@@ -20,8 +19,8 @@ UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
 data. UXarray provides Xarray-styled functionality to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
-MPAS, SCRIP, and Exodus formats. This effort is a result of the
-collaboration between Project Raijin (NCAR and Pennsylvania State University)
+MPAS, SCRIP, ESMF, and Exodus grid formats. This effort is a result of the
+collaboration between Project Raijin (NSF NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
 Livermore National Laboratory). The UXarray team welcomes community
 members to become part of this collaboration at any level of contribution.
@@ -51,7 +50,7 @@ is receptive to additional functionality requests.
 
 ## Intended Functionality for Grids
 
-* Support for reading and writing UGRID, SCRIP and Exodus formatted grids.
+* Support for reading and writing UGRID, SCRIP ESMF, and Exodus formatted grids.
 * Support for reading and writing shapefiles.
 * Support for arbitrary structured and unstructured grids on the sphere,
   including latitude-longitude grids, grids with only partial coverage of
