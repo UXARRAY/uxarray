@@ -1,5 +1,4 @@
 """uxarray.core.grid module."""
-import pandas
 import xarray as xr
 import numpy as np
 
@@ -1253,8 +1252,10 @@ class Grid:
         temp_latlon_array = np.array([[INT_FILL_VALUE, INT_FILL_VALUE], [INT_FILL_VALUE, INT_FILL_VALUE]],
                                      dtype=np.float64) * self.n_face
 
-        # Prepare a DataFrame to store the latitude intervals
-        intervals_list = []
+        # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
+        # between the intervals and the face indices
+        intervals_tuple_list = []
+        intervals_name_list = []
 
         for face_idx, face_nodes in enumerate(self.face_node_connectivity):
             face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
@@ -1300,9 +1301,9 @@ class Grid:
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), new_pt_latlon)
 
-                    elif point_within_gca( pole_point,n1_cart, n2_cart):
-                        #The pole point is within the edge
-                        #Now we need to insert an extra pole point in the latlonbox
+                    elif point_within_gca(pole_point, n1_cart, n2_cart):
+                        # The pole point is within the edge
+                        # Now we need to insert an extra pole point in the latlonbox
                         is_center_pole = False
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), new_pt_latlon)
@@ -1313,17 +1314,20 @@ class Grid:
                             copy.copy(temp_latlon_array[face_idx]), n1_latlon)
                     else:
                         # The pole point is inside the polygon
-                        lat_max = extreme_gca_latitude(n1_cart, n2_cart, 'max')
-                        lat_min = extreme_gca_latitude(n1_cart, n2_cart, 'min')
+                        n1_latlon = np.array([np.deg2rad(self.node_lat.values[edge[0]]),
+                                              np.deg2rad(self.node_lon.values[edge[0]])])
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), n1_latlon)
+
+                        lat_max = extreme_gca_latitude(n1_cart, n2_cart, 'max')
+                        lat_min = extreme_gca_latitude(n1_cart, n2_cart, 'min')
 
                         if has_north_pole:
                             min_latlon = np.array([lat_min,
                                                    np.deg2rad(self.node_lon.values[edge[0]])])
                             temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                                 copy.copy(temp_latlon_array[face_idx]), min_latlon)
-                            temp_latlon_array[face_idx][0][1]=np.pi/2
+                            temp_latlon_array[face_idx][0][1] = np.pi / 2
 
                         else:
                             max_latlon = np.array([lat_max,
@@ -1332,7 +1336,7 @@ class Grid:
                                 copy.copy(temp_latlon_array[face_idx]), max_latlon)
                             temp_latlon_array[face_idx][0][0] = -np.pi / 2
 
-                        temp_latlon_array[face_idx][0] = [0.0, 2*np.pi]
+                        temp_latlon_array[face_idx][0] = [0.0, 2 * np.pi]
 
 
             else:
@@ -1357,15 +1361,17 @@ class Grid:
                     lat_max = extreme_gca_latitude(n1_cart, n2_cart, 'max')
                     lat_min = extreme_gca_latitude(n1_cart, n2_cart, 'min')
 
-                    if np.isclose(self.np.deg2rad(self.node_lat.values[edge[0]]), lat_max, atol=ERROR_TOLERANCE)\
-                            or np.isclose(self.np.deg2rad(self.node_lat.values[edge[1]]), lat_max, atol=ERROR_TOLERANCE):
+                    if np.isclose(self.np.deg2rad(self.node_lat.values[edge[0]]), lat_max, atol=ERROR_TOLERANCE) \
+                            or np.isclose(self.np.deg2rad(self.node_lat.values[edge[1]]), lat_max,
+                                          atol=ERROR_TOLERANCE):
 
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]),
                             np.array([lat_max, pt_lon_rad]))
 
-                    elif np.isclose(self.np.deg2rad(self.node_lat.values[edge[0]]), lat_min, atol=ERROR_TOLERANCE)\
-                            or np.isclose(self.np.deg2rad(self.node_lat.values[edge[1]]), lat_min, atol=ERROR_TOLERANCE):
+                    elif np.isclose(self.np.deg2rad(self.node_lat.values[edge[0]]), lat_min, atol=ERROR_TOLERANCE) \
+                            or np.isclose(self.np.deg2rad(self.node_lat.values[edge[1]]), lat_min,
+                                          atol=ERROR_TOLERANCE):
 
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]),
@@ -1379,14 +1385,14 @@ class Grid:
             assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
             lat_array = temp_latlon_array[face_idx][0]
 
-            # Now store the latitude intervals in the DataFrame
-            interval=pandas.Interval(lat_array[0], lat_array[1], closed='both')
-            intervals_list = intervals_list.append({'Lat_interval':interval, "face_idx": face_idx})
+            # Now store the latitude intervals in the tuples
+            intervals_tuple_list.append((lat_array[0], lat_array[1]))
+            intervals_name_list.append(face_idx)
 
-        lattitude_intervals_df = pd.DataFrame(intervals_list)
+        # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
+        # between the intervals and the face indices
+        intervalsIndex = pd.IntervalIndex.from_tuples(intervals_tuple_list, closed='both')
+        df_intervals_map = pd.DataFrame(index=intervalsIndex, data=intervals_name_list, columns=['face_id'])
         self._bounds = temp_latlon_array
-        self._lattitude_intervals_df = lattitude_intervals_df
-
-
-
-
+        self._latitude_intervalsIndex = intervalsIndex
+        self._latitude_intervals_name_map = df_intervals_map
