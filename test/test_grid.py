@@ -8,7 +8,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_edge_node_connectivity, _populate_face_edge_connectivity, _build_edge_face_connectivity
+from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity
 
 from uxarray.grid.coordinates import _populate_lonlat_coord
 
@@ -924,103 +924,3 @@ class TestClassMethods(TestCase):
         uxgrid = ux.Grid.from_face_vertices(multi_face_latlon, latlon=True)
 
         single_face_cart = [(0.0,)]
-
-
-class TestBallTree(TestCase):
-    corner_grid_files = [gridfile_CSne30, gridfile_mpas]
-    center_grid_files = [gridfile_mpas]
-
-    def test_construction_from_nodes(self):
-        """Tests the construction of the ball tree on nodes and performs a
-        sample query."""
-
-        for grid_file in self.corner_grid_files:
-            uxgrid = ux.open_grid(grid_file)
-
-            # performs a sample query
-            d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([3.0, 3.0],
-                                                                   k=3)
-
-    def test_construction_from_face_centers(self):
-        """Tests the construction of the ball tree on center nodes and performs
-        a sample query."""
-
-        for grid_file in self.center_grid_files:
-            uxgrid = ux.open_grid(grid_file)
-
-            # performs a sample query
-            d, ind = uxgrid.get_ball_tree(tree_type="face centers").query(
-                [3.0, 3.0], k=3)
-
-    def test_construction_from_both_sequentially(self):
-        """Tests the construction of the ball tree on center nodes and performs
-        a sample query."""
-
-        for grid_file in self.center_grid_files:
-            uxgrid = ux.open_grid(grid_file)
-
-            # performs a sample query
-            d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([3.0, 3.0],
-                                                                   k=3)
-            d_centers, ind_centers = uxgrid.get_ball_tree(
-                tree_type="face centers").query([3.0, 3.0], k=3)
-
-    def test_antimeridian_distance_nodes(self):
-        """Verifies nearest neighbor search across Antimeridian."""
-
-        # single triangle with point on antimeridian
-        verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
-
-        uxgrid = ux.open_grid(verts, latlon=True)
-
-        # point on antimeridian, other side of grid
-        d, ind = uxgrid.get_ball_tree(tree_type="nodes").query([180.0, 0.0],
-                                                               k=1)
-
-        # distance across antimeridian is approx zero
-        assert np.isclose(d, 0.0)
-
-        # index should point to the 0th (x, y) pair (-180, 0.0)
-        assert ind == 0
-
-        # point on antimeridian, other side of grid, slightly larger than 90 due to floating point calcs
-        d, ind = uxgrid.get_ball_tree(tree_type="nodes").query_radius(
-            [-180, 0.0], r=90.01)
-
-        expected_d = np.array([0.0, 90.0, 90.0])
-
-        assert np.allclose(a=d, b=expected_d, atol=1e-03)
-
-    def test_antimeridian_distance_face_centers(self):
-        """TODO: Write addition tests once construction and representation of face centers is implemented."""
-        pass
-
-
-class TestKDTree:
-    corner_grid_files = [gridfile_CSne30, gridfile_mpas]
-    center_grid_file = gridfile_mpas
-
-    def test_construction_from_nodes(self):
-        """Test the KDTree creation and query function using the grids
-        nodes."""
-
-        for grid_file in self.corner_grid_files:
-            uxgrid = ux.open_grid(grid_file)
-            d, ind = uxgrid.get_kd_tree(tree_type="nodes").query(
-                [0.0, 0.0, 1.0])
-
-    def test_construction_from_face_centers(self):
-        """Test the KDTree creation and query function using the grids face
-        centers."""
-
-        uxgrid = ux.open_grid(self.center_grid_file)
-        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query(
-            [1.0, 0.0, 0.0], k=5)
-
-    def test_query_radius(self):
-        """Test the KDTree creation and query_radius function using the grids
-        face centers."""
-
-        uxgrid = ux.open_grid(self.center_grid_file)
-        d, ind = uxgrid.get_kd_tree(tree_type="face centers").query_radius(
-            [0.0, 0.0, 1.0], r=5)

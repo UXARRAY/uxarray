@@ -1,3 +1,4 @@
 from .grid import Grid
 
-from .neighbors import BallTree
+
+__all__ = ("Grid",)
