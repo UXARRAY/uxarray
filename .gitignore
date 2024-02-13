@@ -152,3 +152,9 @@ test/write_*
 docs/user_api/_autosummary/
 
 docs/notebook-examples.txt
+
+
+# benchmarking
+benchmarks/env
+benchmarks/results
+benchmarks/html
