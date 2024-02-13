@@ -79,7 +79,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     ):
         return False
 
-    if GCRv0_lonlat[0] == GCRv1_lonlat[0]:
+    if np.isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
         if GCRv0_lonlat[0] == pt_lonlat[0]:
             # Now use the latitude to determine if the pt falls between the interval
@@ -87,6 +87,40 @@ def point_within_gca(pt, gca_cart, is_directed=False):
         else:
             # If the pt and the GCA are not on the same longitude when the GCA is a longnitude arc, then the pt is not on the GCA
             return False
+
+    # If the longnitude span is exactly 180 degree, then the GCA goes through the pole point
+    if np.isclose(abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0, atol=ERROR_TOLERANCE):
+        if not np.isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE) and \
+                not np.isclose(GCRv1_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+            return False
+        else:
+            if GCRv0_lonlat[1] > 0 and GCRv1_lonlat[1] > 0:
+                pole_lat = np.pi / 2
+                lat_extend = abs(np.pi / 2 - GCRv0_lonlat[1]) + np.pi / 2 + abs(GCRv1_lonlat[1])
+            elif GCRv0_lonlat[1] < 0 and GCRv1_lonlat[1] < 0:
+                pole_lat = -np.pi / 2
+                lat_extend = (np.pi / 2 - abs(GCRv0_lonlat[1])) + np.pi / 2 + abs(GCRv1_lonlat[1])
+            else:
+                # Now we check which pole point does this small circle goes through
+                if GCRv0_lonlat[1] > 0 and GCRv1_lonlat[1] < 0:
+                    lat_extend = abs(np.pi/2 - GCRv0_lonlat[1]) + np.pi/2 + abs(GCRv1_lonlat[1])
+                    if lat_extend < np.pi:
+                        pole_lat = np.pi / 2
+                    else:
+                        pole_lat = -np.pi / 2
+                else:
+                    lat_extend = (np.pi / 2 - abs(GCRv0_lonlat[1])) + np.pi / 2 + abs(GCRv1_lonlat[1])
+                    if lat_extend < np.pi:
+                        pole_lat = -np.pi / 2
+                    else:
+                        pole_lat = np.pi / 2
+
+                if is_directed and lat_extend >= np.pi:
+                    raise ValueError(
+                        "The input Great Circle Arc span is larger than 180 degree, please break it into two."
+                    )
+            return in_between(GCRv0_lonlat[1], pt_lonlat[1], pole_lat) or in_between(pole_lat, pt_lonlat[1], GCRv1_lonlat[1])
+
 
     if is_directed:
         # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
