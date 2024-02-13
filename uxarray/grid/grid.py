@@ -1,4 +1,5 @@
 """uxarray.core.grid module."""
+import pandas
 import xarray as xr
 import numpy as np
 
@@ -1379,7 +1380,8 @@ class Grid:
             lat_array = temp_latlon_array[face_idx][0]
 
             # Now store the latitude intervals in the DataFrame
-            intervals_list = intervals_list.append({'lower_lat': lat_array[0], 'upper_lat': lat_array[1], "face_idx": face_idx})
+            interval=pandas.Interval(lat_array[0], lat_array[1], closed='both')
+            intervals_list = intervals_list.append({'Lat_interval':interval, "face_idx": face_idx})
 
         lattitude_intervals_df = pd.DataFrame(intervals_list)
         self._bounds = temp_latlon_array
