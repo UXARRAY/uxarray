@@ -18,6 +18,8 @@ from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
     _set_desired_longitude_range,
+    _populate_lonlat_coord,
+    _populate_cartesian_xyz_coord,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -25,11 +27,6 @@ from uxarray.grid.connectivity import (
     _populate_n_nodes_per_face,
     _populate_node_face_connectivity,
     _populate_edge_face_connectivity,
-)
-
-from uxarray.grid.coordinates import (
-    _populate_lonlat_coord,
-    _populate_cartesian_xyz_coord,
 )
 
 from uxarray.grid.geometry import (
@@ -60,6 +57,7 @@ from uxarray.grid.validation import (
 
 from uxarray.grid.arcs import (
     extreme_gca_latitude,
+    point_within_gca,
 )
 
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
@@ -1280,30 +1278,45 @@ class Grid:
                     n1_cart = [self.node_x[edge[0]], self.node_y[edge[0]], self.node_z[edge[0]]]
                     n2_cart = [self.node_x[edge[1]], self.node_y[edge[1]], self.node_z[edge[1]]]
 
-                    # Insert the endpoints of the edge into the latlonbox, we only need to insert the first point
-                    # as the second point will be the first point of the next edge
-                    pt_lat_rad = np.deg2rad(self.node_lat.values[edge[0]])
-                    pt_lon_rad = np.deg2rad(self.node_lon.values[edge[0]])
-
-                    # Now we have learned one of the extreme latitudes of the face is a pole
-                    if has_north_pole:
-                        d_lat_extent_rad = 0.5 * np.pi
-                    else:
-                        d_lat_extent_rad = -0.5 * np.pi
-
-                    # Now let's see if the extreme latitudes of the edge is not the same as the latitudes of the nodes
-                    # If it is not, we need to insert the extreme latitudes into the latlonbox
-                    lat_max = extreme_gca_latitude(n1_cart, n2_cart, 'max')
-                    lat_min = extreme_gca_latitude(n1_cart, n2_cart, 'min')
+                    n1_latlon_rad = np.array(
+                        [np.deg2rad(self.node_lat.values[edge[0]]), np.deg2rad(self.node_lon.values[edge[0]])])
+                    n2_latlon_rad = np.array(
+                        [np.deg2rad(self.node_lat.values[edge[1]]), np.deg2rad(self.node_lon.values[edge[1]])])
 
                     # And to create the longitude bound, we need to know there is the pole point inside the polygon
                     if has_north_pole:
                         pole_point = np.array([0.0, 0.0, 1.0])
                     else:
                         pole_point = np.array([0.0, 0.0, -1.0])
-                    if np.allclose(edge[0], pole_point, atol=ERROR_TOLERANCE) or np.allclose(edge[1], pole_point,
+                    if np.isclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or np.isclose(n2_cart, pole_point,
                                                                                              atol=ERROR_TOLERANCE):
-                        pass
+                        new_pt_latlon = np.array([INT_FILL_VALUE, INT_FILL_VALUE]
+                                                 , dtype=np.float)
+                        if has_north_pole:
+                            new_pt_latlon[0] = np.pi / 2
+                        else:
+                            new_pt_latlon[0] = -np.pi / 2
+                        #One of the edge's node is the pole point
+                        #Only insert the point that's not the pole point
+                        if np.isclose(n1_cart, pole_point, atol=ERROR_TOLERANCE):
+                            new_pt_latlon[1] = n2_latlon_rad[1]
+                            temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                                copy.copy(temp_latlon_array[face_idx]),
+                                new_pt_latlon)
+                        else:
+                            new_pt_latlon[1] = n1_latlon_rad[1]
+                            temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                                copy.copy(temp_latlon_array[face_idx]),
+                                new_pt_latlon)
+                    elif point_within_gca( pole_point,n1_cart, n2_cart):
+                        #The pole point is within the edge
+                        new_pt_latlon = np.array([INT_FILL_VALUE, INT_FILL_VALUE]
+                                                 , dtype=np.float)
+                        if has_north_pole:
+                            new_pt_latlon[0] = np.pi / 2
+                        else:
+                            new_pt_latlon[0] = -np.pi / 2
+
 
 
 
