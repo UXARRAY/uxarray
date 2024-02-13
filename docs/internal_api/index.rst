@@ -161,7 +161,7 @@ Arcs
    :toctree: generated/
 
    grid.arcs._angle_of_2_vectors
-   grid.arcs._angle_of_2_vectors
+   grid.arcs._decide_pole_latitude
 
 
 Utils
