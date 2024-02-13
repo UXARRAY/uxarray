@@ -392,7 +392,7 @@ class TestPopulateCoordinates(TestCase):
         # These points correspond to the eight vertices of a cube.
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-            360 - 45.0001052295749
+                                                360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -435,7 +435,7 @@ class TestPopulateCoordinates(TestCase):
 
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-            360 - 45.0001052295749
+                                                360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -589,7 +589,7 @@ class TestConnectivity(TestCase):
         for face_idx in range(len(face_edges_connectivity)):
             res_face_nodes_connectivity.append(face_nodes_dict[face_idx])
             while len(res_face_nodes_connectivity[face_idx]
-                     ) < original_face_nodes_connectivity.shape[1]:
+                      ) < original_face_nodes_connectivity.shape[1]:
                 res_face_nodes_connectivity[face_idx].append(ux.INT_FILL_VALUE)
 
         return np.array(res_face_nodes_connectivity)
@@ -872,7 +872,7 @@ class TestConnectivity(TestCase):
                 # shared edge
                 n_shared += 1
             elif edge_face[0] != INT_FILL_VALUE and edge_face[
-                    1] == INT_FILL_VALUE:
+                1] == INT_FILL_VALUE:
                 # edge borders one face
                 n_solo += 1
             else:
@@ -924,3 +924,14 @@ class TestClassMethods(TestCase):
         uxgrid = ux.Grid.from_face_vertices(multi_face_latlon, latlon=True)
 
         single_face_cart = [(0.0,)]
+
+
+class TestLatlonBounds(TestCase):
+
+    def test_populate_bounds_normal(self):
+        # Generate a normal face that is not crossing the antimeridian or the poles
+        vertices = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices = np.array(vertices)
+        grid = ux.Grid.from_face_vertices(vertices, latlon=True)
+        grid._populate_bounds()
+        pass

@@ -1250,7 +1250,7 @@ class Grid:
             _populate_face_edge_connectivity(self)
 
         temp_latlon_array = np.array([[INT_FILL_VALUE, INT_FILL_VALUE], [INT_FILL_VALUE, INT_FILL_VALUE]],
-                                     dtype=np.float) * self.n_face
+                                     dtype=np.float64) * self.n_face
 
         # Prepare a DataFrame to store the latitude intervals
         intervals_list = []
@@ -1267,6 +1267,8 @@ class Grid:
             has_south_pole = _pole_point_inside_polygon('South', face_edges_connectivity_cartesian)
 
             if has_north_pole or has_south_pole:
+                # If the pole point is inside the face
+                is_center_pole = True
 
                 for j in range(face_edges_connectivity_cartesian.shape[0]):
                     edge = face_edges_connectivity_cartesian[j]
@@ -1276,6 +1278,7 @@ class Grid:
 
                     # Get the cartesian coordinates of the first point of the edge
                     n1_cart = [self.node_x[edge[0]], self.node_y[edge[0]], self.node_z[edge[0]]]
+                    n2_cart = [self.node_x[edge[1]], self.node_y[edge[1]], self.node_z[edge[1]]]
 
                     if has_north_pole:
                         pole_point = np.array([0.0, 0.0, 1.0])
@@ -1283,7 +1286,7 @@ class Grid:
                         pole_point = np.array([0.0, 0.0, -1.0])
 
                     new_pt_latlon = np.array([INT_FILL_VALUE, INT_FILL_VALUE]
-                                             , dtype=np.float)
+                                             , dtype=np.float64)
                     if has_north_pole:
                         new_pt_latlon[0] = np.pi / 2
                     else:
@@ -1291,6 +1294,7 @@ class Grid:
 
                     # If the node is the pole point, we need to insert the pole point into the latlonbox
                     if np.isclose(n1_cart, pole_point, atol=ERROR_TOLERANCE):
+                        is_center_pole = False
 
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), new_pt_latlon)
@@ -1298,6 +1302,7 @@ class Grid:
                     elif point_within_gca( pole_point,n1_cart, n2_cart):
                         #The pole point is within the edge
                         #Now we need to insert an extra pole point in the latlonbox
+                        is_center_pole = False
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), new_pt_latlon)
                         n1_latlon = np.array([np.deg2rad(self.node_lat.values[edge[0]]),
@@ -1305,6 +1310,29 @@ class Grid:
 
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), n1_latlon)
+                    else:
+                        # The pole point is inside the polygon
+                        lat_max = extreme_gca_latitude(n1_cart, n2_cart, 'max')
+                        lat_min = extreme_gca_latitude(n1_cart, n2_cart, 'min')
+                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                            copy.copy(temp_latlon_array[face_idx]), n1_latlon)
+
+                        if has_north_pole:
+                            min_latlon = np.array([lat_min,
+                                                   np.deg2rad(self.node_lon.values[edge[0]])])
+                            temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                                copy.copy(temp_latlon_array[face_idx]), min_latlon)
+                            temp_latlon_array[face_idx][0][1]=np.pi/2
+
+                        else:
+                            max_latlon = np.array([lat_max,
+                                                   np.deg2rad(self.node_lon.values[edge[0]])])
+                            temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
+                                copy.copy(temp_latlon_array[face_idx]), max_latlon)
+                            temp_latlon_array[face_idx][0][0] = -np.pi / 2
+
+                        temp_latlon_array[face_idx][0] = [0.0, 2*np.pi]
+
 
             else:
                 # Normal Face
