@@ -523,6 +523,10 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     lat_pt, lon_pt = new_pt
 
+    #Normalize the longitude
+    if lon_pt != INT_FILL_VALUE:
+        lon_pt = np.mod(lon_pt, 2*np.pi)
+
     # Check if the latitude range is uninitialized and update it
     if old_box[0][0] == old_box[0][1] == INT_FILL_VALUE:
         latlon_box[0] = np.array([lat_pt, lat_pt])
