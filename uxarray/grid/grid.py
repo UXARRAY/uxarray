@@ -1241,8 +1241,19 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def _populate_bounds(self):
-        """Populates the bounds of the grid."""
+    def _populate_bounds(self, is_latlonface: bool = False, is_face_GCA_list = None):
+        """Populates the bounds of the grid.
+    is_latlonface : bool, optional, default=False
+        A global flag to indicate if faces are latlon face. If True, then treat all faces as latlon faces. Latlon face means
+        That all edge is either a longitude or constant latitude line. If False, then all edges are GCA.
+         Default is False.
+
+    is_face_GCA_list : np.ndarray, optional (default=None)
+        A list of boolean values that indicates if the edge in that face is a GCA. Shape: (n_faces,n_edges).
+        True means edge face is a GCA.
+        False mean this edge is a constant latitude.
+        If None, all edges are considered as GCA. This attribute will overwrite the is_latlonface attribute.
+        """
         if self.edge_node_connectivity is None:
             _populate_edge_node_connectivity(self)
 
@@ -1273,13 +1284,26 @@ class Grid:
                 is_center_pole = True
 
                 for j in range(face_edges_connectivity_cartesian.shape[0]):
+
                     edge = face_edges_connectivity_cartesian[j]
+
                     # Skip the dummy edge
                     if np.any(edge == INT_FILL_VALUE):
                         continue
 
                     # Get the cartesian coordinates of the first point of the edge
                     n1_cart, n2_cart = edge
+                    is_GCA = None
+                    # Now check if the edge is a constant latitude edge
+                    if is_face_GCA_list is not None:
+                        is_GCA_list = is_face_GCA_list[face_idx]
+                        is_GCA = is_GCA_list[j]
+                    else:
+                        if is_latlonface:
+                            if n1_cart[2] == n2_cart[2]:
+                                is_GCA = False
+                        else:
+                            is_GCA = True
 
                     # Insert the endpoints of the edge into the latlonbox, we only need to insert the first point
                     # as the second point will be the first point of the next edge
@@ -1288,9 +1312,6 @@ class Grid:
                     node_2_idx = self.edge_node_connectivity.values[edge_idx][1]
                     node1_lat_rad = np.deg2rad(self.node_lat.values[node_1_idx])
                     node1_lon_rad = np.deg2rad(self.node_lon.values[node_1_idx])
-
-                    node2_lat_rad = np.deg2rad(self.node_lat.values[node_2_idx])
-                    node2_lon_rad = np.deg2rad(self.node_lon.values[node_2_idx])
 
                     if has_north_pole:
                         pole_point = np.array([0.0, 0.0, 1.0])
@@ -1325,8 +1346,12 @@ class Grid:
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), np.array([node1_lat_rad, node1_lon_rad]))
 
-                        lat_max = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'max')
-                        lat_min = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'min')
+                        if is_GCA:
+                            lat_max = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'max')
+                            lat_min = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'min')
+                        else:
+                            lat_max = node1_lat_rad
+                            lat_min = node1_lat_rad
 
                         if has_north_pole:
                             min_latlon = np.array([lat_min,
@@ -1358,6 +1383,18 @@ class Grid:
                     # Get the cartesian coordinates of the edge
                     n1_cart, n2_cart = edge
 
+                    is_GCA = None
+                    # Now check if the edge is a constant latitude edge
+                    if is_face_GCA_list is not None:
+                        is_GCA_list = is_face_GCA_list[face_idx]
+                        is_GCA = is_GCA_list[j]
+                    else:
+                        if is_latlonface:
+                            if n1_cart[2] == n2_cart[2]:
+                                is_GCA = False
+                        else:
+                            is_GCA = True
+
                     # Insert the endpoints of the edge into the latlonbox, we only need to insert the first point
                     # as the second point will be the first point of the next edge
                     edge_idx = self.face_edge_connectivity.values[face_idx][j]
@@ -1373,8 +1410,12 @@ class Grid:
 
                     # Now let's see if the extreme latitudes of the edge is not the same as the latitudes of the nodes
                     # If it is not, we need to insert the extreme latitudes into the latlonbox
-                    lat_max = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'max')
-                    lat_min = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'min')
+                    if is_GCA:
+                        lat_max = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'max')
+                        lat_min = extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'min')
+                    else:
+                        lat_max = node1_lat_rad
+                        lat_min = node1_lat_rad
 
                     # If the maximum latitude of the edge is not the same as the latitude of the nodes, we need to insert
                     # the maximum latitude into the latlonbox, we can still use the same longitude since it doesn't matter
@@ -1395,7 +1436,7 @@ class Grid:
                             copy.copy(temp_latlon_array[face_idx]),
                             np.array([lat_min, node1_lon_rad]))
 
-                    # If the node is not the same as the extreme latitudes, we insert the node into the latlonbox
+                    # If the node is the same as the extreme latitudes, we insert the node into the latlonbox
                     else:
                         temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(
                             copy.copy(temp_latlon_array[face_idx]), np.array([node1_lat_rad, node1_lon_rad]))
