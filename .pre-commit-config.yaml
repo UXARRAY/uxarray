@@ -22,8 +22,6 @@ repos:
     # Run the linter.
     - id: ruff
       args: [ --fix ]
-      exclude: ".test"
 
     # Run the formatter.
     - id: ruff-format
-      exclude: ".test"
