@@ -1342,7 +1342,9 @@ class Grid:
                                 copy.copy(temp_latlon_array[face_idx]), max_latlon)
                             temp_latlon_array[face_idx][0][0] = -np.pi / 2
 
-                        temp_latlon_array[face_idx][0] = [0.0, 2 * np.pi]
+
+                if is_center_pole:
+                    temp_latlon_array[face_idx][1] = [0.0, 2 * np.pi]
 
 
             else:
