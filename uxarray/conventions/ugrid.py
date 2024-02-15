@@ -257,4 +257,14 @@ CARTESIAN_COORD_NAMES = [
     "face_z",
 ]
 
-CARTESIAN_COORDS = {}
+CARTESIAN_COORDS = {
+    "node_x": {"dims": [NODE_DIM], "attrs": NODE_X_ATTRS},
+    "node_y": {"dims": [NODE_DIM], "attrs": NODE_Y_ATTRS},
+    "node_z": {"dims": [NODE_DIM], "attrs": NODE_Z_ATTRS},
+    "edge_x": {"dims": [EDGE_DIM], "attrs": EDGE_X_ATTRS},
+    "edge_y": {"dims": [EDGE_DIM], "attrs": EDGE_Y_ATTRS},
+    "edge_z": {"dims": [EDGE_DIM], "attrs": EDGE_Z_ATTRS},
+    "face_x": {"dims": [FACE_DIM], "attrs": FACE_X_ATTRS},
+    "face_y": {"dims": [FACE_DIM], "attrs": FACE_Y_ATTRS},
+    "face_z": {"dims": [FACE_DIM], "attrs": FACE_Z_ATTRS},
+}

@@ -10,7 +10,8 @@ def _read_topology(
 ):
     ds = xr.Dataset()
 
-    for coord in ugrid.COORD_NAMES:
+    for coord in ugrid.SPHERICAL_COORD_NAMES:
+        # parse spherical coordinates
         if coord in ["node_lon", "node_lat"] or coord in kwargs:
             if coord == "node_lon":
                 coord_arr = node_lon
@@ -21,11 +22,23 @@ def _read_topology(
 
             ds[coord] = xr.DataArray(
                 data=coord_arr,
-                dims=ugrid.COORDS[coord]["dims"],
-                attrs=ugrid.COORDS[coord]["attrs"],
+                dims=ugrid.SPHERICAL_COORDS[coord]["dims"],
+                attrs=ugrid.SPHERICAL_COORDS[coord]["attrs"],
+            )
+
+    for coord in ugrid.CARTESIAN_COORD_NAMES:
+        # parse cartesian coords
+        if coord in kwargs:
+            coord_arr = kwargs[coord]
+
+            ds[coord] = xr.DataArray(
+                data=coord_arr,
+                dims=ugrid.CARTESIAN_COORDS[coord]["dims"],
+                attrs=ugrid.CARTESIAN_COORDS[coord]["attrs"],
             )
 
     for conn in ugrid.CONNECTIVITY_NAMES:
+        # parse connectivity
         if conn == "face_node_connectivity" or conn in kwargs:
             if conn == "face_node_connectivity":
                 conn_arr = face_node_connectivity
