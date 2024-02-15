@@ -1,6 +1,7 @@
 import numpy as np
 from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_gca_intersection
+from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 import warnings
 
 from numba import njit
@@ -473,6 +474,12 @@ def _get_latlonbox_width(latlonbox_rad):
     lon0, lon1 = latlonbox_rad[1]
 
     # Check longitude range validity
+    # Normalize the longitude so that it is within the range [0, 2π]
+    # Normalize the longitude
+    if lon0 != INT_FILL_VALUE:
+        lon0 = np.mod(lon0, 2 * np.pi)
+    if lon1 != INT_FILL_VALUE:
+        lon1 = np.mod(lon1, 2 * np.pi)
     if (lon0 < 0.0 or lon0 > 2.0 * np.pi) and lon0 != INT_FILL_VALUE:
         raise Exception("lon0 out of range ({} not in [0, 2π])".format(lon0))
 
@@ -523,9 +530,9 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     lat_pt, lon_pt = new_pt
 
-    #Normalize the longitude
+    # Normalize the longitude
     if lon_pt != INT_FILL_VALUE:
-        lon_pt = np.mod(lon_pt, 2*np.pi)
+        lon_pt = np.mod(lon_pt, 2 * np.pi)
 
     # Check if the latitude range is uninitialized and update it
     if old_box[0][0] == old_box[0][1] == INT_FILL_VALUE:
@@ -586,3 +593,221 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
             latlon_box = box_a if d_width_a < d_width_b else box_b
 
     return latlon_box
+
+
+def _populate_face_latlon_bound(
+    face_edges_connectivity_cartesian,
+    face_edges_lonlat_connectivity_rad,
+    is_latlonface: bool = False,
+    is_GCA_list=None,
+):
+    """Populates the bounding box for each face in the grid by evaluating the
+    geographical bounds based on the Cartesian and latitudinal/longitudinal
+    edge connectivity. This function also considers the presence of pole points
+    within the face's bounds and adjusts the bounding box accordingly.
+
+    Parameters
+    ----------
+    face_edges_connectivity_cartesian : np.ndarray, shape (n_edges, 2, 3)
+        An array holding the Cartesian coordinates for the edges of a face, where `n_edges`
+        is the number of edges for the specific face. Each edge is represented by two points
+        (start and end), and each point is a 3D vector (x, y, z) in Cartesian coordinates.
+
+    face_edges_lonlat_connectivity_rad : np.ndarray, shape (n_edges, 2, 2)
+        An array holding the longitude and latitude in radians for the edges of a face,
+        formatted similarly to `face_edges_connectivity_cartesian`. Each edge's start and
+        end points are represented by their longitude and latitude values in radians.
+
+    is_latlonface : bool, optional
+        A flag indicating if the current face is a latitudinal/longitudinal (latlon) face,
+        meaning its edges align with lines of constant latitude or longitude. If `True`,
+        edges are treated as following constant latitudinal or longitudinal lines. If `False`,
+        edges are considered as great circle arcs (GCA). Default is `False`.
+
+    is_GCA_list : list or np.ndarray, optional
+        A list or an array of boolean values corresponding to each edge within the face,
+        indicating whether the edge is a GCA. If `None`, the determination of whether an
+        edge is a GCA or a constant latitudinal/longitudinal line is based on `is_latlonface`.
+        Default is `None`.
+
+    Returns
+    -------
+    face_latlon_array : np.ndarray, shape (2, 2)
+        An array representing the bounding box for the face in latitude and longitude
+        coordinates (in radians). The first row contains the minimum and maximum latitude
+        values, while the second row contains the minimum and maximum longitude values.
+
+    Notes
+    -----
+    This function evaluates the presence of North or South pole points within the face's
+    bounds by inspecting the Cartesian coordinates of the face's edges. It then constructs
+    the face's bounding box by considering the extreme latitude and longitude values found
+    among the face's edges, adjusting for the presence of pole points as necessary.
+
+    The bounding box is used to determine the face's geographical extent and is crucial
+    for spatial analyses involving the grid.
+
+    Example
+    -------
+    Assuming the existence of a grid face with edges defined in both Cartesian and
+    latitudinal/longitudinal coordinates:
+
+        face_edges_connectivity_cartesian = np.array([...])  # Cartesian coords
+        face_edges_connectivity_rad = np.array([...])  # Lon/Lat coords in radians
+
+    Populate the bounding box for the face, treating it as a latlon face:
+
+        face_latlon_bound = _populate_face_latlon_bound(face_edges_connectivity_cartesian,
+                                                        face_edges_lonlat_connectivity_rad,
+                                                        is_latlonface=True)
+    """
+
+    # Check if face_edges contains pole points
+    has_north_pole = _pole_point_inside_polygon(
+        "North", face_edges_connectivity_cartesian
+    )
+    has_south_pole = _pole_point_inside_polygon(
+        "South", face_edges_connectivity_cartesian
+    )
+
+    face_latlon_array = np.full((2, 2), INT_FILL_VALUE, dtype=np.float64)
+
+    if has_north_pole or has_south_pole:
+        # Initial assumption that the pole point is inside the face
+        is_center_pole = True
+
+        # Define the pole point based on the hemisphere
+        pole_point = (
+            np.array([0.0, 0.0, 1.0]) if has_north_pole else np.array([0.0, 0.0, -1.0])
+        )
+        # Pre-defined new point latitude based on the pole
+        new_pt_latlon = np.array(
+            [np.pi / 2 if has_north_pole else -np.pi / 2, INT_FILL_VALUE],
+            dtype=np.float64,
+        )
+
+        for i in range(face_edges_connectivity_cartesian.shape[0]):
+            edge_cart = face_edges_connectivity_cartesian[i]
+            edge_lonlat = face_edges_lonlat_connectivity_rad[i]
+
+            # Skip processing if the edge_cart is marked as a dummy with a fill value
+            if np.any(edge_cart == INT_FILL_VALUE):
+                continue
+
+            # Extract cartesian coordinates of the edge_cart's endpoints
+            n1_cart, n2_cart = edge_cart
+            n1_lonlat, n2_lonlat = edge_lonlat
+
+            # Convert latitudes and longitudes of the nodes to radians
+            node1_lon_rad, node1_lat_rad = n1_lonlat
+
+            # Determine if the edge_cart's extreme latitudes need to be considered using the corrected logic
+            is_GCA = (
+                is_GCA_list[i]
+                if is_GCA_list is not None
+                else not is_latlonface or n1_cart[2] != n2_cart[2]
+            )
+
+            # Check if the node matches the pole point or if the pole point is within the edge_cart
+            if np.allclose(
+                n1_cart, pole_point, atol=ERROR_TOLERANCE
+            ) or point_within_gca(
+                pole_point, np.array([n1_cart, n2_cart]), is_directed=False
+            ):
+                is_center_pole = False
+                face_latlon_array = _insert_pt_in_latlonbox(
+                    face_latlon_array, new_pt_latlon
+                )
+
+            # Insert the current node's lat/lon into the latlonbox
+            face_latlon_array = _insert_pt_in_latlonbox(
+                face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
+            )
+
+            # Determine extreme latitudes for GCA edges
+            lat_max, lat_min = (
+                (
+                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "max"),
+                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "min"),
+                )
+                if is_GCA
+                else (node1_lat_rad, node1_lat_rad)
+            )
+
+            # Insert latitudinal extremes based on pole presence
+            if has_north_pole:
+                face_latlon_array = _insert_pt_in_latlonbox(
+                    face_latlon_array, np.array([lat_min, node1_lon_rad])
+                )
+                face_latlon_array[0][1] = (
+                    np.pi / 2
+                )  # Ensure north pole is the upper latitude bound
+            else:
+                face_latlon_array = _insert_pt_in_latlonbox(
+                    face_latlon_array, np.array([lat_max, node1_lon_rad])
+                )
+                face_latlon_array[0][0] = (
+                    -np.pi / 2
+                )  # Ensure south pole is the lower latitude bound
+
+        # Adjust longitude bounds globally if the pole is centrally inside the polygon
+        if is_center_pole:
+            face_latlon_array[1] = [0.0, 2 * np.pi]
+
+    else:
+        # Normal Face
+        # Iterate through each edge_cart of a face to update the bounding box (latlonbox) with extreme latitudes and longitudes
+        for i in range(face_edges_connectivity_cartesian.shape[0]):
+            edge_cart = face_edges_connectivity_cartesian[i]
+            edge_lonlat = face_edges_lonlat_connectivity_rad[i]
+
+            # Skip processing if the edge_cart is marked as a dummy with a fill value
+            if np.any(edge_cart == INT_FILL_VALUE):
+                continue
+
+            # Extract cartesian coordinates of the edge_cart's endpoints
+            n1_cart, n2_cart = edge_cart
+            n1_lonlat, n2_lonlat = edge_lonlat
+
+            # Convert latitudes and longitudes of the nodes to radians
+            node1_lon_rad, node1_lat_rad = n1_lonlat
+            node2_lon_rad, node2_lat_rad = n2_lonlat
+
+            # Determine if the edge_cart's extreme latitudes need to be considered using the corrected logic
+            is_GCA = (
+                is_GCA_list[i]
+                if is_GCA_list is not None
+                else not is_latlonface or n1_cart[2] != n2_cart[2]
+            )
+
+            lat_max, lat_min = (
+                (
+                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "max"),
+                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "min"),
+                )
+                if is_GCA
+                else (node1_lat_rad, node1_lat_rad)
+            )
+
+            # Insert extreme latitude points into the latlonbox if they differ from the node latitudes
+            if not np.isclose(
+                node1_lat_rad, lat_max, atol=ERROR_TOLERANCE
+            ) and not np.isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
+                # Insert the maximum latitude
+                face_latlon_array = _insert_pt_in_latlonbox(
+                    face_latlon_array, np.array([lat_max, node1_lon_rad])
+                )
+            elif not np.isclose(
+                node1_lat_rad, lat_min, atol=ERROR_TOLERANCE
+            ) and not np.isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
+                # Insert the minimum latitude
+                face_latlon_array = _insert_pt_in_latlonbox(
+                    face_latlon_array, np.array([lat_min, node1_lon_rad])
+                )
+            else:
+                # Insert the node's latitude and longitude as it matches the extreme latitudes
+                face_latlon_array = _insert_pt_in_latlonbox(
+                    face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
+                )
+
+    return face_latlon_array

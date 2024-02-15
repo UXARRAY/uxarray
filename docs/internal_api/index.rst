@@ -118,6 +118,13 @@ Connectivity
    grid.connectivity._populate_edge_face_connectivity
    grid.connectivity._populate_n_nodes_per_face
 
+Bounding Box
+------------
+.. autosummary::
+   :toctree: generated/
+
+   grid.grid._populate_bounds
+
 Geometry
 --------
 .. autosummary::
@@ -138,6 +145,7 @@ Geometry
    grid.geometry._check_intersection
    grid.geometry._get_latlonbox_width
    grid.geometry._insert_pt_in_latlonbox
+   grid.geometry._populate_face_latlon_bound
 
 Coordinates
 -----------
@@ -172,6 +180,7 @@ Utils
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
    grid.utils._get_cartesiain_face_edge_nodes
+   grid.utils._get_lonlat_rad_face_edge_nodes
 
 
 

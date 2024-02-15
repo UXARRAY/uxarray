@@ -271,6 +271,7 @@ Grid Descriptors
 
    Grid.face_areas
    Grid.antimeridian_face_indices
+   Grid.bounds
 
 
 Attributes

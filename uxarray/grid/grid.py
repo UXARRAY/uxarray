@@ -34,8 +34,7 @@ from uxarray.grid.geometry import (
     _grid_to_polygon_geodataframe,
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
-    _pole_point_inside_polygon,
-    _insert_pt_in_latlonbox
+    _populate_face_latlon_bound,
 )
 
 from uxarray.grid.neighbors import (
@@ -55,22 +54,18 @@ from uxarray.grid.validation import (
     _check_area,
 )
 
-from uxarray.grid.arcs import (
-    extreme_gca_latitude,
-    point_within_gca,
+from uxarray.grid.utils import (
+    _get_cartesian_face_edge_nodes,
+    _get_lonlat_rad_face_edge_nodes,
 )
-
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
 
-from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 import pandas as pd
-
-import copy
 
 
 class Grid:
@@ -114,10 +109,10 @@ class Grid:
     """
 
     def __init__(
-            self,
-            grid_ds: xr.Dataset,
-            source_grid_spec: Optional[str] = None,
-            source_dims_dict: Optional[dict] = {},
+        self,
+        grid_ds: xr.Dataset,
+        source_grid_spec: Optional[str] = None,
+        source_dims_dict: Optional[dict] = {},
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
@@ -174,7 +169,7 @@ class Grid:
 
     @classmethod
     def from_dataset(
-            cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
+        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
     ):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
@@ -218,9 +213,9 @@ class Grid:
 
     @classmethod
     def from_face_vertices(
-            cls,
-            face_vertices: Union[list, tuple, np.ndarray],
-            latlon: Optional[bool] = True,
+        cls,
+        face_vertices: Union[list, tuple, np.ndarray],
+        latlon: Optional[bool] = True,
     ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
@@ -363,14 +358,14 @@ class Grid:
             )
 
         return (
-                prefix
-                + original_grid_str
-                + dims_heading
-                + dims_str
-                + coord_heading
-                + coords_str
-                + connectivity_heading
-                + connectivity_str
+            prefix
+            + original_grid_str
+            + dims_heading
+            + dims_str
+            + coord_heading
+            + coords_str
+            + connectivity_heading
+            + connectivity_str
         )
 
     def __eq__(self, other) -> bool:
@@ -394,7 +389,7 @@ class Grid:
             return False
 
         if not (
-                self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
+            self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
         ):
             return False
 
@@ -818,11 +813,10 @@ class Grid:
 
     @property
     def bounds(self):
-        """TODO: This property will access the bounding box of each face in the grid."""
-
-        # if self._bounds is None:
-        #   self._bounds = _populate_bounds(self)
-        # return self._bounds
+        """Declare bounds as a property."""
+        if self._bounds is None:
+            self._bounds = self._populate_bounds()
+        return self._bounds
 
     # ==================================================================================================================
     @property
@@ -834,11 +828,11 @@ class Grid:
         return self._face_jacobian
 
     def get_ball_tree(
-            self,
-            coordinates: Optional[str] = "nodes",
-            coordinate_system: Optional[str] = "spherical",
-            distance_metric: Optional[str] = "haversine",
-            reconstruct: bool = False,
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "spherical",
+        distance_metric: Optional[str] = "haversine",
+        reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the
@@ -881,11 +875,11 @@ class Grid:
         return self._ball_tree
 
     def get_kd_tree(
-            self,
-            coordinates: Optional[str] = "nodes",
-            coordinate_system: Optional[str] = "cartesian",
-            distance_metric: Optional[str] = "minkowski",
-            reconstruct: bool = False,
+        self,
+        coordinates: Optional[str] = "nodes",
+        coordinate_system: Optional[str] = "cartesian",
+        distance_metric: Optional[str] = "minkowski",
+        reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the
@@ -977,7 +971,7 @@ class Grid:
         return out_ds
 
     def calculate_total_face_area(
-            self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1000,10 +994,10 @@ class Grid:
         return np.sum(face_areas)
 
     def compute_face_areas(
-            self,
-            quadrature_rule: Optional[str] = "triangular",
-            order: Optional[int] = 4,
-            latlon: Optional[bool] = True,
+        self,
+        quadrature_rule: Optional[str] = "triangular",
+        order: Optional[int] = 4,
+        latlon: Optional[bool] = True,
     ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -1084,10 +1078,10 @@ class Grid:
         return self._face_areas, self._face_jacobian
 
     def to_geodataframe(
-            self,
-            override: Optional[bool] = False,
-            cache: Optional[bool] = True,
-            exclude_antimeridian: Optional[bool] = False,
+        self,
+        override: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        exclude_antimeridian: Optional[bool] = False,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -1132,10 +1126,10 @@ class Grid:
         return gdf
 
     def to_polycollection(
-            self,
-            override: Optional[bool] = False,
-            cache: Optional[bool] = True,
-            correct_antimeridian_polygons: Optional[bool] = True,
+        self,
+        override: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        correct_antimeridian_polygons: Optional[bool] = True,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection`` object with
         polygons representing the geometry of the unstructured grid, with
@@ -1172,7 +1166,7 @@ class Grid:
         return poly_collection, corrected_to_original_faces
 
     def to_linecollection(
-            self, override: Optional[bool] = False, cache: Optional[bool] = True
+        self, override: Optional[bool] = False, cache: Optional[bool] = True
     ):
         """Constructs a ``matplotlib.collections.LineCollection`` object with
         line segments representing the geometry of the unstructured grid,
@@ -1242,11 +1236,11 @@ class Grid:
             )
 
     def _populate_bounds(self, is_latlonface: bool = False, is_face_GCA_list=None):
-        """
-        Populates the bounds of the grid based on the geometry of its faces, taking into
-        account special conditions such as faces crossing the antimeridian or containing
-        pole points. This method updates the grid's internal representation to include
-        accurate bounds for each face.
+        """Populates the bounds of the grid based on the geometry of its faces,
+        taking into account special conditions such as faces crossing the
+        antimeridian or containing pole points. This method updates the grid's
+        internal representation to include accurate bounds for each face,
+        returned as a DataArray with detailed attributes.
 
         Parameters
         ----------
@@ -1263,10 +1257,24 @@ class Grid:
             nature of each edge (GCA or constant latitude line) in a face. This parameter allows
             for mixed face types within the grid by specifying the edge type at the face level.
             If None, all edges are considered as GCA. This parameter, if provided, will overwrite
-            the `is_latlonface` attribute for specific faces. Example for a single face would be
-            [[True, False, True, False]], and this pattern is repeated `n_face` times to match
-            the number of faces in the grid.
-            Default is None.
+            the `is_latlonface` attribute for specific faces. Default is None.
+
+        Returns
+        -------
+        xr.DataArray
+            A DataArray containing the latitude and longitude bounds for each face in the grid,
+            expressed in radians. The array has dimensions ["n_face", "Two", "Two"], where "Two"
+            is a literal dimension name indicating two bounds (min and max) for each of latitude
+            and longitude. The DataArray includes attributes detailing its purpose and the mapping
+            of latitude intervals to face indices.
+
+            Attributes include:
+            - `cf_role`: Describes the role of the DataArray, here indicating face latitude bounds.
+            - `_FillValue`: The fill value used in the array, indicating uninitialized or missing data.
+            - `long_name`: A descriptive name for the DataArray.
+            - `start_index`: The starting index for face indices in the grid.
+            - `latitude_intervalsIndex`: An IntervalIndex indicating the latitude intervals.
+            - `latitude_intervals_name_map`: A DataFrame mapping the latitude intervals to face indices.
 
         Example
         -------
@@ -1280,10 +1288,9 @@ class Grid:
         After defining these faces, you can create a grid and populate its bounds by treating all faces as latlon faces:
 
             grid = ux.Grid.from_face_vertices([face_1, face_2, face_3, face_4], latlon=True)
-            grid._populate_bounds(is_latlonface=True)
+            bounds_dataarray = grid._populate_bounds(is_latlonface=True)
 
-        This will calculate and store the bounds for each face within the grid, adjusting for any special conditions such as crossing the antimeridian.
-
+        This will calculate and store the bounds for each face within the grid, adjusting for any special conditions such as crossing the antimeridian, and return them as a DataArray.
         """
 
         if self.edge_node_connectivity is None:
@@ -1292,10 +1299,9 @@ class Grid:
         if self.face_edge_connectivity is None:
             _populate_face_edge_connectivity(self)
 
-        temp_latlon_array = np.full((self.n_face, 2, 2), INT_FILL_VALUE, dtype=np.float64)
-
-        intervals_tuple_list = []
-        intervals_name_list = []
+        temp_latlon_array = np.full(
+            (self.n_face, 2, 2), INT_FILL_VALUE, dtype=np.float64
+        )
 
         # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
         # between the intervals and the face indices
@@ -1306,124 +1312,37 @@ class Grid:
             face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
                 self.face_node_connectivity.values[face_idx],
                 self.face_edge_connectivity.values[face_idx],
-                self.edge_node_connectivity.values, self.node_x.values,
-                self.node_y.values, self.node_z.values)
+                self.edge_node_connectivity.values,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
 
-            # Check if face_edges contains pole points
-            has_north_pole = _pole_point_inside_polygon('North', face_edges_connectivity_cartesian)
-            has_south_pole = _pole_point_inside_polygon('South', face_edges_connectivity_cartesian)
+            face_edges_connectivity_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+                self.face_node_connectivity.values[face_idx],
+                self.face_edge_connectivity.values[face_idx],
+                self.edge_node_connectivity.values,
+                self.node_lon.values,
+                self.node_lat.values,
+            )
 
-            if has_north_pole or has_south_pole:
-                # Initial assumption that the pole point is inside the face
-                is_center_pole = True
+            is_GCA_list = (
+                is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None
+            )
 
-                # Define the pole point based on the hemisphere
-                pole_point = np.array([0.0, 0.0, 1.0]) if has_north_pole else np.array([0.0, 0.0, -1.0])
-                # Pre-defined new point latitude based on the pole
-                new_pt_latlon = np.array([np.pi / 2 if has_north_pole else -np.pi / 2, INT_FILL_VALUE],
-                                         dtype=np.float64)
+            temp_latlon_array[face_idx] = _populate_face_latlon_bound(
+                face_edges_connectivity_cartesian,
+                face_edges_connectivity_lonlat_rad,
+                is_latlonface=is_latlonface,
+                is_GCA_list=is_GCA_list,
+            )
 
-                for j in range(face_edges_connectivity_cartesian.shape[0]):
-                    edge = face_edges_connectivity_cartesian[j]
-
-                    # Skip the dummy edge
-                    if np.any(edge == INT_FILL_VALUE):
-                        continue
-
-                    n1_cart, n2_cart = edge  # Cartesian coordinates of the edge's first point
-
-                    # Determine if the edge's extreme latitudes need to be considered using the corrected logic
-                    is_GCA = is_face_GCA_list[face_idx][j] if is_face_GCA_list is not None else not is_latlonface or \
-                                                                                                n1_cart[2] != n2_cart[2]
-
-                    # Retrieve edge and node indices for lat/lon conversion
-                    edge_idx = self.face_edge_connectivity.values[face_idx][j]
-                    node_1_idx, node_2_idx = self.edge_node_connectivity.values[edge_idx][0], \
-                    self.edge_node_connectivity.values[edge_idx][1]
-                    node1_lat_rad, node1_lon_rad = np.deg2rad(
-                        [self.node_lat.values[node_1_idx], self.node_lon.values[node_1_idx]])
-
-                    # Check if the node matches the pole point or if the pole point is within the edge
-                    if np.allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(pole_point, np.array(
-                            [n1_cart, n2_cart]), is_directed=False):
-                        is_center_pole = False
-                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(temp_latlon_array[face_idx],
-                                                                              new_pt_latlon)
-
-                    # Insert the current node's lat/lon into the latlonbox
-                    temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(temp_latlon_array[face_idx],
-                                                                          np.array([node1_lat_rad, node1_lon_rad]))
-
-
-                    # Determine extreme latitudes for GCA edges
-                    lat_max, lat_min = (extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'max'),
-                                        extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'min')) if is_GCA else (
-                        node1_lat_rad, node1_lat_rad)
-
-                    # Insert latitudinal extremes based on pole presence
-                    if has_north_pole:
-                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(temp_latlon_array[face_idx],
-                                                                              np.array([lat_min, node1_lon_rad]))
-                        temp_latlon_array[face_idx][0][1] = np.pi / 2  # Ensure north pole is the upper latitude bound
-                    else:
-                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(temp_latlon_array[face_idx],
-                                                                              np.array([lat_max, node1_lon_rad]))
-                        temp_latlon_array[face_idx][0][0] = -np.pi / 2  # Ensure south pole is the lower latitude bound
-
-                # Adjust longitude bounds globally if the pole is centrally inside the polygon
-                if is_center_pole:
-                    temp_latlon_array[face_idx][1] = [0.0, 2 * np.pi]
-
-            else:
-                # Normal Face
-                # Iterate through each edge of a face to update the bounding box (latlonbox) with extreme latitudes and longitudes
-                for j in range(face_edges_connectivity_cartesian.shape[0]):
-                    edge = face_edges_connectivity_cartesian[j]
-
-                    # Skip processing if the edge is marked as a dummy with a fill value
-                    if np.any(edge == INT_FILL_VALUE):
-                        continue
-
-                    # Extract cartesian coordinates of the edge's endpoints
-                    n1_cart, n2_cart = edge
-
-                    # Determine indices for the endpoints of the edge from connectivity matrices
-                    edge_idx = self.face_edge_connectivity.values[face_idx][j]
-                    node_1_idx, node_2_idx = self.edge_node_connectivity.values[edge_idx]
-
-                    # Convert latitudes and longitudes of the nodes to radians
-                    node1_lat_rad, node1_lon_rad = np.deg2rad(
-                        [self.node_lat.values[node_1_idx], self.node_lon.values[node_1_idx]])
-                    node2_lat_rad = np.deg2rad(self.node_lat.values[node_2_idx])
-
-                    # Determine if the edge's extreme latitudes need to be considered using the corrected logic
-                    is_GCA = is_face_GCA_list[face_idx][j] if is_face_GCA_list is not None else not is_latlonface or \
-                                                                                                n1_cart[2] != n2_cart[2]
-
-                    lat_max, lat_min = (extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'max'),
-                                        extreme_gca_latitude(np.array([n1_cart, n2_cart]), 'min')) if is_GCA else (
-                    node1_lat_rad, node1_lat_rad)
-
-                    # Insert extreme latitude points into the latlonbox if they differ from the node latitudes
-                    if not np.isclose(node1_lat_rad, lat_max, atol=ERROR_TOLERANCE) and not np.isclose(node2_lat_rad,
-                                                                                                       lat_max,
-                                                                                                       atol=ERROR_TOLERANCE):
-                        # Insert the maximum latitude
-                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(temp_latlon_array[face_idx],
-                                                                              np.array([lat_max, node1_lon_rad]))
-                    elif not np.isclose(node1_lat_rad, lat_min, atol=ERROR_TOLERANCE) and not np.isclose(node2_lat_rad,
-                                                                                                         lat_min,
-                                                                                                         atol=ERROR_TOLERANCE):
-                        # Insert the minimum latitude
-                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(temp_latlon_array[face_idx],
-                                                                              np.array([lat_min, node1_lon_rad]))
-                    else:
-                        # Insert the node's latitude and longitude as it matches the extreme latitudes
-                        temp_latlon_array[face_idx] = _insert_pt_in_latlonbox(temp_latlon_array[face_idx],
-                                                                              np.array([node1_lat_rad, node1_lon_rad]))
-
-            assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
-            assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
+            assert (
+                temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
+            )
+            assert (
+                temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
+            )
             lat_array = temp_latlon_array[face_idx][0]
 
             # Now store the latitude intervals in the tuples
@@ -1432,8 +1351,22 @@ class Grid:
 
         # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
         # between the intervals and the face indices
-        intervalsIndex = pd.IntervalIndex.from_tuples(intervals_tuple_list, closed='both')
-        df_intervals_map = pd.DataFrame(index=intervalsIndex, data=intervals_name_list, columns=['face_id'])
-        self._bounds = temp_latlon_array
-        self._latitude_intervalsIndex = intervalsIndex
-        self._latitude_intervals_name_map = df_intervals_map
+        intervalsIndex = pd.IntervalIndex.from_tuples(
+            intervals_tuple_list, closed="both"
+        )
+        df_intervals_map = pd.DataFrame(
+            index=intervalsIndex, data=intervals_name_list, columns=["face_id"]
+        )
+
+        return xr.DataArray(
+            temp_latlon_array,
+            dims=["n_face", "Two", "Two"],
+            attrs={
+                "cf_role": "face_latitude_bounds",
+                "_FillValue": INT_FILL_VALUE,
+                "long_name": "Provides the latitude and longitude bounds for each face in the grid in radian",
+                "start_index": INT_DTYPE(0),
+                "latitude_intervalsIndex": intervalsIndex,
+                "latitude_intervals_name_map": df_intervals_map,
+            },
+        )

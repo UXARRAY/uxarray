@@ -9,6 +9,10 @@ from pathlib import Path
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
+from uxarray.grid.coordinates import _populate_lonlat_coord, node_lonlat_rad_to_xyz
+from uxarray.grid.arcs import extreme_gca_latitude
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
+from uxarray.grid.geometry import _populate_face_latlon_bound
 
 from spatialpandas.geometry import MultiPolygon
 
@@ -157,7 +161,7 @@ class TestPredicate(TestCase):
         self.assertTrue(result, "North pole should be inside the polygon")
 
 
-class TestLatlonBound(TestCase):
+class TestLatlonBoundUtils(TestCase):
 
     def _max_latitude_rad_iterative(self, gca_cart):
         """Calculate the maximum latitude of a great circle arc defined by two
@@ -427,6 +431,431 @@ class TestLatlonBound(TestCase):
         result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt)
         np.testing.assert_array_equal(result, expected)
 
+
+
+class TestLatlonBoundsGCA(TestCase):
+    def test_populate_bounds_normal(self):
+        # Generate a normal face that is not crossing the antimeridian or the poles
+        vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = max(np.deg2rad(60.0),
+                      extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
+        lat_min = min(np.deg2rad(10.0),
+                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+        lon_min = np.deg2rad(10.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_antimeridian(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = max(np.deg2rad(60.0),
+                      extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
+        lat_min = min(np.deg2rad(10.0),
+                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+        lon_min = np.deg2rad(350.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_node_on_pole(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = min(np.deg2rad(10.0),
+                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+        lon_min = np.deg2rad(10.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_edge_over_pole(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = min(np.deg2rad(60.0),
+                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+        lon_min = np.deg2rad(210.0)
+        lon_max = np.deg2rad(30.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_pole_inside(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = min(np.deg2rad(60.0),
+                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+        lon_min = 0
+        lon_max = 2 * np.pi
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+class TestLatlonBoundsLatLonFace(TestCase):
+
+    def test_populate_bounds_normal(self):
+        # Generate a normal face that is not crossing the antimeridian or the poles
+        vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        lat_max = np.deg2rad(60.0)
+        lat_min = np.deg2rad(10.0)
+        lon_min = np.deg2rad(10.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_latlonface=True)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_antimeridian(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        lat_max = np.deg2rad(60.0)
+        lat_min = np.deg2rad(10.0)
+        lon_min = np.deg2rad(350.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_latlonface=True)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_node_on_pole(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        lat_max = np.pi / 2
+        lat_min = np.deg2rad(10.0)
+        lon_min = np.deg2rad(10.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_latlonface=True)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_edge_over_pole(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = np.deg2rad(60.0)
+        lon_min = np.deg2rad(210.0)
+        lon_max = np.deg2rad(30.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_latlonface=True)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_pole_inside(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = np.deg2rad(60.0)
+        lon_min = 0
+        lon_max = 2 * np.pi
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_latlonface=True)
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+class TestLatlonBoundsGCAList(TestCase):
+
+    def test_populate_bounds_normal(self):
+        # Generate a normal face that is not crossing the antimeridian or the poles
+        vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        lat_max = np.deg2rad(60.0)
+        lat_min = np.deg2rad(10.0)
+        lon_min = np.deg2rad(10.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_GCA_list=[True, False, True, False])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_antimeridian(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.deg2rad(60.0)
+        lat_min = np.deg2rad(10.0)
+        lon_min = np.deg2rad(350.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_GCA_list=[True, False, True, False])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_node_on_pole(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = np.deg2rad(10.0)
+        lon_min = np.deg2rad(10.0)
+        lon_max = np.deg2rad(50.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_GCA_list=[True, False, True, False])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_edge_over_pole(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = np.deg2rad(60.0)
+        lon_min = np.deg2rad(210.0)
+        lon_max = np.deg2rad(30.0)
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_GCA_list=[True, False, True, False])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_pole_inside(self):
+        # Generate a normal face that is crossing the antimeridian
+        vertices_lonlat = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Convert everything into radians
+        vertices_rad = np.radians(vertices_lonlat)
+        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        lat_max = np.pi / 2
+        lat_min = np.deg2rad(60.0)
+        lon_min = 0
+        lon_max = 2 * np.pi
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+        expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+        bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                             is_GCA_list=[True, False, True, False])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
 class TestGeoDataFrame(TestCase):
 
