@@ -65,23 +65,59 @@ FACE_LAT_ATTRS = {
 }
 
 # coordinates (cartesian)
-NODE_X_ATTRS = {"standard_name": "x", "long name": "TODO", "units": "meters"}
+NODE_X_ATTRS = {
+    "standard_name": "x",
+    "long name": "x location of the corner nodes of each face ",
+    "units": "meters",
+}
 
-NODE_Y_ATTRS = {"standard_name": "y", "long name": "TODO", "units": "meters"}
+NODE_Y_ATTRS = {
+    "standard_name": "y",
+    "long name": "y location of the corner nodes of each face",
+    "units": "meters",
+}
 
-NODE_Z_ATTRS = {"standard_name": "z", "long name": "TODO", "units": "meters"}
+NODE_Z_ATTRS = {
+    "standard_name": "z",
+    "long name": "z location of the corner nodes of each face",
+    "units": "meters",
+}
 
-EDGE_X_ATTRS = {"standard_name": "x", "long name": "TODO", "units": "meters"}
+EDGE_X_ATTRS = {
+    "standard_name": "x",
+    "long name": "x location of the center of each edge",
+    "units": "meters",
+}
 
-EDGE_Y_ATTRS = {"standard_name": "y", "long name": "TODO", "units": "meters"}
+EDGE_Y_ATTRS = {
+    "standard_name": "y",
+    "long name": "y location of the center of each edge",
+    "units": "meters",
+}
 
-EDGE_Z_ATTRS = {"standard_name": "z", "long name": "TODO", "units": "meters"}
+EDGE_Z_ATTRS = {
+    "standard_name": "z",
+    "long name": "z location of the center of each edge",
+    "units": "meters",
+}
 
-FACE_X_ATTRS = {"standard_name": "x", "long name": "TODO", "units": "meters"}
+FACE_X_ATTRS = {
+    "standard_name": "x",
+    "long name": "x location of the center of each face",
+    "units": "meters",
+}
 
-FACE_Y_ATTRS = {"standard_name": "y", "long name": "TODO", "units": "meters"}
+FACE_Y_ATTRS = {
+    "standard_name": "y",
+    "long name": "x location of the center of each face",
+    "units": "meters",
+}
 
-FACE_Z_ATTRS = {"standard_name": "z", "long name": "TODO", "units": "meters"}
+FACE_Z_ATTRS = {
+    "standard_name": "z",
+    "long name": "z location of the center of each face",
+    "units": "meters",
+}
 
 # connectivity (face_)
 FACE_NODE_CONNECTIVITY_ATTRS = {
@@ -98,7 +134,10 @@ FACE_EDGE_CONNECTIVITY_ATTRS = {
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
 }
-FACE_EDGE_CONNECTIVITY_DIMS = ["n_face", "n_max_face_nodes"]
+FACE_EDGE_CONNECTIVITY_DIMS = [
+    "n_face",
+    "n_max_face_edges",
+]  # n_max_face_edges equiv to n_max_face_nodes
 
 FACE_FACE_CONNECTIVITY_ATTRS = {
     "cf_role": "face_face_connectivity",
@@ -106,7 +145,10 @@ FACE_FACE_CONNECTIVITY_ATTRS = {
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
 }
-FACE_FACE_CONNECTIVITY_DIMS = ["n_face", "n_max_face_faces"]  # todo: check grid
+FACE_FACE_CONNECTIVITY_DIMS = [
+    "n_face",
+    "n_max_face_faces",
+]  # n_max_face_faces equiv to n_max_face_nodes
 
 # connectivity (edge_)
 EDGE_NODE_CONNECTIVITY_ATTRS = {
@@ -123,7 +165,7 @@ EDGE_EDGE_CONNECTIVITY_ATTRS = {
     "_FillValue": INT_FILL_VALUE,
 }
 
-EDGE_EDGE_CONNECTIVITY_DIMS = ["n_edge", "n_max_edge_edges"]  # todo: check grid
+EDGE_EDGE_CONNECTIVITY_DIMS = ["n_edge", "n_max_edge_edges"]  # n todo
 
 EDGE_FACE_CONNECTIVITY_ATTRS = {
     "cf_role": "edge_face_connectivity",
@@ -131,17 +173,8 @@ EDGE_FACE_CONNECTIVITY_ATTRS = {
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
 }
-EDGE_FACE_CONNECTIVITY_DIMS = ["n_edge", "two"]  # todo: check grid
+EDGE_FACE_CONNECTIVITY_DIMS = ["n_edge", "two"]
 
-# connectivity (node_)
-NODE_NODE_CONNECTIVITY_ATTRS = {
-    "cf_role": "node_node_connectivity",
-    "long name": "Nodes that neighbor each node",
-    "start_index": 0,
-    "_FillValue": INT_FILL_VALUE,
-}
-
-NODE_NODE_CONNECTIVITY_DIMS = ["n_node", "n_max_face_nodes"]  # todo: check grid
 
 NODE_EDGE_CONNECTIVITY_ATTRS = {
     "cf_role": "node_edge_connectivity",
@@ -177,7 +210,6 @@ CONNECTIVITY_NAMES = [
     "edge_node_connectivity",
     "edge_edge_connectivity",
     "edge_face_connectivity",
-    "node_node_connectivity",
     "node_edge_connectivity",
     "node_face_connectivity",
 ]
@@ -207,15 +239,13 @@ CONNECTIVITY = {
         "dims": EDGE_NODE_CONNECTIVITY_DIMS,
         "attrs": EDGE_NODE_CONNECTIVITY_ATTRS,
     },
-    # "edge_edge_connectivity": {"dims":  EDGE_EDGE_CONNECTIVITY_DIMS,
-    #                            "attrs": EDGE_EDGE_CONNECTIVITY_ATTRS},
+    "edge_edge_connectivity": {
+        "dims": EDGE_EDGE_CONNECTIVITY_DIMS,
+        "attrs": EDGE_EDGE_CONNECTIVITY_ATTRS,
+    },
     "edge_face_connectivity": {
         "dims": EDGE_FACE_CONNECTIVITY_DIMS,
         "attrs": EDGE_FACE_CONNECTIVITY_ATTRS,
-    },
-    "node_node_connectivity": {
-        "dims": NODE_NODE_CONNECTIVITY_DIMS,
-        "attrs": NODE_NODE_CONNECTIVITY_ATTRS,
     },
     "node_edge_connectivity": {
         "dims": NODE_EDGE_CONNECTIVITY_DIMS,
