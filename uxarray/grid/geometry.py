@@ -2,7 +2,13 @@ import numpy as np
 from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.utils import (
+    _get_cartesian_face_edge_nodes,
+    _get_lonlat_rad_face_edge_nodes,
+)
 import warnings
+import pandas as pd
+import xarray as xr
 
 from numba import njit
 
@@ -811,3 +817,132 @@ def _populate_face_latlon_bound(
                 )
 
     return face_latlon_array
+
+
+def _populate_bounds(grid, is_latlonface: bool = False, is_face_GCA_list=None):
+    """Populates the bounds of the grid based on the geometry of its faces,
+    taking into account special conditions such as faces crossing the
+    antimeridian or containing pole points. This method updates the grid's
+    internal representation to include accurate bounds for each face, returned
+    as a DataArray with detailed attributes.
+
+    Parameters
+    ----------
+    is_latlonface : bool, optional
+        A global flag that indicates if faces are latlon faces. If True, all faces
+        are treated as latlon faces, meaning that all edges are either longitude or
+        constant latitude lines. If False, all edges are considered as Great Circle Arcs (GCA).
+        Default is False.
+
+    is_face_GCA_list : list or np.ndarray, optional
+        A list or an array of boolean values for each face, indicating whether each edge
+        in that face is a GCA. The shape of the list or array should be (n_faces, n_edges),
+        with each sub-list or sub-array like [True, False, True, False] indicating the
+        nature of each edge (GCA or constant latitude line) in a face. This parameter allows
+        for mixed face types within the grid by specifying the edge type at the face level.
+        If None, all edges are considered as GCA. This parameter, if provided, will overwrite
+        the `is_latlonface` attribute for specific faces. Default is None.
+
+    Returns
+    -------
+    xr.DataArray
+        A DataArray containing the latitude and longitude bounds for each face in the grid,
+        expressed in radians. The array has dimensions ["n_face", "Two", "Two"], where "Two"
+        is a literal dimension name indicating two bounds (min and max) for each of latitude
+        and longitude. The DataArray includes attributes detailing its purpose and the mapping
+        of latitude intervals to face indices.
+
+        Attributes include:
+        - `cf_role`: Describes the role of the DataArray, here indicating face latitude bounds.
+        - `_FillValue`: The fill value used in the array, indicating uninitialized or missing data.
+        - `long_name`: A descriptive name for the DataArray.
+        - `start_index`: The starting index for face indices in the grid.
+        - `latitude_intervalsIndex`: An IntervalIndex indicating the latitude intervals.
+        - `latitude_intervals_name_map`: A DataFrame mapping the latitude intervals to face indices.
+
+    Example
+    -------
+    Consider a scenario where you have four faces on a grid, each defined by vertices in longitude and latitude degrees:
+
+        face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+    After defining these faces, you can create a grid and populate its bounds by treating all faces as latlon faces:
+
+        grid = ux.Grid.from_face_vertices([face_1, face_2, face_3, face_4], latlon=True)
+        bounds_dataarray = grid._populate_bounds(is_latlonface=True)
+
+    This will calculate and store the bounds for each face within the grid, adjusting for any special conditions such as crossing the antimeridian, and return them as a DataArray.
+    """
+
+    if grid.edge_node_connectivity is None:
+        grid._populate_edge_node_connectivity()
+
+    if grid.face_edge_connectivity is None:
+        grid._populate_face_edge_connectivity()
+
+    temp_latlon_array = np.full((grid.n_face, 2, 2), INT_FILL_VALUE, dtype=np.float64)
+
+    # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
+    # between the intervals and the face indices
+    intervals_tuple_list = []
+    intervals_name_list = []
+
+    for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values[face_idx],
+            grid.face_edge_connectivity.values[face_idx],
+            grid.edge_node_connectivity.values,
+            grid.node_x.values,
+            grid.node_y.values,
+            grid.node_z.values,
+        )
+
+        face_edges_connectivity_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[face_idx],
+            grid.face_edge_connectivity.values[face_idx],
+            grid.edge_node_connectivity.values,
+            grid.node_lon.values,
+            grid.node_lat.values,
+        )
+
+        is_GCA_list = (
+            is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None
+        )
+
+        temp_latlon_array[face_idx] = _populate_face_latlon_bound(
+            face_edges_connectivity_cartesian,
+            face_edges_connectivity_lonlat_rad,
+            is_latlonface=is_latlonface,
+            is_GCA_list=is_GCA_list,
+        )
+
+        assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
+        assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
+        lat_array = temp_latlon_array[face_idx][0]
+
+        # Now store the latitude intervals in the tuples
+        intervals_tuple_list.append((lat_array[0], lat_array[1]))
+        intervals_name_list.append(face_idx)
+
+    # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
+    # between the intervals and the face indices
+    intervalsIndex = pd.IntervalIndex.from_tuples(intervals_tuple_list, closed="both")
+    df_intervals_map = pd.DataFrame(
+        index=intervalsIndex, data=intervals_name_list, columns=["face_id"]
+    )
+
+    return xr.DataArray(
+        temp_latlon_array,
+        dims=["n_face", "Two", "Two"],
+        attrs={
+            "cf_role": "face_latitude_bounds",
+            "_FillValue": INT_FILL_VALUE,
+            "long_name": "Provides the latitude and longitude bounds for each face in the grid in radian",
+            "start_index": INT_DTYPE(0),
+            "latitude_intervalsIndex": intervalsIndex,
+            "latitude_intervals_name_map": df_intervals_map,
+        },
+    )

@@ -944,46 +944,7 @@ class TestLatlonBounds(TestCase):
 
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = grid._populate_bounds()
-        face_bounds = bounds_xarray.values
-        for i in range(len(faces)):
-            nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
-
-    def test_populate_bounds_LatlonFace_mix(self):
-        face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
-        face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
-        face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
-        face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
-
-        faces = [face_1, face_2, face_3, face_4]
-
-        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(10.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(350.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(60.0), np.pi/2],[np.deg2rad(210.0), np.deg2rad(30.0)]],
-                           [[np.deg2rad(60.0),np.pi/2],[0.,        2*np.pi]]]
-
-
-        grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = grid._populate_bounds(is_latlonface=True)
-        face_bounds = bounds_xarray.values
-        for i in range(len(faces)):
-            nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
-
-    def test_populate_bounds_GCAList_mix(self):
-        face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
-        face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
-        face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
-        face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
-
-        faces = [face_1, face_2, face_3, face_4]
-
-        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(10.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(350.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(60.0), np.pi/2],[np.deg2rad(210.0), np.deg2rad(30.0)]],
-                           [[np.deg2rad(60.0),np.pi/2],[0.,        2*np.pi]]]
-
-        grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = grid._populate_bounds(is_face_GCA_list=[[True, False, True, False]]*4)
+        bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)

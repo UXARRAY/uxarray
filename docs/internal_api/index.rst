@@ -118,12 +118,6 @@ Connectivity
    grid.connectivity._populate_edge_face_connectivity
    grid.connectivity._populate_n_nodes_per_face
 
-Bounding Box
-------------
-.. autosummary::
-   :toctree: generated/
-
-   grid.grid._populate_bounds
 
 Geometry
 --------
@@ -146,6 +140,7 @@ Geometry
    grid.geometry._get_latlonbox_width
    grid.geometry._insert_pt_in_latlonbox
    grid.geometry._populate_face_latlon_bound
+   grid.geometry._populate_bounds
 
 Coordinates
 -----------

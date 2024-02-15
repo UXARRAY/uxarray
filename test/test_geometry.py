@@ -12,7 +12,7 @@ import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_lonlat_coord, node_lonlat_rad_to_xyz
 from uxarray.grid.arcs import extreme_gca_latitude
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
-from uxarray.grid.geometry import _populate_face_latlon_bound
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds
 
 from spatialpandas.geometry import MultiPolygon
 
@@ -857,6 +857,65 @@ class TestLatlonBoundsGCAList(TestCase):
                                              is_GCA_list=[True, False, True, False])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
+class TestLatlonBoundsMix(TestCase):
+    def test_populate_bounds_GCA_mix(self):
+        face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+        faces = [face_1, face_2, face_3, face_4]
+
+        expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
+                           [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
+                           [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
+                           [[1.04719755,1.57079633],[0.,         6.28318531]]]
+
+
+        grid = ux.Grid.from_face_vertices(faces, latlon=True)
+        bounds_xarray = _populate_bounds(grid)
+        face_bounds = bounds_xarray.values
+        for i in range(len(faces)):
+            nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_LatlonFace_mix(self):
+        face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+        faces = [face_1, face_2, face_3, face_4]
+
+        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(10.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(350.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(60.0), np.pi/2],[np.deg2rad(210.0), np.deg2rad(30.0)]],
+                           [[np.deg2rad(60.0),np.pi/2],[0.,        2*np.pi]]]
+
+
+        grid = ux.Grid.from_face_vertices(faces, latlon=True)
+        bounds_xarray = _populate_bounds(grid,is_latlonface=True)
+        face_bounds = bounds_xarray.values
+        for i in range(len(faces)):
+            nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_GCAList_mix(self):
+        face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+        faces = [face_1, face_2, face_3, face_4]
+
+        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(10.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(350.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(60.0), np.pi/2],[np.deg2rad(210.0), np.deg2rad(30.0)]],
+                           [[np.deg2rad(60.0),np.pi/2],[0.,        2*np.pi]]]
+
+        grid = ux.Grid.from_face_vertices(faces, latlon=True)
+        bounds_xarray = _populate_bounds(grid,is_face_GCA_list=[[True, False, True, False]]*4)
+        face_bounds = bounds_xarray.values
+        for i in range(len(faces)):
+            nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
 class TestGeoDataFrame(TestCase):
 
     def test_to_gdf(self):
