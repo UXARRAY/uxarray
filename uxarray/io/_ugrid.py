@@ -7,110 +7,73 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 import uxarray.conventions.ugrid as ugrid
 
 
-def _read_ugrid(xr_ds):
-    """UGRID file reader.
+def _read_ugrid(ds):
+    """TODO:"""
 
-    Parameters: xarray.Dataset, required
-    Returns: ugrid aware xarray.Dataset
-    """
-
-    source_dims_dict = {}
-    # TODO: obtain and change to Mesh2 construct, see Issue #27
-
-    # get the data variable name that has attribute "cf_role" set to "mesh_topology"
-    # this is the base xarray.DataArray name
-    base_xarray_var = list(xr_ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
-    # TODO: Allow for parsing datasets with more than just coordinates and face nodes
-
-    xr_ds = xr_ds.rename({base_xarray_var: "Mesh2"})
-
-    # map and rename coordinates
-    coord_names = xr_ds["Mesh2"].node_coordinates.split()
-    if len(coord_names) == 1:
-        xr_ds = xr_ds.rename({coord_names[0]: "node_lon"})
-    elif len(coord_names) == 2:
-        xr_ds = xr_ds.rename({coord_names[0]: "node_lon", coord_names[1]: "node_lat"})
-    # map and rename dimensions
-    coord_dim_name = xr_ds["node_lon"].dims
-
-    xr_ds = xr_ds.rename({coord_dim_name[0]: "n_node"})
-
-    face_node_names = xr_ds["Mesh2"].face_node_connectivity.split()
-
-    face_node_name = face_node_names[0]
-    xr_ds = xr_ds.rename({xr_ds[face_node_name].name: "face_node_connectivity"})
-
-    xr_ds = xr_ds.rename(
-        {
-            xr_ds["face_node_connectivity"].dims[0]: "n_face",
-            xr_ds["face_node_connectivity"].dims[1]: "n_max_face_nodes",
-        }
-    )
-
-    xr_ds = xr_ds.set_coords(["node_lon", "node_lat"])
-
-    # standardize fill values and data type for face nodes
-    xr_ds = _standardize_fill_values(xr_ds)
-
-    # populate source dimensions
-    source_dims_dict[coord_dim_name[0]] = "n_node"
-    source_dims_dict[xr_ds["face_node_connectivity"].dims[0]] = "n_face"
-    source_dims_dict[xr_ds["face_node_connectivity"].dims[1]] = "n_max_face_nodes"
-
-    return xr_ds, source_dims_dict
-
-
-def tmp_read_ugrid(ds):
-    # source_dims_dict = {}
-
-    # --- Grid Topology
+    # Grid Topology
     grid_topology_name = list(ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
     ds = ds.rename({grid_topology_name: "grid_topology"})
 
-    # --- Rename Core Dims (node, edge, face)
-    dim_dict = {
-        ds["grid_topology"].node_dimension: ugrid.NODE_DIM,
-        ds["grid_topology"].face_dimension: ugrid.FACE_DIM,
-    }
+    # Coordinates
 
-    if "edge_dimension" in ds["grid_topology"]:
-        dim_dict[ds["grid_topology"].edge_dimension] = ugrid.EDGE_DIM
-
-    ds = ds.swap_dims(dim_dict)
-
-    # --- Coordinates
+    # get the names of node_lon and node_lat
     node_lon_name, node_lat_name = ds["grid_topology"].node_coordinates.split()
-
     coord_dict = {
         node_lon_name: ugrid.NODE_COORDINATES[0],
         node_lat_name: ugrid.NODE_COORDINATES[1],
     }
 
     if "edge_coordinates" in ds["grid_topology"]:
+        # get the names of edge_lon and edge_lat, if they exist
         edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
         coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
         coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
 
     if "face_coordinates" in ds["grid_topology"]:
+        # get the names of face_lon and face_lat, if they exist
         face_lon_name, face_lat_name = ds["grid_topology"].edge_coordinates.split()
         coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
         coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
 
     ds = ds.rename(coord_dict)
-
-    # --- Connectivity
+    # Connectivity
 
     conn_dict = {}
     for conn_name in ugrid.CONNECTIVITY_NAMES:
-        orig_conn_name = list(ds.filter_by_attrs(cf_role=conn_name).keys())[0]
-        conn_dict[orig_conn_name] = conn_name
+        if len(ds.filter_by_attrs(cf_role=conn_name).keys()):
+            orig_conn_name = list(ds.filter_by_attrs(cf_role=conn_name).keys())[0]
+            conn_dict[orig_conn_name] = conn_name
 
     ds = ds.rename(conn_dict)
 
     for conn_name in conn_dict.values():
-        pass
+        ds = _standardize_connectivity(ds, conn_name)
 
-    pass
+    dim_dict = {}
+
+    # Rename Core Dims (node, edge, face)
+    if "node_dimension" in ds["grid_topology"]:
+        dim_dict[ds["grid_topology"].node_dimension] = ugrid.NODE_DIM
+    else:
+        dim_dict[ds["node_lon"].dims[0]] = ugrid.NODE_DIM
+
+    if "face_dimension" in ds["grid_topology"]:
+        dim_dict[ds["grid_topology"].face_dimension] = ugrid.FACE_DIM
+    else:
+        dim_dict[ds["face_node_connectivity"].dims[0]] = ugrid.FACE_DIM
+
+    if "edge_dimension" in ds["grid_topology"]:
+        # edge dimension is not always provided
+        dim_dict[ds["grid_topology"].edge_dimension] = ugrid.EDGE_DIM
+    else:
+        if "edge_lon" in ds:
+            dim_dict[ds["edge_lon"].dims[0]] = ugrid.EDGE_DIM
+
+    dim_dict[ds["face_node_connectivity"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
+
+    ds = ds.swap_dims(dim_dict)
+
+    return ds, dim_dict
 
 
 def _encode_ugrid(ds):
@@ -125,8 +88,9 @@ def _encode_ugrid(ds):
     return ds
 
 
-def _standardize_fill_values(ds):
-    """Standardizes the fill values and data type of index variables.
+def _standardize_connectivity(ds, conn_name):
+    """Standardizes the fill values and data type for a given connectivity
+    variable.
 
     Parameters
     ----------
@@ -139,31 +103,37 @@ def _standardize_fill_values(ds):
         Input Dataset with correct index variables
     """
 
-    # original face nodes
-    face_nodes = ds["face_node_connectivity"].values
+    # original connectivity
+    conn = ds[conn_name].values
 
     # original fill value, if one exists
-    if "_FillValue" in ds["face_node_connectivity"].attrs:
-        original_fv = ds["face_node_connectivity"]._FillValue
-    elif np.isnan(ds["face_node_connectivity"].values).any():
+    if "_FillValue" in ds[conn_name].attrs:
+        original_fv = ds[conn_name]._FillValue
+    elif np.isnan(ds[conn_name].values).any():
         original_fv = np.nan
     else:
         original_fv = None
 
     # if current dtype and fill value are not standardized
-    if face_nodes.dtype != INT_DTYPE or original_fv != INT_FILL_VALUE:
+    if conn.dtype != INT_DTYPE or original_fv != INT_FILL_VALUE:
         # replace fill values and set correct dtype
-        new_face_nodes = _replace_fill_values(
-            grid_var=face_nodes,
+        new_conn = _replace_fill_values(
+            grid_var=conn,
             original_fill=original_fv,
             new_fill=INT_FILL_VALUE,
             new_dtype=INT_DTYPE,
         )
-        # reassign data to use updated face nodes
-        ds["face_node_connectivity"].data = new_face_nodes
+
+        if "start_index" in ds[conn_name].attrs:
+            new_conn -= INT_DTYPE(ds[conn_name].start_index)
+        else:
+            new_conn -= INT_DTYPE(new_conn.min())
+
+        # reassign data to use updated connectivity
+        ds[conn_name].data = new_conn
 
         # use new fill value
-        ds["face_node_connectivity"].attrs["_FillValue"] = INT_FILL_VALUE
+        ds[conn_name].attrs["_FillValue"] = INT_FILL_VALUE
 
     return ds
 
