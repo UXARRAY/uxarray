@@ -728,7 +728,7 @@ class TestConnectivity(TestCase):
     #     num_edges = mesh2_face_edges.sizes["n_face"] + tgrid._ds[
     #         "node_lon"].sizes["n_node"] - 2
     #     size = mesh2_edge_nodes.sizes["n_edge"]
-    #     self.assertEqual(mesh2_edge_nodes.sizes["n_edge"], num_edges)
+    # #     self.assertEqual(mesh2_edge_nodes.sizes["n_edge"], num_edges)
 
     def test_build_face_edges_connectivity_fillvalues(self):
         verts = [
