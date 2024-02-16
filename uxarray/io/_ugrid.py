@@ -40,7 +40,10 @@ def _read_ugrid(ds):
 
     conn_dict = {}
     for conn_name in ugrid.CONNECTIVITY_NAMES:
-        if len(ds.filter_by_attrs(cf_role=conn_name).keys()):
+        if conn_name in ds.grid_topology.attrs:
+            orig_conn_name = ds.grid_topology.attrs[conn_name]
+            conn_dict[orig_conn_name] = conn_name
+        elif len(ds.filter_by_attrs(cf_role=conn_name).keys()):
             orig_conn_name = list(ds.filter_by_attrs(cf_role=conn_name).keys())[0]
             conn_dict[orig_conn_name] = conn_name
 
