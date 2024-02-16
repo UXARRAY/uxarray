@@ -9,7 +9,7 @@ In this user guide, you will find detailed descriptions and examples that descri
 common tasks that you can accomplish with UXarray.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    user-guide/terminology.rst
    user-guide/representation.rst

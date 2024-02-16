@@ -19,7 +19,7 @@ up each corner, and Edges that connect each node to form a closed Face. All node
 
 Nodes
 -----
-An unstructured grid contains :math:`(n_{node})` corner nodes, which define the corners of each face. It may also
+An unstructured grid contains $(n_{node})$ corner nodes, which define the corners of each face. It may also
 contain :math:`(n_{face})` centroid nodes, which represent the center of each face, and :math:`(n_{edge})`
 edge nodes, which represent the center of each edge.
 
