@@ -7,15 +7,13 @@ Conventions
 UGRID Conventions
 ==================
 
-UXarray uses the UGRID conventions ...
+    UXarray uses the UGRID conventions as a foundation for representing unstructured grids.
 
 Dimensions
 ==========
 
-In ``UXarray``, an unstructured grid is defined as a set of Faces that either
-fully or partially cover the surface of a sphere. Each face is composed of Nodes that make
-up each corner, and Edges that connect each node to form a closed Face. All nodes, edges, and faces are unique
-(i.e. no duplicates are stored).
+In UXarray, an unstructured grid is composed of faces that either fully or partially cover the surface of a
+sphere (i.e. Earth in climate models). Each face is made up of Nodes and Edges.
 
 Nodes
 -----
@@ -26,11 +24,14 @@ edge nodes, which represent the center of each edge.
 Edges
 -----
 
-An unstructured grid contains :math:`(n_{edge})` edges, which each connect two corner nodes.
+An unstructured grid contains :math:`(n_{edge})` edges, which each connect two corner nodes to form an arc.
 
 Faces
 -----
 An unstructured grid contains :math:`(n_{face})` faces.
+
+UXarray is built to support 2D flexible grids, meaning that each face can have a variable number of nodes surrounding
+it.
 
 Each face can have an independent number of nodes that surround it, which is represented through the
 descriptor variable ``n_nodes_per_face``, which itself has a dimension of :math:`(n_{face})`. The minimum
@@ -183,8 +184,7 @@ Below
 
 Connectivity
 ============
-``UXarray`` relies on connectivity arrays to describe how various elements (i.e nodes, edges, faces) related to each-other
-geometrically.
+UXarray relies on connectivity variables to describe how various elements (i.e nodes, edges, faces) can be connected.
 
 .. list-table::
    :widths: 25 75 25 100
@@ -196,7 +196,7 @@ geometrically.
      - Summary
    * - Face Node
      - ``Grid.face_node_connectivity``
-     - :math:`(n_{face}, n_{maxnodes})`
+     - :math:`(n_{face}, n_{max\_face\_nodes})`
      - Node Indices that make up each face
    * - Edge Node
      - ``Grid.edge_node_connectivity``
