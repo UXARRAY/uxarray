@@ -2,7 +2,7 @@
 
 
 =================
-Supported GridFormats
+Supported Grid Formats
 =================
 
 Overview
