@@ -19,3 +19,6 @@ common tasks that you can accomplish with UXarray.
    user-guide/face-area.ipynb
    user-guide/distance.ipynb
    user-guide/remapping.ipynb
+   user-guide/subsetting.ipynb
+   user-guide/integration.ipynb
+   user-guide/gradients.ipynb
