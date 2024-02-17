@@ -7,7 +7,7 @@ Conventions
 UGRID Conventions
 ==================
 
-    UXarray uses the UGRID conventions as a foundation for representing unstructured grids.
+UXarray uses the UGRID conventions as a foundation for representing unstructured grids.
 
 Dimensions
 ==========
