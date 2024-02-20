@@ -876,13 +876,6 @@ def _populate_bounds(grid, is_latlonface: bool = False, is_face_GCA_list=None):
 
     This will calculate and store the bounds for each face within the grid, adjusting for any special conditions such as crossing the antimeridian, and return them as a DataArray.
     """
-
-    if grid.edge_node_connectivity is None:
-        grid._populate_edge_node_connectivity()
-
-    if grid.face_edge_connectivity is None:
-        grid._populate_face_edge_connectivity()
-
     temp_latlon_array = np.full((grid.n_face, 2, 2), INT_FILL_VALUE, dtype=np.float64)
 
     # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping

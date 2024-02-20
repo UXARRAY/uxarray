@@ -806,7 +806,29 @@ class Grid:
 
     @property
     def bounds(self):
-        """Declare bounds as a property."""
+        """Populates the bounds of the grid based on the geometry of its faces,
+        taking into account special conditions such as faces crossing the
+        antimeridian or containing pole points. This method updates the grid's
+        internal representation to include accurate bounds for each face,
+        returned as a DataArray with detailed attributes.
+
+        Returns
+        -------
+        xr.DataArray
+            A DataArray containing the latitude and longitude bounds for each face in the grid,
+            expressed in radians. The array has dimensions ["n_face", "Two", "Two"], where "Two"
+            is a literal dimension name indicating two bounds (min and max) for each of latitude
+            and longitude. The DataArray includes attributes detailing its purpose and the mapping
+            of latitude intervals to face indices.
+
+            Attributes include:
+            - `cf_role`: Describes the role of the DataArray, here indicating face latitude bounds.
+            - `_FillValue`: The fill value used in the array, indicating uninitialized or missing data.
+            - `long_name`: A descriptive name for the DataArray.
+            - `start_index`: The starting index for face indices in the grid.
+            - `latitude_intervalsIndex`: An IntervalIndex indicating the latitude intervals.
+            - `latitude_intervals_name_map`: A DataFrame mapping the latitude intervals to face indices.
+        """
         if self._bounds is None:
             self._bounds = _populate_bounds(self)
         return self._bounds
