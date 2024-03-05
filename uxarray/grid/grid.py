@@ -272,7 +272,7 @@ class Grid:
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
 
-        for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
+        for key, value in zip(self._ds.sizes.keys(), self._ds.sizes.values()):
             dims_str += f"  * {key}: {value}\n"
 
         dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
