@@ -122,10 +122,10 @@ class TestGeometryConversions(TestCase):
         v1_nodal_average = uxds['v1'].nodal_average()
 
         # final dimension should match number of faces
-        self.assertEquals(v1_nodal_average.shape[-1], uxds.uxgrid.n_face)
+        self.assertEqual(v1_nodal_average.shape[-1], uxds.uxgrid.n_face)
 
         # all other dimensions should remain unchanged
-        self.assertEquals(uxds['v1'].shape[0:-1], v1_nodal_average.shape[0:-1])
+        self.assertEqual(uxds['v1'].shape[0:-1], v1_nodal_average.shape[0:-1])
 
         # test on a sample mesh with 4 verts
         verts = [[[-170, 40], [180, 30], [165, 25], [-170, 20]]]
@@ -138,4 +138,4 @@ class TestGeometryConversions(TestCase):
         uxda_nodal_average = uxda.nodal_average()
 
         # resulting data should be the mean of the corner nodes of the single face
-        self.assertEquals(uxda_nodal_average, np.mean(data))
+        self.assertEqual(uxda_nodal_average, np.mean(data))
