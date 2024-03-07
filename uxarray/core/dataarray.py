@@ -468,7 +468,47 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``min`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.min
+        dask.array.min
+        xarray.DataArray.min
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``min`` applied to its data.
+        """
         if ignore_grid:
             # standard xarray min without considering grid connectivity
             return super().min(dim=None, skipna=None, keep_attrs=None, **kwargs)
@@ -484,9 +524,49 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``max`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.max
+        dask.array.max
+        xarray.DataArray.max
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``max`` applied to its data.
+        """
         if ignore_grid:
-            # standard xarray min without considering grid connectivity
+            # standard xarray max without considering grid connectivity
             return super().max(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
         return _uxda_grid_reduce(self, keep_attrs, destination, "max", **kwargs)
@@ -500,9 +580,49 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``median`` reduction along some dimension(s), applied to
+        the data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.median
+        dask.array.median
+        xarray.DataArray.median
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``median`` applied to its data.
+        """
         if ignore_grid:
-            # standard xarray min without considering grid connectivity
+            # standard xarray median without considering grid connectivity
             return super().median(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
         return _uxda_grid_reduce(self, keep_attrs, destination, "median", **kwargs)
@@ -516,9 +636,49 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``std`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.std
+        dask.array.std
+        xarray.DataArray.std
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``max`` applied to its data.
+        """
         if ignore_grid:
-            # standard xarray min without considering grid connectivity
+            # standard xarray std without considering grid connectivity
             return super().std(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
         return _uxda_grid_reduce(self, keep_attrs, destination, "std", **kwargs)
@@ -532,7 +692,47 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``var`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.var
+        dask.array.var
+        xarray.DataArray.var
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``var`` applied to its data.
+        """
         if ignore_grid:
             # standard xarray min without considering grid connectivity
             return super().var(dim=None, skipna=None, keep_attrs=None, **kwargs)
@@ -548,9 +748,49 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``sum`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.sum
+        dask.array.sum
+        xarray.DataArray.sum
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``sum`` applied to its data.
+        """
         if ignore_grid:
-            # standard xarray min without considering grid connectivity
+            # standard xarray sum without considering grid connectivity
             return super().sum(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
         return _uxda_grid_reduce(self, keep_attrs, destination, "sum", **kwargs)
@@ -564,7 +804,47 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``prod`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.prod
+        dask.array.prod
+        xarray.DataArray.prod
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``prod`` applied to its data.
+        """
         if ignore_grid:
             # standard xarray min without considering grid connectivity
             return super().prod(dim=None, skipna=None, keep_attrs=None, **kwargs)
@@ -580,9 +860,49 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``all`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.all
+        dask.array.all
+        xarray.DataArray.all
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``all`` applied to its data.
+        """
         if ignore_grid:
-            # standard xarray min without considering grid connectivity
+            # standard xarray all without considering grid connectivity
             return super().all(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
         return _uxda_grid_reduce(self, keep_attrs, destination, "all", **kwargs)
@@ -596,9 +916,49 @@ class UxDataArray(xr.DataArray):
         keep_attrs=None,
         **kwargs,
     ):
-        "TODO:"
+        """Applies a ``any`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.any
+        dask.array.any
+        xarray.DataArray.any
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``any`` applied to its data.
+        """
         if ignore_grid:
-            # standard xarray min without considering grid connectivity
+            # standard xarray any without considering grid connectivity
             return super().any(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
         return _uxda_grid_reduce(self, keep_attrs, destination, "any", **kwargs)
