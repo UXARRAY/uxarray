@@ -213,13 +213,36 @@ class Grid:
         face_node_connectivity: np.ndarray,
         fill_value: Optional = None,
         start_index: Optional[int] = 0,
-        grid_spec: Optional[str] = None,
         dims_dict: Optional[dict] = None,
         **kwargs,
     ):
-        """TODO."""
-        if grid_spec is None:
-            grid_spec = "User Defined Topology"
+        """Constructs a ``Grid`` object from a user-defined topology definition
+        assumed to be in the UGRID conventions.
+
+        To construct a UGRID-complient grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
+
+        Parameters
+        ----------
+        node_lon : np.ndarray
+            Longitude of node coordinates
+        node_lat : np.ndarray
+            Latitude of node coordinates
+        face_node_connectivity : np.ndarray
+            Face node connectivity, mapping each face to the nodes that surround them
+        fill_value: Optional
+            Value used for padding connectivity variables when the maximum number of elements in a row is less than the maximum.
+        start_index: Optional, default=0
+            Start index (typically 0 or 1)
+        dims_dict : Optional, dict
+            Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
+        **kwargs :
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
+        >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
+        """
 
         if dims_dict is None:
             dims_dict = {}
@@ -232,7 +255,7 @@ class Grid:
             start_index,
             **kwargs,
         )
-
+        grid_spec = "User Defined Topology"
         return cls(grid_ds, grid_spec, dims_dict)
 
     @classmethod

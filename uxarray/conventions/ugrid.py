@@ -171,7 +171,7 @@ EDGE_EDGE_CONNECTIVITY_ATTRS = {
     "dtype": INT_DTYPE,
 }
 
-EDGE_EDGE_CONNECTIVITY_DIMS = ["n_edge", "n_max_edge_edges"]  # n todo
+EDGE_EDGE_CONNECTIVITY_DIMS = ["n_edge", "n_max_edge_edges"]
 
 EDGE_FACE_CONNECTIVITY_ATTRS = {
     "cf_role": "edge_face_connectivity",
@@ -191,8 +191,7 @@ NODE_EDGE_CONNECTIVITY_ATTRS = {
     "dtype": INT_DTYPE,
 }
 
-NODE_EDGE_CONNECTIVITY_DIMS = ["n_node", "n_max_edge_nodes"]  # todo: check grid
-
+NODE_EDGE_CONNECTIVITY_DIMS = ["n_node", "n_max_edge_nodes"]
 NODE_FACE_CONNECTIVITY_ATTRS = {
     "cf_role": "node_face_connectivity",
     "long name": "Faces that neighbor each node",
@@ -201,7 +200,7 @@ NODE_FACE_CONNECTIVITY_ATTRS = {
     "dtype": INT_DTYPE,
 }
 
-NODE_FACE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_faces"]  # todo: check grid
+NODE_FACE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_faces"]
 
 
 N_NODES_PER_FACE_ATTRS = {
