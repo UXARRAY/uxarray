@@ -374,8 +374,8 @@ class UxDataArray(xr.DataArray):
         """
 
         warnings.warn(
-            DeprecationWarning,
             "This function will be deprecated in a future release. Please use uxda.mean(destination=`face`) instead.",
+            DeprecationWarning,
         )
 
         if not self._node_centered():
