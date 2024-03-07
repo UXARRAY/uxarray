@@ -394,12 +394,12 @@ class TestLatlonBoundUtils(TestCase):
 
         # Calculate the width of the latlonbox
         width = ux.grid.geometry._get_latlonbox_width(gca_latlon)
-        self.assertEquals(width, 3.0)
+        self.assertEqual(width, 3.0)
 
         # Define a great circle arc that is not wrapping around the meridian
         gca_latlon = np.array([[0.0, 0.0], [2 * np.pi - 1.0, 1.0]])
         width = ux.grid.geometry._get_latlonbox_width(gca_latlon)
-        self.assertEquals(width, 2.0)
+        self.assertEqual(width, 2.0)
 
     def test_insert_pt_in_latlonbox_non_periodic(self):
         old_box = np.array([[0.1, 0.2], [0.3, 0.4]])  # Radians
