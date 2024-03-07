@@ -326,7 +326,7 @@ class Grid:
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
 
-        for key, value in zip(self._ds.dims.keys(), self._ds.dims.values()):
+        for key, value in zip(self._ds.sizes.keys(), self._ds.sizes.values()):
             dims_str += f"  * {key}: {value}\n"
 
         dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
@@ -516,13 +516,13 @@ class Grid:
     def n_node(self) -> int:
         """Dimension ``n_node``, which represents the total number of unique
         corner nodes."""
-        return self._ds.dims["n_node"]
+        return self._ds.sizes["n_node"]
 
     @property
     def n_face(self) -> int:
         """Dimension ``n_face``, which represents the total number of unique
         faces."""
-        return self._ds.dims["n_face"]
+        return self._ds.sizes["n_face"]
 
     @property
     def n_edge(self) -> int:
@@ -531,7 +531,7 @@ class Grid:
         if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
 
-        return self._ds.dims["n_edge"]
+        return self._ds.sizes["n_edge"]
 
     # ==================================================================================================================
     @property

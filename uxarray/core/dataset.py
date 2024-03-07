@@ -234,7 +234,7 @@ class UxDataset(xr.Dataset):
         lines.append("uxarray.Dataset {")
 
         lines.append("grid topology dimensions:")
-        for name, size in self.uxgrid._ds.dims.items():
+        for name, size in self.uxgrid._ds.sizes.items():
             lines.append(f"\t{name} = {size}")
 
         lines.append("\ngrid topology variables:")
@@ -246,7 +246,7 @@ class UxDataset(xr.Dataset):
                     lines.append(f"\t\t{name}:{k} = {v}")
 
         lines.append("\ndata dimensions:")
-        for name, size in self.dims.items():
+        for name, size in self.sizes.items():
             lines.append(f"\t{name} = {size}")
 
         lines.append("\ndata variables:")

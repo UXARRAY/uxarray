@@ -30,8 +30,8 @@ def _read_exodus(ext_ds):
     max_face_nodes = 0
     for dim in ext_ds.dims:
         if "num_nod_per_el" in dim:
-            if ext_ds.dims[dim] > max_face_nodes:
-                max_face_nodes = ext_ds.dims[dim]
+            if ext_ds.sizes[dim] > max_face_nodes:
+                max_face_nodes = ext_ds.sizes[dim]
 
     # create an empty conn array for storing all blk face_nodes_data
     conn = np.empty((0, max_face_nodes))
@@ -47,7 +47,7 @@ def _read_exodus(ext_ds):
             ds["node_y"] = xr.DataArray(
                 data=ext_ds.coord[1], dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
             )
-            if ext_ds.dims["num_dim"] > 2:
+            if ext_ds.sizes["num_dim"] > 2:
                 ds["node_z"] = xr.DataArray(
                     data=ext_ds.coord[2],
                     dims=[ugrid.NODE_DIM],
@@ -62,7 +62,7 @@ def _read_exodus(ext_ds):
                 data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
             )
         elif key == "coordz":
-            if ext_ds.dims["num_dim"] > 2:
+            if ext_ds.sizes["num_dim"] > 2:
                 ds["node_z"] = xr.DataArray(
                     data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
                 )
