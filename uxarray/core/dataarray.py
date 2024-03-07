@@ -24,6 +24,7 @@ from uxarray.core.gradient import (
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
+from uxarray.core.reductions import _uxda_grid_reduce
 
 import warnings
 
@@ -400,6 +401,207 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             name=self.name + "_nodal_average" if self.name is not None else None,
         ).rename({"n_node": "n_face"})
+
+    def mean(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Applies a ``mean`` reduction along some dimension(s), applied to the
+        data variable's grid dimension by default.
+
+        See Also
+        --------
+        numpy.mean
+        dask.array.mean
+        xarray.DataArray.mean
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+        ignore_grid: optional, bool
+            Flag to select whether to perform a standard Xarray reduction, not considering any of the connectivity
+            associated with a grid dimension
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``mean`` applied to its data.
+        """
+
+        if ignore_grid:
+            # standard xarray mean without considering grid connectivity
+            return super().mean(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "mean", **kwargs)
+
+    def min(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().min(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "min", **kwargs)
+
+    def max(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().max(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "max", **kwargs)
+
+    def median(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().median(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "median", **kwargs)
+
+    def std(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().std(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "std", **kwargs)
+
+    def var(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().var(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "var", **kwargs)
+
+    def sum(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().sum(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "sum", **kwargs)
+
+    def prod(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().prod(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "prod", **kwargs)
+
+    def all(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().all(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "all", **kwargs)
+
+    def any(
+        self,
+        destination=None,
+        ignore_grid=False,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        "TODO:"
+        if ignore_grid:
+            # standard xarray min without considering grid connectivity
+            return super().any(dim=None, skipna=None, keep_attrs=None, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "any", **kwargs)
 
     def gradient(
         self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
