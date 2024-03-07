@@ -22,34 +22,46 @@ NUMPY_REDUCTIONS = {
 
 def _uxda_grid_reduce(uxda, keep_attrs, destination, reduction, **kwargs):
     if destination is None:
-        raise ValueError("TODO:")
+        raise ValueError("")
 
     if uxda._node_centered():
+        # reduction of a node-centered data variable
         if destination == "face":
             return _node_to_face_reduction(uxda, reduction, kwargs)
         elif destination == "edge":
-            pass
+            return _node_to_edge_reduction(uxda, reduction, kwargs)
         else:
             raise ValueError("TODO: Invalid dimension for node reduction")
 
     elif uxda._edge_centered():
-        if destination == "node":
-            pass
-        elif destination == "face":
-            pass
-        else:
-            raise ValueError("TODO: Invalid dimension for edge reduction")
+        # reduction of an edge-centered data variable
+        raise NotImplementedError(
+            "Reductions of edge-centered data variables not yet supported."
+        )
+        # if destination == "node":
+        #     pass
+        # elif destination == "face":
+        #     pass
+        # else:
+        #     raise ValueError("TODO: )
 
     elif uxda._face_centered():
-        if destination == "node":
-            pass
-        elif destination == "edge":
-            pass
-        else:
-            raise ValueError("TODO: Invalid dimension for face reduction")
+        # reduction of a face-centered data variable
+        raise NotImplementedError(
+            "Reductions of face-centered data variables not yet supported."
+        )
+        # if destination == "node":
+        #     pass
+        # elif destination == "edge":
+        #     pass
+        # else:
+        #     raise ValueError("TODO: ")
 
     else:
-        raise ValueError
+        raise ValueError(
+            f"Invalid destination provided. Got: {destination}, but expected one of: "
+            f"['node', 'edge', 'face']"
+        )
 
 
 def _node_to_face_reduction(uxda, reduction, reduction_func_kwargs):
@@ -66,7 +78,7 @@ def _node_to_face_reduction(uxda, reduction, reduction_func_kwargs):
             uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
         )
     elif isinstance(uxda.data, da.array):
-        # apply reduction on dask array
+        # apply reduction on dask array, TODO:
         reduced_var = _apply_node_to_face_reduction_numpy(
             uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
         )
@@ -79,14 +91,6 @@ def _node_to_face_reduction(uxda, reduction, reduction_func_kwargs):
         dims=uxda.dims,
         name=uxda.name,
     ).rename({"n_node": "n_face"})
-
-
-def _node_to_edge_reduction(uxda):
-    if not uxda._node_centered():
-        raise ValueError(
-            f"Data Variable must be mapped to the corner nodes of each face, with dimension "
-            f"{uxda.uxgrid.n_face}."
-        )
 
 
 def _apply_node_to_face_reduction_numpy(uxda, reduction_func, reduction_func_kwargs):
@@ -119,4 +123,45 @@ def _apply_node_to_face_reduction_numpy(uxda, reduction_func, reduction_func_kwa
 
 
 def _apply_node_to_face_reduction_dask():
+    pass
+
+
+def _node_to_edge_reduction(uxda, reduction, reduction_func_kwargs):
+    if not uxda._node_centered():
+        raise ValueError(
+            f"Data Variable must be mapped to the corner nodes of each face, with dimension "
+            f"{uxda.uxgrid.n_face}."
+        )
+
+    if isinstance(uxda.data, np.ndarray):
+        # apply reduction using numpy
+        reduced_var = _apply_node_to_edge_reduction_numpy(
+            uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
+        )
+    elif isinstance(uxda.data, da.array):
+        # apply reduction on dask array, TODO:
+        reduced_var = _apply_node_to_edge_reduction_numpy(
+            uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
+        )
+    else:
+        raise ValueError
+
+    return uxarray.core.dataarray.UxDataArray(
+        uxgrid=uxda.uxgrid,
+        data=reduced_var,
+        dims=uxda.dims,
+        name=uxda.name,
+    ).rename({"n_node": "n_edge"})
+
+
+def _apply_node_to_edge_reduction_numpy(uxda, reduction_func, reduction_func_kwargs):
+    data = uxda.values
+    edge_node_conn = uxda.uxgrid.edge_node_connectivity.values
+
+    result = reduction_func(data[..., edge_node_conn], axis=-1, **reduction_func_kwargs)
+
+    return result
+
+
+def _apply_node_to_edge_reduction_dask(uxda, reduction_func, reduction_func_kwargs):
     pass
