@@ -373,6 +373,11 @@ class UxDataArray(xr.DataArray):
         Can be used for remapping node-centered data to each face.
         """
 
+        warnings.warn(
+            DeprecationWarning,
+            "This function will be deprecated in a future release. Please use uxda.mean(destination=`face`) instead.",
+        )
+
         if not self._node_centered():
             # nodal average expects node-centered data
             raise ValueError(
