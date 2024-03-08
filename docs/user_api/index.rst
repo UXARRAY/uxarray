@@ -103,6 +103,22 @@ Attributes
 
    UxDataArray.uxgrid
 
+Reductions
+----------
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.mean
+   UxDataArray.max
+   UxDataArray.min
+   UxDataArray.prod
+   UxDataArray.sum
+   UxDataArray.std
+   UxDataArray.var
+   UxDataArray.median
+   UxDataArray.all
+   UxDataArray.any
+
 Methods
 -------
 .. autosummary::
