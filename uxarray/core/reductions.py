@@ -22,7 +22,9 @@ NUMPY_REDUCTIONS = {
 
 def _uxda_grid_reduce(uxda, keep_attrs, destination, reduction, **kwargs):
     if destination is None:
-        raise ValueError("")
+        raise ValueError(
+            "Attempting to perform a local reduction, but no destination was provided."
+        )
 
     if uxda._node_centered():
         # reduction of a node-centered data variable

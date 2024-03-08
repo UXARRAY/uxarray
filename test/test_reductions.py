@@ -18,7 +18,8 @@ def test_node_to_face_reductions():
 
     for reduction_func in REDUCTIONS:
 
-        grid_reduction = getattr(uxds['areaTriangle'], reduction_func)(destination='face')
+        grid_reduction = getattr(uxds['areaTriangle'], reduction_func)(localized=True, destination='face')
+        regular_reduction = getattr(uxds['areaTriangle'], reduction_func)(localized=False)
 
 
 
@@ -27,9 +28,5 @@ def test_node_to_edge_reductions():
 
     for reduction_func in REDUCTIONS:
 
-        grid_reduction = getattr(uxds['areaTriangle'], reduction_func)(destination='edge')
-
-        a = 1
-
-
-    pass
+        grid_reduction = getattr(uxds['areaTriangle'], reduction_func)(localized=True, destination='edge')
+        regular_reduction = getattr(uxds['areaTriangle'], reduction_func)(localized=False)
