@@ -191,7 +191,8 @@ NODE_EDGE_CONNECTIVITY_ATTRS = {
     "dtype": INT_DTYPE,
 }
 
-NODE_EDGE_CONNECTIVITY_DIMS = ["n_node", "n_max_edge_nodes"]
+NODE_EDGE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_edges"]
+
 NODE_FACE_CONNECTIVITY_ATTRS = {
     "cf_role": "node_face_connectivity",
     "long name": "Faces that neighbor each node",

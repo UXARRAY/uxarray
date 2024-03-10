@@ -68,16 +68,16 @@ def open_grid(
             stacklevel=2,
         )
 
-    # construct a grid from a dataset file
     if isinstance(grid_filename_or_obj, xr.Dataset):
+        # construct a grid from a dataset file
         uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
 
     elif isinstance(grid_filename_or_obj, dict):
         # unpack the dictionary and construct a grid from topology
         uxgrid = Grid.from_topology(**grid_filename_or_obj)
 
-    # construct Grid from face vertices
     elif isinstance(grid_filename_or_obj, (list, tuple, np.ndarray, xr.DataArray)):
+        # construct Grid from face vertices
         uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon=latlon)
 
     # attempt to use Xarray directly for remaining input types

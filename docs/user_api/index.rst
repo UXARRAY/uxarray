@@ -279,7 +279,7 @@ Attributes
    :toctree: generated/
 
    Grid.grid_spec
-   Grid.parsed_attrs
+   Grid.attrs
 
 
 Plotting

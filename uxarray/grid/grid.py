@@ -216,9 +216,11 @@ class Grid:
         dims_dict: Optional[dict] = None,
         **kwargs,
     ):
-        """Constructs a ``Grid`` object from a user-defined topology definition
-        assumed to be in the UGRID conventions.
+        """Constructs a ``Grid`` object from user-defined topology variables
+        provided in the UGRID conventions.
 
+        Note
+        ----
         To construct a UGRID-complient grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
 
         Parameters
@@ -469,19 +471,19 @@ class Grid:
 
     @property
     def dims(self) -> set:
-        "TODO:"
+        """Names of all unstructured grid dimensions."""
         from uxarray.conventions.ugrid import DIM_NAMES
 
         return set([dim for dim in DIM_NAMES if dim in self._ds.dims])
 
     @property
     def sizes(self) -> dict:
-        "TODO:"
+        """Names and values of all unstructured grid dimensions."""
         return {dim: self._ds.dims[dim] for dim in self.dims}
 
     @property
     def coordinates(self) -> set:
-        # TODO:
+        """Names of all coordinate variables."""
         from uxarray.conventions.ugrid import (
             SPHERICAL_COORD_NAMES,
             CARTESIAN_COORD_NAMES,
@@ -493,22 +495,24 @@ class Grid:
 
     @property
     def connectivity(self) -> set:
-        # TODO:
+        """Names of all connectivity variables."""
         from uxarray.conventions.ugrid import CONNECTIVITY_NAMES
 
         return set([conn for conn in CONNECTIVITY_NAMES if conn in self._ds])
 
-    # TODO: rename to attrs?
     @property
     def parsed_attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
+        warn(
+            "Grid.parsed_attrs will be deprecated in a future release. Please use Grid.attrs instead.",
+            DeprecationWarning,
+        )
         return self._ds.attrs
 
-    # TODO: Rename to 'topology_descriptor' or similar
     @property
-    def grid_topology(self) -> xr.DataArray:
-        """TODO:"""
-        return self._ds["Mesh2"]
+    def attrs(self) -> dict:
+        """Dictionary of parsed attributes from the source grid."""
+        return self._ds.attrs
 
     # ==================================================================================================================
     # Grid Dimensions
@@ -541,16 +545,34 @@ class Grid:
         return self.face_node_connectivity.shape[1]
 
     @property
-    def n_max_face_edges(self) -> xr.DataArray:
+    def n_max_face_edges(self) -> int:
         """Dimension ``n_max_face_edges``, which represents the maximum number
-        of edges per face.
+        of edges per face."""
+        return self.face_edge_connectivity.shape[1]
 
-        Equivalent to ``n_max_face_nodes``
-        """
-        if "n_max_face_edges" not in self._ds:
-            _populate_face_edge_connectivity(self)
+    @property
+    def n_max_face_faces(self) -> int:
+        """Dimension ``n_max_face_faces``, which represents the maximum number
+        of faces that neighbor each face."""
+        return self.face_face_connectivity.shape[1]
 
-        return self._ds["face_edge_connectivity"].shape[1]
+    @property
+    def n_max_edge_edges(self) -> int:
+        """Dimension ``n_max_edge_edges``, which represents the maximum number
+        of edges that neighbor each edge."""
+        return self.edge_edge_connectivity.shape[1]
+
+    @property
+    def n_max_node_faces(self) -> int:
+        """Dimension ``n_max_node_faces``, which represents the maximum number
+        of faces that neighbor each node."""
+        return self.node_face_connectivity.shape[1]
+
+    @property
+    def n_max_node_edges(self) -> int:
+        """Dimension ``n_max_node_edges``, which represents the maximum number
+        of edges that neighbor each edge."""
+        return self.node_edge_connectivity.shape[1]
 
     @property
     def n_nodes_per_face(self) -> xr.DataArray:
@@ -796,7 +818,11 @@ class Grid:
     @property
     def node_node_connectivity(self) -> xr.DataArray:
         """Connectivity Variable ``node_node_connectivity``."""
-        return None
+        if "node_node_connectivity" not in self._ds:
+            raise NotImplementedError(
+                "Construction of `node_node_connectivity` not yet supported."
+            )
+        return self._ds["node_node_connectivity"]
 
     # ==================================================================================================================
     # (, edge) Connectivity
@@ -816,19 +842,34 @@ class Grid:
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
         """Connectivity Variable ``edge_edge_connectivity``."""
-        return None
+        if "edge_edge_connectivity" not in self._ds:
+            raise NotImplementedError(
+                "Construction of `edge_edge_connectivity` not yet supported."
+            )
+
+        return self._ds["edge_edge_connectivity"]
 
     @property
     def node_edge_connectivity(self) -> xr.DataArray:
         """Connectivity Variable ``node_edge_connectivity``."""
-        return None
+        if "node_edge_connectivity" not in self._ds:
+            raise NotImplementedError(
+                "Construction of `node_edge_connectivity` not yet supported."
+            )
+
+        return self._ds["node_edge_connectivity"]
 
     # ==================================================================================================================
     # (, face) Connectivity
     @property
     def face_face_connectivity(self) -> xr.DataArray:
         """Connectivity Variable ``face_face_connectivity``."""
-        return None
+        if "face_face_connectivity" not in self._ds:
+            raise NotImplementedError(
+                "Construction of `face_face_connectivity` not yet supported."
+            )
+
+        return self._ds["face_face_connectivity"]
 
     @property
     def edge_face_connectivity(self) -> xr.DataArray:
