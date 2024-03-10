@@ -27,5 +27,5 @@ dependencies:
   - pip:
     - antimeridian
     - pyfma
-    - asv
+    - asv<0.6.2
     - -e ../
