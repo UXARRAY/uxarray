@@ -1,5 +1,5 @@
 import numpy as np
-
+import xarray as xr
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
@@ -79,6 +79,32 @@ def _read_ugrid(ds):
     return ds, dim_dict
 
 
+def _ugrid_to_netcdf(ds, **kwargs):
+    """Encodes and saves an unstructured grid stored under a ``Grid`` in the
+    UGRID conventions."""
+
+    ds = ds.drop_vars(["grid_topology"])
+
+    grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
+
+    if "face_lon" in ds:
+        grid_topology["face_coordinates"] = "face_lon face_lat"
+    if "edge_lon" in ds:
+        grid_topology["edge_coordinates"] = "edge_lon edge_lat"
+
+    # TODO: Encode spherical (i.e. node_x) coordinates somehow
+
+    for conn_name in ugrid.CONNECTIVITY_NAMES:
+        if conn_name in ds:
+            grid_topology[conn_name] = conn_name
+
+    grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology)
+
+    ds["grid_topology"] = grid_topology_da
+
+    return ds.to_netcdf(**kwargs)
+
+
 def _encode_ugrid(ds):
     """Encodes UGRID file .
     Parameters
@@ -88,6 +114,7 @@ def _encode_ugrid(ds):
 
     Uses to_netcdf from xarray object.
     """
+
     return ds
 
 

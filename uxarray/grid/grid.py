@@ -2,12 +2,27 @@
 import xarray as xr
 import numpy as np
 
-from typing import Optional, Union
+from typing import (
+    Optional,
+    Union,
+    Mapping,
+    Iterable,
+    Any,
+    Literal,
+    Hashable,
+)
+
+from os import PathLike
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
-from uxarray.io._ugrid import _read_ugrid, _encode_ugrid, _validate_minimum_ugrid
+from uxarray.io._ugrid import (
+    _read_ugrid,
+    _encode_ugrid,
+    _validate_minimum_ugrid,
+    _ugrid_to_netcdf,
+)
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io._esmf import _read_esmf
 from uxarray.io._vertices import _read_face_vertices
@@ -137,7 +152,6 @@ class Grid:
 
         # initialize attributes
         self._antimeridian_face_indices = None
-        self._face_areas = None
 
         # initialize cached data structures (visualization)
         self._gdf = None
@@ -928,12 +942,17 @@ class Grid:
         return self._antimeridian_face_indices
 
     @property
-    def face_areas(self) -> np.ndarray:
-        """Declare face_areas as a property."""
-        # if self._face_areas is not None: it allows for using the cached result
-        if self._face_areas is None:
-            self._face_areas, self._face_jacobian = self.compute_face_areas()
-        return self._face_areas
+    def face_areas(self) -> xr.DataArray:
+        """Descriptor Variable ``face_areas``, which stores the area of each
+        face."""
+        from uxarray.conventions.descriptors import FACE_AREAS_DIMS, FACE_AREAS_ATTRS
+
+        if "face_areas" not in self._ds:
+            face_areas, self._face_jacobian = self.compute_face_areas()
+            self._ds["face_areas"] = xr.DataArray(
+                data=face_areas, dims=FACE_AREAS_DIMS, attrs=FACE_AREAS_ATTRS
+            )
+        return self._ds["face_areas"]
 
     # ==================================================================================================================
 
@@ -942,7 +961,7 @@ class Grid:
         """Declare face_jacobian as a property."""
         # if self._face_jacobian is not None: it allows for using the cached result
         if self._face_jacobian is None:
-            self._face_areas, self._face_jacobian = self.compute_face_areas()
+            _ = self.face_areas
         return self._face_jacobian
 
     def get_ball_tree(
@@ -1194,6 +1213,32 @@ class Grid:
             )
 
         return self._face_areas, self._face_jacobian
+
+    def to_netcdf(
+        self,
+        path: str | PathLike | None = None,
+        mode: Literal["w", "a"] = "w",
+        format=None,
+        group: str | None = None,
+        engine=None,
+        encoding: Mapping[Any, Mapping[str, Any]] | None = None,
+        unlimited_dims: Iterable[Hashable] | None = None,
+        compute: bool = True,
+        invalid_netcdf: bool = False,
+    ):
+        """TODO:"""
+        return _ugrid_to_netcdf(
+            self._ds,
+            path=path,
+            mode=mode,
+            format=format,
+            group=group,
+            engine=engine,
+            encoding=encoding,
+            unlimited_dims=unlimited_dims,
+            compute=compute,
+            invalid_netcdf=invalid_netcdf,
+        )
 
     def to_geodataframe(
         self,
