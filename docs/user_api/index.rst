@@ -190,6 +190,7 @@ IO
    open_grid
    Grid.from_dataset
    Grid.from_face_vertices
+   Grid.to_netcdf
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_linecollection
