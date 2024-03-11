@@ -87,6 +87,9 @@ def _ugrid_to_netcdf(ds, **kwargs):
 
     grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
 
+    if "n_edge" in ds:
+        grid_topology["edge_dimension"] = "n_edge"
+
     if "face_lon" in ds:
         grid_topology["face_coordinates"] = "face_lon face_lat"
     if "edge_lon" in ds:
