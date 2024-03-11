@@ -432,7 +432,13 @@ class Grid:
         )
 
     def __getitem__(self, item):
-        """TODO:"""
+        """Implementation of getitem operator for indexing a grid to obtain
+        variables.
+
+        Usage
+        -----
+        >>> uxgrid['face_node_connectivity']
+        """
         if item in self._ds:
             return self._ds[item]
         else:
