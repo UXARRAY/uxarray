@@ -84,7 +84,8 @@ def _encode_ugrid(ds):
     """Encodes an unstructured grid represented under a ``Grid`` object as a
     ``xr.Dataset`` with an updated grid topology variable."""
 
-    ds = ds.drop_vars(["grid_topology"])
+    if "grid_topology" in ds:
+        ds = ds.drop_vars(["grid_topology"])
 
     grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
 
