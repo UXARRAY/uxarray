@@ -514,46 +514,49 @@ class Grid:
     # ==================================================================================================================
     @property
     def n_max_face_nodes(self) -> int:
-        """Dimension ``n_max_face_nodes``, which represents the maximum number
-        of nodes that a face may contain."""
+        """Dimension ``n_max_face_nodes``, the largest number of nodes that may
+        surround a given face."""
         return self.face_node_connectivity.shape[1]
 
     @property
     def n_max_face_edges(self) -> int:
-        """Dimension ``n_max_face_edges``, which represents the maximum number
-        of edges per face."""
+        """Dimension ``n_max_face_edges``, the largest number of edges that may
+        surround a given face.
+
+        Equivalent to ``n_max_face_nodes``
+        """
         return self.face_edge_connectivity.shape[1]
 
     @property
     def n_max_face_faces(self) -> int:
-        """Dimension ``n_max_face_faces``, which represents the maximum number
-        of faces that neighbor each face."""
+        """Dimension ``n_max_face_faces``, the largest number of faces that may
+        surround a given face."""
         return self.face_face_connectivity.shape[1]
 
     @property
     def n_max_edge_edges(self) -> int:
-        """Dimension ``n_max_edge_edges``, which represents the maximum number
-        of edges that neighbor each edge."""
+        """Dimension ``n_max_edge_edges``, the largest number of edges that may
+        surround a given edge."""
         return self.edge_edge_connectivity.shape[1]
 
     @property
     def n_max_node_faces(self) -> int:
-        """Dimension ``n_max_node_faces``, which represents the maximum number
-        of faces that neighbor each node."""
+        """Dimension ``n_max_node_faces``, the largest number of faces that may
+        saddle a given node."""
         return self.node_face_connectivity.shape[1]
 
     @property
     def n_max_node_edges(self) -> int:
-        """Dimension ``n_max_node_edges``, which represents the maximum number
-        of edges that neighbor each edge."""
+        """Dimension ``n_max_node_edges``, the largest number of edges that may
+        surround a given node."""
         return self.node_edge_connectivity.shape[1]
 
     @property
     def n_nodes_per_face(self) -> xr.DataArray:
-        """Dimension Variable ``n_nodes_per_face``, which contains the number
-        of non-fill-value nodes per face.
+        """Dimension Variable ``n_nodes_per_face``, the maximum number of nodes
+        for each face.
 
-        Dimensions (``n_node``) and DataType ``INT_DTYPE``.
+        Dimensions: ``(n_node, )``
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
@@ -567,7 +570,7 @@ class Grid:
         """Coordinate ``node_lon``, which contains the longitude of each node
         in degrees.
 
-        Dimensions (``n_node``)
+        Dimensions: ``(n_node, )``
         """
         if "node_lon" not in self._ds:
             _set_desired_longitude_range(self._ds)
@@ -579,7 +582,7 @@ class Grid:
         """Coordinate ``node_lat``, which contains the latitude of each node in
         degrees.
 
-        Dimensions (``n_node``)
+        Dimensions: ``(n_node, )``
         """
         if "node_lat" not in self._ds:
             _set_desired_longitude_range(self._ds)
@@ -593,7 +596,7 @@ class Grid:
         """Coordinate ``node_x``, which contains the Cartesian x location of
         each node in meters.
 
-        Dimensions (``n_node``)
+        Dimensions: ``(n_node, )``
         """
         if "node_x" not in self._ds:
             _populate_cartesian_xyz_coord(self)
@@ -605,7 +608,7 @@ class Grid:
         """Coordinate ``node_y``, which contains the Cartesian y location of
         each node in meters.
 
-        Dimensions (``n_node``)
+        Dimensions: ``(n_node, )``
         """
         if "node_y" not in self._ds:
             _populate_cartesian_xyz_coord(self)
@@ -616,7 +619,7 @@ class Grid:
         """Coordinate ``node_z``, which contains the Cartesian y location of
         each node in meters.
 
-        Dimensions (``n_node``)
+        Dimensions: ``(n_node, )``
         """
         if "node_z" not in self._ds:
             _populate_cartesian_xyz_coord(self)
@@ -629,7 +632,7 @@ class Grid:
         """Coordinate ``edge_lon``, which contains the longitude of each edge
         in degrees.
 
-        Dimensions (``n_edge``)
+        Dimensions: ``(n_edge, )``
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
@@ -642,7 +645,7 @@ class Grid:
         """Coordinate ``edge_lat``, which contains the latitude of each edge in
         degrees.
 
-        Dimensions (``n_edge``)
+        Dimensions: ``(n_edge, )``
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
@@ -656,7 +659,7 @@ class Grid:
         """Coordinate ``edge_x``, which contains the Cartesian x location of
         each edge in meters.
 
-        Dimensions (``n_edge``)
+        Dimensions: ``(n_edge, )``
         """
         if "edge_x" not in self._ds:
             _populate_edge_centroids(self)
@@ -668,7 +671,7 @@ class Grid:
         """Coordinate ``edge_y``, which contains the Cartesian y location of
         each edge in meters.
 
-        Dimensions (``n_edge``)
+        Dimensions: ``(n_edge, )``
         """
         if "edge_y" not in self._ds:
             _populate_edge_centroids(self)
@@ -679,7 +682,7 @@ class Grid:
         """Coordinate ``edge_z``, which contains the Cartesian z location of
         each edge in meters.
 
-        Dimensions (``n_edge``)
+        Dimensions: ``(n_edge, )``
         """
         if "edge_z" not in self._ds:
             _populate_edge_centroids(self)
@@ -692,7 +695,7 @@ class Grid:
         """Coordinate ``face_lon``, which contains the longitude of each face
         in degrees.
 
-        Dimensions (``n_face``)
+        Dimensions: ``(n_face, )``
         """
         if "face_lon" not in self._ds:
             _populate_face_centroids(self)
@@ -704,7 +707,7 @@ class Grid:
         """Coordinate ``face_lat``, which contains the latitude of each face in
         degrees.
 
-        Dimensions (``n_face``)
+        Dimensions: ``(n_face, )``
         """
         if "face_lat" not in self._ds:
             _populate_face_centroids(self)
@@ -719,7 +722,7 @@ class Grid:
         """Coordinate ``face_x``, which contains the Cartesian x location of
         each face in meters.
 
-        Dimensions (``n_face``)
+        Dimensions: ``(n_face, )``
         """
         if "face_x" not in self._ds:
             _populate_face_centroids(self)
@@ -731,7 +734,7 @@ class Grid:
         """Coordinate ``face_y``, which contains the Cartesian y location of
         each face in meters.
 
-        Dimensions (``n_face``)
+        Dimensions: ``(n_face, )``
         """
         if "face_y" not in self._ds:
             _populate_face_centroids(self)
@@ -742,7 +745,7 @@ class Grid:
         """Coordinate ``face_z``, which contains the Cartesian z location of
         each face in meters.
 
-        Dimensions (``n_face``)
+        Dimensions: ``(n_face, )``
         """
         if "face_z" not in self._ds:
             _populate_face_centroids(self)
@@ -755,8 +758,7 @@ class Grid:
         """Connectivity Variable ``face_node_connectivity``, which maps each
         face to its corner nodes.
 
-        Dimensions (``n_face``, ``n_max_face_nodes``) and
-        DataType ``INT_DTYPE``.
+        Dimensions: ``(n_face, n_max_face_nodes)``
 
         Nodes are in counter-clockwise order.
         """
@@ -779,8 +781,7 @@ class Grid:
         """Connectivity Variable ``edge_node_connectivity``, which maps every
         edge to the two nodes that it connects.
 
-        Dimensions (``n_edge``, ``two``) and DataType
-        ``INT_DTYPE``.
+        Dimensions: ``(n_edge, n_max_edge_nodes)``
 
         Nodes are in arbitrary order.
         """
@@ -791,7 +792,7 @@ class Grid:
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
-        """Connectivity Variable ``node_node_connectivity``."""
+        """Connectivity Variable ``node_node_connectivity``"""
         if "node_node_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `node_node_connectivity` not yet supported."
@@ -802,11 +803,10 @@ class Grid:
     # (, edge) Connectivity
     @property
     def face_edge_connectivity(self) -> xr.DataArray:
-        """Connectivity Variable ``face_edge_connectivity``, which maps every
-        face to its edges.
+        """Connectivity Variable ``face_edge_connectivity``, the edges that
+        surround each face.
 
-        Dimensions (``n_face``, ``n_max_face_nodes``) and DataType
-        ``INT_DTYPE``.
+        Dimensions: ``(n_face, n_max_face_edges)``
         """
         if "face_edge_connectivity" not in self._ds:
             _populate_face_edge_connectivity(self)
@@ -815,7 +815,11 @@ class Grid:
 
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
-        """Connectivity Variable ``edge_edge_connectivity``."""
+        """Connectivity Variable ``edge_edge_connectivity``, the edges that
+        neighbor each edge.
+
+        Dimensions: ``(n_face, n_max_edge_edges)``
+        """
         if "edge_edge_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `edge_edge_connectivity` not yet supported."
@@ -825,7 +829,8 @@ class Grid:
 
     @property
     def node_edge_connectivity(self) -> xr.DataArray:
-        """Connectivity Variable ``node_edge_connectivity``."""
+        """Connectivity Variable ``node_edge_connectivity``, the edges that
+        neighbor each node."""
         if "node_edge_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `node_edge_connectivity` not yet supported."
@@ -837,7 +842,11 @@ class Grid:
     # (, face) Connectivity
     @property
     def face_face_connectivity(self) -> xr.DataArray:
-        """Connectivity Variable ``face_face_connectivity``."""
+        """Connectivity Variable ``face_face_connectivity``, the faces that
+        surround each face.
+
+        Dimensions ``(n_face, n_max_face_faces)``
+        """
         if "face_face_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `face_face_connectivity` not yet supported."
@@ -847,10 +856,10 @@ class Grid:
 
     @property
     def edge_face_connectivity(self) -> xr.DataArray:
-        """Connectivity Variable ``edge_face_connectivity``, which contains the
-        index of the faces that saddle a given edge.
+        """Connectivity Variable ``edge_face_connectivity``, the faces that
+        saddle each edge.
 
-        Dimensions (``n_edge``, ``TWO``) and DataType ``INT_DTYPE``.
+        Dimensions ``(n_edge, two)``
         """
         if "edge_face_connectivity" not in self._ds:
             _populate_edge_face_connectivity(self)
@@ -859,11 +868,10 @@ class Grid:
 
     @property
     def node_face_connectivity(self) -> xr.DataArray:
-        """Connectivity Variable ``node_face_connectivity``, which maps every
-        node to its faces.
+        """Connectivity Variable ``node_face_connectivity``, the faces that
+        surround each node.
 
-        Dimensions (``n_node``, ``n_max_faces_per_node``) and DataType
-        ``INT_DTYPE``.
+        Dimensions ``(n_node, n_max_node_faces)``
         """
         if "node_face_connectivity" not in self._ds:
             _populate_node_face_connectivity(self)
@@ -874,9 +882,10 @@ class Grid:
     # Distance Quantities
     @property
     def edge_node_distances(self):
-        """Contains the distance between the nodes that saddle a given edge.
+        """Descriptor Variable ``edge_node_distances``, the distance between
+        the two nodes that surround each edge.
 
-        Dimensions (``n_edge``) and DataType float.
+        Dimensions ``(n_edge, )``
         """
         if "edge_node_distances" not in self._ds:
             _populate_edge_node_distances(self)
@@ -884,9 +893,10 @@ class Grid:
 
     @property
     def edge_face_distances(self):
-        """Contains the distance between the faces that saddle a given edge.
+        """Descriptor Variable ``edge_face_distances``, the distance between
+        the centers of the faces that saddle each edge.
 
-        Dimensions (``n_edge``) and DataType float.
+        Dimensions ``(n_edge, )``
         """
         if "edge_face_distances" not in self._ds:
             _populate_edge_face_distances(self)
