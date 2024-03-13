@@ -330,6 +330,9 @@ class Grid:
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
+
+        from uxarray.conventions import ugrid, descriptors
+
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
         dims_heading = "Grid Dimensions:\n"
@@ -342,76 +345,32 @@ class Grid:
 
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        if "node_lon" in self._ds:
-            coords_str += f"  * node_lon: {self.node_lon.shape}\n"
-            coords_str += f"  * node_lat: {self.node_lat.shape}\n"
-        if "edge_lon" in self._ds:
-            coords_str += f"  * edge_lon: {self.edge_lon.shape}\n"
-            coords_str += f"  * edge_lat: {self.edge_lat.shape}\n"
-        if "face_lon" in self._ds:
-            coords_str += f"  * face_lon: {self.face_lon.shape}\n"
-            coords_str += f"  * face_lat: {self.face_lat.shape}\n"
+        for coord_name in ugrid.SPHERICAL_COORD_NAMES:
+            if coord_name in self._ds:
+                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        if "node_x" in self._ds:
-            coords_str += f"  * node_x: {self.node_x.shape}\n"
-            coords_str += f"  * node_y: {self.node_y.shape}\n"
-            coords_str += f"  * node_z: {self.node_z.shape}\n"
-        if "edge_x" in self._ds:
-            coords_str += f"  * edge_x: {self.edge_x.shape}\n"
-            coords_str += f"  * edge_y: {self.edge_y.shape}\n"
-            coords_str += f"  * edge_z: {self.edge_z.shape}\n"
-        if "face_x" in self._ds:
-            coords_str += f"  * face_x: {self.face_x.shape}\n"
-            coords_str += f"  * face_y: {self.face_y.shape}\n"
-            coords_str += f"  * face_z: {self.face_z.shape}\n"
+        for coord_name in ugrid.CARTESIAN_COORD_NAMES:
+            if coord_name in self._ds:
+                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
-        if "face_node_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * face_node_connectivity: {self.face_node_connectivity.shape}\n"
-            )
 
-        if "edge_node_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * edge_node_connectivity: {self.edge_node_connectivity.shape}\n"
-            )
+        for conn_name in ugrid.CONNECTIVITY_NAMES:
+            if conn_name in self._ds:
+                connectivity_str += (
+                    f"  * {conn_name}: {getattr(self, conn_name).shape}\n"
+                )
 
-        if "node_node_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * node_node_connectivity: {self.node_node_connectivity.shape}\n"
-            )
+        descriptors_heading = "Grid Descriptor Variables:\n"
+        descriptors_str = ""
 
-        if "face_edge_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * face_edge_connectivity: {self.face_edge_connectivity.shape}\n"
-            )
-
-        if "edge_edge_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * edge_edge_connectivity: {self.edge_edge_connectivity.shape}\n"
-            )
-
-        if "node_edge_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * node_edge_connectivity: {self.node_edge_connectivity.shape}\n"
-            )
-
-        if "face_face_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * face_face_connectivity: {self.face_face_connectivity.shape}\n"
-            )
-
-        if "edge_face_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * edge_face_connectivity: {self.edge_face_connectivity.shape}\n"
-            )
-
-        if "node_face_connectivity" in self._ds:
-            connectivity_str += (
-                f"  * node_face_connectivity: {self.node_face_connectivity.shape}\n"
-            )
+        for descriptor_name in descriptors.DESCRIPTOR_NAMES:
+            if descriptor_name in self._ds:
+                descriptors_str += (
+                    f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
+                )
 
         return (
             prefix
@@ -422,6 +381,8 @@ class Grid:
             + coords_str
             + connectivity_heading
             + connectivity_str
+            + descriptors_heading
+            + descriptors_str
         )
 
     def __getitem__(self, item):
