@@ -15,7 +15,6 @@ from uxarray.io._ugrid import (
     _read_ugrid,
     _encode_ugrid,
     _validate_minimum_ugrid,
-    _ugrid_to_netcdf,
 )
 from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io._esmf import _read_esmf
@@ -1089,6 +1088,10 @@ class Grid:
             If provided grid type or file type is unsupported.
         """
 
+        warn(
+            "Grid.encode_as will be deprecated in a future release. Please use Grid.to_xarray instead."
+        )
+
         if grid_type == "UGRID":
             out_ds = _encode_ugrid(self._ds)
 
@@ -1214,111 +1217,42 @@ class Grid:
 
         return self._face_areas, self._face_jacobian
 
-    def to_netcdf(
-        self,
-        path=None,
-        mode="w",
-        format=None,
-        group=None,
-        engine=None,
-        encoding=None,
-        unlimited_dims=None,
-        compute=True,
-        invalid_netcdf=False,
-    ):
-        """Writes Grid contents to a netCDF file, encoding in the UGRID
-        conventions.
+    def to_xarray(self, grid_format: Optional[str] = "ugrid"):
+        """Returns a xarray Dataset representation in a specific grid format
+        from the Grid object.
 
         Parameters
         ----------
-        path : str, path-like or file-like, optional
-            Path to which to save this dataset. File-like objects are only
-            supported by the scipy engine. If no path is provided, this
-            function returns the resulting netCDF file as bytes; in this case,
-            we need to use scipy, which does not support netCDF version 4 (the
-            default format becomes NETCDF3_64BIT).
-        Mode : {"w", "a"}, default: "w"
-            Write ('w') or append ('a') mode. If mode='w', any existing file at
-            this location will be overwritten. If mode='a', existing variables
-            will be overwritten.
-        Format : {"NETCDF4", "NETCDF4_CLASSIC", "NETCDF3_64BIT", \
-                  "NETCDF3_CLASSIC"}, optional
-            File format for the resulting netCDF file:
-
-            * NETCDF4: Data is stored in an HDF5 file, using netCDF4 API
-              features.
-            * NETCDF4_CLASSIC: Data is stored in an HDF5 file, using only
-              netCDF 3 compatible API features.
-            * NETCDF3_64BIT: 64-bit offset version of the netCDF 3 file format,
-              which fully supports 2+ GB files, but is only compatible with
-              clients linked against netCDF version 3.6.0 or later.
-            * NETCDF3_CLASSIC: The classic netCDF 3 file format. It does not
-              handle 2+ GB files very well.
-
-            All formats are supported by the netCDF4-python library.
-            Scipy.io.netcdf only supports the last two formats.
-
-            The default format is NETCDF4 if you are saving a file to disk and
-            have the netCDF4-python library available. Otherwise, xarray falls
-            back to using scipy to write netCDF files and defaults to the
-            NETCDF3_64BIT format (scipy does not support netCDF4).
-        group : str, optional
-            Path to the netCDF4 group in the given file to open (only works for
-            format='NETCDF4'). The group(s) will be created if necessary.
-        Engine : {"netcdf4", "scipy", "h5netcdf"}, optional
-            Engine to use when writing netCDF files. If not provided, the
-            default engine is chosen based on available dependencies, with a
-            preference for 'netcdf4' if writing to a file on disk.
-        encoding : dict, optional
-            Nested dictionary with variable names as keys and dictionaries of
-            variable specific encodings as values, e.g.,
-            ``{"my_variable": {"dtype": "int16", "scale_factor": 0.1,
-            "zlib": True}, ...}``.
-            If ``encoding`` is specified the original encoding of the variables of
-            the dataset is ignored.
-
-            The `h5netcdf` engine supports both the NetCDF4-style compression
-            encoding parameters ``{"zlib": True, "complevel": 9}`` and the h5py
-            ones ``{"compression": "gzip", "compression_opts": 9}``.
-            This allows using any compression plugin installed in the HDF5
-            library, e.g. LZF.
-
-        unlimited_dims : iterable of hashable, optional
-            Dimension(s) that should be serialized as unlimited dimensions.
-            By default, no dimensions are treated as unlimited dimensions.
-            Note that unlimited_dims may also be set via
-            ``dataset.encoding["unlimited_dims"]``.
-        compute: bool, default: True
-            If true compute immediately, otherwise return a
-            ``dask.delayed.Delayed`` object that can be computed later.
-        invalid_netcdf: bool, default: False
-            Only valid along with ``engine="h5netcdf"``. If True, allow writing
-            hdf5 files which are invalid netcdf as described in
-            https://github.com/h5netcdf/h5netcdf.
+        grid_format: str, optional
+            The desired grid format for the output dataset.
+            One of "ugrid", "exodus", or "scrip"
 
         Returns
         -------
-            * ``bytes`` if path is None
-            * ``dask.delayed.Delayed`` if compute is False
-            * None otherwise
-
-        See Also
-        --------
-        xarray.Dataset.to_netcdf
+        out_ds: xarray.Dataset
+            Dataset representing the unstructured grid in a given grid format
         """
 
-        return _ugrid_to_netcdf(
-            self._ds,
-            path=path,
-            mode=mode,
-            format=format,
-            group=group,
-            engine=engine,
-            encoding=encoding,
-            unlimited_dims=unlimited_dims,
-            compute=compute,
-            invalid_netcdf=invalid_netcdf,
-        )
+        if grid_format == "ugrid":
+            out_ds = _encode_ugrid(self._ds)
+
+        elif grid_format == "exodus":
+            out_ds = _encode_exodus(self._ds)
+
+        elif grid_format == "scrip":
+            out_ds = _encode_scrip(
+                self.face_node_connectivity,
+                self.node_lon,
+                self.node_lat,
+                self.face_areas,
+            )
+
+        else:
+            raise ValueError(
+                f"Invalid grid_format encountered. Expected one of ['ugrid', 'exodus', 'scrip'] but received: {grid_format}"
+            )
+
+        return out_ds
 
     def to_geodataframe(
         self,

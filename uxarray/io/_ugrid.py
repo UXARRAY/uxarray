@@ -8,7 +8,8 @@ import uxarray.conventions.ugrid as ugrid
 
 
 def _read_ugrid(ds):
-    """TODO:"""
+    """Parses an unstructured grid dataset and encodes it in the UGRID
+    conventions."""
 
     # Grid Topology
     grid_topology_name = list(ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
@@ -79,9 +80,9 @@ def _read_ugrid(ds):
     return ds, dim_dict
 
 
-def _ugrid_to_netcdf(ds, **kwargs):
-    """Encodes and saves an unstructured grid stored under a ``Grid`` in the
-    UGRID conventions."""
+def _encode_ugrid(ds):
+    """Encodes an unstructured grid represented under a ``Grid`` object as a
+    ``xr.Dataset`` with an updated grid topology variable."""
 
     ds = ds.drop_vars(["grid_topology"])
 
@@ -104,19 +105,6 @@ def _ugrid_to_netcdf(ds, **kwargs):
     grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology)
 
     ds["grid_topology"] = grid_topology_da
-
-    return ds.to_netcdf(**kwargs)
-
-
-def _encode_ugrid(ds):
-    """Encodes UGRID file .
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset to be encoded to file
-
-    Uses to_netcdf from xarray object.
-    """
 
     return ds
 
