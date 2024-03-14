@@ -84,4 +84,4 @@ def test_dataset():
     nt.assert_array_equal(uxgrid.node_lat.values, uxgrid_ft.node_lat.values)
     nt.assert_array_equal(uxgrid.face_node_connectivity.values, uxgrid_ft.face_node_connectivity.values)
 
-    assert uxds_ft.dims == {'n_face', 'n_node'}
+    assert uxds_ft.dims == {'n_face', 'n_node', 'n_max_face_nodes'}
