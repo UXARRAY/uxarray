@@ -15,7 +15,20 @@ BASE_GRID_TOPOLOGY_ATTRS = {
     "face_node_connectivity": "face_node_connectivity",
 }
 
-DIM_NAMES = ["n_node", "n_edge", "n_face"]
+DIM_NAMES = [
+    "n_node",
+    "n_edge",
+    "n_face",
+    "n_max_face_nodes",
+    "n_max_face_edges",
+    "n_max_face_faces",
+    "n_max_edge_nodes",
+    "n_max_edge_edges",
+    "n_max_edge_faces",
+    "n_max_node_faces",
+    "n_max_node_edges",
+    "two",
+]
 
 NODE_DIM = "n_node"
 EDGE_DIM = "n_edge"

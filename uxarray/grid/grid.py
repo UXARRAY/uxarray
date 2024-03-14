@@ -338,8 +338,9 @@ class Grid:
         dims_heading = "Grid Dimensions:\n"
         dims_str = ""
 
-        for key, value in zip(self._ds.sizes.keys(), self._ds.sizes.values()):
-            dims_str += f"  * {key}: {value}\n"
+        for dim_name in ugrid.DIM_NAMES:
+            if dim_name in self._ds.sizes:
+                dims_str += f"  * {dim_name}: {self._ds.sizes[dim_name]}\n"
 
         dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
 
@@ -393,10 +394,7 @@ class Grid:
         -----
         >>> uxgrid['face_node_connectivity']
         """
-        if item in self._ds:
-            return self._ds[item]
-        else:
-            raise ValueError("TODO")
+        return getattr(self, item)
 
     def __eq__(self, other) -> bool:
         """Two grids are equal if they have matching grid topology variables,
@@ -903,7 +901,7 @@ class Grid:
         return self._ds["edge_face_distances"]
 
     # ==================================================================================================================
-    # Other Grid Descriptor Quantities
+    # Other Grid Descriptor Variables
     @property
     def antimeridian_face_indices(self) -> np.ndarray:
         """Index of each face that crosses the antimeridian."""
@@ -929,7 +927,6 @@ class Grid:
     @property
     def face_jacobian(self):
         """Declare face_jacobian as a property."""
-        # if self._face_jacobian is not None: it allows for using the cached result
         if self._face_jacobian is None:
             _ = self.face_areas
         return self._face_jacobian
