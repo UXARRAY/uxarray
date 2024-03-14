@@ -97,7 +97,7 @@ def _encode_ugrid(ds):
     if "edge_lon" in ds:
         grid_topology["edge_coordinates"] = "edge_lon edge_lat"
 
-    # TODO: Encode spherical (i.e. node_x) coordinates somehow
+    # TODO: Encode spherical (i.e. node_x) coordinates eventually (need to extend ugrid conventions)
 
     for conn_name in ugrid.CONNECTIVITY_NAMES:
         if conn_name in ds:
