@@ -44,7 +44,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     .. grid-item-card:: User Guide
         :class-title: custom-title
         :class-body: custom-body
-        :img-top: _static/images/icons/tips.svg
+        :img-top: _static/images/icons/guide.svg
         :link: userguide
         :link-type: doc
 
