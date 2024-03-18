@@ -8,7 +8,10 @@ UGRID Conventions
 ==================
 
 UXarray is heavily based off the UGRID conventions, using them as a foundation for representing unstructured grids.
-The UGRID conventions provide a standard for storing unstructured grid model data the form of a NetCDF file.
+The UGRID conventions provide a standard for storing unstructured grid model data the form of a NetCDF file. More details
+on the UGRID conventions can be found here_.
+
+.. _here: https://ugrid-conventions.github.io/ugrid-conventions/
 
 Dimensions
 ==========

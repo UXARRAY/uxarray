@@ -7,6 +7,10 @@ Terminology
 Grid Representation
 -------------------
 
+**Structured Grids**: TODO
+
+**Unstructured Grids**: TODO
+
 **Node**: Sample Definition
 
 **Edge**: Sample Definition
