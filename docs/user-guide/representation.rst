@@ -7,7 +7,8 @@ Conventions
 UGRID Conventions
 ==================
 
-UXarray uses the UGRID conventions as a foundation for representing unstructured grids.
+UXarray is heavily based off the UGRID conventions, using them as a foundation for representing unstructured grids.
+The UGRID conventions provide a standard for storing unstructured grid model data the form of a NetCDF file.
 
 Dimensions
 ==========
@@ -17,7 +18,7 @@ sphere (i.e. Earth in climate models). Each face is made up of Nodes and Edges.
 
 Nodes
 -----
-An unstructured grid contains $(n_{node})$ corner nodes, which define the corners of each face. It may also
+An unstructured grid contains :math:`(n_{node})` corner nodes, which define the corners of each face. It may also
 contain :math:`(n_{face})` centroid nodes, which represent the center of each face, and :math:`(n_{edge})`
 edge nodes, which represent the center of each edge.
 
