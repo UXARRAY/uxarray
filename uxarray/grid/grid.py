@@ -806,11 +806,7 @@ class Grid:
 
     @property
     def bounds(self):
-        """Populates the bounds of the grid based on the geometry of its faces,
-        taking into account special conditions such as faces crossing the
-        antimeridian or containing pole points. This method updates the grid's
-        internal representation to include accurate bounds for each face,
-        returned as a DataArray with detailed attributes.
+        """Latitude Longitude Bounds for each Face.
 
         Returns
         -------
@@ -822,7 +818,7 @@ class Grid:
             of latitude intervals to face indices.
 
             Attributes include:
-            - `cf_role`: Describes the role of the DataArray, here indicating face latitude bounds.
+            - `cf_role`: Describes the role of the DataArray, here indicating face latlon bounds.
             - `_FillValue`: The fill value used in the array, indicating uninitialized or missing data.
             - `long_name`: A descriptive name for the DataArray.
             - `start_index`: The starting index for face indices in the grid.

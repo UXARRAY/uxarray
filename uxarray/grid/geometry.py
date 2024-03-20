@@ -931,9 +931,9 @@ def _populate_bounds(grid, is_latlonface: bool = False, is_face_GCA_list=None):
         temp_latlon_array,
         dims=["n_face", "Two", "Two"],
         attrs={
-            "cf_role": "face_latitude_bounds",
+            "cf_role": "face_latlon_bounds",
             "_FillValue": INT_FILL_VALUE,
-            "long_name": "Provides the latitude and longitude bounds for each face in the grid in radian",
+            "long_name": "Provides the latitude and longitude bounds for each face in radians.",
             "start_index": INT_DTYPE(0),
             "latitude_intervalsIndex": intervalsIndex,
             "latitude_intervals_name_map": df_intervals_map,
