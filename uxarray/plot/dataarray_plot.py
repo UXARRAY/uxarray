@@ -21,6 +21,8 @@ import numpy as np
 
 import warnings
 
+from uxarray.plot.utils import hv_backend_ref
+
 
 def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
@@ -229,6 +231,8 @@ def _point_raster(
             f"The Dimension of Data Variable {uxda.name} is not Node or Face centered."
         )
 
+    hv_backend_ref.compare_and_set(backend=backend)
+
     # determine whether we need to recompute points, typically when a new projection is selected
     recompute = True
     if uxda._face_centered() == "center":
@@ -257,8 +261,7 @@ def _point_raster(
         # Construct Dask DataFrame
         point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
 
-        hv.extension("bokeh")
-        points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
+        points = hv.Points(point_ddf, ["lon", "lat"], size=size)
 
         # cache computed points & projection
         if cache:
@@ -272,11 +275,12 @@ def _point_raster(
     else:
         # use existing cached points & projection
         points_df["var"] = pd.Series(uxda.values)
-        points = hv.Points(points_df, ["lon", "lat"]).opts(size=size)
+        points = hv.Points(points_df, ["lon", "lat"], size=size)
+
+    # set holoviews extension
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         raster = hds_rasterize(
             points,
             pixel_ratio=pixel_ratio,
@@ -293,7 +297,6 @@ def _point_raster(
         )
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         raster = hds_rasterize(
             points,
             pixel_ratio=pixel_ratio,
@@ -350,9 +353,10 @@ def _polygon_raster(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
+    hv_backend_ref.compare_and_set(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         raster = hds_rasterize(
             hv_polygons,
             pixel_ratio=pixel_ratio,
@@ -369,7 +373,6 @@ def _polygon_raster(
         )
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         raster = hds_rasterize(
             hv_polygons,
             pixel_ratio=pixel_ratio,
@@ -439,15 +442,14 @@ def polygons(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
+    hv_backend_ref.compare_and_set(backend=backend)
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
 
         return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_polygons.opts(
             width=width,
             height=height,
@@ -556,9 +558,10 @@ def _plot_data_as_points(
     verts = np.column_stack([lon, lat, uxda.values])
     hv_points = Points(verts, vdims=["z"])
 
+    hv_backend_ref.compare_and_set(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         return hv_points.opts(
             color="z",
             colorbar=colorbar,
@@ -570,7 +573,6 @@ def _plot_data_as_points(
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_points.opts(
             color="z",
             width=width,
