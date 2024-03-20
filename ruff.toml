@@ -1,3 +1,5 @@
 extend-exclude = [
 "test",
 "benchmarks"]
+
+extend-include = ["*.ipynb"]
