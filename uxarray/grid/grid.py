@@ -136,7 +136,7 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
         self._face_areas = None
-        self._bounds = None
+        self._face_bounds = None
 
         # initialize cached data structures (visualization)
         self._gdf = None
@@ -805,7 +805,7 @@ class Grid:
         return self._face_areas
 
     @property
-    def bounds(self):
+    def face_bounds(self):
         """Latitude Longitude Bounds for each Face.
 
         Returns
@@ -825,9 +825,9 @@ class Grid:
             - `latitude_intervalsIndex`: An IntervalIndex indicating the latitude intervals.
             - `latitude_intervals_name_map`: A DataFrame mapping the latitude intervals to face indices.
         """
-        if self._bounds is None:
-            self._bounds = _populate_bounds(self)
-        return self._bounds
+        if self._face_bounds is None:
+            self._face_bounds = _populate_bounds(self)
+        return self._face_bounds
 
     # ==================================================================================================================
     @property
