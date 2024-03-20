@@ -3,10 +3,10 @@ channels:
     - conda-forge
 dependencies:
     - python
-    - dask
+    - dask<2024.3.0
     - netcdf4
     - numba
-    - numpy<=1.24
+    - numpy
     - pathlib
     - pre_commit
     - pytest

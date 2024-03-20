@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - cartopy
-  - dask
+  - dask<2024.3.0
   - datashader
   - gmpy2
   - holoviews
