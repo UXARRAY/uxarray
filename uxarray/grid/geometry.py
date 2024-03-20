@@ -819,7 +819,9 @@ def _populate_face_latlon_bound(
     return face_latlon_array
 
 
-def _populate_bounds(grid, is_latlonface: bool = False, is_face_GCA_list=None):
+def _populate_bounds(
+    grid, is_latlonface: bool = False, is_face_GCA_list=None, return_array=False
+):
     """Populates the bounds of the grid based on the geometry of its faces,
     taking into account special conditions such as faces crossing the
     antimeridian or containing pole points. This method updates the grid's
@@ -927,7 +929,7 @@ def _populate_bounds(grid, is_latlonface: bool = False, is_face_GCA_list=None):
         index=intervalsIndex, data=intervals_name_list, columns=["face_id"]
     )
 
-    return xr.DataArray(
+    bounds = xr.DataArray(
         temp_latlon_array,
         dims=["n_face", "Two", "Two"],
         attrs={
@@ -939,3 +941,8 @@ def _populate_bounds(grid, is_latlonface: bool = False, is_face_GCA_list=None):
             "latitude_intervals_name_map": df_intervals_map,
         },
     )
+
+    if return_array:
+        return bounds
+    else:
+        grid._ds["bounds"] = bounds

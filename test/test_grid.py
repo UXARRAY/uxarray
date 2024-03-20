@@ -944,7 +944,7 @@ class TestLatlonBounds(TestCase):
 
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = grid.face_bounds
+        bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)

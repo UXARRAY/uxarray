@@ -873,8 +873,7 @@ class TestLatlonBoundsMix(TestCase):
 
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = _populate_bounds(grid)
-        face_bounds = bounds_xarray.values
+        face_bounds = grid.bounds.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
 
@@ -893,7 +892,7 @@ class TestLatlonBoundsMix(TestCase):
 
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = _populate_bounds(grid,is_latlonface=True)
+        bounds_xarray = _populate_bounds(grid,is_latlonface=True, return_array=True)
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
@@ -912,7 +911,7 @@ class TestLatlonBoundsMix(TestCase):
                            [[np.deg2rad(60.0),np.pi/2],[0.,        2*np.pi]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = _populate_bounds(grid,is_face_GCA_list=[[True, False, True, False]]*4)
+        bounds_xarray = _populate_bounds(grid,is_face_GCA_list=[[True, False, True, False]]*4, return_array=True)
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
