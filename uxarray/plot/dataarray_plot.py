@@ -214,38 +214,31 @@ def _point_raster(
 
     if uxda._face_centered():
         # data mapped to face centroid coordinates
-        lon = uxda.uxgrid.face_lon.values
-        lat = uxda.uxgrid.face_lat.values
+        lon, lat = uxda.uxgrid.face_lon.values, uxda.uxgrid.face_lat.values
+        data_mapping = "face"
     elif uxda._node_centered():
         # data mapped to face corner coordinates
-        lon = uxda.uxgrid.node_lon.values
-        lat = uxda.uxgrid.node_lat.values
+        lon, lat = uxda.uxgrid.node_lon.values, uxda.uxgrid.node_lat.values
+        data_mapping = "node"
     elif uxda._edge_centered():
         # data mapped to face corner coordinates
-        lon = uxda.uxgrid.edge_lon.values
-        lat = uxda.uxgrid.edge_lat.values
+        lon, lat = uxda.uxgrid.edge_lon.values, uxda.uxgrid.edge_lat.values
+        data_mapping = "edge"
     else:
         raise ValueError(
             f"The Dimension of Data Variable {uxda.name} is not Node or Face centered."
         )
 
-    # determine whether we need to recompute points, typically when a new projection is selected
-    recompute = True
-    if uxda._face_centered() == "center":
-        if (
-            uxda.uxgrid._centroid_points_df_proj[0] is not None
-            and uxda.uxgrid._centroid_points_df_proj[1] == projection
-        ):
-            recompute = False
-            points_df = uxda.uxgrid._centroid_points_df_proj[0]
+    element_points_ref = getattr(uxda.uxgrid, f"_{data_mapping}_points_ref")
 
+    if (
+        element_points_ref["df"] is not None
+        and element_points_ref["projection"] == projection
+    ):
+        recompute = False
+        points_df = element_points_ref["df"]
     else:
-        if (
-            uxda.uxgrid._corner_points_df_proj[0] is not None
-            and uxda.uxgrid._corner_points_df_proj[1] == projection
-        ):
-            recompute = False
-            points_df = uxda.uxgrid._corner_points_df_proj[0]
+        recompute = True
 
     if recompute:
         # need to recompute points and/or projection
@@ -260,18 +253,14 @@ def _point_raster(
         hv.extension("bokeh")
         points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
-        # cache computed points & projection
         if cache:
-            if uxda._face_centered() == "center":
-                uxda.uxgrid._centroid_points_df_proj[0] = point_ddf
-                uxda.uxgrid._centroid_points_df_proj[1] = projection
-            else:
-                uxda.uxgrid._corner_points_df_proj[0] = point_ddf
-                uxda.uxgrid._corner_points_df_proj[1] = projection
+            # cache computed points & projection
+            element_points_ref["df"] = point_ddf
+            element_points_ref["projection"] = projection
 
     else:
         # use existing cached points & projection
-        points_df["var"] = pd.Series(uxda.values)
+        points_df["var"] = pd.Series(uxda.data)
         points = hv.Points(points_df, ["lon", "lat"]).opts(size=size)
 
     if backend == "matplotlib":

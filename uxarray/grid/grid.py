@@ -143,8 +143,14 @@ class Grid:
         self._gdf_exclude_am = None
         self._poly_collection = None
         self._line_collection = None
-        self._centroid_points_df_proj = [None, None]
-        self._corner_points_df_proj = [None, None]
+
+        # caching for point viz
+        self._face_points_ref = {"df": None, "projection": None}
+        self._edge_points_ref = {"df": None, "projection": None}
+        self._node_points_ref = {"df": None, "projection": None}
+
+        # self._centroid_points_df_proj = [None, None]
+        # self._corner_points_df_proj = [None, None]
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
