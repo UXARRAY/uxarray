@@ -18,6 +18,8 @@ from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
     _set_desired_longitude_range,
+    _populate_lonlat_coord,
+    _populate_cartesian_xyz_coord,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -27,16 +29,12 @@ from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
 )
 
-from uxarray.grid.coordinates import (
-    _populate_lonlat_coord,
-    _populate_cartesian_xyz_coord,
-)
-
 from uxarray.grid.geometry import (
     _populate_antimeridian_face_indices,
     _grid_to_polygon_geodataframe,
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
+    _populate_bounds,
 )
 
 from uxarray.grid.neighbors import (
@@ -55,6 +53,7 @@ from uxarray.grid.validation import (
     _check_duplicate_nodes,
     _check_area,
 )
+
 
 from xarray.core.utils import UncachedAccessor
 
@@ -802,8 +801,32 @@ class Grid:
             self._face_areas, self._face_jacobian = self.compute_face_areas()
         return self._face_areas
 
-    # ==================================================================================================================
+    @property
+    def bounds(self):
+        """Latitude Longitude Bounds for each Face.
 
+        Returns
+        -------
+        xr.DataArray
+            A DataArray containing the latitude and longitude bounds for each face in the grid,
+            expressed in radians. The array has dimensions ["n_face", "Two", "Two"], where "Two"
+            is a literal dimension name indicating two bounds (min and max) for each of latitude
+            and longitude. The DataArray includes attributes detailing its purpose and the mapping
+            of latitude intervals to face indices.
+
+            Attributes include:
+            - `cf_role`: Describes the role of the DataArray, here indicating face latlon bounds.
+            - `_FillValue`: The fill value used in the array, indicating uninitialized or missing data.
+            - `long_name`: A descriptive name for the DataArray.
+            - `start_index`: The starting index for face indices in the grid.
+            - `latitude_intervalsIndex`: An IntervalIndex indicating the latitude intervals.
+            - `latitude_intervals_name_map`: A DataFrame mapping the latitude intervals to face indices.
+        """
+        if "bounds" not in self._ds:
+            _populate_bounds(self)
+        return self._ds["bounds"]
+
+    # ==================================================================================================================
     @property
     def face_jacobian(self):
         """Declare face_jacobian as a property."""
