@@ -232,9 +232,11 @@ def _point_raster(
     # this will be fixed in #733
     hv.extension("bokeh")
 
+    # construct a dask dataframe from coordinates and data
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
     point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
 
+    # construct a holoviews points oobject
     points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
     if backend == "matplotlib":
