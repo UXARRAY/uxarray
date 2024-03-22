@@ -1,8 +1,7 @@
-
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_constLat_intersection
-from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import node_xyz_to_lonlat_rad
 import pandas as pd
 from queue import Queue
 
@@ -351,7 +350,9 @@ def _get_zonal_face_interval(
             unique_intersection_lonlat = np.array(
                 [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
             )
-            unique_intersection_lonlat = unique_intersection_lonlat.append([2 * np.pi, latitude_rad])
+            unique_intersection_lonlat = unique_intersection_lonlat.append(
+                [2 * np.pi, latitude_rad]
+            )
             unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
             # Initialize a queue and fill it with the sorted longitudes
             lon_queue = Queue()
@@ -464,4 +465,3 @@ def _process_overlapped_intervals(intervals_df):
         last_position = position
 
     return overlap_contributions, total_length
-
