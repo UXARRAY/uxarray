@@ -1,3 +1,10 @@
 extend-exclude = [
 "test",
 "benchmarks"]
+
+[lint]
+ignore-init-module-imports = false
+
+[lint.per-file-ignores]
+"docs/*" = ["E402", "F401"]
+"uxarray/plot/*" = ["E402", "F401"]
