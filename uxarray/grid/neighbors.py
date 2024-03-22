@@ -1,18 +1,25 @@
 import numpy as np
 from numpy import deg2rad
 
+import xarray as xr
+
+from numba import njit
+
 from sklearn.neighbors import BallTree as SKBallTree
 from sklearn.neighbors import KDTree as SKKDTree
+
 from typing import Optional, Union
 
-from uxarray.constants import INT_DTYPE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 class KDTree:
     """Custom KDTree data structure written around the
-    ``sklearn.neighbors.KDTree`` implementation for use with either the corner
-    (``node_x``, ``node_y``, ``node_z``) or center (``face_x``, ``face_y``,
-    ``face_z``) nodes of the inputted unstructured grid.
+    ``sklearn.neighbors.KDTree`` implementation for use with corner
+    (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``), edge
+    (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``, ``edge_lat``), or
+    center (``face_x``, ``face_y``, ``face_z``) and (``face_lon``,
+    ``face_lat``) nodes of the inputted unstructured grid.
 
     Parameters
     ----------
@@ -399,8 +406,10 @@ class KDTree:
 class BallTree:
     """Custom BallTree data structure written around the
     ``sklearn.neighbors.BallTree`` implementation for use with either the
-    corner (``node_lon``, ``node_lat``) or center (``face_lon``, ``face_lat``)
-    nodes of the inputted unstructured grid.
+    (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``), edge
+    (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``, ``edge_lat``), or
+    center (``face_x``, ``face_y``, ``face_z``) and (``face_lon``,
+    ``face_lat``) nodes of the inputted unstructured grid.
 
     Parameters
     ----------
@@ -829,3 +838,77 @@ def _prepare_xyz_for_query(xyz):
         )
 
     return xyz
+
+
+def _populate_edge_node_distances(grid):
+    """Populates ``edge_node_distances``"""
+    edge_node_distances = _construct_edge_node_distances(
+        grid.node_lon.values, grid.node_lat.values, grid.edge_node_connectivity.values
+    )
+
+    grid._ds["edge_node_distances"] = xr.DataArray(
+        data=edge_node_distances,
+        dims=["n_edge"],
+        attrs={
+            "long_name": "arc distance between the nodes of each edge",
+        },
+    )
+
+
+@njit
+def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
+    """Helper for computing the arc-distance between nodes compose each
+    edge."""
+
+    edge_lon_a = np.deg2rad((node_lon[edge_nodes[:, 0]]))
+    edge_lon_b = np.deg2rad((node_lon[edge_nodes[:, 1]]))
+
+    edge_lat_a = np.deg2rad((node_lat[edge_nodes[:, 0]]))
+    edge_lat_b = np.deg2rad((node_lat[edge_nodes[:, 1]]))
+
+    # arc length
+    edge_node_distances = np.arccos(
+        np.sin(edge_lat_a) * np.sin(edge_lat_b)
+        + np.cos(edge_lat_a) * np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b)
+    )
+
+    return edge_node_distances
+
+
+def _populate_edge_face_distances(grid):
+    """Populates ``edge_face_distances``"""
+    edge_face_distances = _construct_edge_face_distances(
+        grid.node_lon.values, grid.node_lat.values, grid.edge_face_connectivity.values
+    )
+
+    grid._ds["edge_face_distances"] = xr.DataArray(
+        data=edge_face_distances,
+        dims=["n_edge"],
+        attrs={
+            "long_name": "arc distance between the face centers that saddle each edge",
+        },
+    )
+
+
+@njit
+def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
+    """Helper for computing the arc-distance between faces that saddle a given
+    edge."""
+
+    saddle_mask = edge_faces[:, 1] != INT_FILL_VALUE
+
+    edge_face_distances = np.zeros(edge_faces.shape[0])
+
+    edge_lon_a = np.deg2rad((node_lon[edge_faces[saddle_mask, 0]]))
+    edge_lon_b = np.deg2rad((node_lon[edge_faces[saddle_mask, 1]]))
+
+    edge_lat_a = np.deg2rad((node_lat[edge_faces[saddle_mask, 0]]))
+    edge_lat_b = np.deg2rad((node_lat[edge_faces[saddle_mask, 1]]))
+
+    # arc length
+    edge_face_distances[saddle_mask] = np.arccos(
+        np.sin(edge_lat_a) * np.sin(edge_lat_b)
+        + np.cos(edge_lat_a) * np.cos(edge_lat_b) * np.cos(edge_lon_a - edge_lon_b)
+    )
+
+    return edge_face_distances

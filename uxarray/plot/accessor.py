@@ -302,13 +302,13 @@ class UxDataArrayPlotAccessor:
         return dataarray_plot.datashade(
             self._uxda,
             *args,
-            method,
-            plot_height,
-            plot_width,
-            x_range,
-            y_range,
-            cmap,
-            agg,
+            method=method,
+            plot_height=plot_height,
+            plot_width=plot_width,
+            x_range=x_range,
+            y_range=y_range,
+            cmap=cmap,
+            agg=agg,
             **kwargs,
         )
 

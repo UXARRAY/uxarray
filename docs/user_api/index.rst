@@ -48,7 +48,6 @@ Methods
    :toctree: generated/
 
    UxDataset.info
-   UxDataset.integrate
 
 
 Remapping
@@ -57,6 +56,7 @@ Remapping
    :toctree: generated/
 
    UxDataset.nearest_neighbor_remap
+   UxDataset.inverse_distance_weighted_remap
 
 Plotting
 --------
@@ -118,6 +118,7 @@ Remapping
    :toctree: generated/
 
    UxDataArray.nearest_neighbor_remap
+   UxDataArray.inverse_distance_weighted_remap
    UxDataArray.nodal_average
 
 Plotting
@@ -152,6 +153,16 @@ Subsetting
    UxDataArray.subset.nearest_neighbor
    UxDataArray.subset.bounding_circle
    UxDataArray.subset.bounding_box
+
+Calculus Operators
+------------------
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.integrate
+   UxDataArray.gradient
+   UxDataArray.difference
+
 
 
 

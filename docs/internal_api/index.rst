@@ -136,6 +136,8 @@ Geometry
    grid.geometry._pole_point_inside_polygon
    grid.geometry._classify_polygon_location
    grid.geometry._check_intersection
+   grid.geometry._get_latlonbox_width
+   grid.geometry._insert_pt_in_latlonbox
 
 Coordinates
 -----------
@@ -146,9 +148,11 @@ Coordinates
    grid.coordinates._get_xyz_from_lonlat
    grid.coordinates._populate_cartesian_xyz_coord
    grid.coordinates._populate_lonlat_coord
-   grid.coordinates._populate_centroid_coord
-   grid.coordinates._construct_xyz_centroids
+   grid.coordinates._populate_face_centroids
+   grid.coordinates._construct_face_centroids
    grid.coordinates._set_desired_longitude_range
+   grid.coordinates._populate_edge_centroids
+   grid.coordinates._construct_edge_centroids
 
 
 Arcs
@@ -157,7 +161,7 @@ Arcs
    :toctree: generated/
 
    grid.arcs._angle_of_2_vectors
-   grid.arcs._angle_of_2_vectors
+   grid.arcs._decide_pole_latitude
 
 
 Utils
@@ -220,6 +224,9 @@ Remapping
    remap.nearest_neighbor._nearest_neighbor
    remap.nearest_neighbor._nearest_neighbor_uxda
    remap.nearest_neighbor._nearest_neighbor_uxds
+   remap.inverse_distance_weighted._inverse_distance_weighted_remap
+   remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxda
+   remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxds
 
 
 Grid Parsing and Encoding
@@ -326,3 +333,22 @@ Subsetting
 
    subset.grid_accessor.GridSubsetAccessor
    subset.dataarray_accessor.DataArraySubsetAccessor
+
+Neighbor
+--------
+.. autosummary::
+   :toctree: generated/
+
+   grid.neighbors._populate_edge_node_distances
+   grid.neighbors._construct_edge_node_distances
+   grid.neighbors._populate_edge_face_distances
+   grid.neighbors._construct_edge_face_distances
+
+Gradients
+---------
+.. autosummary::
+   :toctree: generated/
+
+   core.gradient._calculate_edge_face_difference
+   core.gradient._calculate_edge_node_difference
+   core.gradient._calculate_grad_on_edge_from_faces

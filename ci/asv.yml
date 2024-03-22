@@ -1,7 +1,8 @@
-name: uxarray_build
+name: asv
 channels:
   - conda-forge
 dependencies:
+  - python=3.11
   - cartopy
   - dask
   - datashader
@@ -14,7 +15,7 @@ dependencies:
   - pandas<2.1.0
   - pathlib
   - pre_commit
-  - pyarrow
+  - pyarrow<13.0.0   # pin due to CI faliures on macOS & ubuntu
   - pytest
   - pytest-cov
   - requests
@@ -26,3 +27,5 @@ dependencies:
   - pip:
     - antimeridian
     - pyfma
+    - asv<0.6.2
+    - -e ../
