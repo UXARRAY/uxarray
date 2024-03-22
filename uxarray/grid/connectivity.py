@@ -4,6 +4,7 @@ import xarray as xr
 from scipy import sparse
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
 
 from numba import njit
 
@@ -137,8 +138,8 @@ def _populate_n_nodes_per_face(grid):
     # add to internal dataset
     grid._ds["n_nodes_per_face"] = xr.DataArray(
         data=n_nodes_per_face,
-        dims=["n_face"],
-        attrs={"long_name": "number of non-fill value nodes for each face"},
+        dims=ugrid.N_NODES_PER_FACE_DIMS,
+        attrs=ugrid.N_NODES_PER_FACE_ATTRS,
     )
 
 
@@ -165,18 +166,13 @@ def _populate_edge_node_connectivity(grid):
         grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes
     )
 
+    edge_node_attrs = ugrid.EDGE_NODE_CONNECTIVITY_ATTRS
+    edge_node_attrs["inverse_indices"] = inverse_indices
+    edge_node_attrs["fill_value_mask"] = fill_value_mask
+
     # add edge_node_connectivity to internal dataset
     grid._ds["edge_node_connectivity"] = xr.DataArray(
-        edge_nodes,
-        dims=["n_edge", "Two"],
-        attrs={
-            "cf_role": "edge_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "long_name": "Maps every edge to the two nodes that it connects",
-            "start_index": INT_DTYPE(0),
-            "inverse_indices": inverse_indices,
-            "fill_value_mask": fill_value_mask,
-        },
+        edge_nodes, dims=ugrid.EDGE_NODE_CONNECTIVITY_DIMS, attrs=edge_node_attrs
     )
 
 
@@ -250,12 +246,8 @@ def _populate_edge_face_connectivity(grid):
 
     grid._ds["edge_face_connectivity"] = xr.DataArray(
         data=edge_faces,
-        dims=["n_edge", "Two"],
-        attrs={
-            "cf_role": "edge_face_connectivity",
-            "start_index": INT_DTYPE(0),
-            "long_name": "Maps the faces that saddle a given edge",
-        },
+        dims=ugrid.EDGE_FACE_CONNECTIVITY_DIMS,
+        attrs=ugrid.EDGE_FACE_CONNECTIVITY_ATTRS,
     )
 
 
@@ -297,12 +289,8 @@ def _populate_face_edge_connectivity(grid):
 
     grid._ds["face_edge_connectivity"] = xr.DataArray(
         data=face_edges,
-        dims=["n_face", "n_max_face_edges"],
-        attrs={
-            "cf_role": "face_edges_connectivity",
-            "start_index": INT_DTYPE(0),
-            "long_name": "Maps every edge to the two nodes that it connects",
-        },
+        dims=ugrid.FACE_EDGE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_EDGE_CONNECTIVITY_ATTRS,
     )
 
 
@@ -323,12 +311,8 @@ def _populate_node_face_connectivity(grid):
 
     grid._ds["node_face_connectivity"] = xr.DataArray(
         node_faces,
-        dims=["n_node", "n_max_node_faces"],  # TODO
-        attrs={
-            "long_name": "Maps every node to the faces that " "it connects",
-            "nMaxNumFacesPerNode": n_max_faces_per_node,  # todo, this possibly duplicates nNodes_per_face
-            "_FillValue": INT_FILL_VALUE,
-        },
+        dims=ugrid.NODE_FACE_CONNECTIVITY_DIMS,
+        attrs=ugrid.NODE_FACE_CONNECTIVITY_ATTRS,
     )
 
 

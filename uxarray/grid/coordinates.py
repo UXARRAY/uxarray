@@ -7,6 +7,7 @@ import math
 from numba import njit, config
 
 from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT, ERROR_TOLERANCE
+from uxarray.conventions import ugrid
 
 config.DISABLE_JIT = not ENABLE_JIT
 
@@ -150,28 +151,13 @@ def _populate_cartesian_xyz_coord(grid):
     x, y, z = _get_xyz_from_lonlat(grid.node_lon.values, grid.node_lat.values)
 
     grid._ds["node_x"] = xr.DataArray(
-        data=x,
-        dims=["n_node"],
-        attrs={
-            "standard_name": "cartesian x",
-            "units": "m",
-        },
+        data=x, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_X_ATTRS
     )
     grid._ds["node_y"] = xr.DataArray(
-        data=y,
-        dims=["n_node"],
-        attrs={
-            "standard_name": "cartesian y",
-            "units": "m",
-        },
+        data=y, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
     )
     grid._ds["node_z"] = xr.DataArray(
-        data=z,
-        dims=["n_node"],
-        attrs={
-            "standard_name": "cartesian z",
-            "units": "m",
-        },
+        data=z, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
     )
 
 
@@ -214,20 +200,10 @@ def _populate_lonlat_coord(grid):
 
     # populate dataset
     grid._ds["node_lon"] = xr.DataArray(
-        data=lon,
-        dims=["n_node"],
-        attrs={
-            "long_name": "longitude of corner nodes",
-            "units": "degrees_east",
-        },
+        data=lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
     )
     grid._ds["node_lat"] = xr.DataArray(
-        data=lat,
-        dims=["n_node"],
-        attrs={
-            "long_name": "latitude of corner nodes",
-            "units": "degrees_north",
-        },
+        data=lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
     )
 
 
@@ -275,23 +251,23 @@ def _populate_face_centroids(grid, repopulate=False):
     # Populate the centroids
     if "face_lon" not in grid._ds or repopulate:
         grid._ds["face_lon"] = xr.DataArray(
-            centroid_lon, dims=["n_face"], attrs={"units": "degrees_east"}
+            centroid_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
         )
         grid._ds["face_lat"] = xr.DataArray(
-            centroid_lat, dims=["n_face"], attrs={"units": "degrees_north"}
+            centroid_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
         )
 
     if "face_x" not in grid._ds or repopulate:
         grid._ds["face_x"] = xr.DataArray(
-            centroid_x, dims=["n_face"], attrs={"units": "meters"}
+            centroid_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
         )
 
         grid._ds["face_y"] = xr.DataArray(
-            centroid_y, dims=["n_face"], attrs={"units": "meters"}
+            centroid_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
         )
 
         grid._ds["face_z"] = xr.DataArray(
-            centroid_z, dims=["n_face"], attrs={"units": "meters"}
+            centroid_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
         )
 
 
@@ -361,53 +337,31 @@ def _populate_edge_centroids(grid, repopulate=False):
     # Populate the centroids
     if "edge_lon" not in grid._ds or repopulate:
         grid._ds["edge_lon"] = xr.DataArray(
-            centroid_lon,
-            dims=["n_edge"],
-            attrs={
-                "standard_name": "longitude",
-                "long name": "Longitude of the center of each edge",
-                "units": "degrees_east",
-            },
+            centroid_lon, dims=[ugrid.EDGE_DIM], attrs=ugrid.EDGE_LON_ATTRS
         )
         grid._ds["edge_lat"] = xr.DataArray(
             centroid_lat,
-            dims=["n_edge"],
-            attrs={
-                "standard_name": "latitude",
-                "long name": "Latitude of the center of each edge",
-                "units": "degrees_north",
-            },
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_LAT_ATTRS,
         )
 
     if "edge_x" not in grid._ds or repopulate:
         grid._ds["edge_x"] = xr.DataArray(
             centroid_x,
-            dims=["n_edge"],
-            attrs={
-                "standard_name": "x",
-                "long name": "x coordinate of the center of each edge",
-                "units": "meters",
-            },
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_X_ATTRS,
         )
 
         grid._ds["edge_y"] = xr.DataArray(
             centroid_y,
-            dims=["n_edge"],
-            attrs={
-                "standard_name": "y",
-                "long name": "y coordinate of the center of each edge",
-                "units": "meters",
-            },
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_Y_ATTRS,
         )
 
         grid._ds["edge_z"] = xr.DataArray(
             centroid_z,
-            dims=["n_edge"],
-            attrs={
-                "standard_name": "z",
-                "long name": "z coordinate of the center of each edge",
-                "units": "meters",
-            },
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_Z_ATTRS,
         )
 
 

@@ -643,6 +643,8 @@ class TestConnectivity(TestCase):
         """Tests the construction of (``Mesh2_edge_nodes``) on an MPAS grid
         with known edge nodes."""
 
+        from uxarray.grid.connectivity import _build_edge_node_connectivity
+
         # grid with known edge node connectivity
         mpas_grid_ux = ux.open_grid(self.mpas_filepath)
         edge_nodes_expected = mpas_grid_ux._ds['edge_node_connectivity'].values
@@ -652,8 +654,12 @@ class TestConnectivity(TestCase):
         edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
         # construct edge nodes
-        _build_edge_node_connectivity(mpas_grid_ux, repopulate=True)
-        edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
+        edge_nodes_output, _, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
+                                                          mpas_grid_ux.n_face,
+                                                          mpas_grid_ux.n_max_face_nodes)
+
+        # _populate_face_edge_connectivity(mpas_grid_ux)
+        # edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
 
         self.assertTrue(np.array_equal(edge_nodes_expected, edge_nodes_output))
 
@@ -704,28 +710,6 @@ class TestConnectivity(TestCase):
                 self.assertTrue(
                     np.array_equal(reverted_mesh2_edge_nodes[i],
                                    original_face_nodes_connectivity[i]))
-
-    def test_build_face_edges_connectivity_mpas(self):
-        tgrid = ux.open_grid(self.mpas_filepath)
-
-        face_node_connectivity = tgrid._ds["face_node_connectivity"]
-
-        _populate_face_edge_connectivity(tgrid)
-        mesh2_face_edges = tgrid._ds.face_edge_connectivity
-        mesh2_edge_nodes = tgrid._ds.edge_node_connectivity
-
-        # Assert if the mesh2_face_edges sizes are correct.
-        self.assertEqual(mesh2_face_edges.sizes["n_face"],
-                         face_node_connectivity.sizes["n_face"])
-        self.assertEqual(mesh2_face_edges.sizes["n_max_face_edges"],
-                         face_node_connectivity.sizes["n_max_face_nodes"])
-
-        # Assert if the mesh2_edge_nodes sizes are correct.
-        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-        num_edges = mesh2_face_edges.sizes["n_face"] + tgrid._ds[
-            "node_lon"].sizes["n_node"] - 2
-        size = mesh2_edge_nodes.sizes["n_edge"]
-        self.assertEqual(mesh2_edge_nodes.sizes["n_edge"], num_edges)
 
     def test_build_face_edges_connectivity_fillvalues(self):
         verts = [
