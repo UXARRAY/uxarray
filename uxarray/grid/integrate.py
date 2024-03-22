@@ -1,4 +1,3 @@
-"""uxarray grid module."""
 
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
