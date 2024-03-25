@@ -24,6 +24,7 @@ from uxarray.core.gradient import (
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
+from uxarray.core.reductions import _uxda_grid_reduce
 
 import warnings
 
@@ -372,6 +373,11 @@ class UxDataArray(xr.DataArray):
         Can be used for remapping node-centered data to each face.
         """
 
+        warnings.warn(
+            "This function will be deprecated in a future release. Please use uxda.mean(destination=`face`) instead.",
+            DeprecationWarning,
+        )
+
         if not self._node_centered():
             # nodal average expects node-centered data
             raise ValueError(
@@ -400,6 +406,637 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             name=self.name + "_nodal_average" if self.name is not None else None,
         ).rename({"n_node": "n_face"})
+
+    def mean(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``mean`` reduction along some dimension(s), either
+        applied globally to the desired dimension or locally utilizing
+        connectivity information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.mean``
+
+        See Also
+        --------
+        numpy.mean
+        dask.array.mean
+        xarray.DataArray.mean
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``mean`` applied to its data.
+        """
+
+        if not localized:
+            # standard xarray mean without considering grid connectivity
+            return super().mean(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "mean", **kwargs)
+
+    def min(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``min`` reduction along some dimension(s), either applied
+        globally to the desired dimension or locally utilizing connectivity
+        information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.min``
+
+        See Also
+        --------
+        numpy.min
+        dask.array.min
+        xarray.DataArray.min
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``min`` applied to its data.
+        """
+        if not localized:
+            # standard xarray min without considering grid connectivity
+            return super().min(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "min", **kwargs)
+
+    def max(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``max`` reduction along some dimension(s), either applied
+        globally to the desired dimension or locally utilizing connectivity
+        information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.max``
+
+        See Also
+        --------
+        numpy.max
+        dask.array.max
+        xarray.DataArray.max
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``max`` applied to its data.
+        """
+        if not localized:
+            # standard xarray max without considering grid connectivity
+            return super().max(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "max", **kwargs)
+
+    def median(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``median`` reduction along some dimension(s), either
+        applied globally to the desired dimension or locally utilizing
+        connectivity information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.median``
+
+        See Also
+        --------
+        numpy.median
+        dask.array.median
+        xarray.DataArray.median
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``median`` applied to its data.
+        """
+        if not localized:
+            # standard xarray median without considering grid connectivity
+            return super().median(
+                dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs
+            )
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "median", **kwargs)
+
+    def std(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``std`` reduction along some dimension(s), either applied
+        globally to the desired dimension or locally utilizing connectivity
+        information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.std``
+
+        See Also
+        --------
+        numpy.std
+        dask.array.std
+        xarray.DataArray.std
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``std`` applied to its data.
+        """
+        if not localized:
+            # standard xarray std without considering grid connectivity
+            return super().std(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "std", **kwargs)
+
+    def var(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``var`` reduction along some dimension(s), either applied
+        globally to the desired dimension or locally utilizing connectivity
+        information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.var``
+
+        See Also
+        --------
+        numpy.var
+        dask.array.var
+        xarray.DataArray.var
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``var`` applied to its data.
+        """
+        if not localized:
+            # standard xarray var without considering grid connectivity
+            return super().var(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "var", **kwargs)
+
+    def sum(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``sum`` reduction along some dimension(s), either applied
+        globally to the desired dimension or locally utilizing connectivity
+        information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.sum``
+
+        See Also
+        --------
+        numpy.sum
+        dask.array.sum
+        xarray.DataArray.sum
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``sum`` applied to its data.
+        """
+        if not localized:
+            # standard xarray sum without considering grid connectivity
+            return super().sum(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "sum", **kwargs)
+
+    def prod(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        skipna=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``prod`` reduction along some dimension(s), either
+        applied globally to the desired dimension or locally utilizing
+        connectivity information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.prod``
+
+        See Also
+        --------
+        numpy.prod
+        dask.array.prod
+        xarray.DataArray.prod
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``prod`` applied to its data.
+        """
+        if not localized:
+            # standard xarray prod without considering grid connectivity
+            return super().prod(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "prod", **kwargs)
+
+    def all(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs an ``all`` reduction along some dimension(s), either
+        applied globally to the desired dimension or locally utilizing
+        connectivity information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.all``
+
+        See Also
+        --------
+        numpy.all
+        dask.array.all
+        xarray.DataArray.all
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``all`` applied to its data.
+        """
+        if not localized:
+            # standard xarray all without considering grid connectivity
+            return super().all(dim=dim, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "all", **kwargs)
+
+    def any(
+        self,
+        localized=False,
+        destination=None,
+        dim=None,
+        keep_attrs=None,
+        **kwargs,
+    ):
+        """Performs a ``any`` reduction along some dimension(s), either applied
+        globally to the desired dimension or locally utilizing connectivity
+        information.
+
+        Note
+        ----
+        When (``localized=False``), this method is equivalent to ``xarray.DataArray.any``
+
+        See Also
+        --------
+        numpy.any
+        dask.array.any
+        xarray.DataArray.any
+
+        Parameters
+        ----------
+        localized: optional, bool
+            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
+            reduction across all data values using the default Xarray implementation without considering any connectivity
+            information.
+
+        destination: str,
+            Destination grid dimension for reduction.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``any`` applied to its data.
+        """
+        if not localized:
+            # standard xarray any without considering grid connectivity
+            return super().any(dim=dim, keep_attrs=keep_attrs, **kwargs)
+
+        return _uxda_grid_reduce(self, keep_attrs, destination, "any", **kwargs)
 
     def gradient(
         self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
