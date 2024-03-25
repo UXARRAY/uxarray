@@ -15,7 +15,6 @@ from holoviews.operation.datashader import rasterize as hds_rasterize
 
 from uxarray.plot.constants import N_FACE_THRESHOLD
 
-import pandas as pd
 
 import numpy as np
 
@@ -216,68 +215,30 @@ def _point_raster(
 
     if uxda._face_centered():
         # data mapped to face centroid coordinates
-        lon = uxda.uxgrid.face_lon.values
-        lat = uxda.uxgrid.face_lat.values
+        lon, lat = uxda.uxgrid.face_lon.values, uxda.uxgrid.face_lat.values
     elif uxda._node_centered():
         # data mapped to face corner coordinates
-        lon = uxda.uxgrid.node_lon.values
-        lat = uxda.uxgrid.node_lat.values
+        lon, lat = uxda.uxgrid.node_lon.values, uxda.uxgrid.node_lat.values
     elif uxda._edge_centered():
         # data mapped to face corner coordinates
-        lon = uxda.uxgrid.edge_lon.values
-        lat = uxda.uxgrid.edge_lat.values
+        lon, lat = uxda.uxgrid.edge_lon.values, uxda.uxgrid.edge_lat.values
     else:
         raise ValueError(
             f"The Dimension of Data Variable {uxda.name} is not Node or Face centered."
         )
 
+    if projection is not None:
+        # apply projection to coordinates
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
+        
     hv_backend_ref.compare_and_set(backend=backend)
 
-    # determine whether we need to recompute points, typically when a new projection is selected
-    recompute = True
-    if uxda._face_centered() == "center":
-        if (
-            uxda.uxgrid._centroid_points_df_proj[0] is not None
-            and uxda.uxgrid._centroid_points_df_proj[1] == projection
-        ):
-            recompute = False
-            points_df = uxda.uxgrid._centroid_points_df_proj[0]
+    # construct a dask dataframe from coordinates and data
+    point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
+    point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
 
-    else:
-        if (
-            uxda.uxgrid._corner_points_df_proj[0] is not None
-            and uxda.uxgrid._corner_points_df_proj[1] == projection
-        ):
-            recompute = False
-            points_df = uxda.uxgrid._corner_points_df_proj[0]
-
-    if recompute:
-        # need to recompute points and/or projection
-        if projection is not None:
-            lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
-
-        point_dict = {"lon": lon, "lat": lat, "var": uxda.values}
-
-        # Construct Dask DataFrame
-        point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
-
-        points = hv.Points(point_ddf, ["lon", "lat"], size=size)
-
-        # cache computed points & projection
-        if cache:
-            if uxda._face_centered() == "center":
-                uxda.uxgrid._centroid_points_df_proj[0] = point_ddf
-                uxda.uxgrid._centroid_points_df_proj[1] = projection
-            else:
-                uxda.uxgrid._corner_points_df_proj[0] = point_ddf
-                uxda.uxgrid._corner_points_df_proj[1] = projection
-
-    else:
-        # use existing cached points & projection
-        points_df["var"] = pd.Series(uxda.values)
-        points = hv.Points(points_df, ["lon", "lat"], size=size)
-
-    # set holoviews extension
+    # construct a holoviews points oobject
+    points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend

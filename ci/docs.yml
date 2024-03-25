@@ -6,7 +6,7 @@ dependencies:
     - dask
     - netcdf4
     - numba
-    - numpy<=1.24
+    - numpy
     - pathlib
     - pre_commit
     - pytest
