@@ -230,7 +230,7 @@ def _point_raster(
     if projection is not None:
         # apply projection to coordinates
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
-        
+
     hv_backend_ref.compare_and_set(backend=backend)
 
     # construct a dask dataframe from coordinates and data
