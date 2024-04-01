@@ -78,7 +78,8 @@ FACE_LAT_ATTRS = {
     "units": "degrees_north",
 }
 
-# coordinates (cartesian)
+CARTESIAN_NODE_COORDINATES = ["node_x", "node_y", "node_z"]
+
 NODE_X_ATTRS = {
     "standard_name": "x",
     "long name": "Cartesian x location of the corner nodes of each face",
@@ -97,6 +98,8 @@ NODE_Z_ATTRS = {
     "units": "meters",
 }
 
+CARTESIAN_EDGE_COORDINATES = ["edge_x", "edge_y", "edge_z"]
+
 EDGE_X_ATTRS = {
     "standard_name": "x",
     "long name": "Cartesian x location of the center of each edge",
@@ -114,6 +117,8 @@ EDGE_Z_ATTRS = {
     "long name": "Cartesian z location of the center of each edge",
     "units": "meters",
 }
+
+CARTESIAN_FACE_COORDINATES = ["face_x", "face_y", "face_z"]
 
 FACE_X_ATTRS = {
     "standard_name": "x",
