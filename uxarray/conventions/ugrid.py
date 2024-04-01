@@ -181,15 +181,17 @@ EDGE_NODE_CONNECTIVITY_ATTRS = {
 }
 EDGE_NODE_CONNECTIVITY_DIMS = ["n_edge", "two"]
 
-EDGE_EDGE_CONNECTIVITY_ATTRS = {
-    "cf_role": "edge_edge_connectivity",
-    "long name": "Edges that neighbor each edge",
-    "start_index": 0,
-    "_FillValue": INT_FILL_VALUE,
-    "dtype": INT_DTYPE,
-}
 
-EDGE_EDGE_CONNECTIVITY_DIMS = ["n_edge", "n_max_edge_edges"]
+# edge_edge_connectivity not yet supported
+# EDGE_EDGE_CONNECTIVITY_ATTRS = {
+#     "cf_role": "edge_edge_connectivity",
+#     "long name": "Edges that neighbor each edge",
+#     "start_index": 0,
+#     "_FillValue": INT_FILL_VALUE,
+#     "dtype": INT_DTYPE,
+# }
+#
+# EDGE_EDGE_CONNECTIVITY_DIMS = ["n_edge", "n_max_edge_edges"]
 
 EDGE_FACE_CONNECTIVITY_ATTRS = {
     "cf_role": "edge_face_connectivity",
@@ -236,7 +238,6 @@ CONNECTIVITY_NAMES = [
     "face_edge_connectivity",
     "face_face_connectivity",
     "edge_node_connectivity",
-    "edge_edge_connectivity",
     "edge_face_connectivity",
     "node_edge_connectivity",
     "node_face_connectivity",
@@ -267,10 +268,10 @@ CONNECTIVITY = {
         "dims": EDGE_NODE_CONNECTIVITY_DIMS,
         "attrs": EDGE_NODE_CONNECTIVITY_ATTRS,
     },
-    "edge_edge_connectivity": {
-        "dims": EDGE_EDGE_CONNECTIVITY_DIMS,
-        "attrs": EDGE_EDGE_CONNECTIVITY_ATTRS,
-    },
+    # "edge_edge_connectivity": {
+    #     "dims": EDGE_EDGE_CONNECTIVITY_DIMS,
+    #     "attrs": EDGE_EDGE_CONNECTIVITY_ATTRS,
+    # },
     "edge_face_connectivity": {
         "dims": EDGE_FACE_CONNECTIVITY_DIMS,
         "attrs": EDGE_FACE_CONNECTIVITY_ATTRS,
