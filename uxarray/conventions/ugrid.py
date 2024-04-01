@@ -170,7 +170,7 @@ FACE_FACE_CONNECTIVITY_ATTRS = {
 FACE_FACE_CONNECTIVITY_DIMS = [
     "n_face",
     "n_max_face_faces",
-]  # n_max_face_faces equiv to n_max_face_nodes
+]
 
 # connectivity (edge_)
 EDGE_NODE_CONNECTIVITY_ATTRS = {
