@@ -601,7 +601,7 @@ class Grid:
 
     @property
     def edge_lon(self) -> xr.DataArray:
-        """Longitude of each edge-center in degrees.
+        """Longitude of the center of each edge in degrees.
 
         Dimensions: ``(n_edge, )``
         """
@@ -613,7 +613,7 @@ class Grid:
 
     @property
     def edge_lat(self) -> xr.DataArray:
-        """Latitude of each edge-center in degrees.
+        """Latitude of the center of each edge in degrees.
 
         Dimensions: ``(n_edge, )``
         """
@@ -624,7 +624,7 @@ class Grid:
 
     @property
     def edge_x(self) -> xr.DataArray:
-        """Cartesian x location of each edge-center in meters.
+        """Cartesian x location of the center of each edge in meters.
 
         Dimensions: ``(n_edge, )``
         """
@@ -635,7 +635,7 @@ class Grid:
 
     @property
     def edge_y(self) -> xr.DataArray:
-        """Cartesian y location of each edge-center in meters.
+        """Cartesian y location of the center of each edge in meters.
 
         Dimensions: ``(n_edge, )``
         """
@@ -645,7 +645,7 @@ class Grid:
 
     @property
     def edge_z(self) -> xr.DataArray:
-        """Cartesian z location of each edge-center in meters.
+        """Cartesian z location of the center of each edge in meters.
 
         Dimensions: ``(n_edge, )``
         """
@@ -655,7 +655,7 @@ class Grid:
 
     @property
     def face_lon(self) -> xr.DataArray:
-        """Longitude of each face-center in degrees.
+        """Longitude of the center of each face in degrees.
 
         Dimensions: ``(n_face, )``
         """
@@ -666,7 +666,7 @@ class Grid:
 
     @property
     def face_lat(self) -> xr.DataArray:
-        """Latitude of each face-center in degrees.
+        """Latitude of the center of each face in degrees.
 
         Dimensions: ``(n_face, )``
         """
@@ -678,7 +678,7 @@ class Grid:
 
     @property
     def face_x(self) -> xr.DataArray:
-        """Cartesian x location of each face-center in meters.
+        """Cartesian x location of the center of each face in meters.
 
         Dimensions: ``(n_face, )``
         """
@@ -689,7 +689,7 @@ class Grid:
 
     @property
     def face_y(self) -> xr.DataArray:
-        """Cartesian y location of each face-center in meters.
+        """Cartesian y location of the center of each face in meters.
 
         Dimensions: ``(n_face, )``
         """
@@ -699,7 +699,7 @@ class Grid:
 
     @property
     def face_z(self) -> xr.DataArray:
-        """Cartesian z location of each face-center in meters.
+        """Cartesian z location of the center of each face in meters.
 
         Dimensions: ``(n_face, )``
         """
