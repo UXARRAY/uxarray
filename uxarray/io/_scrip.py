@@ -4,6 +4,8 @@ import numpy as np
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
+from uxarray.conventions import ugrid
+
 
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
@@ -46,29 +48,26 @@ def _to_ugrid(in_ds, out_ds):
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
         # Create node_lon & node_lat from unsorted, unique grid_corner_lat/lon
-        out_ds["node_lon"] = xr.DataArray(
-            unq_lon,
-            dims=["n_node"],
-            attrs={
-                "standard_name": "longitude",
-                "long_name": "longitude of mesh nodes",
-                "units": "degrees_east",
-            },
+        out_ds[ugrid.NODE_COORDINATES[0]] = xr.DataArray(
+            unq_lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
         )
 
-        out_ds["node_lat"] = xr.DataArray(
-            unq_lat,
-            dims=["n_node"],
-            attrs={
-                "standard_name": "latitude",
-                "long_name": "latitude of mesh nodes",
-                "units": "degrees_north",
-            },
+        out_ds[ugrid.NODE_COORDINATES[1]] = xr.DataArray(
+            unq_lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
         )
 
         # Create face_lon & face_lat from grid_center_lat/lon
-        out_ds["face_lon"] = in_ds["grid_center_lon"]
-        out_ds["face_lat"] = in_ds["grid_center_lat"]
+        out_ds[ugrid.FACE_COORDINATES[0]] = xr.DataArray(
+            in_ds["grid_center_lon"].values,
+            dims=[ugrid.FACE_DIM],
+            attrs=ugrid.FACE_LON_ATTRS,
+        )
+
+        out_ds[ugrid.FACE_COORDINATES[1]] = xr.DataArray(
+            in_ds["grid_center_lat"].values,
+            dims=[ugrid.FACE_DIM],
+            attrs=ugrid.FACE_LAT_ATTRS,
+        )
 
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(
@@ -78,14 +77,8 @@ def _to_ugrid(in_ds, out_ds):
         # set the face nodes data compiled in "connect" section
         out_ds["face_node_connectivity"] = xr.DataArray(
             data=face_nodes,
-            dims=["n_face", "n_max_face_nodes"],
-            attrs={
-                "cf_role": "face_node_connectivity",
-                "_FillValue": INT_FILL_VALUE,
-                "start_index": INT_DTYPE(
-                    0
-                ),  # NOTE: This might cause an error if numbering has holes
-            },
+            dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
+            attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
         )
 
     else:

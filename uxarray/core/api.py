@@ -15,18 +15,19 @@ from warnings import warn
 
 def open_grid(
     grid_filename_or_obj: Union[
-        str, os.PathLike, xr.DataArray, np.ndarray, list, tuple
+        str, os.PathLike, xr.DataArray, np.ndarray, list, tuple, dict
     ],
     latlon: Optional[bool] = False,
     use_dual: Optional[bool] = False,
     **kwargs: Dict[str, Any],
 ) -> Grid:
-    """Creates a ``uxarray.Grid`` object from a grid topology definition.
+    """Constructs and returns an ``uxarray.Grid`` object from a grid topology
+    definition.
 
     Parameters
     ----------
 
-    grid_filename_or_obj : string, xarray.Dataset, ndarray, list, tuple, required
+    grid_filename_or_obj : string, xarray.Dataset, ndarray, list, tuple, dict, required
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the unstructured grid topology/definition. It is read similar to
         ``filename_or_obj`` in ``xarray.open_dataset``. Otherwise, either
@@ -56,7 +57,7 @@ def open_grid(
 
     Open dataset with a grid topology file
 
-    >>> import uxarray as ux
+    >>> Import uxarray as ux
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
@@ -67,12 +68,16 @@ def open_grid(
             stacklevel=2,
         )
 
-    # construct Grid from dataset
     if isinstance(grid_filename_or_obj, xr.Dataset):
+        # construct a grid from a dataset file
         uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
 
-    # construct Grid from face vertices
+    elif isinstance(grid_filename_or_obj, dict):
+        # unpack the dictionary and construct a grid from topology
+        uxgrid = Grid.from_topology(**grid_filename_or_obj)
+
     elif isinstance(grid_filename_or_obj, (list, tuple, np.ndarray, xr.DataArray)):
+        # construct Grid from face vertices
         uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon=latlon)
 
     # attempt to use Xarray directly for remaining input types
@@ -90,7 +95,9 @@ def open_grid(
 
 
 def open_dataset(
-    grid_filename_or_obj: str,
+    grid_filename_or_obj: Union[
+        str, os.PathLike, xr.DataArray, np.ndarray, list, tuple, dict
+    ],
     filename_or_obj: str,
     latlon: Optional[bool] = False,
     use_dual: Optional[bool] = False,
@@ -172,7 +179,9 @@ def open_dataset(
 
 
 def open_mfdataset(
-    grid_filename_or_obj: str,
+    grid_filename_or_obj: Union[
+        str, os.PathLike, xr.DataArray, np.ndarray, list, tuple, dict
+    ],
     paths: Union[str, os.PathLike],
     latlon: Optional[bool] = False,
     use_dual: Optional[bool] = False,
