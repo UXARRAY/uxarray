@@ -9,7 +9,7 @@ class HoloviewsBackend:
         self.backend = None
 
     def assign(self, backend: str):
-        """Attempts to set the HoloViews backend."""
+        """Assigns a backend for use with HoloViz visualization."""
 
         if backend not in ["bokeh", "matplotlib"]:
             raise ValueError(
@@ -17,6 +17,7 @@ class HoloviewsBackend:
             )
 
         if backend != self.backend:
+            # only call hv.extension if it needs to be changed
             hv.extension(backend)
             self.backend = backend
 
