@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 import numpy as np
 import holoviews as hv
 
-from uxarray.plot.utils import hv_backend_ref
+import uxarray.plot.utils
 
 
 def plot(grid: Grid, **kwargs):
@@ -44,7 +44,7 @@ def mesh(
 
     hv_paths = hv.Path(gdf)
 
-    hv_backend_ref.compare_and_set(backend=backend)
+    uxarray.plot.utils.backend.assign(backend=backend)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
@@ -175,7 +175,7 @@ def _plot_coords_as_points(
     else:
         raise ValueError("Invalid element selected.")
 
-    hv_backend_ref.compare_and_set(backend=backend)
+    uxarray.plot.utils.backend.assign(backend=backend)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend

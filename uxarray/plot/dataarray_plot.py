@@ -20,7 +20,7 @@ import numpy as np
 
 import warnings
 
-from uxarray.plot.utils import hv_backend_ref
+import uxarray.plot.utils
 
 
 def plot(uxda, **kwargs):
@@ -231,7 +231,7 @@ def _point_raster(
         # apply projection to coordinates
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
 
-    hv_backend_ref.compare_and_set(backend=backend)
+    uxarray.plot.utils.backend.assign(backend=backend)
 
     # construct a dask dataframe from coordinates and data
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
@@ -314,7 +314,7 @@ def _polygon_raster(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
-    hv_backend_ref.compare_and_set(backend=backend)
+    uxarray.plot.utils.backend.assign(backend=backend)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
@@ -403,7 +403,7 @@ def polygons(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
-    hv_backend_ref.compare_and_set(backend=backend)
+    uxarray.plot.utils.backend.assign(backend=backend)
     if backend == "matplotlib":
         # use holoviews matplotlib backend
 
@@ -519,7 +519,7 @@ def _plot_data_as_points(
     verts = np.column_stack([lon, lat, uxda.values])
     hv_points = Points(verts, vdims=["z"])
 
-    hv_backend_ref.compare_and_set(backend=backend)
+    uxarray.plot.utils.backend.assign(backend=backend)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend

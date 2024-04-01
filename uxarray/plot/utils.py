@@ -8,9 +8,8 @@ class HoloviewsBackend:
     def __init__(self):
         self.backend = None
 
-    def compare_and_set(self, backend: str):
-        """Compares the currently set holoviews backend and sets it to the
-        desired one, if different."""
+    def assign(self, backend: str):
+        """Attempts to set the HoloViews backend."""
 
         if backend not in ["bokeh", "matplotlib"]:
             raise ValueError(
@@ -23,4 +22,4 @@ class HoloviewsBackend:
 
 
 # global reference to class to comparing and setting backend
-hv_backend_ref = HoloviewsBackend()
+backend = HoloviewsBackend()
