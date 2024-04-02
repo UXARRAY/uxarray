@@ -131,7 +131,7 @@ class TestAPI(TestCase):
         """Drops ``Mesh2_face_nodes`` from the inputted grid file using
         ``grid_kwargs``"""
 
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             # attempt to open a dataset after dropping face nodes should raise a KeyError
             uxds = ux.open_dataset(
                 self.gridfile_ne30,
