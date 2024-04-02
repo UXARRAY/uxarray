@@ -3,6 +3,8 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
+from uxarray.conventions import ugrid
+
 
 def _read_esmf(in_ds):
     """Reads in an Xarray dataset containing an ESMF formatted Grid dataset and
@@ -37,60 +39,33 @@ def _read_esmf(in_ds):
     out_ds = xr.Dataset()
 
     source_dims_dict = {
-        "nodeCount": "n_node",
-        "elementCount": "n_face",
-        "maxNodePElement": "n_max_face_nodes",
+        "nodeCount": ugrid.NODE_DIM,
+        "elementCount": ugrid.FACE_DIM,
+        "maxNodePElement": ugrid.N_MAX_FACE_NODES_DIM,
     }
 
     if in_ds["nodeCoords"].units == "degrees":
         # Spherical Coordinates (in degrees)
         node_lon = in_ds["nodeCoords"].isel(coordDim=0).values
-        node_lat = in_ds["nodeCoords"].isel(coordDim=1).values
-
-        out_ds["node_lon"] = xr.DataArray(
-            node_lon,
-            dims=["n_node"],
-            attrs={
-                "standard_name": "longitude",
-                "long_name": "longitude of mesh nodes",
-                "units": "degrees_east",
-            },
+        out_ds[ugrid.NODE_COORDINATES[0]] = xr.DataArray(
+            node_lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
         )
 
-        out_ds["node_lat"] = xr.DataArray(
-            node_lat,
-            dims=["n_node"],
-            attrs={
-                "standard_name": "latitude",
-                "long_name": "latitude of mesh nodes",
-                "units": "degrees_north",
-            },
+        node_lat = in_ds["nodeCoords"].isel(coordDim=1).values
+        out_ds[ugrid.NODE_COORDINATES[1]] = xr.DataArray(
+            node_lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
         )
 
         if "centerCoords" in in_ds:
-            # parse center coords (face centers) if avaliable
-
+            # parse center coords (face centers) if available
             face_lon = in_ds["centerCoords"].isel(coordDim=0).values
-            face_lat = in_ds["centerCoords"].isel(coordDim=1).values
-
-            out_ds["face_lon"] = xr.DataArray(
-                face_lon,
-                dims=["n_face"],
-                attrs={
-                    "standard_name": "longitude",
-                    "long_name": "longitude of center nodes",
-                    "units": "degrees_east",
-                },
+            out_ds[ugrid.FACE_COORDINATES[0]] = xr.DataArray(
+                face_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
             )
 
-            out_ds["face_lat"] = xr.DataArray(
-                face_lat,
-                dims=["n_face"],
-                attrs={
-                    "standard_name": "latitude",
-                    "long_name": "latitude of center nodes",
-                    "units": "degrees_north",
-                },
+            face_lat = in_ds["centerCoords"].isel(coordDim=1).values
+            out_ds[ugrid.FACE_COORDINATES[1]] = xr.DataArray(
+                face_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
             )
 
     else:
@@ -99,11 +74,10 @@ def _read_esmf(in_ds):
         )
 
     n_nodes_per_face = in_ds["numElementConn"].values.astype(INT_DTYPE)
-
     out_ds["n_nodes_per_face"] = xr.DataArray(
         data=n_nodes_per_face,
-        dims=["n_face"],
-        attrs={"long_name": "number of non-fill value nodes for each face"},
+        dims=ugrid.N_NODES_PER_FACE_DIMS,
+        attrs=ugrid.N_NODES_PER_FACE_ATTRS,
     )
 
     if "start_index" in in_ds["elementConn"]:
@@ -121,12 +95,8 @@ def _read_esmf(in_ds):
 
     out_ds["face_node_connectivity"] = xr.DataArray(
         data=face_node_connectivity,
-        dims=["n_face", "n_max_face_nodes"],
-        attrs={
-            "cf_role": "face_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "start_index": INT_DTYPE(0),
-        },
+        dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
 
     return out_ds, source_dims_dict
