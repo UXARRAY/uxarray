@@ -2,14 +2,20 @@ import holoviews as hv
 
 
 class HoloviewsBackend:
-    """Utility class to compare and set holoviews backends for
+    """Utility class to compare and set a HoloViews plotting backend for
     visualization."""
 
     def __init__(self):
         self.backend = None
 
     def assign(self, backend: str):
-        """Assigns a backend for use with HoloViz visualization."""
+        """Assigns a backend for use with HoloViews visualization.
+
+        Parameters
+        ----------
+        backend : str
+            Plotting backend to use, one of 'matplotlib', 'bokeh'
+        """
 
         if backend not in ["bokeh", "matplotlib"]:
             raise ValueError(
@@ -22,5 +28,5 @@ class HoloviewsBackend:
             self.backend = backend
 
 
-# global reference to class to comparing and setting backend
+# global reference to holoviews backend utility class
 backend = HoloviewsBackend()
