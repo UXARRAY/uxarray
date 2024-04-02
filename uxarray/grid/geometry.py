@@ -602,8 +602,8 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
 
 def _populate_face_latlon_bound(
-    face_edges_connectivity_cartesian,
-    face_edges_lonlat_connectivity_rad,
+    face_edges_cartesian,
+    face_edges_lonlat_rad,
     is_latlonface: bool = False,
     is_GCA_list=None,
 ):
@@ -614,14 +614,14 @@ def _populate_face_latlon_bound(
 
     Parameters
     ----------
-    face_edges_connectivity_cartesian : np.ndarray, shape (n_edges, 2, 3)
+    face_edges_cartesian : np.ndarray, shape (n_edges, 2, 3)
         An array holding the Cartesian coordinates for the edges of a face, where `n_edges`
         is the number of edges for the specific face. Each edge is represented by two points
         (start and end), and each point is a 3D vector (x, y, z) in Cartesian coordinates.
 
     face_edges_lonlat_connectivity_rad : np.ndarray, shape (n_edges, 2, 2)
         An array holding the longitude and latitude in radians for the edges of a face,
-        formatted similarly to `face_edges_connectivity_cartesian`. Each edge's start and
+        formatted similarly to `face_edges_cartesian`. Each edge's start and
         end points are represented by their longitude and latitude values in radians.
 
     is_latlonface : bool, optional
@@ -658,23 +658,19 @@ def _populate_face_latlon_bound(
     Assuming the existence of a grid face with edges defined in both Cartesian and
     latitudinal/longitudinal coordinates:
 
-        face_edges_connectivity_cartesian = np.array([...])  # Cartesian coords
+        face_edges_cartesian = np.array([...])  # Cartesian coords
         face_edges_connectivity_rad = np.array([...])  # Lon/Lat coords in radians
 
     Populate the bounding box for the face, treating it as a latlon face:
 
-        face_latlon_bound = _populate_face_latlon_bound(face_edges_connectivity_cartesian,
+        face_latlon_bound = _populate_face_latlon_bound(face_edges_cartesian,
                                                         face_edges_lonlat_connectivity_rad,
                                                         is_latlonface=True)
     """
 
     # Check if face_edges contains pole points
-    has_north_pole = _pole_point_inside_polygon(
-        "North", face_edges_connectivity_cartesian
-    )
-    has_south_pole = _pole_point_inside_polygon(
-        "South", face_edges_connectivity_cartesian
-    )
+    has_north_pole = _pole_point_inside_polygon("North", face_edges_cartesian)
+    has_south_pole = _pole_point_inside_polygon("South", face_edges_cartesian)
 
     face_latlon_array = np.full((2, 2), INT_FILL_VALUE, dtype=np.float64)
 
@@ -692,9 +688,9 @@ def _populate_face_latlon_bound(
             dtype=np.float64,
         )
 
-        for i in range(face_edges_connectivity_cartesian.shape[0]):
-            edge_cart = face_edges_connectivity_cartesian[i]
-            edge_lonlat = face_edges_lonlat_connectivity_rad[i]
+        for i in range(face_edges_cartesian.shape[0]):
+            edge_cart = face_edges_cartesian[i]
+            edge_lonlat = face_edges_lonlat_rad[i]
 
             # Skip processing if the edge_cart is marked as a dummy with a fill value
             if np.any(edge_cart == INT_FILL_VALUE):
@@ -763,9 +759,9 @@ def _populate_face_latlon_bound(
     else:
         # Normal Face
         # Iterate through each edge_cart of a face to update the bounding box (latlonbox) with extreme latitudes and longitudes
-        for i in range(face_edges_connectivity_cartesian.shape[0]):
-            edge_cart = face_edges_connectivity_cartesian[i]
-            edge_lonlat = face_edges_lonlat_connectivity_rad[i]
+        for i in range(face_edges_cartesian.shape[0]):
+            edge_cart = face_edges_cartesian[i]
+            edge_lonlat = face_edges_lonlat_rad[i]
 
             # Skip processing if the edge_cart is marked as a dummy with a fill value
             if np.any(edge_cart == INT_FILL_VALUE):
@@ -886,7 +882,7 @@ def _populate_bounds(
     intervals_name_list = []
 
     for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
-        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+        face_edges_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values[face_idx],
             grid.face_edge_connectivity.values[face_idx],
             grid.edge_node_connectivity.values,
@@ -895,7 +891,7 @@ def _populate_bounds(
             grid.node_z.values,
         )
 
-        face_edges_connectivity_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+        face_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
             grid.face_node_connectivity.values[face_idx],
             grid.face_edge_connectivity.values[face_idx],
             grid.edge_node_connectivity.values,
@@ -908,8 +904,8 @@ def _populate_bounds(
         )
 
         temp_latlon_array[face_idx] = _populate_face_latlon_bound(
-            face_edges_connectivity_cartesian,
-            face_edges_connectivity_lonlat_rad,
+            face_edges_cartesian,
+            face_edges_lonlat_rad,
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
