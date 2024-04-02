@@ -20,6 +20,8 @@ import numpy as np
 
 import warnings
 
+import uxarray.plot.utils
+
 
 def plot(uxda, **kwargs):
     """Default Plotting Method for UxDataArray."""
@@ -229,8 +231,7 @@ def _point_raster(
         # apply projection to coordinates
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
 
-    # this will be fixed in #733
-    hv.extension("bokeh")
+    uxarray.plot.utils.backend.assign(backend=backend)
 
     # construct a dask dataframe from coordinates and data
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
@@ -241,7 +242,6 @@ def _point_raster(
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         raster = hds_rasterize(
             points,
             pixel_ratio=pixel_ratio,
@@ -258,7 +258,6 @@ def _point_raster(
         )
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         raster = hds_rasterize(
             points,
             pixel_ratio=pixel_ratio,
@@ -315,9 +314,10 @@ def _polygon_raster(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
+    uxarray.plot.utils.backend.assign(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         raster = hds_rasterize(
             hv_polygons,
             pixel_ratio=pixel_ratio,
@@ -334,7 +334,6 @@ def _polygon_raster(
         )
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         raster = hds_rasterize(
             hv_polygons,
             pixel_ratio=pixel_ratio,
@@ -404,15 +403,14 @@ def polygons(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
+    uxarray.plot.utils.backend.assign(backend=backend)
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
 
         return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_polygons.opts(
             width=width,
             height=height,
@@ -521,9 +519,10 @@ def _plot_data_as_points(
     verts = np.column_stack([lon, lat, uxda.values])
     hv_points = Points(verts, vdims=["z"])
 
+    uxarray.plot.utils.backend.assign(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         return hv_points.opts(
             color="z",
             colorbar=colorbar,
@@ -535,7 +534,6 @@ def _plot_data_as_points(
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_points.opts(
             color="z",
             width=width,

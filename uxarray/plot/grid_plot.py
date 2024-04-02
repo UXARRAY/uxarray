@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 import numpy as np
 import holoviews as hv
 
+import uxarray.plot.utils
+
 
 def plot(grid: Grid, **kwargs):
     """Default Plotting Method for Grid."""
@@ -42,15 +44,14 @@ def mesh(
 
     hv_paths = hv.Path(gdf)
 
+    uxarray.plot.utils.backend.assign(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
-
         return hv_paths.opts(**kwargs)
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_paths.opts(
             width=width, height=height, xlabel=xlabel, ylabel=ylabel, **kwargs
         )
@@ -174,14 +175,14 @@ def _plot_coords_as_points(
     else:
         raise ValueError("Invalid element selected.")
 
+    uxarray.plot.utils.backend.assign(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         return hv_points.opts(**kwargs)
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_points.opts(
             width=width, height=height, xlabel=xlabel, ylabel=ylabel, **kwargs
         )
