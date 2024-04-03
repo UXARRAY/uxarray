@@ -350,8 +350,12 @@ def _get_zonal_face_interval(
             unique_intersection_lonlat = np.array(
                 [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
             )
-            unique_intersection_lonlat =np.vstack((unique_intersection_lonlat,np.array([2 * np.pi, latitude_rad])))
-            unique_intersection_lonlat = np.vstack((unique_intersection_lonlat, np.array([0.0, latitude_rad])))
+            unique_intersection_lonlat = np.vstack(
+                (unique_intersection_lonlat, np.array([2 * np.pi, latitude_rad]))
+            )
+            unique_intersection_lonlat = np.vstack(
+                (unique_intersection_lonlat, np.array([0.0, latitude_rad]))
+            )
             unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
             # Initialize a queue and fill it with the sorted longitudes
             lon_queue = Queue()
