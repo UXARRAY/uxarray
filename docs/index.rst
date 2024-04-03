@@ -39,27 +39,25 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
         :link: quickstart
         :link-type: doc
 
-        New to UXarray? Check out the getting started guides, which provide an introduction to UXarray's main
-        motivation and functionality.
+        A good place to start for new users
 
-    .. grid-item-card:: User Guide
-        :class-title: custom-title
-        :class-body: custom-body
-        :img-top: _static/images/icons/guide.svg
-        :link: userguide
-        :link-type: doc
-
-        The user guide provides in-depth information on the key concepts of UXarray with usefully definitions,
-        background information and explanations.
-
-    .. grid-item-card::  Example Gallery
+    .. grid-item-card::  Examples
         :class-title: custom-title
         :class-body: custom-body
         :img-top: _static/images/icons/science.svg
         :link: examples
         :link-type: doc
 
-        The example gallery contains notebooks showcasing real-world workflows of UXarray in action.
+        A gallery of examples using uxarray
+
+    .. grid-item-card::  Installation
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/download.svg
+        :link: installation
+        :link-type: doc
+
+        Installation instructions for uxarray
 
     .. grid-item-card::  API
         :class-title: custom-title
@@ -68,27 +66,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
         :link: api
         :link-type: doc
 
-        The reference guide contains a detailed description of the UXarray API. The reference describes how the methods
-        work and which parameters can be used.
-
-    .. grid-item-card::  Installation
-        :class-title: custom-title
-        :class-body: custom-body
-        :img-top: _static/images/icons/download.svg
-        :link: getting-started/installation
-        :link-type: doc
-
-        The installation guide provides step-by-step instructions for installing UXarray.
-
-    .. grid-item-card::  Contributor's Guide
-        :class-title: custom-title
-        :class-body: custom-body
-        :img-top: _static/images/icons/contrib.svg
-        :link: contributing
-        :link-type: doc
-
-        Interested in contributing to UXarray? The contributors guide outlines the process of making contributions.
-
+        See the complete uxarray API
 
 
 .. toctree::
@@ -96,12 +74,19 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     :hidden:
     :caption: For users
 
+    Installation <installation>
     Getting Started <quickstart>
-    User Guide <userguide>
     Usage Examples <examples>
     API Reference <api>
     Tutorials <tutorials>
     Cite Uxarray <citation>
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: For developers
+
+    Contributor's Guide <contributing>
 
 .. toctree::
     :maxdepth: 1
@@ -110,7 +95,8 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
 
     GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
     GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
-    UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
+    Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
+
 
 --------------------
 

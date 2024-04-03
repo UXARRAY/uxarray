@@ -14,7 +14,8 @@ high-level understanding of UXarray's future function development milestones and
 Please let us know if you have any feedback!
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
+   :hidden:
 
    user_api/index.rst
    internal_api/index.rst

@@ -303,7 +303,6 @@ Visualization
    plot.dataarray_plot._plot_data_as_points
    plot.dataarray_plot._polygon_raster
    plot.dataarray_plot._point_raster
-   plot.utils.HoloviewsBackend
 
 Slicing
 -------

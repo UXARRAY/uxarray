@@ -11,7 +11,8 @@ and Usage Example sections.
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    getting-started/overview.rst
-   getting-started/installation.rst
+   getting-started/quick-install.rst
    getting-started/freq-asked-questions.rst

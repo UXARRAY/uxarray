@@ -1,7 +1,7 @@
 .. currentmodule:: uxarray
 
 ==========================
-To-Do
+Frequently Asked Questions
 ==========================
 
 Coming soon!

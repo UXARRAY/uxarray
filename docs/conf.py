@@ -54,8 +54,6 @@ extensions = [
     "myst_nb",
     "sphinx_design",
     "nbsphinx",
-    "IPython.sphinxext.ipython_directive",
-    "IPython.sphinxext.ipython_console_highlighting",
 ]
 
 mathjax_config = {
