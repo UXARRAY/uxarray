@@ -14,4 +14,5 @@ and Usage Example sections.
 
    getting-started/overview.rst
    getting-started/installation.rst
+   getting-started/quick-overview.ipynb
    getting-started/freq-asked-questions.rst
