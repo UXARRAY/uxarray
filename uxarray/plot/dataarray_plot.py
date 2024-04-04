@@ -34,12 +34,13 @@ def plot(uxda, **kwargs):
                 return polygons(uxda, exclude_antimeridian=False, **kwargs)
 
         else:
-            # rasterizer polygons for larger datasets
+            # rasterized polygons for larger datasets
             return rasterize(uxda, method="polygon", **kwargs)
     elif uxda._node_centered():
-        # point
+        # default to point plots
         return points(uxda, **kwargs)
     elif uxda._edge_centered():
+        # default to edge plots
         return points(uxda, **kwargs)
 
     else:
