@@ -33,7 +33,3 @@
 - title: Subsetting an Unstructured Grid
   path: examples/009-subsetting.ipynb
   thumbnail: _static/thumbnails/009-thumbnail.png
-
-- title: Translating Structured Xarray Workflows to UXarray
-  path: examples/010-structured-unstructured.ipynb
-  thumbnail: _static/thumbnails/default.svg
