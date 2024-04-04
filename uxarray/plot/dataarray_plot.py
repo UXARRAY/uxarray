@@ -18,7 +18,6 @@ from uxarray.plot.constants import N_FACE_THRESHOLD
 
 import numpy as np
 
-import warnings
 
 import uxarray.plot.utils
 
