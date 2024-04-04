@@ -7,11 +7,15 @@ Conventions
 UGRID Conventions
 ==================
 
-UXarray is heavily based off the UGRID conventions, using them as a foundation for representing unstructured grids.
-The UGRID conventions provide a standard for storing unstructured grid model data the form of a NetCDF file. More details
-on the UGRID conventions can be found here_.
+The UGRID conventions provide a standard for storing unstructured grid model data in the form of a NetCDF file.
+UXarray uses the UGRID conventions as a foundation for representing unstructured grids.
 
-.. _here: https://ugrid-conventions.github.io/ugrid-conventions/
+.. admonition:: More Info
+   :class: tip
+
+   For further information about the UGRID conventions, please refer to the `official documentation`_
+
+.. _official documentation: https://ugrid-conventions.github.io/ugrid-conventions/
 
 Dimensions
 ==========
@@ -52,138 +56,93 @@ Spherical Coordinates
 ---------------------
 
 .. list-table::
-   :widths: 75 75 25 100
    :header-rows: 1
 
    * - Coordinate
-     - Grid Access
-     - Dimension
+     - Grid Attribute
+     - Dimensions
      - Summary
    * - Node Longitude
      - ``Grid.node_lon``
-     - :math:`(n_{node},)`
-     - Insert summary of coordinate here
+     - ``(n_node,)``
+     - Longitude of each corner node
    * - Node Latitude
      - ``Grid.node_lat``
-     - :math:`(n_{node},)`
-     - TODO
+     - ``(n_node,)``
+     - Latitude of each corner node in degrees
    * - Edge Longitude
      - ``Grid.edge_lon``
-     - :math:`(n_{edge},)`
-     - TODO
+     - ``(n_edge,)``
+     - Longitude of the center of each edge
    * - Edge Latitude
      - ``Grid.edge_lat``
-     - :math:`(n_{edge},)`
-     - TODO
+     - ``(n_edge,)``
+     - Latitude of the center of each edge
    * - Face Longitude
      - ``Grid.face_lon``
-     - :math:`(n_{face},)`
-     - TODO
+     - ``(n_face,)``
+     - Longitude of the center of each face
    * - Face Latitude
      - ``Grid.face_lat``
-     - :math:`(n_{face},)`
-     - TODO
+     - ``(n_face,)``
+     - Latitude of the center of each face
+
+
+.. note::
+
+    All spherical coordinates are in degrees, with longitudes between (-180°, 180°) and latitudes between (-90°, 90°).
 
 
 Cartesian Coordinates
 ---------------------
 
 .. list-table::
-   :widths: 50 75 25 100
    :header-rows: 1
 
    * - Coordinate
-     - Grid Access
-     - Dimension
+     - Grid Attribute
+     - Dimensions
      - Summary
    * - Node X
      - ``Grid.node_x``
-     - :math:`(n_{node},)`
-     - Insert summary of coordinate here
+     - ``(n_node,)``
+     - X location of each corner node
    * - Node Y
      - ``Grid.node_y``
-     - :math:`(n_{node},)`
-     - Insert summary of coordinate here
+     - ``(n_node,)``
+     - Y location of each corner node
    * - Node Z
      - ``Grid.node_z``
-     - :math:`(n_{node},)`
-     - Insert summary of coordinate here
+     - ``(n_node,)``
+     - Z location of each corner node
    * - Edge X
      - ``Grid.edge_x``
-     - :math:`(n_{edge},)`
-     - Insert summary of coordinate here
+     - ``(n_edge,)``
+     - X location of the center of each edge
    * - Edge Y
      - ``Grid.edge_y``
-     - :math:`(n_{edge},)`
-     - Insert summary of coordinate here
+     - ``(n_edge,)``
+     - Y location of the center of each edge
    * - Edge Z
      - ``Grid.edge_z``
-     - :math:`(n_{edge},)`
-     - Insert summary of coordinate here
+     - ``(n_edge,)``
+     - Z location of the center of each edge
    * - Face X
      - ``Grid.face_x``
-     - :math:`(n_{face},)`
-     - Insert summary of coordinate here
+     - ``(n_face,)``
+     - X location of the center of each face
    * - Face Y
      - ``Grid.face_y``
-     - :math:`(n_{face},)`
-     - Insert summary of coordinate here
+     - ``(n_face,)``
+     - Y location of the center of each face
    * - Face Z
      - ``Grid.face_z``
-     - :math:`(n_{face},)`
-     - Insert summary of coordinate here
+     - ``(n_face,)``
+     - Z location of the center of each face
 
-Parsing & Construction Support
-------------------------------
-Below
+.. note::
 
-
-.. list-table::
-   :widths: 25 25 25 25 25 25
-   :header-rows: 1
-
-   * - Coordiniate
-     - Construction
-     - UGRID
-     - MPAS
-     - EXODUS
-     - SCRIP
-   * - Node (Spherical)
-     - No *
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-   * - Node (Cartesian)
-     - No *
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-   * - Edge (Spherical)
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-   * - Edge (Cartesian)
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-   * - Face (Spherical)
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-   * - Face (Cartesian)
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-     - Yes
+    All cartesiain coordinates are stored in meters, ADD NOTE ABOUT NORMALIZATION?
 
 
 Connectivity
@@ -191,97 +150,42 @@ Connectivity
 UXarray relies on connectivity variables to describe how various elements (i.e nodes, edges, faces) can be connected.
 
 .. list-table::
-   :widths: 25 75 25 100
+   :widths: 15 30 35 30
    :header-rows: 1
 
    * - Connectivity
-     - Grid Access
-     - Dimension
+     - Grid Attribute
+     - Dimensions
      - Summary
    * - Face Node
      - ``Grid.face_node_connectivity``
-     - :math:`(n_{face}, n_{max\_face\_nodes})`
-     - Node Indices that make up each face
-   * - Edge Node
-     - ``Grid.edge_node_connectivity``
-     - :math:`(n_{edge}, 2)`
-     - Node Indices that make up each edge
+     - ``(n_face, n_max_face_nodes)``
+     - Indices of the nodes that make up each face
    * - Face Edge
      - ``Grid.face_edge_connectivity``
-     - :math:`(n_{face}, n_{maxedges})`
-     - Edge Indices that make up each face
-   * - Node Edge
-     - ``Grid.node_edge_connectivity``
-     - :math:`(n_{edge}, 2)`
-     - TODO
+     - ``(n_face, n_max_face_edges)``
+     - Indices of the edges that surround each face
    * - Face Face
      - ``Grid.face_face_connectivity``
-     - :math:`(n_{edge}, 2)`
-     - Face Indices that saddle a given edge
+     - ``(n_face, n_max_face_faces)``
+     - Indices of the faces that surround each face
+   * - Edge Node
+     - ``Grid.edge_node_connectivity``
+     - ``(n_edge, 2)``
+     - Indices of the two nodes that make up each edge
+   * - Edge Edge
+     - ``Grid.edge_edge_connectivity``
+     - ``(n_edge, n_max_edge_edges)``
+     - Indices of the edges that surround each edge
    * - Edge Face
      - ``Grid.edge_face_connectivity``
-     - :math:`(n_{edge}, 2)`
-     - Face Indices that saddle a given edge
+     - ``(n_edge, n_max_edge_faces)``
+     - Indices of the faces that saddle each edge
+   * - Node Edge
+     - ``Grid.node_edge_connectivity``
+     - ``(n_node, n_max_node_edges)``
+     - Indices of the edges that surround each node
    * - Node Face
      - ``Grid.node_face_connectivity``
-     - :math:`(n_{node}, 2)`
-     - TODO
-
-Parsing & Construction Support
-------------------------------
-
-Below
-
-
-.. list-table::
-   :widths: 25 25 25 25 25 25
-   :header-rows: 1
-
-   * - Connectivity
-     - Construction
-     - UGRID
-     - MPAS
-     - EXODUS
-     - SCRIP
-   * - Face Node
-     - No *
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-   * - Edge Node
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-     - Yes
-   * - Face Edge
-     - Yes
-     - No
-     - No
-     - No
-     - No
-   * - Node Edge
-     - Yes
-     - No
-     - No
-     - No
-     - No
-   * - Face Face
-     - Yes
-     - No
-     - No
-     - No
-     - No
-   * - Edge Face
-     - Yes
-     - No
-     - No
-     - No
-     - No
-   * - Node Face
-     - Yes
-     - No
-     - No
-     - No
-     - No
+     - ``(n_node, n_max_node_faces)``
+     - Indices of the faces that surround each node
