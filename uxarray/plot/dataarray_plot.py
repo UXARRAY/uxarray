@@ -408,7 +408,9 @@ def polygons(
     if backend == "matplotlib":
         # use holoviews matplotlib backend
 
-        return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
+        return hv_polygons.opts(
+            colorbar=colorbar, xlabel=xlabel, ylabel=ylabel, cmap=cmap, **kwargs
+        )
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
