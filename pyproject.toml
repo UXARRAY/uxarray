@@ -1,0 +1,63 @@
+[project]
+
+classifiers=[
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  'Operating System :: Microsoft :: Windows',
+  'Operating System :: Unix',
+  'Operating System :: MacOS',
+  "Topic :: Scientific/Engineering",
+]
+
+keywords = ["unstructured grids"]
+
+description = "TODO"
+dynamic = ["version"]
+license = {text = "Apache-2.0"}
+name = "uxarray"
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+  "xarray",
+  "cartopy",
+  "dask",
+  "numba",
+  "numpy",
+  "scikit-learn",
+  "scipy",
+  "pyarrow",
+  "netcdf4",
+  "requests"
+
+]
+[project.optional-dependencies]
+complete = ["uxarray[viz, math, dev]"]
+viz = ['datashader', 'holoviews', 'cartopy', 'geoviews', 'antimeridian', 'matplotlib-base', 'shapely', 'spatialpandas']
+math = ['gmpy2', 'pyfma']
+dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov']
+
+[project.urls]
+Documentation = "uxarray.readthedocs.io/"
+Source = "https://github.com/UXARRAY/uxarray"
+Tracker = "https://github.com/UXARRAY/uxarray/issues"
+
+
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools>=42",
+  "setuptools-scm>=7",
+]
+
+[tool.setuptools]
+packages = ["uxarray"]
+
+[tool.setuptools_scm]
+fallback_version = "9999"
