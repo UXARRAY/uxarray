@@ -18,7 +18,6 @@ from uxarray.plot.constants import N_FACE_THRESHOLD
 
 import numpy as np
 
-import warnings
 
 import uxarray.plot.utils
 
@@ -29,13 +28,21 @@ def plot(uxda, **kwargs):
         # default to polygon plot
         if uxda.uxgrid.n_face < N_FACE_THRESHOLD:
             # vector polygons for small datasets
-            return polygons(uxda, **kwargs)
+            if "exclude_antimeridian" in kwargs:
+                return polygons(uxda, **kwargs)
+            else:
+                return polygons(uxda, exclude_antimeridian=False, **kwargs)
+
         else:
             # rasterized polygons for larger datasets
             return rasterize(uxda, method="polygon", **kwargs)
-    if uxda._node_centered():
-        # default to point plot
+    elif uxda._node_centered():
+        # default to point plots
         return points(uxda, **kwargs)
+    elif uxda._edge_centered():
+        # default to edge plots
+        return points(uxda, **kwargs)
+
     else:
         raise ValueError("Data must be either node or face centered.")
 
@@ -97,7 +104,7 @@ def rasterize(
     uxda: UxDataArray,
     method: Optional[str] = "point",
     backend: Optional[str] = "bokeh",
-    exclude_antimeridian: Optional[bool] = False,
+    exclude_antimeridian: Optional[bool] = True,
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -286,7 +293,7 @@ def _point_raster(
 def _polygon_raster(
     uxda: UxDataArray,
     backend: Optional[str] = "bokeh",
-    exclude_antimeridian: Optional[bool] = False,
+    exclude_antimeridian: Optional[bool] = True,
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -387,12 +394,6 @@ def polygons(
     width: int
         Plot Width for Bokeh Backend
     """
-    if not exclude_antimeridian:
-        warnings.warn(
-            "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep "
-            "'exclude_antimeridian' set to True."
-        )
-
     if "clabel" not in kwargs:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
@@ -407,7 +408,9 @@ def polygons(
     if backend == "matplotlib":
         # use holoviews matplotlib backend
 
-        return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
+        return hv_polygons.opts(
+            colorbar=colorbar, xlabel=xlabel, ylabel=ylabel, cmap=cmap, **kwargs
+        )
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
