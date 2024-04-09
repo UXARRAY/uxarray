@@ -60,9 +60,14 @@ def _get_zonal_faces_weight_at_constLat(
             is_GCA_list = is_face_GCA_list[face_index]
         else:
             is_GCA_list = None
-        face_interval_df = _get_zonal_face_interval(face_edges, latitude_cart, face_latlon_bound[face_index],
-                                                    is_directed=is_directed, is_latlonface=is_latlonface,
-                                                    is_GCA_list=is_GCA_list)
+        face_interval_df = _get_zonal_face_interval(
+            face_edges,
+            latitude_cart,
+            face_latlon_bound[face_index],
+            is_directed=is_directed,
+            is_latlonface=is_latlonface,
+            is_GCA_list=is_GCA_list,
+        )
         for _, row in face_interval_df.iterrows():
             intervals_list.append(
                 {"start": row["start"], "end": row["end"], "face_index": face_index}
@@ -153,8 +158,9 @@ def _get_zonal_face_interval(
                     is_GCA = True
             # If the is_latlonface is False, then all edges are GCA except the equator
             else:
-                if ( np.isclose(n1[2], 0, rtol=0, atol=ERROR_TOLERANCE)
-            and np.isclose(n2[2], 0, rtol=0, atol=ERROR_TOLERANCE)):
+                if np.isclose(n1[2], 0, rtol=0, atol=ERROR_TOLERANCE) and np.isclose(
+                    n2[2], 0, rtol=0, atol=ERROR_TOLERANCE
+                ):
                     is_GCA = False
                 else:
                     is_GCA = True
@@ -162,9 +168,9 @@ def _get_zonal_face_interval(
         # Check if the edge is overlapped with the constant latitude within the error tolerance
         # Or the GCA is the equator
         if (
-                (np.isclose(n1[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
+            np.isclose(n1[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
             and np.isclose(n2[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
-            and is_GCA is False)
+            and is_GCA is False
         ):
             overlap_flag = True
 
@@ -175,7 +181,9 @@ def _get_zonal_face_interval(
             continue
 
         if is_GCA:
-            intersections = gca_constLat_intersection([n1, n2], latitude_cart, is_directed=is_directed)
+            intersections = gca_constLat_intersection(
+                [n1, n2], latitude_cart, is_directed=is_directed
+            )
             if intersections.size == 0:
                 # The constant latitude didn't cross this edge
                 continue

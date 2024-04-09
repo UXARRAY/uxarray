@@ -6,7 +6,6 @@ import platform
 import warnings
 from uxarray.utils.computing import cross_fma
 
-from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
@@ -179,14 +178,6 @@ def gca_constLat_intersection(
 
     p1 = np.array([p1_x, p1_y, constZ])
     p2 = np.array([p2_x, p2_y, constZ])
-
-    # Convert p1 and p2 to the lonlat format
-    p1_lonlat = node_xyz_to_lonlat_rad(p1.tolist())
-    p2_lonlat = node_xyz_to_lonlat_rad(p2.tolist())
-
-    # Convert the GCA to the lonlat format
-    gca1_lonlat = node_xyz_to_lonlat_rad(gca_cart[0].tolist())
-    gca2_lonlat = node_xyz_to_lonlat_rad(gca_cart[1].tolist())
 
     res = None
 
