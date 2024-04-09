@@ -6,7 +6,8 @@ import platform
 import warnings
 from uxarray.utils.computing import cross_fma
 
-from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import node_xyz_to_lonlat_rad
+
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
