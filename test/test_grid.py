@@ -921,6 +921,7 @@ class TestLatlonBounds(TestCase):
 
         faces = [face_1, face_2, face_3, face_4]
 
+        # Hand calculated bounds for the above faces in radians
         expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
                            [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
                            [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
@@ -930,5 +931,4 @@ class TestLatlonBounds(TestCase):
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
         bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
-        for i in range(len(faces)):
-            nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
+        nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
