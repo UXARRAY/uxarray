@@ -6,6 +6,7 @@ import platform
 import warnings
 from uxarray.utils.computing import cross_fma
 
+from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, node_lonlat_rad_to_xyz
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
@@ -116,7 +117,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
 
 def gca_constLat_intersection(
-    gca_cart, constLat, fma_disabled=False, verbose=False, is_directed=False
+    gca_cart, constZ, fma_disabled=False, verbose=False, is_directed=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
@@ -128,8 +129,8 @@ def gca_constLat_intersection(
     Parameters
     ----------
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
-    constLat : float
-        The constant latitude of the latitude line.
+    constZ : float
+        The constant latitude represented in cartesian of the latitude line.
     fma_disabled : bool, optional (default=False)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
@@ -153,7 +154,6 @@ def gca_constLat_intersection(
         If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
-    constZ = np.sin(constLat)
     x1, x2 = gca_cart
 
     if fma_disabled:
@@ -179,6 +179,14 @@ def gca_constLat_intersection(
 
     p1 = np.array([p1_x, p1_y, constZ])
     p2 = np.array([p2_x, p2_y, constZ])
+
+    # Convert p1 and p2 to the lonlat format
+    p1_lonlat = node_xyz_to_lonlat_rad(p1.tolist())
+    p2_lonlat = node_xyz_to_lonlat_rad(p2.tolist())
+
+    # Convert the GCA to the lonlat format
+    gca1_lonlat = node_xyz_to_lonlat_rad(gca_cart[0].tolist())
+    gca2_lonlat = node_xyz_to_lonlat_rad(gca_cart[1].tolist())
 
     res = None
 

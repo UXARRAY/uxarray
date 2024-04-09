@@ -74,13 +74,12 @@ class TestFaceWeights(TestCase):
                                     [vertices[2], vertices[3]],
                                     [vertices[3], vertices[0]]])
 
+        constZ = np.sin(0.20)
         # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
-        interval_df = _get_zonal_face_interval(
-            face_edge_nodes,
-            0.20,
-            np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
-                                                      0.4 * np.pi]]),
-            is_directed=False)
+        interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
+                                               np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
+                                                                                         0.4 * np.pi]]),
+                                               is_directed=False)
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -109,13 +108,11 @@ class TestFaceWeights(TestCase):
                                     [vertices[2], vertices[3]],
                                     [vertices[3], vertices[0]]])
 
-        interval_df = _get_zonal_face_interval(
-            face_edge_nodes,
-            0.20 * np.pi,
-            np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
-                                                      0.4 * np.pi]]),
-            is_directed=False,
-            is_GCA_list=np.array([True, False, True, False]))
+        constZ = np.sin(0.20 * np.pi)
+        interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
+                                               np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
+                                                                                         0.4 * np.pi]]),
+                                               is_directed=False, is_GCA_list=np.array([True, False, True, False]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -142,13 +139,10 @@ class TestFaceWeights(TestCase):
                                     [vertices[2], vertices[3]],
                                     [vertices[3], vertices[0]]])
 
-        interval_df = _get_zonal_face_interval(
-            face_edge_nodes,
-            0.0,
-            np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
-                                                      0.4 * np.pi]]),
-            is_directed=False,
-            is_GCA_list=np.array([True, True, True, True]))
+        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0,
+                                               np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
+                                                                                         0.4 * np.pi]]),
+                                               is_directed=False, is_GCA_list=np.array([True, True, True, True]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -164,13 +158,10 @@ class TestFaceWeights(TestCase):
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
         # Even if we change the is_GCA_list to False, the result should be the same
-        interval_df = _get_zonal_face_interval(
-            face_edge_nodes,
-            0.0,
-            np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
-                                                      0.4 * np.pi]]),
-            is_directed=False,
-            is_GCA_list=np.array([True, False, True, False]))
+        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0,
+                                               np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
+                                                                                         0.4 * np.pi]]),
+                                               is_directed=False, is_GCA_list=np.array([True, False, True, False]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -397,12 +388,14 @@ class TestFaceWeights(TestCase):
             'weight': [0.375, 0.0625, 0.3125, 0.25]
         })
 
+
+
         # Assert the results is the same to the 3 decimal places
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
             face_3_edge_nodes
         ]),
-                                                        0.1 * np.pi,
+                                                        np.sin(0.1 * np.pi),
                                                         latlon_bounds,
                                                         is_directed=False)
 
@@ -457,7 +450,7 @@ class TestFaceWeights(TestCase):
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]),
-                                                        np.deg2rad(20),
+                                                        np.sin(np.deg2rad(20)),
                                                         latlon_bounds,
                                                         is_directed=False, is_latlonface=True)
 

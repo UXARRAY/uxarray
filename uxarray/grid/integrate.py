@@ -60,14 +60,9 @@ def _get_zonal_faces_weight_at_constLat(
             is_GCA_list = is_face_GCA_list[face_index]
         else:
             is_GCA_list = None
-        face_interval_df = _get_zonal_face_interval(
-            face_edges,
-            latitude_cart,
-            face_latlon_bound[face_index],
-            is_directed=is_directed,
-            is_latlonface=is_latlonface,
-            is_GCA_list=is_GCA_list,
-        )
+        face_interval_df = _get_zonal_face_interval(face_edges, latitude_cart, face_latlon_bound[face_index],
+                                                    is_directed=is_directed, is_latlonface=is_latlonface,
+                                                    is_GCA_list=is_GCA_list)
         for _, row in face_interval_df.iterrows():
             intervals_list.append(
                 {"start": row["start"], "end": row["end"], "face_index": face_index}
@@ -89,7 +84,7 @@ def _get_zonal_faces_weight_at_constLat(
 
 def _get_zonal_face_interval(
     face_edges_cart,
-    latitude_rad,
+    latitude_cart,
     face_latlon_bound,
     is_directed=False,
     is_latlonface=False,
@@ -111,8 +106,8 @@ def _get_zonal_face_interval(
     ----------
     face_edges_cart : np.ndarray
         A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
-    latitude_rad : float
-        The latitude in radians.
+    latitude_cart : float
+        The latitude in cartesian, the normalized Z coordinates.
     face_latlon_bound : np.ndarray
         The latitude and longitude bounds of the face. Shape: (2, 2), [[lat_min, lat_max], [lon_min, lon_max]]
     is_directed : bool, optional
@@ -134,7 +129,7 @@ def _get_zonal_face_interval(
     """
     pt_lon_min = 3 * np.pi
     pt_lon_max = -3 * np.pi
-    latZ = np.sin(latitude_rad)
+    latZ = latitude_cart
 
     overlap_flag = False
     overlap_edge = np.array([])
@@ -156,15 +151,20 @@ def _get_zonal_face_interval(
                     is_GCA = False
                 else:
                     is_GCA = True
-            # If the is_latlonface is False, then all edges are GCA
+            # If the is_latlonface is False, then all edges are GCA except the equator
             else:
-                is_GCA = True
+                if ( np.isclose(n1[2], 0, rtol=0, atol=ERROR_TOLERANCE)
+            and np.isclose(n2[2], 0, rtol=0, atol=ERROR_TOLERANCE)):
+                    is_GCA = False
+                else:
+                    is_GCA = True
 
         # Check if the edge is overlapped with the constant latitude within the error tolerance
+        # Or the GCA is the equator
         if (
-            np.isclose(n1[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
+                (np.isclose(n1[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
             and np.isclose(n2[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
-            and is_GCA is False
+            and is_GCA is False)
         ):
             overlap_flag = True
 
@@ -175,9 +175,7 @@ def _get_zonal_face_interval(
             continue
 
         if is_GCA:
-            intersections = gca_constLat_intersection(
-                [n1, n2], latitude_rad, is_directed=is_directed
-            )
+            intersections = gca_constLat_intersection([n1, n2], latitude_cart, is_directed=is_directed)
             if intersections.size == 0:
                 # The constant latitude didn't cross this edge
                 continue
@@ -211,12 +209,12 @@ def _get_zonal_face_interval(
         is_convex = True
     elif len(unique_intersection) != 0:
         # The concave cases
-        is_convex = False
-        # raise ValueError(
-        #     "UXarray doesn't support concave face with intersections points as ["
-        #     + str(len(unique_intersection))
-        #     + "] currently, please modify your grids accordingly"
-        # )
+
+        raise ValueError(
+            "UXarray doesn't support concave face with intersections points as ["
+            + str(len(unique_intersection))
+            + "] currently, please modify your grids accordingly"
+        )
     elif len(unique_intersection) == 0:
         # No intersections are found in this face
         raise ValueError(
@@ -351,10 +349,10 @@ def _get_zonal_face_interval(
                 [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
             )
             unique_intersection_lonlat = np.vstack(
-                (unique_intersection_lonlat, np.array([2 * np.pi, latitude_rad]))
+                (unique_intersection_lonlat, np.array([2 * np.pi, latitude_cart]))
             )
             unique_intersection_lonlat = np.vstack(
-                (unique_intersection_lonlat, np.array([0.0, latitude_rad]))
+                (unique_intersection_lonlat, np.array([0.0, latitude_cart]))
             )
             unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
             # Initialize a queue and fill it with the sorted longitudes

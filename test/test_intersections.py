@@ -102,9 +102,7 @@ class TestGCAconstLatIntersection(TestCase):
                                     np.deg2rad(10.0)])
         ])
 
-        res = gca_constLat_intersection(GCR1_cart,
-                                        np.deg2rad(60.0),
-                                        verbose=True)
+        res = gca_constLat_intersection(GCR1_cart, np.deg2rad(60.0), verbose=True)
         res_lonlat_rad = node_xyz_to_lonlat_rad(res[0].tolist())
         self.assertTrue(
             np.allclose(res_lonlat_rad,
@@ -119,9 +117,7 @@ class TestGCAconstLatIntersection(TestCase):
                                     np.deg2rad(10.0)])
         ])
 
-        res = gca_constLat_intersection(GCR1_cart,
-                                        np.deg2rad(-10.0),
-                                        verbose=False)
+        res = gca_constLat_intersection(GCR1_cart, np.deg2rad(-10.0), verbose=False)
         self.assertTrue(res.size == 0)
 
     def test_GCA_constLat_intersections_two_pts(self):
