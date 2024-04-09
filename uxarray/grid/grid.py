@@ -448,7 +448,7 @@ class Grid:
     @property
     def sizes(self) -> dict:
         """Names and values of all unstructured grid dimensions."""
-        return {dim: self._ds.dims[dim] for dim in self.dims}
+        return {dim: self._ds.sizes[dim] for dim in self.dims}
 
     @property
     def coordinates(self) -> set:
