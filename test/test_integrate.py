@@ -63,8 +63,8 @@ class TestFaceWeights(TestCase):
 
     def test_get_zonal_face_interval(self):
         """Test that the zonal face weights are correct."""
-        vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi],
-                           [-0.4 * np.pi, -0.25 * np.pi],
+        vertices_lonlat = [[1.6 * np.pi, 0.25 * np.pi],
+                           [1.6 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, 0.25 * np.pi]]
         vertices = [node_lonlat_rad_to_xyz(v) for v in vertices_lonlat]
@@ -85,7 +85,15 @@ class TestFaceWeights(TestCase):
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
         })
-        nt.assert_array_almost_equal(interval_df, expected_interval_df, decimal=13)
+        # Sort both DataFrames by 'start' column before comparison
+        expected_interval_df_sorted = expected_interval_df.sort_values(by='start').reset_index(drop=True)
+
+        # Converting the sorted DataFrames to NumPy arrays
+        actual_values_sorted = interval_df[['start', 'end']].to_numpy()
+        expected_values_sorted = expected_interval_df_sorted[['start', 'end']].to_numpy()
+
+        # Asserting almost equal arrays
+        nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
     def test_get_zonal_face_interval_GCA_constLat(self):
         """Test that the zonal face weights are correct."""
@@ -112,7 +120,15 @@ class TestFaceWeights(TestCase):
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
         })
-        nt.assert_array_almost_equal(interval_df, expected_interval_df, decimal=13)
+        # Sort both DataFrames by 'start' column before comparison
+        expected_interval_df_sorted = expected_interval_df.sort_values(by='start').reset_index(drop=True)
+
+        # Converting the sorted DataFrames to NumPy arrays
+        actual_values_sorted = interval_df[['start', 'end']].to_numpy()
+        expected_values_sorted = expected_interval_df_sorted[['start', 'end']].to_numpy()
+
+        # Asserting almost equal arrays
+        nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
     def test_get_zonal_face_interval_equator(self):
         """Test that the zonal face weights are correct."""
@@ -137,7 +153,15 @@ class TestFaceWeights(TestCase):
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
         })
-        nt.assert_array_almost_equal(interval_df, expected_interval_df, decimal=13)
+        # Sort both DataFrames by 'start' column before comparison
+        expected_interval_df_sorted = expected_interval_df.sort_values(by='start').reset_index(drop=True)
+
+        # Converting the sorted DataFrames to NumPy arrays
+        actual_values_sorted = interval_df[['start', 'end']].to_numpy()
+        expected_values_sorted = expected_interval_df_sorted[['start', 'end']].to_numpy()
+
+        # Asserting almost equal arrays
+        nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
         # Even if we change the is_GCA_list to False, the result should be the same
         interval_df = _get_zonal_face_interval(
@@ -151,7 +175,16 @@ class TestFaceWeights(TestCase):
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
         })
-        nt.assert_array_almost_equal(interval_df, expected_interval_df, decimal=13)
+
+        # Sort both DataFrames by 'start' column before comparison
+        expected_interval_df_sorted = expected_interval_df.sort_values(by='start').reset_index(drop=True)
+
+        # Converting the sorted DataFrames to NumPy arrays
+        actual_values_sorted = interval_df[['start', 'end']].to_numpy()
+        expected_values_sorted = expected_interval_df_sorted[['start', 'end']].to_numpy()
+
+        # Asserting almost equal arrays
+        nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
     def test_process_overlapped_intervals(self):
         # Example data that has overlapping intervals and gap

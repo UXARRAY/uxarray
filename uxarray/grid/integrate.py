@@ -406,7 +406,9 @@ def _get_zonal_face_interval(
 
     # Creating DataFrame from interval_rows
     Intervals_df = pd.DataFrame(interval_rows, columns=["start", "end"])
-    return Intervals_df
+    # For consistency, sort the intervals by start
+    interval_df_sorted = Intervals_df.sort_values(by='start').reset_index(drop=True)
+    return interval_df_sorted
 
 
 def _process_overlapped_intervals(intervals_df):
