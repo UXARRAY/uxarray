@@ -866,7 +866,7 @@ class Grid:
         """
         if "bounds" not in self._ds:
             warn(
-                "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time"
+                "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time."
             )
             _populate_bounds(self)
         return self._ds["bounds"]
