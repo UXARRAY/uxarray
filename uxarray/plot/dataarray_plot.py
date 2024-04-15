@@ -29,7 +29,9 @@ def plot(uxda, **kwargs):
         return rasterize(uxda, method="point", **kwargs)
 
     else:
-        raise ValueError("Plotting unstructured grids requires ")
+        raise ValueError(
+            "Plotting variables on unstructured grids requires the data variable to be mapped to either the nodes, edges, or faces."
+        )
 
 
 def datashade(
