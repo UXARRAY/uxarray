@@ -291,7 +291,7 @@ class UxDataArrayPlotAccessor:
             Selects which method to use for data shading
         plot_width, plot_height : int, optional
            Width and height of the output aggregate in pixels.
-        X_range, y_range : tuple, optional
+        x_range, y_range : tuple, optional
            A tuple representing the bounds inclusive space ``[min, max]`` along
            the axis.
         cmap: str, optional
