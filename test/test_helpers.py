@@ -14,7 +14,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 from uxarray.grid.geometry import _pole_point_inside_polygon
 
 try:
@@ -319,5 +319,35 @@ class TestFaceEdgeConnectivityHelper(TestCase):
             'North', face_edges_connectivity_cartesian)
 
         # Assert that the result is True
+        self.assertTrue(result)
 
+    def test_get_lonlat_face_edge_nodes_pipeline(self):
+        # Create the vertices for the grid, based around the North Pole
+
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
+
+        #Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values[0],
+            grid.face_edge_connectivity.values[0],
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
+
+        # Convert all the values into cartesian coordinates
+        face_edges_connectivity_cartesian = []
+        for i in range(len(face_edges_connectivity_lonlat)):
+            edge = face_edges_connectivity_lonlat[i]
+            edge_cart =   [node_lonlat_rad_to_xyz(node) for node in edge]
+            face_edges_connectivity_cartesian.append(edge_cart)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', np.array(face_edges_connectivity_cartesian))
+
+        # Assert that the result is True
         self.assertTrue(result)

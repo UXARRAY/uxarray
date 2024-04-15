@@ -27,6 +27,8 @@ from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
     _set_desired_longitude_range,
+    _populate_lonlat_coord,
+    _populate_cartesian_xyz_coord,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -36,16 +38,12 @@ from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
 )
 
-from uxarray.grid.coordinates import (
-    _populate_lonlat_coord,
-    _populate_cartesian_xyz_coord,
-)
-
 from uxarray.grid.geometry import (
     _populate_antimeridian_face_indices,
     _grid_to_polygon_geodataframe,
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
+    _populate_bounds,
 )
 
 from uxarray.grid.neighbors import (
@@ -64,6 +62,7 @@ from uxarray.grid.validation import (
     _check_duplicate_nodes,
     _check_area,
 )
+
 
 from xarray.core.utils import UncachedAccessor
 
@@ -858,6 +857,19 @@ class Grid:
                 data=face_areas, dims=FACE_AREAS_DIMS, attrs=FACE_AREAS_ATTRS
             )
         return self._ds["face_areas"]
+
+    @property
+    def bounds(self):
+        """Latitude Longitude Bounds for each Face in degrees.
+
+        Dimensions ``(n_face", two, two)``
+        """
+        if "bounds" not in self._ds:
+            warn(
+                "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time."
+            )
+            _populate_bounds(self)
+        return self._ds["bounds"]
 
     @property
     def face_jacobian(self):
