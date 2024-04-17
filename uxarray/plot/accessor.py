@@ -278,6 +278,10 @@ class UxDataArrayPlotAccessor:
 
         if hasattr(xarray_plot_accessor, name):
             # call xarray plot method if it exists
+            import matplotlib as mpl
+
+            # use inline backend to reset configuration if holoviz methods were called before
+            mpl.use("module://matplotlib_inline.backend_inline")
             return getattr(xarray_plot_accessor, name)
         else:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
@@ -489,13 +493,18 @@ class UxDatasetPlotAccessor:
     def __getattr__(self, name: str) -> Any:
         """When a function that isn't part of the class is invoked (i.e.
         uxds.plot.scatter), an attempt is made to try and call Xarray's
-        implementation of that function if it exsists."""
+        implementation of that function if it exists."""
 
         # reference to xr.Dataset.plot accessor
         xarray_plot_accessor = super(type(self._uxds), self._uxds).plot
 
         if hasattr(xarray_plot_accessor, name):
             # call xarray plot method if it exists
+            import matplotlib as mpl
+
+            # # use inline backend to reset configuration if holoviz methods were called before
+            mpl.use("module://matplotlib_inline.backend_inline")
+
             return getattr(xarray_plot_accessor, name)
         else:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
