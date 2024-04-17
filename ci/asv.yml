@@ -9,7 +9,7 @@ dependencies:
   - gmpy2
   - holoviews
   - matplotlib-base
-  - matplotlib_inline
+  - matplotlib-inline
   - netcdf4
   - numba
   - numpy
