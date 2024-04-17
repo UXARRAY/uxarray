@@ -13,38 +13,25 @@ import dask.dataframe as dd
 import holoviews as hv
 from holoviews.operation.datashader import rasterize as hds_rasterize
 
-from uxarray.plot.constants import N_FACE_THRESHOLD
-
 
 import numpy as np
-
 
 import uxarray.plot.utils
 
 
 def plot(uxda, **kwargs):
-    """Default Plotting Method for UxDataArray."""
-    if uxda._face_centered():
-        # default to polygon plot
-        if uxda.uxgrid.n_face < N_FACE_THRESHOLD:
-            # vector polygons for small datasets
-            if "exclude_antimeridian" in kwargs:
-                return polygons(uxda, **kwargs)
-            else:
-                return polygons(uxda, exclude_antimeridian=False, **kwargs)
+    """Default plotting method for a ``UxDataArray``."""
 
-        else:
-            # rasterized polygons for larger datasets
-            return rasterize(uxda, method="polygon", **kwargs)
-    elif uxda._node_centered():
-        # default to point plots
-        return points(uxda, **kwargs)
-    elif uxda._edge_centered():
-        # default to edge plots
-        return points(uxda, **kwargs)
+    if uxda._face_centered():
+        return rasterize(uxda, method="polygon", **kwargs)
+
+    elif uxda._edge_centered() or uxda._node_centered():
+        return rasterize(uxda, method="point", **kwargs)
 
     else:
-        raise ValueError("Data must be either node or face centered.")
+        raise ValueError(
+            "Plotting variables on unstructured grids requires the data variable to be mapped to either the nodes, edges, or faces."
+        )
 
 
 def datashade(
