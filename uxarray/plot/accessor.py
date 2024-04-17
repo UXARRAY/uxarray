@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 import uxarray.plot.grid_plot as grid_plot
 import uxarray.plot.dataarray_plot as dataarray_plot
+import uxarray.plot.utils
 
 import cartopy.crs as ccrs
 
@@ -278,10 +279,8 @@ class UxDataArrayPlotAccessor:
 
         if hasattr(xarray_plot_accessor, name):
             # call xarray plot method if it exists
-            import matplotlib as mpl
-
             # use inline backend to reset configuration if holoviz methods were called before
-            mpl.use("module://matplotlib_inline.backend_inline")
+            uxarray.plot.utils.backend.reset_mpl_backend()
             return getattr(xarray_plot_accessor, name)
         else:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
@@ -500,10 +499,8 @@ class UxDatasetPlotAccessor:
 
         if hasattr(xarray_plot_accessor, name):
             # call xarray plot method if it exists
-            import matplotlib as mpl
-
             # # use inline backend to reset configuration if holoviz methods were called before
-            mpl.use("module://matplotlib_inline.backend_inline")
+            uxarray.plot.utils.backend.reset_mpl_backend()
 
             return getattr(xarray_plot_accessor, name)
         else:
