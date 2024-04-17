@@ -24,6 +24,7 @@ dependencies:
     - sphinx-design
     - nbsphinx
     - matplotlib-base
+    - matplotlib_inline
     - shapely
     - hvplot
     - holoviews
