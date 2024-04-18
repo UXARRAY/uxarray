@@ -3,7 +3,8 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_constLat_intersection
 from uxarray.grid.coordinates import node_xyz_to_lonlat_rad
 import pandas as pd
-from queue import Queue
+
+DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
 
 def _get_zonal_faces_weight_at_constLat(
@@ -87,6 +88,125 @@ def _get_zonal_faces_weight_at_constLat(
     return weights_df
 
 
+def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
+    """Determine if each edge is a Great Circle Arc (GCA) or a constant
+    latitude line in a vectorized manner.
+
+    Parameters:
+    ----------
+    is_GCA_list : np.ndarray or None
+        An array indicating whether each edge is a GCA (True) or a constant latitude line (False).
+        Shape: (n_edges). If None, edge types are determined based on `is_latlonface` and the z-coordinates.
+    is_latlonface : bool
+        Flag indicating if all edges should be considered as lat-lon faces, which implies all edges
+        are either constant latitude or longitude lines.
+    edges_z : np.ndarray
+        Array containing the z-coordinates for each vertex of the edges. This is used to determine
+        whether edges are on the equator or if they are aligned in latitude when `is_GCA_list` is None.
+        Shape should be (n_edges, 2).
+
+    Returns:
+    -------
+    np.ndarray
+        A boolean array where each element indicates whether the corresponding edge is considered a GCA.
+        True for GCA, False for constant latitude line.
+    """
+    if is_GCA_list is not None:
+        return is_GCA_list
+    if is_latlonface:
+        return ~np.isclose(edges_z[:, 0], edges_z[:, 1], atol=ERROR_TOLERANCE)
+    return ~(
+        np.isclose(edges_z[:, 0], 0, atol=ERROR_TOLERANCE)
+        & np.isclose(edges_z[:, 1], 0, atol=ERROR_TOLERANCE)
+    )
+
+
+def _get_gca_constLat_intersection_info(
+    face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
+):
+    """Processes each edge of a face polygon in a vectorized manner to
+    determine overlaps and calculate the intersections for a given latitude and
+    the faces.
+
+    Parameters:
+    ----------
+    face_edges_cart : np.ndarray
+        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3).
+    latitude_cart : float
+        The latitude in Cartesian coordinates to which intersections or overlaps are calculated.
+    is_GCA_list : np.ndarray or None
+        An array indicating whether each edge is a GCA (True) or a constant latitude line (False).
+        Shape: (n_edges). If None, the function will determine edge types based on `is_latlonface`.
+    is_latlonface : bool
+        Flag indicating if all faces are considered as lat-lon faces, meaning all edges are either
+        constant latitude or longitude lines. This parameter overwrites the `is_GCA_list` if set to True.
+    is_directed : bool
+        Flag indicating if the GCA should be considered as directed (from v0 to v1). If False,
+        the smaller circle (less than 180 degrees) side of the GCA is used.
+
+    Returns:
+    -------
+    tuple
+        A tuple containing:
+        - intersections_pts_list_cart (list): A list of intersection points where each point is where an edge intersects with the latitude.
+        - overlap_flag (bool): A boolean indicating if any overlap with the latitude was detected.
+        - overlap_edge (np.ndarray or None): The edge that overlaps with the latitude, if any; otherwise, None.
+    """
+    valid_edges_mask = ~(np.any(face_edges_cart == DUMMY_EDGE_VALUE, axis=(1, 2)))
+
+    # Apply mask to filter out dummy edges
+    valid_edges = face_edges_cart[valid_edges_mask]
+
+    # Extract Z coordinates for edge determination
+    edges_z = valid_edges[:, :, 2]
+
+    # Determine if each edge is GCA or constant latitude
+    is_GCA = _is_edge_gca(is_GCA_list, is_latlonface, edges_z)
+
+    # Check overlap with latitude
+    overlaps_with_latitude = np.all(
+        np.isclose(edges_z, latitude_cart, atol=ERROR_TOLERANCE), axis=1
+    )
+    overlap_flag = np.any(overlaps_with_latitude & ~is_GCA)
+
+    # Identify overlap edges if needed
+    intersections_pts_list_cart = []
+    if overlap_flag:
+        overlap_index = np.where(overlaps_with_latitude & ~is_GCA)[0][0]
+        intersections_pts_list_cart.extend(valid_edges[overlap_index])
+    else:
+        # Calculate intersections (assuming a batch-capable intersection function)
+        for idx, edge in enumerate(valid_edges):
+            if is_GCA[idx]:
+                intersections = gca_constLat_intersection(
+                    edge, latitude_cart, is_directed=is_directed
+                )
+                if intersections.size == 0:
+                    continue
+                elif intersections.shape[0] == 2:
+                    intersections_pts_list_cart.extend(intersections)
+                else:
+                    intersections_pts_list_cart.append(intersections[0])
+
+    # Handle unique intersections and check for convex or concave cases
+    unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
+    if len(unique_intersections) == 2:
+        unique_intersection_lonlat = np.array(
+            [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersections]
+        )
+        sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
+        pt_lon_min, pt_lon_max = sorted_lonlat[:, 0]
+        return unique_intersections, pt_lon_min, pt_lon_max
+    elif len(unique_intersections) != 0:
+        raise ValueError(
+            "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
+        )
+    elif len(unique_intersections) == 0:
+        raise ValueError(
+            "No intersections are found for the face, please make sure the build_latlon_box generates the correct results"
+        )
+
+
 def _get_zonal_face_interval(
     face_edges_cart,
     latitude_cart,
@@ -132,286 +252,36 @@ def _get_zonal_face_interval(
         A DataFrame containing the intervals stored as pandas Intervals for the face.
         The columns of the DataFrame are: ['start', 'end']
     """
-    pt_lon_min = 3 * np.pi
-    pt_lon_max = -3 * np.pi
-    latZ = latitude_cart
-
-    overlap_flag = False
-    overlap_edge = np.array([])
-
-    intersections_pts_list_cart = []
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
-    interval_rows = []  # List to store interval data for DataFrame
 
-    for edge_idx, edge in enumerate(face_edges_cart):
-        n1, n2 = edge
+    # Call the vectorized function to process all edges
+    unique_intersections, pt_lon_min, pt_lon_max = _get_gca_constLat_intersection_info(
+        face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
+    )
 
-        # First check the is_GCA_list, if it's not None, then use the is_GCA_list to determine if the edge is GCA
-        if is_GCA_list is not None:
-            is_GCA = is_GCA_list[edge_idx]
-        else:
-            # If the is_GCA_list is None, then use the is_latlonface to determine if the edge is GCA
-            if is_latlonface:
-                if np.isclose(n1[2], n2[2], rtol=0, atol=ERROR_TOLERANCE):
-                    is_GCA = False
-                else:
-                    is_GCA = True
-            # If the is_latlonface is False, then all edges are GCA except the equator
-            else:
-                if np.isclose(n1[2], 0, rtol=0, atol=ERROR_TOLERANCE) and np.isclose(
-                    n2[2], 0, rtol=0, atol=ERROR_TOLERANCE
-                ):
-                    is_GCA = False
-                else:
-                    is_GCA = True
+    # Convert intersection points to longitude-latitude
+    longitudes = np.array(
+        [node_xyz_to_lonlat_rad(pt.tolist())[0] for pt in unique_intersections]
+    )
 
-        # Check if the edge is overlapped with the constant latitude within the error tolerance
-        # Or the GCA is the equator
-        if (
-            np.isclose(n1[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
-            and np.isclose(n2[2], latZ, rtol=0, atol=ERROR_TOLERANCE)
-            and is_GCA is False
+    # Handle special wrap-around cases by checking the face bounds
+    if face_lon_bound_left >= face_lon_bound_right:
+        if not (
+            (pt_lon_max >= np.pi and pt_lon_min >= np.pi)
+            or (0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi)
         ):
-            overlap_flag = True
+            # They're at different sides of the 0-lon, adding wrap-around points
+            longitudes = np.append(longitudes, [0.0, 2 * np.pi])
 
-        # Skip the dummy edge
-        if np.any(n1 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]) or np.any(
-            n2 == [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
-        ):
-            continue
+    # Ensure longitudes are sorted
+    longitudes.sort()
 
-        if is_GCA:
-            intersections = gca_constLat_intersection(
-                [n1, n2], latitude_cart, is_directed=is_directed
-            )
-            if intersections.size == 0:
-                # The constant latitude didn't cross this edge
-                continue
-            elif intersections.shape[0] == 2:
-                # The constant latitude goes across this edge twice
-                intersections_pts_list_cart.append(intersections[0])
-                intersections_pts_list_cart.append(intersections[1])
-            else:
-                intersections_pts_list_cart.append(intersections[0])
-        else:
-            # This is a constant latitude edge, we just need to check if the edge is overlapped with the constant latitude
-            if overlap_flag:
-                intersections_pts_list_cart = [n1, n2]
-                overlap_edge = np.array([n1, n2])
-                break
+    # Split the sorted longitudes into start and end points of intervals
+    starts = longitudes[::2]  # Start points
+    ends = longitudes[1::2]  # End points
 
-    # If an edge of a face is overlapped by the constant lat, then it will have 4 non-unique intersection pts
-    # (A point is counted twice for two edges)
-    unique_intersection = np.unique(intersections_pts_list_cart, axis=0)
-    is_convex = False
-    if len(unique_intersection) == 2:
-        # The normal convex case:
-        # Convert the intersection points back to lonlat
-        unique_intersection_lonlat = np.array(
-            [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
-        )
-        [pt_lon_min, pt_lon_max] = np.sort(
-            [unique_intersection_lonlat[0][0], unique_intersection_lonlat[1][0]]
-        )
-
-        is_convex = True
-    elif len(unique_intersection) != 0:
-        # The concave cases
-
-        raise ValueError(
-            "UXarray doesn't support concave face with intersections points as ["
-            + str(len(unique_intersection))
-            + "] currently, please modify your grids accordingly"
-        )
-    elif len(unique_intersection) == 0:
-        # No intersections are found in this face
-        raise ValueError(
-            "No intersections are found for the face , please make sure the buil_latlon_box generates the correct results"
-        )
-    cur_face_mag_rad = 0.0
-
-    # Calculate the weight of the face in radian
-    if face_lon_bound_left < face_lon_bound_right:
-        # Normal case, The interval is not across the 0-lon
-        if is_convex:
-            interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
-            cur_face_mag_rad = pt_lon_max - pt_lon_min
-        else:
-            # Sort the intersection points by longitude
-            unique_intersection_lonlat = np.array(
-                [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
-            )
-            unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-            # Initialize a queue and fill it with the sorted longitudes
-            lon_queue = Queue()
-            for lonlat in unique_intersection_lonlat:
-                lon_queue.put(lonlat)
-
-            # Variables to track the intervals
-            in_flag = False
-            prev_pt_lon = 0.0
-            interval_rows = []
-            cur_face_mag_rad = 0.0
-
-            # Process the queue
-            while not lon_queue.empty():
-                cur_pt_lonlat = lon_queue.get()
-                cur_pt_lon = cur_pt_lonlat[0]
-
-                # The current status for the visiting point
-                in_flag = not in_flag
-
-                if in_flag:
-                    # The start of the interval
-                    pass
-                else:
-                    # The end of the interval
-                    interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
-                    cur_face_mag_rad += cur_pt_lon - prev_pt_lon
-                prev_pt_lon = cur_pt_lon
-
-    else:
-        # Longitude wrap-around
-        if pt_lon_max >= np.pi and pt_lon_min >= np.pi:
-            # They're both on the "left side" of the 0-lon
-            if is_convex:
-                interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
-                cur_face_mag_rad = pt_lon_max - pt_lon_min
-            else:
-                # Sort the intersection points by longitude
-                unique_intersection_lonlat = np.array(
-                    [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
-                )
-                unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-                # Initialize a queue and fill it with the sorted longitudes
-                lon_queue = Queue()
-                for lonlat in unique_intersection_lonlat:
-                    lon_queue.put(lonlat)
-
-                # Variables to track the intervals
-                in_flag = False
-                prev_pt_lon = 0.0
-                interval_rows = []
-                cur_face_mag_rad = 0.0
-
-                # Process the queue
-                while not lon_queue.empty():
-                    cur_pt_lonlat = lon_queue.get()
-                    cur_pt_lon = cur_pt_lonlat[0]
-
-                    # The current status for the visiting point
-                    in_flag = not in_flag
-
-                    if in_flag:
-                        # The start of the interval
-                        pass
-                    else:
-                        # The end of the interval
-                        interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
-                        cur_face_mag_rad += cur_pt_lon - prev_pt_lon
-                    prev_pt_lon = cur_pt_lon
-        if 0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi:
-            # They're both on the "right side" of the 0-lon
-            if is_convex:
-                interval_rows.append({"start": pt_lon_min, "end": pt_lon_max})
-                cur_face_mag_rad = pt_lon_max - pt_lon_min
-            else:
-                # Sort the intersection points by longitude
-                unique_intersection_lonlat = np.array(
-                    [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
-                )
-                unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-                # Initialize a queue and fill it with the sorted longitudes
-                lon_queue = Queue()
-                for lonlat in unique_intersection_lonlat:
-                    lon_queue.put(lonlat)
-
-                # Variables to track the intervals
-                in_flag = False
-                prev_pt_lon = 0.0
-                interval_rows = []
-                cur_face_mag_rad = 0.0
-
-                # Process the queue
-                while not lon_queue.empty():
-                    cur_pt_lonlat = lon_queue.get()
-                    cur_pt_lon = cur_pt_lonlat[0]
-
-                    # The current status for the visiting point
-                    in_flag = not in_flag
-
-                    if in_flag:
-                        # The start of the interval
-                        pass
-                    else:
-                        # The end of the interval
-                        interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
-                        cur_face_mag_rad += cur_pt_lon - prev_pt_lon
-                    prev_pt_lon = cur_pt_lon
-        else:
-            # They're at the different side of the 0-lon
-
-            # We will break the face at the 360/0 lon, and then process the two parts separately
-            # Sort the intersection points by longitude
-            unique_intersection_lonlat = np.array(
-                [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersection]
-            )
-            unique_intersection_lonlat = np.vstack(
-                (unique_intersection_lonlat, np.array([2 * np.pi, latitude_cart]))
-            )
-            unique_intersection_lonlat = np.vstack(
-                (unique_intersection_lonlat, np.array([0.0, latitude_cart]))
-            )
-            unique_intersection_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-            # Initialize a queue and fill it with the sorted longitudes
-            lon_queue = Queue()
-            for lonlat in unique_intersection_lonlat:
-                lon_queue.put(lonlat)
-
-            # Variables to track the intervals
-            in_flag = False
-            prev_pt_lon = 0.0
-            interval_rows = []
-            cur_face_mag_rad = 0.0
-
-            # Process the queue
-            while not lon_queue.empty():
-                cur_pt_lonlat = lon_queue.get()
-                cur_pt_lon = cur_pt_lonlat[0]
-
-                # The current status for the visiting point
-                in_flag = not in_flag
-
-                if in_flag:
-                    # The start of the interval
-                    pass
-                else:
-                    # The end of the interval
-                    if prev_pt_lon == 2 * np.pi:
-                        interval_rows.append({"start": 0.0, "end": cur_pt_lon})
-                        cur_face_mag_rad += cur_pt_lon
-                    else:
-                        interval_rows.append({"start": prev_pt_lon, "end": cur_pt_lon})
-                        cur_face_mag_rad += cur_pt_lon - prev_pt_lon
-                prev_pt_lon = cur_pt_lon
-    if np.abs(cur_face_mag_rad) >= 2 * np.pi:
-        print(
-            "Problematic face: the face span is "
-            + str(cur_face_mag_rad)
-            + ". The span should be less than 2pi"
-        )
-
-    if overlap_flag:
-        # If the overlap_flag is true, check if we have the overlap_edge, if not, raise an error
-        if overlap_edge.shape[0] != 2:
-            raise ValueError(
-                "The overlap_flag is true, but the overlap_edge size is "
-                + str(overlap_edge.size)
-                + " instead of 2, please check the code"
-            )
-
-    # Creating DataFrame from interval_rows
-    Intervals_df = pd.DataFrame(interval_rows, columns=["start", "end"])
+    # Create the intervals DataFrame
+    Intervals_df = pd.DataFrame({"start": starts, "end": ends})
     # For consistency, sort the intervals by start
     interval_df_sorted = Intervals_df.sort_values(by="start").reset_index(drop=True)
     return interval_df_sorted
