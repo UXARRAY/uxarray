@@ -83,9 +83,7 @@ def open_grid(
     # attempt to use Xarray directly for remaining input types
     else:
         try:
-            grid_ds = xr.open_dataset(
-                grid_filename_or_obj, decode_times=False, **kwargs
-            )
+            grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
 
             uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
         except ValueError:
@@ -168,7 +166,7 @@ def open_dataset(
     )
 
     # UxDataset
-    ds = xr.open_dataset(filename_or_obj, decode_times=False, **kwargs)  # type: ignore
+    ds = xr.open_dataset(filename_or_obj, **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
@@ -257,7 +255,7 @@ def open_mfdataset(
     )
 
     # UxDataset
-    ds = xr.open_mfdataset(paths, decode_times=False, **kwargs)  # type: ignore
+    ds = xr.open_mfdataset(paths, **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
