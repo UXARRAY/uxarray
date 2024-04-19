@@ -121,7 +121,7 @@ def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
     )
 
 
-def _get_gca_constLat_intersection_info(
+def _get_faces_constLat_intersection_info(
     face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
 ):
     """Processes each edge of a face polygon in a vectorized manner to
@@ -255,7 +255,11 @@ def _get_zonal_face_interval(
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
 
     # Call the vectorized function to process all edges
-    unique_intersections, pt_lon_min, pt_lon_max = _get_gca_constLat_intersection_info(
+    (
+        unique_intersections,
+        pt_lon_min,
+        pt_lon_max,
+    ) = _get_faces_constLat_intersection_info(
         face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
     )
 

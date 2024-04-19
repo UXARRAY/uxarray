@@ -217,6 +217,8 @@ Integration
    grid.integrate._get_zonal_faces_weight_at_constLat
    grid.integrate._get_zonal_face_interval
    grid.integrate._process_overlapped_intervals
+   grid.integerate._is_edge_gca
+   grid.integrate._get_faces_constLat_intersection_info
 
 
 Remapping
