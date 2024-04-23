@@ -8,7 +8,9 @@ Supported Grid Formats
 Overview
 ========
 
-UXarray supports reading in multiple unstructured grid formats and encoding them in the UGRID conventions.
+UXarray is written around the UGRID conventions, which is a standard for storing unstructured grid model data in the
+NetCDF file format. All internal grid
+
 
 * UGRID
 * MPAS
