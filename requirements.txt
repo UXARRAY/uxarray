@@ -3,7 +3,7 @@ cartopy
 dask
 datashader
 holoviews
-matplotlib-base
+matplotlib
 matplotlib-inline
 netcdf4
 numba
