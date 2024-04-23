@@ -236,6 +236,11 @@ Dimensions
    Grid.n_face
    Grid.n_max_face_nodes
    Grid.n_max_face_edges
+   Grid.n_max_face_faces
+   Grid.n_max_edge_edges
+   Grid.n_max_node_faces
+   Grid.n_max_node_edges
+   Grid.n_max_node_nodes
    Grid.n_nodes_per_face
 
 Spherical Coordinates
@@ -271,13 +276,12 @@ Connectivity
    :toctree: generated/
 
    Grid.face_node_connectivity
-   Grid.edge_node_connectivity
-   Grid.node_node_connectivity
    Grid.face_edge_connectivity
-   Grid.edge_edge_connectivity
-   Grid.node_edge_connectivity
    Grid.face_face_connectivity
+   Grid.edge_node_connectivity
+   Grid.edge_edge_connectivity
    Grid.edge_face_connectivity
+   Grid.node_edge_connectivity
    Grid.node_face_connectivity
 
 Grid Descriptors
@@ -287,6 +291,7 @@ Grid Descriptors
 
    Grid.face_areas
    Grid.antimeridian_face_indices
+   Grid.bounds
 
 
 Attributes
@@ -295,7 +300,7 @@ Attributes
    :toctree: generated/
 
    Grid.grid_spec
-   Grid.parsed_attrs
+   Grid.attrs
 
 
 Plotting
