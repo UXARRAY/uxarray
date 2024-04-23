@@ -60,8 +60,5 @@ packages = ["uxarray"]
 [tool.setuptools_scm]
 fallback_version = "9999"
 
-[tool.ruff]
-extend-exclude = [
-"test",
-"benchmarks"
-]
+[tool.ruff.format]
+exclude = ["test","benchmarks"]
