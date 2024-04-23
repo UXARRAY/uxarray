@@ -1,1 +1,17 @@
+antimeridian
+cartopy
+dask
+datashader
+holoviews
+matplotlib-base
+matplotlib-inline
+netcdf4
+numba
+numpy
+pandas<2.1.0
+pyarrow
+scikit-learn
+scipy
+shapely
+spatialpandas
 xarray
