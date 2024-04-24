@@ -32,12 +32,12 @@ An alternative to Conda is using pip::
 
     pip install uxarray
 
-This installs the minimum set of required dependencies, which includes the following::
+This installs the minimum set of required dependencies, which includes the following:
 
 .. literalinclude:: ../pyproject.toml
    :language: toml
-   :start-after: minimal-dependencies
-   :end-before: [project.optional-dependencies]
+   :start-after: minimal dependencies start
+   :end-before: minimal dependencies end
 
 
 UXarray also maintains other dependency sets for different subsets of functionality::
