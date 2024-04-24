@@ -21,6 +21,7 @@ name = "uxarray"
 readme = "README.md"
 requires-python = ">=3.9"
 
+# minimal-dependencies
 dependencies = [
   "xarray",
   "cartopy",
