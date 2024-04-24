@@ -46,7 +46,7 @@ installation steps are excluded. To know which dependencies would be
 installed, take a look at the ``[project.optional-dependencies]`` section in
 ``pyproject.toml``:
 
-.. literalinclude:: ../../pyproject.toml
+.. literalinclude:: ../pyproject.toml
    :language: toml
    :start-at: [project.optional-dependencies]
    :end-before: [project.urls]
