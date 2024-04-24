@@ -208,6 +208,19 @@ Accurate Computing Utils
    utils.computing._acc_sqrt
    utils.computing._split
 
+
+Integration
+-----------
+.. autosummary::
+   :toctree: generated/
+
+   grid.integrate._get_zonal_faces_weight_at_constLat
+   grid.integrate._get_zonal_face_interval
+   grid.integrate._process_overlapped_intervals
+   grid.integrate._is_edge_gca
+   grid.integrate._get_faces_constLat_intersection_info
+
+
 Remapping
 =========
 
