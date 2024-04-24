@@ -36,7 +36,7 @@ This installs the minimum set of required dependencies, which includes the follo
 
 .. literalinclude:: ../pyproject.toml
    :language: toml
-   :start-at: minimal-dependencies
+   :start-after: minimal-dependencies
    :end-before: [project.optional-dependencies]
 
 
