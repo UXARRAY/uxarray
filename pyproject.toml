@@ -37,7 +37,17 @@ dependencies = [
 
 [project.optional-dependencies]
 complete = ["uxarray[viz, math, dev]"]
-viz = ['datashader', 'holoviews', 'cartopy', 'geoviews', 'antimeridian', 'matplotlib-base', 'matplotlib-inline','shapely', 'spatialpandas']
+viz = [
+  'datashader',
+  'holoviews',
+  'cartopy',
+  'geoviews',
+  'antimeridian',
+  'matplotlib-base',
+  'matplotlib-inline',
+  'shapely',
+  'spatialpandas'
+]
 math = ['gmpy2', 'pyfma']
 dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov']
 

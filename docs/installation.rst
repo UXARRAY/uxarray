@@ -32,6 +32,25 @@ An alternative to Conda is using pip::
 
     pip install uxarray
 
+
+UXarray also maintains other dependency sets for different subsets of functionality::
+
+    $ python -m pip install "uxarray[viz]"        # Install optional dependencies for visualization
+    $ python -m pip install "uxarray[math]"       # Install optional dependencies for accurate math utlities
+    $ python -m pip install "uxarray[dev]"        # Install optional dependencies for development
+    $ python -m pip install "uxarray[complete]"   # Install all optional dependencies
+
+The above commands should install most of the optional dependencies. However,
+some packages which are either not listed on PyPI or require extra
+installation steps are excluded. To know which dependencies would be
+installed, take a look at the ``[project.optional-dependencies]`` section in
+``pyproject.toml``:
+
+.. literalinclude:: ../../pyproject.toml
+   :language: toml
+   :start-at: [project.optional-dependencies]
+   :end-before: [project.urls]
+
 Installing UXarray from source (Github)
 ---------------------------------------
 
