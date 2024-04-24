@@ -13,11 +13,9 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.arcs import _angle_of_2_vectors, in_between
-from uxarray.grid.utils import (
-    _get_cartesian_face_edge_nodes,
-    _get_lonlat_rad_face_edge_nodes,
-)
+from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
+from uxarray.grid.geometry import _pole_point_inside_polygon
 
 try:
     import constants
@@ -28,18 +26,15 @@ except ImportError:
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
-gridfile_scrip_CSne8 = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
-gridfile_geoflowsmall_grid = (
-    current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-)
-gridfile_geoflowsmall_var = (
-    current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
-)
+gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
+gridfile_geoflowsmall_grid = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'grid.nc'
+gridfile_geoflowsmall_var = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'v1.nc'
 
 err_tolerance = 1.0e-12
 
 
 class TestIntegrate(TestCase):
+
     def test_face_area_coords(self):
         """Test function for helper function get_all_face_area_from_coords."""
         # Note: currently only testing one face, but this can be used to get area of multiple faces
@@ -51,8 +46,7 @@ class TestIntegrate(TestCase):
         face_dimension = np.array([3], dtype=INT_DTYPE)
 
         area, jacobian = ux.grid.area.get_all_face_area_from_coords(
-            x, y, z, face_nodes, face_dimension, 3, coords_type="cartesian"
-        )
+            x, y, z, face_nodes, face_dimension, 3, coords_type="cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=1)
 
@@ -65,8 +59,7 @@ class TestIntegrate(TestCase):
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
 
         area, jacobian = ux.grid.area.calculate_face_area(
-            x, y, z, "gaussian", 5, "cartesian"
-        )
+            x, y, z, "gaussian", 5, "cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
 
@@ -89,14 +82,15 @@ class TestIntegrate(TestCase):
 
 
 class TestGridCenter(TestCase):
+
     def test_grid_center(self):
         """Calculates if the calculated center point of a grid box is the same
         as a given value for the same dataset."""
         ds_scrip_CSne8 = xr.open_dataset(gridfile_scrip_CSne8)
 
         # select actual center_lat/lon
-        scrip_center_lon = ds_scrip_CSne8["grid_center_lon"]
-        scrip_center_lat = ds_scrip_CSne8["grid_center_lat"]
+        scrip_center_lon = ds_scrip_CSne8['grid_center_lon']
+        scrip_center_lat = ds_scrip_CSne8['grid_center_lat']
 
         # Calculate the center_lat/lon using same dataset's corner_lat/lon
         calc_center = ux.io._scrip.grid_center_lat_lon(ds_scrip_CSne8)
@@ -109,22 +103,25 @@ class TestGridCenter(TestCase):
 
 
 class TestCoordinatesConversion(TestCase):
+
     def test_normalize_in_place(self):
         [x, y, z] = ux.grid.coordinates.normalize_in_place(
-            [random.random(), random.random(), random.random()]
-        )
+            [random.random(), random.random(),
+             random.random()])
 
-        self.assertLessEqual(
-            np.absolute(np.sqrt(x * x + y * y + z * z) - 1), err_tolerance
-        )
+        self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
+                             err_tolerance)
 
     def test_node_xyz_to_lonlat_rad(self):
-        [x, y, z] = ux.grid.coordinates.normalize_in_place(
-            [random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)]
-        )
+        [x, y, z] = ux.grid.coordinates.normalize_in_place([
+            random.uniform(-1, 1),
+            random.uniform(-1, 1),
+            random.uniform(-1, 1)
+        ])
 
         [lon, lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
-        [new_x, new_y, new_z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
+        [new_x, new_y,
+         new_z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
 
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
@@ -133,12 +130,13 @@ class TestCoordinatesConversion(TestCase):
     def test_node_latlon_rad_to_xyz(self):
         [lon, lat] = [
             random.uniform(0, 2 * np.pi),
-            random.uniform(-0.5 * np.pi, 0.5 * np.pi),
+            random.uniform(-0.5 * np.pi, 0.5 * np.pi)
         ]
 
         [x, y, z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
 
-        [new_lon, new_lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
+        [new_lon,
+         new_lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
 
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
@@ -170,8 +168,7 @@ class TestConstants(TestCase):
 
         # expected output from _replace_fill_values()
         face_nodes_gold = np.array(
-            [[1, 2, self.fv], [self.fv, self.fv, self.fv]], dtype=INT_DTYPE
-        )
+            [[1, 2, self.fv], [self.fv, self.fv, self.fv]], dtype=INT_DTYPE)
 
         # test different datatypes for face_nodes
         dtypes = [np.int32, np.int64, np.float32, np.float64]
@@ -180,12 +177,10 @@ class TestConstants(TestCase):
             face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=dtype)
 
             # output of _replace_fill_values()
-            face_nodes_test = _replace_fill_values(
-                grid_var=face_nodes,
-                original_fill=-1,
-                new_fill=INT_FILL_VALUE,
-                new_dtype=INT_DTYPE,
-            )
+            face_nodes_test = _replace_fill_values(grid_var=face_nodes,
+                                                   original_fill=-1,
+                                                   new_fill=INT_FILL_VALUE,
+                                                   new_dtype=INT_DTYPE)
 
             assert np.array_equal(face_nodes_test, face_nodes_gold)
 
@@ -197,35 +192,28 @@ class TestConstants(TestCase):
         # invalid fill value with dtype should raise a valueError
         with self.assertRaises(ValueError):
             # INT_FILL_VALUE (max(uint32) not representable by int16)
-            face_nodes_test = _replace_fill_values(
-                grid_var=face_nodes,
-                original_fill=-1,
-                new_fill=INT_FILL_VALUE,
-                new_dtype=np.int16,
-            )
+            face_nodes_test = _replace_fill_values(grid_var=face_nodes,
+                                                   original_fill=-1,
+                                                   new_fill=INT_FILL_VALUE,
+                                                   new_dtype=np.int16)
 
 
 class TestSparseMatrix(TestCase):
+
     def test_convert_face_node_conn_to_sparse_matrix(self):
         """Tests _face_nodes_to_sparse_matrix() helper function to see if can
         generate sparse matrix from face_nodes_conn that has Fill Values."""
-        face_nodes_conn = np.array(
-            [
-                [3, 4, 5, INT_FILL_VALUE],
-                [3, 0, 2, 5],
-                [3, 4, 1, 0],
-                [0, 1, 2, INT_FILL_VALUE],
-            ]
-        )
+        face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5],
+                                    [3, 4, 1, 0], [0, 1, 2, INT_FILL_VALUE]])
 
-        (
-            face_indices,
-            nodes_indices,
-            non_zero_flag,
-        ) = ux.grid.connectivity._face_nodes_to_sparse_matrix(face_nodes_conn)
-        expected_non_zero_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-        expected_face_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
-        expected_nodes_indices = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
+        face_indices, nodes_indices, non_zero_flag = ux.grid.connectivity._face_nodes_to_sparse_matrix(
+            face_nodes_conn)
+        expected_non_zero_flag = np.array(
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+        expected_face_indices = np.array(
+            [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
+        expected_nodes_indices = np.array(
+            [3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
 
         nt.assert_array_equal(non_zero_flag, expected_non_zero_flag)
         nt.assert_array_equal(face_indices, expected_face_indices)
@@ -233,6 +221,7 @@ class TestSparseMatrix(TestCase):
 
 
 class TestOperators(TestCase):
+
     def test_in_between(self):
         # Test the in_between operator
         self.assertTrue(in_between(0, 1, 2))
@@ -240,6 +229,7 @@ class TestOperators(TestCase):
 
 
 class TestVectorsAngel(TestCase):
+
     def test_angle_of_2_vectors(self):
         # Test the angle between two vectors
         v1 = np.array([1.0, 0.0, 0.0])
@@ -252,10 +242,12 @@ class TestVectorsAngel(TestCase):
 
 
 class TestFaceEdgeConnectivityHelper(TestCase):
+
     def test_get_cartesian_face_edge_nodes(self):
         # Load the dataset
 
-        uxds = ux.open_dataset(gridfile_geoflowsmall_grid, gridfile_geoflowsmall_var)
+        uxds = ux.open_dataset(gridfile_geoflowsmall_grid,
+                               gridfile_geoflowsmall_var)
 
         # Initialize array
 
@@ -269,29 +261,23 @@ class TestFaceEdgeConnectivityHelper(TestCase):
                     uxds.uxgrid.face_node_connectivity.values[i],
                     uxds.uxgrid.face_edge_connectivity.values[i],
                     uxds.uxgrid.edge_node_connectivity.values,
-                    uxds.uxgrid.node_x.values,
-                    uxds.uxgrid.node_y.values,
-                    uxds.uxgrid.node_z.values,
-                )
-            )
+                    uxds.uxgrid.node_x.values, uxds.uxgrid.node_y.values,
+                    uxds.uxgrid.node_z.values))
 
         # Stack the arrays to get the desired (3,3) array
 
-        face_edges_connectivity_cartesian = np.vstack(face_edges_connectivity_cartesian)
+        face_edges_connectivity_cartesian = np.vstack(
+            face_edges_connectivity_cartesian)
 
-        assert face_edges_connectivity_cartesian.ndim == 3
+        assert (face_edges_connectivity_cartesian.ndim == 3)
 
     def test_get_cartesian_face_edge_nodes_pipeline(self):
         # Create the vertices for the grid, based around the North Pole
 
-        vertices = [
-            [0.5, 0.5, 0.5],
-            [-0.5, 0.5, 0.5],
-            [-0.5, -0.5, 0.5],
-            [0.5, -0.5, 0.5],
-        ]
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
 
-        # Normalize the vertices
+        #Normalize the vertices
         vertices = [x / np.linalg.norm(x) for x in vertices]
 
         # Construct the grid from the vertices
@@ -299,16 +285,12 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values[0],
             grid.face_edge_connectivity.values[0],
-            grid.edge_node_connectivity.values,
-            grid.node_x.values,
-            grid.node_y.values,
-            grid.node_z.values,
-        )
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
-            "North", face_edges_connectivity_cartesian
-        )
+            'North', face_edges_connectivity_cartesian)
 
         # Assert that the result is True
 
@@ -317,14 +299,10 @@ class TestFaceEdgeConnectivityHelper(TestCase):
     def test_get_cartesian_face_edge_nodes_filled_value(self):
         # Create the vertices for the grid, based around the North Pole
 
-        vertices = [
-            [0.5, 0.5, 0.5],
-            [-0.5, 0.5, 0.5],
-            [-0.5, -0.5, 0.5],
-            [0.5, -0.5, 0.5],
-        ]
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
 
-        # Normalize the vertices
+        #Normalize the vertices
         vertices = [x / np.linalg.norm(x) for x in vertices]
         vertices.append([INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE])
 
@@ -333,16 +311,12 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values[0],
             grid.face_edge_connectivity.values[0],
-            grid.edge_node_connectivity.values,
-            grid.node_x.values,
-            grid.node_y.values,
-            grid.node_z.values,
-        )
+            grid.edge_node_connectivity.values, grid.node_x.values,
+            grid.node_y.values, grid.node_z.values)
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
-            "North", face_edges_connectivity_cartesian
-        )
+            'North', face_edges_connectivity_cartesian)
 
         # Assert that the result is True
         self.assertTrue(result)
@@ -350,14 +324,10 @@ class TestFaceEdgeConnectivityHelper(TestCase):
     def test_get_lonlat_face_edge_nodes_pipeline(self):
         # Create the vertices for the grid, based around the North Pole
 
-        vertices = [
-            [0.5, 0.5, 0.5],
-            [-0.5, 0.5, 0.5],
-            [-0.5, -0.5, 0.5],
-            [0.5, -0.5, 0.5],
-        ]
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
+                    [0.5, -0.5, 0.5]]
 
-        # Normalize the vertices
+        #Normalize the vertices
         vertices = [x / np.linalg.norm(x) for x in vertices]
 
         # Construct the grid from the vertices
@@ -365,22 +335,19 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
             grid.face_node_connectivity.values[0],
             grid.face_edge_connectivity.values[0],
-            grid.edge_node_connectivity.values,
-            grid.node_lon.values,
-            grid.node_lat.values,
-        )
+            grid.edge_node_connectivity.values, grid.node_lon.values,
+            grid.node_lat.values)
 
         # Convert all the values into cartesian coordinates
         face_edges_connectivity_cartesian = []
         for i in range(len(face_edges_connectivity_lonlat)):
             edge = face_edges_connectivity_lonlat[i]
-            edge_cart = [node_lonlat_rad_to_xyz(node) for node in edge]
+            edge_cart =   [node_lonlat_rad_to_xyz(node) for node in edge]
             face_edges_connectivity_cartesian.append(edge_cart)
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
-            "North", np.array(face_edges_connectivity_cartesian)
-        )
+            'North', np.array(face_edges_connectivity_cartesian))
 
         # Assert that the result is True
         self.assertTrue(result)

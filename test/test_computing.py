@@ -35,6 +35,7 @@ class TestDotProduct(TestCase):
 
 
 class TestFMAOperations(TestCase):
+
     def test_two_sum(self):
         """Test the two_sum function."""
         a = 1.0
@@ -54,7 +55,6 @@ class TestFMAOperations(TestCase):
     def test_two_prod_fma(self):
         """Test the two_prod_fma function."""
         import pyfma
-
         a = 1.0
         b = 2.0
         x, y = ac_utils._two_prod_fma(a, b)
@@ -74,7 +74,6 @@ class TestFMAOperations(TestCase):
     def test_err_fmac(self):
         """Test the _err_fmac function."""
         import pyfma
-
         a = 1.0
         b = 2.0
         c = 3.0
@@ -84,17 +83,17 @@ class TestFMAOperations(TestCase):
 
 
 class TestAccurateSum(TestCase):
+
     def test_vec_sum(self):
         """Test the _vec_sum function."""
         a = np.array([1.0, 2.0, 3.0])
         res = ac_utils._vec_sum(a)
         self.assertAlmostEqual(6.0, res, places=15)
         import gmpy2
-
-        a = gmpy2.mpfr("2.28888888888")
-        b = gmpy2.mpfr("-2.2888889999")
-        c = gmpy2.mpfr("0.000000000001")
-        d = gmpy2.mpfr("-0.000000000001")
+        a = gmpy2.mpfr('2.28888888888')
+        b = gmpy2.mpfr('-2.2888889999')
+        c = gmpy2.mpfr('0.000000000001')
+        d = gmpy2.mpfr('-0.000000000001')
 
         a_float = float(a)
         b_float = float(b)
@@ -102,17 +101,15 @@ class TestAccurateSum(TestCase):
         d_float = float(d)
 
         res = ac_utils._vec_sum(np.array([a_float, b_float, c_float, d_float]))
-        res_mp = (
-            gmpy2.mpfr(a_float)
-            + gmpy2.mpfr(b_float)
-            + gmpy2.mpfr(c_float)
-            + gmpy2.mpfr(d_float)
-        )
+        res_mp = gmpy2.mpfr(a_float) + gmpy2.mpfr(b_float) + gmpy2.mpfr(
+            c_float) + gmpy2.mpfr(d_float)
         abs_res = abs(res - res_mp)
-        self.assertTrue(gmpy2.cmp(abs_res, gmpy2.mpfr(np.finfo(np.float64).eps)) == -1)
+        self.assertTrue(
+            gmpy2.cmp(abs_res, gmpy2.mpfr(np.finfo(np.float64).eps)) == -1)
 
 
 class TestNorm(TestCase):
+
     def test_norm_faithful(self):
         """Test the norm_faithful function."""
         a = np.array([1.0, 2.0, 3.0])

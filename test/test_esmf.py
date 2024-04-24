@@ -7,8 +7,10 @@ from pathlib import Path
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
-esmf_ne30_grid_path = current_path / "meshfiles" / "esmf" / "ne30" / "ne30pg3.grid.nc"
-esmf_ne30_data_path = current_path / "meshfiles" / "esmf" / "ne30" / "ne30pg3.data.nc"
+esmf_ne30_grid_path = current_path / 'meshfiles' / "esmf" / "ne30" / "ne30pg3.grid.nc"
+esmf_ne30_data_path = current_path / 'meshfiles' / "esmf" / "ne30" / "ne30pg3.data.nc"
+
+
 
 
 def test_read_esmf():
@@ -17,11 +19,11 @@ def test_read_esmf():
 
     uxgrid = ux.open_grid(esmf_ne30_grid_path)
 
-    dims = ["n_node", "n_face", "n_max_face_nodes"]
+    dims = ['n_node', 'n_face', 'n_max_face_nodes']
 
-    coords = ["node_lon", "node_lat", "face_lon", "face_lat"]
+    coords = ['node_lon', 'node_lat', 'face_lon', 'face_lat']
 
-    conns = ["face_node_connectivity", "n_nodes_per_face"]
+    conns = ['face_node_connectivity', 'n_nodes_per_face']
 
     for dim in dims:
         assert dim in uxgrid._ds.dims
@@ -32,14 +34,14 @@ def test_read_esmf():
     for conn in conns:
         assert conn in uxgrid._ds
 
-
 def test_read_esmf_dataset():
     """Tests the constructing of a UxDataset from an ESMF Grid and Data
     File."""
 
     uxds = ux.open_dataset(esmf_ne30_grid_path, esmf_ne30_data_path)
 
-    dims = ["n_node", "n_face"]
+
+    dims = ['n_node', 'n_face']
 
     for dim in dims:
         assert dim in uxds.dims

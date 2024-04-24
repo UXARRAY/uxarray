@@ -13,9 +13,7 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 class TestIntegrate(TestCase):
     gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-    dsfile_var2_ne30 = (
-        current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
-    )
+    dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
     def test_single_dim(self):
         """Integral with 1D data mapped to each face."""
@@ -25,7 +23,10 @@ class TestIntegrate(TestCase):
 
         dims = {"n_face": uxgrid.n_face}
 
-        uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name="var2")
+        uxda = ux.UxDataArray(data=test_data,
+                              dims=dims,
+                              uxgrid=uxgrid,
+                              name='var2')
 
         integral = uxda.integrate()
 
@@ -42,7 +43,10 @@ class TestIntegrate(TestCase):
 
         dims = {"a": 5, "b": 5, "n_face": uxgrid.n_face}
 
-        uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name="var2")
+        uxda = ux.UxDataArray(data=test_data,
+                              dims=dims,
+                              uxgrid=uxgrid,
+                              name='var2')
 
         integral = uxda.integrate()
 

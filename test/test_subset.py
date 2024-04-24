@@ -8,15 +8,15 @@ from pathlib import Path
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 GRID_PATHS = [
-    current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc",
+    current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc',
     current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc",
-    current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug",
+    current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 ]
 
 DATA_PATHS = [
-    current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc",
+    current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc',
     current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc",
-    current_path / "meshfiles" / "ugrid" / "outCSne30" / "var2.nc",
+    current_path / "meshfiles" / "ugrid" / "outCSne30" / "var2.nc"
 ]
 
 
@@ -58,14 +58,17 @@ def test_grid_nn_subset():
         ks = [1, 2, grid.n_node - 1]
         for coord in coord_locs:
             for k in ks:
-                grid_subset = grid.subset.nearest_neighbor(coord, k, element="nodes")
+                grid_subset = grid.subset.nearest_neighbor(coord,
+                                                           k,
+                                                           element="nodes")
                 assert grid_subset.n_node >= k
 
         # face-centers
         ks = [1, 2, grid.n_face - 1]
         for coord in coord_locs:
             for k in ks:
-                grid_subset = grid.subset.nearest_neighbor(coord, k, "face centers")
+                grid_subset = grid.subset.nearest_neighbor(
+                    coord, k, "face centers")
 
                 assert grid_subset.n_face == k
                 assert isinstance(grid_subset, ux.Grid)
@@ -93,8 +96,9 @@ def test_grid_bounding_box_subset():
         for grid_path in GRID_PATHS:
             grid = ux.open_grid(grid_path)
 
-            grid_subset = grid.subset.bounding_box(bbox[0], bbox[1], element=element)
+            grid_subset = grid.subset.bounding_box(bbox[0],
+                                                   bbox[1],
+                                                   element=element)
 
             grid_subset_antimeridian = grid.subset.bounding_box(
-                bbox_antimeridian[0], bbox_antimeridian[1], element=element
-            )
+                bbox_antimeridian[0], bbox_antimeridian[1], element=element)
