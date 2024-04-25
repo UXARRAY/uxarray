@@ -10,7 +10,6 @@ exclude .readthedocs.yml
 
 include *.md
 include *.toml
-include *.yaml
 include *.txt
 prune test*
 prune ci*
