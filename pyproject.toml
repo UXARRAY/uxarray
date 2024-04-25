@@ -16,7 +16,7 @@ classifiers=[
 dynamic = ["version"]
 keywords = ["unstructured grids"]
 description = "Xarray-styled package for reading and directly operating on unstructured grid datasets following UGRID conventions"
-license = {file = "LICENSE.txt"}
+license = {file = "LICENSE"}
 name = "uxarray"
 readme = "README.md"
 requires-python = ">=3.9"
