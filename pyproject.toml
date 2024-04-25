@@ -30,7 +30,7 @@ dependencies = [
   "datashader",
   "geoviews",
   "holoviews",
-  "matplotlib-base",
+  "matplotlib",
   "matplotlib-inline",
   "netcdf4",
   "numba",
