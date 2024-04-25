@@ -49,7 +49,7 @@ dependencies = [
 [project.optional-dependencies]
 complete = ["uxarray[math, dev]"]
 math = ['gmpy2', 'pyfma']
-dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov']
+dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff']
 
 [project.urls]
 Documentation = "uxarray.readthedocs.io/"
