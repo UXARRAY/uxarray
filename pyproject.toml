@@ -16,40 +16,38 @@ classifiers=[
 dynamic = ["version"]
 keywords = ["unstructured grids"]
 description = "Xarray-styled package for reading and directly operating on unstructured grid datasets following UGRID conventions"
-license = {text = "Apache-2.0"}
+license = {file = "LICENSE.txt"}
 name = "uxarray"
 readme = "README.md"
 requires-python = ">=3.9"
 
 # minimal dependencies start
 dependencies = [
-  "xarray",
+  "antimeridian",
   "cartopy",
-  "dask",
+  "cartopy",
+  "dask[dataframe]",
+  "datashader",
+  "geoviews",
+  "holoviews",
+  "matplotlib-base",
+  "matplotlib-inline",
+  "netcdf4",
   "numba",
   "numpy",
+  "pandas<2.1.0",
+  "pyarrow",
+  "requests",
   "scikit-learn",
   "scipy",
-  "pyarrow",
-  "pandas<2.1.0",
-  "netcdf4",
-  "requests"
+  "shapely",
+  "spatialpandas",
+  "xarray",
 ]
 # minimal dependencies end
 
 [project.optional-dependencies]
-complete = ["uxarray[viz, math, dev]"]
-viz = [
-  'datashader',
-  'holoviews',
-  'cartopy',
-  'geoviews',
-  'antimeridian',
-  'matplotlib-base',
-  'matplotlib-inline',
-  'shapely',
-  'spatialpandas'
-]
+complete = ["uxarray[math, dev]"]
 math = ['gmpy2', 'pyfma']
 dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov']
 

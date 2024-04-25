@@ -42,7 +42,6 @@ This installs the minimum set of required dependencies, which includes the follo
 
 UXarray also maintains other dependency sets for different subsets of functionality::
 
-    $ python -m pip install "uxarray[viz]"        # Install optional dependencies for visualization
     $ python -m pip install "uxarray[math]"       # Install optional dependencies for accurate math utlities
     $ python -m pip install "uxarray[dev]"        # Install optional dependencies for development
     $ python -m pip install "uxarray[complete]"   # Install all optional dependencies
