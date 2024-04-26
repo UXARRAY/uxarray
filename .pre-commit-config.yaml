@@ -10,14 +10,13 @@ repos:
     hooks:
     - id: check-yaml               # Checks the syntax of .yaml files.
       args: [--allow-multiple-documents]
-      exclude: 'meta.yaml'    # Exclude this because it gives an error for '%' in Line 1 and couldn't fix yet
     - id: end-of-file-fixer        # Makes sure files end with a newline.
     - id: trailing-whitespace      # Checks for any tabs or spaces after the last non-whitespace character on the line.
     - id: check-docstring-first    # Checks that code comes after the docstrings.
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.1.5
+  rev: v0.4.1
   hooks:
     # Run the linter.
     - id: ruff
