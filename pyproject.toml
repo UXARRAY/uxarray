@@ -52,7 +52,7 @@ math = ['gmpy2', 'pyfma']
 dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff']
 
 [project.urls]
-Documentation = "uxarray.readthedocs.io/"
+Documentation = "https://uxarray.readthedocs.io/"
 Source = "https://github.com/UXARRAY/uxarray"
 Tracker = "https://github.com/UXARRAY/uxarray/issues"
 
