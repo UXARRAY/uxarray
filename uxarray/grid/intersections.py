@@ -116,7 +116,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
 
 def gca_constLat_intersection(
-    gca_cart, constLat, fma_disabled=False, verbose=False, is_directed=False
+    gca_cart, constZ, fma_disabled=False, verbose=False, is_directed=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
@@ -128,8 +128,8 @@ def gca_constLat_intersection(
     Parameters
     ----------
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
-    constLat : float
-        The constant latitude of the latitude line.
+    constZ : float
+        The constant latitude represented in cartesian of the latitude line.
     fma_disabled : bool, optional (default=False)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
@@ -153,7 +153,6 @@ def gca_constLat_intersection(
         If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
-    constZ = np.sin(constLat)
     x1, x2 = gca_cart
 
     if fma_disabled:
