@@ -40,13 +40,12 @@ The standard was developed over a period of several years through the UGRID Goog
 different unstructured grid modeling communities (including SELFE, ELCIRC, FVCOM, ADCIRC). From these discussions Bert
 Jagers (Deltares) created the first draft of this document, and the community worked to develop version 1.0.
 
-https://ugrid-conventions.github.io/ugrid-conventions/#ugrid-conventions-v10
-
-https://github.com/ugrid-conventions/ugrid-conventions
-
-https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#ugrid-conventions
-
-https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#mesh-topology-variables
+References
+----------
+* https://ugrid-conventions.github.io/ugrid-conventions/#ugrid-conventions-v10
+* https://github.com/ugrid-conventions/ugrid-conventions
+* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#ugrid-conventions
+* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#mesh-topology-variables
 
 MPAS
 ====
@@ -61,9 +60,10 @@ component of velocity on cell edges is prognosed, is especially well-suited for 
 and ocean simulations. The land ice model takes advantage of the SCVT-dual mesh, which is a triangular Delaunay
 tessellation appropriate for use with Finite-Element-based discretizations.
 
-https://mpas-dev.github.io/
-
-https://mpas-dev.github.io/files/documents/MPAS-MeshSpec.pdf
+References
+----------
+* https://mpas-dev.github.io/
+* https://mpas-dev.github.io/files/documents/MPAS-MeshSpec.pdf
 
 SCRIP
 =====
@@ -73,9 +73,10 @@ interpolation weights for remapping fields from one grid to another in spherical
 
 A SCRIP format grid file is a NetCDF file for describing unstructured grids.
 
-https://archive.org/details/manualzilla-id-6909486
-
-https://earthsystemmodeling.org/docs/release/ESMF_8_0_1/ESMF_refdoc/node3.html#SECTION03028100000000000000
+References
+----------
+* https://archive.org/details/manualzilla-id-6909486
+* https://earthsystemmodeling.org/docs/release/ESMF_8_0_1/ESMF_refdoc/node3.html#SECTION03028100000000000000
 
 EXODUS
 ======
@@ -92,17 +93,22 @@ complex, coupled modeling systems and includes data structures and utilities for
 ESMF supports a custom unstructured grid file format for describing meshes, which is more compatible than the SCRIP
 format.
 
-https://earthsystemmodeling.org/about/
+References
+----------
+* https://earthsystemmodeling.org/about/
+* https://earthsystemmodeling.org/docs/release/ESMF_8_0_1/ESMF_refdoc/node3.html#SECTION03028200000000000000
 
-https://earthsystemmodeling.org/docs/release/ESMF_8_0_1/ESMF_refdoc/node3.html#SECTION03028200000000000000
+Parsed Variables
+================
 
-Parsing Support
-===============
+Each unstructured grid formats varies in the amount of information contained about the grid. UXarray parses the
+variables represented in each format and represents them in the UGRID conventions.
 
 .. note::
 
-   While not all variables are present in each format, Uxarray provides functionality for deriving additional variables.
-   More information can be found HERE
+   Even though each unstructured grid format has a varying number of support variables, UXarray provides
+   support for constructing additional variables, which is discussed in the next sections.
+
 
 Coordinates
 -----------
