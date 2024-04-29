@@ -82,7 +82,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
 
     if np.isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if GCRv0_lonlat[0] == pt_lonlat[0]:
+        if np.isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
             # Now use the latitude to determine if the pt falls between the interval
             return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
         else:
@@ -93,6 +93,9 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     if np.isclose(
         abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0, atol=ERROR_TOLERANCE
     ):
+        # Special case, if the pt is on the pole point, then set its longitude to the GCRv0_lonlat[0]
+        if np.isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=0, atol=ERROR_TOLERANCE):
+            pt_lonlat[0] = GCRv0_lonlat[0]
         if not np.isclose(
             GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE
         ) and not np.isclose(
