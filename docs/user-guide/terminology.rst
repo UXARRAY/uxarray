@@ -7,22 +7,22 @@ Terminology
 Grid Representation
 -------------------
 
-**Node**: Sample Definition
+**Structured Grids**: Structured grids are defined by regular connectivity and topology,
+typically forming a uniform pattern. They are represented using a multidimensional array, where each grid point has a predictable neighbor.
+This regularity simplifies the computational algorithms but may limit flexibility in handling complex geometries.
 
-**Edge**: Sample Definition
+**Unstructured Grids**: Unstructured grids do not follow a regular pattern, allowing for a flexible representation of complex geometries.
+They are composed of various elements such as triangles, quadrilaterals, and other larger geometries, each of which are
+made up of nodes and edges.
 
-**Face**: Sample Definition
+**Node**: A point within a 2D grid, representing the vertices of the elemtns (such as the corners of triangles or quadrilaterals)
 
-**Mesh**: Sample Definition
+**Edge**: A segment that connects two nodes within a grid.
 
-**Connectivity**: Sample Definition
+**Face**: An individual polygon that is defined by nodes connected by edges.
 
-**Fill Value**: Sample Definition
+**Connectivity**: Connectivity describes how nodes, edges, and faces are interconnected within a grid.
+It outlines the relationship between individual elements of the mesh, determining how they join together..
 
-Spherical Coordinates & Geometry
----------------------
-**Longitude**: Sample Definition
-
-**Latitude**: Sample Definition
-
-**Great Circle Arc (GCA)**: Sample Definition
+**Fill Value**: An arbitrary value used for representing undefined values in within connectivity variables when working
+with fixed-size arrays.
