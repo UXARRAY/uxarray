@@ -15,14 +15,14 @@ This regularity simplifies the computational algorithms but may limit flexibilit
 They are composed of various elements such as triangles, quadrilaterals, and other larger geometries, each of which are
 made up of nodes and edges.
 
-**Node**: A point within a 2D grid, representing the vertices of the elemtns (such as the corners of triangles or quadrilaterals)
+**Node**: A point within a spherical grid, representing the vertices of the elements (such as the corners of triangles or quadrilaterals)
 
 **Edge**: A segment that connects two nodes within a grid.
 
 **Face**: An individual polygon that is defined by nodes connected by edges.
 
 **Connectivity**: Connectivity describes how nodes, edges, and faces are interconnected within a grid.
-It outlines the relationship between individual elements of the mesh, determining how they join together..
+It outlines the relationship between individual elements of the mesh, determining how they join together.
 
 **Fill Value**: An arbitrary value used for representing undefined values in within connectivity variables when working
 with fixed-size arrays.

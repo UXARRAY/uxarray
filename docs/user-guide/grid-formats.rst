@@ -81,7 +81,20 @@ References
 EXODUS
 ======
 
-Section TODO
+EXODUS is a binary format based on NetCDF, leading to smaller file sizes compared to ASCII formats. 
+It is system independent and typically consists of nodes (geometric points), elements (e.g., triangles, tetrahedrons), 
+material properties, boundary conditions, and results from analysis.
+
+Moreover, EXODUS facilitates efficient data storage and retrieval for computational simulations, 
+aiding in the management and analysis of complex engineering and scientific datasets. 
+It supports a wide range of finite element analysis applications and provides interoperability 
+with various simulation software packages. Additionally, the format ensures compatibility across different platforms, 
+enhancing collaboration and data exchange within the scientific community.
+
+References
+----------
+* https://www.osti.gov/servlets/purl/10102115
+* https://www.paraview.org/Wiki/ParaView/Users_Guide/Exodus_Reader
 
 ESMF
 ====
