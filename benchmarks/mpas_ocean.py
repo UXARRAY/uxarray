@@ -33,7 +33,7 @@ class Gradient:
 
 
     def setup(self, resolution):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][0])
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution):
         del self.uxds
@@ -51,7 +51,7 @@ class Integrate:
 
 
     def setup(self, resolution):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][0])
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution):
         del self.uxds
@@ -70,7 +70,7 @@ class GeoDataFrame:
 
 
     def setup(self, resolution, exclude_antimeridian):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][0])
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution, exclude_antimeridian):
         del self.uxds
