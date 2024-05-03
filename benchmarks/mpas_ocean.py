@@ -18,6 +18,7 @@ filenames = [grid_filename_480, data_filename_480, grid_filename_120, data_filen
 
 for filename in filenames:
     if not os.path.isfile(filename):
+        # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
         url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
         _, headers = urllib.request.urlretrieve(url, filename=filename)
 
