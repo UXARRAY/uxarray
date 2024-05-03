@@ -11,7 +11,6 @@ Date of intended release:
 ## Release progress checklist
 
 - [ ] CI tests are passing
-- [ ] update version number in `meta.yaml`
 - [ ] a new tag and release has been made on GitHub
 - [ ] feedstock PR has been merged
 - [ ] release on pypi action has been triggered and run successfully
