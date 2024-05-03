@@ -43,7 +43,7 @@ class Gradient:
         self.uxds[data_var].gradient()
 
     def peakmem_gradient(self, resolution):
-        integral = self.uxds[data_var].gradient()
+        grad = self.uxds[data_var].gradient()
 
 class Integrate:
 
@@ -61,7 +61,7 @@ class Integrate:
         self.uxds[data_var].integrate()
 
     def peakmem_integrate(self, resolution):
-        grad = self.uxds[data_var].integrate()
+        integral = self.uxds[data_var].integrate()
 
 class GeoDataFrame:
 
