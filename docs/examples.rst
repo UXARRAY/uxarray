@@ -24,4 +24,4 @@ your own examples or suggesting one for us to create, please see the :doc:`contr
    examples/006-plot-api-topology.ipynb
    examples/007-polygon-viz.ipynb
    examples/008-point-viz.ipynb
-   examples/examples/009-subsetting.ipynb
+   examples/009-subsetting.ipynb

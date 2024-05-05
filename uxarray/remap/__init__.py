@@ -1,3 +1,7 @@
-from .nearest_neighbor import _nearest_neighbor
+from .dataarray_accessor import UxDataArrayRemapAccessor
+from .dataset_accessor import UxDatasetRemapAccessor
 
-__all__ = ("_nearest_neighbor",)
+__all__ = (
+    "UxDataArrayRemapAccessor",
+    "UxDatasetRemapAccessor",
+)

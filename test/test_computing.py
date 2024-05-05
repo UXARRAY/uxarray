@@ -41,7 +41,7 @@ class TestFMAOperations(TestCase):
         a = 1.0
         b = 2.0
         s, e = ac_utils._two_sum(a, b)
-        self.assertAlmostEquals(a + b, s + e, places=15)
+        self.assertAlmostEqual(a + b, s + e, places=15)
 
     def test_fast_two_sum(self):
         """Test the fase_two_sum function."""
@@ -49,8 +49,8 @@ class TestFMAOperations(TestCase):
         b = 1.0
         s, e = ac_utils._two_sum(a, b)
         sf, ef = ac_utils._fast_two_sum(a, b)
-        self.assertEquals(s, sf)
-        self.assertEquals(e, ef)
+        self.assertEqual(s, sf)
+        self.assertEqual(e, ef)
 
     def test_two_prod_fma(self):
         """Test the two_prod_fma function."""
@@ -58,9 +58,9 @@ class TestFMAOperations(TestCase):
         a = 1.0
         b = 2.0
         x, y = ac_utils._two_prod_fma(a, b)
-        self.assertEquals(x, a * b)
-        self.assertEquals(y, pyfma.fma(a, b, -x))
-        self.assertAlmostEquals(a * b, x + y, places=15)
+        self.assertEqual(x, a * b)
+        self.assertEqual(y, pyfma.fma(a, b, -x))
+        self.assertAlmostEqual(a * b, x + y, places=15)
 
     def test_fast_two_mult(self):
         """Test the two_prod_fma function."""
@@ -68,8 +68,8 @@ class TestFMAOperations(TestCase):
         b = 2.0
         x, y = ac_utils._two_prod_fma(a, b)
         xf, yf = ac_utils._fast_two_mult(a, b)
-        self.assertEquals(x, xf)
-        self.assertEquals(y, yf)
+        self.assertEqual(x, xf)
+        self.assertEqual(y, yf)
 
     def test_err_fmac(self):
         """Test the _err_fmac function."""
@@ -78,8 +78,8 @@ class TestFMAOperations(TestCase):
         b = 2.0
         c = 3.0
         x, y, z = ac_utils._err_fmac(a, b, c)
-        self.assertEquals(x, pyfma.fma(a, b, c))
-        self.assertAlmostEquals(a * b + c, x + y + z, places=15)
+        self.assertEqual(x, pyfma.fma(a, b, c))
+        self.assertAlmostEqual(a * b + c, x + y + z, places=15)
 
 
 class TestAccurateSum(TestCase):
@@ -88,7 +88,7 @@ class TestAccurateSum(TestCase):
         """Test the _vec_sum function."""
         a = np.array([1.0, 2.0, 3.0])
         res = ac_utils._vec_sum(a)
-        self.assertAlmostEquals(6.0, res, places=15)
+        self.assertAlmostEqual(6.0, res, places=15)
         import gmpy2
         a = gmpy2.mpfr('2.28888888888')
         b = gmpy2.mpfr('-2.2888889999')
@@ -114,16 +114,16 @@ class TestNorm(TestCase):
         """Test the norm_faithful function."""
         a = np.array([1.0, 2.0, 3.0])
         res = ac_utils._norm_faithful(a)
-        self.assertAlmostEquals(np.linalg.norm(a), res, places=15)
+        self.assertAlmostEqual(np.linalg.norm(a), res, places=15)
 
     def test_sqrt_faithful(self):
         """Test the sqrt_faithful function."""
         a = 10.0
         res = ac_utils._acc_sqrt(a, 0.0)
-        self.assertAlmostEquals(np.sqrt(a), res, places=15)
+        self.assertAlmostEqual(np.sqrt(a), res, places=15)
 
     def test_two_square(self):
         """Test the _two_square function."""
         a = 10.0
         res = ac_utils._two_square(a)
-        self.assertAlmostEquals(a * a, res[0], places=15)
+        self.assertAlmostEqual(a * a, res[0], places=15)

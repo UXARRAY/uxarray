@@ -9,9 +9,9 @@
    :description: Uxarray Python module
    :keywords: weather research and forecasting,
               model, weather, numerical weather prediction, model,
-              matplotlib, cartopy, ncar, ucar, cisl, UC Davis, SEATs, ugrid,
-              national center for atmospheric research,
-              university corporation for atmospheric research
+              matplotlib, cartopy, nsf ncar, ucar, cisl, UC Davis, SEATS, ugrid,
+              nsf national center for atmospheric research, university
+              corporation for atmospheric research
 
 
 .. .. image:: _static/images/nsf.png
