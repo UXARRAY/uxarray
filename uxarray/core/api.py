@@ -61,6 +61,8 @@ def open_grid(
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
+    extension = os.path.splitext(grid_filename_or_obj)
+
     if "source_grid" in kwargs.keys():
         warn(
             "source_grid is no longer a supported kwarg",
@@ -80,6 +82,13 @@ def open_grid(
         # construct Grid from face vertices
         uxgrid = Grid.from_face_vertices(grid_filename_or_obj, latlon=latlon)
 
+    # check to see if this is a shapefile
+    elif extension[1] == ".shp":
+        print("This is a shapefile")
+        uxgrid = Grid.from_shapefile(grid_filename_or_obj)
+         
+
+    
     # attempt to use Xarray directly for remaining input types
     else:
         try:

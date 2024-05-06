@@ -12,6 +12,7 @@ from typing import (
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
+from uxarray.io._shapefile import _read_shpfile
 from uxarray.io._ugrid import (
     _read_ugrid,
     _encode_ugrid,
@@ -209,6 +210,25 @@ class Grid:
             source_dims_dict = {}
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_shapefile(
+        cls,
+        filename: str,
+        **kwargs,
+    ):
+        """Constructs a ``Grid`` object from a shapefile.
+
+        Parameters
+        ----------
+        filename : str
+           shapefile filename
+        """
+        source_grid_spec = "Shapefile"
+        grid_ds, source_dims_dict = _read_shpfile(filename)
+
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
+
 
     @classmethod
     def from_topology(
