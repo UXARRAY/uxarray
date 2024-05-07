@@ -142,7 +142,7 @@ Cartesian Coordinates
 
 .. note::
 
-    All cartesiain coordinates are stored in meters, ADD NOTE ABOUT NORMALIZATION?
+    All Cartesiain coordinates are stored in meters
 
 
 Connectivity
