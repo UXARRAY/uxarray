@@ -81,3 +81,19 @@ class GeoDataFrame:
 
     def peakmem_to_geodataframe(self, resolution, exclude_antimeridian):
         gdf = self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+
+
+class ConnectivityConstruction:
+
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+
+    def setup(self, resolution):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution):
+        del self.uxds
+
+    def time_n_nodes_per_face(self, resolution):
+        self.uxds.uxgrid.n_nodes_per_face
