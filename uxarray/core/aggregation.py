@@ -6,7 +6,7 @@ from uxarray.grid.connectivity import get_face_node_partitions
 import uxarray.core.dataarray
 
 
-NUMPY_REDUCTIONS = {
+NUMPY_AGGREGATIONS = {
     "mean": np.mean,
     "max": np.max,
     "min": np.min,
@@ -20,25 +20,25 @@ NUMPY_REDUCTIONS = {
 }
 
 
-def _uxda_grid_reduce(uxda, keep_attrs, destination, reduction, **kwargs):
+def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
     if destination is None:
         raise ValueError(
-            "Attempting to perform a local reduction, but no destination was provided."
+            "Attempting to perform a topological aggregation, but no destination was provided."
         )
 
     if uxda._node_centered():
-        # reduction of a node-centered data variable
+        # aggregation of a node-centered data variable
         if destination == "face":
-            return _node_to_face_reduction(uxda, reduction, kwargs)
+            return _node_to_face_aggregation(uxda, aggregation, kwargs)
         elif destination == "edge":
-            return _node_to_edge_reduction(uxda, reduction, kwargs)
+            return _node_to_edge_aggregation(uxda, aggregation, kwargs)
         else:
-            raise ValueError("TODO: Invalid dimension for node reduction")
+            raise ValueError("TODO: Invalid dimension for node aggregation")
 
     elif uxda._edge_centered():
-        # reduction of an edge-centered data variable
+        # aggregation of an edge-centered data variable
         raise NotImplementedError(
-            "Reductions of edge-centered data variables not yet supported."
+            "Aggregation of edge-centered data variables not yet supported."
         )
         # if destination == "node":
         #     pass
@@ -48,7 +48,7 @@ def _uxda_grid_reduce(uxda, keep_attrs, destination, reduction, **kwargs):
         #     raise ValueError("TODO: )
 
     elif uxda._face_centered():
-        # reduction of a face-centered data variable
+        # aggregation of a face-centered data variable
         raise NotImplementedError(
             "Reductions of face-centered data variables not yet supported."
         )
@@ -66,7 +66,7 @@ def _uxda_grid_reduce(uxda, keep_attrs, destination, reduction, **kwargs):
         )
 
 
-def _node_to_face_reduction(uxda, reduction, reduction_func_kwargs):
+def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """TODO:"""
     if not uxda._node_centered():
         raise ValueError(
@@ -75,27 +75,29 @@ def _node_to_face_reduction(uxda, reduction, reduction_func_kwargs):
         )
 
     if isinstance(uxda.data, np.ndarray):
-        # apply reduction using numpy
-        reduced_var = _apply_node_to_face_reduction_numpy(
-            uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
+        # apply aggregation using numpy
+        aggregated_var = _apply_node_to_face_aggregation_numpy(
+            uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     elif isinstance(uxda.data, da.array):
-        # apply reduction on dask array, TODO:
-        reduced_var = _apply_node_to_face_reduction_numpy(
-            uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
+        # apply aggregation on dask array, TODO:
+        aggregated_var = _apply_node_to_face_aggregation_numpy(
+            uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
         raise ValueError
 
     return uxarray.core.dataarray.UxDataArray(
         uxgrid=uxda.uxgrid,
-        data=reduced_var,
+        data=aggregated_var,
         dims=uxda.dims,
         name=uxda.name,
     ).rename({"n_node": "n_face"})
 
 
-def _apply_node_to_face_reduction_numpy(uxda, reduction_func, reduction_func_kwargs):
+def _apply_node_to_face_aggregation_numpy(
+    uxda, aggregation_func, aggregation_func_kwargs
+):
     data = uxda.values
     face_node_conn = uxda.uxgrid.face_node_connectivity.values
     n_nodes_per_face = uxda.uxgrid.n_nodes_per_face.values
@@ -114,21 +116,21 @@ def _apply_node_to_face_reduction_numpy(uxda, reduction_func, reduction_func_kwa
         face_nodes_par = face_node_conn[face_inds, 0:e]
 
         # apply reduction function to current face node partition
-        reduction_par = reduction_func(
-            data[..., face_nodes_par], axis=-1, **reduction_func_kwargs
+        aggregation_par = aggregation_func(
+            data[..., face_nodes_par], axis=-1, **aggregation_func_kwargs
         )
 
         # store current reduction
-        result[..., face_inds] = reduction_par
+        result[..., face_inds] = aggregation_par
 
     return result
 
 
-def _apply_node_to_face_reduction_dask():
+def _apply_node_to_face_aggregation_dask(*args, **kwargs):
     pass
 
 
-def _node_to_edge_reduction(uxda, reduction, reduction_func_kwargs):
+def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
     if not uxda._node_centered():
         raise ValueError(
             f"Data Variable must be mapped to the corner nodes of each face, with dimension "
@@ -136,34 +138,32 @@ def _node_to_edge_reduction(uxda, reduction, reduction_func_kwargs):
         )
 
     if isinstance(uxda.data, np.ndarray):
-        # apply reduction using numpy
-        reduced_var = _apply_node_to_edge_reduction_numpy(
-            uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
+        # apply aggregation using numpy
+        aggregation_var = _apply_node_to_edge_aggregation_numpy(
+            uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     elif isinstance(uxda.data, da.array):
-        # apply reduction on dask array, TODO:
-        reduced_var = _apply_node_to_edge_reduction_numpy(
-            uxda, NUMPY_REDUCTIONS[reduction], reduction_func_kwargs
+        # apply aggregation on dask array, TODO:
+        aggregation_var = _apply_node_to_edge_aggregation_numpy(
+            uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
         raise ValueError
 
     return uxarray.core.dataarray.UxDataArray(
         uxgrid=uxda.uxgrid,
-        data=reduced_var,
+        data=aggregation_var,
         dims=uxda.dims,
         name=uxda.name,
     ).rename({"n_node": "n_edge"})
 
 
-def _apply_node_to_edge_reduction_numpy(uxda, reduction_func, reduction_func_kwargs):
+def _apply_node_to_edge_aggregation_numpy(uxda, reduction_func, reduction_func_kwargs):
     data = uxda.values
     edge_node_conn = uxda.uxgrid.edge_node_connectivity.values
-
     result = reduction_func(data[..., edge_node_conn], axis=-1, **reduction_func_kwargs)
-
     return result
 
 
-def _apply_node_to_edge_reduction_dask(uxda, reduction_func, reduction_func_kwargs):
+def _apply_node_to_edge_aggregation_dask(*args, **kwargs):
     pass

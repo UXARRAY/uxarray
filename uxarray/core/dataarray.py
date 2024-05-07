@@ -3,7 +3,7 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Literal
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -24,7 +24,7 @@ from uxarray.core.gradient import (
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
-from uxarray.core.reductions import _uxda_grid_reduce
+from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
 
@@ -378,115 +378,61 @@ class UxDataArray(xr.DataArray):
             DeprecationWarning,
         )
 
-        if not self._node_centered():
-            # nodal average expects node-centered data
-            raise ValueError(
-                f"Data Variable must be mapped to the corner nodes of each face, with dimension "
-                f"{self.uxgrid.n_face}."
-            )
+        return self.topological_mean(destination="face")
 
-        data = self.values
-        face_nodes = self.uxgrid.face_node_connectivity.values
-        n_nodes_per_face = self.uxgrid.n_nodes_per_face.values
-
-        # compute the nodal average while preserving original dimensions
-        data_nodal_average = np.array(
-            [
-                np.mean(data[..., cur_face[0:n_max_nodes]], axis=-1)
-                for cur_face, n_max_nodes in zip(face_nodes, n_nodes_per_face)
-            ]
-        )
-
-        # set `n_nodes` as final dimension
-        data_nodal_average = np.moveaxis(data_nodal_average, 0, -1)
-
-        return UxDataArray(
-            uxgrid=self.uxgrid,
-            data=data_nodal_average,
-            dims=self.dims,
-            name=self.name + "_nodal_average" if self.name is not None else None,
-        ).rename({"n_node": "n_face"})
-
-    def mean(
+    def topological_mean(
         self,
-        localized=False,
-        destination=None,
-        dim=None,
-        skipna=None,
-        keep_attrs=None,
+        destination: Literal["node", "edge", "face"],
         **kwargs,
     ):
-        """Performs a ``mean`` reduction along some dimension(s), either
-        applied globally to the desired dimension or locally utilizing
-        connectivity information.
+        """Performs a topological mean reduction along some dimension(s)
+        utilizing connectivity information.
 
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.mean``
+                See Also
+                --------
+                numpy.mean
+                dask.array.mean
+                xarray.DataArray.mean
+        33
+                Parameters
+                ----------
+                destination: str,
+                    Destination grid dimension for reduction.
 
-        See Also
-        --------
-        numpy.mean
-        dask.array.mean
-        xarray.DataArray.mean
+                    Node-Centered Variable:
+                    - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+                    on each edge
+                    - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+                    on each face.
 
-        Parameters
-        ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
+                    Edge-Centered Variable:
+                    - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+                    on each node.
+                    - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+                    on each face.
 
-        destination: str,
-            Destination grid dimension for reduction.
-
-            Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
-            on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
-            on each face.
-
-            Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
-            on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
-            on each face.
-
-            Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
-            on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
-            on each edge.
+                    Face-Centered Variable:
+                    - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+                    on each node.
+                    - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+                    on each edge.
 
 
-        Returns
-        -------
-        reduced: UxDataArray
-            New UxDataArray with ``mean`` applied to its data.
+                Returns
+                -------
+                reduced: UxDataArray
+                    New UxDataArray with ``mean`` applied to its data.
         """
+        return _uxda_grid_aggregate(self, destination, "mean", **kwargs)
 
-        if not localized:
-            # standard xarray mean without considering grid connectivity
-            return super().mean(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
-
-        return _uxda_grid_reduce(self, keep_attrs, destination, "mean", **kwargs)
-
-    def min(
+    def topological_min(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        skipna=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``min`` reduction along some dimension(s), either applied
         globally to the desired dimension or locally utilizing connectivity
         information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.min``
 
         See Also
         --------
@@ -528,19 +474,11 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``min`` applied to its data.
         """
-        if not localized:
-            # standard xarray min without considering grid connectivity
-            return super().min(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+        return _uxda_grid_aggregate(self, destination, "min", **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "min", **kwargs)
-
-    def max(
+    def topological_max(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        skipna=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``max`` reduction along some dimension(s), either applied
@@ -591,19 +529,12 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``max`` applied to its data.
         """
-        if not localized:
-            # standard xarray max without considering grid connectivity
-            return super().max(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "max", **kwargs)
+        return _uxda_grid_aggregate(self, destination, "max", **kwargs)
 
-    def median(
+    def topological_median(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        skipna=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``median`` reduction along some dimension(s), either
@@ -654,30 +585,17 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``median`` applied to its data.
         """
-        if not localized:
-            # standard xarray median without considering grid connectivity
-            return super().median(
-                dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs
-            )
+        return _uxda_grid_aggregate(self, destination, "median", **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "median", **kwargs)
-
-    def std(
+    def topological_std(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        skipna=None,
         keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``std`` reduction along some dimension(s), either applied
         globally to the desired dimension or locally utilizing connectivity
         information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.std``
 
         See Also
         --------
@@ -687,11 +605,6 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
-
         destination: str,
             Destination grid dimension for reduction.
 
@@ -719,28 +632,16 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``std`` applied to its data.
         """
-        if not localized:
-            # standard xarray std without considering grid connectivity
-            return super().std(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+        return _uxda_grid_aggregate(self, keep_attrs, destination, "std", **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "std", **kwargs)
-
-    def var(
+    def topological_var(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        skipna=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``var`` reduction along some dimension(s), either applied
         globally to the desired dimension or locally utilizing connectivity
         information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.var``
 
         See Also
         --------
@@ -750,10 +651,6 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
 
         destination: str,
             Destination grid dimension for reduction.
@@ -782,28 +679,16 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``var`` applied to its data.
         """
-        if not localized:
-            # standard xarray var without considering grid connectivity
-            return super().var(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+        return _uxda_grid_aggregate(self, destination, "var", **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "var", **kwargs)
-
-    def sum(
+    def topological_sum(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        skipna=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``sum`` reduction along some dimension(s), either applied
         globally to the desired dimension or locally utilizing connectivity
         information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.sum``
 
         See Also
         --------
@@ -813,11 +698,6 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
-
         destination: str,
             Destination grid dimension for reduction.
 
@@ -845,28 +725,16 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``sum`` applied to its data.
         """
-        if not localized:
-            # standard xarray sum without considering grid connectivity
-            return super().sum(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+        return _uxda_grid_aggregate(self, destination, "sum", **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "sum", **kwargs)
-
-    def prod(
+    def topological_prod(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        skipna=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``prod`` reduction along some dimension(s), either
         applied globally to the desired dimension or locally utilizing
         connectivity information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.prod``
 
         See Also
         --------
@@ -875,11 +743,6 @@ class UxDataArray(xr.DataArray):
         xarray.DataArray.prod
 
         Parameters
-        ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
 
         destination: str,
             Destination grid dimension for reduction.
@@ -908,27 +771,16 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``prod`` applied to its data.
         """
-        if not localized:
-            # standard xarray prod without considering grid connectivity
-            return super().prod(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+        return _uxda_grid_aggregate(self, destination, "prod", **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "prod", **kwargs)
-
-    def all(
+    def topological_all(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs an ``all`` reduction along some dimension(s), either
         applied globally to the desired dimension or locally utilizing
         connectivity information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.all``
 
         See Also
         --------
@@ -938,11 +790,6 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
-
         destination: str,
             Destination grid dimension for reduction.
 
@@ -970,27 +817,16 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``all`` applied to its data.
         """
-        if not localized:
-            # standard xarray all without considering grid connectivity
-            return super().all(dim=dim, keep_attrs=keep_attrs, **kwargs)
+        return _uxda_grid_aggregate(self, destination, "all", **kwargs)
 
-        return _uxda_grid_reduce(self, keep_attrs, destination, "all", **kwargs)
-
-    def any(
+    def topological_any(
         self,
-        localized=False,
         destination=None,
-        dim=None,
-        keep_attrs=None,
         **kwargs,
     ):
         """Performs a ``any`` reduction along some dimension(s), either applied
         globally to the desired dimension or locally utilizing connectivity
         information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.any``
 
         See Also
         --------
@@ -1000,11 +836,6 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
-
         destination: str,
             Destination grid dimension for reduction.
 
@@ -1032,11 +863,7 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``any`` applied to its data.
         """
-        if not localized:
-            # standard xarray any without considering grid connectivity
-            return super().any(dim=dim, keep_attrs=keep_attrs, **kwargs)
-
-        return _uxda_grid_reduce(self, keep_attrs, destination, "any", **kwargs)
+        return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
     def gradient(
         self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
