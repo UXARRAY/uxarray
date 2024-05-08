@@ -1,6 +1,8 @@
 import xarray as xr
 import numpy as np
 
+import warnings
+
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.conventions import ugrid
 
@@ -27,16 +29,17 @@ def _xyz_to_lonlat_rad(
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
     scalar: bool = False,
+    normalize: bool = True,
 ) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
     longitude coordinates."""
 
-    x, y, z = _normalize_xyz(x, y, z)
-    denom = np.abs(x * x + y * y + z * z)
-
-    x /= denom
-    y /= denom
-    z /= denom
+    if normalize:
+        x, y, z = _normalize_xyz(x, y, z)
+        denom = np.abs(x * x + y * y + z * z)
+        x /= denom
+        y /= denom
+        z /= denom
 
     lon = np.arctan2(y, x)
     lat = np.arcsin(z)
@@ -58,8 +61,9 @@ def _xyz_to_lonlat_deg(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
+    normalize: bool = True,
 ) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
-    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z)
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
 
     # # set lon range to [-pi, pi]
     # lon_rad = (lon_rad + np.pi) % (2 * np.pi) - np.pi
@@ -78,6 +82,7 @@ def _normalize_xyz(
 ) -> tuple[
     Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
 ]:
+    # TODO
     denom = np.linalg.norm(np.asarray([x, y, z]), ord=2)
 
     x_norm = x / denom
@@ -156,6 +161,18 @@ def _build_edge_centroids(node_x, node_y, node_z, edge_nodes):
 
 
 def _populate_face_centroids(grid, repopulate=False):
+    """Finds the centroids of faces using cartesian averaging based off the
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized. This cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centroids
+    """
+    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+
     node_x = grid.node_x.values
     node_y = grid.node_y.values
     node_z = grid.node_z.values
@@ -165,7 +182,7 @@ def _populate_face_centroids(grid, repopulate=False):
     if "face_lon" not in grid._ds or repopulate:
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
-            centroid_x, centroid_y, centroid_z = _build_face_centroids(
+            centroid_x, centroid_y, centroid_z = _construct_face_centroids(
                 node_x, node_y, node_z, face_nodes, n_nodes_per_face
             )
 
@@ -173,9 +190,9 @@ def _populate_face_centroids(grid, repopulate=False):
             # If there are cartesian centroids already use those instead
             centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
 
-        # Convert from xyz to latlon
+        # Convert from xyz to latlon TODO
         centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
-            centroid_x, centroid_y, centroid_z
+            centroid_x, centroid_y, centroid_z, normalize=False
         )
     else:
         # Convert to xyz if there are latlon centroids already stored
@@ -207,6 +224,28 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
+def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging."""
+    centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        # compute cartesian average
+        centroid_x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+        # normalize coordinates
+        x_norm, y_norm, z_norm = _normalize_xyz(centroid_x, centroid_y, centroid_z)
+
+        # store xyz
+        centroids[0, face_idx] = x_norm
+        centroids[1, face_idx] = y_norm
+        centroids[2, face_idx] = z_norm
+
+    return centroids[0, :], centroids[1, :], centroids[2, :]
+
+
 def _populate_edge_centroids(grid, repopulate=False):
     """Finds the centroids using cartesian averaging of the edges based off the
     vertices. The centroid is defined as the average of the x, y, z
@@ -226,7 +265,7 @@ def _populate_edge_centroids(grid, repopulate=False):
     if "edge_lon" not in grid._ds or repopulate:
         # Construct the centroids if there are none stored
         if "edge_x" not in grid._ds:
-            centroid_x, centroid_y, centroid_z = _build_edge_centroids(
+            centroid_x, centroid_y, centroid_z = _construct_edge_centroids(
                 node_x, node_y, node_z, edge_nodes_con
             )
 
@@ -236,7 +275,7 @@ def _populate_edge_centroids(grid, repopulate=False):
 
         # Convert from xyz to latlon
         centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
-            centroid_x, centroid_y, centroid_z
+            centroid_x, centroid_y, centroid_z, normalize=False
         )
     else:
         # Convert to xyz if there are latlon centroids already stored
@@ -274,6 +313,28 @@ def _populate_edge_centroids(grid, repopulate=False):
             dims=[ugrid.EDGE_DIM],
             attrs=ugrid.EDGE_Z_ATTRS,
         )
+
+
+def _construct_edge_centroids(node_x, node_y, node_z, edge_nodes_con):
+    """Constructs the xyz centroid coordinate for each edge using Cartesian
+    Averaging."""
+    centroids = np.zeros((3, edge_nodes_con.shape[0]), dtype=np.float64)
+
+    for edge_idx, connectivity in enumerate(edge_nodes_con):
+        # compute cartesian average
+        centroid_x = np.mean(node_x[connectivity[0:]])
+        centroid_y = np.mean(node_y[connectivity[0:]])
+        centroid_z = np.mean(node_z[connectivity[0:]])
+
+        # normalize coordinates
+        x_norm, y_nom, z_norm = _normalize_xyz(centroid_x, centroid_y, centroid_z)
+
+        # store xyz
+        centroids[0, edge_idx] = x_norm
+        centroids[1, edge_idx] = y_nom
+        centroids[2, edge_idx] = z_norm
+
+    return centroids[0, :], centroids[1, :], centroids[2, :]
 
 
 def _set_desired_longitude_range(ds):
