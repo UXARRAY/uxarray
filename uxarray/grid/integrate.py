@@ -269,12 +269,8 @@ def _get_zonal_face_interval(
     )
 
     # Convert intersection points to longitude-latitude
-    # TODO: Vectorize
     longitudes = np.array(
-        [
-            _xyz_to_lonlat_rad(pt[0], pt[1], pt[2], scalar=True)
-            for pt in unique_intersections
-        ]
+        [_xyz_to_lonlat_rad(*pt.tolist())[0] for pt in unique_intersections]
     )
 
     # Handle special wrap-around cases by checking the face bounds
