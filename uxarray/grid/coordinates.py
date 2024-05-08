@@ -18,6 +18,7 @@ def _lonlat_rad_to_xyz(
     x = np.cos(lon) * np.cos(lat)
     y = np.sin(lon) * np.cos(lat)
     z = np.sin(lat)
+
     return x, y, z
 
 
@@ -29,6 +30,8 @@ def _xyz_to_lonlat_rad(
 ) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
     longitude coordinates."""
+
+    x, y, z = _normalize_xyz(x, y, z)
     denom = np.abs(x * x + y * y + z * z)
 
     x /= denom
@@ -70,7 +73,6 @@ def _normalize_xyz(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
-    scalar: bool = False,
 ) -> tuple[
     Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
 ]:
@@ -84,13 +86,12 @@ def _normalize_xyz(
 
 def _populate_node_latlon(grid) -> None:
     """Docstring TODO."""
-    x_norm, y_norm, z_norm = _normalize_xyz(
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(
         grid.node_x.values, grid.node_y.values, grid.node_z.values
     )
-    lon_rad, lat_rad = _xyz_to_lonlat_rad(x_norm, y_norm, z_norm)
 
     # set longitude range to [-pi, pi]
-    lon_rad = (lon_rad + np.pi) % (2 * np.pi) - np.pi
+    # lon_rad = (lon_rad + np.pi) % (2 * np.pi) - np.pi
 
     # convert to degrees
     lon = np.rad2deg(lon_rad)
