@@ -86,9 +86,7 @@ def open_grid(
     elif extension[1] == ".shp":
         print("This is a shapefile")
         uxgrid = Grid.from_shapefile(grid_filename_or_obj)
-         
 
-    
     # attempt to use Xarray directly for remaining input types
     else:
         try:

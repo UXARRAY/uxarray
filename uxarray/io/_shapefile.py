@@ -1,5 +1,5 @@
-from warnings import warn
 import geopandas as gpd
+
 
 def _read_shpfile(filepath):
     """Read shape file, use geopandas.
@@ -7,7 +7,7 @@ def _read_shpfile(filepath):
     Parameters: xarray.Dataset, required
     Returns: ugrid aware xarray.Dataset
     """
-    
+
     try:
         gdf = gpd.read_file(filepath)
 
@@ -17,19 +17,19 @@ def _read_shpfile(filepath):
 
         # Access and process geometry types
         for index, row in gdf.iterrows():
-            geometry = row['geometry']
+            geometry = row["geometry"]
 
             # Handle polygons
-            if geometry.geom_type == 'Polygon':
+            if geometry.geom_type == "Polygon":
                 print("Polygon found:")
-                
+
                 # print("- Coordinates:", geometry.exterior.coords.xy)
                 print("- Number of coordinates:", len(geometry.exterior.coords))
                 print("- Area:", geometry.area)
                 print("- Perimeter:", geometry.length)
 
             # Handle multipolygons
-            elif geometry.geom_type == 'MultiPolygon':
+            elif geometry.geom_type == "MultiPolygon":
                 print("MultiPolygon found:")
                 for polygon in geometry:
                     print("- Polygon coordinates:", polygon.exterior.coords.xy)
@@ -46,7 +46,7 @@ def _read_shpfile(filepath):
     #     "Function not implemented yet. FYI, attempted to read SHAPE file: "
     #     + str(filepath)
     # )
-    uxgrid=0
+    uxgrid = 0
     source_dims_dict = 0
     return uxgrid, source_dims_dict
     # TODO: create ds

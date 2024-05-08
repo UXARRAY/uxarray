@@ -229,7 +229,6 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
-
     @classmethod
     def from_topology(
         cls,
