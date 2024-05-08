@@ -12,7 +12,7 @@ import uxarray as ux
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
-from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 from uxarray.grid.geometry import _pole_point_inside_polygon
@@ -105,23 +105,22 @@ class TestGridCenter(TestCase):
 class TestCoordinatesConversion(TestCase):
 
     def test_normalize_in_place(self):
-        [x, y, z] = ux.grid.coordinates.normalize_in_place(
-            [random.random(), random.random(),
-             random.random()])
+        x, y, z = _normalize_xyz(
+            random.random(), random.random(),
+             random.random())
 
         self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
                              err_tolerance)
 
     def test_node_xyz_to_lonlat_rad(self):
-        [x, y, z] = ux.grid.coordinates.normalize_in_place([
+        x, y, z = _normalize_xyz(*[
             random.uniform(-1, 1),
             random.uniform(-1, 1),
             random.uniform(-1, 1)
         ])
 
-        [lon, lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
-        [new_x, new_y,
-         new_z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
+        lon, lat = _xyz_to_lonlat_rad(x, y, z)
+        new_x, new_y, new_z =_lonlat_rad_to_xyz(lon, lat)
 
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
@@ -133,10 +132,9 @@ class TestCoordinatesConversion(TestCase):
             random.uniform(-0.5 * np.pi, 0.5 * np.pi)
         ]
 
-        [x, y, z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
+        x, y, z = _lonlat_rad_to_xyz(lon, lat)
 
-        [new_lon,
-         new_lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
+        new_lon, new_lat = _xyz_to_lonlat_rad(x, y, z)
 
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
@@ -342,7 +340,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         face_edges_connectivity_cartesian = []
         for i in range(len(face_edges_connectivity_lonlat)):
             edge = face_edges_connectivity_lonlat[i]
-            edge_cart =   [node_lonlat_rad_to_xyz(node) for node in edge]
+            edge_cart = [_lonlat_rad_to_xyz(*node) for node in edge]
             face_edges_connectivity_cartesian.append(edge_cart)
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
