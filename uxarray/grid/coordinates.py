@@ -1,154 +1,123 @@
-import warnings
-
 import xarray as xr
 import numpy as np
-import math
 
-from numba import njit, config
-
-from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT, ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE
 from uxarray.conventions import ugrid
 
-config.DISABLE_JIT = not ENABLE_JIT
+from typing import Union
 
 
-@njit(cache=ENABLE_JIT_CACHE)
-def node_lonlat_rad_to_xyz(node_coord):
-    """Helper function to Convert the node coordinate from 2D
-    longitude/latitude to normalized 3D xyz.
-
-    Parameters
-    ----------
-    node: float list
-        2D coordinates[longitude, latitude] in radiance
-
-    Returns
-    ----------
-    float list
-        the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
-
-    Raises
-    ----------
-    RuntimeError
-        The input array doesn't have the size of 3.
-    """
-    if len(node_coord) != 2:
-        raise RuntimeError(
-            "Input array should have a length of 2: [longitude, latitude]"
-        )
-    lon = node_coord[0]
-    lat = node_coord[1]
-    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+def _lonlat_rad_to_xyz(
+    lon: Union[np.ndarray, float],
+    lat: Union[np.ndarray, float],
+) -> tuple[
+    Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
+]:
+    """Converts Spherical latitude and longitude coordinates into Cartesian x,
+    y, z coordinates."""
+    x = np.cos(lon) * np.cos(lat)
+    y = np.sin(lon) * np.cos(lat)
+    z = np.sin(lat)
+    return x, y, z
 
 
-@njit(cache=ENABLE_JIT_CACHE)
-def node_xyz_to_lonlat_rad(node_coord):
-    """Calculate the latitude and longitude in radiance for a node represented
-    in the [x, y, z] 3D Cartesian coordinates.
+def _xyz_to_lonlat_rad(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    scalar: bool = False,
+) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
+    """Converts Cartesian x, y, z coordinates in Spherical latitude and
+    longitude coordinates."""
+    denom = np.abs(x * x + y * y + z * z)
 
-    Parameters
-    ----------
-    node_coord: float list
-        3D Cartesian Coordinates [x, y, z] of the node
+    x /= denom
+    y /= denom
+    z /= denom
 
-    Returns
-    ----------
-    float list
-        the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
+    lon = np.arctan2(y, x)
+    lat = np.arcsin(z)
 
-    Raises
-    ----------
-    RuntimeError
-        The input array doesn't have the size of 3.
-    """
-    if len(node_coord) != 3:
-        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
 
-    [dx, dy, dz] = normalize_in_place(node_coord)
-    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
-
-    if np.absolute(dz) < (1.0 - ERROR_TOLERANCE):
-        d_lon_rad = math.atan2(dy, dx)
-        d_lat_rad = np.arcsin(dz)
-
-        if d_lon_rad < 0.0:
-            d_lon_rad += 2.0 * np.pi
-    elif dz > 0.0:
-        d_lon_rad = 0.0
-        d_lat_rad = 0.5 * np.pi
+    if scalar:
+        if np.abs(z) > 1.0 - ERROR_TOLERANCE:
+            lat = np.sign(z) * np.pi / 2
     else:
-        d_lon_rad = 0.0
-        d_lat_rad = -0.5 * np.pi
+        # adjust z values near +- 1
+        lat = np.where(np.abs(z) > 1.0 - ERROR_TOLERANCE, np.sign(z) * np.pi / 2, lat)
 
-    return [d_lon_rad, d_lat_rad]
-
-
-@njit(cache=ENABLE_JIT_CACHE)
-def normalize_in_place(node):
-    """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
-    on the unit sphere. It uses the `np.linalg.norm` internally to calculate
-    the magnitude.
-
-    Parameters
-    ----------
-    node: float list
-        3D Cartesian Coordinates [x, y, z]
-
-    Returns
-    ----------
-    float list
-        the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
-
-    Raises
-    ----------
-    RuntimeError
-        The input array doesn't have the size of 3.
-    """
-    if len(node) != 3:
-        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
+    return lon, lat
 
 
-def _get_xyz_from_lonlat(node_lon, node_lat):
-    nodes_lon_rad = np.deg2rad(node_lon)
-    nodes_lat_rad = np.deg2rad(node_lat)
-    nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
-    nodes_cart = np.asarray(list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
+def _xyz_to_lonlat_deg(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z)
 
-    return nodes_cart[:, 0], nodes_cart[:, 1], nodes_cart[:, 2]
+    # set lon range to [-pi, pi]
+    lon_rad = (lon_rad + np.pi) % (2 * np.pi) - np.pi
+
+    lon = np.rad2deg(lon_rad)
+    lat = np.rad2deg(lat_rad)
+    return lon, lat
 
 
-def _populate_cartesian_xyz_coord(grid):
-    """A helper function that populates the xyz attribute in UXarray.Grid._ds.
-    This function is called when we need to use the cartesian coordinates for
-    each node to do the calculation but the input data only has the
-    ``node_lon`` and ``node_lat`` in degree.
+def _normalize_xyz(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    scalar: bool = False,
+) -> tuple[
+    Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
+]:
+    denom = np.linalg.norm([x, y, z], ord=2)
 
-    Note
-    ----
-    In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
-    corresponding units as stated below:
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm
 
-    node_lon
-        unit:  "degree_east" for longitude
-    node_lat
-        unit:  "degrees_north" for latitude
-    node_x
-        unit:  "m"
-    node_y
-        unit:  "m"
-    node_z
-        unit:  "m"
-    """
 
-    # Check if the cartesian coordinates are already populated
-    if "node_x" in grid._ds.keys():
-        return
+def _populate_node_latlon(grid) -> None:
+    """Docstring TODO."""
+    x_norm, y_norm, z_norm = _normalize_xyz(
+        grid.node_x.values, grid.node_y.values, grid.node_z.values
+    )
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(x_norm, y_norm, z_norm)
 
-    # get Cartesian (x, y, z) coordinates from lon/lat
-    x, y, z = _get_xyz_from_lonlat(grid.node_lon.values, grid.node_lat.values)
+    # set longitude range to [-pi, pi]
+    lon_rad = (lon_rad + np.pi) % (2 * np.pi) - np.pi
+
+    # convert to degrees
+    lon = np.rad2deg(lon_rad)
+    lat = np.rad2deg(lat_rad)
+
+    grid._ds["node_lon"] = xr.DataArray(
+        data=lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
+    )
+    grid._ds["node_lat"] = xr.DataArray(
+        data=lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
+    )
+
+
+def _populate_edge_latlon(grid) -> None:
+    pass
+
+
+def _populate_face_latlon(grid) -> None:
+    pass
+
+
+def _populate_node_xyz(grid) -> None:
+    """Docstring TODO."""
+
+    node_lon_rad = np.deg2rad(grid.node_lon.values)
+    node_lat_rad = np.deg2rad(grid.node_lat.values)
+    x, y, z = _lonlat_rad_to_xyz(node_lon_rad, node_lat_rad)
 
     grid._ds["node_x"] = xr.DataArray(
         data=x, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_X_ATTRS
@@ -161,65 +130,29 @@ def _populate_cartesian_xyz_coord(grid):
     )
 
 
-def _get_lonlat_from_xyz(x, y, z):
-    nodes_cart = np.stack((x, y, z), axis=1).tolist()
-    nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
-    nodes_degree = np.rad2deg(nodes_rad)
+def _build_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
+    centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
 
-    return nodes_degree[:, 0], nodes_degree[:, 1]
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        # Compute Cartesian Average
+        centroid_x[face_idx] = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y[face_idx] = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
-def _populate_lonlat_coord(grid):
-    """Helper function that populates the longitude and latitude and store it
-    into the ``node_lon`` and ``node_lat``. This is called when the input data
-    has ``node_x``, ``node_y``, ``node_z`` in meters. Since we want
-    ``node_lon`` and ``node_lat`` to always have the "degree" units. For more
-    details, please read the following.
+def _build_edge_centroids(node_x, node_y, node_z, edge_nodes):
+    centroid_x = np.mean(node_x[edge_nodes])
+    centroid_y = np.mean(node_y[edge_nodes])
+    centroid_z = np.mean(node_z[edge_nodes])
 
-    Note
-    ----
-    In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
-    corresponding units as stated below:
-
-    node_lon
-        unit:  "degree_east" for longitude
-    node_lat
-        unit:  "degrees_north" for latitude
-    node_x
-        unit:  "m"
-    node_y
-        unit:  "m"
-    node_z
-        unit:  "m"
-    """
-
-    # get lon/lat coordinates from Cartesian (x, y, z)
-    lon, lat = _get_lonlat_from_xyz(
-        grid.node_x.values, grid.node_y.values, grid.node_z.values
-    )
-
-    # populate dataset
-    grid._ds["node_lon"] = xr.DataArray(
-        data=lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
-    )
-    grid._ds["node_lat"] = xr.DataArray(
-        data=lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
-    )
+    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
 def _populate_face_centroids(grid, repopulate=False):
-    """Finds the centroids of faces using cartesian averaging based off the
-    vertices. The centroid is defined as the average of the x, y, z
-    coordinates, normalized. This cannot be guaranteed to work on concave
-    polygons.
-
-    Parameters
-    ----------
-    repopulate : bool, optional
-        Bool used to turn on/off repopulating the face coordinates of the centroids
-    """
-    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
-
     node_x = grid.node_x.values
     node_y = grid.node_y.values
     node_z = grid.node_z.values
@@ -229,7 +162,7 @@ def _populate_face_centroids(grid, repopulate=False):
     if "face_lon" not in grid._ds or repopulate:
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
-            centroid_x, centroid_y, centroid_z = _construct_face_centroids(
+            centroid_x, centroid_y, centroid_z = _build_face_centroids(
                 node_x, node_y, node_z, face_nodes, n_nodes_per_face
             )
 
@@ -238,13 +171,13 @@ def _populate_face_centroids(grid, repopulate=False):
             centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
 
         # Convert from xyz to latlon
-        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
+        centroid_lon, centroid_lat = _xyz_to_lonlat_rad(
             centroid_x, centroid_y, centroid_z
         )
     else:
         # Convert to xyz if there are latlon centroids already stored
         centroid_lon, centroid_lat = grid.face_lon.values, grid.face_lat.values
-        centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
+        centroid_x, centroid_y, centroid_z = _lonlat_rad_to_xyz(
             centroid_lon, centroid_lat
         )
 
@@ -271,31 +204,6 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
-@njit()
-def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
-    """Constructs the xyz centroid coordinate for each face using Cartesian
-    Averaging."""
-    centroids = np.zeros((3, face_nodes.shape[0]), dtype=np.float64)
-
-    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
-        # compute cartesian average
-        centroid_x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
-
-        # normalize coordinates
-        centroid_normalized_xyz = normalize_in_place(
-            [centroid_x, centroid_y, centroid_z]
-        )
-
-        # store xyz
-        centroids[0, face_idx] = centroid_normalized_xyz[0]
-        centroids[1, face_idx] = centroid_normalized_xyz[1]
-        centroids[2, face_idx] = centroid_normalized_xyz[2]
-
-    return centroids[0, :], centroids[1, :], centroids[2, :]
-
-
 def _populate_edge_centroids(grid, repopulate=False):
     """Finds the centroids using cartesian averaging of the edges based off the
     vertices. The centroid is defined as the average of the x, y, z
@@ -315,7 +223,7 @@ def _populate_edge_centroids(grid, repopulate=False):
     if "edge_lon" not in grid._ds or repopulate:
         # Construct the centroids if there are none stored
         if "edge_x" not in grid._ds:
-            centroid_x, centroid_y, centroid_z = _construct_edge_centroids(
+            centroid_x, centroid_y, centroid_z = _build_edge_centroids(
                 node_x, node_y, node_z, edge_nodes_con
             )
 
@@ -324,13 +232,13 @@ def _populate_edge_centroids(grid, repopulate=False):
             centroid_x, centroid_y, centroid_z = grid.edge_x, grid.edge_y, grid.edge_z
 
         # Convert from xyz to latlon
-        centroid_lon, centroid_lat = _get_lonlat_from_xyz(
+        centroid_lon, centroid_lat = _xyz_to_lonlat_rad(
             centroid_x, centroid_y, centroid_z
         )
     else:
         # Convert to xyz if there are latlon centroids already stored
         centroid_lon, centroid_lat = grid.edge_lon.values, grid.edge_lat.values
-        centroid_x, centroid_y, centroid_z = _get_xyz_from_lonlat(
+        centroid_x, centroid_y, centroid_z = _lonlat_rad_to_xyz(
             centroid_lon, centroid_lat
         )
 
@@ -363,31 +271,6 @@ def _populate_edge_centroids(grid, repopulate=False):
             dims=[ugrid.EDGE_DIM],
             attrs=ugrid.EDGE_Z_ATTRS,
         )
-
-
-@njit()
-def _construct_edge_centroids(node_x, node_y, node_z, edge_nodes_con):
-    """Constructs the xyz centroid coordinate for each edge using Cartesian
-    Averaging."""
-    centroids = np.zeros((3, edge_nodes_con.shape[0]), dtype=np.float64)
-
-    for edge_idx, connectivity in enumerate(edge_nodes_con):
-        # compute cartesian average
-        centroid_x = np.mean(node_x[connectivity[0:]])
-        centroid_y = np.mean(node_y[connectivity[0:]])
-        centroid_z = np.mean(node_z[connectivity[0:]])
-
-        # normalize coordinates
-        centroid_normalized_xyz = normalize_in_place(
-            [centroid_x, centroid_y, centroid_z]
-        )
-
-        # store xyz
-        centroids[0, edge_idx] = centroid_normalized_xyz[0]
-        centroids[1, edge_idx] = centroid_normalized_xyz[1]
-        centroids[2, edge_idx] = centroid_normalized_xyz[2]
-
-    return centroids[0, :], centroids[1, :], centroids[2, :]
 
 
 def _set_desired_longitude_range(ds):

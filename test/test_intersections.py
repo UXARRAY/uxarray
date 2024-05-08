@@ -3,7 +3,9 @@ from unittest import TestCase
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
-from uxarray.grid.coordinates import node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
+# from uxarray.grid.coordinates import node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
+
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.intersections import gca_gca_intersection, gca_constLat_intersection
 
 
@@ -11,6 +13,10 @@ class TestGCAGCAIntersection(TestCase):
 
     def test_get_GCA_GCA_intersections_antimeridian(self):
         # Test the case where the two GCAs are on the antimeridian
+
+
+
+
         GCA1 = node_lonlat_rad_to_xyz([np.deg2rad(170.0), np.deg2rad(89.99)])
         GCR1_cart = np.array([
             node_lonlat_rad_to_xyz([np.deg2rad(170.0),

@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit, config
 from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
-from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 
 config.DISABLE_JIT = not ENABLE_JIT
@@ -67,14 +67,12 @@ def calculate_face_area(
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
 
         if coords_type == "spherical":
-            node1 = np.array(
-                node_lonlat_rad_to_xyz([np.deg2rad(x[0]), np.deg2rad(y[0])])
-            )
+            node1 = np.array(_lonlat_rad_to_xyz(np.deg2rad(x[0]), np.deg2rad(y[0])))
             node2 = np.array(
-                node_lonlat_rad_to_xyz([np.deg2rad(x[j + 1]), np.deg2rad(y[j + 1])])
+                _lonlat_rad_to_xyz(np.deg2rad(x[j + 1]), np.deg2rad(y[j + 1]))
             )
             node3 = np.array(
-                node_lonlat_rad_to_xyz([np.deg2rad(x[j + 2]), np.deg2rad(y[j + 2])])
+                _lonlat_rad_to_xyz(np.deg2rad(x[j + 2]), np.deg2rad(y[j + 2]))
             )
 
         for p in range(len(dW)):
