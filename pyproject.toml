@@ -71,3 +71,10 @@ fallback_version = "9999"
 
 [tool.ruff]
 extend-exclude = ["test","benchmarks"]
+
+[tool.ruff.lint]
+ignore-init-module-imports = false
+
+[tool.ruff.lint.per-file-ignores]
+"docs/*" = ["E402", "F401"]
+"uxarray/plot/*" = ["E402", "F401"]
