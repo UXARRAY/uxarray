@@ -4,7 +4,7 @@ import numpy as np
 import numpy.testing as nt
 import uxarray as ux
 from pathlib import Path
-from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, normalize_in_place
+from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _normalize_xyz
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -21,8 +21,8 @@ class TestCentroids(TestCase):
 
         # Calculate the expected centroid
         expected_centroid = np.mean(test_triangle, axis=0)
-        [norm_x, norm_y, norm_z] = normalize_in_place(
-            [expected_centroid[0], expected_centroid[1], expected_centroid[2]])
+        norm_x, norm_y, norm_z = _normalize_xyz(
+            expected_centroid[0], expected_centroid[1], expected_centroid[2])
 
         # Open the dataset and find the centroids
         grid = ux.open_grid(test_triangle)
@@ -42,8 +42,8 @@ class TestCentroids(TestCase):
 
         # Calculate the expected centroid
         expected_centroid = np.mean(test_triangle, axis=0)
-        [norm_x, norm_y, norm_z] = normalize_in_place(
-            [expected_centroid[0], expected_centroid[1], expected_centroid[2]])
+        norm_x, norm_y, norm_z = _normalize_xyz(
+            expected_centroid[0], expected_centroid[1], expected_centroid[2])
 
         # Open the dataset and find the centroids
         grid = ux.open_grid(test_triangle)
@@ -65,7 +65,8 @@ class TestCentroids(TestCase):
 
         _populate_face_centroids(uxgrid, repopulate=True)
 
-        computed_face_x = (uxgrid.face_lon.values + 180) % 360 - 180
+        # computed_face_x = (uxgrid.face_lon.values + 180) % 360 - 180
+        computed_face_x = uxgrid.face_lon.values
         computed_face_y = uxgrid.face_lat.values
 
         nt.assert_array_almost_equal(expected_face_x, computed_face_x)

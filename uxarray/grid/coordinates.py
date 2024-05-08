@@ -61,11 +61,13 @@ def _xyz_to_lonlat_deg(
 ) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
     lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z)
 
-    # set lon range to [-pi, pi]
-    lon_rad = (lon_rad + np.pi) % (2 * np.pi) - np.pi
+    # # set lon range to [-pi, pi]
+    # lon_rad = (lon_rad + np.pi) % (2 * np.pi) - np.pi
 
     lon = np.rad2deg(lon_rad)
     lat = np.rad2deg(lat_rad)
+
+    lon = (lon + 180) % 360 - 180
     return lon, lat
 
 
@@ -76,7 +78,7 @@ def _normalize_xyz(
 ) -> tuple[
     Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
 ]:
-    denom = np.linalg.norm([x, y, z], ord=2)
+    denom = np.linalg.norm(np.asarray([x, y, z]), ord=2)
 
     x_norm = x / denom
     y_norm = y / denom
@@ -146,9 +148,9 @@ def _build_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
 
 
 def _build_edge_centroids(node_x, node_y, node_z, edge_nodes):
-    centroid_x = np.mean(node_x[edge_nodes])
-    centroid_y = np.mean(node_y[edge_nodes])
-    centroid_z = np.mean(node_z[edge_nodes])
+    centroid_x = np.mean(node_x[edge_nodes], axis=1)
+    centroid_y = np.mean(node_y[edge_nodes], axis=1)
+    centroid_z = np.mean(node_z[edge_nodes], axis=1)
 
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
@@ -172,7 +174,7 @@ def _populate_face_centroids(grid, repopulate=False):
             centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
 
         # Convert from xyz to latlon
-        centroid_lon, centroid_lat = _xyz_to_lonlat_rad(
+        centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
             centroid_x, centroid_y, centroid_z
         )
     else:
@@ -233,7 +235,7 @@ def _populate_edge_centroids(grid, repopulate=False):
             centroid_x, centroid_y, centroid_z = grid.edge_x, grid.edge_y, grid.edge_z
 
         # Convert from xyz to latlon
-        centroid_lon, centroid_lat = _xyz_to_lonlat_rad(
+        centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
             centroid_x, centroid_y, centroid_z
         )
     else:

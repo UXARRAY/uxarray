@@ -9,7 +9,7 @@ from pathlib import Path
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
-from uxarray.grid.coordinates import _populate_lonlat_coord, node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import extreme_gca_latitude
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds
@@ -67,7 +67,7 @@ class TestPredicate(TestCase):
         # Normalize the vertices to ensure they lie on the unit sphere
         for i, vertex in enumerate(vertices):
             float_vertex = [float(coord) for coord in vertex]
-            vertices[i] = ux.grid.coordinates.normalize_in_place(float_vertex)
+            vertices[i] = _normalize_xyz(*float_vertex)
 
         # Create face_edge_cart from the vertices
         face_edge_cart = np.array([[vertices[0], vertices[1]],
@@ -93,7 +93,7 @@ class TestPredicate(TestCase):
         # Normalize the vertices to ensure they lie on the unit sphere
         for i, vertex in enumerate(vertices):
             float_vertex = [float(coord) for coord in vertex]
-            vertices[i] = ux.grid.coordinates.normalize_in_place(float_vertex)
+            vertices[i] = _normalize_xyz(*float_vertex)
 
         # Create face_edge_cart from the vertices, since we are using the south pole, and want retrive the smaller face
         # we need to reverse the order of the vertices
@@ -121,7 +121,7 @@ class TestPredicate(TestCase):
         # Normalize the vertices to ensure they lie on the unit sphere
         for i, vertex in enumerate(vertices):
             float_vertex = [float(coord) for coord in vertex]
-            vertices[i] = ux.grid.coordinates.normalize_in_place(float_vertex)
+            vertices[i] = _normalize_xyz(*float_vertex)
 
         # Create face_edge_cart from the vertices
         face_edge_cart = np.array([[vertices[0], vertices[1]],
@@ -147,7 +147,7 @@ class TestPredicate(TestCase):
         # Normalize the vertices to ensure they lie on the unit sphere
         for i, vertex in enumerate(vertices):
             float_vertex = [float(coord) for coord in vertex]
-            vertices[i] = ux.grid.coordinates.normalize_in_place(float_vertex)
+            vertices[i] = _normalize_xyz(*float_vertex)
 
         # Create face_edge_cart from the vertices
         face_edge_cart = np.array([[vertices[0], vertices[1]],
@@ -191,13 +191,13 @@ class TestLatlonBoundUtils(TestCase):
         # Convert input vectors to radians and Cartesian coordinates
 
         v1_cart, v2_cart = gca_cart
-        b_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(v1_cart.tolist())
-        c_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(v2_cart.tolist())
+        b_lonlat = _xyz_to_lonlat_rad(*v1_cart.tolist())
+        c_lonlat = _xyz_to_lonlat_rad(*v2_cart.tolist())
 
         # Initialize variables for the iterative process
         v_temp = ac_utils.cross_fma(v1_cart, v2_cart)
         v0 = ac_utils.cross_fma(v_temp, v1_cart)
-        v0 = ux.grid.coordinates.normalize_in_place(v0.tolist())
+        v0 = _normalize_xyz(*v0.tolist())
         max_section = [v1_cart, v2_cart]
 
         # Iteratively find the maximum latitude
@@ -207,7 +207,7 @@ class TestLatlonBoundUtils(TestCase):
             v_b, v_c = max_section
             angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
             v0 = ac_utils.cross_fma(v_temp, v_b)
-            v0 = ux.grid.coordinates.normalize_in_place(v0.tolist())
+            v0 = _normalize_xyz(*v0.tolist())
             avg_angle_rad = angle_v1_v2_rad / 10.0
 
             for i in range(10):
@@ -217,10 +217,13 @@ class TestLatlonBoundUtils(TestCase):
                     angle_rad_prev) * np.array(v0)
                 w2_new = np.cos(angle_rad_next) * v_b + np.sin(
                     angle_rad_next) * np.array(v0)
-                w1_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                    w1_new.tolist())
-                w2_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                    w2_new.tolist())
+                w1_lonlat = _xyz_to_lonlat_rad(
+                    *w1_new.tolist())
+                w2_lonlat = _xyz_to_lonlat_rad(
+                    *w2_new.tolist())
+
+                w1_lonlat = np.asarray(w1_lonlat)
+                w2_lonlat = np.asarray(w2_lonlat)
 
                 # Adjust latitude boundaries to avoid error accumulation
                 if i == 0:
@@ -241,10 +244,10 @@ class TestLatlonBoundUtils(TestCase):
                     max_section = [w1_new, w2_new] if i != 9 else [w1_new, v_c]
 
             # Update longitude and latitude for the next iteration
-            b_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                max_section[0].tolist())
-            c_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                max_section[1].tolist())
+            b_lonlat = _xyz_to_lonlat_rad(
+                *max_section[0].tolist())
+            c_lonlat = _xyz_to_lonlat_rad(
+                *max_section[1].tolist())
 
         return np.average([b_lonlat[1], c_lonlat[1]])
 
@@ -275,13 +278,13 @@ class TestLatlonBoundUtils(TestCase):
 
         # Convert input vectors to radians and Cartesian coordinates
         v1_cart, v2_cart = gca_cart
-        b_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(v1_cart.tolist())
-        c_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(v2_cart.tolist())
+        b_lonlat = _xyz_to_lonlat_rad(*v1_cart.tolist())
+        c_lonlat = _xyz_to_lonlat_rad(*v2_cart.tolist())
 
         # Initialize variables for the iterative process
         v_temp = ac_utils.cross_fma(v1_cart, v2_cart)
         v0 = ac_utils.cross_fma(v_temp, v1_cart)
-        v0 = np.array(ux.grid.coordinates.normalize_in_place(v0.tolist()))
+        v0 = np.array(_normalize_xyz(*v0.tolist()))
         min_section = [v1_cart, v2_cart]
 
         # Iteratively find the minimum latitude
@@ -291,7 +294,7 @@ class TestLatlonBoundUtils(TestCase):
             v_b, v_c = min_section
             angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
             v0 = ac_utils.cross_fma(v_temp, v_b)
-            v0 = np.array(ux.grid.coordinates.normalize_in_place(v0.tolist()))
+            v0 = np.array(_normalize_xyz(*v0.tolist()))
             avg_angle_rad = angle_v1_v2_rad / 10.0
 
             for i in range(10):
@@ -301,10 +304,13 @@ class TestLatlonBoundUtils(TestCase):
                     angle_rad_prev) * v0
                 w2_new = np.cos(angle_rad_next) * v_b + np.sin(
                     angle_rad_next) * v0
-                w1_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                    w1_new.tolist())
-                w2_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                    w2_new.tolist())
+                w1_lonlat = _xyz_to_lonlat_rad(
+                    *w1_new.tolist())
+                w2_lonlat = _xyz_to_lonlat_rad(
+                    *w2_new.tolist())
+
+                w1_lonlat = np.asarray(w1_lonlat)
+                w2_lonlat = np.asarray(w2_lonlat)
 
                 # Adjust latitude boundaries to avoid error accumulation
                 if i == 0:
@@ -325,18 +331,18 @@ class TestLatlonBoundUtils(TestCase):
                     min_section = [w1_new, w2_new] if i != 9 else [w1_new, v_c]
 
             # Update longitude and latitude for the next iteration
-            b_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                min_section[0].tolist())
-            c_lonlat = ux.grid.coordinates.node_xyz_to_lonlat_rad(
-                min_section[1].tolist())
+            b_lonlat = _xyz_to_lonlat_rad(
+                *min_section[0].tolist())
+            c_lonlat = _xyz_to_lonlat_rad(
+                *min_section[1].tolist())
 
         return np.average([b_lonlat[1], c_lonlat[1]])
 
     def test_extreme_gca_latitude_max(self):
         # Define a great circle arc that is symmetrical around 0 degrees longitude
         gca_cart = np.array([
-            ux.grid.coordinates.normalize_in_place([0.5, 0.5, 0.5]),
-            ux.grid.coordinates.normalize_in_place([-0.5, 0.5, 0.5])
+            _normalize_xyz(*[0.5, 0.5, 0.5]),
+            _normalize_xyz(*[-0.5, 0.5, 0.5])
         ])
 
         # Calculate the maximum latitude
@@ -363,8 +369,8 @@ class TestLatlonBoundUtils(TestCase):
     def test_extreme_gca_latitude_min(self):
         # Define a great circle arc that is symmetrical around 0 degrees longitude
         gca_cart = np.array([
-            ux.grid.coordinates.normalize_in_place([0.5, 0.5, -0.5]),
-            ux.grid.coordinates.normalize_in_place([-0.5, 0.5, -0.5])
+            _normalize_xyz(*[0.5, 0.5, -0.5]),
+            _normalize_xyz(*[-0.5, 0.5, -0.5])
         ])
 
         # Calculate the minimum latitude
@@ -441,7 +447,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = max(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
         lat_min = min(np.deg2rad(10.0),
@@ -470,7 +476,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = max(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
         lat_min = min(np.deg2rad(10.0),
@@ -499,7 +505,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(10.0),
                       extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
@@ -527,7 +533,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
@@ -555,7 +561,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
@@ -666,7 +672,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = np.deg2rad(210.0)
@@ -694,7 +700,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = 0
@@ -752,7 +758,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.deg2rad(60.0)
         lat_min = np.deg2rad(10.0)
         lon_min = np.deg2rad(350.0)
@@ -780,7 +786,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = np.deg2rad(10.0)
         lon_min = np.deg2rad(10.0)
@@ -808,7 +814,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = np.deg2rad(210.0)
@@ -836,7 +842,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [node_lonlat_rad_to_xyz(v) for v in vertices_rad]
+        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = 0
