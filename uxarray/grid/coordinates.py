@@ -67,7 +67,10 @@ def _xyz_to_lonlat_rad(
     # set longitude range to [0, pi]
     lon = np.mod(lon, 2 * np.pi)
 
-    lat = np.where(np.abs(z) > 1.0 - ERROR_TOLERANCE, np.sign(z) * np.pi / 2, lat)
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
 
     # if lon.ndim == 0:
     #     return
