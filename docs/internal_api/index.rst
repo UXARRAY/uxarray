@@ -147,15 +147,17 @@ Coordinates
 .. autosummary::
    :toctree: generated/
 
-   grid.coordinates._get_lonlat_from_xyz
-   grid.coordinates._get_xyz_from_lonlat
-   grid.coordinates._populate_cartesian_xyz_coord
-   grid.coordinates._populate_lonlat_coord
+   grid.coordinates._lonlat_rad_to_xyz
+   grid.coordinates._xyz_to_lonlat_rad
+   grid.coordinates._xyz_to_lonlat_deg
+   grid.coordinates._normalize_xyz
+   grid.coordinates._populate_node_latlon
+   grid.coordinates._populate_node_xyz
    grid.coordinates._populate_face_centroids
-   grid.coordinates._construct_face_centroids
-   grid.coordinates._set_desired_longitude_range
    grid.coordinates._populate_edge_centroids
+   grid.coordinates._construct_face_centroids
    grid.coordinates._construct_edge_centroids
+   grid.coordinates._set_desired_longitude_range
 
 
 Arcs
