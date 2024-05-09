@@ -12,9 +12,7 @@ from typing import Union
 def _lonlat_rad_to_xyz(
     lon: Union[np.ndarray, float],
     lat: Union[np.ndarray, float],
-) -> tuple[
-    Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
-]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Spherical latitude and longitude coordinates into Cartesian x,
     y, z coordinates."""
     x = np.cos(lon) * np.cos(lat)
@@ -29,7 +27,7 @@ def _xyz_to_lonlat_rad(
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
     normalize: bool = True,
-) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
     longitude coordinates in degrees.
 
@@ -41,8 +39,6 @@ def _xyz_to_lonlat_rad(
         Cartesiain y coordinates
     z: Union[np.ndarray, float]
         Cartesian z coordinates
-    scalar: bool
-        Flag to compute a scalar conversion (i.e. x, y, z are each floats)
     normalize: bool
         Flag to select whether to normalize the coordinates
 
@@ -72,15 +68,6 @@ def _xyz_to_lonlat_rad(
     lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
     lon = np.where(z_mask, 0.0, lon)
 
-    # if lon.ndim == 0:
-    #     return
-
-    # if scalar:
-    #     if np.abs(z) > 1.0 - ERROR_TOLERANCE:
-    #         lat = np.sign(z) * np.pi / 2
-    # else:
-    #     # adjust z values near +- 1
-    #     lat = np.where(np.abs(z) > 1.0 - ERROR_TOLERANCE, np.sign(z) * np.pi / 2, lat)
     return lon, lat
 
 
@@ -89,7 +76,7 @@ def _xyz_to_lonlat_deg(
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
     normalize: bool = True,
-) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
     longitude coordinates in degrees.
 
@@ -124,9 +111,7 @@ def _normalize_xyz(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
-) -> tuple[
-    Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
-]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Normalizes a set of Cartesiain coordinates."""
     denom = np.linalg.norm(
         np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
