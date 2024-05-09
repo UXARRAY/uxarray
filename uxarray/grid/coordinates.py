@@ -83,7 +83,7 @@ def _normalize_xyz(
     Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]
 ]:
     # TODO
-    denom = np.linalg.norm(np.asarray([x, y, z]), ord=2)
+    denom = np.linalg.norm(np.asarray(np.array([x, y, z])), ord=2, axis=0)
 
     x_norm = x / denom
     y_norm = y / denom
