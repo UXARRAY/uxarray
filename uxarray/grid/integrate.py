@@ -193,10 +193,7 @@ def _get_faces_constLat_intersection_info(
     if len(unique_intersections) == 2:
         # TODO: vectorize?
         unique_intersection_lonlat = np.array(
-            [
-                _xyz_to_lonlat_rad(pt[0], pt[1], pt[2], scalar=True)
-                for pt in unique_intersections
-            ]
+            [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
         )
 
         sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)

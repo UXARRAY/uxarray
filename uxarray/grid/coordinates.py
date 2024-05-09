@@ -28,7 +28,6 @@ def _xyz_to_lonlat_rad(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
-    scalar: bool = False,
     normalize: bool = True,
 ) -> tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
@@ -68,13 +67,17 @@ def _xyz_to_lonlat_rad(
     # set longitude range to [0, pi]
     lon = np.mod(lon, 2 * np.pi)
 
-    if scalar:
-        if np.abs(z) > 1.0 - ERROR_TOLERANCE:
-            lat = np.sign(z) * np.pi / 2
-    else:
-        # adjust z values near +- 1
-        lat = np.where(np.abs(z) > 1.0 - ERROR_TOLERANCE, np.sign(z) * np.pi / 2, lat)
+    lat = np.where(np.abs(z) > 1.0 - ERROR_TOLERANCE, np.sign(z) * np.pi / 2, lat)
 
+    # if lon.ndim == 0:
+    #     return
+
+    # if scalar:
+    #     if np.abs(z) > 1.0 - ERROR_TOLERANCE:
+    #         lat = np.sign(z) * np.pi / 2
+    # else:
+    #     # adjust z values near +- 1
+    #     lat = np.where(np.abs(z) > 1.0 - ERROR_TOLERANCE, np.sign(z) * np.pi / 2, lat)
     return lon, lat
 
 
