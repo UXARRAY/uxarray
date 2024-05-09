@@ -3,7 +3,7 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Hashable
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -245,10 +245,16 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.n_face}."
             )
 
-    def to_dataset(self) -> UxDataset:
+    def to_dataset(
+        self,
+        dim: Hashable = None,
+        *,
+        name: Hashable = None,
+        promote_attrs: bool = False,
+    ) -> UxDataset:
         """Converts a ``UxDataArray`` into a ``UxDataset`` with a single data
         variable."""
-        xrds = super().to_dataset()
+        xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
         return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
 
     def nearest_neighbor_remap(
