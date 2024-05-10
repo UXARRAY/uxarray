@@ -554,6 +554,37 @@ class UxDataArray(xr.DataArray):
 
         pass
 
+    def zonal_mean(self):
+        """Computes the Zonal Mean ...
+
+        Can look at the above gradient, difference, or nodal_average
+        function as a reference.
+        """
+
+        # Call zonal average on the data stored under a UxDataArray
+        # data is accessed with self.data or self.values
+        _zonal_avg_res = None
+
+        # depending on how you decompose the zonal average function,
+        # it might look something like this:
+        # from .zonal import _get_zonal_mean
+        # _zonal_avg_res = _get_zonal_mean(self.values, ...)
+
+        # TODO: Set Dimension of result
+        dims = None
+
+        # Result is stored and returned as a UxDataArray
+        uxda = UxDataArray(
+            _zonal_avg_res,
+            uxgrid=self.uxgrid,
+            dims=dims,
+            name=self.name + "_zonal_average" if self.name is not None else "grad",
+        )
+
+        return uxda
+
+        pass
+
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the
         "n_face" dimension)"""
