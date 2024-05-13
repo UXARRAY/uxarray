@@ -31,7 +31,7 @@ not have any elements over land.
 Nodes
 -----
 An unstructured grid contains ``n_node`` corner nodes, which define the corners of each face. It may also
-contain `n_face` centroid nodes, which represent the center of each face, and ``n_edge``
+contain ``n_face`` centroid nodes, which represent the center of each face, and ``n_edge``
 edge nodes, which represent the center of each edge.
 
 Edges
@@ -41,7 +41,7 @@ An unstructured grid contains ``n_edge`` edges, which each connect two corner no
 
 Faces
 -----
-An unstructured grid contains ``n_face`` `faces.
+An unstructured grid contains ``n_face`` faces.
 
 UXarray is built to support 2D flexible grids, meaning that each face can have a variable number of nodes surrounding
 it.
