@@ -25,7 +25,7 @@ If you are interested in learning more about how Conda environments work, please
 visit the `managing environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
 page of the Conda documentation.
 
-Installing UXarray via Py   PI
+Installing UXarray via PyPI
 ---------------------------
 
 An alternative to Conda is using pip::
