@@ -1,11 +1,3 @@
-- title: Working with Unstructured Grid Data
-  path: examples/001-working-with-unstructured-grids.ipynb
-  thumbnail: _static/thumbnails/default.svg
-
-- title: Grid Topology Overview
-  path: examples/002-grid-topology.ipynb
-  thumbnail: _static/thumbnails/default.svg
-
 - title: Face Area Calculations
   path: examples/003-area-calc.ipynb
   thumbnail: _static/thumbnails/default.svg
