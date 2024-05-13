@@ -9,7 +9,7 @@ Grid Representation
 
 **Structured Grids**: Structured grids are defined by regular connectivity and topology,
 typically forming a uniform pattern. They are represented using a multidimensional array, where each grid point has a predictable neighbor.
-This regularity simplifies the computational algorithms but may limit flexibility in handling complex geometries.
+Below is an example of what a structured grid may look like.
 
 .. image:: ../_static/examples/grids/lat_lon.png
   :width: 300
@@ -18,7 +18,7 @@ This regularity simplifies the computational algorithms but may limit flexibilit
 
 **Unstructured Grids**: Unstructured grids do not follow a regular pattern, allowing for a flexible representation of complex geometries.
 They are composed of various elements such as triangles, quadrilaterals, and other larger geometries, each of which are
-made up of nodes and edges.
+made up of nodes and edges. Below is an example of an unstructured grid used in the dynamical core of a CAM-SE model.
 
 .. image:: ../_static/examples/grids/cam_se.png
   :width: 300

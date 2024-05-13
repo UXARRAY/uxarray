@@ -1,8 +1,8 @@
 .. currentmodule:: uxarray
 
-=================
+===========
 Conventions
-=================
+===========
 
 UGRID Conventions
 ==================
@@ -17,34 +17,39 @@ UXarray uses the UGRID conventions as a foundation for representing unstructured
 
 .. _official documentation: https://ugrid-conventions.github.io/ugrid-conventions/
 
-Dimensions
-==========
+Elements & Dimensions
+=====================
 
-In UXarray, an unstructured grid is composed of faces that either fully or partially cover the surface of a
-sphere (i.e. Earth in climate models). Each face is made up of Nodes and Edges.
+An unstructured grid is composed of nodes, edges, and faces which either fully or partially cover some surface. In the
+context of climate modelling, this surface is the surface of the Earth, typically represented as a sphere.
+
+For example, output from a global atmospheric model covers the entire sphere, while a global ocean model would
+not have any elements over land.
+
+
 
 Nodes
 -----
-An unstructured grid contains :math:`(n_{node})` corner nodes, which define the corners of each face. It may also
-contain :math:`(n_{face})` centroid nodes, which represent the center of each face, and :math:`(n_{edge})`
+An unstructured grid contains ``n_node`` corner nodes, which define the corners of each face. It may also
+contain `n_face` centroid nodes, which represent the center of each face, and ``n_edge``
 edge nodes, which represent the center of each edge.
 
 Edges
 -----
 
-An unstructured grid contains :math:`(n_{edge})` edges, which each connect two corner nodes to form an arc.
+An unstructured grid contains ``n_edge`` edges, which each connect two corner nodes to form an arc.
 
 Faces
 -----
-An unstructured grid contains :math:`(n_{face})` faces.
+An unstructured grid contains ``n_face`` `faces.
 
 UXarray is built to support 2D flexible grids, meaning that each face can have a variable number of nodes surrounding
 it.
 
 Each face can have an independent number of nodes that surround it, which is represented through the
-descriptor variable ``n_nodes_per_face``, which itself has a dimension of :math:`(n_{face})`. The minimum
+descriptor variable ``n_nodes_per_face``, which itself has a dimension of ``n_face`` The minimum
 number of nodes per face is 3 (a triangle), with the maximum number being represented by the dimension
-:math:`(n_{maxfacenodes})`
+``n_max_face_nodes``
 
 Coordinates
 ===========
@@ -90,7 +95,7 @@ Spherical Coordinates
 
 .. note::
 
-    All spherical coordinates are in degrees, with longitudes between (-180°, 180°) and latitudes between (-90°, 90°).
+    All spherical coordinates are represented in degrees, with longitudes between (-180°, 180°) and latitudes between (-90°, 90°).
 
 
 Cartesian Coordinates
@@ -142,7 +147,7 @@ Cartesian Coordinates
 
 .. note::
 
-    All Cartesiain coordinates are stored in meters
+    All Cartesian coordinates are represented in meters.
 
 
 Connectivity

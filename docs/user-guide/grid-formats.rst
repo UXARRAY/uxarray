@@ -9,7 +9,7 @@ Overview
 ========
 
 UXarray is written around the UGRID conventions, which is a standard for storing unstructured grid model data in the
-NetCDF file format. All internal grid
+NetCDF file format. As of the most recent release, the following grid formats are supported:
 
 
 * UGRID
@@ -31,7 +31,7 @@ flexible mesh) model data in a Unidata Network Common Data Form (NetCDF) file.
 
 These conventions are focussed on representing data for environmental applications, hence the motivation for
 starting from the Climate & Forecasting (CF) Metadata Conventions,
-The CF Conventions have been the standard in climate research for many years, and are being adopted by others as the metadata
+The CF Conventions have been the standard in climate rx`earch for many years, and are being adopted by others as the metadata
 standard (e.g. NASA, Open Geospatial Consortium). The CF conventions allow you to provide the geospatial and temporal coordinates
 for scientific data, but currently assumes that the horizontal topology may be inferred from the i,j indices of structured
 grids. The UGRID Conventions outline how to specify the topology of unstructured grids.
