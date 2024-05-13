@@ -11,9 +11,19 @@ Grid Representation
 typically forming a uniform pattern. They are represented using a multidimensional array, where each grid point has a predictable neighbor.
 This regularity simplifies the computational algorithms but may limit flexibility in handling complex geometries.
 
+.. image:: uxarray/docs/_static/examples/grids/lat_lon.png
+  :width: 300
+  :align: center
+  :alt: Alternative text
+
 **Unstructured Grids**: Unstructured grids do not follow a regular pattern, allowing for a flexible representation of complex geometries.
 They are composed of various elements such as triangles, quadrilaterals, and other larger geometries, each of which are
 made up of nodes and edges.
+
+.. image:: uxarray/docs/_static/examples/grids/cam_se.png
+  :width: 300
+  :align: center
+  :alt: Alternative text
 
 **Node**: A point within a spherical grid, representing the vertices of the elements (such as the corners of triangles or quadrilaterals)
 
