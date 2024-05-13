@@ -11,7 +11,7 @@ Grid Representation
 typically forming a uniform pattern. They are represented using a multidimensional array, where each grid point has a predictable neighbor.
 This regularity simplifies the computational algorithms but may limit flexibility in handling complex geometries.
 
-.. image:: uxarray/docs/_static/examples/grids/lat_lon.png
+.. image:: ../_static/examples/grids/lat_lon.png
   :width: 300
   :align: center
   :alt: Alternative text
@@ -20,7 +20,7 @@ This regularity simplifies the computational algorithms but may limit flexibilit
 They are composed of various elements such as triangles, quadrilaterals, and other larger geometries, each of which are
 made up of nodes and edges.
 
-.. image:: uxarray/docs/_static/examples/grids/cam_se.png
+.. image:: ../_static/examples/grids/cam_se.png
   :width: 300
   :align: center
   :alt: Alternative text
