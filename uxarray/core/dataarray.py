@@ -3,7 +3,7 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Hashable
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -245,11 +245,35 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.n_face}."
             )
 
-    def to_dataset(self) -> UxDataset:
-        """Converts a ``UxDataArray`` into a ``UxDataset`` with a single data
-        variable."""
-        xrds = super().to_dataset()
-        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+    def to_dataset(
+        self,
+        dim: Hashable = None,
+        *,
+        name: Hashable = None,
+        promote_attrs: bool = False,
+    ) -> UxDataset:
+        """Convert a UxDataArray to a UxDataset.
+
+        Parameters
+        ----------
+        dim : Hashable, optional
+            Name of the dimension on this array along which to split this array
+            into separate variables. If not provided, this array is converted
+            into a Dataset of one variable.
+        name : Hashable, optional
+            Name to substitute for this array's name. Only valid if ``dim`` is
+            not provided.
+        promote_attrs : bool, default: False
+            Set to True to shallow copy attrs of UxDataArray to returned UxDataset.
+
+        Returns
+        -------
+        uxds: UxDataSet
+        """
+        xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
+        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+
+        return uxds
 
     def nearest_neighbor_remap(
         self,
