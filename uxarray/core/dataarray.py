@@ -632,7 +632,7 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``std`` applied to its data.
         """
-        return _uxda_grid_aggregate(self, keep_attrs, destination, "std", **kwargs)
+        return _uxda_grid_aggregate(self, destination, "std", **kwargs)
 
     def topological_var(
         self,
