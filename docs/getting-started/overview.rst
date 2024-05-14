@@ -1,8 +1,8 @@
 .. currentmodule:: uxarray
 
-======================
-Overview: Why UXarray?
-======================
+============
+Why UXarray?
+============
 UXarray aims to address the geoscience community need for tools that enable standard
 data analysis techniques to operate directly on unstructured grids. It extends upon
 and inherits from the commonly used Xarray Python package to provide a powerful and

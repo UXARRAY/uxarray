@@ -103,21 +103,21 @@ Attributes
 
    UxDataArray.uxgrid
 
-Reductions
+Topological Aggregations
 ----------
 .. autosummary::
    :toctree: generated/
 
-   UxDataArray.mean
-   UxDataArray.max
-   UxDataArray.min
-   UxDataArray.prod
-   UxDataArray.sum
-   UxDataArray.std
-   UxDataArray.var
-   UxDataArray.median
-   UxDataArray.all
-   UxDataArray.any
+   UxDataArray.topological_mean
+   UxDataArray.topological_max
+   UxDataArray.topological_min
+   UxDataArray.topological_prod
+   UxDataArray.topological_sum
+   UxDataArray.topological_std
+   UxDataArray.topological_var
+   UxDataArray.topological_median
+   UxDataArray.topological_all
+   UxDataArray.topological_any
 
 Methods
 -------

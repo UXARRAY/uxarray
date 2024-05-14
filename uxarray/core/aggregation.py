@@ -79,7 +79,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
         aggregated_var = _apply_node_to_face_aggregation_numpy(
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
-    elif isinstance(uxda.data, da.array):
+    elif isinstance(uxda.data, da.Array):
         # apply aggregation on dask array, TODO:
         aggregated_var = _apply_node_to_face_aggregation_numpy(
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
@@ -142,7 +142,7 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
         aggregation_var = _apply_node_to_edge_aggregation_numpy(
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
-    elif isinstance(uxda.data, da.array):
+    elif isinstance(uxda.data, da.Array):
         # apply aggregation on dask array, TODO:
         aggregation_var = _apply_node_to_edge_aggregation_numpy(
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs

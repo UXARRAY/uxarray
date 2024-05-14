@@ -3,7 +3,7 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import TYPE_CHECKING, Optional, Union, Literal
+from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -246,11 +246,35 @@ class UxDataArray(xr.DataArray):
                 f"({self.uxgrid.n_face}."
             )
 
-    def to_dataset(self) -> UxDataset:
-        """Converts a ``UxDataArray`` into a ``UxDataset`` with a single data
-        variable."""
-        xrds = super().to_dataset()
-        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+    def to_dataset(
+        self,
+        dim: Hashable = None,
+        *,
+        name: Hashable = None,
+        promote_attrs: bool = False,
+    ) -> UxDataset:
+        """Convert a UxDataArray to a UxDataset.
+
+        Parameters
+        ----------
+        dim : Hashable, optional
+            Name of the dimension on this array along which to split this array
+            into separate variables. If not provided, this array is converted
+            into a Dataset of one variable.
+        name : Hashable, optional
+            Name to substitute for this array's name. Only valid if ``dim`` is
+            not provided.
+        promote_attrs : bool, default: False
+            Set to True to shallow copy attrs of UxDataArray to returned UxDataset.
+
+        Returns
+        -------
+        uxds: UxDataSet
+        """
+        xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
+        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+
+        return uxds
 
     def nearest_neighbor_remap(
         self,
@@ -388,40 +412,40 @@ class UxDataArray(xr.DataArray):
         """Performs a topological mean reduction along some dimension(s)
         utilizing connectivity information.
 
-                See Also
-                --------
-                numpy.mean
-                dask.array.mean
-                xarray.DataArray.mean
-        33
-                Parameters
-                ----------
-                destination: str,
-                    Destination grid dimension for reduction.
+        See Also
+        --------
+        numpy.mean
+        dask.array.mean
+        xarray.DataArray.mean
 
-                    Node-Centered Variable:
-                    - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
-                    on each edge
-                    - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
-                    on each face.
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for reduction.
 
-                    Edge-Centered Variable:
-                    - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
-                    on each node.
-                    - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
-                    on each face.
+            Node-Centered Variable:
+            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            on each face.
 
-                    Face-Centered Variable:
-                    - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
-                    on each node.
-                    - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
-                    on each edge.
+            Edge-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            on each edge.
 
 
-                Returns
-                -------
-                reduced: UxDataArray
-                    New UxDataArray with ``mean`` applied to its data.
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``mean`` applied to its data.
         """
         return _uxda_grid_aggregate(self, destination, "mean", **kwargs)
 
