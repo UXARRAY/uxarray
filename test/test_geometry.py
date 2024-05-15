@@ -235,7 +235,7 @@ class TestLatlonBoundUtils(TestCase):
                 max_lat = max(max_lat, w1_lonlat[1], w2_lonlat[1])
                 if np.abs(w2_lonlat[1] -
                           w1_lonlat[1]) <= ERROR_TOLERANCE or w1_lonlat[
-                              1] == max_lat == w2_lonlat[1]:
+                    1] == max_lat == w2_lonlat[1]:
                     max_section = [w1_new, w2_new]
                     break
                 if np.abs(max_lat - w1_lonlat[1]) <= ERROR_TOLERANCE:
@@ -322,7 +322,7 @@ class TestLatlonBoundUtils(TestCase):
                 min_lat = min(min_lat, w1_lonlat[1], w2_lonlat[1])
                 if np.abs(w2_lonlat[1] -
                           w1_lonlat[1]) <= ERROR_TOLERANCE or w1_lonlat[
-                              1] == min_lat == w2_lonlat[1]:
+                    1] == min_lat == w2_lonlat[1]:
                     min_section = [w1_new, w2_new]
                     break
                 if np.abs(min_lat - w1_lonlat[1]) <= ERROR_TOLERANCE:
@@ -438,7 +438,6 @@ class TestLatlonBoundUtils(TestCase):
         np.testing.assert_array_equal(result, expected)
 
 
-
 class TestLatlonBoundsGCA(TestCase):
     def test_populate_bounds_normal(self):
         # Generate a normal face that is not crossing the antimeridian or the poles
@@ -447,7 +446,9 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
+        # vertices_cart = [_lonlat_rad_to_xyz(vertices_rad[0], vertices_rad[1])]
         lat_max = max(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
         lat_min = min(np.deg2rad(10.0),
@@ -476,7 +477,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = max(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
         lat_min = min(np.deg2rad(10.0),
@@ -505,7 +506,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(10.0),
                       extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
@@ -533,7 +534,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
@@ -561,7 +562,7 @@ class TestLatlonBoundsGCA(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(60.0),
                       extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
@@ -581,6 +582,7 @@ class TestLatlonBoundsGCA(TestCase):
         expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
         bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
 
 class TestLatlonBoundsLatLonFace(TestCase):
 
@@ -672,7 +674,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = np.deg2rad(210.0)
@@ -700,7 +702,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = 0
@@ -758,7 +760,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.deg2rad(60.0)
         lat_min = np.deg2rad(10.0)
         lon_min = np.deg2rad(350.0)
@@ -786,7 +788,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = np.deg2rad(10.0)
         lon_min = np.deg2rad(10.0)
@@ -814,7 +816,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = np.deg2rad(210.0)
@@ -842,7 +844,7 @@ class TestLatlonBoundsGCAList(TestCase):
 
         # Convert everything into radians
         vertices_rad = np.radians(vertices_lonlat)
-        vertices_cart = [_lonlat_rad_to_xyz(*v) for v in vertices_rad]
+        vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = np.deg2rad(60.0)
         lon_min = 0
@@ -863,6 +865,7 @@ class TestLatlonBoundsGCAList(TestCase):
                                              is_GCA_list=[True, False, True, False])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
+
 class TestLatlonBoundsMix(TestCase):
     def test_populate_bounds_GCA_mix(self):
         face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -873,11 +876,10 @@ class TestLatlonBoundsMix(TestCase):
         faces = [face_1, face_2, face_3, face_4]
 
         # Hand calculated bounds for the above faces in radians
-        expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
-                           [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
-                           [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
-                           [[1.04719755,1.57079633],[0.,         6.28318531]]]
-
+        expected_bounds = [[[0.17453293, 1.07370494], [0.17453293, 0.87266463]],
+                           [[0.17453293, 1.10714872], [6.10865238, 0.87266463]],
+                           [[1.04719755, 1.57079633], [3.66519143, 0.52359878]],
+                           [[1.04719755, 1.57079633], [0., 6.28318531]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
         face_bounds = grid.bounds.values
@@ -892,14 +894,13 @@ class TestLatlonBoundsMix(TestCase):
 
         faces = [face_1, face_2, face_3, face_4]
 
-        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(10.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(350.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(60.0), np.pi/2],[np.deg2rad(210.0), np.deg2rad(30.0)]],
-                           [[np.deg2rad(60.0),np.pi/2],[0.,        2*np.pi]]]
-
+        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(10.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(350.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(60.0), np.pi / 2], [np.deg2rad(210.0), np.deg2rad(30.0)]],
+                           [[np.deg2rad(60.0), np.pi / 2], [0., 2 * np.pi]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = _populate_bounds(grid,is_latlonface=True, return_array=True)
+        bounds_xarray = _populate_bounds(grid, is_latlonface=True, return_array=True)
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
@@ -912,16 +913,18 @@ class TestLatlonBoundsMix(TestCase):
 
         faces = [face_1, face_2, face_3, face_4]
 
-        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(10.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(10.0), np.deg2rad(60.0)],[np.deg2rad(350.0), np.deg2rad(50.0)]],
-                           [[np.deg2rad(60.0), np.pi/2],[np.deg2rad(210.0), np.deg2rad(30.0)]],
-                           [[np.deg2rad(60.0),np.pi/2],[0.,        2*np.pi]]]
+        expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(10.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(350.0), np.deg2rad(50.0)]],
+                           [[np.deg2rad(60.0), np.pi / 2], [np.deg2rad(210.0), np.deg2rad(30.0)]],
+                           [[np.deg2rad(60.0), np.pi / 2], [0., 2 * np.pi]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = _populate_bounds(grid,is_face_GCA_list=[[True, False, True, False]]*4, return_array=True)
+        bounds_xarray = _populate_bounds(grid, is_face_GCA_list=[[True, False, True, False]] * 4, return_array=True)
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
+
+
 class TestGeoDataFrame(TestCase):
 
     def test_to_gdf(self):
