@@ -100,7 +100,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     User Guide <userguide>
     Usage Examples <examples>
     API Reference <api>
-    Tutorials <tutorials>
+    Tutorials and Videos <tutorials>
     Cite Uxarray <citation>
 
 .. toctree::
