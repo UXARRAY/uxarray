@@ -1,6 +1,6 @@
-- title: Face Area Calculations
-  path: examples/003-area-calc.ipynb
-  thumbnail: _static/thumbnails/default.svg
+# - title: Face Area Calculations
+#   path: examples/003-area-calc.ipynb
+#   thumbnail: _static/thumbnails/default.svg
 
 - title: Working with MPAS Grids
   path: examples/004-working-with-mpas-grids.ipynb
