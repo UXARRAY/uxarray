@@ -19,6 +19,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(faces_lonlat: np.ndarray,
     #TODO: Call the function that calculates the weights for these faces
 
     #TODO: Read the decription of _get_zonal_faces_weight_at_constLat and see how to conver the data format in a way that it can be used by the function
+    # Coordinates conversion: node_xyz to node_lonlat
     weight_df = _get_zonal_faces_weight_at_constLat(np.array([
         face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
     ]),
