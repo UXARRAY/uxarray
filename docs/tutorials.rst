@@ -2,7 +2,6 @@
 
 .. _tutorials:
 
-==================
 Tutorials & Videos
 ==================
 
