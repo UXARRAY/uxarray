@@ -27,8 +27,9 @@ def test_node_to_face_aggs():
     uxds = ux.open_dataset(ds_path, ds_path)
 
     for agg_func in AGGS:
-
         grid_reduction = getattr(uxds['areaTriangle'], agg_func)(destination='face')
+
+        assert 'n_face' in grid_reduction.dims
 
 
 
@@ -36,6 +37,6 @@ def test_node_to_edge_aggs():
     uxds = ux.open_dataset(ds_path, ds_path)
 
     for agg_func in AGGS:
-
         grid_reduction = getattr(uxds['areaTriangle'], agg_func)(destination='edge')
-        regular_reduction = getattr(uxds['areaTriangle'], agg_func)(localized=False)
+
+        assert 'n_edge' in grid_reduction.dims
