@@ -414,7 +414,8 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
 
 
 def get_face_node_partitions(n_nodes_per_face):
-    """Docstring TODO."""
+    """Returns the indices of how to partition `face_node_connectivity` by
+    element size."""
 
     # sort number of nodes per face in ascending order
     n_nodes_per_face_sorted_ind = np.argsort(n_nodes_per_face)
