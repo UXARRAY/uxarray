@@ -409,8 +409,7 @@ class UxDataArray(xr.DataArray):
         destination: Literal["node", "edge", "face"],
         **kwargs,
     ):
-        """Performs a topological mean reduction along some dimension(s)
-        utilizing connectivity information.
+        """Performs a topological mean aggregation.
 
         See Also
         --------
@@ -421,24 +420,24 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -454,9 +453,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs a ``min`` reduction along some dimension(s), either applied
-        globally to the desired dimension or locally utilizing connectivity
-        information.
+        """Performs a topological min aggregation.
 
         See Also
         --------
@@ -466,30 +463,25 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
-
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -505,13 +497,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs a ``max`` reduction along some dimension(s), either applied
-        globally to the desired dimension or locally utilizing connectivity
-        information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.max``
+        """Performs a topological max aggregation.
 
         See Also
         --------
@@ -521,30 +507,25 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
-
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -561,13 +542,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs a ``median`` reduction along some dimension(s), either
-        applied globally to the desired dimension or locally utilizing
-        connectivity information.
-
-        Note
-        ----
-        When (``localized=False``), this method is equivalent to ``xarray.DataArray.median``
+        """Performs a topological median aggregation.
 
         See Also
         --------
@@ -577,30 +552,26 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        localized: optional, bool
-            Flag to select whether to perform a localized, grid-informed reduction. If set to false, performs global
-            reduction across all data values using the default Xarray implementation without considering any connectivity
-            information.
 
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -614,12 +585,9 @@ class UxDataArray(xr.DataArray):
     def topological_std(
         self,
         destination=None,
-        keep_attrs=None,
         **kwargs,
     ):
-        """Performs a ``std`` reduction along some dimension(s), either applied
-        globally to the desired dimension or locally utilizing connectivity
-        information.
+        """Performs a topological std aggregation.
 
         See Also
         --------
@@ -630,24 +598,24 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -663,9 +631,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs a ``var`` reduction along some dimension(s), either applied
-        globally to the desired dimension or locally utilizing connectivity
-        information.
+        """Performs a topological var aggregation.
 
         See Also
         --------
@@ -677,24 +643,24 @@ class UxDataArray(xr.DataArray):
         ----------
 
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -710,9 +676,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs a ``sum`` reduction along some dimension(s), either applied
-        globally to the desired dimension or locally utilizing connectivity
-        information.
+        """Performs a topological sum aggregation.
 
         See Also
         --------
@@ -723,24 +687,24 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -756,9 +720,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs a ``prod`` reduction along some dimension(s), either
-        applied globally to the desired dimension or locally utilizing
-        connectivity information.
+        """Performs a topological prod aggregation.
 
         See Also
         --------
@@ -769,24 +731,24 @@ class UxDataArray(xr.DataArray):
         Parameters
 
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -802,9 +764,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs an ``all`` reduction along some dimension(s), either
-        applied globally to the desired dimension or locally utilizing
-        connectivity information.
+        """Performs a topological all aggregation.
 
         See Also
         --------
@@ -815,24 +775,24 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
@@ -848,9 +808,7 @@ class UxDataArray(xr.DataArray):
         destination=None,
         **kwargs,
     ):
-        """Performs a ``any`` reduction along some dimension(s), either applied
-        globally to the desired dimension or locally utilizing connectivity
-        information.
+        """Performs a topological any aggregation.
 
         See Also
         --------
@@ -861,24 +819,24 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         destination: str,
-            Destination grid dimension for reduction.
+            Destination grid dimension for Aggregation.
 
             Node-Centered Variable:
-            - ``destination='edge'``: Reduction is applied on the nodes that saddle each edge, with the result stored
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
             on each edge
-            - ``destination='face'``: Reduction is applied on the nodes that surround each face, with the result stored
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
             on each face.
 
             Edge-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the edges that intersect each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
             on each node.
-            - ``Destination='face'``: Reduction is applied on the edges that surround each face, with the result stored
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
             on each face.
 
             Face-Centered Variable:
-            - ``destination='node'``: Reduction is applied on the faces that saddle each node, with the result stored
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
             on each node.
-            - ``Destination='edge'``: Reduction is applied on the faces that saddle each edge, with the result stored
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
             on each edge.
 
 
