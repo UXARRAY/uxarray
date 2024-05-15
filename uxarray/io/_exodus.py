@@ -5,7 +5,8 @@ from datetime import datetime
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.coordinates import _get_lonlat_from_xyz, _get_xyz_from_lonlat
+
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
 
 from uxarray.conventions import ugrid
 
@@ -100,7 +101,7 @@ def _read_exodus(ext_ds):
     )
 
     # populate lon/lat coordinates
-    lon, lat = _get_lonlat_from_xyz(
+    lon, lat = _xyz_to_lonlat_deg(
         ds["node_x"].values, ds["node_y"].values, ds["node_z"].values
     )
 
@@ -181,7 +182,7 @@ def _encode_exodus(ds, outfile=None):
     # Set the dim to 3 as we will always have x/y/z for cartesian grid
     # Note: Don't get orig dimension from Mesh2 attribute topology dimension
     if "node_x" not in ds:
-        x, y, z = _get_xyz_from_lonlat(ds["node_lon"].values, ds["node_lat"].values)
+        x, y, z = _lonlat_rad_to_xyz(ds["node_lon"].values, ds["node_lat"].values)
         c_data = xr.DataArray([x, y, z])
     else:
         c_data = xr.DataArray(
