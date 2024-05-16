@@ -9,7 +9,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca
 
 try:
@@ -31,43 +31,40 @@ class TestIntersectionPoint(TestCase):
     def test_pt_within_gcr(self):
         # The GCR that's eexactly 180 degrees will have Value Error raised
         gcr_180degree_cart = [
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0]),
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([np.pi, 0.0])
+            _lonlat_rad_to_xyz(0.0, 0.0),
+            _lonlat_rad_to_xyz(np.pi, 0.0)
         ]
-        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
+        pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
         with self.assertRaises(ValueError):
             point_within_gca(pt_same_lon_in, gcr_180degree_cart)
 
         gcr_180degree_cart = [
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, np.pi / 2.0]),
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, -np.pi / 2.0])
+            _lonlat_rad_to_xyz(0.0, np.pi / 2.0),
+            _lonlat_rad_to_xyz(0.0, -np.pi / 2.0)
         ]
 
-        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
+        pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
         with self.assertRaises(ValueError):
             point_within_gca(pt_same_lon_in, gcr_180degree_cart)
 
         # Test when the point and the GCA all have the same longitude
         gcr_same_lon_cart = [
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 1.5]),
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, -1.5])
+            _lonlat_rad_to_xyz(0.0, 1.5),
+            _lonlat_rad_to_xyz(0.0, -1.5)
         ]
-        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
+        pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
         self.assertTrue(point_within_gca(pt_same_lon_in, gcr_same_lon_cart))
 
-        pt_same_lon_out = ux.grid.coordinates.node_lonlat_rad_to_xyz(
-            [0.0, 1.500000000000001])
+        pt_same_lon_out = _lonlat_rad_to_xyz(0.0, 1.500000000000001)
         res = point_within_gca(pt_same_lon_out, gcr_same_lon_cart)
         self.assertFalse(res)
 
-        pt_same_lon_out_2 = ux.grid.coordinates.node_lonlat_rad_to_xyz(
-            [0.1, 1.0])
+        pt_same_lon_out_2 = _lonlat_rad_to_xyz(0.1, 1.0)
         res = point_within_gca(pt_same_lon_out_2, gcr_same_lon_cart)
         self.assertFalse(res)
 
         # And if we increase the digital place by one, it should be true again
-        pt_same_lon_out_add_one_place = ux.grid.coordinates.node_lonlat_rad_to_xyz(
-            [0.0, 1.5000000000000001])
+        pt_same_lon_out_add_one_place = _lonlat_rad_to_xyz(0.0, 1.5000000000000001)
         res = point_within_gca(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
         self.assertTrue(res)
 
@@ -117,10 +114,10 @@ class TestIntersectionPoint(TestCase):
         # The first case should not work and the second should work
         v1_rad = [0.1, 0.0]
         v2_rad = [2 * np.pi - 0.1, 0.0]
-        v1_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v1_rad)
-        v2_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v2_rad)
+        v1_cart = _lonlat_rad_to_xyz(v1_rad[0], v1_rad[1])
+        v2_cart = _lonlat_rad_to_xyz(v2_rad[0], v1_rad[1])
         gcr_cart = np.array([v1_cart, v2_cart])
-        pt_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.01, 0.0])
+        pt_cart = _lonlat_rad_to_xyz(0.01, 0.0)
         with self.assertRaises(ValueError):
             point_within_gca(pt_cart, gcr_cart, is_directed=True)
         gcr_car_flipped = np.array([v2_cart, v1_cart])

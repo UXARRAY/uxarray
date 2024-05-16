@@ -10,7 +10,7 @@ import uxarray as ux
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, _build_edge_node_connectivity
 
-from uxarray.grid.coordinates import _populate_lonlat_coord, node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
@@ -459,7 +459,7 @@ class TestPopulateCoordinates(TestCase):
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
 
         vgrid = ux.open_grid(verts_cart, latlon=False)
-        _populate_lonlat_coord(vgrid)
+        _populate_node_latlon(vgrid)
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.n_node):

@@ -1,7 +1,7 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_constLat_intersection
-from uxarray.grid.coordinates import node_xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 import pandas as pd
 
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
@@ -191,9 +191,11 @@ def _get_faces_constLat_intersection_info(
     # Handle unique intersections and check for convex or concave cases
     unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
     if len(unique_intersections) == 2:
+        # TODO: vectorize?
         unique_intersection_lonlat = np.array(
-            [node_xyz_to_lonlat_rad(pt.tolist()) for pt in unique_intersections]
+            [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
         )
+
         sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
         pt_lon_min, pt_lon_max = sorted_lonlat[:, 0]
         return unique_intersections, pt_lon_min, pt_lon_max
@@ -265,7 +267,7 @@ def _get_zonal_face_interval(
 
     # Convert intersection points to longitude-latitude
     longitudes = np.array(
-        [node_xyz_to_lonlat_rad(pt.tolist())[0] for pt in unique_intersections]
+        [_xyz_to_lonlat_rad(*pt.tolist())[0] for pt in unique_intersections]
     )
 
     # Handle special wrap-around cases by checking the face bounds
