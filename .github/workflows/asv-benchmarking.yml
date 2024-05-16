@@ -22,6 +22,11 @@ jobs:
         with:
           repository: UXARRAY/uxarray
           fetch-depth: 0
+
+      - name: Fetch all tags and branches for uxarray
+        run: |
+          git fetch --all --tags
+
       - name: Checkout uxarray-asv
         uses: actions/checkout@v4
         with:
@@ -57,7 +62,7 @@ jobs:
 
       - name: Update environment
         run:
-          conda env update -n asv -f
+          conda env update -n asv -f ./ci/asv.yml
           ./ci/asv.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
