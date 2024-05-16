@@ -1,33 +1,17 @@
 import os
-import urllib.request
+
 from pathlib import Path
 
 import uxarray as ux
 
-# current_path = Path(os.path.dirname(os.path.realpath(__file__))).parents[0]
+current_path = Path(os.path.dirname(os.path.realpath(__file__))).parents[0]
 
-current_path = Path(os.getcwd())
+base_path = current_path / "test" / "meshfiles" / "mpas" / "QU"
 
-data_var = 'bottomDepth'
+file_path_dict = {"480km": [base_path / "oQU480.grid.zarr", base_path / "oQU480.data.zarr"],
+                  "120km": [base_path / "oQU120.grid.zarr", base_path / "oQU120.data.zarr"]}
 
-grid_filename_480 = "oQU480.grid.nc"
-data_filename_480 = "oQU480.data.nc"
-
-grid_filename_120 = "oQU120.grid.nc"
-data_filename_120 = "oQU120.data.nc"
-
-filenames = [grid_filename_480, data_filename_480, grid_filename_120, data_filename_120]
-local_filenames = []
-for filename in filenames:
-    # if not os.path.isfile(current_path / filename):
-    #     # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
-    url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
-    local_filename, headers = urllib.request.urlretrieve(url)
-    local_filenames.append(local_filename)
-
-
-file_path_dict = {"480km": [local_filenames[0], local_filenames[1]],
-                  "120km": [local_filenames[2], local_filenames[3]]}
+data_var = "bottomDepth"
 
 
 class Gradient:
@@ -37,7 +21,9 @@ class Gradient:
 
 
     def setup(self, resolution):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1],
+                                    engine="zarr",
+                                    grid_kwargs={"engine": "zarr"})
 
     def teardown(self, resolution):
         del self.uxds
@@ -55,7 +41,9 @@ class Integrate:
 
 
     def setup(self, resolution):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1],
+                                    engine="zarr",
+                                    grid_kwargs={"engine": "zarr"})
 
     def teardown(self, resolution):
         del self.uxds
@@ -74,7 +62,9 @@ class GeoDataFrame:
 
 
     def setup(self, resolution, exclude_antimeridian):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1],
+                                    engine="zarr",
+                                    grid_kwargs={"engine": "zarr"})
 
     def teardown(self, resolution, exclude_antimeridian):
         del self.uxds
@@ -93,7 +83,9 @@ class ConnectivityConstruction:
 
 
     def setup(self, resolution):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1],
+                                    engine="zarr",
+                                    grid_kwargs={"engine": "zarr"})
 
     def teardown(self, resolution):
         del self.uxds
