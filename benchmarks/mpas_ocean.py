@@ -17,17 +17,17 @@ grid_filename_120 = "oQU120.grid.nc"
 data_filename_120 = "oQU120.data.nc"
 
 filenames = [grid_filename_480, data_filename_480, grid_filename_120, data_filename_120]
+local_filenames = []
+for filename in filenames:
+    # if not os.path.isfile(current_path / filename):
+    #     # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
+    url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
+    local_filename, headers = urllib.request.urlretrieve(url)
+    local_filenames.append(local_filename)
 
-def _check_file_download():
-    for filename in filenames:
-        if not os.path.isfile(current_path / filename):
-            # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
-            url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
-            _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
 
-
-file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
-                  "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
+file_path_dict = {"480km": [local_filenames[0], local_filenames[1]],
+                  "120km": [local_filenames[2], local_filenames[3]]}
 
 
 class Gradient:
@@ -37,7 +37,6 @@ class Gradient:
 
 
     def setup(self, resolution):
-        _check_file_download()
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution):
@@ -56,7 +55,6 @@ class Integrate:
 
 
     def setup(self, resolution):
-        _check_file_download()
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution):
@@ -76,7 +74,6 @@ class GeoDataFrame:
 
 
     def setup(self, resolution, exclude_antimeridian):
-        _check_file_download()
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution, exclude_antimeridian):
@@ -96,7 +93,6 @@ class ConnectivityConstruction:
 
 
     def setup(self, resolution):
-        _check_file_download()
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution):
