@@ -35,7 +35,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: "24.1.2-0"
-          activate-environment: asv-bench
+          activate-environment: asv
 
       - name: Get date
         id: get-date
@@ -57,7 +57,7 @@ jobs:
 
       - name: Update environment
         run:
-          conda env update -n asv-bench -f
+          conda env update -n asv -f
           ./ci/asv.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
