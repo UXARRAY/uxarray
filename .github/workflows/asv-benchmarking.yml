@@ -82,7 +82,7 @@ jobs:
         run: |
           cd benchmarks
           asv machine --machine GH-Actions --os ubuntu-latest --arch x64 --cpu "2-core unknown" --ram 7GB
-          asv run v2024.02.0..main --skip-existing --parallel || true
+          asv run 2024.02.0..main --skip-existing --parallel || true
 
       - name: Commit and push benchmark results
         run: |
