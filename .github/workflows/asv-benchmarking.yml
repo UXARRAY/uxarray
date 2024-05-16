@@ -9,6 +9,9 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
     env:
       CONDA_ENV_FILE: ./ci/asv.yml
       ASV_DIR: ./benchmarks
