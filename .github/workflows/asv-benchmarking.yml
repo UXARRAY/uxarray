@@ -9,8 +9,11 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
     env:
-      CONDA_ENV_FILE: ./ci/asv.yml
+      CONDA_ENV_FILE: ./build_envs/asv-bench.yml
       ASV_DIR: ./benchmarks
 
     steps:
@@ -22,32 +25,46 @@ jobs:
       - name: Checkout uxarray-asv
         uses: actions/checkout@v4
         with:
-          repository: uxarray/uxarray-asv
+          repository: UXARRAY/uxarray-asv
           persist-credentials: false
           fetch-depth: 0
           ref: main
           path: uxarray-asv
-      - name: Set environment variables
+
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: "24.1.2-0"
+          activate-environment: asv-bench
+
+      - name: Get date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Cache environment
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONDA }}/envs
+          key:
+            conda-${{ runner.os }}--${{ runner.arch }}--${{
+            steps.get-date.outputs.today }}-${{
+            hashFiles('./build_envs/asv-bench.yml') }}-${{ env.CACHE_NUMBER}}
+        env:
+          # Increase this value to reset cache if the environment file has not changed
+          CACHE_NUMBER: 0
+        id: cache
+
+      - name: Update environment
+        run:
+          conda env update -n asv-bench -f
+          ./build_envs/asv-bench.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Conda list
         run: |
-          echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      - name: Set up conda environment
-        id: env-setup
-        continue-on-error: true
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          environment-file: ./ci/asv.yml
-          cache-environment: true
-          cache-environment-key: "benchmark-${{runner.os}}-${{runner.arch}}-${{env.TODAY}}"
-
-      - name: retry environment set up if failed
-        if: steps.env-setup.outcome == 'failure'
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          download-micromamba: false
-          environment-file: ./ci/asv.yml
-          cache-environment: true
-          cache-environment-key: "benchmark-${{runner.os}}-${{runner.arch}}-${{env.TODAY}}"
+          conda info
+          conda list
 
       - name: Copy existing results
         run: |
