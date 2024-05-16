@@ -1,7 +1,7 @@
 from unittest import TestCase
 import numpy.testing as nt
 import numpy as np
-from uxarray.grid.coordinates import normalize_in_place
+from uxarray.grid.coordinates import _normalize_xyz
 import uxarray.utils.computing as ac_utils
 from uxarray.constants import ERROR_TOLERANCE
 
@@ -12,8 +12,8 @@ class TestCrossProduct(TestCase):
     one."""
 
     def test_cross_fma(self):
-        v1 = np.array(normalize_in_place([1.0, 2.0, 3.0]))
-        v2 = np.array(normalize_in_place([4.0, 5.0, 6.0]))
+        v1 = np.array(_normalize_xyz(*[1.0, 2.0, 3.0]))
+        v2 = np.array(_normalize_xyz(*[4.0, 5.0, 6.0]))
 
         np_cross = np.cross(v1, v2)
         fma_cross = ac_utils.cross_fma(v1, v2)
@@ -26,8 +26,8 @@ class TestDotProduct(TestCase):
     one."""
 
     def test_dot_fma(self):
-        v1 = np.array(normalize_in_place([1.0, 0.0, 0.0]), dtype=np.float64)
-        v2 = np.array(normalize_in_place([1.0, 0.0, 0.0]), dtype=np.float64)
+        v1 = np.array(_normalize_xyz(*[1.0, 0.0, 0.0]), dtype=np.float64)
+        v2 = np.array(_normalize_xyz(*[1.0, 0.0, 0.0]), dtype=np.float64)
 
         np_dot = np.dot(v1, v2)
         fma_dot = ac_utils.dot_fma(v1, v2)

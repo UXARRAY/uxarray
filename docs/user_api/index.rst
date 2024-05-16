@@ -385,16 +385,6 @@ Connectivity
 
    grid.connectivity.close_face_nodes
 
-Coordinates
------------
-.. autosummary::
-   :toctree: generated/
-
-   grid.coordinates.node_lonlat_rad_to_xyz
-   grid.coordinates.node_xyz_to_lonlat_rad
-   grid.coordinates.normalize_in_place
-
-
 Arcs
 ----
 .. autosummary::
