@@ -1,0 +1,17 @@
+{
+    "Conventions": "MPAS",
+    "NCO": "4.0.5",
+    "core_name": "ocean",
+    "file_id": "f5z41zseqm",
+    "git_version": "v4.0-973-g678b0d3",
+    "history": "Mon Apr 24 15:11:05 2023: /gpfs/fs1/home/ac.xylar/chrysalis/mambaforge/envs/dev_compass_1.2.0-alpha.5/bin/compass run\nMon Feb  8 15:30:22 2016: /usr/projects/cesm/software/conejo/nco/bin/ncks -x -v xtime ocean.nc ocean.QU.120km_100layer.151209.nc\nmpirun -n 16 ./ocean_model",
+    "is_periodic": "NO",
+    "mesh_spec": "0.0",
+    "model_name": "mpas",
+    "on_a_sphere": "YES",
+    "parent_id": "a3ix7sajjh\nfo1xwy6fbp\ne513bmrqm3\n",
+    "source": "MPAS",
+    "sphere_radius": 6371229.0,
+    "x_period": 0.0,
+    "y_period": 0.0
+}

@@ -1,0 +1,7 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "nVertices",
+        "vertexDegree"
+    ],
+    "long_name": "edges adj. to each vertex"
+}

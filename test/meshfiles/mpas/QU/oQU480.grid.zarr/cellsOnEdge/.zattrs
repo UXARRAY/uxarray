@@ -1,0 +1,7 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "nEdges",
+        "TWO"
+    ],
+    "long_name": "cells adj. to each edge"
+}

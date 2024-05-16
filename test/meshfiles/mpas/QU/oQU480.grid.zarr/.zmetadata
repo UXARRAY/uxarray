@@ -1,0 +1,1500 @@
+{
+    "metadata": {
+        ".zattrs": {
+            "Conventions": "MPAS",
+            "file_id": "85scxk6tmk",
+            "history": "Tue Oct 10 16:52:25 2023: ./convert.py\nMpasMeshConverter.x ocean.QU.480km.151209.nc ocean.QU.480km.20231010.nc\nmpirun -n 2 ./ocean_model",
+            "is_periodic": "NO",
+            "mesh_spec": "1.0",
+            "on_a_sphere": "YES",
+            "parent_id": "kufh9o2jwx\nlsd2k42w1r\na4x6sqhkwb",
+            "source": "MpasMeshConverter.x",
+            "sphere_radius": 6371229.0
+        },
+        ".zgroup": {
+            "zarr_format": 2
+        },
+        "angleEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "angleEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "angle to edges"
+        },
+        "areaCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "areaCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "surface areas of cells"
+        },
+        "areaTriangle/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "areaTriangle/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "surface areas of dual cells"
+        },
+        "bottomDepth/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "bottomDepth/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ]
+        },
+        "boundaryVertex/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "boundaryVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "non-zero for each vertex on mesh boundary"
+        },
+        "cellMask/.zarray": {
+            "chunks": [
+                1791,
+                60
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "|i1",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791,
+                60
+            ],
+            "zarr_format": 2
+        },
+        "cellMask/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells",
+                "nVertLevels"
+            ],
+            "dtype": "bool",
+            "long_name": "Mask on cells that determines if computations should be done on cells."
+        },
+        "cellQuality/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "cellQuality/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "quality of mesh cells"
+        },
+        "cellsOnCell/.zarray": {
+            "chunks": [
+                1791,
+                6
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791,
+                6
+            ],
+            "zarr_format": 2
+        },
+        "cellsOnCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells",
+                "maxEdges"
+            ],
+            "long_name": "cells adj. to each cell"
+        },
+        "cellsOnEdge/.zarray": {
+            "chunks": [
+                5754,
+                2
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754,
+                2
+            ],
+            "zarr_format": 2
+        },
+        "cellsOnEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges",
+                "TWO"
+            ],
+            "long_name": "cells adj. to each edge"
+        },
+        "cellsOnVertex/.zarray": {
+            "chunks": [
+                3947,
+                3
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947,
+                3
+            ],
+            "zarr_format": 2
+        },
+        "cellsOnVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices",
+                "vertexDegree"
+            ],
+            "long_name": "vertices adj. to each vertex"
+        },
+        "dcEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "dcEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "length of arc between centres"
+        },
+        "dvEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "dvEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "length of arc between vertices"
+        },
+        "edgesOnCell/.zarray": {
+            "chunks": [
+                1791,
+                6
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791,
+                6
+            ],
+            "zarr_format": 2
+        },
+        "edgesOnCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells",
+                "maxEdges"
+            ],
+            "long_name": "edges on each cell"
+        },
+        "edgesOnEdge/.zarray": {
+            "chunks": [
+                2877,
+                12
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754,
+                12
+            ],
+            "zarr_format": 2
+        },
+        "edgesOnEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges",
+                "maxEdges2"
+            ],
+            "long_name": "edges adj. to each edge"
+        },
+        "edgesOnVertex/.zarray": {
+            "chunks": [
+                3947,
+                3
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947,
+                3
+            ],
+            "zarr_format": 2
+        },
+        "edgesOnVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices",
+                "vertexDegree"
+            ],
+            "long_name": "edges adj. to each vertex"
+        },
+        "gridSpacing/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "gridSpacing/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "grid spacing distribution"
+        },
+        "indexToCellID/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "indexToCellID/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "index to cell ID mapping"
+        },
+        "indexToEdgeID/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "indexToEdgeID/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "index to edge ID mapping"
+        },
+        "indexToVertexID/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "indexToVertexID/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "index to vertex ID mapping"
+        },
+        "kiteAreasOnVertex/.zarray": {
+            "chunks": [
+                3947,
+                3
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947,
+                3
+            ],
+            "zarr_format": 2
+        },
+        "kiteAreasOnVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices",
+                "vertexDegree"
+            ],
+            "long_name": "surface areas of overlap between cells and dual cells"
+        },
+        "latCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "latCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "latitudes of cell centres"
+        },
+        "latEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "latEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "latitudes of edge centres"
+        },
+        "latVertex/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "latVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "latitudes of vertices"
+        },
+        "layerThickness/.zarray": {
+            "chunks": [
+                1,
+                896,
+                30
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1,
+                1791,
+                60
+            ],
+            "zarr_format": 2
+        },
+        "layerThickness/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "Time",
+                "nCells",
+                "nVertLevels"
+            ]
+        },
+        "lonCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "lonCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "longitudes of cell centres"
+        },
+        "lonEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "lonEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "longitudes of edge centres"
+        },
+        "lonVertex/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "lonVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "longitudes of vertices"
+        },
+        "maxLevelCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "maxLevelCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ]
+        },
+        "meshDensity/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "meshDensity/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "mesh density distribution"
+        },
+        "minLevelCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "minLevelCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "Index to the first active ocean cell in each column."
+        },
+        "nEdgesOnCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "nEdgesOnCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "number of edges on each cell"
+        },
+        "nEdgesOnEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "nEdgesOnEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "number of edges on each edge"
+        },
+        "obtuseTriangle/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "obtuseTriangle/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "non-zero for any dual cell containing obtuse angles"
+        },
+        "refBottomDepth/.zarray": {
+            "chunks": [
+                60
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                60
+            ],
+            "zarr_format": 2
+        },
+        "refBottomDepth/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertLevels"
+            ]
+        },
+        "refLayerThickness/.zarray": {
+            "chunks": [
+                60
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                60
+            ],
+            "zarr_format": 2
+        },
+        "refLayerThickness/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertLevels"
+            ],
+            "long_name": "Reference layer thickness of ocean for each vertical level.",
+            "units": "m"
+        },
+        "refTopDepth/.zarray": {
+            "chunks": [
+                60
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                60
+            ],
+            "zarr_format": 2
+        },
+        "refTopDepth/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertLevels"
+            ],
+            "long_name": "Reference depth of ocean for each vertical level. Used in 'z-level' type runs.",
+            "units": "m"
+        },
+        "refZMid/.zarray": {
+            "chunks": [
+                60
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                60
+            ],
+            "zarr_format": 2
+        },
+        "refZMid/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertLevels"
+            ],
+            "long_name": "Reference mid z-coordinate of ocean for each vertical level. This has a negative value.",
+            "units": "m"
+        },
+        "restingThickness/.zarray": {
+            "chunks": [
+                896,
+                30
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791,
+                60
+            ],
+            "zarr_format": 2
+        },
+        "restingThickness/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells",
+                "nVertLevels"
+            ]
+        },
+        "ssh/.zarray": {
+            "chunks": [
+                1,
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1,
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "ssh/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "Time",
+                "nCells"
+            ],
+            "long_name": "sea surface height",
+            "units": "m"
+        },
+        "triangleAngleQuality/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "triangleAngleQuality/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "quality of mesh dual cells"
+        },
+        "triangleQuality/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "triangleQuality/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "quality of mesh dual cells"
+        },
+        "vertCoordMovementWeights/.zarray": {
+            "chunks": [
+                60
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                60
+            ],
+            "zarr_format": 2
+        },
+        "vertCoordMovementWeights/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertLevels"
+            ]
+        },
+        "verticesOnCell/.zarray": {
+            "chunks": [
+                1791,
+                6
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791,
+                6
+            ],
+            "zarr_format": 2
+        },
+        "verticesOnCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells",
+                "maxEdges"
+            ],
+            "long_name": "vertices on each cell"
+        },
+        "verticesOnEdge/.zarray": {
+            "chunks": [
+                5754,
+                2
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754,
+                2
+            ],
+            "zarr_format": 2
+        },
+        "verticesOnEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges",
+                "TWO"
+            ],
+            "long_name": "vertices on each edge"
+        },
+        "weightsOnEdge/.zarray": {
+            "chunks": [
+                2877,
+                12
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754,
+                12
+            ],
+            "zarr_format": 2
+        },
+        "weightsOnEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges",
+                "maxEdges2"
+            ],
+            "long_name": "tangential flux reconstruction weights"
+        },
+        "xCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "xCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "x-coordinates of cell centres"
+        },
+        "xEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "xEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "x-coordinates of edge centres"
+        },
+        "xVertex/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "xVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "x-coordinates of vertices"
+        },
+        "yCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "yCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "y-coordinates of cell centres"
+        },
+        "yEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "yEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "y-coordinates of edge centres"
+        },
+        "yVertex/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "yVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "y-coordinates of vertices"
+        },
+        "zCell/.zarray": {
+            "chunks": [
+                1791
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1791
+            ],
+            "zarr_format": 2
+        },
+        "zCell/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nCells"
+            ],
+            "long_name": "z-coordinates of cell centres"
+        },
+        "zEdge/.zarray": {
+            "chunks": [
+                5754
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                5754
+            ],
+            "zarr_format": 2
+        },
+        "zEdge/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nEdges"
+            ],
+            "long_name": "z-coordinates of edge centres"
+        },
+        "zMid/.zarray": {
+            "chunks": [
+                1,
+                896,
+                30
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": 9.969209968386869e+36,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1,
+                1791,
+                60
+            ],
+            "zarr_format": 2
+        },
+        "zMid/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "Time",
+                "nCells",
+                "nVertLevels"
+            ],
+            "long_name": "z-coordinate of the mid-depth of the layer",
+            "units": "m"
+        },
+        "zVertex/.zarray": {
+            "chunks": [
+                3947
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                3947
+            ],
+            "zarr_format": 2
+        },
+        "zVertex/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nVertices"
+            ],
+            "long_name": "z-coordinates of vertices"
+        }
+    },
+    "zarr_consolidated_format": 1
+}

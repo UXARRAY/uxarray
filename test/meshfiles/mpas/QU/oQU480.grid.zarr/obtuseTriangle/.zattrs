@@ -1,0 +1,6 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "nVertices"
+    ],
+    "long_name": "non-zero for any dual cell containing obtuse angles"
+}

@@ -1,0 +1,7 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "nVertices",
+        "vertexDegree"
+    ],
+    "long_name": "surface areas of overlap between cells and dual cells"
+}

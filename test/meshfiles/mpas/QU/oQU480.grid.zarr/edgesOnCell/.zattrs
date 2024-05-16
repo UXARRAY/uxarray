@@ -1,0 +1,7 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "nCells",
+        "maxEdges"
+    ],
+    "long_name": "edges on each cell"
+}
