@@ -23,8 +23,8 @@ for filename in filenames:
         _, headers = urllib.request.urlretrieve(url, filename=filename)
 
 
-file_path_dict = {"480km": [grid_filename_480, data_filename_480],
-                  "120km": [grid_filename_120, data_filename_120]}
+file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
+                  "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
 
 
 class Gradient:
