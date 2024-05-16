@@ -49,7 +49,7 @@ jobs:
           key:
             conda-${{ runner.os }}--${{ runner.arch }}--${{
             steps.get-date.outputs.today }}-${{
-            hashFiles('./build_envs/asv-bench.yml') }}-${{ env.CACHE_NUMBER}}
+            hashFiles('./ci/asv.yml') }}-${{ env.CACHE_NUMBER}}
         env:
           # Increase this value to reset cache if the environment file has not changed
           CACHE_NUMBER: 0
@@ -58,7 +58,7 @@ jobs:
       - name: Update environment
         run:
           conda env update -n asv-bench -f
-          ./build_envs/asv-bench.yml
+          ./ci/asv.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Conda list
