@@ -21,6 +21,8 @@ NUMPY_AGGREGATIONS = {
 
 
 def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
+    """Applies a desired aggregation on the data stored in the provided
+    UxDataArray."""
     if destination is None:
         raise ValueError(
             "Attempting to perform a topological aggregation, but no destination was provided."
@@ -33,12 +35,15 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
         elif destination == "edge":
             return _node_to_edge_aggregation(uxda, aggregation, kwargs)
         else:
-            raise ValueError("TODO: Invalid dimension for node aggregation")
+            raise ValueError(
+                f"Invalid destination for a node-centered data variable. Expected"
+                f"one of ['face', 'edge' but received {destination}"
+            )
 
     elif uxda._edge_centered():
         # aggregation of an edge-centered data variable
         raise NotImplementedError(
-            "Aggregation of edge-centered data variables not yet supported."
+            "Aggregation of edge-centered data variables is not yet supported."
         )
         # if destination == "node":
         #     pass
@@ -50,7 +55,7 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
     elif uxda._face_centered():
         # aggregation of a face-centered data variable
         raise NotImplementedError(
-            "Reductions of face-centered data variables not yet supported."
+            "Aggregation of face-centered data variables is not yet supported."
         )
         # if destination == "node":
         #     pass
@@ -61,13 +66,13 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
 
     else:
         raise ValueError(
-            f"Invalid destination provided. Got: {destination}, but expected one of: "
-            f"['node', 'edge', 'face']"
+            "Invalid data mapping. Data variable is expected to be mapped to either the "
+            "nodes, faces, or edges of the source grid."
         )
 
 
 def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
-    """TODO:"""
+    """Applies a Node to Face Topological aggregation."""
     if not uxda._node_centered():
         raise ValueError(
             f"Data Variable must be mapped to the corner nodes of each face, with dimension "
@@ -98,6 +103,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
 def _apply_node_to_face_aggregation_numpy(
     uxda, aggregation_func, aggregation_func_kwargs
 ):
+    """Applies a Node to Face Topological aggregation on a Numpy array."""
     data = uxda.values
     face_node_conn = uxda.uxgrid.face_node_connectivity.values
     n_nodes_per_face = uxda.uxgrid.n_nodes_per_face.values
@@ -115,22 +121,24 @@ def _apply_node_to_face_aggregation_numpy(
         face_inds = n_nodes_per_face_sorted_ind[start:end]
         face_nodes_par = face_node_conn[face_inds, 0:e]
 
-        # apply reduction function to current face node partition
+        # apply aggregation function to current face node partition
         aggregation_par = aggregation_func(
             data[..., face_nodes_par], axis=-1, **aggregation_func_kwargs
         )
 
-        # store current reduction
+        # store current aggregation
         result[..., face_inds] = aggregation_par
 
     return result
 
 
 def _apply_node_to_face_aggregation_dask(*args, **kwargs):
+    """Applies a Node to Face Topological aggregation on a Dask array."""
     pass
 
 
 def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
+    """Applies a Node to Edge Topological aggregation."""
     if not uxda._node_centered():
         raise ValueError(
             f"Data Variable must be mapped to the corner nodes of each face, with dimension "
@@ -158,12 +166,18 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
     ).rename({"n_node": "n_edge"})
 
 
-def _apply_node_to_edge_aggregation_numpy(uxda, reduction_func, reduction_func_kwargs):
+def _apply_node_to_edge_aggregation_numpy(
+    uxda, aggregation_func, aggregation_func_kwargs
+):
+    """Applies a Node to Edge topological aggregation on a numpy array."""
     data = uxda.values
     edge_node_conn = uxda.uxgrid.edge_node_connectivity.values
-    result = reduction_func(data[..., edge_node_conn], axis=-1, **reduction_func_kwargs)
+    result = aggregation_func(
+        data[..., edge_node_conn], axis=-1, **aggregation_func_kwargs
+    )
     return result
 
 
 def _apply_node_to_edge_aggregation_dask(*args, **kwargs):
+    """Applies a Node to Edge topological aggregation on a dask array."""
     pass
