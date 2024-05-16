@@ -71,7 +71,10 @@ jobs:
           python -m pytest test -v --cov=./uxarray --cov-report=xml
 
       - name: Upload code coverage to Codecov
+        if: github.repository == 'NCAR/geocat-comp'
         uses: codecov/codecov-action@v4.3.1
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           file: ./coverage.xml
           flags: unittests
