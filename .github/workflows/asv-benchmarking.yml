@@ -15,6 +15,7 @@ jobs:
     env:
       CONDA_ENV_FILE: ./ci/asv.yml
       ASV_DIR: ./benchmarks
+      CONDA: /home/runner/miniconda3
 
     steps:
       - name: Checkout uxarray
