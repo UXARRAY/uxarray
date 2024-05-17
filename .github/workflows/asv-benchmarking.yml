@@ -51,7 +51,7 @@ jobs:
       - name: Cache environment
         uses: actions/cache@v4
         with:
-          path: /usr/share/miniconda/envs
+          path: ${{ env.CONDA }}/envs
           key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('./ci/asv.yml') }}-${{ env.CACHE_NUMBER }}
         env:
           CACHE_NUMBER: 0
