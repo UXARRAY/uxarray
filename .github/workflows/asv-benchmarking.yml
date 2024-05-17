@@ -40,7 +40,7 @@ jobs:
       - name: Setup Miniforge
         uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-version: "24.3.0-0"
+          miniforge-version: "24.1.2-0"
           activate-environment: asv
 
       - name: Get date
