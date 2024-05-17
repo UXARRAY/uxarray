@@ -51,13 +51,9 @@ jobs:
       - name: Cache environment
         uses: actions/cache@v4
         with:
-          path: ${{ env.CONDA }}/envs
-          key:
-            conda-${{ runner.os }}--${{ runner.arch }}--${{
-            steps.get-date.outputs.today }}-${{
-            hashFiles('./ci/asv.yml') }}-${{ env.CACHE_NUMBER}}
+          path: /usr/share/miniconda/envs
+          key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('./ci/asv.yml') }}-${{ env.CACHE_NUMBER }}
         env:
-          # Increase this value to reset cache if the environment file has not changed
           CACHE_NUMBER: 0
         id: cache
 
