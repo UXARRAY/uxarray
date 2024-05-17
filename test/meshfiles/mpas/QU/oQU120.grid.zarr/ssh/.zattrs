@@ -1,8 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "Time",
-        "nCells"
-    ],
-    "long_name": "sea surface height",
-    "units": "m"
-}

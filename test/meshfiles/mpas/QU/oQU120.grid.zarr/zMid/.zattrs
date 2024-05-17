@@ -1,9 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "Time",
-        "nCells",
-        "nVertLevels"
-    ],
-    "long_name": "z-coordinate of the mid-depth of the layer",
-    "units": "m"
-}

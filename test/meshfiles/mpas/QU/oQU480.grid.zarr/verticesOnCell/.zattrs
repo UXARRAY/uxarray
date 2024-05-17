@@ -1,7 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "nCells",
-        "maxEdges"
-    ],
-    "long_name": "vertices on each cell"
-}

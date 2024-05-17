@@ -1,7 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "nEdges",
-        "maxEdges2"
-    ],
-    "long_name": "tangential flux reconstruction weights"
-}

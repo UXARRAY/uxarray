@@ -1,7 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "nVertLevels"
-    ],
-    "long_name": "Reference layer thickness of ocean for each vertical level.",
-    "units": "m"
-}

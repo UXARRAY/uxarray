@@ -1,6 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "nCells"
-    ],
-    "long_name": "Index to the first active ocean cell in each column."
-}

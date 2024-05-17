@@ -1,8 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "nCells",
-        "nVertLevels"
-    ],
-    "dtype": "bool",
-    "long_name": "Mask on cells that determines if computations should be done on cells."
-}

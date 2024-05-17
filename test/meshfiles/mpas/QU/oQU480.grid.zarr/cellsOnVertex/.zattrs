@@ -1,7 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "nVertices",
-        "vertexDegree"
-    ],
-    "long_name": "vertices adj. to each vertex"
-}

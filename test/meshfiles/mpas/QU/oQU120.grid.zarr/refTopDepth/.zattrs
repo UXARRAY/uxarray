@@ -1,7 +1,0 @@
-{
-    "_ARRAY_DIMENSIONS": [
-        "nVertLevels"
-    ],
-    "long_name": "Reference depth of ocean for each vertical level. Used in 'z-level' type runs.",
-    "units": "m"
-}
