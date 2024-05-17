@@ -50,7 +50,7 @@ jobs:
         shell: bash
 
       - name: Cache environment
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: ${{ env.CONDA }}/envs
           key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('./ci/asv.yml') }}-${{ env.CACHE_NUMBER }}
