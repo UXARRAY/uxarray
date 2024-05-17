@@ -11,7 +11,7 @@ from typing import Union
 from numba import njit
 
 
-@njit
+@njit(cache=True)
 def _lonlat_rad_to_xyz(
     lon: Union[np.ndarray, float],
     lat: Union[np.ndarray, float],
