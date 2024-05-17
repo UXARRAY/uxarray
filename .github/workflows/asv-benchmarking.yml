@@ -15,7 +15,6 @@ jobs:
     env:
       CONDA_ENV_FILE: ./ci/asv.yml
       ASV_DIR: ./benchmarks
-      CONDA: /home/runner/miniconda3
 
     steps:
       - name: Checkout uxarray
@@ -50,7 +49,7 @@ jobs:
         shell: bash
 
       - name: Cache environment
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.CONDA }}/envs
           key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('./ci/asv.yml') }}-${{ env.CACHE_NUMBER }}
