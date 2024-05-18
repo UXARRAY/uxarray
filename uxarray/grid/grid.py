@@ -29,8 +29,8 @@ from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
     _set_desired_longitude_range,
-    _populate_lonlat_coord,
-    _populate_cartesian_xyz_coord,
+    _populate_node_latlon,
+    _populate_node_xyz,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -573,7 +573,7 @@ class Grid:
         """
         if "node_lon" not in self._ds:
             _set_desired_longitude_range(self._ds)
-            _populate_lonlat_coord(self)
+            _populate_node_latlon(self)
         return self._ds["node_lon"]
 
     @property
@@ -584,7 +584,7 @@ class Grid:
         """
         if "node_lat" not in self._ds:
             _set_desired_longitude_range(self._ds)
-            _populate_lonlat_coord(self)
+            _populate_node_latlon(self)
         return self._ds["node_lat"]
 
     @property
@@ -594,7 +594,7 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_x" not in self._ds:
-            _populate_cartesian_xyz_coord(self)
+            _populate_node_xyz(self)
 
         return self._ds["node_x"]
 
@@ -605,7 +605,7 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_y" not in self._ds:
-            _populate_cartesian_xyz_coord(self)
+            _populate_node_xyz(self)
         return self._ds["node_y"]
 
     @property
@@ -615,7 +615,7 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_z" not in self._ds:
-            _populate_cartesian_xyz_coord(self)
+            _populate_node_xyz(self)
         return self._ds["node_z"]
 
     @property

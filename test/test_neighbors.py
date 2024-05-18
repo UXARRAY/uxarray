@@ -10,8 +10,6 @@ import uxarray as ux
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity
 
-from uxarray.grid.coordinates import _populate_lonlat_coord
-
 from uxarray.constants import INT_FILL_VALUE
 
 try:
