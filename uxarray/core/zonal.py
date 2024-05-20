@@ -49,7 +49,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(
        
 
     # TODO: Get the edge nodes of the candidate faces
-    faces_edges_cart = # np.ndarray of dim (n_faces, n_edges, 2, 3)
+    # faces_edges_cart = # np.ndarray of dim (n_faces, n_edges, 2, 3)
 
     # TODO: Call the function that calculates the weights for these faces
     # Coordinates conversion: node_xyz to node_lonlat
