@@ -897,7 +897,15 @@ def _populate_bounds(
     for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
         face_edges_cartesian = faces_edges_cartesian[face_idx]
 
+        # Skip processing if the face is a dummy face
+        if np.any(face_edges_cartesian == INT_FILL_VALUE):
+            continue
+
         face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
+
+        #Skip processing if the face is a dummy face
+        if np.any(face_edges_lonlat_rad == INT_FILL_VALUE):
+            continue
 
         is_GCA_list = (
             is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None

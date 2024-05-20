@@ -913,6 +913,7 @@ class TestClassMethods(TestCase):
 
 
 class TestLatlonBounds(TestCase):
+    gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
     def test_populate_bounds_GCA_mix(self):
         face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -932,3 +933,9 @@ class TestLatlonBounds(TestCase):
         bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_MPAS(self):
+        xrds = xr.open_dataset(self.gridfile_mpas)
+        uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
+        bounds_xarray = uxgrid.bounds
+        pass

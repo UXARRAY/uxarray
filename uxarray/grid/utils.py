@@ -217,6 +217,12 @@ def _get_cartesian_single_face_edge_nodes(
 
     # Use the mask to select only the elements not equal to INT_FILL_VALUE
     face_nodes = face_nodes[mask]
+
+    # if face_nodes is less than 3, return a dummy value since it is not a face
+    if len(face_nodes) < 3:
+        # The return array has dimension len(mask) x 2 x 3 filled with Int Fill Value
+        return np.full((len(mask), 2, 3), INT_FILL_VALUE)
+
     face_edges_connectivity = face_edges_connectivity = np.zeros(
         (len(face_nodes), 2), dtype=int
     )
@@ -264,7 +270,11 @@ def _get_cartesian_face_edge_nodes(
     -------
     faces_edges_coordinates : np.ndarray
         An array of shape (n_faces, n_edges, 2, 3) containing the Cartesian coordinates
-        of the edges for each face.
+        of the edges for each face. It might contain dummy values if the grid has holes.
+
+    Notes
+    -----
+    If the grid has holes, the function will return an entry of dummy value faces_edges_coordinates[i] filled with INT_FILL_VALUE.
     """
 
     # Use map function to apply the single face function to all faces
@@ -306,6 +316,11 @@ def _get_lonlat_rad_single_face_edge_nodes(
 
     # Use the mask to select only the elements not equal to INT_FILL_VALUE
     face_nodes = face_nodes[mask]
+    # if face_nodes is less than 3, return a dummy value since it is not a face
+    if len(face_nodes) < 3:
+        # The return array has dimension len(mask) x 2 x 2 filled with Int Fill Value
+        return np.full((len(mask), 2, 2), INT_FILL_VALUE)
+
     face_edges_connectivity = face_edges_connectivity = np.zeros(
         (len(face_nodes), 2), dtype=int
     )
@@ -353,7 +368,11 @@ def _get_lonlat_rad_face_edge_nodes(
     -------
     faces_lonlat_coordinates : np.ndarray
         An array of shape (n_faces, n_edges, 2, 2) containing the latitude and longitude coordinates
-        in radians for the edges of each face.
+        in radians for the edges of each face. It might contain dummy values if the grid has holes.
+
+    Notes
+    -----
+    If the grid has holes, the function will return an entry of dummy value faces_lonlat_coordinates[i] filled with INT_FILL_VALUE.
     """
 
     # Use map function to apply the single face function to all faces
