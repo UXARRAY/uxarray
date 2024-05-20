@@ -90,4 +90,25 @@ class TestPlot(TestCase):
 
         raster_no_clabel = uxds['v1'][0][0].plot.rasterize(method='point')
 
-        raster_no_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel="Foo")
+        raster_with_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel='Foo')
+
+
+
+class TestXarrayMethods(TestCase):
+
+    def test_dataset(self):
+        """Tests whether a Xarray DataArray method can be called through the
+        UxDataArray plotting accessor."""
+        uxds = ux.open_dataset(gridfile_geoflow, datafile_geoflow)
+
+        # plot.hist() is an xarray method
+        assert hasattr(uxds['v1'].plot, 'hist')
+
+
+    def test_dataarray(self):
+        """Tests whether a Xarray Dataset method can be called through the
+        UxDataset plotting accessor."""
+        uxds = ux.open_dataset(gridfile_geoflow, datafile_geoflow)
+
+        # plot.scatter() is an xarray method
+        assert hasattr(uxds.plot, 'scatter')

@@ -16,12 +16,10 @@ your own examples or suggesting one for us to create, please see the :doc:`contr
    :maxdepth: 1
    :hidden:
 
-   examples/001-working-with-unstructured-grids.ipynb
-   examples/002-grid-topology.ipynb
    examples/003-area-calc.ipynb
    examples/004-working-with-mpas-grids.ipynb
    examples/005-to-geodataframe-for-holoviz.ipynb
    examples/006-plot-api-topology.ipynb
    examples/007-polygon-viz.ipynb
    examples/008-point-viz.ipynb
-   examples/examples/009-subsetting.ipynb
+   examples/009-subsetting.ipynb

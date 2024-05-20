@@ -5,7 +5,10 @@ from datetime import datetime
 
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.coordinates import _get_lonlat_from_xyz, _get_xyz_from_lonlat
+
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
+
+from uxarray.conventions import ugrid
 
 
 # Exodus Number is one-based.
@@ -28,8 +31,8 @@ def _read_exodus(ext_ds):
     max_face_nodes = 0
     for dim in ext_ds.dims:
         if "num_nod_per_el" in dim:
-            if ext_ds.dims[dim] > max_face_nodes:
-                max_face_nodes = ext_ds.dims[dim]
+            if ext_ds.sizes[dim] > max_face_nodes:
+                max_face_nodes = ext_ds.sizes[dim]
 
     # create an empty conn array for storing all blk face_nodes_data
     conn = np.empty((0, max_face_nodes))
@@ -40,63 +43,29 @@ def _read_exodus(ext_ds):
             pass
         elif key == "coord":
             ds["node_x"] = xr.DataArray(
-                data=ext_ds.coord[0],
-                dims=["n_node"],
-                attrs={
-                    "standard_name": "x",
-                    "long_name": "cartesian x",
-                    "units": "m",
-                },
+                data=ext_ds.coord[0], dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_X_ATTRS
             )
             ds["node_y"] = xr.DataArray(
-                data=ext_ds.coord[1],
-                dims=["n_node"],
-                attrs={
-                    "standard_name": "y",
-                    "long_name": "cartesian y",
-                    "units": "m",
-                },
+                data=ext_ds.coord[1], dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
             )
-            if ext_ds.dims["num_dim"] > 2:
+            if ext_ds.sizes["num_dim"] > 2:
                 ds["node_z"] = xr.DataArray(
                     data=ext_ds.coord[2],
-                    dims=["n_node"],
-                    attrs={
-                        "standard_name": "z",
-                        "long_name": "cartesian z",
-                        "units": "m",
-                    },
+                    dims=[ugrid.NODE_DIM],
+                    attrs=ugrid.NODE_Z_ATTRS,
                 )
         elif key == "coordx":
             ds["node_x"] = xr.DataArray(
-                data=ext_ds.coordx,
-                dims=["n_node"],
-                attrs={
-                    "standard_name": "x",
-                    "long_name": "cartesian x",
-                    "units": "m",
-                },
+                data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_X_ATTRS
             )
         elif key == "coordy":
             ds["node_y"] = xr.DataArray(
-                data=ext_ds.coordx,
-                dims=["n_node"],
-                attrs={
-                    "standard_name": "y",
-                    "long_name": "cartesian y",
-                    "units": "m",
-                },
+                data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
             )
         elif key == "coordz":
-            if ext_ds.dims["num_dim"] > 2:
+            if ext_ds.sizes["num_dim"] > 2:
                 ds["node_z"] = xr.DataArray(
-                    data=ext_ds.coordx,
-                    dims=["n_node"],
-                    attrs={
-                        "standard_name": "z",
-                        "long_name": "cartesian z",
-                        "units": "m",
-                    },
+                    data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
                 )
         elif "connect" in key:
             # check if num face nodes is less than max.
@@ -127,39 +96,21 @@ def _read_exodus(ext_ds):
 
     ds["face_node_connectivity"] = xr.DataArray(
         data=face_nodes,
-        dims=["n_face", "n_max_face_nodes"],
-        attrs={
-            "cf_role": "face_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "start_index": INT_DTYPE(
-                0
-            ),  # NOTE: This might cause an error if numbering has holes
-        },
+        dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
 
     # populate lon/lat coordinates
-    lon, lat = _get_lonlat_from_xyz(
+    lon, lat = _xyz_to_lonlat_deg(
         ds["node_x"].values, ds["node_y"].values, ds["node_z"].values
     )
 
     # populate dataset
     ds["node_lon"] = xr.DataArray(
-        data=lon,
-        dims=["n_node"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of mesh nodes",
-            "units": "degrees_east",
-        },
+        data=lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
     )
     ds["node_lat"] = xr.DataArray(
-        data=lat,
-        dims=["n_node"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of mesh nodes",
-            "units": "degrees_north",
-        },
+        data=lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
     )
 
     # set lon/lat coordinates
@@ -231,7 +182,7 @@ def _encode_exodus(ds, outfile=None):
     # Set the dim to 3 as we will always have x/y/z for cartesian grid
     # Note: Don't get orig dimension from Mesh2 attribute topology dimension
     if "node_x" not in ds:
-        x, y, z = _get_xyz_from_lonlat(ds["node_lon"].values, ds["node_lat"].values)
+        x, y, z = _lonlat_rad_to_xyz(ds["node_lon"].values, ds["node_lat"].values)
         c_data = xr.DataArray([x, y, z])
     else:
         c_data = xr.DataArray(

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import functools
 
-import warnings
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -12,6 +11,7 @@ if TYPE_CHECKING:
 
 import uxarray.plot.grid_plot as grid_plot
 import uxarray.plot.dataarray_plot as dataarray_plot
+import uxarray.plot.utils
 
 import cartopy.crs as ccrs
 
@@ -269,6 +269,22 @@ class UxDataArrayPlotAccessor:
     def __call__(self, **kwargs) -> Any:
         return dataarray_plot.plot(self._uxda, **kwargs)
 
+    def __getattr__(self, name: str) -> Any:
+        """When a function that isn't part of the class is invoked (i.e.
+        uxda.plot.hist), an attempt is made to try and call Xarray's
+        implementation of that function if it exsists."""
+
+        # reference to xr.DataArray.plot accessor
+        xarray_plot_accessor = super(type(self._uxda), self._uxda).plot
+
+        if hasattr(xarray_plot_accessor, name):
+            # call xarray plot method if it exists
+            # use inline backend to reset configuration if holoviz methods were called before
+            uxarray.plot.utils.backend.reset_mpl_backend()
+            return getattr(xarray_plot_accessor, name)
+        else:
+            raise AttributeError(f"Unsupported Plotting Method: '{name}'")
+
     @functools.wraps(dataarray_plot.datashade)
     def datashade(
         self,
@@ -468,7 +484,24 @@ class UxDatasetPlotAccessor:
         self._uxds = uxds
 
     def __call__(self, **kwargs) -> Any:
-        warnings.warn(
-            "Plotting for UxDataset instances not yet supported. Did you mean to plot a data variable, i.e. uxds['data_variable'].plot()"
+        raise ValueError(
+            "UxDataset.plot cannot be called directly. Use an explicit plot method, "
+            "e.g uxds.plot.scatter(...)"
         )
-        pass
+
+    def __getattr__(self, name: str) -> Any:
+        """When a function that isn't part of the class is invoked (i.e.
+        uxds.plot.scatter), an attempt is made to try and call Xarray's
+        implementation of that function if it exists."""
+
+        # reference to xr.Dataset.plot accessor
+        xarray_plot_accessor = super(type(self._uxds), self._uxds).plot
+
+        if hasattr(xarray_plot_accessor, name):
+            # call xarray plot method if it exists
+            # # use inline backend to reset configuration if holoviz methods were called before
+            uxarray.plot.utils.backend.reset_mpl_backend()
+
+            return getattr(xarray_plot_accessor, name)
+        else:
+            raise AttributeError(f"Unsupported Plotting Method: '{name}'")

@@ -9,13 +9,14 @@ dependencies:
   - gmpy2
   - holoviews
   - matplotlib-base
+  - matplotlib-inline
   - netcdf4
   - numba
   - numpy
   - pandas<2.1.0
   - pathlib
   - pre_commit
-  - pyarrow<13.0.0   # pin due to CI faliures on macOS & ubuntu
+  - pyarrow
   - pytest
   - pytest-cov
   - requests
@@ -27,5 +28,5 @@ dependencies:
   - pip:
     - antimeridian
     - pyfma
-    - asv
+    - asv<0.6.2
     - -e ../

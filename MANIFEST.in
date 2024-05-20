@@ -1,0 +1,18 @@
+include LICENSE
+include README.md
+
+recursive-include uxarray *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+exclude .gitignore
+exclude .pre-commit-config.yaml
+exclude .readthedocs.yml
+
+include *.md
+include *.toml
+include *.txt
+prune test*
+prune ci*
+prune .github*
+prune docs*
+prune benchmarks*
