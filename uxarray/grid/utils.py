@@ -223,18 +223,15 @@ def _get_cartesian_single_face_edge_nodes(
     valid_edges = face_edges[mask]
     face_edges_connectivity = edge_nodes_sliced[valid_edges]
 
-    # Vectorize the check for counter-clockwise order of edge nodes
-    first_node = face_nodes[0]
-    second_node = face_nodes[1]
-    face_edges_connectivity[0] = [first_node, second_node]
+    # Initialize the first edge
+    face_edges_connectivity[0] = [face_nodes[0], face_nodes[1]]
 
-    # Vectorized counter-clockwise order check
-    start_nodes = face_edges_connectivity[:, 0]
-    end_nodes = face_edges_connectivity[:, 1]
+    #Do the vectorized check for counter-clockwise order of edge nodes
+    face_edges_connectivity[:, 0] = face_nodes
+    face_edges_connectivity[:, 1] = np.roll(face_nodes, -1)
 
-    mismatch = start_nodes[1:] != end_nodes[:-1]
-    if np.any(mismatch):
-        face_edges_connectivity[1:][mismatch] = face_edges_connectivity[1:][mismatch][:, ::-1]
+    # Ensure the last edge connects back to the first node to complete the loop
+    face_edges_connectivity[-1] = [face_nodes[-1], face_nodes[0]]
 
     # Fetch coordinates for each node in the face edges
     nodes = face_edges_connectivity.flatten()
