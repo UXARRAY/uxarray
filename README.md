@@ -29,7 +29,7 @@ UXarray is implemented in pure Python and does not explicitly contain or require
 any compiled code. This makes UXarray more accessible to the general Python
 community. Any contributions to this zzzzzzzzzzzzzzzzzrepository in pure Python are welcome and
 documentation for contribution guidelines can be found when clicking `New Issue`
-under the `Issues` tab in the UXarray repository. 
+under the `Issues` tab in the UXarray repository.
 
 ## Why is the name "UXarray"?
 
