@@ -2,7 +2,13 @@ import numpy as np
 
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
+from numba import njit, config
+from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
 
+config.DISABLE_JIT = not ENABLE_JIT
+
+
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_face_area(
     x, y, z, quadrature_rule="gaussian", order=4, coords_type="spherical"
 ):
@@ -92,6 +98,7 @@ def calculate_face_area(
     return area, jacobian
 
 
+@njit(cache=ENABLE_JIT_CACHE)
 def get_all_face_area_from_coords(
     x,
     y,
@@ -166,6 +173,7 @@ def get_all_face_area_from_coords(
     return area, jacobian
 
 
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
@@ -255,6 +263,7 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, dA, dB):
     return dJacobian
 
 
+@njit(cache=ENABLE_JIT_CACHE)
 def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, dB):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
@@ -333,6 +342,7 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, d
     return 0.5 * dJacobian
 
 
+@njit(cache=ENABLE_JIT_CACHE)
 def get_gauss_quadratureDG(nCount):
     """Gauss Quadrature Points for integration.
 
@@ -577,6 +587,7 @@ def get_gauss_quadratureDG(nCount):
     return dG, dW
 
 
+@njit(cache=ENABLE_JIT_CACHE)
 def get_tri_quadratureDG(nOrder):
     """Triangular Quadrature Points for integration.
 
