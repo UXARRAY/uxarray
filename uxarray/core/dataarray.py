@@ -21,9 +21,6 @@ from uxarray.core.gradient import (
     _calculate_edge_node_difference,
 )
 
-from uxarray.core.zonal import (
-    _non_conservative_zonal_mean_constant_latitudes,
-)
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
@@ -576,51 +573,6 @@ class UxDataArray(xr.DataArray):
             uxgrid=self.uxgrid,
             name=name,
             dims=dims,
-        )
-
-        return uxda
-
-        pass
-
-    def zonal_mean(self, step_size=1):
-        """Computes the Zonal Mean ...
-
-        Can look at the above gradient, difference, or nodal_average
-        function as a reference.
-        """
-
-        # Call zonal average on the data stored under a UxDataArray
-        # data is accessed with self.data or self.values
-
-        # TODO: Utilize the Grid.bounds method to obtain the latitude bounds of the grid cells
-        data = self.values
-        face_bounds = self.uxgrid.bounds
-
-        is_latlonface = False  # Currently not used, but may be useful in the future
-
-        _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
-            # TODO: can change to not pass entire grid object, if we calculate the face_edges_cart needed by integrate._get_zonal_faces_weight_at_constLat here
-            self.uxgrid,
-            face_bounds,
-            data,
-            step_size,
-            is_latlonface,
-        )
-
-        # depending on how you decompose the zonal average function,
-        # it might look something like this:
-        # from .zonal import _get_zonal_mean
-        # _zonal_avg_res = _get_zonal_mean(self.values, ...)
-
-        # TODO: Set Dimension of result
-        dims = None
-
-        # Result is stored and returned as a UxDataArray
-        uxda = UxDataArray(
-            _zonal_avg_res,
-            uxgrid=self.uxgrid,
-            dims=dims,
-            name=self.name + "_zonal_average" if self.name is not None else "grad",
         )
 
         return uxda

@@ -16,4 +16,3 @@ common tasks that you can accomplish with UXarray.
    user-guide/grid-formats.rst
    user-guide/data-structures.ipynb
    user-guide/area_calc.ipynb
-   user-guide/zonal-mean.ipynb
