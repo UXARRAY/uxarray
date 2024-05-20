@@ -903,7 +903,7 @@ def _populate_bounds(
 
         face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
 
-        #Skip processing if the face is a dummy face
+        # Skip processing if the face is a dummy face
         if np.any(face_edges_lonlat_rad == INT_FILL_VALUE):
             continue
 
