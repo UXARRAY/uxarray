@@ -604,7 +604,7 @@ class UxDataArray(xr.DataArray):
             face_bounds,
             data,
             step_size,
-            is_latlonface
+            is_latlonface,
         )
 
         # depending on how you decompose the zonal average function,

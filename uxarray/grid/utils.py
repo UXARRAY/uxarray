@@ -191,18 +191,15 @@ def _newton_raphson_solver_for_gca_constLat(
 
 # TODO: Consider re-implementation in the future / better integration with API
 def _get_cartesian_single_face_edge_nodes(
-        face_nodes, face_edges, edge_nodes_sliced, node_x_sliced, node_y_sliced, node_z_sliced
+    face_nodes, node_x_sliced, node_y_sliced, node_z_sliced
 ):
-    """Construct an array to hold the edge Cartesian coordinates connectivity for a single face in a grid.
+    """Construct an array to hold the edge Cartesian coordinates connectivity
+    for a single face in a grid.
 
     Parameters
     ----------
     face_nodes : np.ndarray, shape (n_nodes_sliced,)
         The node indices for the face.
-    face_edges : np.ndarray, shape (n_edges_sliced,)
-        The edge indices for the face.
-    edge_nodes_sliced : np.ndarray, shape (n_edges_sliced, 2)
-        The sliced Grid.edge_node_connectivity.
     node_x_sliced : np.ndarray, shape (n_nodes_sliced,)
         The values of Grid.node_x for the sliced portion.
     node_y_sliced : np.ndarray, shape (n_nodes_sliced,)
@@ -217,16 +214,18 @@ def _get_cartesian_single_face_edge_nodes(
     """
 
     # Create a mask that is True for all values not equal to INT_FILL_VALUE
-    mask = face_edges != INT_FILL_VALUE
+    mask = face_nodes != INT_FILL_VALUE
 
     # Use the mask to select only the elements not equal to INT_FILL_VALUE
-    valid_edges = face_edges[mask]
-    face_edges_connectivity = edge_nodes_sliced[valid_edges]
+    face_nodes = face_nodes[mask]
+    face_edges_connectivity = face_edges_connectivity = np.zeros(
+        (len(face_nodes), 2), dtype=int
+    )
 
     # Initialize the first edge
     face_edges_connectivity[0] = [face_nodes[0], face_nodes[1]]
 
-    #Do the vectorized check for counter-clockwise order of edge nodes
+    # Do the vectorized check for counter-clockwise order of edge nodes
     face_edges_connectivity[:, 0] = face_nodes
     face_edges_connectivity[:, 1] = np.roll(face_nodes, -1)
 
@@ -235,13 +234,16 @@ def _get_cartesian_single_face_edge_nodes(
 
     # Fetch coordinates for each node in the face edges
     nodes = face_edges_connectivity.flatten()
-    coordinates = np.column_stack((node_x_sliced[nodes], node_y_sliced[nodes], node_z_sliced[nodes]))
+    coordinates = np.column_stack(
+        (node_x_sliced[nodes], node_y_sliced[nodes], node_z_sliced[nodes])
+    )
     cartesian_coordinates = coordinates.reshape(-1, 2, 3)
 
     return cartesian_coordinates
 
+
 def _get_cartesian_face_edge_nodes(
-        face_nodes_sliced, face_edges_sliced, edge_nodes_sliced, node_x_sliced, node_y_sliced, node_z_sliced
+    face_nodes_sliced, node_x_sliced, node_y_sliced, node_z_sliced
 ):
     """Construct an array to hold the edge Cartesian coordinates connectivity
     for multiple faces in a grid.
@@ -252,10 +254,6 @@ def _get_cartesian_face_edge_nodes(
     ----------
     face_nodes_sliced : list of np.ndarray
         Each element is an array of shape (n_nodes_sliced,) corresponding to the sliced face's node indices.
-    face_edges_sliced : list of np.ndarray
-        Each element is an array of shape (n_edges_sliced,) corresponding to the sliced face's edge indices.
-    edge_nodes_sliced : np.ndarray, shape (n_edges_sliced, 2)
-        The sliced Grid.edge_node_connectivity, where n_edges_sliced is the total number of edges in the sliced portion.
     node_x_sliced : np.ndarray, shape (n_nodes_sliced,)
         The values of Grid.node_x for the sliced portion, where n_nodes_sliced is the total number of nodes in the sliced portion.
     node_y_sliced : np.ndarray, shape (n_nodes_sliced,)
@@ -271,33 +269,32 @@ def _get_cartesian_face_edge_nodes(
     """
 
     # Use map function to apply the single face function to all faces
-    faces_edges_coordinates = list(map(
-        lambda face_data: _get_cartesian_single_face_edge_nodes(
-            face_data[0], face_data[1], edge_nodes_sliced, node_x_sliced, node_y_sliced, node_z_sliced
-        ),
-        zip(face_nodes_sliced, face_edges_sliced)
-    ))
+    faces_edges_coordinates = list(
+        map(
+            lambda face_nodes: _get_cartesian_single_face_edge_nodes(
+                face_nodes, node_x_sliced, node_y_sliced, node_z_sliced
+            ),
+            face_nodes_sliced,
+        )
+    )
 
     return np.array(faces_edges_coordinates)
 
 
 def _get_lonlat_rad_single_face_edge_nodes(
-    face_nodes, face_edges, edge_nodes_grid, node_lon, node_lat
+    face_nodes, node_lon_sliced, node_lat_sliced
 ):
-    """Construct an array to hold the edge lat lon in radian connectivity for a single face in a grid.
+    """Construct an array to hold the edge lat lon in radian connectivity for a
+    single face in a grid.
 
     Parameters
     ----------
     face_nodes : np.ndarray, shape (n_nodes,)
         The node indices for the face.
-    face_edges : np.ndarray, shape (n_edges,)
-        The edge indices for the face.
-    edge_nodes_grid : np.ndarray, shape (n_edges, 2)
-        The entire Grid.edge_node_connectivity.
-    node_lon : np.ndarray, shape (n_nodes,)
-        The values of Grid.node_lon.
-    node_lat : np.ndarray, shape (n_nodes,)
-        The values of Grid.node_lat.
+    node_lon_sliced : np.ndarray, shape (n_nodes_sliced,)
+        The values of Grid.node_lon, for the sliced portion.
+    node_lat_sliced : np.ndarray, shape (n_nodes_sliced,)
+        The values of Grid.node_lat, for the sliced portion.
 
     Returns
     -------
@@ -306,38 +303,41 @@ def _get_lonlat_rad_single_face_edge_nodes(
     """
 
     # Create a mask that is True for all values not equal to INT_FILL_VALUE
-    mask = face_edges != INT_FILL_VALUE
+    mask = face_nodes != INT_FILL_VALUE
 
     # Use the mask to select only the elements not equal to INT_FILL_VALUE
-    valid_edges = face_edges[mask]
-    face_edges_connectivity = edge_nodes_grid[valid_edges]
+    face_nodes = face_nodes[mask]
+    face_edges_connectivity = face_edges_connectivity = np.zeros(
+        (len(face_nodes), 2), dtype=int
+    )
 
-    # Vectorize the check for counter-clockwise order of edge nodes
-    first_node = face_nodes[0]
-    second_node = face_nodes[1]
-    face_edges_connectivity[0] = [first_node, second_node]
+    # Initialize the first edge
+    face_edges_connectivity[0] = [face_nodes[0], face_nodes[1]]
 
-    # Vectorized counter-clockwise order check
-    start_nodes = face_edges_connectivity[:, 0]
-    end_nodes = face_edges_connectivity[:, 1]
+    # Do the vectorized check for counter-clockwise order of edge nodes
+    face_edges_connectivity[:, 0] = face_nodes
+    face_edges_connectivity[:, 1] = np.roll(face_nodes, -1)
 
-    mismatch = start_nodes[1:] != end_nodes[:-1]
-    if np.any(mismatch):
-        face_edges_connectivity[1:][mismatch] = face_edges_connectivity[1:][mismatch][:, ::-1]
+    # Ensure the last edge connects back to the first node to complete the loop
+    face_edges_connectivity[-1] = [face_nodes[-1], face_nodes[0]]
 
     # Fetch coordinates for each node in the face edges
     nodes = face_edges_connectivity.flatten()
-    lonlat_coordinates = np.column_stack((
-        np.mod(np.deg2rad(node_lon[nodes]), 2 * np.pi),
-        np.deg2rad(node_lat[nodes])
-    )).reshape(-1, 2, 2)
+    lonlat_coordinates = np.column_stack(
+        (
+            np.mod(np.deg2rad(node_lon_sliced[nodes]), 2 * np.pi),
+            np.deg2rad(node_lat_sliced[nodes]),
+        )
+    ).reshape(-1, 2, 2)
 
     return lonlat_coordinates
 
+
 def _get_lonlat_rad_face_edge_nodes(
-    face_nodes_sliced, face_edges_sliced, edge_nodes_sliced, node_lon_sliced, node_lat_sliced
+    face_nodes_sliced, node_lon_sliced, node_lat_sliced
 ):
-    """Construct an array to hold the edge lat lon in radian connectivity for multiple faces in a grid.
+    """Construct an array to hold the edge lat lon in radian connectivity for
+    multiple faces in a grid.
 
     This function processes sliced portions of the total grid data. Users must prepare the sliced versions of the data according to their needs before using this function.
 
@@ -345,10 +345,6 @@ def _get_lonlat_rad_face_edge_nodes(
     ----------
     face_nodes_sliced : list of np.ndarray
         Each element is an array of shape (n_nodes_sliced,) corresponding to the sliced face's node indices.
-    face_edges_sliced : list of np.ndarray
-        Each element is an array of shape (n_edges_sliced,) corresponding to the sliced face's edge indices.
-    edge_nodes_sliced : np.ndarray, shape (n_edges_sliced, 2)
-        The sliced Grid.edge_node_connectivity, where n_edges_sliced is the total number of edges in the sliced portion.
     node_lon_sliced : np.ndarray, shape (n_nodes_sliced,)
         The values of Grid.node_lon for the sliced portion, where n_nodes_sliced is the total number of nodes in the sliced portion.
     node_lat_sliced : np.ndarray, shape (n_nodes_sliced,)
@@ -362,16 +358,13 @@ def _get_lonlat_rad_face_edge_nodes(
     """
 
     # Use map function to apply the single face function to all faces
-    faces_lonlat_coordinates = list(map(
-        lambda face_data: _get_lonlat_rad_single_face_edge_nodes(
-            face_data[0], face_data[1], edge_nodes_sliced, node_lon_sliced, node_lat_sliced
-        ),
-        zip(face_nodes_sliced, face_edges_sliced)
-    ))
+    faces_lonlat_coordinates = list(
+        map(
+            lambda face_nodes: _get_lonlat_rad_single_face_edge_nodes(
+                face_nodes, node_lon_sliced, node_lat_sliced
+            ),
+            face_nodes_sliced,
+        )
+    )
 
     return np.array(faces_lonlat_coordinates)
-
-
-
-
-

@@ -442,10 +442,9 @@ class TestLatlonBoundsGCA(TestCase):
     def _get_cartesian_face_edge_nodes_testcase_helper(
             self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
     ):
-        """
-        This function is only used to help generating the testcase and should not be used in the actual implementation.
-        Construct an array to hold the edge Cartesian coordinates connectivity
-        for a face in a grid.
+        """This function is only used to help generating the testcase and
+        should not be used in the actual implementation. Construct an array to
+        hold the edge Cartesian coordinates connectivity for a face in a grid.
 
         Parameters
         ----------
@@ -502,10 +501,9 @@ class TestLatlonBoundsGCA(TestCase):
     def _get_lonlat_rad_face_edge_nodes_testcase_helper(
             self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
     ):
-        """
-        This function is only used to help generating the testcase and should not be used in the actual implementation.
-        Construct an array to hold the edge lat lon in radian connectivity for a
-        face in a grid.
+        """This function is only used to help generating the testcase and
+        should not be used in the actual implementation. Construct an array to
+        hold the edge lat lon in radian connectivity for a face in a grid.
 
         Parameters
         ----------
@@ -709,6 +707,127 @@ class TestLatlonBoundsGCA(TestCase):
 
 class TestLatlonBoundsLatLonFace(TestCase):
 
+    def _get_cartesian_face_edge_nodes_testcase_helper(
+            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+    ):
+        """This function is only used to help generating the testcase and
+        should not be used in the actual implementation. Construct an array to
+        hold the edge Cartesian coordinates connectivity for a face in a grid.
+
+        Parameters
+        ----------
+        face_nodes_ind : np.ndarray, shape (n_nodes,)
+            The ith entry of Grid.face_node_connectivity, where n_nodes is the number of nodes in the face.
+        face_edges_ind : np.ndarray, shape (n_edges,)
+            The ith entry of Grid.face_edge_connectivity, where n_edges is the number of edges in the face.
+        edge_nodes_grid : np.ndarray, shape (n_edges, 2)
+            The entire Grid.edge_node_connectivity, where n_edges is the total number of edges in the grid.
+        node_x : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_x, where n_nodes_total is the total number of nodes in the grid.
+        node_y : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_y.
+        node_z : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_z.
+
+        Returns
+        -------
+        face_edges : np.ndarray, shape (n_edges, 2, 3)
+            Face edge connectivity in Cartesian coordinates, where n_edges is the number of edges for the specific face.
+
+        Notes
+        -----
+        - The function assumes that the inputs are well-formed and correspond to the same face.
+        - The output array contains the Cartesian coordinates for each edge of the face.
+        """
+
+        # Create a mask that is True for all values not equal to INT_FILL_VALUE
+        mask = face_edges_ind != INT_FILL_VALUE
+
+        # Use the mask to select only the elements not equal to INT_FILL_VALUE
+        valid_edges = face_edges_ind[mask]
+        face_edges = edge_nodes_grid[valid_edges]
+
+        # Ensure counter-clockwise order of edge nodes
+        # Start with the first two nodes
+        face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+
+        for idx in range(1, len(face_edges)):
+            if face_edges[idx][0] != face_edges[idx - 1][1]:
+                # Swap the node index in this edge if not in counter-clockwise order
+                face_edges[idx] = face_edges[idx][::-1]
+
+        # Fetch coordinates for each node in the face edges
+        cartesian_coordinates = np.array(
+            [
+                [[node_x[node], node_y[node], node_z[node]] for node in edge]
+                for edge in face_edges
+            ]
+        )
+
+        return cartesian_coordinates
+
+    def _get_lonlat_rad_face_edge_nodes_testcase_helper(
+            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+    ):
+        """This function is only used to help generating the testcase and
+        should not be used in the actual implementation. Construct an array to
+        hold the edge lat lon in radian connectivity for a face in a grid.
+
+        Parameters
+        ----------
+        face_nodes_ind : np.ndarray, shape (n_nodes,)
+            The ith entry of Grid.face_node_connectivity, where n_nodes is the number of nodes in the face.
+        face_edges_ind : np.ndarray, shape (n_edges,)
+            The ith entry of Grid.face_edge_connectivity, where n_edges is the number of edges in the face.
+        edge_nodes_grid : np.ndarray, shape (n_edges, 2)
+            The entire Grid.edge_node_connectivity, where n_edges is the total number of edges in the grid.
+        node_lon : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_lon.
+        node_lat : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_lat, where n_nodes_total is the total number of nodes in the grid.
+        Returns
+        -------
+        face_edges : np.ndarray, shape (n_edges, 2, 3)
+            Face edge connectivity in Cartesian coordinates, where n_edges is the number of edges for the specific face.
+
+        Notes
+        -----
+        - The function assumes that the inputs are well-formed and correspond to the same face.
+        - The output array contains the Latitude and longitude coordinates in radian for each edge of the face.
+        """
+
+        # Create a mask that is True for all values not equal to INT_FILL_VALUE
+        mask = face_edges_ind != INT_FILL_VALUE
+
+        # Use the mask to select only the elements not equal to INT_FILL_VALUE
+        valid_edges = face_edges_ind[mask]
+        face_edges = edge_nodes_grid[valid_edges]
+
+        # Ensure counter-clockwise order of edge nodes
+        # Start with the first two nodes
+        face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+
+        for idx in range(1, len(face_edges)):
+            if face_edges[idx][0] != face_edges[idx - 1][1]:
+                # Swap the node index in this edge if not in counter-clockwise order
+                face_edges[idx] = face_edges[idx][::-1]
+
+        # Fetch coordinates for each node in the face edges
+        lonlat_coordinates = np.array(
+            [
+                [
+                    [
+                        np.mod(np.deg2rad(node_lon[node]), 2 * np.pi),
+                        np.deg2rad(node_lat[node]),
+                    ]
+                    for node in edge
+                ]
+                for edge in face_edges
+            ]
+        )
+
+        return lonlat_coordinates
+
     def test_populate_bounds_normal(self):
         # Generate a normal face that is not crossing the antimeridian or the poles
         vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -848,6 +967,126 @@ class TestLatlonBoundsLatLonFace(TestCase):
 
 
 class TestLatlonBoundsGCAList(TestCase):
+    def _get_cartesian_face_edge_nodes_testcase_helper(
+            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+    ):
+        """This function is only used to help generating the testcase and
+        should not be used in the actual implementation. Construct an array to
+        hold the edge Cartesian coordinates connectivity for a face in a grid.
+
+        Parameters
+        ----------
+        face_nodes_ind : np.ndarray, shape (n_nodes,)
+            The ith entry of Grid.face_node_connectivity, where n_nodes is the number of nodes in the face.
+        face_edges_ind : np.ndarray, shape (n_edges,)
+            The ith entry of Grid.face_edge_connectivity, where n_edges is the number of edges in the face.
+        edge_nodes_grid : np.ndarray, shape (n_edges, 2)
+            The entire Grid.edge_node_connectivity, where n_edges is the total number of edges in the grid.
+        node_x : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_x, where n_nodes_total is the total number of nodes in the grid.
+        node_y : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_y.
+        node_z : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_z.
+
+        Returns
+        -------
+        face_edges : np.ndarray, shape (n_edges, 2, 3)
+            Face edge connectivity in Cartesian coordinates, where n_edges is the number of edges for the specific face.
+
+        Notes
+        -----
+        - The function assumes that the inputs are well-formed and correspond to the same face.
+        - The output array contains the Cartesian coordinates for each edge of the face.
+        """
+
+        # Create a mask that is True for all values not equal to INT_FILL_VALUE
+        mask = face_edges_ind != INT_FILL_VALUE
+
+        # Use the mask to select only the elements not equal to INT_FILL_VALUE
+        valid_edges = face_edges_ind[mask]
+        face_edges = edge_nodes_grid[valid_edges]
+
+        # Ensure counter-clockwise order of edge nodes
+        # Start with the first two nodes
+        face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+
+        for idx in range(1, len(face_edges)):
+            if face_edges[idx][0] != face_edges[idx - 1][1]:
+                # Swap the node index in this edge if not in counter-clockwise order
+                face_edges[idx] = face_edges[idx][::-1]
+
+        # Fetch coordinates for each node in the face edges
+        cartesian_coordinates = np.array(
+            [
+                [[node_x[node], node_y[node], node_z[node]] for node in edge]
+                for edge in face_edges
+            ]
+        )
+
+        return cartesian_coordinates
+
+    def _get_lonlat_rad_face_edge_nodes_testcase_helper(
+            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+    ):
+        """This function is only used to help generating the testcase and
+        should not be used in the actual implementation. Construct an array to
+        hold the edge lat lon in radian connectivity for a face in a grid.
+
+        Parameters
+        ----------
+        face_nodes_ind : np.ndarray, shape (n_nodes,)
+            The ith entry of Grid.face_node_connectivity, where n_nodes is the number of nodes in the face.
+        face_edges_ind : np.ndarray, shape (n_edges,)
+            The ith entry of Grid.face_edge_connectivity, where n_edges is the number of edges in the face.
+        edge_nodes_grid : np.ndarray, shape (n_edges, 2)
+            The entire Grid.edge_node_connectivity, where n_edges is the total number of edges in the grid.
+        node_lon : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_lon.
+        node_lat : np.ndarray, shape (n_nodes,)
+            The values of Grid.node_lat, where n_nodes_total is the total number of nodes in the grid.
+        Returns
+        -------
+        face_edges : np.ndarray, shape (n_edges, 2, 3)
+            Face edge connectivity in Cartesian coordinates, where n_edges is the number of edges for the specific face.
+
+        Notes
+        -----
+        - The function assumes that the inputs are well-formed and correspond to the same face.
+        - The output array contains the Latitude and longitude coordinates in radian for each edge of the face.
+        """
+
+        # Create a mask that is True for all values not equal to INT_FILL_VALUE
+        mask = face_edges_ind != INT_FILL_VALUE
+
+        # Use the mask to select only the elements not equal to INT_FILL_VALUE
+        valid_edges = face_edges_ind[mask]
+        face_edges = edge_nodes_grid[valid_edges]
+
+        # Ensure counter-clockwise order of edge nodes
+        # Start with the first two nodes
+        face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+
+        for idx in range(1, len(face_edges)):
+            if face_edges[idx][0] != face_edges[idx - 1][1]:
+                # Swap the node index in this edge if not in counter-clockwise order
+                face_edges[idx] = face_edges[idx][::-1]
+
+        # Fetch coordinates for each node in the face edges
+        lonlat_coordinates = np.array(
+            [
+                [
+                    [
+                        np.mod(np.deg2rad(node_lon[node]), 2 * np.pi),
+                        np.deg2rad(node_lat[node]),
+                    ]
+                    for node in edge
+                ]
+                for edge in face_edges
+            ]
+        )
+
+        return lonlat_coordinates
 
     def test_populate_bounds_normal(self):
         # Generate a normal face that is not crossing the antimeridian or the poles

@@ -1,6 +1,7 @@
 import numpy as np
 from uxarray.grid.integrate import _get_zonal_faces_weight_at_constLat
 
+
 def _get_candidate_faces_at_constant_latitude(bounds, constLat: float) -> np.ndarray:
     """Return the indices of the faces whose latitude bounds contain the
     constant latitude.
@@ -39,14 +40,13 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     constLat: float,
     is_latlonface=False,
 ) -> np.ndarray:
-    # Get the indices of the faces whose latitude bounds contain the constant latitude    
+    # Get the indices of the faces whose latitude bounds contain the constant latitude
     candidate_faces_indices = _get_candidate_faces_at_constant_latitude(
         face_bounds, constLat
     )
     candidate_face_data = face_data[..., candidate_faces_indices]
 
     # TODO: Get the edge connectivity of the faces
-       
 
     # TODO: Get the edge nodes of the candidate faces
     # faces_edges_cart = # np.ndarray of dim (n_faces, n_edges, 2, 3)
@@ -56,14 +56,14 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     weight_df = _get_zonal_faces_weight_at_constLat(
         # np.array([face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes]),
         faces_edges_cart,
-        np.sin(np.deg2rad(constLat)), # Latitude in cartesian coordinates
+        np.sin(np.deg2rad(constLat)),  # Latitude in cartesian coordinates
         face_bounds,
         is_directed=False,
         is_latlonface=is_latlonface,
     )
 
     # Merge weights with face data
-    weights = weight_df['weight'].values
+    weights = weight_df["weight"].values
     zonal_mean = (candidate_face_data * weights).sum()
 
     return zonal_mean
