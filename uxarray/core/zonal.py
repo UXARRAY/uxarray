@@ -1,4 +1,5 @@
 import numpy as np
+from uxarray.constants import INT_FILL_VALUE
 from uxarray.grid.integrate import _get_zonal_faces_weight_at_constLat
 
 
@@ -73,6 +74,11 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     candidate_faces_indices = _get_candidate_faces_at_constant_latitude(
         face_bounds, constLat
     )
+
+    # Check if there are no candidate faces,
+    if len(candidate_faces_indices) == 0:
+        return INT_FILL_VALUE  # TODO: Determin an appropriate dummy value
+
     # Get the face data of the candidate faces
     candidate_face_data = face_data[..., candidate_faces_indices]
 
