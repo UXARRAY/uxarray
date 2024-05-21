@@ -8,17 +8,21 @@ def _get_candidate_faces_at_constant_latitude(bounds, constLat: float) -> np.nda
 
     Parameters
     ----------
-    bounds : xr.DataArray
-        The latitude bounds of the faces. Expected shape is (n_face, 2).
+    bounds : np.ndarray, shape (n_face, 2, 2)
+        The latitude and longitude bounds of the faces.
 
     constLat : float
-        The constant latitude to check against.
+        The constant latitude to check against. Expected range is [-90, 90].
 
     Returns
     -------
-    np.ndarray
-        An array of indices of the faces whose latitude bounds contain the constant latitude.
+    np.ndarray, shape (n_candidate_faces, )
+        An array of indices of the faces whose latitude bounds contain the constant latitude `constLat`.
     """
+
+    # Check if the constant latitude is within the range of [-90, 90]
+    if constLat < -90 or constLat > 90:
+        raise ValueError("The constant latitude must be within the range of [-90, 90].")
 
     # Extract the latitude bounds
     lat_bounds_min = bounds[:, 0, 0]  # Minimum latitude bound
@@ -34,68 +38,114 @@ def _get_candidate_faces_at_constant_latitude(bounds, constLat: float) -> np.nda
 
 
 def _non_conservative_zonal_mean_constant_one_latitude(
-    uxgrid,
+    face_edges_cart: np.ndarray,
     face_bounds: np.ndarray,
     face_data: np.ndarray,
     constLat: float,
     is_latlonface=False,
-) -> np.ndarray:
+) -> float:
+    """Helper function for _non_conservative_zonal_mean_constant_latitudes.
+    Calculate the zonal mean of the data at a constant latitude.
+
+    Parameters
+    ----------
+    face_edges_cart : np.ndarray, shape (n_face, n_edge, 2, 3)
+        The Cartesian coordinates of the face edges.
+    bounds : np.ndarray, shape (n_face, 2, 2)
+        The latitude and longitude bounds of the faces.
+    face_data : np.ndarray, shape (..., n_face)
+        The data on the faces.
+    constLat : float
+        The constant latitude in degrees. Expected range is [-90, 90].
+    is_latlonface : bool, optional
+        A flag indicating if the current face is a latitudinal/longitudinal (latlon) face,
+        meaning its edges align with lines of constant latitude or longitude. If `True`,
+        edges are treated as following constant latitudinal or longitudinal lines. If `False`,
+        edges are considered as great circle arcs (GCA). Default is `False`.
+
+    Returns
+    -------
+    float
+        The zonal mean of the data at the constant latitude.
+    """
+
     # Get the indices of the faces whose latitude bounds contain the constant latitude
     candidate_faces_indices = _get_candidate_faces_at_constant_latitude(
         face_bounds, constLat
     )
+    # Get the face data of the candidate faces
     candidate_face_data = face_data[..., candidate_faces_indices]
 
-    # TODO: Get the edge connectivity of the faces
+    # Get the list of face polygon represented by edges in Cartesian coordinates
+    candidate_face_edges_cart = face_edges_cart[candidate_faces_indices]
 
-    # TODO: Get the edge nodes of the candidate faces
-    # faces_edges_cart = # np.ndarray of dim (n_faces, n_edges, 2, 3)
-
-    # TODO: Call the function that calculates the weights for these faces
-    # Coordinates conversion: node_xyz to node_lonlat
     weight_df = _get_zonal_faces_weight_at_constLat(
-        # np.array([face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes]),
-        faces_edges_cart,
+        candidate_face_edges_cart,
         np.sin(np.deg2rad(constLat)),  # Latitude in cartesian coordinates
         face_bounds,
         is_directed=False,
         is_latlonface=is_latlonface,
     )
 
-    # Merge weights with face data
+    # Compute the zonal mean(weighted average) of the candidate faces
     weights = weight_df["weight"].values
-    zonal_mean = (candidate_face_data * weights).sum()
+    zonal_mean = np.sum(candidate_face_data * weights) / np.sum(weights)
 
     return zonal_mean
 
 
 def _non_conservative_zonal_mean_constant_latitudes(
-    faces_lonlat: np.ndarray,
+    face_edges_cart: np.ndarray,
     face_bounds: np.ndarray,
     face_data: np.ndarray,
     step_size: float,
-    is_latlonface: bool = False,
+    is_latlonface=False,
 ) -> np.ndarray:
-    # consider that the data being fed into this function may have multiple non-grid dimensions
-    # (i.e. (time, level, n_face)
-    # this shouldn't lead to any issues, but need to make sure that once you get to the point
-    # where you obtain the indices of the faces you will be using for the zonal average, the indexing
-    # is done properly along the final dimensions
-    # i.e. data[..., face_indicies_at_constant_lat]
+    """Calculate the zonal mean of the data from -90 to 90 degrees latitude,
+    with a given step size.
 
-    # TODO: Loop the step size of data and calculate the zonal mean for each latitude, utilize the numpy/pandas API to do this efficiently
-    latitudes = np.arange(-90, 90, step_size)
-    zonal_mean = np.array([])
+    Parameters
+    ----------
+    face_edges_cart : np.ndarray, shape (n_face, n_edge, 2, 3)
+        The Cartesian coordinates of the face edges.
+    bounds : np.ndarray, shape (n_face, 2, 2)
+        The latitude and longitude bounds of the faces.
+    face_data : np.ndarray, shape (..., n_face)
+        The data on the faces. It may have multiple non-grid dimensions (e.g., time, level).
+    step_size : float
+        The step size in degrees for the latitude.
+    is_latlonface : bool, optional
+        A flag indicating if the current face is a latitudinal/longitudinal (latlon) face,
+        meaning its edges align with lines of constant latitude or longitude. If `True`,
+        edges are treated as following constant latitudinal or longitudinal lines. If `False`,
+        edges are considered as great circle arcs (GCA). Default is `False`.
 
+    Returns
+    -------
+    np.ndarray
+        The zonal mean of the data from -90 to 90 degrees latitude. The shape of the output
+        is (..., n_latitudes), where n_latitudes is the number of latitude steps from -90 to 90.
+    """
+
+    # Generate latitudes from -90 to 90 with the given step size
+    latitudes = np.arange(-90, 90 + step_size, step_size)
+
+    # Initialize an empty list to store the zonal mean for each latitude
+    zonal_means = []
+
+    # Calculate the zonal mean for each latitude
     for constLat in latitudes:
-        zonal_mean = np.append(
-            zonal_mean,
-            _non_conservative_zonal_mean_constant_one_latitude(
-                faces_lonlat, face_bounds, face_data, constLat, is_latlonface
-            ),
+        zonal_mean = _non_conservative_zonal_mean_constant_one_latitude(
+            face_edges_cart, face_bounds, face_data, constLat, is_latlonface
         )
+        zonal_means.append(zonal_mean)
 
-    # the returned array should have the same leading dimensions and a final dimension of one, indicating the mean
-    # (i.e. (time, level, 1)
+    # Convert the list of zonal means to a NumPy array
+    zonal_means = np.array(zonal_means)
 
-    return zonal_mean
+    # Reshape the zonal mean array to have the same leading dimensions as the input data
+    # and an additional dimension for the latitudes
+    expected_shape = face_data.shape[:-1] + (len(latitudes),)
+    zonal_means = zonal_means.reshape(expected_shape)
+
+    return zonal_means

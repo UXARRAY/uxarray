@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional, Union, Hashable
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -580,37 +581,51 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-        pass
-
     def zonal_mean(self, step_size=1):
-        """Computes the Zonal Mean ...
+        """Computes the Zonal Mean for face-centered data. The zonal average is
+        computed from -90 to 90 degrees latitude, with a given step size.
 
-        Can look at the above gradient, difference, or nodal_average
-        function as a reference.
+        Parameters
+        ----------
+        step_size : float, default=1
+            The step size for the zonal average.
+
+        Returns
+        -------
+        UxDataArray
+            UxDataArray containing the zonal average of the data variable
+
+        Example
+        -------
+        >>> uxds['var'].zonal_mean()
         """
 
-        # Call zonal average on the data stored under a UxDataArray
-        # data is accessed with self.data or self.values
+        # Check if the data is face-centered
+        if not self._face_centered():
+            raise NotImplementedError(
+                "Zonal average computations are currently only supported for face-centered data variables."
+            )
 
-        # TODO: Utilize the Grid.bounds method to obtain the latitude bounds of the grid cells
+        # Get the data, face bounds, face node connectivity, and whether the faces are latlon
         data = self.values
-        face_bounds = self.uxgrid.bounds
-
+        face_bounds = self.uxgrid.bounds.values
         is_latlonface = False  # Currently not used, but may be useful in the future
 
+        # Get the list of face polygon represented by edges in Cartesian coordinates
+        face_edges_cart = _get_cartesian_face_edge_nodes(
+            self.uxgrid.face_node_connectivity.values,
+            self.uxgrid.node_x.values,
+            self.uxgrid.node_y.values,
+            self.uxgrid.node_z.values,
+        )
+
         _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
-            # TODO: can change to not pass entire grid object, if we calculate the face_edges_cart needed by integrate._get_zonal_faces_weight_at_constLat here
-            self.uxgrid,
+            face_edges_cart,
             face_bounds,
             data,
             step_size,
-            is_latlonface,
+            is_latlonface=is_latlonface,
         )
-
-        # depending on how you decompose the zonal average function,
-        # it might look something like this:
-        # from .zonal import _get_zonal_mean
-        # _zonal_avg_res = _get_zonal_mean(self.values, ...)
 
         # TODO: Set Dimension of result
         dims = None
@@ -620,12 +635,12 @@ class UxDataArray(xr.DataArray):
             _zonal_avg_res,
             uxgrid=self.uxgrid,
             dims=dims,
-            name=self.name + "_zonal_average" if self.name is not None else "grad",
+            name=self.name + "_zonal_average"
+            if self.name is not None
+            else "zonal_average",
         )
 
         return uxda
-
-        pass
 
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the
