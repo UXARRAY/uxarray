@@ -627,8 +627,8 @@ class UxDataArray(xr.DataArray):
             is_latlonface=is_latlonface,
         )
 
-        # TODO: Set Dimension of result
-        dims = None
+        # Set Dimension of result
+        dims = list(self.dims[:-1]) + ["latitude"]
 
         # Result is stored and returned as a UxDataArray
         uxda = UxDataArray(
