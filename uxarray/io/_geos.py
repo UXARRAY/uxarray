@@ -37,16 +37,10 @@ def _read_geos_cs(in_ds: xr.Dataset):
     idx = np.arange(nx * ny * nf, dtype=INT_DTYPE).reshape(nf, nx, ny)
 
     # Calculate indices of corner nodes for each face
-    tl = idx[:, :-1, :-1]
-    tr = idx[:, :-1, 1:]
-    bl = idx[:, 1:, :-1]
-    br = idx[:, 1:, 1:]
-
-    # Reshape indices for concatenation
-    tl = tl.reshape(-1)
-    tr = tr.reshape(-1)
-    bl = bl.reshape(-1)
-    br = br.reshape(-1)
+    tl = idx[:, :-1, :-1].reshape(-1)
+    tr = idx[:, :-1, 1:].reshape(-1)
+    bl = idx[:, 1:, :-1].reshape(-1)
+    br = idx[:, 1:, 1:].reshape(-1)
 
     # Concatenate corner node indices for all faces
     face_node_connectivity = np.column_stack((br, bl, tl, tr))
