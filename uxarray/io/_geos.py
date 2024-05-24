@@ -19,6 +19,18 @@ def _read_geos_cs(in_ds: xr.Dataset):
         data=node_lat, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LAT_ATTRS
     )
 
+    if "lons" in in_ds:
+        face_lon = in_ds["lons"].values.ravel()
+        face_lat = in_ds["lats"].values.ravel()
+
+        out_ds["face_lon"] = xr.DataArray(
+            data=face_lon, dims=ugrid.FACE_DIM, attrs=ugrid.FACE_LON_ATTRS
+        )
+
+        out_ds["face_lat"] = xr.DataArray(
+            data=face_lat, dims=ugrid.FACE_DIM, attrs=ugrid.FACE_LAT_ATTRS
+        )
+
     nf, nx, ny = in_ds["corner_lons"].shape
 
     # Generate indices for all corner nodes

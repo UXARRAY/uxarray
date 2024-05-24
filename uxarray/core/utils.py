@@ -38,4 +38,4 @@ def _map_dims_to_ugrid(
         # rename dimensions to follow the UGRID conventions
         ds = ds.swap_dims(_source_dims_dict)
 
-        return ds
+    return ds

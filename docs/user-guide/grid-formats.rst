@@ -17,6 +17,7 @@ NetCDF file format. As of the most recent release, the following grid formats ar
 * SCRIP
 * EXODUS
 * ESMF
+* GEOS CS
 
 While each of these formats can be encoded in the UGRID conventions, the amount of information that is parsed from them
 varies. The following sections describes how each format is converted into the UGRID conventions and what variables
@@ -105,6 +106,16 @@ complex, coupled modeling systems and includes data structures and utilities for
 
 ESMF supports a custom unstructured grid file format for describing meshes, which is more compatible than the SCRIP
 format.
+
+GEOS CS
+=======
+
+The Goddard Earth Observing System (GEOS) Cube Sphere (CS) grid format is equidistant gnomonic cubed-sphere grid with
+6 identical faces that wrap a sphere, with some number of grid cells per face.
+
+References
+----------
+* https://gmao.gsfc.nasa.gov/gmaoftp/ops/GEOSIT_sample/doc/CS_Description_c180_v1.pdf
 
 References
 ----------
