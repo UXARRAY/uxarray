@@ -44,3 +44,5 @@ def _read_geos_cs(in_ds: xr.Dataset):
         dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
         attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
+
+    return out_ds, None
