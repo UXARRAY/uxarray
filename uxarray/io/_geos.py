@@ -6,6 +6,10 @@ from uxarray.conventions import ugrid
 
 
 def _read_geos_cs(in_ds: xr.Dataset):
+    """Reads and encodes a GEOS Cube-Sphere grid into the UGRID conventions.
+
+    https://gmao.gsfc.nasa.gov/gmaoftp/ops/GEOSIT_sample/doc/CS_Description_c180_v1.pdf
+    """
     out_ds = xr.Dataset()
 
     node_lon = in_ds["corner_lons"].values.ravel()
@@ -33,10 +37,10 @@ def _read_geos_cs(in_ds: xr.Dataset):
 
     nf, nx, ny = in_ds["corner_lons"].shape
 
-    # Generate indices for all corner nodes
+    # generate indices for all corner nodes
     idx = np.arange(nx * ny * nf, dtype=INT_DTYPE).reshape(nf, nx, ny)
 
-    # Calculate indices of corner nodes for each face
+    # calculate indices of corner nodes for each face
     tl = idx[:, :-1, :-1].reshape(-1)
     tr = idx[:, :-1, 1:].reshape(-1)
     bl = idx[:, 1:, :-1].reshape(-1)
@@ -51,4 +55,5 @@ def _read_geos_cs(in_ds: xr.Dataset):
         attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
 
+    # GEOS-CS does not return a source_dims_dict
     return out_ds, None

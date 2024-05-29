@@ -8,6 +8,7 @@ def _map_dims_to_ugrid(
     "nCell": "n_face")"""
 
     if grid.source_grid_spec == "GEOS-CS":
+        # stack dimensions to flatten them to map to nodes or faces
         for var_name in list(ds.coords) + list(ds.data_vars):
             if all(key in ds[var_name].sizes for key in ["nf", "Ydim", "Xdim"]):
                 ds[var_name] = ds[var_name].stack(n_face=["nf", "Ydim", "Xdim"])
