@@ -116,7 +116,8 @@ GEOS CS
 =======
 
 The Goddard Earth Observing System (GEOS) Cube Sphere (CS) grid format is equidistant gnomonic cubed-sphere grid with
-6 identical faces that wrap a sphere, with some number of grid cells per face.
+6 identical faces that wrap a sphere, with some number of grid cells per face. For example, a C720 GEOS-CS grid has
+6 faces, each with 720x720 elements.
 
 References
 ----------
