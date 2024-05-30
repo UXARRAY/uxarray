@@ -902,7 +902,10 @@ class Grid:
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="haversine"
-            Distance metric used to construct the BallTree
+            Distance metric used to construct the BallTree, options include:
+            'euclidean', 'l2', 'minkowski', 'p','manhattan', 'cityblock', 'l1', 'chebyshev', 'infinity', 'seuclidean',
+            'mahalanobis', 'hamming', 'canberra', 'braycurtis', 'jaccard', 'dice', 'rogerstanimoto', 'russellrao',
+            'sokalmichener', 'sokalsneath', 'haversine'
         reconstruct : bool, default=False
             If true, reconstructs the tree
 
@@ -949,7 +952,8 @@ class Grid:
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="minkowski"
-            Distance metric used to construct the KDTree
+            Distance metric used to construct the KDTree, available options include:
+            'euclidean', 'l2', 'minkowski', 'p', 'manhattan', 'cityblock', 'l1', 'chebyshev', 'infinity'
         reconstruct : bool, default=False
             If true, reconstructs the tree
 
