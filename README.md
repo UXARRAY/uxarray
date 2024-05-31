@@ -62,7 +62,7 @@ is receptive to additional functionality requests.
 * Triangular decompositions.
 * Calculation of supermeshes (consisting of grid lines from two input grids).
 
-# Intended Functionality for DataArrays on Grids
+## Intended Functionality for DataArrays on Grids
 
 * Regridding of data between unstructured grids.
 * Global and regional integration of fields, including zonal averages.
