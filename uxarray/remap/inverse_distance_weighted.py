@@ -130,7 +130,9 @@ def _inverse_distance_weighted_remap(
             )
 
         _source_tree = source_grid.get_ball_tree(
-            coordinates=source_data_mapping, distance_metric="minkowski"
+            coordinates=source_data_mapping,
+            coordinate_system="cartesian",
+            distance_metric="minkowski",
         )
 
         dest_coords = np.vstack([x, y, z]).T

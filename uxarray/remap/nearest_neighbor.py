@@ -119,7 +119,9 @@ def _nearest_neighbor(
 
         # specify whether to query on the corner nodes or face centers based on source grid
         _source_tree = source_grid.get_ball_tree(
-            coordinates=source_data_mapping, distance_metric="minkowski"
+            coordinates=source_data_mapping,
+            coordinate_system="cartesian",
+            distance_metric="minkowski",
         )
 
         # prepare coordinates for query
