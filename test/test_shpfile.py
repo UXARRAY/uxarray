@@ -17,6 +17,6 @@ class TestShpfile(TestCase):
     def test_read_shpfile(self):
         """Read a shapefile."""
 
-        uxgrid = ux.open_grid(self.shp_filename)
+        uxgrid = ux.Grid.from_shapefile(self.shp_filename)
         print(uxgrid)
         # TODO: Add assertions
