@@ -33,6 +33,7 @@ dependencies:
     - pandas<2.1.0
     - geocat-datafiles
     - spatialpandas
+    - geopandas
     - pip:
       - antimeridian
       - pyfma

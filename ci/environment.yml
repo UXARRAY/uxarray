@@ -23,6 +23,7 @@ dependencies:
   - scipy
   - shapely
   - spatialpandas
+  - geopandas
   - xarray
   - pip:
     - antimeridian
