@@ -31,7 +31,7 @@ class UxDatasetRemapAccessor:
     def nearest_neighbor(
         self,
         destination_obj: Union[Grid, UxDataArray, UxDataset],
-        remap_to: str = "nodes",
+        remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
         """Nearest Neighbor Remapping between a source (``UxDataset``) and
@@ -52,7 +52,7 @@ class UxDatasetRemapAccessor:
     def inverse_distance_weighted(
         self,
         destination_obj: Union[Grid, UxDataArray, UxDataset],
-        remap_to: str = "nodes",
+        remap_to: str = "face centers",
         coord_type: str = "spherical",
         power=2,
         k=8,
