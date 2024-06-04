@@ -2,7 +2,7 @@ import geopandas as gpd
 import xarray as xr
 import numpy as np
 from uxarray.conventions import ugrid
-from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
+from uxarray.constants import INT_FILL_VALUE
 
 
 def _read_shpfile(filepath):
@@ -20,7 +20,7 @@ def _read_shpfile(filepath):
     # Initialize as an empty numpy array
     node_lon = np.array([])
     node_lat = np.array([])
-    connectivity = np.empty((0, max_coord_size), dtype=INT_DTYPE)
+    connectivity = np.empty((0, max_coord_size), dtype=np.int32)
 
     node_index = 0
 
