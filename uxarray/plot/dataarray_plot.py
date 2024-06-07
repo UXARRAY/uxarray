@@ -231,8 +231,11 @@ def _point_raster(
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
     point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
 
-    # construct a holoviews points oobject
-    points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
+    # construct a holoviews points object
+    if backend == "matplotlib":
+        points = hv.Points(point_ddf, ["lon", "lat"]).opts(s=size)
+    else:
+        points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
