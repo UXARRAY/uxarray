@@ -708,6 +708,60 @@ class Grid:
         return self._ds["face_z"]
 
     @property
+    def face_lon_ctrpt(self) -> xr.DataArray:
+        """Longitude of the center of each face in degrees.
+
+        Dimensions: ``(n_face, )``
+        """
+        if "face_lon_ctrpt" not in self._ds:
+            _populate_face_centroids(self)
+            _set_desired_longitude_range(self._ds)
+        return self._ds["face_lon_ctrpt"]
+
+    @property
+    def face_lat_ctrpt(self) -> xr.DataArray:
+        """Latitude of the center of each face in degrees.
+
+        Dimensions: ``(n_face, )``
+        """
+        if "face_lat_ctrpt" not in self._ds:
+            _populate_face_centroids(self)
+            _set_desired_longitude_range(self._ds)
+
+        return self._ds["face_lat_ctrpt"]
+
+    @property
+    def face_x_ctrpt(self) -> xr.DataArray:
+        """Cartesian x location of the center of each face in meters.
+
+        Dimensions: ``(n_face, )``
+        """
+        if "face_x_ctrpt" not in self._ds:
+            _populate_face_centroids(self)
+
+        return self._ds["face_x_ctrpt"]
+
+    @property
+    def face_y_ctrpt(self) -> xr.DataArray:
+        """Cartesian y location of the center of each face in meters.
+
+        Dimensions: ``(n_face, )``
+        """
+        if "face_y_ctrpt" not in self._ds:
+            _populate_face_centroids(self)
+        return self._ds["face_y_ctrpt"]
+
+    @property
+    def face_z_ctrpt(self) -> xr.DataArray:
+        """Cartesian z location of the center of each face in meters.
+
+        Dimensions: ``(n_face, )``
+        """
+        if "face_z_ctrpt" not in self._ds:
+            _populate_face_centroids(self)
+        return self._ds["face_z_ctrpt"]
+
+    @property
     def face_node_connectivity(self) -> xr.DataArray:
         """Indices of the nodes that make up each face.
 

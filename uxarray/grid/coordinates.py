@@ -3,12 +3,20 @@ import numpy as np
 
 import warnings
 
+import random
+from typing import List, Tuple
+from shapely.geometry import Point, LineString, Polygon
+
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.conventions import ugrid
 
 from typing import Union
 
 from numba import njit
+
+# Type aliases for better readability
+PointT = Tuple[float, float]
+Circle = Tuple[Point, float]
 
 
 @njit(cache=True)
@@ -227,6 +235,56 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
+def _populate_face_centerpoints(grid, repopulate=False):
+    """Finds the centerpoints of faces using Welzl's algorithm based.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centerpoints
+    """
+    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+
+    node_lon = grid.node_lon.values
+    node_lat = grid.node_lat.values
+
+    centerpoint_lat = []
+    centerpoint_lon = []
+
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+
+    if "face_lon_ctrpt" not in grid._ds or repopulate:
+        # Construct the centerpoints if there are none stored
+        if "face_x_ctrpt" not in grid._ds:
+            centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
+                node_lon, node_lat, face_nodes, n_nodes_per_face
+            )
+    ctrpt_x, ctrpt_y, ctrpt_z = _lonlat_rad_to_xyz(centerpoint_lon, centerpoint_lat)
+
+    # Populate the centerpoints
+    if "face_lon_ctrpt" not in grid._ds or repopulate:
+        grid._ds["face_lon_ctrpt"] = xr.DataArray(
+            centerpoint_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
+        )
+        grid._ds["face_lat_ctrpt"] = xr.DataArray(
+            centerpoint_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
+        )
+
+    if "face_x_ctrpt" not in grid._ds or repopulate:
+        grid._ds["face_x_ctrpt"] = xr.DataArray(
+            ctrpt_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
+        )
+
+        grid._ds["face_y_ctrpt"] = xr.DataArray(
+            ctrpt_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
+        )
+
+        grid._ds["face_z_ctrpt"] = xr.DataArray(
+            ctrpt_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
+        )
+
+
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging."""
@@ -242,6 +300,93 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
         centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
 
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
+
+
+def distance(a: PointT, b: PointT) -> float:
+    return Point(a).distance(Point(b))
+
+
+def is_in_circle(c: Circle, p: PointT) -> bool:
+    center, radius = c
+    return Point(center).distance(Point(p)) <= radius
+
+
+def circle_from_two_points(p1: PointT, p2: PointT) -> Circle:
+    print("p1: ", p1, "p2: ", p2)
+    line = LineString([Point(p1), Point(p2)])
+    center = line.centroid
+    radius = center.distance(Point(p1))
+    return (center.x, center.y), radius
+
+
+def circle_from_three_points(p1: PointT, p2: PointT, p3: PointT) -> Circle:
+    triangle = Polygon([p1, p2, p3])
+    center = triangle.centroid
+    radius = (
+        center.distance(Point(p1))
+        + center.distance(Point(p2))
+        + center.distance(Point(p3))
+    ) / 3
+    return (center.x, center.y), radius
+
+
+def welzl(points: List[PointT], boundary: List[PointT] = []) -> Circle:
+    if not points or len(boundary) == 3:
+        if len(boundary) == 0:
+            return ((0, 0), 0)
+        elif len(boundary) == 1:
+            return boundary[0], 0
+        elif len(boundary) == 2:
+            return circle_from_two_points(boundary[0], boundary[1])
+        elif len(boundary) == 3:
+            return circle_from_three_points(boundary[0], boundary[1], boundary[2])
+
+    p = points.pop()
+    circle = welzl(points, boundary)
+
+    if is_in_circle(circle, p):
+        points.append(p)
+        return circle
+    else:
+        boundary.append(p)
+        result = welzl(points, boundary)
+        boundary.pop()
+        points.append(p)
+        return result
+
+
+def smallest_enclosing_circle(points: List[PointT]) -> Circle:
+    shuffled_points = points[:]
+    random.shuffle(shuffled_points)
+    return welzl(shuffled_points)
+
+
+def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
+    """Constructs the face centerpoint using Welzl's algorithm3."""
+
+    points = np.column_stack((node_lon, node_lat)).tolist()
+
+    ctrpt_lon = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    ctrpt_lat = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        points_array = np.column_stack(
+            (
+                node_lon[face_nodes[face_idx, 0:n_max_nodes]],
+                node_lat[face_nodes[face_idx, 0:n_max_nodes]],
+            )
+        )
+        points = [tuple(point) for point in points_array.tolist()]
+        circle = smallest_enclosing_circle(points)
+        ctrpt_lon[face_idx] = circle[0][0]
+        ctrpt_lat[face_idx] = circle[0][1]
+
+    return ctrpt_lon, ctrpt_lat
+    # centerpoint_x, centerpoint_y, centerpoint_z = _lonlat_rad_to_xyz(float(circle[0][0]), float(circle[0][1]))
+    # print(points)
+    # print("centerpoint_x: ", centerpoint_x, "centerpoint_y: ", centerpoint_y, "centerpoint_z: ", centerpoint_z)
+
+    # return _normalize_xyz(centerpoint_x, centerpoint_y, centerpoint_z)
 
 
 def _populate_edge_centroids(grid, repopulate=False):

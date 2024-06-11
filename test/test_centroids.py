@@ -4,7 +4,7 @@ import numpy as np
 import numpy.testing as nt
 import uxarray as ux
 from pathlib import Path
-from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _normalize_xyz
+from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _normalize_xyz, _populate_face_centerpoints
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -107,3 +107,11 @@ class TestCentroids(TestCase):
 
         nt.assert_array_almost_equal(expected_edge_lon, computed_edge_lon)
         nt.assert_array_almost_equal(expected_edge_lat, computed_edge_lat)
+
+    def test_face_centerpoint(self):
+        """Use points from an actual spherical face and get the centerpoint."""
+
+        points = np.array([(-35.26438968, -45.0), (-36.61769496, -42.0), (-33.78769181, -42.0), (-32.48416571, -45.0)])
+        uxgrid = ux.open_grid(points, latlon=True)
+        _populate_face_centerpoints(uxgrid)
+        print(uxgrid.face_lon_ctrpt)
