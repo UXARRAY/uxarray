@@ -581,18 +581,15 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, start_lat=-90, end_lat=90, step_size=1):
+    def zonal_mean(self, lat=(-90, 90, 5)):
         """Computes the Zonal Mean for face-centered data. The zonal average is
         computed from -90 to 90 degrees latitude, with a given step size.
 
         Parameters
         ----------
-        start_lat : float, default=-90
-            The starting latitude for the zonal average
-        end_lat : float, default=90
-            The ending latitude for the zonal average
-        step_size : float, default=1
-            The step size for the latitude
+        lat : tuple, default=(-90, 90, 5)
+            Tuple containing the start, end, and step size of the latitude range
+            to compute the zonal average. The range of latitudes is [start_lat, end_lat] inclusive.
 
         Returns
         -------
@@ -622,6 +619,8 @@ class UxDataArray(xr.DataArray):
             self.uxgrid.node_y.values,
             self.uxgrid.node_z.values,
         )
+
+        start_lat, end_lat, step_size = lat
 
         _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
             face_edges_cart,
