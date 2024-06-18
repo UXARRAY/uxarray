@@ -158,3 +158,6 @@ docs/notebook-examples.txt
 benchmarks/env
 benchmarks/results
 benchmarks/html
+meshfiles
+scratch.py
+docs

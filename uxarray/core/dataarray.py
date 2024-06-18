@@ -587,8 +587,12 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
+        start_lat : float, default=-90
+            The starting latitude for the zonal average
+        end_lat : float, default=90
+            The ending latitude for the zonal average
         step_size : float, default=1
-            The step size for the zonal average.
+            The step size for the latitude
 
         Returns
         -------
