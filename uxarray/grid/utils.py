@@ -210,6 +210,18 @@ def _get_cartesian_single_face_edge_nodes(
     -------
     cartesian_coordinates : np.ndarray
         An array of shape (n_edges_sliced, 2, 3) containing the Cartesian coordinates of the edges for the face.
+
+    Examples
+    --------
+    >>> face_nodes = np.array([0, 1, 2, 3])
+    >>> node_x_sliced = np.array([0, 1, 1, 0])
+    >>> node_y_sliced = np.array([0, 0, 1, 1])
+    >>> node_z_sliced = np.array([0, 0, 0, 0])
+    >>> _get_cartesian_single_face_edge_nodes(face_nodes, node_x_sliced, node_y_sliced, node_z_sliced)
+    array([[[0, 0, 0], [1, 0, 0]],
+           [[1, 0, 0], [1, 1, 0]],
+           [[1, 1, 0], [0, 1, 0]],
+           [[0, 1, 0], [0, 0, 0]]])
     """
 
     # Create a mask that is True for all values not equal to INT_FILL_VALUE
@@ -269,8 +281,24 @@ def _get_cartesian_face_edge_nodes(
     Returns
     -------
     faces_edges_coordinates : np.ndarray
-        An array of shape (n_faces, n_edges, 2, 3) containing the Cartesian coordinates
+        An array of shape (n_faces, n_max_face_edges, 2, 3) containing the Cartesian coordinates
         of the edges for each face. It might contain dummy values if the grid has holes.
+
+    Examples
+    --------
+    >>> face_nodes_sliced = [np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3])]
+    >>> node_x_sliced = np.array([[0, 1, 1, 0], [0, 1, 1, 0]])
+    >>> node_y_sliced = np.array([[0, 0, 1, 1], [0, 0, 1, 1]])
+    >>> node_z_sliced = np.array([[0, 0, 0, 0], [0, 0, 0, 0]])
+    >>> _get_cartesian_face_edge_nodes(face_nodes_sliced, node_x_sliced, node_y_sliced, node_z_sliced)
+    array([[[[0, 0, 0], [1, 0, 0]],
+            [[1, 0, 0], [1, 1, 0]],
+            [[1, 1, 0], [0, 1, 0]],
+            [[0, 1, 0], [0, 0, 0]]],
+            [[[0, 0, 0], [1, 0, 0]],
+            [[1, 0, 0], [1, 1, 0]],
+            [[1, 1, 0], [0, 1, 0]],
+            [[0, 1, 0], [0, 0, 0]]]])
 
     Notes
     -----
@@ -307,8 +335,19 @@ def _get_lonlat_rad_single_face_edge_nodes(
 
     Returns
     -------
-    lonlat_coordinates : np.ndarray, shape (n_edges, 2, 2)
+    lonlat_coordinates : np.ndarray, shape (n_max_face_edges, 2, 2)
         Face edge connectivity in latitude and longitude coordinates in radians.
+
+    Examples
+    --------
+    >>> face_nodes = np.array([0, 1, 2, 3])
+    >>> node_lon_sliced = np.array([0, 1, 1, 0])
+    >>> node_lat_sliced = np.array([0, 0, 1, 1])
+    >>> _get_lonlat_rad_single_face_edge_nodes(face_nodes, node_lon_sliced, node_lat_sliced)
+    array([[[0, 0], [1, 0]],
+           [[1, 0], [1, 1]],
+           [[1, 1], [0, 1]],
+           [[0, 1], [0, 0]]])
     """
 
     # Create a mask that is True for all values not equal to INT_FILL_VALUE
@@ -367,12 +406,28 @@ def _get_lonlat_rad_face_edge_nodes(
     Returns
     -------
     faces_lonlat_coordinates : np.ndarray
-        An array of shape (n_faces, n_edges, 2, 2) containing the latitude and longitude coordinates
+        An array of shape (n_faces, n_max_face_edges, 2, 2) containing the latitude and longitude coordinates
         in radians for the edges of each face. It might contain dummy values if the grid has holes.
 
     Notes
     -----
     If the grid has holes, the function will return an entry of dummy value faces_lonlat_coordinates[i] filled with INT_FILL_VALUE.
+
+    Examples
+    --------
+    >>> face_nodes_sliced = [np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3])]
+    >>> node_lon_sliced = np.array([[0, 1, 1, 0], [0, 1, 1, 0]])
+    >>> node_lat_sliced = np.array([[0, 0, 1, 1], [0, 0, 1, 1]])
+    >>> _get_lonlat_rad_face_edge_nodes(face_nodes_sliced, node_lon_sliced, node_lat_sliced)
+    array([[[[0, 0], [1, 0]],
+            [[1, 0], [1, 1]],
+            [[1, 1], [0, 1]],
+            [[0, 1], [0, 0]]],
+
+            [[[0, 0], [1, 0]],
+            [[1, 0], [1, 1]],
+            [[1, 1], [0, 1]],
+            [[0, 1], [0, 0]]]])
     """
 
     # Use map function to apply the single face function to all faces
