@@ -223,6 +223,15 @@ Integration
    grid.integrate._get_faces_constLat_intersection_info
 
 
+Zonal Mean
+----------
+.. autosummary::
+   :toctree: generated/
+
+   core.zonal_mean._get_candidate_faces_at_constant_latitude
+   core.zonal_mean._non_conservative_zonal_mean_constant_one_latitude
+   core.zonal_mean._non_conservative_zonal_mean_constant_latitudes
+
 Remapping
 =========
 
