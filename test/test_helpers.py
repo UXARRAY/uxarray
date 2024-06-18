@@ -243,77 +243,103 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
     def test_get_cartesian_face_edge_nodes_pipeline(self):
         # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
 
-        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
-                    [0.5, -0.5, 0.5]]
-
-        #Normalize the vertices
+        # Normalize the vertices
         vertices = [x / np.linalg.norm(x) for x in vertices]
 
         # Construct the grid from the vertices
         grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+        n_max_face_edges = max(n_nodes_per_face)
+        node_x = grid.node_x.values
+        node_y = grid.node_y.values
+        node_z = grid.node_z.values
+
+        # Call the function to test
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
-            grid.face_node_connectivity.values,
-            grid.node_x.values,
-            grid.node_y.values, grid.node_z.values)
+            face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_x, node_y, node_z
+        )
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
-            'North', face_edges_connectivity_cartesian[0])
+            'North', face_edges_connectivity_cartesian[0]
+        )
 
         # Assert that the result is True
-
         self.assertTrue(result)
 
     def test_get_cartesian_face_edge_nodes_filled_value(self):
         # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
 
-        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
-                    [0.5, -0.5, 0.5]]
-
-        #Normalize the vertices
+        # Normalize the vertices
         vertices = [x / np.linalg.norm(x) for x in vertices]
         vertices.append([INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE])
 
         # Construct the grid from the vertices
         grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+        n_max_face_edges = max(n_nodes_per_face)
+        node_x = grid.node_x.values
+        node_y = grid.node_y.values
+        node_z = grid.node_z.values
+
+        # Call the function to test
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
-            grid.face_node_connectivity.values, grid.node_x.values,
-            grid.node_y.values, grid.node_z.values)
+            face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_x, node_y, node_z
+        )
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
-            'North', face_edges_connectivity_cartesian[0])
+            'North', face_edges_connectivity_cartesian[0]
+        )
 
         # Assert that the result is True
         self.assertTrue(result)
 
     def test_get_lonlat_face_edge_nodes_pipeline(self):
         # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
 
-        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5],
-                    [0.5, -0.5, 0.5]]
-
-        #Normalize the vertices
+        # Normalize the vertices
         vertices = [x / np.linalg.norm(x) for x in vertices]
 
         # Construct the grid from the vertices
         grid = ux.Grid.from_face_vertices(vertices, latlon=False)
-        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
-            grid.face_node_connectivity.values,grid.node_lon.values,
-            grid.node_lat.values)
-        face_edges_connectivity_lonlat = face_edges_connectivity_lonlat[0]
 
-        # Convert all the values into cartesian coordinates
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+        n_max_face_edges = max(n_nodes_per_face)
+        node_lon = grid.node_lon.values
+        node_lat = grid.node_lat.values
+
+        # Call the function to test
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_lon, node_lat
+        )
+
+        # Convert the first face's edges to Cartesian coordinates
+        face_edges_connectivity_lonlat = face_edges_connectivity_lonlat[0]
         face_edges_connectivity_cartesian = []
-        for i in range(len(face_edges_connectivity_lonlat)):
-            edge = face_edges_connectivity_lonlat[i]
+        for edge in face_edges_connectivity_lonlat:
             edge_cart = [_lonlat_rad_to_xyz(*node) for node in edge]
             face_edges_connectivity_cartesian.append(edge_cart)
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
-            'North', np.array(face_edges_connectivity_cartesian))
+            'North', np.array(face_edges_connectivity_cartesian)
+        )
 
         # Assert that the result is True
         self.assertTrue(result)

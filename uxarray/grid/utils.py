@@ -217,6 +217,25 @@ def _get_cartesian_face_edge_nodes(
     face_edges_cartesian : np.ndarray
         An array of shape (n_face, n_max_face_edges, 2, 3) containing the Cartesian coordinates of the edges
         for each face. It might contain dummy values if the grid has holes.
+
+    Examples
+    --------
+    >>> face_node_conn = np.array([[0, 1, 2, 3], [0, 1, 2, 3]])
+    >>> n_nodes_per_face = np.array([4, 4])
+    >>> n_face = 2
+    >>> n_max_face_edges = 4
+    >>> node_x = np.array([[0, 1, 1, 0], [0, 1, 1, 0]])
+    >>> node_y = np.array([[0, 0, 1, 1], [0, 0, 1, 1]])
+    >>> node_z = np.array([[0, 0, 0, 0], [0, 0, 0, 0]])
+    >>> _get_cartesian_face_edge_nodes(face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_x, node_y, node_z)
+    array([[[[0, 0, 0], [1, 0, 0]],
+            [[1, 0, 0], [1, 1, 0]],
+            [[1, 1, 0], [0, 1, 0]],
+            [[0, 1, 0], [0, 0, 0]]],
+            [[[0, 0, 0], [1, 0, 0]],
+            [[1, 0, 0], [1, 1, 0]],
+            [[1, 1, 0], [0, 1, 0]],
+            [[0, 1, 0], [0, 0, 0]]]])
     """
     # Shift node connections to create edge connections
     face_node_conn_shift = np.roll(face_node_conn, -1, axis=1)
@@ -283,7 +302,30 @@ def _get_lonlat_rad_face_edge_nodes(
     face_edges_lonlat_rad : np.ndarray
         An array of shape (n_face, n_max_face_edges, 2, 2) containing the latitude and longitude coordinates
         in radians for the edges of each face. It might contain dummy values if the grid has holes.
+
+    Examples
+    --------
+    >>> face_node_conn = np.array([[0, 1, 2, 3], [0, 1, 2, 3]])
+    >>> n_nodes_per_face = np.array([4, 4])
+    >>> n_face = 2
+    >>> n_max_face_edges = 4
+    >>> node_lon = np.array([[0, 1, 1, 0], [0, 1, 1, 0]])
+    >>> node_lat = np.array([[0, 0, 1, 1], [0, 0, 1, 1]])
+    >>> _get_lonlat_rad_face_edge_nodes(face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_lon, node_lat)
+    array([[[[0, 0], [1, 0]],
+            [[1, 0], [1, 1]],
+            [[1, 1], [0, 1]],
+            [[0, 1], [0, 0]]],
+
+            [[[0, 0], [1, 0]],
+            [[1, 0], [1, 1]],
+            [[1, 1], [0, 1]],
+            [[0, 1], [0, 0]]]])
+    Notes
+    -----
+    If the grid has holes, the function will return an entry of dummy value faces_edges_coordinates[i] filled with INT_FILL_VALUE.
     """
+    
     # Shift node connections to create edge connections
     face_node_conn_shift = np.roll(face_node_conn, -1, axis=1)
 
