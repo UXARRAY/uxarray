@@ -27,6 +27,7 @@ from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
+    _populate_face_centerpoints,
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
@@ -714,7 +715,7 @@ class Grid:
         Dimensions: ``(n_face, )``
         """
         if "face_lon_ctrpt" not in self._ds:
-            _populate_face_centroids(self)
+            _populate_face_centerpoints(self)
             _set_desired_longitude_range(self._ds)
         return self._ds["face_lon_ctrpt"]
 
@@ -725,7 +726,7 @@ class Grid:
         Dimensions: ``(n_face, )``
         """
         if "face_lat_ctrpt" not in self._ds:
-            _populate_face_centroids(self)
+            _populate_face_centerpoints(self)
             _set_desired_longitude_range(self._ds)
 
         return self._ds["face_lat_ctrpt"]
@@ -737,7 +738,7 @@ class Grid:
         Dimensions: ``(n_face, )``
         """
         if "face_x_ctrpt" not in self._ds:
-            _populate_face_centroids(self)
+            _populate_face_centerpoints(self)
 
         return self._ds["face_x_ctrpt"]
 
@@ -748,7 +749,7 @@ class Grid:
         Dimensions: ``(n_face, )``
         """
         if "face_y_ctrpt" not in self._ds:
-            _populate_face_centroids(self)
+            _populate_face_centerpoints(self)
         return self._ds["face_y_ctrpt"]
 
     @property
@@ -758,7 +759,7 @@ class Grid:
         Dimensions: ``(n_face, )``
         """
         if "face_z_ctrpt" not in self._ds:
-            _populate_face_centroids(self)
+            _populate_face_centerpoints(self)
         return self._ds["face_z_ctrpt"]
 
     @property

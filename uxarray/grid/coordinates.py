@@ -312,7 +312,6 @@ def is_in_circle(c: Circle, p: PointT) -> bool:
 
 
 def circle_from_two_points(p1: PointT, p2: PointT) -> Circle:
-    print("p1: ", p1, "p2: ", p2)
     line = LineString([Point(p1), Point(p2)])
     center = line.centroid
     radius = center.distance(Point(p1))
@@ -382,12 +381,6 @@ def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_fac
         ctrpt_lat[face_idx] = circle[0][1]
 
     return ctrpt_lon, ctrpt_lat
-    # centerpoint_x, centerpoint_y, centerpoint_z = _lonlat_rad_to_xyz(float(circle[0][0]), float(circle[0][1]))
-    # print(points)
-    # print("centerpoint_x: ", centerpoint_x, "centerpoint_y: ", centerpoint_y, "centerpoint_z: ", centerpoint_z)
-
-    # return _normalize_xyz(centerpoint_x, centerpoint_y, centerpoint_z)
-
 
 def _populate_edge_centroids(grid, repopulate=False):
     """Finds the centroids using cartesian averaging of the edges based off the

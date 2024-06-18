@@ -114,4 +114,12 @@ class TestCentroids(TestCase):
         points = np.array([(-35.26438968, -45.0), (-36.61769496, -42.0), (-33.78769181, -42.0), (-32.48416571, -45.0)])
         uxgrid = ux.open_grid(points, latlon=True)
         _populate_face_centerpoints(uxgrid)
-        print(uxgrid.face_lon_ctrpt)
+
+        # the expected centerpoint
+        ctr_lon = -34.55093034
+        ctr_lat = -43.5
+
+        # Test the values of the calculated centerpoint
+        nt.assert_array_almost_equal(ctr_lon, uxgrid.face_lon_ctrpt.values[0], decimal=3)
+        nt.assert_array_almost_equal(ctr_lat, uxgrid.face_lat_ctrpt.values[0], decimal=3)
+        
