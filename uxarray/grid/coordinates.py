@@ -382,6 +382,7 @@ def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_fac
 
     return ctrpt_lon, ctrpt_lat
 
+
 def _populate_edge_centroids(grid, repopulate=False):
     """Finds the centroids using cartesian averaging of the edges based off the
     vertices. The centroid is defined as the average of the x, y, z

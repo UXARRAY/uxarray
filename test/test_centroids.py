@@ -122,4 +122,3 @@ class TestCentroids(TestCase):
         # Test the values of the calculated centerpoint
         nt.assert_array_almost_equal(ctr_lon, uxgrid.face_lon_ctrpt.values[0], decimal=3)
         nt.assert_array_almost_equal(ctr_lat, uxgrid.face_lat_ctrpt.values[0], decimal=3)
-        
