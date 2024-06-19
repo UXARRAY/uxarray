@@ -615,9 +615,6 @@ class UxDataArray(xr.DataArray):
         # Get the list of face polygon represented by edges in Cartesian coordinates
         face_edges_cart = _get_cartesian_face_edge_nodes(
             self.uxgrid.face_node_connectivity.values,
-            self.uxgrid.n_nodes_per_face.values,
-            self.uxgrid.n_face,
-            self.uxgrid.n_max_face_edges,
             self.uxgrid.node_x.values,
             self.uxgrid.node_y.values,
             self.uxgrid.node_z.values,
