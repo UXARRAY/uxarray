@@ -308,7 +308,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
     def test_get_cartesian_face_edge_nodes_filled_value2(self):
         # The face vertices order in counter-clockwise
-        face_conn = [[0,1,2],[1,3,4,2]]
+        # face_conn = [[0,1,2],[1,3,4,2]]
 
         #Each vertex is a 2D vector represent the longitude and latitude in degree. Call the node_lonlat_to_xyz to convert it to 3D vector
         v0_deg = [10,10]
@@ -317,8 +317,23 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         v3_deg = [15,45]
         v4_deg = [5,45]
 
+        # First convert them into radians
+        v0_rad = np.deg2rad(v0_deg)
+        v1_rad = np.deg2rad(v1_deg)
+        v2_rad = np.deg2rad(v2_deg)
+        v3_rad = np.deg2rad(v3_deg)
+        v4_rad = np.deg2rad(v4_deg)
+
     # It should look like following when passing in the _get_cartesian_face_edge_nodes
     # [[v0_cart,v1_cart,v2_cart, [Fill_Value,Fill_Value,Fill_Value]],[v1_cart,v3_cart,v4_cart,v2_cart]]
+        v0_cart = _lonlat_rad_to_xyz(v0_rad[0],v0_rad[1])
+        v1_cart = _lonlat_rad_to_xyz(v1_rad[0],v1_rad[1])
+        v2_cart = _lonlat_rad_to_xyz(v2_rad[0],v2_rad[1])
+        v3_cart = _lonlat_rad_to_xyz(v3_rad[0],v3_rad[1])
+        v4_cart = _lonlat_rad_to_xyz(v4_rad[0],v4_rad[1])
+
+        face_conn = [[v0_cart,v1_cart,v2_cart, [INT_FILL_VALUE,INT_FILL_VALUE,INT_FILL_VALUE]],[v1_cart,v3_cart,v4_cart,v2_cart]]
+        pass
 
     def test_get_lonlat_face_edge_nodes_pipeline(self):
         # Create the vertices for the grid, based around the North Pole
