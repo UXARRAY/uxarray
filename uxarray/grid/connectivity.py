@@ -411,3 +411,25 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     node_indices = flattened_matrix[valid_node_mask]
     non_filled_element_flags = np.ones(len(node_indices))
     return face_indices, node_indices, non_filled_element_flags
+
+
+def get_face_node_partitions(n_nodes_per_face):
+    """Returns the indices of how to partition `face_node_connectivity` by
+    element size."""
+
+    # sort number of nodes per face in ascending order
+    n_nodes_per_face_sorted_ind = np.argsort(n_nodes_per_face)
+
+    # unique element sizes and their respective counts
+    element_sizes, size_counts = np.unique(n_nodes_per_face, return_counts=True)
+    element_sizes_sorted_ind = np.argsort(element_sizes)
+
+    # sort elements by their size
+    element_sizes = element_sizes[element_sizes_sorted_ind]
+    size_counts = size_counts[element_sizes_sorted_ind]
+
+    # find the index at the point where the geometry changes from one shape to another
+    change_ind = np.cumsum(size_counts)
+    change_ind = np.concatenate((np.array([0]), change_ind))
+
+    return change_ind, n_nodes_per_face_sorted_ind, element_sizes, size_counts
