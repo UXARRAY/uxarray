@@ -56,5 +56,6 @@ These user guides provide detail about specific additional features in UXarray.
    user-guide/data-structures.ipynb
    user-guide/plotting.ipynb
    user-guide/subset.ipynb
+   user-guide/topological-aggregations.ipynb
    user-guide/area_calc.ipynb
    user-guide/holoviz.ipynb
