@@ -306,6 +306,20 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         # Assert that the result is True
         self.assertTrue(result)
 
+    def test_get_cartesian_face_edge_nodes_filled_value2(self):
+        # The face vertices order in counter-clockwise
+        face_conn = [[0,1,2],[1,3,4,2]]
+
+        #Each vertex is a 2D vector represent the longitude and latitude in degree. Call the node_lonlat_to_xyz to convert it to 3D vector
+        v0_deg = [10,10]
+        v1_deg = [15,15]
+        v2_deg = [5,15]
+        v3_deg = [15,45]
+        v4_deg = [5,45]
+
+    # It should look like following when passing in the _get_cartesian_face_edge_nodes
+    # [[v0_cart,v1_cart,v2_cart, [Fill_Value,Fill_Value,Fill_Value]],[v1_cart,v3_cart,v4_cart,v2_cart]]
+
     def test_get_lonlat_face_edge_nodes_pipeline(self):
         # Create the vertices for the grid, based around the North Pole
         vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
