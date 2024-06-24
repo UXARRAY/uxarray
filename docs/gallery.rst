@@ -14,6 +14,8 @@ TODO
 Visualization Examples
 ----------------------
 
+The following notebooks are a collection of one-shot visualization examples showcasing UXarray's plotting functionality
+across various interesting datasets.
 
 
 .. include:: visualization-examples-gallery.txt
@@ -23,11 +25,14 @@ Visualization Examples
    :hidden:
 
    examples/visualization/3_75km_mpas.ipynb
+   examples/visualization/mpas_topology.ipynb
 
 
 
 Workflow Examples
 -----------------
+
+The following notebooks
 
 .. include:: workflow-examples-gallery.txt
 

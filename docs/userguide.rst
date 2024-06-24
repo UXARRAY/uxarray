@@ -37,6 +37,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Subsetting <user-guide/subset.ipynb>`_
  Selecting specific regions of a grid
 
+`Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
+ Aggregating data across grid dimensions
+
 Supplementary Guides
 --------------------
 

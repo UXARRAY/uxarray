@@ -3,6 +3,10 @@ visualization-examples:
     path: examples/visualization/3_75km_mpas.ipynb
     thumbnail: _static/thumbnails/3_75_mpas.png
 
+  - title: MPAS Grid Topology
+    path: examples/visualization/mpas_topology.ipynb
+    thumbnail: _static/thumbnails/mpas_topology.png
+
 workflow-examples:
   - title: Working with MPAS Grids
     path: examples/004-working-with-mpas-grids.ipynb
