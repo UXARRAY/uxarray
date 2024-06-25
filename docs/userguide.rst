@@ -49,6 +49,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Calculus Operators <user-guide/calculus.ipynb>`_
  Apply calculus operators (gradient, integral) on unstructured grid data
 
+`Tree Structures <user-guide/tree_structures.ipynb>`_
+ Data structures for nearest neighbor queries
+
 Supplementary Guides
 --------------------
 
