@@ -428,3 +428,116 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
         # Assert that the result is True
         self.assertTrue(result)
+
+    def test_get_lonlat_face_edge_nodes_filled_value(self):
+        # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
+
+        # Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+        vertices.append([INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE])
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+        n_max_face_edges = max(n_nodes_per_face)
+        node_lon = grid.node_lon.values
+        node_lat = grid.node_lat.values
+
+        # Call the function to test
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
+        )
+
+        # Convert the first face's edges to Cartesian coordinates
+        face_edges_connectivity_lonlat = face_edges_connectivity_lonlat[0]
+        face_edges_connectivity_cartesian = []
+        for edge in face_edges_connectivity_lonlat:
+            edge_cart = [_lonlat_rad_to_xyz(*node) for node in edge]
+            face_edges_connectivity_cartesian.append(edge_cart)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', np.array(face_edges_connectivity_cartesian)
+        )
+
+        # Assert that the result is True
+        self.assertTrue(result)
+
+
+    def test_get_lonlat_face_edge_nodes_filled_value2(self):
+        # The face vertices order in counter-clockwise
+        # face_conn = [[0,1,2],[1,3,4,2]]
+
+        #Each vertex is a 2D vector represent the longitude and latitude in degree. Call the node_lonlat_to_xyz to convert it to 3D vector
+        v0_deg = [10,10]
+        v1_deg = [15,15]
+        v2_deg = [5,15]
+        v3_deg = [15,45]
+        v4_deg = [5,45]
+
+        # First convert them into radians
+        v0_rad = np.deg2rad(v0_deg)
+        v1_rad = np.deg2rad(v1_deg)
+        v2_rad = np.deg2rad(v2_deg)
+        v3_rad = np.deg2rad(v3_deg)
+        v4_rad = np.deg2rad(v4_deg)
+
+        face_node_conn = np.array([[0, 1, 2, INT_FILL_VALUE],[1, 3, 4, 2]])
+        n_face = 2
+        n_max_face_edges = 4
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        node_lon = np.array([v0_rad[0],v1_rad[0],v2_rad[0],v3_rad[0],v4_rad[0]])
+        node_lat = np.array([v0_rad[1],v1_rad[1],v2_rad[1],v3_rad[1],v4_rad[1]])
+
+        # call the function to test
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
+        )
+
+        # Define correct result
+        correct_result = np.array([
+            [
+                [
+                    [v0_rad[0], v0_rad[1]],
+                    [v1_rad[0], v1_rad[1]]
+                ],
+                [
+                    [v1_rad[0], v1_rad[1]],
+                    [v2_rad[0], v2_rad[1]]
+                ],
+                [
+                    [v2_rad[0], v2_rad[1]],
+                    [v0_rad[0], v0_rad[1]]
+                ],
+                [
+                    [INT_FILL_VALUE, INT_FILL_VALUE],
+                    [INT_FILL_VALUE, INT_FILL_VALUE]
+                ]
+            ],
+            [
+                [
+                    [v1_rad[0], v1_rad[1]],
+                    [v3_rad[0], v3_rad[1]]
+                ],
+                [
+                    [v3_rad[0], v3_rad[1]],
+                    [v4_rad[0], v4_rad[1]]
+                ],
+                [
+                    [v4_rad[0], v4_rad[1]],
+                    [v2_rad[0], v2_rad[1]]
+                ],
+                [
+                    [v2_rad[0], v2_rad[1]],
+                    [v1_rad[0], v1_rad[1]]
+                ]
+            ]
+        ])
+
+        # Assert that the result is correct
+        self.assertEqual(face_edges_connectivity_lonlat.shape, correct_result.shape)
