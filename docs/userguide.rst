@@ -15,4 +15,7 @@ common tasks that you can accomplish with UXarray.
    user-guide/representation.rst
    user-guide/grid-formats.rst
    user-guide/data-structures.ipynb
+   user-guide/topological-aggregations.ipynb
    user-guide/area_calc.ipynb
+   user-guide/remapping.ipynb
+   user-guide/tree_structures.ipynb
