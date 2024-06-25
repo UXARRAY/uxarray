@@ -159,7 +159,21 @@ class TestNearestNeighborRemap(TestCase):
                                                                          remap_to="edge centers")
 
         # Assert the data variable lies on the "edge centers"
-        self.assertTrue(destination_grid['v1']._edge_centered())
+        self.assertTrue(remap_to_edge_centers['v1']._edge_centered())
+
+    def test_overwrite(self):
+        """Tests that the remapping no longer overwrites the dataset."""
+
+        # Open source and destination datasets to remap to
+        source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        # Perform remapping
+        remap_to_edge_centers = source_grid['v1'].remap.nearest_neighbor(destination_obj=destination_dataset,
+                                                                                  remap_to="nodes")
+
+        # Assert the remapped data is different from the original data
+        assert not np.array_equal(destination_dataset['v1'], remap_to_edge_centers)
 
 
 class TestInverseDistanceWeightedRemapping(TestCase):
@@ -289,4 +303,18 @@ class TestInverseDistanceWeightedRemapping(TestCase):
                                                                                   remap_to="edge centers")
 
         # Assert the data variable lies on the "edge centers"
-        self.assertTrue(destination_grid['v1']._edge_centered())
+        self.assertTrue(remap_to_edge_centers['v1']._edge_centered())
+
+    def test_overwrite(self):
+        """Tests that the remapping no longer overwrites the dataset."""
+
+        # Open source and destination datasets to remap to
+        source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        # Perform Remapping
+        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(destination_obj=destination_dataset,
+                                                                         remap_to="nodes")
+
+        # Assert the remapped data is different from the original data
+        assert not np.array_equal(destination_dataset['v1'], remap_to_edge_centers)
