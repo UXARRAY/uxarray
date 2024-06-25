@@ -111,7 +111,7 @@ class UxDatasetRemapAccessor:
 
         if destination_grid is not None:
             return _inverse_distance_weighted_remap_uxds(
-                self.uxds, destination_grid, remap_to, coord_type
+                self.uxds, destination_grid, remap_to, coord_type, power, k
             )
         elif destination_obj is not None:
             warn(
@@ -119,5 +119,5 @@ class UxDatasetRemapAccessor:
                 DeprecationWarning,
             )
             return _inverse_distance_weighted_remap_uxds(
-                self.uxds, destination_obj, remap_to, coord_type
+                self.uxds, destination_obj, remap_to, coord_type, power, k
             )
