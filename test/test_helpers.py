@@ -255,6 +255,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         face_node_conn = grid.face_node_connectivity.values
         n_nodes_per_face = np.array([len(face) for face in face_node_conn])
         n_face = len(face_node_conn)
+
         n_max_face_edges = max(n_nodes_per_face)
         node_x = grid.node_x.values
         node_y = grid.node_y.values
@@ -262,7 +263,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
         # Call the function to test
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
-            face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_x, node_y, node_z
+            face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
         )
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
@@ -295,7 +296,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
         # Call the function to test
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
-            face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_x, node_y, node_z
+            face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
         )
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
@@ -324,16 +325,71 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         v3_rad = np.deg2rad(v3_deg)
         v4_rad = np.deg2rad(v4_deg)
 
-    # It should look like following when passing in the _get_cartesian_face_edge_nodes
-    # [[v0_cart,v1_cart,v2_cart, [Fill_Value,Fill_Value,Fill_Value]],[v1_cart,v3_cart,v4_cart,v2_cart]]
+        # It should look like following when passing in the _get_cartesian_face_edge_nodes
+        # [[v0_cart,v1_cart,v2_cart, [Fill_Value,Fill_Value,Fill_Value]],[v1_cart,v3_cart,v4_cart,v2_cart]]
         v0_cart = _lonlat_rad_to_xyz(v0_rad[0],v0_rad[1])
         v1_cart = _lonlat_rad_to_xyz(v1_rad[0],v1_rad[1])
         v2_cart = _lonlat_rad_to_xyz(v2_rad[0],v2_rad[1])
         v3_cart = _lonlat_rad_to_xyz(v3_rad[0],v3_rad[1])
         v4_cart = _lonlat_rad_to_xyz(v4_rad[0],v4_rad[1])
 
-        face_conn = [[v0_cart,v1_cart,v2_cart, [INT_FILL_VALUE,INT_FILL_VALUE,INT_FILL_VALUE]],[v1_cart,v3_cart,v4_cart,v2_cart]]
-        pass
+        face_node_conn = np.array([[0, 1, 2, INT_FILL_VALUE],[1, 3, 4, 2]])
+        n_face = 2
+        n_max_face_edges = 4
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        node_x = np.array([v0_cart[0],v1_cart[0],v2_cart[0],v3_cart[0],v4_cart[0]])
+        node_y = np.array([v0_cart[1],v1_cart[1],v2_cart[1],v3_cart[1],v4_cart[1]])
+        node_z = np.array([v0_cart[2],v1_cart[2],v2_cart[2],v3_cart[2],v4_cart[2]])
+
+        # call the function to test
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
+        )
+
+        # Define correct result
+        correct_result = np.array([
+            [
+                [
+                    [9.69846310e-01, 1.71010072e-01, 1.73648178e-01],
+                    [9.33012702e-01, 2.50000000e-01, 2.58819045e-01]
+                ],
+                [
+                    [9.33012702e-01, 2.50000000e-01, 2.58819045e-01],
+                    [9.62250187e-01, 8.41859828e-02, 2.58819045e-01]
+                ],
+                [
+                    [9.62250187e-01, 8.41859828e-02, 2.58819045e-01],
+                    [9.69846310e-01, 1.71010072e-01, 1.73648178e-01]
+                ],
+                [
+                    [-9.22337204e+18, -9.22337204e+18, -9.22337204e+18],
+                    [-9.22337204e+18, -9.22337204e+18, -9.22337204e+18]
+                ]
+            ],
+            [
+                [
+                    [9.33012702e-01, 2.50000000e-01, 2.58819045e-01],
+                    [6.83012702e-01, 1.83012702e-01, 7.07106781e-01]
+                ],
+                [
+                    [6.83012702e-01, 1.83012702e-01, 7.07106781e-01],
+                    [7.04416026e-01, 6.16284167e-02, 7.07106781e-01]
+                ],
+                [
+                    [7.04416026e-01, 6.16284167e-02, 7.07106781e-01],
+                    [9.62250187e-01, 8.41859828e-02, 2.58819045e-01]
+                ],
+                [
+                    [9.62250187e-01, 8.41859828e-02, 2.58819045e-01],
+                    [9.33012702e-01, 2.50000000e-01, 2.58819045e-01]
+                ]
+            ]
+        ])
+
+
+        # Assert that the result is correct
+        self.assertEqual(face_edges_connectivity_cartesian.shape, correct_result.shape)
+
 
     def test_get_lonlat_face_edge_nodes_pipeline(self):
         # Create the vertices for the grid, based around the North Pole
@@ -355,7 +411,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
         # Call the function to test
         face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
-            face_node_conn, n_nodes_per_face, n_face, n_max_face_edges, node_lon, node_lat
+            face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
         )
 
         # Convert the first face's edges to Cartesian coordinates
