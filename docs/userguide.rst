@@ -32,16 +32,19 @@ These user guides provide detailed explanations of the core functionality in UXa
  Core data structures for working with unstructured grid and data files
 
 `Plotting <user-guide/plotting.ipynb>`_
- Visualizing unstructured grid datasets
+ Visualize unstructured grid datasets
 
 `Advanced Plotting Techniques <user-guide/advanced-plotting.ipynb>`_
  Deeper dive into getting the most out of UXarray's plotting functionality
 
 `Subsetting <user-guide/subset.ipynb>`_
- Selecting specific regions of a grid
+ Select specific regions of a grid
 
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
- Aggregating data across grid dimensions
+ Aggregate data across grid dimensions
+
+`Calculus Operators <user-guide/calculus.ipynb>`_
+ Apply calculus operators (gradient, integral) on unstructured grid data
 
 Supplementary Guides
 --------------------
@@ -49,7 +52,7 @@ Supplementary Guides
 These user guides provide additional detail about specific features in UXarray.
 
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
- Using UXarray with HoloViz tools
+ Use UXarray with HoloViz tools
 
 
 
