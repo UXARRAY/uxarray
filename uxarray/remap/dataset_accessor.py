@@ -33,7 +33,7 @@ class UxDatasetRemapAccessor:
         self,
         destination_grid: Optional[Grid] = None,
         destination_obj: Optional[Grid, UxDataArray, UxDataset] = None,
-        remap_to: str = "nodes",
+        remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
         """Nearest Neighbor Remapping between a source (``UxDataset``) and
@@ -76,7 +76,7 @@ class UxDatasetRemapAccessor:
         self,
         destination_grid: Optional[Grid] = None,
         destination_obj: Optional[Grid, UxDataArray, UxDataset] = None,
-        remap_to: str = "nodes",
+        remap_to: str = "face centers",
         coord_type: str = "spherical",
         power=2,
         k=8,
@@ -111,7 +111,7 @@ class UxDatasetRemapAccessor:
 
         if destination_grid is not None:
             return _inverse_distance_weighted_remap_uxds(
-                self.uxds, destination_grid, remap_to, coord_type
+                self.uxds, destination_grid, remap_to, coord_type, power, k
             )
         elif destination_obj is not None:
             warn(
@@ -119,5 +119,5 @@ class UxDatasetRemapAccessor:
                 DeprecationWarning,
             )
             return _inverse_distance_weighted_remap_uxds(
-                self.uxds, destination_obj, remap_to, coord_type
+                self.uxds, destination_obj, remap_to, coord_type, power, k
             )
