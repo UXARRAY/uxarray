@@ -3,7 +3,7 @@ visualization-examples:
     path: examples/visualization/3_75km_mpas.ipynb
     thumbnail: _static/thumbnails/3_75_mpas.png
 
-  - title: MPAS Grid Topology
+  - title: Visualizing MPAS Grid Topology
     path: examples/visualization/mpas_topology.ipynb
     thumbnail: _static/thumbnails/mpas_topology.png
 
@@ -11,11 +11,6 @@ workflow-examples:
   - title: Working with MPAS Grids
     path: examples/004-working-with-mpas-grids.ipynb
     thumbnail: _static/thumbnails/004-thumbnail.png
-
-
-  - title: Visualizing Data as Polygons
-    path: examples/007-polygon-viz.ipynb
-    thumbnail: _static/thumbnails/007-thumbnail.png
 
 
 

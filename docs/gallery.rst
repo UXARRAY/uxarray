@@ -8,8 +8,6 @@ Gallery
 =======
 
 
-TODO
-
 
 Visualization Examples
 ----------------------
@@ -32,7 +30,7 @@ across various interesting datasets.
 Workflow Examples
 -----------------
 
-The following notebooks
+The following notebooks showcase workflows of Uxarray in action.
 
 .. include:: workflow-examples-gallery.txt
 
@@ -46,5 +44,7 @@ The following notebooks
 
 External Examples
 -----------------
+
+Additional examples that are not part of the official documentation.
 
 .. include:: external-examples-gallery.txt
