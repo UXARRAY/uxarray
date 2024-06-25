@@ -189,7 +189,7 @@ def _newton_raphson_solver_for_gca_constLat(
     return np.append(y_new, constZ)
 
 
-def _swap_first_negative_with_last(arr):
+def _swap_first_fill_value_with_last(arr):
     # TODO: Optimize this using num nodes per face
     """Swap the first occurrence of INT_FILL_VALUE in each sub-array with the
     last value in the sub-array.
@@ -338,7 +338,7 @@ def _get_cartesian_face_edge_nodes(
     face_edge_conn = np.array([face_node_conn, face_node_conn_shift]).T.swapaxes(0, 1)
 
     # swap the first occurrence of INT_FILL_VALUE with the last value in each sub-array
-    face_edge_conn = _swap_first_negative_with_last(face_edge_conn)
+    face_edge_conn = _swap_first_fill_value_with_last(face_edge_conn)
 
     # Get the indices of the nodes from face_edge_conn
     face_edge_conn_flat = face_edge_conn.reshape(-1)
@@ -402,7 +402,7 @@ def _get_lonlat_rad_face_edge_nodes(
     face_edge_conn = np.array([face_node_conn, face_node_conn_shift]).T.swapaxes(0, 1)
 
     # swap the first occurrence of INT_FILL_VALUE with the last value in each sub-array
-    face_edge_conn = _swap_first_negative_with_last(face_edge_conn)
+    face_edge_conn = _swap_first_fill_value_with_last(face_edge_conn)
 
     # Get the indices of the nodes from face_edge_conn
     face_edge_conn_flat = face_edge_conn.reshape(-1)
