@@ -12,17 +12,10 @@ workflow-examples:
     path: examples/004-working-with-mpas-grids.ipynb
     thumbnail: _static/thumbnails/004-thumbnail.png
 
-  - title: Visualizing Grid Topology
-    path: examples/006-plot-api-topology.ipynb
-    thumbnail: _static/thumbnails/006-thumbnail.png
 
   - title: Visualizing Data as Polygons
     path: examples/007-polygon-viz.ipynb
     thumbnail: _static/thumbnails/007-thumbnail.png
-
-  - title: Visualizing Data as Points
-    path: examples/008-point-viz.ipynb
-    thumbnail: _static/thumbnails/008-thumbnail.png
 
 
 

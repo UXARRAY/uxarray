@@ -42,9 +42,7 @@ The following notebooks
 
    examples/003-area-calc.ipynb
    examples/004-working-with-mpas-grids.ipynb
-   examples/006-plot-api-topology.ipynb
    examples/007-polygon-viz.ipynb
-   examples/008-point-viz.ipynb
 
 External Examples
 -----------------
