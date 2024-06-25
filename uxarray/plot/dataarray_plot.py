@@ -13,8 +13,9 @@ import dask.dataframe as dd
 import holoviews as hv
 from holoviews.operation.datashader import rasterize as hds_rasterize
 
-
 import numpy as np
+
+import pandas as pd
 
 import uxarray.plot.utils
 
@@ -227,9 +228,9 @@ def _point_raster(
 
     uxarray.plot.utils.backend.assign(backend=backend)
 
-    # construct a dask dataframe from coordinates and data
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
-    point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
+    point_df = pd.DataFrame.from_dict(point_dict)
+    point_ddf = dd.from_pandas(point_df, npartitions=npartitions)
 
     # construct a holoviews points oobject
     points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
