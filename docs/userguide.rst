@@ -40,6 +40,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
 
+`Remapping <user-guide/remapping.ipynb>`_
+ Remap (a.k.k Regrid) between unstructured grids
+
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
 
