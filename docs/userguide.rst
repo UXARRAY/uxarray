@@ -23,7 +23,7 @@ These user guides provide the necessary background information for understanding
 `Supported Grid Formats <user-guide/grid-formats.rst>`_
  List of supported grid formats and their descriptions
 
-Cores Guides
+Core Guides
 ------------
 
 These user guides provide detailed explanations of the core functionality in UXarray.
@@ -34,6 +34,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Plotting <user-guide/plotting.ipynb>`_
  Visualizing unstructured grid datasets
 
+`Advanced Plotting Techniques <user-guide/advanced-plotting.ipynb>`_
+ Deeper dive into getting the most out of UXarray's plotting functionality
+
 `Subsetting <user-guide/subset.ipynb>`_
  Selecting specific regions of a grid
 
@@ -43,7 +46,7 @@ These user guides provide detailed explanations of the core functionality in UXa
 Supplementary Guides
 --------------------
 
-These user guides provide detail about specific additional features in UXarray.
+These user guides provide additional detail about specific features in UXarray.
 
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Using UXarray with HoloViz tools
@@ -58,6 +61,7 @@ These user guides provide detail about specific additional features in UXarray.
    user-guide/grid-formats.rst
    user-guide/data-structures.ipynb
    user-guide/plotting.ipynb
+   advanced-plotting.ipynb
    user-guide/subset.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/area_calc.ipynb

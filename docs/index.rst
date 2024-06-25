@@ -61,7 +61,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
 
         Collection of visualization and workflow examples showcasing UXarray in action.
 
-    .. grid-item-card::  API
+    .. grid-item-card::  API Reference
         :class-title: custom-title
         :class-body: custom-body
         :img-top: _static/images/icons/code.svg
