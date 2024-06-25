@@ -16,7 +16,7 @@ def _nearest_neighbor(
     source_grid: Grid,
     destination_grid: Grid,
     source_data: np.ndarray,
-    remap_to: str = "nodes",
+    remap_to: str = "face centers",
     coord_type: str = "spherical",
 ) -> np.ndarray:
     """Nearest Neighbor Remapping between two grids, mapping data that resides
@@ -118,7 +118,11 @@ def _nearest_neighbor(
             )
 
         # specify whether to query on the corner nodes or face centers based on source grid
-        _source_tree = source_grid.get_kd_tree(coordinates=source_data_mapping)
+        _source_tree = source_grid.get_ball_tree(
+            coordinates=source_data_mapping,
+            coordinate_system="cartesian",
+            distance_metric="minkowski",
+        )
 
         # prepare coordinates for query
         cartesian = np.vstack([cart_x, cart_y, cart_z]).T
@@ -147,7 +151,7 @@ def _nearest_neighbor(
 def _nearest_neighbor_uxda(
     source_uxda: UxDataArray,
     destination_obj: Union[Grid, UxDataArray, UxDataset],
-    remap_to: str = "nodes",
+    remap_to: str = "face centers",
     coord_type: str = "spherical",
 ):
     """Nearest Neighbor Remapping implementation for ``UxDataArray``.
@@ -199,12 +203,13 @@ def _nearest_neighbor_uxda(
     )
     # add remapped variable to existing UxDataset
     if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
-        destination_obj[source_uxda.name] = uxda_remap
-        return destination_obj
+        uxds = destination_obj.copy()
+        uxds[source_uxda.name] = uxda_remap
+        return uxds
 
     # construct a UxDataset from remapped variable and existing variable
     elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
-        uxds = destination_obj.to_dataset()
+        uxds = destination_obj.copy().to_dataset()
         uxds[source_uxda.name] = uxda_remap
         return uxds
 
@@ -216,7 +221,7 @@ def _nearest_neighbor_uxda(
 def _nearest_neighbor_uxds(
     source_uxds: UxDataset,
     destination_obj: Union[Grid, UxDataArray, UxDataset],
-    remap_to: str = "nodes",
+    remap_to: str = "face centers",
     coord_type: str = "spherical",
 ):
     """Nearest Neighbor Remapping implementation for ``UxDataset``.
