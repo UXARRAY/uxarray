@@ -235,12 +235,13 @@ def _inverse_distance_weighted_remap_uxda(
     )
     # add remapped variable to existing UxDataset
     if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
-        destination_obj[source_uxda.name] = uxda_remap
-        return destination_obj
+        uxds = destination_obj.copy()
+        uxds[source_uxda.name] = uxda_remap
+        return uxds
 
     # construct a UxDataset from remapped variable and existing variable
     elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
-        uxds = destination_obj.to_dataset()
+        uxds = destination_obj.copy().to_dataset()
         uxds[source_uxda.name] = uxda_remap
         return uxds
 
