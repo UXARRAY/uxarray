@@ -69,3 +69,4 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/topological-aggregations.ipynb
    user-guide/area_calc.ipynb
    user-guide/holoviz.ipynb
+   user-guide/remapping.ipynb

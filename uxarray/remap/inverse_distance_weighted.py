@@ -17,7 +17,7 @@ def _inverse_distance_weighted_remap(
     source_grid,
     destination_grid,
     source_data,
-    remap_to="nodes",
+    remap_to="face centers",
     coord_type="spherical",
     power=2,
     k=8,
@@ -129,7 +129,11 @@ def _inverse_distance_weighted_remap(
                 f"but received: {remap_to}"
             )
 
-        _source_tree = source_grid.get_kd_tree(coordinates=source_data_mapping)
+        _source_tree = source_grid.get_ball_tree(
+            coordinates=source_data_mapping,
+            coordinate_system="cartesian",
+            distance_metric="minkowski",
+        )
 
         dest_coords = np.vstack([x, y, z]).T
 
@@ -156,7 +160,7 @@ def _inverse_distance_weighted_remap(
 def _inverse_distance_weighted_remap_uxda(
     source_uxda: UxDataArray,
     destination_obj: Union[Grid, UxDataArray, UxDataset],
-    remap_to: str = "nodes",
+    remap_to: str = "face centers",
     coord_type: str = "spherical",
     power=2,
     k=8,
@@ -249,7 +253,7 @@ def _inverse_distance_weighted_remap_uxda(
 def _inverse_distance_weighted_remap_uxds(
     source_uxds: UxDataset,
     destination_obj: Union[Grid, UxDataArray, UxDataset],
-    remap_to: str = "nodes",
+    remap_to: str = "face centers",
     coord_type: str = "spherical",
     power=2,
     k=8,
