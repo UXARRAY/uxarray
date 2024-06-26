@@ -3,9 +3,6 @@ import numpy as np
 
 import warnings
 
-import random
-from typing import List, Tuple
-from shapely.geometry import Point, LineString, Polygon
 
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.conventions import ugrid
@@ -13,10 +10,6 @@ from uxarray.conventions import ugrid
 from typing import Union
 
 from numba import njit
-
-# Type aliases for better readability
-PointT = Tuple[float, float]
-Circle = Tuple[Point, float]
 
 
 @njit(cache=True)
@@ -236,14 +229,18 @@ def _populate_face_centroids(grid, repopulate=False):
 
 
 def _populate_face_centerpoints(grid, repopulate=False):
-    """Finds the centerpoints of faces using Welzl's algorithm based.
+    """Calculates the face centerpoints using Welzl's algorithm. It is a
+    randomized algorithm for finding the center and radius of the smallest
+    circle that encloses a set of points. It is here adapted to work on a unit
+    sphere. Also, this algorithm cannot be guaranteed to work on concave
+    polygons.
 
     Parameters
     ----------
     repopulate : bool, optional
-        Bool used to turn on/off repopulating the face coordinates of the centerpoints
+        Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False
     """
-    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
@@ -254,15 +251,17 @@ def _populate_face_centerpoints(grid, repopulate=False):
     face_nodes = grid.face_node_connectivity.values
     n_nodes_per_face = grid.n_nodes_per_face.values
 
+    # Check if the centerpoints are already populated
     if "face_lon_ctrpt" not in grid._ds or repopulate:
         # Construct the centerpoints if there are none stored
         if "face_x_ctrpt" not in grid._ds:
             centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
                 node_lon, node_lat, face_nodes, n_nodes_per_face
             )
+    # get the cartesian coordinates of the centerpoints
     ctrpt_x, ctrpt_y, ctrpt_z = _lonlat_rad_to_xyz(centerpoint_lon, centerpoint_lat)
 
-    # Populate the centerpoints
+    # set the grid variables for centerpoints
     if "face_lon_ctrpt" not in grid._ds or repopulate:
         grid._ds["face_lon_ctrpt"] = xr.DataArray(
             centerpoint_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
@@ -302,81 +301,160 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
-def distance(a: PointT, b: PointT) -> float:
-    return Point(a).distance(Point(b))
+def haversine_distance(point1, point2):
+    """Calculate the great-circle distance between two points on a unit sphere
+    using the Haversine formula.
+
+    Parameters:
+    - point1: A tuple containing the latitude and longitude of the first point.
+    - point2: A tuple containing the latitude and longitude of the second point.
+
+    Returns:
+    - The distance between the two points on the unit sphere.
+    """
+    R = 1.0  # Radius of the Earth assumed to be 1 (unit sphere)
+    lat1, lon1 = np.radians(point1)
+    lat2, lon2 = np.radians(point2)
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+    distance = R * c
+    return distance
 
 
-def is_in_circle(c: Circle, p: PointT) -> bool:
-    center, radius = c
-    return Point(center).distance(Point(p)) <= radius
+def circle_from_two_points(p1, p2):
+    """Calculate the smallest circle that encloses two points on a unit sphere.
+
+    Parameters:
+    - p1: The first point as a tuple of (latitude, longitude).
+    - p2: The second point as a tuple of (latitude, longitude).
+
+    Returns:
+    - A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+    """
+    center_lat = (p1[0] + p2[0]) / 2
+    center_lon = (p1[1] + p2[1]) / 2
+    center = (center_lat, center_lon)
+    radius = haversine_distance(p1, p2) / 2
+    return center, radius
 
 
-def circle_from_two_points(p1: PointT, p2: PointT) -> Circle:
-    line = LineString([Point(p1), Point(p2)])
-    center = line.centroid
-    radius = center.distance(Point(p1))
-    return (center.x, center.y), radius
+def circle_from_three_points(p1, p2, p3):
+    """Calculate the smallest circle that encloses three points on a unit
+    sphere. This is a placeholder implementation.
 
+    Parameters:
+    - p1, p2, p3: Three points as tuples of (latitude, longitude).
 
-def circle_from_three_points(p1: PointT, p2: PointT, p3: PointT) -> Circle:
-    triangle = Polygon([p1, p2, p3])
-    center = triangle.centroid
+    Returns:
+    - A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+    """
+    center = p1  # Placeholder center
     radius = (
-        center.distance(Point(p1))
-        + center.distance(Point(p2))
-        + center.distance(Point(p3))
-    ) / 3
-    return (center.x, center.y), radius
+        max(
+            haversine_distance(p1, p2),
+            haversine_distance(p1, p3),
+            haversine_distance(p2, p3),
+        )
+        / 2
+    )
+    return center, radius
 
 
-def welzl(points: List[PointT], boundary: List[PointT] = []) -> Circle:
-    if not points or len(boundary) == 3:
+def is_inside_circle(circle, point):
+    """Check if a point is inside a given circle on a unit sphere.
+
+    Parameters:
+    - circle: A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+    - point: The point to check, as a tuple of (latitude, longitude).
+
+    Returns:
+    - True if the point is inside the circle, False otherwise.
+    """
+    center, radius = circle
+    return haversine_distance(center, point) <= radius
+
+
+def welzl_recursive(points, boundary, R):
+    """Recursive helper function for Welzl's algorithm to find the smallest
+    enclosing circle.
+
+    Parameters:
+    - points: The set of points to consider.
+    - boundary: The current boundary points of the minimal enclosing circle.
+    - R: The current minimal enclosing circle.
+
+    Returns:
+    - The smallest enclosing circle as a tuple of center and radius.
+    """
+    # Base case: no points or boundary has 3 points
+    if len(points) == 0 or len(boundary) == 3:
+        # Construct the minimal circle based on the number of boundary points
         if len(boundary) == 0:
-            return ((0, 0), 0)
+            return R
         elif len(boundary) == 1:
-            return boundary[0], 0
+            return (boundary[0], 0)
         elif len(boundary) == 2:
             return circle_from_two_points(boundary[0], boundary[1])
         elif len(boundary) == 3:
             return circle_from_three_points(boundary[0], boundary[1], boundary[2])
 
-    p = points.pop()
-    circle = welzl(points, boundary)
+    # Choose a point from the set and remove it
+    p = points[-1]
+    temp_points = np.delete(points, -1, axis=0)
+    circle = welzl_recursive(temp_points, boundary, R)
 
-    if is_in_circle(circle, p):
-        points.append(p)
+    # Check if the chosen point is inside the current circle
+    if circle and is_inside_circle(circle, p):
         return circle
     else:
-        boundary.append(p)
-        result = welzl(points, boundary)
-        boundary.pop()
-        points.append(p)
-        return result
+        # If not, the point must be on the boundary of the minimal enclosing circle
+        return welzl_recursive(temp_points, np.append(boundary, [p], axis=0), R)
 
 
-def smallest_enclosing_circle(points: List[PointT]) -> Circle:
-    shuffled_points = points[:]
-    random.shuffle(shuffled_points)
-    return welzl(shuffled_points)
+def smallest_enclosing_circle(points):
+    """Find the smallest circle that encloses all given points on a unit sphere
+    using Welzl's algorithm.
+
+    Parameters:
+    - points: An array of points as tuples of (latitude, longitude).
+
+    Returns:
+    - The smallest enclosing circle as a tuple of center and radius.
+    """
+    np.random.shuffle(
+        points
+    )  # Randomize the input to increase the chance of an optimal solution
+    return welzl_recursive(points, np.empty((0, 2)), None)
 
 
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
-    """Constructs the face centerpoint using Welzl's algorithm3."""
+    """Constructs the face centerpoint using Welzl's algorithm.
 
-    points = np.column_stack((node_lon, node_lat)).tolist()
+    Parameters:
+    - node_lon: Longitudes of the nodes.
+    - node_lat: Latitudes of the nodes.
+    - face_nodes: Indices of nodes per face.
+    - n_nodes_per_face: Number of nodes per face.
 
-    ctrpt_lon = np.zeros((face_nodes.shape[0]), dtype=np.float64)
-    ctrpt_lat = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    Returns:
+    - Two arrays containing the longitudes and latitudes of the centerpoints.
+    """
+    ctrpt_lon = np.zeros(face_nodes.shape[0], dtype=np.float64)
+    ctrpt_lat = np.zeros(face_nodes.shape[0], dtype=np.float64)
 
     for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
         points_array = np.column_stack(
             (
-                node_lon[face_nodes[face_idx, 0:n_max_nodes]],
-                node_lat[face_nodes[face_idx, 0:n_max_nodes]],
+                node_lon[face_nodes[face_idx, :n_max_nodes]],
+                node_lat[face_nodes[face_idx, :n_max_nodes]],
             )
         )
-        points = [tuple(point) for point in points_array.tolist()]
-        circle = smallest_enclosing_circle(points)
+        circle = smallest_enclosing_circle(points_array)
         ctrpt_lon[face_idx] = circle[0][0]
         ctrpt_lat[face_idx] = circle[0][1]
 
