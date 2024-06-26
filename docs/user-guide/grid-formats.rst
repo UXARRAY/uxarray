@@ -17,6 +17,7 @@ NetCDF file format. As of the most recent release, the following grid formats ar
 * SCRIP
 * EXODUS
 * ESMF
+* GEOS CS
 
 While each of these formats can be encoded in the UGRID conventions, the amount of information that is parsed from them
 varies. The following sections describes how each format is converted into the UGRID conventions and what variables
@@ -111,6 +112,17 @@ References
 * https://earthsystemmodeling.org/about/
 * https://earthsystemmodeling.org/docs/release/ESMF_8_0_1/ESMF_refdoc/node3.html#SECTION03028200000000000000
 
+GEOS CS
+=======
+
+The Goddard Earth Observing System (GEOS) Cube Sphere (CS) grid format is equidistant gnomonic cubed-sphere grid with
+6 identical faces that wrap a sphere, with some number of grid cells per face. For example, a C720 GEOS-CS grid has
+6 faces, each with 720x720 elements.
+
+References
+----------
+* https://gmao.gsfc.nasa.gov/gmaoftp/ops/GEOSIT_sample/doc/CS_Description_c180_v1.pdf
+
 Parsed Variables
 ================
 
@@ -157,6 +169,7 @@ Coordinates
        <th>SCRIP</th>
        <th>EXODUS</th>
        <th>ESMF</th>
+       <th>GEOS-CS</th>
      </tr>
      <tr>
        <td>node_latlon</td>
@@ -164,6 +177,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
      </tr>
      <tr>
@@ -173,6 +187,8 @@ Coordinates
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
+
      </tr>
      <tr>
        <td>face_latlon</td>
@@ -180,6 +196,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
      </tr>
      <tr>
@@ -189,6 +206,7 @@ Coordinates
        <td class="no-cell">No</td>
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
      </tr>
      <tr>
        <td>edge_xyz</td>
@@ -197,6 +215,7 @@ Coordinates
        <td class="no-cell">No</td>
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
      </tr>
      <tr>
        <td>face_xyz</td>
@@ -204,6 +223,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
        <td class="yes-cell">Yes</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
      </tr>
    </table>
@@ -242,9 +262,11 @@ Connectivity
        <th>SCRIP</th>
        <th>EXODUS</th>
        <th>ESMF</th>
+       <th>GEOS-CS</th>
      </tr>
      <tr>
        <td>face_node</td>
+       <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
@@ -258,10 +280,12 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
      </tr>
      <tr>
        <td>face_face</td>
        <td class="yes-cell">Yes</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
@@ -274,9 +298,11 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
      </tr>
      <tr>
        <td>edge_edge</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
@@ -290,10 +316,12 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
      </tr>
      <tr>
        <td>node_node</td>
        <td class="yes-cell">Yes</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
@@ -306,11 +334,13 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
      </tr>
      <tr>
        <td>node_face</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
