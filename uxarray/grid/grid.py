@@ -21,6 +21,7 @@ from uxarray.io._scrip import _read_scrip, _encode_scrip
 from uxarray.io._esmf import _read_esmf
 from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
+from uxarray.io._geos import _read_geos_cs
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
@@ -198,6 +199,8 @@ class Grid:
                 grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
             elif source_grid_spec == "ESMF":
                 grid_ds, source_dims_dict = _read_esmf(dataset)
+            elif source_grid_spec == "GEOS-CS":
+                grid_ds, source_dims_dict = _read_geos_cs(dataset)
             elif source_grid_spec == "Shapefile":
                 raise ValueError("Shapefiles not yet supported")
             else:
