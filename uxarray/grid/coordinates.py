@@ -237,8 +237,10 @@ def _populate_face_centerpoints(grid, repopulate=False):
 
     Parameters
     ----------
+    grid : Grid
+        The grid containing the nodes and faces.
     repopulate : bool, optional
-        Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False
+        Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False.
     """
     # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
@@ -286,7 +288,26 @@ def _populate_face_centerpoints(grid, repopulate=False):
 
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
-    Averaging."""
+    Averaging.
+
+    Parameters
+    ----------
+    node_x : numpy.ndarray
+        X coordinates of the nodes.
+    node_y : numpy.ndarray
+        Y coordinates of the nodes.
+    node_z : numpy.ndarray
+        Z coordinates of the nodes.
+    face_nodes : numpy.ndarray
+        Indices of nodes per face.
+    n_nodes_per_face : numpy.ndarray
+        Number of nodes per face.
+
+    Returns
+    -------
+    tuple
+        The x, y, and z coordinates of the centroids.
+    """
 
     centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
@@ -305,12 +326,17 @@ def haversine_distance(point1, point2):
     """Calculate the great-circle distance between two points on a unit sphere
     using the Haversine formula.
 
-    Parameters:
-    - point1: A tuple containing the latitude and longitude of the first point.
-    - point2: A tuple containing the latitude and longitude of the second point.
+    Parameters
+    ----------
+    point1 : tuple
+        A tuple containing the latitude and longitude of the first point.
+    point2 : tuple
+        A tuple containing the latitude and longitude of the second point.
 
-    Returns:
-    - The distance between the two points on the unit sphere.
+    Returns
+    -------
+    float
+        The distance between the two points on the unit sphere.
     """
     R = 1.0  # Radius of the Earth assumed to be 1 (unit sphere)
     lat1, lon1 = np.radians(point1)
@@ -329,12 +355,17 @@ def haversine_distance(point1, point2):
 def circle_from_two_points(p1, p2):
     """Calculate the smallest circle that encloses two points on a unit sphere.
 
-    Parameters:
-    - p1: The first point as a tuple of (latitude, longitude).
-    - p2: The second point as a tuple of (latitude, longitude).
+    Parameters
+    ----------
+    p1 : tuple
+        The first point as a tuple of (latitude, longitude).
+    p2 : tuple
+        The second point as a tuple of (latitude, longitude).
 
-    Returns:
-    - A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+    Returns
+    -------
+    tuple
+        A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
     """
     center_lat = (p1[0] + p2[0]) / 2
     center_lon = (p1[1] + p2[1]) / 2
@@ -347,11 +378,19 @@ def circle_from_three_points(p1, p2, p3):
     """Calculate the smallest circle that encloses three points on a unit
     sphere. This is a placeholder implementation.
 
-    Parameters:
-    - p1, p2, p3: Three points as tuples of (latitude, longitude).
+    Parameters
+    ----------
+    p1 : tuple
+        The first point.
+    p2 : tuple
+        The second point.
+    p3 : tuple
+        The third point.
 
-    Returns:
-    - A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+    Returns
+    -------
+    tuple
+        A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
     """
     center = p1  # Placeholder center
     radius = (
@@ -368,12 +407,17 @@ def circle_from_three_points(p1, p2, p3):
 def is_inside_circle(circle, point):
     """Check if a point is inside a given circle on a unit sphere.
 
-    Parameters:
-    - circle: A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
-    - point: The point to check, as a tuple of (latitude, longitude).
+    Parameters
+    ----------
+    circle : tuple
+        A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+    point : tuple
+        The point to check, as a tuple of (latitude, longitude).
 
-    Returns:
-    - True if the point is inside the circle, False otherwise.
+    Returns
+    -------
+    bool
+        True if the point is inside the circle, False otherwise.
     """
     center, radius = circle
     return haversine_distance(center, point) <= radius
@@ -383,13 +427,19 @@ def welzl_recursive(points, boundary, R):
     """Recursive helper function for Welzl's algorithm to find the smallest
     enclosing circle.
 
-    Parameters:
-    - points: The set of points to consider.
-    - boundary: The current boundary points of the minimal enclosing circle.
-    - R: The current minimal enclosing circle.
+    Parameters
+    ----------
+    points : numpy.ndarray
+        The set of points to consider.
+    boundary : numpy.ndarray
+        The current boundary points of the minimal enclosing circle.
+    R : tuple
+        The current minimal enclosing circle.
 
-    Returns:
-    - The smallest enclosing circle as a tuple of center and radius.
+    Returns
+    -------
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
     """
     # Base case: no points or boundary has 3 points
     if len(points) == 0 or len(boundary) == 3:
@@ -420,11 +470,15 @@ def smallest_enclosing_circle(points):
     """Find the smallest circle that encloses all given points on a unit sphere
     using Welzl's algorithm.
 
-    Parameters:
-    - points: An array of points as tuples of (latitude, longitude).
+    Parameters
+    ----------
+    points : numpy.ndarray
+        An array of points as tuples of (latitude, longitude).
 
-    Returns:
-    - The smallest enclosing circle as a tuple of center and radius.
+    Returns
+    -------
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
     """
     np.random.shuffle(
         points
@@ -435,14 +489,25 @@ def smallest_enclosing_circle(points):
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
     """Constructs the face centerpoint using Welzl's algorithm.
 
-    Parameters:
-    - node_lon: Longitudes of the nodes.
-    - node_lat: Latitudes of the nodes.
-    - face_nodes: Indices of nodes per face.
-    - n_nodes_per_face: Number of nodes per face.
+    Parameters
+    ----------
+    node_lon : array_like
+        Longitudes of the nodes.
+    node_lat : array_like
+        Latitudes of the nodes.
+    face_nodes : array_like
+        Indices of nodes per face.
+    n_nodes_per_face : int
+        Number of nodes per face.
 
-    Returns:
-    - Two arrays containing the longitudes and latitudes of the centerpoints.
+    Returns
+    -------
+    tuple of numpy.ndarray
+        Two arrays containing the longitudes and latitudes of the centerpoints.
+
+    Notes
+    -----
+    This function calculates the centerpoints of faces defined by nodes on a sphere, using Welzl's algorithm to find the smallest enclosing circle for each face.
     """
     ctrpt_lon = np.zeros(face_nodes.shape[0], dtype=np.float64)
     ctrpt_lat = np.zeros(face_nodes.shape[0], dtype=np.float64)
