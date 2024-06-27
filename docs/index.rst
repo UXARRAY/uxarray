@@ -65,7 +65,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
         :class-title: custom-title
         :class-body: custom-body
         :img-top: _static/images/icons/code.svg
-        :link: api3
+        :link: api
         :link-type: doc
 
         The reference guide contains a detailed description of the UXarray API. The reference describes how the methods
