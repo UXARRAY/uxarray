@@ -38,9 +38,7 @@ The following notebooks showcase workflows of Uxarray in action.
    :maxdepth: 1
    :hidden:
 
-   examples/003-area-calc.ipynb
-   examples/004-working-with-mpas-grids.ipynb
-   examples/007-polygon-viz.ipynb
+   examples/working-with-mpas-grids.ipynb
 
 External Examples
 -----------------
