@@ -52,16 +52,16 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
         The user guide provides in-depth information on the key concepts of UXarray with usefully definitions,
         background information and explanations.
 
-    .. grid-item-card::  Example Gallery
+    .. grid-item-card::  Gallery
         :class-title: custom-title
         :class-body: custom-body
         :img-top: _static/images/icons/science.svg
-        :link: examples
+        :link: gallery
         :link-type: doc
 
-        The example gallery contains notebooks showcasing real-world workflows of UXarray in action.
+        Collection of visualization and workflow examples showcasing UXarray in action.
 
-    .. grid-item-card::  API
+    .. grid-item-card::  API Reference
         :class-title: custom-title
         :class-body: custom-body
         :img-top: _static/images/icons/code.svg
@@ -98,7 +98,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
 
     Getting Started <quickstart>
     User Guide <userguide>
-    Usage Examples <examples>
+    Gallery <gallery>
     API Reference <api>
     Tutorials and Videos <tutorials>
     Cite Uxarray <citation>
