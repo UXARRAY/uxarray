@@ -33,7 +33,7 @@ dependencies = [
   "matplotlib-inline",
   "netcdf4",
   "numba",
-  "numpy",
+  "numpy<2.0.0",
   "pandas<2.1.0",
   "pyarrow",
   "requests",
