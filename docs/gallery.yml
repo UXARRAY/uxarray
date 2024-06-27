@@ -1,23 +1,20 @@
-- title: Working with MPAS Grids
-  path: examples/004-working-with-mpas-grids.ipynb
-  thumbnail: _static/thumbnails/004-thumbnail.png
+visualization-examples:
+  - title: 3.75km MPAS Atmosphere Output
+    path: examples/visualization/3_75km_mpas.ipynb
+    thumbnail: _static/thumbnails/3_75_mpas.png
 
-- title: Conversion to GeoDataFrame for Visualization with HoloViz Packages
-  path: examples/005-to-geodataframe-for-holoviz.ipynb
-  thumbnail: _static/thumbnails/default.svg
+  - title: Visualizing MPAS Grid Topology
+    path: examples/visualization/mpas_topology.ipynb
+    thumbnail: _static/thumbnails/mpas_topology.png
 
-- title: Visualizing Grid Topology
-  path: examples/006-plot-api-topology.ipynb
-  thumbnail: _static/thumbnails/006-thumbnail.png
+workflow-examples:
+  - title: Working with MPAS Grids
+    path: examples/working-with-mpas-grids.ipynb
+    thumbnail: _static/thumbnails/004-thumbnail.png
 
-- title: Visualizing Data as Polygons
-  path: examples/007-polygon-viz.ipynb
-  thumbnail: _static/thumbnails/007-thumbnail.png
 
-- title: Visualizing Data as Points
-  path: examples/008-point-viz.ipynb
-  thumbnail: _static/thumbnails/008-thumbnail.png
 
-- title: Subsetting an Unstructured Grid
-  path: examples/009-subsetting.ipynb
-  thumbnail: _static/thumbnails/009-thumbnail.png
+external-examples:
+  - title: Unstructured Grid Visualization Cookbook
+    path: https://projectpythia.org/unstructured-grid-viz-cookbook/README.html
+    thumbnail: https://raw.githubusercontent.com/ProjectPythia/projectpythia.github.io/main/portal/_static/images/logos/pythia_logo-blue-btext-twocolor.svg
