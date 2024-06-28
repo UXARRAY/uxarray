@@ -404,6 +404,18 @@ class UxDataArray(xr.DataArray):
 
         return self.topological_mean(destination="face")
 
+    def weighted_mean(self):
+        if self._face_centered():
+            res = self.data
+            face_areas = self.uxgrid.face_areas
+            total_face_area = face_areas.sum()
+
+            res = self.data * face_areas / total_face_area
+        else:
+            raise ValueError
+
+        return res
+
     def topological_mean(
         self,
         destination: Literal["node", "edge", "face"],
