@@ -17,8 +17,8 @@ def _lonlat_rad_to_xyz(
     lon: Union[np.ndarray, float],
     lat: Union[np.ndarray, float],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Spherical latitude and longitude coordinates into Cartesian x,
-    y, z coordinates."""
+    """Converts Spherical lon and lat coordinates into Cartesian x, y, z
+    coordinates."""
     x = np.cos(lon) * np.cos(lat)
     y = np.sin(lon) * np.cos(lat)
     z = np.sin(lat)
@@ -128,7 +128,7 @@ def _normalize_xyz(
 
 
 def _populate_node_latlon(grid) -> None:
-    """Populates the latitude and longitude coordinates of a Grid (`node_lon`,
+    """Populates the lon and lat coordinates of a Grid (`node_lon`,
     `node_lat`)"""
     lon_rad, lat_rad = _xyz_to_lonlat_rad(
         grid.node_x.values, grid.node_y.values, grid.node_z.values
@@ -329,9 +329,9 @@ def haversine_distance(point1, point2):
     Parameters
     ----------
     point1 : tuple
-        A tuple containing the latitude and longitude of the first point.
+        A tuple containing the lon and lat of the first point.
     point2 : tuple
-        A tuple containing the latitude and longitude of the second point.
+        A tuple containing the lon and lat of the second point.
 
     Returns
     -------
@@ -339,8 +339,8 @@ def haversine_distance(point1, point2):
         The distance between the two points on the unit sphere.
     """
     R = 1.0  # Radius of the Earth assumed to be 1 (unit sphere)
-    lat1, lon1 = np.radians(point1)
-    lat2, lon2 = np.radians(point2)
+    lon1, lat1 = np.radians(point1)
+    lon2, lat2 = np.radians(point2)
 
     dlat = lat2 - lat1
     dlon = lon2 - lon1
@@ -365,11 +365,11 @@ def circle_from_two_points(p1, p2):
     Returns
     -------
     tuple
-        A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
     """
-    center_lat = (p1[0] + p2[0]) / 2
-    center_lon = (p1[1] + p2[1]) / 2
-    center = (center_lat, center_lon)
+    center_lon = (p1[0] + p2[0]) / 2
+    center_lat = (p1[1] + p2[1]) / 2
+    center = (center_lon, center_lat)
     radius = haversine_distance(p1, p2) / 2
     return center, radius
 
@@ -390,7 +390,7 @@ def circle_from_three_points(p1, p2, p3):
     Returns
     -------
     tuple
-        A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
     """
     center = p1  # Placeholder center
     radius = (
@@ -410,9 +410,9 @@ def is_inside_circle(circle, point):
     Parameters
     ----------
     circle : tuple
-        A tuple containing the center (as a tuple of latitude and longitude) and the radius of the circle.
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
     point : tuple
-        The point to check, as a tuple of (latitude, longitude).
+        The point to check, as a tuple of (lon, lat).
 
     Returns
     -------
@@ -473,7 +473,7 @@ def smallest_enclosing_circle(points):
     Parameters
     ----------
     points : numpy.ndarray
-        An array of points as tuples of (latitude, longitude).
+        An array of points as tuples of (lon, lat).
 
     Returns
     -------
@@ -507,7 +507,8 @@ def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_fac
 
     Notes
     -----
-    This function calculates the centerpoints of faces defined by nodes on a sphere, using Welzl's algorithm to find the smallest enclosing circle for each face.
+    This function calculates the centerpoints of faces defined by nodes on a sphere, using Welzl's algorithm to
+    find the smallest enclosing circle for each face.
     """
     ctrpt_lon = np.zeros(face_nodes.shape[0], dtype=np.float64)
     ctrpt_lat = np.zeros(face_nodes.shape[0], dtype=np.float64)
