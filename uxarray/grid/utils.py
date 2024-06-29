@@ -194,9 +194,11 @@ def _swap_first_fill_value_with_last(arr):
     last value in the sub-array.
 
     Parameters:
+    ----------
     arr (np.ndarray): A 3D numpy array where the swap will be performed.
 
     Returns:
+    -------
     np.ndarray: The modified array with the swaps made.
     """
     # Find the indices of the first INT_FILL_VALUE in each sub-array
