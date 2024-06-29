@@ -883,6 +883,8 @@ def _populate_bounds(
 
     faces_edges_cartesian = _get_cartesian_face_edge_nodes(
         grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
         grid.node_x.values,
         grid.node_y.values,
         grid.node_z.values,
@@ -890,6 +892,8 @@ def _populate_bounds(
 
     faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
         grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
         grid.node_lon.values,
         grid.node_lat.values,
     )

@@ -190,7 +190,6 @@ def _newton_raphson_solver_for_gca_constLat(
 
 
 def _swap_first_fill_value_with_last(arr):
-    # TODO: Optimize this using num nodes per face
     """Swap the first occurrence of INT_FILL_VALUE in each sub-array with the
     last value in the sub-array.
 
@@ -257,17 +256,17 @@ def _get_cartesian_face_edge_nodes(
     Parameters
     ----------
     face_node_conn : np.ndarray
-        An array of shape (n_face, n_max_face_edges) containing the node indices for each face.
+        An array of shape (n_face, n_max_face_edges) containing the node indices for each face. Accessed through `grid.face_node_connectivity.value`.
     n_face : int
-        The number of faces in the grid.
+        The number of faces in the grid. Accessed through `grid.n_face`.
     n_max_face_edges : int
-        The maximum number of edges for any face in the grid.
+        The maximum number of edges for any face in the grid. Accessed through `grid.n_max_face_edges`.
     node_x : np.ndarray
-        An array of shape (n_nodes,) containing the x-coordinate values of the nodes.
+        An array of shape (n_nodes,) containing the x-coordinate values of the nodes. Accessed through `grid.node_x`.
     node_y : np.ndarray
-        An array of shape (n_nodes,) containing the y-coordinate values of the nodes.
+        An array of shape (n_nodes,) containing the y-coordinate values of the nodes. Accessed through `grid.node_y`.
     node_z : np.ndarray
-        An array of shape (n_nodes,) containing the z-coordinate values of the nodes.
+        An array of shape (n_nodes,) containing the z-coordinate values of the nodes. Accessed through `grid.node_z`.
 
     Returns
     -------
@@ -370,15 +369,15 @@ def _get_lonlat_rad_face_edge_nodes(
     Parameters
     ----------
     face_node_conn : np.ndarray
-        An array of shape (n_face, n_max_face_edges) containing the node indices for each face.
+        An array of shape (n_face, n_max_face_edges) containing the node indices for each face. Accessed through `grid.face_node_connectivity.value`.
     n_face : int
-        The number of faces in the grid.
+        The number of faces in the grid. Accessed through `grid.n_face`.
     n_max_face_edges : int
-        The maximum number of edges for any face in the grid.
+        The maximum number of edges for any face in the grid. Accessed through `grid.n_max_face_edges`.
     node_lon : np.ndarray
-        An array of shape (n_nodes,) containing the longitude values of the nodes in degrees.
+        An array of shape (n_nodes,) containing the longitude values of the nodes in degrees. Accessed through `grid.node_lon`.
     node_lat : np.ndarray
-        An array of shape (n_nodes,) containing the latitude values of the nodes in degrees.
+        An array of shape (n_nodes,) containing the latitude values of the nodes in degrees. Accessed through `grid.node_lat`.
 
     Returns
     -------
