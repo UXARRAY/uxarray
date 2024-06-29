@@ -232,8 +232,11 @@ def _point_raster(
     point_df = pd.DataFrame.from_dict(point_dict)
     point_ddf = dd.from_pandas(point_df, npartitions=npartitions)
 
-    # construct a holoviews points oobject
-    points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
+    # construct a holoviews points object
+    if backend == "matplotlib":
+        points = hv.Points(point_ddf, ["lon", "lat"]).opts(s=size)
+    else:
+        points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend

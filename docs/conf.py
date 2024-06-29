@@ -198,17 +198,21 @@ htmlhelp_basename = "uxarraydoc"
 
 autodoc_typehints = "none"
 
+# notebooks to exclude from run-time execution, will use rendered version
+nb_execution_excludepatterns = ["3_75km_mpas.ipynb"]
+
 
 # custom scripts for making a gallery of examples notebooks
 def update_gallery(app: Sphinx):
-    """Update the gallery of examples notebooks."""
+    """Update the gallery page."""
 
-    LOGGER.info("creating gallery...")
+    LOGGER.info("Updating gallery page...")
 
-    notebooks = yaml.safe_load(pathlib.Path(app.srcdir, "gallery.yml").read_bytes())
+    gallery = yaml.safe_load(pathlib.Path(app.srcdir, "gallery.yml").read_bytes())
 
-    items = [
-        f"""
+    for key in gallery:
+        items = [
+            f"""
          .. grid-item-card::
             :text-align: center
             :link: {item['path']}
@@ -218,20 +222,19 @@ def update_gallery(app: Sphinx):
             +++
             {item['title']}
             """
-        for item in notebooks
-    ]
+            for item in gallery[key]
+        ]
 
-    items_md = indent(dedent("\n".join(items)), prefix="    ")
-    markdown = f"""
+        items_md = indent(dedent("\n".join(items)), prefix="    ")
+        markdown = f"""
 .. grid:: 1 2 3 3
     :gutter: 2
 
     {items_md}
     """
-
-    pathlib.Path(app.srcdir, "notebook-examples.txt").write_text(markdown)
-
-    LOGGER.info("gallery created")
+        pathlib.Path(app.srcdir, f"{key}-gallery.txt").write_text(markdown)
+        LOGGER.info(f"{key} gallery page updated.")
+    LOGGER.info("Gallery page updated.")
 
 
 # Allow for changes to be made to the css in the theme_overrides file
