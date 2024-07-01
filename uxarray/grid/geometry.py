@@ -881,23 +881,35 @@ def _populate_bounds(
     intervals_tuple_list = []
     intervals_name_list = []
 
-    for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
-        face_edges_cartesian = _get_cartesian_face_edge_nodes(
-            grid.face_node_connectivity.values[face_idx],
-            grid.face_edge_connectivity.values[face_idx],
-            grid.edge_node_connectivity.values,
-            grid.node_x.values,
-            grid.node_y.values,
-            grid.node_z.values,
-        )
+    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+    )
 
-        face_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
-            grid.face_node_connectivity.values[face_idx],
-            grid.face_edge_connectivity.values[face_idx],
-            grid.edge_node_connectivity.values,
-            grid.node_lon.values,
-            grid.node_lat.values,
-        )
+    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_lon.values,
+        grid.node_lat.values,
+    )
+
+    for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
+        face_edges_cartesian = faces_edges_cartesian[face_idx]
+
+        # Skip processing if the face is a dummy face
+        if np.any(face_edges_cartesian == INT_FILL_VALUE):
+            continue
+
+        face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
+
+        # Skip processing if the face is a dummy face
+        if np.any(face_edges_lonlat_rad == INT_FILL_VALUE):
+            continue
 
         is_GCA_list = (
             is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None
