@@ -8,7 +8,8 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, _build_edge_node_connectivity
+from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
+    _build_edge_node_connectivity, _build_face_face_connectivity, _populate_face_face_connectivity
 
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 
@@ -873,6 +874,16 @@ class TestConnectivity(TestCase):
 
         # no invalid entries should occur
         assert n_invalid == 0
+
+    def test_face_face_connectivity_construction(self):
+        """Tests the construction of face-face connectivity."""
+        # Add grid here once face_face_connectivity can be read in
+        # grid = ux.open_grid()
+        # face_face_conn_old = grid.face_face_connectivity.values
+        # face_face_conn_new = _build_face_face_connectivity(grid)
+
+        # nt.assert_array_equal(face_face_conn_new, face_face_conn_old)
+        pass
 
 
 class TestClassMethods(TestCase):

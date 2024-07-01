@@ -38,6 +38,7 @@ from uxarray.grid.connectivity import (
     _populate_n_nodes_per_face,
     _populate_node_face_connectivity,
     _populate_edge_face_connectivity,
+    _populate_face_face_connectivity,
 )
 
 from uxarray.grid.geometry import (
@@ -795,9 +796,7 @@ class Grid:
         Dimensions ``(n_face, n_max_face_faces)``
         """
         if "face_face_connectivity" not in self._ds:
-            raise NotImplementedError(
-                "Construction of `face_face_connectivity` not yet supported."
-            )
+            _populate_face_face_connectivity(self)
 
         return self._ds["face_face_connectivity"]
 
