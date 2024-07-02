@@ -480,7 +480,7 @@ def _parse_face_faces(in_ds, out_ds):
     # make zero-indexed
     cellsOnCell = _to_zero_index(cellsOnCell)
 
-    face_face_connectivity = edgesOnCell
+    face_face_connectivity = cellsOnCell
 
     out_ds["face_face_connectivity"] = xr.DataArray(
         data=face_face_connectivity,
