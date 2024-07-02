@@ -467,7 +467,20 @@ def _parse_global_attrs(in_ds, out_ds):
 
 
 def _parse_face_faces(in_ds, out_ds):
-    face_face_connectivity = in_ds["cellsOnCell"].values
+    """Parses face-face connectivity for Primal Mesh."""
+    cellsOnCell = np.array(in_ds["cellsOnCell"].values, dtype=INT_DTYPE)
+    nEdgesOnCell = np.array(in_ds["nEdgesOnCell"].values, dtype=INT_DTYPE)
+
+    # replace padded values with fill values
+    cellsOnCell = _replace_padding(cellsOnCell, nEdgesOnCell)
+
+    # replace missing/zero values with fill values
+    edgesOnCell = _replace_zeros(cellsOnCell)
+
+    # make zero-indexed
+    edgesOnCell = _to_zero_index(edgesOnCell)
+
+    face_face_connectivity = edgesOnCell
 
     out_ds["face_face_connectivity"] = xr.DataArray(
         data=face_face_connectivity,
