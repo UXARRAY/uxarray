@@ -478,7 +478,7 @@ def _parse_face_faces(in_ds, out_ds):
     edgesOnCell = _replace_zeros(cellsOnCell)
 
     # make zero-indexed
-    edgesOnCell = _to_zero_index(edgesOnCell)
+    cellsOnCell = _to_zero_index(cellsOnCell)
 
     face_face_connectivity = edgesOnCell
 
