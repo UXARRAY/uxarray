@@ -475,7 +475,7 @@ def _parse_face_faces(in_ds, out_ds):
     cellsOnCell = _replace_padding(cellsOnCell, nEdgesOnCell)
 
     # replace missing/zero values with fill values
-    edgesOnCell = _replace_zeros(cellsOnCell)
+    cellsOnCell = _replace_zeros(cellsOnCell)
 
     # make zero-indexed
     cellsOnCell = _to_zero_index(cellsOnCell)
