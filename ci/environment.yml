@@ -1,22 +1,27 @@
 name: uxarray_build
 channels:
   - conda-forge
+  - nodefaults
 dependencies:
+  - antimeridian
   - cartopy
   - dask
   - datashader
   - gmpy2
+  - h5netcdf
+  - hdf5
   - holoviews
   - matplotlib-base
   - matplotlib-inline
   - netcdf4
   - numba
-  - numpy
+  - numpy<2
   - pandas<2.1.0
   - pathlib
   - pre_commit
   - pyarrow
   - pytest
+  - pip
   - pytest-cov
   - requests
   - scikit-learn
@@ -25,5 +30,4 @@ dependencies:
   - spatialpandas
   - xarray
   - pip:
-    - antimeridian
     - pyfma
