@@ -7,6 +7,10 @@ visualization-examples:
     path: examples/visualization/mpas_topology.ipynb
     thumbnail: _static/thumbnails/mpas_topology.png
 
+  - title: Variable Resolution Regional MPAS Model Output, Interactive Rain & Reflectivity Plots
+    path: examples/visualization/rain_reflec.ipynb
+    thumbnail: _static/thumbnails/mpas_topology.png
+
 workflow-examples:
   - title: Working with MPAS Grids
     path: examples/working-with-mpas-grids.ipynb
