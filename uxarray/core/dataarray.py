@@ -404,6 +404,10 @@ class UxDataArray(xr.DataArray):
 
         return self.topological_mean(destination="face")
 
+    def weighted_mean(self, **kwargs):
+        # implement weighted mean here
+        pass
+
     def topological_mean(
         self,
         destination: Literal["node", "edge", "face"],

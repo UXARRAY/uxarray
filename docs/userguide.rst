@@ -46,6 +46,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
 
+`Weighted Average <user-guide/weighted-average.ipynb>`_
+ Compute the weighted average
+
 `Calculus Operators <user-guide/calculus.ipynb>`_
  Apply calculus operators (gradient, integral) on unstructured grid data
 
