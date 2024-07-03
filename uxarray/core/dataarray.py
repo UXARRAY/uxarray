@@ -408,21 +408,23 @@ class UxDataArray(xr.DataArray):
         if weighted:
             if self._face_centered():
                 # use face areas as weight
+                # weight = self.uxgrid.face_areas.values
                 pass
-            elif self._face_centered():
+            elif self._edge_centered():
                 # use edge magnitude as weight
-                pass
-            elif self._node_centered():
-                # is there a weight that we could use?
+                # weight = None
                 pass
             else:
-                # can't apply weighted mean over a non-grid dimension
-                raise ValueError
+                # apply regular Xarray mean
+                return super().mean(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
-            # add computation below
-            # ...
+            # compute weighted mean
+            # weighted_mean = (self.data * weight) / weight.sum()
+
+            # create a UxDataArray and return it
 
         else:
+            # apply regular Xarray mean
             return super().mean(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
     def topological_mean(
