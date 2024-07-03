@@ -56,6 +56,9 @@ def _primal_to_ugrid(in_ds, out_ds):
     if "dcEdge" in in_ds:
         _parse_edge_face_distances(in_ds, out_ds)
 
+    if "cellsOnCell" in in_ds:
+        _parse_face_faces(in_ds, out_ds)
+
     # set global attributes
     _parse_global_attrs(in_ds, out_ds)
 
@@ -461,6 +464,29 @@ def _parse_global_attrs(in_ds, out_ds):
     """
 
     out_ds.attrs = in_ds.attrs
+
+
+def _parse_face_faces(in_ds, out_ds):
+    """Parses face-face connectivity for Primal Mesh."""
+    cellsOnCell = np.array(in_ds["cellsOnCell"].values, dtype=INT_DTYPE)
+    nEdgesOnCell = np.array(in_ds["nEdgesOnCell"].values, dtype=INT_DTYPE)
+
+    # replace padded values with fill values
+    cellsOnCell = _replace_padding(cellsOnCell, nEdgesOnCell)
+
+    # replace missing/zero values with fill values
+    cellsOnCell = _replace_zeros(cellsOnCell)
+
+    # make zero-indexed
+    cellsOnCell = _to_zero_index(cellsOnCell)
+
+    face_face_connectivity = cellsOnCell
+
+    out_ds["face_face_connectivity"] = xr.DataArray(
+        data=face_face_connectivity,
+        dims=ugrid.FACE_FACE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_FACE_CONNECTIVITY_ATTRS,
+    )
 
 
 def _replace_padding(verticesOnCell, nEdgesOnCell):
