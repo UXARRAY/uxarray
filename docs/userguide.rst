@@ -52,7 +52,7 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
 
-`Face Area Calculations <user-guide/tree_structures.ipynb>`_
+`Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
 
 Supplementary Guides
