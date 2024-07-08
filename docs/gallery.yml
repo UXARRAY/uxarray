@@ -9,17 +9,16 @@ visualization-examples:
 
   - title: Plotting E3SMv2 Output with UXarray
     path: examples/visualization/e3sm-load-viz.ipynb
-    thumbnail: _static/thumbnails/mpas_topology.png ## EDIT THIS
-    
+    thumbnail: _static/thumbnails/ts_e3sm_load.png
+
 workflow-examples:
   - title: Working with MPAS Grids
     path: examples/working-with-mpas-grids.ipynb
     thumbnail: _static/thumbnails/004-thumbnail.png
 
-workflow-examples:
-  - title:  Calculations on E3SMv2 Output with UXarray 
+  - title:  Calculations on E3SMv2 Output with UXarray
     path: examples/e3sm-calc-workflow.ipynb
-    thumbnail: _static/thumbnails/004-thumbnail.png ## EDIT THIS
+    thumbnail: _static/thumbnails/default.svg
 
 
 external-examples:

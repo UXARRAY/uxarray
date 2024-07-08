@@ -199,7 +199,12 @@ htmlhelp_basename = "uxarraydoc"
 autodoc_typehints = "none"
 
 # notebooks to exclude from run-time execution, will use rendered version
-nb_execution_excludepatterns = ["3_75km_mpas.ipynb"]
+nb_execution_excludepatterns = [
+    "3_75km_mpas.ipynb",
+    "e3sm-calc-workflow.ipynb",
+    "e3sm-load-viz.ipynb",
+    "parallel-load-ux-with-dask.ipynb",
+]
 
 
 # custom scripts for making a gallery of examples notebooks
