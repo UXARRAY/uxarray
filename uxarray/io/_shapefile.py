@@ -2,6 +2,7 @@ import geopandas as gpd
 import xarray as xr
 import numpy as np
 from uxarray.conventions import ugrid
+from uxarray.constants import INT_FILL_VALUE
 
 
 def _read_shpfile(filepath):
@@ -19,7 +20,7 @@ def _read_shpfile(filepath):
     # Initialize as an empty numpy array
     node_lon = np.array([])
     node_lat = np.array([])
-    connectivity = np.empty((0, max_coord_size), dtype=int)
+    connectivity = np.empty((0, max_coord_size), dtype=np.int16)
 
     node_index = 0
 
@@ -129,7 +130,12 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
         # TODO: Fix to not use max_coord_size and something like a variable dim 2d array
         max_coord_size = connectivity.shape[1]
         new_row = np.array(range(node_index, node_index + coord_size_polygon))
-        new_row = np.pad(new_row, (0, max_coord_size - len(new_row)), "constant")
+        new_row = np.pad(
+            new_row,
+            (0, max_coord_size - len(new_row)),
+            "constant",
+            constant_values=INT_FILL_VALUE,
+        )
         connectivity = np.vstack((connectivity, new_row))
 
         node_index += coord_size_polygon
@@ -152,7 +158,12 @@ def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
 
     # TODO: Fix to not use max_coord_size and something like a variable dim 2d array
     new_row = np.array(range(node_index, node_index + coord_size_polygon))
-    new_row = np.pad(new_row, (0, max_coord_size - len(new_row)), "constant")
+    new_row = np.pad(
+        new_row,
+        (0, max_coord_size - len(new_row)),
+        "constant",
+        constant_values=INT_FILL_VALUE,
+    )
     connectivity = np.vstack((connectivity, new_row))
 
     node_index += coord_size_polygon
