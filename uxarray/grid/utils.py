@@ -3,6 +3,10 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import warnings
 import uxarray.utils.computing as ac_utils
 
+from typing import Union
+
+from numba import njit
+
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
@@ -423,3 +427,118 @@ def _get_lonlat_rad_face_edge_nodes(
     face_edges_lonlat_rad[valid_mask, 1] = node_lat_rad[valid_edges]
 
     return face_edges_lonlat_rad.reshape(n_face, n_max_face_edges, 2, 2)
+
+
+def _xyz_to_lonlat_rad(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    normalize: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Cartesian x, y, z coordinates in Spherical latitude and
+    longitude coordinates in degrees.
+
+    Parameters
+    ----------
+    x : Union[np.ndarray, float]
+        Cartesian x coordinates
+    y: Union[np.ndarray, float]
+        Cartesiain y coordinates
+    z: Union[np.ndarray, float]
+        Cartesian z coordinates
+    normalize: bool
+        Flag to select whether to normalize the coordinates
+
+    Returns
+    -------
+    lon : Union[np.ndarray, float]
+        Longitude in radians
+    lat: Union[np.ndarray, float]
+        Latitude in radians
+    """
+
+    if normalize:
+        x, y, z = _normalize_xyz(x, y, z)
+        denom = np.abs(x * x + y * y + z * z)
+        x /= denom
+        y /= denom
+        z /= denom
+
+    lon = np.arctan2(y, x, dtype=np.float64)
+    lat = np.arcsin(z, dtype=np.float64)
+
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
+
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
+
+
+def _normalize_xyz(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Normalizes a set of Cartesiain coordinates."""
+    denom = np.linalg.norm(
+        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
+    )
+
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm
+
+
+@njit(cache=True)
+def _lonlat_rad_to_xyz(
+    lon: Union[np.ndarray, float],
+    lat: Union[np.ndarray, float],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Spherical lon and lat coordinates into Cartesian x, y, z
+    coordinates."""
+    x = np.cos(lon) * np.cos(lat)
+    y = np.sin(lon) * np.cos(lat)
+    z = np.sin(lat)
+
+    return x, y, z
+
+
+def _xyz_to_lonlat_deg(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    normalize: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Cartesian x, y, z coordinates in Spherical latitude and
+    longitude coordinates in degrees.
+
+    Parameters
+    ----------
+    x : Union[np.ndarray, float]
+        Cartesian x coordinates
+    y: Union[np.ndarray, float]
+        Cartesiain y coordinates
+    z: Union[np.ndarray, float]
+        Cartesian z coordinates
+    normalize: bool
+        Flag to select whether to normalize the coordinates
+
+    Returns
+    -------
+    lon : Union[np.ndarray, float]
+        Longitude in degrees
+    lat: Union[np.ndarray, float]
+        Latitude in degrees
+    """
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
+
+    lon = np.rad2deg(lon_rad)
+    lat = np.rad2deg(lat_rad)
+
+    lon = (lon + 180) % 360 - 180
+    return lon, lat

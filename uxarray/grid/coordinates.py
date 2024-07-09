@@ -4,127 +4,14 @@ import numpy as np
 import warnings
 
 
-from uxarray.constants import ERROR_TOLERANCE
 from uxarray.conventions import ugrid
-
-from typing import Union
-
-from numba import njit
-
-
-@njit(cache=True)
-def _lonlat_rad_to_xyz(
-    lon: Union[np.ndarray, float],
-    lat: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Spherical lon and lat coordinates into Cartesian x, y, z
-    coordinates."""
-    x = np.cos(lon) * np.cos(lat)
-    y = np.sin(lon) * np.cos(lat)
-    z = np.sin(lat)
-
-    return x, y, z
-
-
-def _xyz_to_lonlat_rad(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
-
-    Parameters
-    ----------
-    x : Union[np.ndarray, float]
-        Cartesian x coordinates
-    y: Union[np.ndarray, float]
-        Cartesiain y coordinates
-    z: Union[np.ndarray, float]
-        Cartesian z coordinates
-    normalize: bool
-        Flag to select whether to normalize the coordinates
-
-    Returns
-    -------
-    lon : Union[np.ndarray, float]
-        Longitude in radians
-    lat: Union[np.ndarray, float]
-        Latitude in radians
-    """
-
-    if normalize:
-        x, y, z = _normalize_xyz(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
-
-    lon = np.arctan2(y, x, dtype=np.float64)
-    lat = np.arcsin(z, dtype=np.float64)
-
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
-
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
-
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
-
-    return lon, lat
-
-
-def _xyz_to_lonlat_deg(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
-
-    Parameters
-    ----------
-    x : Union[np.ndarray, float]
-        Cartesian x coordinates
-    y: Union[np.ndarray, float]
-        Cartesiain y coordinates
-    z: Union[np.ndarray, float]
-        Cartesian z coordinates
-    normalize: bool
-        Flag to select whether to normalize the coordinates
-
-    Returns
-    -------
-    lon : Union[np.ndarray, float]
-        Longitude in degrees
-    lat: Union[np.ndarray, float]
-        Latitude in degrees
-    """
-    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
-
-    lon = np.rad2deg(lon_rad)
-    lat = np.rad2deg(lat_rad)
-
-    lon = (lon + 180) % 360 - 180
-    return lon, lat
-
-
-def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Normalizes a set of Cartesiain coordinates."""
-    denom = np.linalg.norm(
-        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
-    )
-
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
+from uxarray.grid.arcs import _angle_of_2_vectors
+from uxarray.grid.utils import (
+    _xyz_to_lonlat_rad,
+    _lonlat_rad_to_xyz,
+    _xyz_to_lonlat_deg,
+    _normalize_xyz,
+)
 
 
 def _populate_node_latlon(grid) -> None:
@@ -322,36 +209,6 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
-def haversine_distance(point1, point2):
-    """Calculate the great-circle distance between two points on a unit sphere
-    using the Haversine formula.
-
-    Parameters
-    ----------
-    point1 : tuple
-        A tuple containing the lon and lat of the first point.
-    point2 : tuple
-        A tuple containing the lon and lat of the second point.
-
-    Returns
-    -------
-    float
-        The distance between the two points on the unit sphere.
-    """
-    R = 1.0  # Radius of the Earth assumed to be 1 (unit sphere)
-    lon1, lat1 = np.radians(point1)
-    lon2, lat2 = np.radians(point2)
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-
-    distance = R * c
-    return distance
-
-
 def circle_from_two_points(p1, p2):
     """Calculate the smallest circle that encloses two points on a unit sphere.
 
@@ -370,7 +227,9 @@ def circle_from_two_points(p1, p2):
     center_lon = (p1[0] + p2[0]) / 2
     center_lat = (p1[1] + p2[1]) / 2
     center = (center_lon, center_lat)
-    radius = haversine_distance(p1, p2) / 2
+    v1, v2 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (p1, p2))
+    distance = _angle_of_2_vectors(v1, v2)
+    radius = distance / 2
     return center, radius
 
 
@@ -393,11 +252,12 @@ def circle_from_three_points(p1, p2, p3):
         A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
     """
     center = p1  # Placeholder center
+    v1, v2, v3 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (p1, p2, p3))
     radius = (
         max(
-            haversine_distance(p1, p2),
-            haversine_distance(p1, p3),
-            haversine_distance(p2, p3),
+            _angle_of_2_vectors(v1, v2),
+            _angle_of_2_vectors(v1, v3),
+            _angle_of_2_vectors(v2, v3),
         )
         / 2
     )
@@ -420,7 +280,9 @@ def is_inside_circle(circle, point):
         True if the point is inside the circle, False otherwise.
     """
     center, radius = circle
-    return haversine_distance(center, point) <= radius
+    v1, v2 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (center, point))
+    distance = _angle_of_2_vectors(v1, v2)
+    return distance <= radius
 
 
 def welzl_recursive(points, boundary, R):

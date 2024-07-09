@@ -6,7 +6,7 @@ from datetime import datetime
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
+from uxarray.grid.utils import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
 
 from uxarray.conventions import ugrid
 
