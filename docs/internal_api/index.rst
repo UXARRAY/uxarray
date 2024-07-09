@@ -176,6 +176,7 @@ Utils
 
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+   grid.utils._swap_first_fill_value_with_last
    grid.utils._get_cartesiain_face_edge_nodes
    grid.utils._get_lonlat_rad_face_edge_nodes
 
