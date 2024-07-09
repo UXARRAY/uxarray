@@ -62,9 +62,9 @@ def calculate_face_area(
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
     # loop through all sub-triangles of face
     for j in range(0, num_triangles):
-        node1 = np.array([x[0], y[0], z[0]], dtype=np.float64)
-        node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=np.float64)
-        node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=np.float64)
+        node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
+        node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
+        node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
 
         if coords_type == "spherical":
             node1 = _lonlat_rad_to_xyz(np.deg2rad(x[0]), np.deg2rad(y[0]))
