@@ -271,7 +271,7 @@ def _build_corrected_polygon_shells(polygon_shells):
     return corrected_polygon_shells, _corrected_shells_to_original_faces
 
 
-def _grid_to_matplotlib_polycollection(grid):
+def _grid_to_matplotlib_polycollection(grid, periodic_elements):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
 
     # import optional dependencies
@@ -286,19 +286,36 @@ def _grid_to_matplotlib_polycollection(grid):
         grid.n_nodes_per_face.values,
     )
 
-    (
-        corrected_polygon_shells,
-        corrected_to_original_faces,
-    ) = _build_corrected_polygon_shells(polygon_shells)
+    if periodic_elements == "exclude":
+        antimeridian_face_indices = grid.antimeridian_face_indices
+        shells_without_antimeridian = np.delete(
+            polygon_shells, antimeridian_face_indices, axis=0
+        )
 
-    return PolyCollection(corrected_polygon_shells), corrected_to_original_faces
+        corrected_to_original_faces = np.delete(
+            np.arange(grid.n_face), antimeridian_face_indices, axis=0
+        )
+
+        return PolyCollection(shells_without_antimeridian), corrected_to_original_faces
+
+    elif periodic_elements == "split":
+        (
+            corrected_polygon_shells,
+            corrected_to_original_faces,
+        ) = _build_corrected_polygon_shells(polygon_shells)
+
+        return PolyCollection(corrected_polygon_shells), corrected_to_original_faces
+
+    else:
+        return PolyCollection(polygon_shells), []
 
 
-def _grid_to_matplotlib_linecollection(grid):
+def _grid_to_matplotlib_linecollection(grid, periodic_elements):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
 
     # import optional dependencies
     from matplotlib.collections import LineCollection
+    from shapely import polygons as Polygons
 
     polygon_shells = _build_polygon_shells(
         grid.node_lon.values,
@@ -309,10 +326,21 @@ def _grid_to_matplotlib_linecollection(grid):
         grid.n_nodes_per_face.values,
     )
 
-    # obtain corrected shapely polygons
-    polygons = _build_corrected_shapely_polygons(
-        polygon_shells, grid.antimeridian_face_indices
-    )
+    if periodic_elements == "exclude":
+        antimeridian_face_indices = grid.antimeridian_face_indices
+        shells_without_antimeridian = np.delete(
+            polygon_shells, antimeridian_face_indices, axis=0
+        )
+
+        polygons = Polygons(shells_without_antimeridian)
+
+    elif periodic_elements == "split":
+        # obtain corrected shapely polygons
+        polygons = _build_corrected_shapely_polygons(
+            polygon_shells, grid.antimeridian_face_indices
+        )
+    else:
+        polygons = Polygons(polygon_shells)
 
     # Convert polygons into lines
     lines = []

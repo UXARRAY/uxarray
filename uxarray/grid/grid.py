@@ -147,11 +147,14 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
 
-        # initialize cached data structures (visualization)
+        # initialize cached data structures and flags (visualization)
         self._gdf = None
         self._gdf_exclude_am = None
         self._poly_collection = None
+        self._poly_collection_periodic_flag = None
+        self._corrected_to_original_faces = None
         self._line_collection = None
+        self._line_collection_periodic_flag = None
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
@@ -1229,71 +1232,62 @@ class Grid:
         self,
         override: Optional[bool] = False,
         cache: Optional[bool] = True,
-        correct_antimeridian_polygons: Optional[bool] = True,
+        periodic_elements: Optional[str] = "exclude",
+        return_indices: Optional[bool] = False,
     ):
-        """Constructs a ``matplotlib.collections.PolyCollection`` object with
-        polygons representing the geometry of the unstructured grid, with
-        polygons that cross the antimeridian split.
+        if periodic_elements not in ["include", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+            )
 
-        Parameters
-        ----------
-        override : bool
-            Flag to recompute the ``PolyCollection`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``PolyCollection`` should be cached
+        if self._poly_collection is not None:
+            if self._poly_collection_periodic_flag != periodic_elements:
+                override = True
 
-        Returns
-        -------
-        polycollection : matplotlib.collections.PolyCollection
-            The output `PolyCollection` containing faces represented as polygons
-        corrected_to_original_faces: list
-            Original indices used to map the corrected polygon shells to their entries in face nodes
-        """
-
-        # use cached polycollection
         if self._poly_collection is not None and not override:
-            return self._poly_collection
+            if return_indices:
+                return self._poly_collection, self._corrected_to_original_faces
+            else:
+                return self._poly_collection
 
         (
             poly_collection,
             corrected_to_original_faces,
-        ) = _grid_to_matplotlib_polycollection(self)
+        ) = _grid_to_matplotlib_polycollection(self, periodic_elements)
 
-        # cache computed polycollection
         if cache:
             self._poly_collection = poly_collection
+            self._corrected_to_original_faces = corrected_to_original_faces
+            self._poly_collection_periodic_flag = periodic_elements
 
-        return poly_collection, corrected_to_original_faces
+        if return_indices:
+            return poly_collection, corrected_to_original_faces
+        else:
+            return poly_collection
 
     def to_linecollection(
-        self, override: Optional[bool] = False, cache: Optional[bool] = True
+        self,
+        override: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        periodic_elements: Optional[str] = "exclude",
     ):
-        """Constructs a ``matplotlib.collections.LineCollection`` object with
-        line segments representing the geometry of the unstructured grid,
-        corrected near the antimeridian.
+        if periodic_elements not in ["include", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+            )
 
-        Parameters
-        ----------
-        override : bool
-            Flag to recompute the ``LineCollection`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``LineCollection`` should be cached
+        if self._line_collection is not None:
+            if self._line_collection_periodic_flag != periodic_elements:
+                override = True
 
-        Returns
-        -------
-        line_collection : matplotlib.collections.LineCollection
-            The output `LineCollection` containing faces represented as polygons
-        """
-
-        # use cached line collection
         if self._line_collection is not None and not override:
             return self._line_collection
 
-        line_collection = _grid_to_matplotlib_linecollection(self)
+        line_collection = _grid_to_matplotlib_linecollection(self, periodic_elements)
 
-        # cache computed line collection
         if cache:
             self._line_collection = line_collection
+            self._line_collection_periodic_flag = periodic_elements
 
         return line_collection
 
