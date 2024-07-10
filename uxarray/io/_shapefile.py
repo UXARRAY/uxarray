@@ -20,7 +20,7 @@ def _read_shpfile(filepath):
     # Initialize as an empty numpy array
     node_lon = np.array([])
     node_lat = np.array([])
-    connectivity = np.empty((0, max_coord_size), dtype=np.int16)
+    connectivity = np.empty((0, max_coord_size - 1), dtype=np.int16)
 
     node_index = 0
 
@@ -43,10 +43,6 @@ def _read_shpfile(filepath):
         else:
             print(f"Geometry type: {geometry.geom_type}")
             # print("- Coordinates:", geometry.coords.xy
-
-    print("Node Longitude:", node_lon)
-    print("Node Latitude:", node_lat)
-    print("Connectivity:", connectivity)
 
     # Now we have the node_lon, node_lat, and connectivity, we can create the xarray.Dataset
     grid_ds["node_lon"] = xr.DataArray(
@@ -86,10 +82,6 @@ def _gpd_read(filepath):
         if gdf.crs != "EPSG:4326":
             gdf = gdf.to_crs("EPSG:4326")
             print("Transformed CRS:", gdf.crs)
-
-        # Print general information about the GeoDataFrame
-        print("GeoDataFrame Shapefile Information:")
-        print(gdf.info())
     except Exception as e:
         print(f"An error occurred while reading the shapefile: {e}")
 
