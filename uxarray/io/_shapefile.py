@@ -20,7 +20,7 @@ def _read_shpfile(filepath):
     # Initialize as an empty numpy array
     node_lon = np.array([])
     node_lat = np.array([])
-    connectivity = np.empty((0, max_coord_size - 1), dtype=np.int16)
+    connectivity = np.empty((0, max_coord_size - 1))
 
     node_index = 0
 
