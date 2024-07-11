@@ -24,15 +24,15 @@ def _read_ugrid(ds):
         node_lat_name: ugrid.NODE_COORDINATES[1],
     }
 
-    if "edge_coordinates" in ds["grid_topology"]:
+    if "edge_coordinates" in ds["grid_topology"].attrs:
         # get the names of edge_lon and edge_lat, if they exist
         edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
         coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
         coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
 
-    if "face_coordinates" in ds["grid_topology"]:
+    if "face_coordinates" in ds["grid_topology"].attrs:
         # get the names of face_lon and face_lat, if they exist
-        face_lon_name, face_lat_name = ds["grid_topology"].edge_coordinates.split()
+        face_lon_name, face_lat_name = ds["grid_topology"].face_coordinates.split()
         coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
         coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
 
