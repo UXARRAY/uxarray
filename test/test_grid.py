@@ -877,13 +877,20 @@ class TestConnectivity(TestCase):
 
     def test_face_face_connectivity_construction(self):
         """Tests the construction of face-face connectivity."""
-        # Add grid here once face_face_connectivity can be read in
-        # grid = ux.open_grid()
-        # face_face_conn_old = grid.face_face_connectivity.values
-        # face_face_conn_new = _build_face_face_connectivity(grid)
 
-        # nt.assert_array_equal(face_face_conn_new, face_face_conn_old)
-        pass
+        # Open MPAS grid and read in face_face_connectivity
+        grid = ux.open_grid(gridfile_mpas)
+        face_face_conn_old = grid.face_face_connectivity.values
+
+        # Construct new face_face_connectivity using UXarray
+        face_face_conn_new = _build_face_face_connectivity(grid)
+
+        # Sort the arrays before comparison
+        face_face_conn_old_sorted = np.sort(face_face_conn_old, axis=None)
+        face_face_conn_new_sorted = np.sort(face_face_conn_new, axis=None)
+
+        # Assert the new and old face_face_connectivity contains the same faces
+        nt.assert_array_equal(face_face_conn_new_sorted, face_face_conn_old_sorted)
 
 
 class TestClassMethods(TestCase):
