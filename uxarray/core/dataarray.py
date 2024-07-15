@@ -186,6 +186,7 @@ class UxDataArray(xr.DataArray):
         cache=True,
         periodic_elements="exclude",
         return_indices=False,
+        projection=None,
     ):
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
@@ -201,6 +202,7 @@ class UxDataArray(xr.DataArray):
                     cache=cache,
                     periodic_elements=periodic_elements,
                     return_indices=True,
+                    projection=projection,
                 )
             )
 

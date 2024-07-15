@@ -8,7 +8,6 @@ from typing import (
     Union,
 )
 
-
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -64,7 +63,6 @@ from uxarray.grid.validation import (
     _check_duplicate_nodes,
     _check_area,
 )
-
 
 from xarray.core.utils import UncachedAccessor
 
@@ -1234,6 +1232,7 @@ class Grid:
         cache: Optional[bool] = True,
         periodic_elements: Optional[str] = "exclude",
         return_indices: Optional[bool] = False,
+        projection=None,
     ):
         if periodic_elements not in ["include", "exclude", "split"]:
             raise ValueError(
@@ -1253,7 +1252,7 @@ class Grid:
         (
             poly_collection,
             corrected_to_original_faces,
-        ) = _grid_to_matplotlib_polycollection(self, periodic_elements)
+        ) = _grid_to_matplotlib_polycollection(self, periodic_elements, projection)
 
         if cache:
             self._poly_collection = poly_collection
