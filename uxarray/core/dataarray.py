@@ -24,6 +24,7 @@ from uxarray.core.gradient import (
 
 from uxarray.core.zonal import (
     _non_conservative_zonal_mean_constant_latitudes,
+    _non_conservative_zonal_mean_constant_one_latitude,
 )
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
@@ -1004,23 +1005,27 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def zonal_mean(self, lat=(-90, 90, 5)):
-        """Computes the Zonal Mean for face-centered data. The zonal average is
-        computed from -90 to 90 degrees latitude, with a given step size.
+        """Computes the Zonal Mean for face-centered data. The zonal average
+        can be computed over a range of latitudes with a specified step size,
+        or for a single latitude.
 
         Parameters
         ----------
-        lat : tuple, default=(-90, 90, 5)
-            Tuple containing the start, end, and step size of the latitude range
+        lat : tuple or float, default=(-90, 90, 5)
+            If a tuple, it should contain the start, end, and step size of the latitude range
             to compute the zonal average. The range of latitudes is [start_lat, end_lat] inclusive.
+            If a single float, the zonal average is computed for that specific latitude.
 
         Returns
         -------
         UxDataArray
-            UxDataArray containing the zonal average of the data variable
+            UxDataArray containing the zonal average of the data variable.
 
         Example
         -------
         >>> uxds['var'].zonal_mean()
+        >>> uxds['var'].zonal_mean(lat=30.0)
+        >>> uxds['var'].zonal_mean(lat=(-60, 60, 10))
         """
 
         # Check if the data is face-centered
@@ -1034,27 +1039,35 @@ class UxDataArray(xr.DataArray):
         face_bounds = self.uxgrid.bounds.values
         is_latlonface = False  # Currently not used, but may be useful in the future
 
-        # Get the list of face polygon represented by edges in Cartesian coordinates
+        # Get the list of face polygons represented by edges in Cartesian coordinates
         face_edges_cart = _get_cartesian_face_edge_nodes(
             self.uxgrid.face_node_connectivity.values,
+            self.uxgrid.n_face,
+            self.uxgrid.n_max_face_edges,
             self.uxgrid.node_x.values,
             self.uxgrid.node_y.values,
             self.uxgrid.node_z.values,
         )
 
-        start_lat, end_lat, step_size = lat
+        # If lat is a tuple, compute the zonal average for the given range of latitudes
+        if isinstance(lat, tuple):
+            start_lat, end_lat, step_size = lat
+            _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
+                face_edges_cart,
+                face_bounds,
+                data,
+                start_lat,
+                end_lat,
+                step_size,
+                is_latlonface=is_latlonface,
+            )
+        # If lat is a single value, compute the zonal average for that latitude
+        else:
+            _zonal_avg_res = _non_conservative_zonal_mean_constant_one_latitude(
+                face_edges_cart, face_bounds, data, lat, is_latlonface=is_latlonface
+            )
 
-        _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
-            face_edges_cart,
-            face_bounds,
-            data,
-            start_lat,
-            end_lat,
-            step_size,
-            is_latlonface=is_latlonface,
-        )
-
-        # Set Dimension of result
+        # Set the dimension of the result
         dims = list(self.dims[:-1]) + ["latitude"]
 
         # Result is stored and returned as a UxDataArray

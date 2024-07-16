@@ -21,7 +21,7 @@ def _get_zonal_faces_weight_at_constLat(
      Parameters
     ----------
     face_edges_cart : np.ndarray
-        A list of face polygon represented by edges in Cartesian coordinates. Shape: (n_faces, n_edges, 2, 3)
+        A list of face polygon represented by edges in Cartesian coordinates. The input should not contain any 'INT_FILL_VALUE'. Shape: (n_faces, n_edges, 2, 3)
 
     latitude_cart : float
         The latitude in Cartesian coordinates (The normalized z coordinate)
