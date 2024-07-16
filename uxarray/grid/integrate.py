@@ -20,7 +20,7 @@ def _get_zonal_faces_weight_at_constLat(
 
      Parameters
     ----------
-    face_edges_cart : np.ndarray
+    faces_edges_cart_candidate : np.ndarray
         A list of the candidate face polygon represented by edges in Cartesian coordinates.
         The faces must be selected in the previous step such that they will be intersected by the constant latitude.
         It should have the same shape as the face_latlon_bound_candidate.
@@ -29,7 +29,7 @@ def _get_zonal_faces_weight_at_constLat(
     latitude_cart : float
         The latitude in Cartesian coordinates (The normalized z coordinate)
 
-    face_latlon_bound : np.ndarray
+    face_latlon_bound_candidate : np.ndarray
         The list of latitude and longitude bounds of candidate faces.
         It should have the same shape as the face_edges_cart_candidate.
         Shape: (n_faces(candidate),,2, 2),

@@ -161,4 +161,5 @@ class TestZonalFunctions(TestCase):
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
-        uxds['psi'].zonal_mean()
+        res = uxds['psi'].zonal_mean()
+        print(res)
