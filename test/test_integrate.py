@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 import numpy.testing as nt
-
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray as ux
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat
@@ -73,6 +73,42 @@ class TestFaceWeights(TestCase):
                                     [vertices[1], vertices[2]],
                                     [vertices[2], vertices[3]],
                                     [vertices[3], vertices[0]]])
+
+        constZ = np.sin(0.20)
+        # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
+        interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
+                                               np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
+                                                                                         0.4 * np.pi]]),
+                                               is_directed=False)
+        expected_interval_df = pd.DataFrame({
+            'start': [1.6 * np.pi, 0.0],
+            'end': [2.0 * np.pi, 00.4 * np.pi]
+        })
+        # Sort both DataFrames by 'start' column before comparison
+        expected_interval_df_sorted = expected_interval_df.sort_values(by='start').reset_index(drop=True)
+
+        # Converting the sorted DataFrames to NumPy arrays
+        actual_values_sorted = interval_df[['start', 'end']].to_numpy()
+        expected_values_sorted = expected_interval_df_sorted[['start', 'end']].to_numpy()
+
+        # Asserting almost equal arrays
+        nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
+
+
+    def test_get_zonal_face_interval_FILL_VALUE(self):
+        dummy_node = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
+        """Test that the zonal face weights are correct."""
+        vertices_lonlat = [[1.6 * np.pi, 0.25 * np.pi],
+                           [1.6 * np.pi, -0.25 * np.pi],
+                           [0.4 * np.pi, -0.25 * np.pi],
+                           [0.4 * np.pi, 0.25 * np.pi]]
+        vertices = [_lonlat_rad_to_xyz(*v) for v in vertices_lonlat]
+
+        face_edge_nodes = np.array([[vertices[0], vertices[1]],
+                                    [vertices[1], vertices[2]],
+                                    [vertices[2], vertices[3]],
+                                    [vertices[3], vertices[0]],
+                                    [dummy_node,dummy_node]])
 
         constZ = np.sin(0.20)
         # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
