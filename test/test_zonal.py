@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import uxarray as ux
 from unittest import TestCase
 from unittest.mock import patch
 import numpy.testing as nt
@@ -143,3 +144,14 @@ class TestZonalFunctions(TestCase):
 
         # Expected output is NaN
         self.assertTrue(np.isnan(zonal_mean))
+
+    def test_non_conservative_zonal_mean_outCSne30(self):
+        """Test _non_conservative_zonal_mean function with outCSne30 data."""
+
+        # Create test data
+        base_path = "./test/meshfiles/ugrid/outCSne30/"
+        grid_path = base_path + "outCSne30.ug"
+        data_path = base_path + "outCSne30_vortex.nc"
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        uxds['psi'].zonal_mean()
