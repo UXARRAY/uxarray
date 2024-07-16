@@ -125,6 +125,12 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
+    def from_xarray(self, data_array, uxgrid):
+        """Take a ``xarray.DataArray`` and convert it to a
+        ``uxarray.UxDataArray``"""
+
+        pass
+
     def to_geodataframe(self, override=False, cache=True, exclude_antimeridian=False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -404,22 +410,31 @@ class UxDataArray(xr.DataArray):
 
         return self.topological_mean(destination="face")
 
-    def mean(self, dim=None, *, skipna=None, keep_attrs=None, weighted=True, **kwargs):
+    def mean(self, dim=None, *, skipna=None, keep_attrs=None, weighted=False, **kwargs):
         if weighted:
             if self._face_centered():
                 # use face areas as weight
-                # weight = self.uxgrid.face_areas.values
-                pass
+                weights = self.uxgrid.face_areas
             elif self._edge_centered():
                 # use edge magnitude as weight
-                # weight = None
-                pass
+                weights = self.uxgrid.edge_node_distances
             else:
                 # apply regular Xarray mean
+                warnings.warn(
+                    "Attempting to perform a weighted mean calculation on a variable that does not have"
+                    "associated weights. Weighted mean is only supported for face or edge centered "
+                    "variables. Performing an unweighted mean."
+                )
+
                 return super().mean(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
+            # compute the total weight
+            total_weight = weights.sum()
+
             # compute weighted mean
-            # weighted_mean = (self.data * weight) / weight.sum()
+            weighted_mean = (self.data * weights).sum() / total_weight
+
+            return weighted_mean
 
             # create a UxDataArray and return it
 
