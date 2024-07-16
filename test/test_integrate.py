@@ -369,10 +369,7 @@ class TestFaceWeights(TestCase):
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
             face_3_edge_nodes
-        ]),
-                                                        0.0,
-                                                        latlon_bounds,
-                                                        is_directed=False)
+        ]), 0.0, latlon_bounds, is_directed=False)
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
@@ -434,10 +431,7 @@ class TestFaceWeights(TestCase):
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
             face_3_edge_nodes
-        ]),
-                                                        np.sin(0.1 * np.pi),
-                                                        latlon_bounds,
-                                                        is_directed=False)
+        ]), np.sin(0.1 * np.pi), latlon_bounds, is_directed=False)
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
@@ -489,10 +483,7 @@ class TestFaceWeights(TestCase):
         # Assert the results is the same to the 3 decimal places
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
-        ]),
-                                                        np.sin(np.deg2rad(20)),
-                                                        latlon_bounds,
-                                                        is_directed=False, is_latlonface=True)
+        ]), np.sin(np.deg2rad(20)), latlon_bounds, is_directed=False, is_latlonface=True)
 
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
@@ -503,8 +494,5 @@ class TestFaceWeights(TestCase):
         # It's edges are all GCA
         with self.assertRaises(ValueError):
             _get_zonal_faces_weight_at_constLat(np.array([
-            face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
-        ]),
-                                                        np.deg2rad(20),
-                                                        latlon_bounds,
-                                                        is_directed=False)
+                face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
+            ]), np.deg2rad(20), latlon_bounds, is_directed=False)

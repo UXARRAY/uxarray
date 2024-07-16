@@ -87,13 +87,8 @@ def _non_conservative_zonal_mean_constant_one_latitude(
 
     # TODO: delete any edges in the candidate_face_edges_cart that are filled  with INT_FILL_VALUE
 
-    weight_df = _get_zonal_faces_weight_at_constLat(
-        candidate_face_edges_cart,
-        np.sin(np.deg2rad(constLat)),  # Latitude in cartesian coordinates
-        face_bounds,
-        is_directed=False,
-        is_latlonface=is_latlonface,
-    )
+    weight_df = _get_zonal_faces_weight_at_constLat(candidate_face_edges_cart, np.sin(np.deg2rad(constLat)),
+                                                    face_bounds, is_directed=False, is_latlonface=is_latlonface)
 
     # Compute the zonal mean(weighted average) of the candidate faces
     weights = weight_df["weight"].values

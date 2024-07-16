@@ -8,9 +8,9 @@ DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
 
 def _get_zonal_faces_weight_at_constLat(
-    faces_edges_cart,
+    faces_edges_cart_candidate,
     latitude_cart,
-    face_latlon_bound,
+    face_latlon_bound_candidate,
     is_directed=False,
     is_latlonface=False,
     is_face_GCA_list=None,
@@ -21,13 +21,18 @@ def _get_zonal_faces_weight_at_constLat(
      Parameters
     ----------
     face_edges_cart : np.ndarray
-        A list of face polygon represented by edges in Cartesian coordinates. The input should not contain any 'INT_FILL_VALUE'. Shape: (n_faces, n_edges, 2, 3)
+        A list of the candidate face polygon represented by edges in Cartesian coordinates.
+        The faces must be selected in the previous step such that they will be intersected by the constant latitude.
+        It should have the same shape as the face_latlon_bound_candidate.
+        The input should not contain any 'INT_FILL_VALUE'. Shape: (n_faces(candidate), n_edges, 2, 3)
 
     latitude_cart : float
         The latitude in Cartesian coordinates (The normalized z coordinate)
 
     face_latlon_bound : np.ndarray
-        The list of latitude and longitude bounds of faces. Shape: (n_faces,2, 2),
+        The list of latitude and longitude bounds of candidate faces.
+        It should have the same shape as the face_edges_cart_candidate.
+        Shape: (n_faces(candidate),,2, 2),
         [...,[lat_min, lat_max], [lon_min, lon_max],...]
 
     is_directed : bool, optional (default=False)
@@ -56,7 +61,7 @@ def _get_zonal_faces_weight_at_constLat(
     intervals_list = []
 
     # Iterate through all faces and their edges
-    for face_index, face_edges in enumerate(faces_edges_cart):
+    for face_index, face_edges in enumerate(faces_edges_cart_candidate):
         if is_face_GCA_list is not None:
             is_GCA_list = is_face_GCA_list[face_index]
         else:
@@ -64,7 +69,7 @@ def _get_zonal_faces_weight_at_constLat(
         face_interval_df = _get_zonal_face_interval(
             face_edges,
             latitude_cart,
-            face_latlon_bound[face_index],
+            face_latlon_bound_candidate[face_index],
             is_directed=is_directed,
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
@@ -80,7 +85,7 @@ def _get_zonal_faces_weight_at_constLat(
     # Calculate weights for each face
     weights = {
         face_index: overlap_contributions.get(face_index, 0.0) / total_length
-        for face_index in range(len(faces_edges_cart))
+        for face_index in range(len(faces_edges_cart_candidate))
     }
 
     # Convert weights to DataFrame

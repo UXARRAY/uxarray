@@ -5,8 +5,16 @@ from unittest import TestCase
 from unittest.mock import patch
 import numpy.testing as nt
 from uxarray.core.zonal import _get_candidate_faces_at_constant_latitude, _non_conservative_zonal_mean_constant_one_latitude
+import os
+from pathlib import Path
+
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 class TestZonalFunctions(TestCase):
+    gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    datafile_vortex_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
+    dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+
 
     def test_get_candidate_faces_at_constant_latitude(self):
         """Test _get_candidate_faces_at_constant_latitude function."""
@@ -147,11 +155,10 @@ class TestZonalFunctions(TestCase):
 
     def test_non_conservative_zonal_mean_outCSne30(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data."""
-
+        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
         # Create test data
-        base_path = "./test/meshfiles/ugrid/outCSne30/"
-        grid_path = base_path + "outCSne30.ug"
-        data_path = base_path + "outCSne30_vortex.nc"
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
         uxds['psi'].zonal_mean()
