@@ -60,6 +60,9 @@ class TestIntegrate(TestCase):
 
 
 class TestFaceWeights(TestCase):
+    gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+
 
     def test_get_zonal_face_interval(self):
         """Test that the zonal face weights are correct."""
@@ -129,6 +132,7 @@ class TestFaceWeights(TestCase):
 
         # Asserting almost equal arrays
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
+
 
     def test_get_zonal_face_interval_GCA_constLat(self):
         """Test that the zonal face weights are correct."""
