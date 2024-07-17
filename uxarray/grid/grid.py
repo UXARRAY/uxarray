@@ -8,6 +8,7 @@ from typing import (
     Union,
 )
 
+from geoviews.operation import projection
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -68,6 +69,10 @@ from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
 
+import cartopy.crs as ccrs
+
+import copy
+
 
 class Grid:
     """Represents a two-dimensional unstructured grid encoded following the
@@ -110,10 +115,10 @@ class Grid:
     """
 
     def __init__(
-        self,
-        grid_ds: xr.Dataset,
-        source_grid_spec: Optional[str] = None,
-        source_dims_dict: Optional[dict] = {},
+            self,
+            grid_ds: xr.Dataset,
+            source_grid_spec: Optional[str] = None,
+            source_dims_dict: Optional[dict] = {},
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
@@ -149,10 +154,12 @@ class Grid:
         self._gdf = None
         self._gdf_exclude_am = None
         self._poly_collection = None
-        self._poly_collection_periodic_flag = None
+        self._poly_collection_periodic_state = None
+        self._poly_collection_projection_state = None
         self._corrected_to_original_faces = None
         self._line_collection = None
-        self._line_collection_periodic_flag = None
+        self._line_collection_periodic_state = None
+        self._line_collection_projection_state = None
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
@@ -170,7 +177,7 @@ class Grid:
 
     @classmethod
     def from_dataset(
-        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
+            cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
     ):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
@@ -216,14 +223,14 @@ class Grid:
 
     @classmethod
     def from_topology(
-        cls,
-        node_lon: np.ndarray,
-        node_lat: np.ndarray,
-        face_node_connectivity: np.ndarray,
-        fill_value: Optional = None,
-        start_index: Optional[int] = 0,
-        dims_dict: Optional[dict] = None,
-        **kwargs,
+            cls,
+            node_lon: np.ndarray,
+            node_lat: np.ndarray,
+            face_node_connectivity: np.ndarray,
+            fill_value: Optional = None,
+            start_index: Optional[int] = 0,
+            dims_dict: Optional[dict] = None,
+            **kwargs,
     ):
         """Constructs a ``Grid`` object from user-defined topology variables
         provided in the UGRID conventions.
@@ -271,9 +278,9 @@ class Grid:
 
     @classmethod
     def from_face_vertices(
-        cls,
-        face_vertices: Union[list, tuple, np.ndarray],
-        latlon: Optional[bool] = True,
+            cls,
+            face_vertices: Union[list, tuple, np.ndarray],
+            latlon: Optional[bool] = True,
     ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
@@ -376,16 +383,16 @@ class Grid:
                 )
 
         return (
-            prefix
-            + original_grid_str
-            + dims_heading
-            + dims_str
-            + coord_heading
-            + coords_str
-            + connectivity_heading
-            + connectivity_str
-            + descriptors_heading
-            + descriptors_str
+                prefix
+                + original_grid_str
+                + dims_heading
+                + dims_str
+                + coord_heading
+                + coords_str
+                + connectivity_heading
+                + connectivity_str
+                + descriptors_heading
+                + descriptors_str
         )
 
     def __getitem__(self, item):
@@ -419,7 +426,7 @@ class Grid:
             return False
 
         if not (
-            self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
+                self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
         ):
             return False
 
@@ -884,11 +891,11 @@ class Grid:
         return self._face_jacobian
 
     def get_ball_tree(
-        self,
-        coordinates: Optional[str] = "nodes",
-        coordinate_system: Optional[str] = "spherical",
-        distance_metric: Optional[str] = "haversine",
-        reconstruct: bool = False,
+            self,
+            coordinates: Optional[str] = "nodes",
+            coordinate_system: Optional[str] = "spherical",
+            distance_metric: Optional[str] = "haversine",
+            reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the
@@ -934,11 +941,11 @@ class Grid:
         return self._ball_tree
 
     def get_kd_tree(
-        self,
-        coordinates: Optional[str] = "nodes",
-        coordinate_system: Optional[str] = "cartesian",
-        distance_metric: Optional[str] = "minkowski",
-        reconstruct: bool = False,
+            self,
+            coordinates: Optional[str] = "nodes",
+            coordinate_system: Optional[str] = "cartesian",
+            distance_metric: Optional[str] = "minkowski",
+            reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the
@@ -1035,7 +1042,7 @@ class Grid:
         return out_ds
 
     def calculate_total_face_area(
-        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+            self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1058,10 +1065,10 @@ class Grid:
         return np.sum(face_areas)
 
     def compute_face_areas(
-        self,
-        quadrature_rule: Optional[str] = "triangular",
-        order: Optional[int] = 4,
-        latlon: Optional[bool] = True,
+            self,
+            quadrature_rule: Optional[str] = "triangular",
+            order: Optional[int] = 4,
+            latlon: Optional[bool] = True,
     ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -1179,10 +1186,10 @@ class Grid:
         return out_ds
 
     def to_geodataframe(
-        self,
-        override: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        exclude_antimeridian: Optional[bool] = False,
+            self,
+            override: Optional[bool] = False,
+            cache: Optional[bool] = True,
+            exclude_antimeridian: Optional[bool] = False,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -1227,12 +1234,12 @@ class Grid:
         return gdf
 
     def to_polycollection(
-        self,
-        override: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        periodic_elements: Optional[str] = "exclude",
-        return_indices: Optional[bool] = False,
-        projection=None,
+            self,
+            override: Optional[bool] = False,
+            cache: Optional[bool] = True,
+            periodic_elements: Optional[str] = "exclude",
+            return_indices: Optional[bool] = False,
+            projection: Optional[ccrs.Projection] = None,
     ):
         if periodic_elements not in ["include", "exclude", "split"]:
             raise ValueError(
@@ -1240,14 +1247,16 @@ class Grid:
             )
 
         if self._poly_collection is not None:
-            if self._poly_collection_periodic_flag != periodic_elements:
+            if self._poly_collection_periodic_state != periodic_elements or self._poly_collection_projection_state != projection:
+                # cached PolyCollection has a different projection or periodic element handling method
                 override = True
 
         if self._poly_collection is not None and not override:
+            # use cached PolyCollection
             if return_indices:
-                return self._poly_collection, self._corrected_to_original_faces
+                return copy.deepcopy(self._poly_collection), self._corrected_to_original_faces
             else:
-                return self._poly_collection
+                return copy.deepcopy(self._poly_collection)
 
         (
             poly_collection,
@@ -1255,20 +1264,22 @@ class Grid:
         ) = _grid_to_matplotlib_polycollection(self, periodic_elements, projection)
 
         if cache:
+            # cache PolyCollection, indices, and state
             self._poly_collection = poly_collection
             self._corrected_to_original_faces = corrected_to_original_faces
-            self._poly_collection_periodic_flag = periodic_elements
+            self._poly_collection_periodic_state = periodic_elements
+            self._poly_collection_projection_state = projection
 
         if return_indices:
-            return poly_collection, corrected_to_original_faces
+            return copy.deepcopy(poly_collection), corrected_to_original_faces
         else:
-            return poly_collection
+            return copy.deepcopy(poly_collection)
 
     def to_linecollection(
-        self,
-        override: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        periodic_elements: Optional[str] = "exclude",
+            self,
+            override: Optional[bool] = True,
+            cache: Optional[bool] = True,
+            periodic_elements: Optional[str] = "exclude",
     ):
         if periodic_elements not in ["include", "exclude", "split"]:
             raise ValueError(
@@ -1276,17 +1287,18 @@ class Grid:
             )
 
         if self._line_collection is not None:
-            if self._line_collection_periodic_flag != periodic_elements:
+            if self._line_collection_periodic_state != periodic_elements or self._line_collection_projection_state != projection:
                 override = True
 
-        if self._line_collection is not None and not override:
-            return self._line_collection
+            if not override:
+                return self._line_collection
 
         line_collection = _grid_to_matplotlib_linecollection(self, periodic_elements)
 
         if cache:
             self._line_collection = line_collection
-            self._line_collection_periodic_flag = periodic_elements
+            self._line_collection_periodic_state = periodic_elements
+            self._line_collection_projection_state = periodic_elements
 
         return line_collection
 

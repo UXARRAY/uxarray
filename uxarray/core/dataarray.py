@@ -15,6 +15,8 @@ from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
 
+import copy
+
 from uxarray.core.gradient import (
     _calculate_grad_on_edge_from_faces,
     _calculate_edge_face_difference,
@@ -27,6 +29,7 @@ from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
+
 
 
 class UxDataArray(xr.DataArray):
