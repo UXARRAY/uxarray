@@ -92,11 +92,15 @@ class ConnectivityConstruction:
     def setup(self, resolution):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
+
     def teardown(self, resolution):
         del self.uxds
 
     def time_n_nodes_per_face(self, resolution):
         self.uxds.uxgrid.n_nodes_per_face
+
+    def time_face_face_connectivity(self, resolution):
+        ux.grid.connectivity._populate_face_face_connectivity(self.uxds.uxgrid)
 
 
 class MatplotlibConversion:
