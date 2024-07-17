@@ -8,7 +8,8 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, _build_edge_node_connectivity
+from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
+    _build_edge_node_connectivity
 
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 
@@ -30,6 +31,7 @@ gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne3
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
@@ -657,8 +659,8 @@ class TestConnectivity(TestCase):
 
         # construct edge nodes
         edge_nodes_output, _, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
-                                                          mpas_grid_ux.n_face,
-                                                          mpas_grid_ux.n_max_face_nodes)
+                                                                mpas_grid_ux.n_face,
+                                                                mpas_grid_ux.n_max_face_nodes)
 
         # _populate_face_edge_connectivity(mpas_grid_ux)
         # edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
@@ -922,13 +924,19 @@ class TestLatlonBounds(TestCase):
         faces = [face_1, face_2, face_3, face_4]
 
         # Hand calculated bounds for the above faces in radians
-        expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
-                           [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
-                           [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
-                           [[1.04719755,1.57079633],[0.,         6.28318531]]]
-
+        expected_bounds = [[[0.17453293, 1.07370494], [0.17453293, 0.87266463]],
+                           [[0.17453293, 1.10714872], [6.10865238, 0.87266463]],
+                           [[1.04719755, 1.57079633], [3.66519143, 0.52359878]],
+                           [[1.04719755, 1.57079633], [0., 6.28318531]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
         bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+class TestDualMesh(TestCase):
+    def test_dual_mesh_mpas(self):
+        grid = ux.open_grid(gridfile_mpas_two)
+        grid.dual_mesh()
+        grid.plot().opts(width=600, height=400, title="Default Grid Plotting Method")
