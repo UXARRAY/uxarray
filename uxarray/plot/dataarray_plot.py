@@ -204,7 +204,7 @@ def _point_raster(
 ):
     """Implementation of Point Rasterization."""
 
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
@@ -302,7 +302,7 @@ def _polygon_raster(
 ):
     """Implementation of Polygon Rasterization."""
 
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
@@ -385,7 +385,7 @@ def polygons(
     width: int
         Plot Width for Bokeh Backend
     """
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
@@ -493,7 +493,7 @@ def _plot_data_as_points(
 
     from holoviews import Points
 
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
