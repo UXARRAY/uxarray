@@ -86,10 +86,13 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     candidate_face_edges_cart = face_edges_cart[candidate_faces_indices]
     candidate_face_bounds = face_bounds[candidate_faces_indices]
 
-    # TODO: delete any edges in the candidate_face_edges_cart that are filled  with INT_FILL_VALUE
-
-    weight_df = _get_zonal_faces_weight_at_constLat(candidate_face_edges_cart, np.sin(np.deg2rad(constLat)),
-                                                    candidate_face_bounds, is_directed=False, is_latlonface=is_latlonface)
+    weight_df = _get_zonal_faces_weight_at_constLat(
+        candidate_face_edges_cart,
+        np.sin(np.deg2rad(constLat)),
+        candidate_face_bounds,
+        is_directed=False,
+        is_latlonface=is_latlonface,
+    )
 
     # Compute the zonal mean(weighted average) of the candidate faces
     weights = weight_df["weight"].values
@@ -106,7 +109,7 @@ def _non_conservative_zonal_mean_constant_latitudes(
     end_lat: float,
     step_size: float,
     is_latlonface=False,
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     """Calculate the zonal mean of the data from start_lat to end_lat degrees
     latitude, with a given step size. The range of latitudes is [start_lat,
     end_lat] inclusive. The step size can be positive or negative. If the step
@@ -136,8 +139,10 @@ def _non_conservative_zonal_mean_constant_latitudes(
 
     Returns
     -------
-    np.ndarray
-        The zonal mean of the data from start_lat to end_lat degrees latitude, with a step size of step_size. The shape of the output array is [..., n_latitudes]
+    tuple
+        A tuple containing:
+        - np.ndarray: The latitudes used in the range [start_lat to end_lat] with the given step size.
+        - np.ndarray: The zonal mean of the data from start_lat to end_lat degrees latitude, with a step size of step_size. The shape of the output array is [..., n_latitudes]
         where n_latitudes is the number of latitudes in the range [start_lat, end_lat] inclusive. If a latitude does not have any faces whose latitude bounds contain it, the zonal mean for that latitude will be NaN.
 
     Raises
@@ -190,4 +195,4 @@ def _non_conservative_zonal_mean_constant_latitudes(
     expected_shape = face_data.shape[:-1] + (len(latitudes),)
     zonal_means = zonal_means.reshape(expected_shape)
 
-    return zonal_means
+    return latitudes, zonal_means

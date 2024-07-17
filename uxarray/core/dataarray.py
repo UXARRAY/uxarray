@@ -1052,7 +1052,8 @@ class UxDataArray(xr.DataArray):
         # If lat is a tuple, compute the zonal average for the given range of latitudes
         if isinstance(lat, tuple):
             start_lat, end_lat, step_size = lat
-            _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
+            # Call the function and get both latitudes and zonal means
+            latitudes, _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
                 face_edges_cart,
                 face_bounds,
                 data,
@@ -1066,6 +1067,7 @@ class UxDataArray(xr.DataArray):
             _zonal_avg_res = _non_conservative_zonal_mean_constant_one_latitude(
                 face_edges_cart, face_bounds, data, lat, is_latlonface=is_latlonface
             )
+            latitudes = [lat]
 
         # Set the dimension of the result
         dims = list(self.dims[:-1]) + ["latitude"]
@@ -1075,6 +1077,7 @@ class UxDataArray(xr.DataArray):
             _zonal_avg_res,
             uxgrid=self.uxgrid,
             dims=dims,
+            coords={"latitude": latitudes},
             name=self.name + "_zonal_average"
             if self.name is not None
             else "zonal_average",
