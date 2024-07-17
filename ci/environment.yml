@@ -31,3 +31,4 @@ dependencies:
   - xarray
   - pip:
     - pyfma
+    - git+https://github.com/airspeed-velocity/asv
