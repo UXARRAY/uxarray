@@ -97,3 +97,21 @@ class ConnectivityConstruction:
 
     def time_n_nodes_per_face(self, resolution):
         self.uxds.uxgrid.n_nodes_per_face
+
+
+class WeightedMean:
+
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        _ = self.uxds.uxgrid.face_areas
+        _ = self.uxds.uxgrid.edge_node_distances
+
+    def teardown(self, resolution):
+        del self.uxds
+
+
+    def time_weighted_mean_face_centered(self, resolution):
+        self.uxds['bottomDepth'].mean(weighted=True)

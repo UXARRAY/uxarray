@@ -410,6 +410,8 @@ class UxDataArray(xr.DataArray):
 
         return self.topological_mean(destination="face")
 
+    # weighted_mean()
+    # .weighted.mean()
     def mean(self, dim=None, *, skipna=None, keep_attrs=None, weighted=False, **kwargs):
         if weighted:
             if self._face_centered():
@@ -432,11 +434,10 @@ class UxDataArray(xr.DataArray):
             total_weight = weights.sum()
 
             # compute weighted mean
-            weighted_mean = (self.data * weights).sum() / total_weight
-
-            return weighted_mean
+            weighted_mean = (self * weights).sum() / total_weight
 
             # create a UxDataArray and return it
+            return UxDataArray(weighted_mean, uxgrid=self.uxgrid)
 
         else:
             # apply regular Xarray mean
