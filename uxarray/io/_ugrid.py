@@ -147,9 +147,9 @@ def _standardize_connectivity(ds, conn_name):
         )
 
         if "start_index" in ds[conn_name].attrs:
-            new_conn -= INT_DTYPE(ds[conn_name].start_index)
+            new_conn[new_conn != INT_FILL_VALUE] -= INT_DTYPE(ds[conn_name].start_index)
         else:
-            new_conn -= INT_DTYPE(new_conn.min())
+            new_conn[new_conn != INT_FILL_VALUE] -= INT_DTYPE(new_conn.min())
 
         # reassign data to use updated connectivity
         ds[conn_name].data = new_conn
