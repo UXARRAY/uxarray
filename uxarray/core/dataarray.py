@@ -29,6 +29,8 @@ from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
 
+import cartopy.crs as ccrs
+
 
 class UxDataArray(xr.DataArray):
     """N-dimensional ``xarray.DataArray``-like array. Inherits from
@@ -183,12 +185,29 @@ class UxDataArray(xr.DataArray):
 
     def to_polycollection(
         self,
-        override=False,
-        cache=True,
-        periodic_elements="exclude",
-        return_indices=False,
-        projection=None,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
     ):
+        """Converts a ``UxDataArray`` to a
+        ``matplotlib.collections.PolyCollection``, representing each face as a
+        polygon shaded with a face-centered data variable.
+
+        Parameters
+        ----------
+        periodic_elements: str
+            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
+        """
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
             raise ValueError(

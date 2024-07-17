@@ -1235,12 +1235,29 @@ class Grid:
 
     def to_polycollection(
         self,
-        override: Optional[bool] = False,
-        cache: Optional[bool] = True,
         periodic_elements: Optional[str] = "exclude",
-        return_indices: Optional[bool] = False,
         projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
     ):
+        """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
+        representing each face as a polygon.
+
+        Parameters
+        ----------
+        periodic_elements: str
+            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
+        """
+
         if periodic_elements not in ["include", "exclude", "split"]:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
@@ -1282,11 +1299,25 @@ class Grid:
 
     def to_linecollection(
         self,
-        override: Optional[bool] = True,
-        cache: Optional[bool] = True,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
     ):
+        """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
+        representing each edge as a line.
+
+        Parameters
+        ----------
+        periodic_elements: str
+            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
+        """
         if periodic_elements not in ["include", "exclude", "split"]:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
