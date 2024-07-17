@@ -14,7 +14,8 @@ class TestZonalFunctions(TestCase):
     gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     datafile_vortex_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
     dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
-
+    test_file_2 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_test2.nc"
+    test_file_3 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_test3.nc"
 
     def test_get_candidate_faces_at_constant_latitude(self):
         """Test _get_candidate_faces_at_constant_latitude function."""
@@ -154,8 +155,10 @@ class TestZonalFunctions(TestCase):
         self.assertTrue(np.isnan(zonal_mean))
 
     def test_non_conservative_zonal_mean_outCSne30(self):
-        """Test _non_conservative_zonal_mean function with outCSne30 data."""
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+        """Test _non_conservative_zonal_mean function with outCSne30 data.
+
+        Dummy test to make sure the function runs without errors.
+        """
         # Create test data
         grid_path = self.gridfile_ne30
         data_path = self.datafile_vortex_ne30
@@ -163,3 +166,27 @@ class TestZonalFunctions(TestCase):
 
         res = uxds['psi'].zonal_mean()
         print(res)
+
+    def test_non_conservative_zonal_mean_outCSne30_test2(self):
+        # Create test data
+        grid_path = self.gridfile_ne30
+        data_path = self.test_file_2
+        uxds = ux.open_dataset(grid_path, data_path)
+        res = uxds['Psi'].zonal_mean((-1.57,1.57,0.5))
+        # test the output is within 1 of 2
+        self.assertAlmostEqual(res.values, 2, delta=1)
+        res_0 = uxds['Psi'].zonal_mean(0)
+        # test the output is within 1 of 2
+        self.assertAlmostEqual(res_0.values, 2, delta=1)
+
+    def test_non_conservative_zonal_mean_outCSne30_test3(self):
+        # Create test data
+        grid_path = self.gridfile_ne30
+        data_path = self.test_file_3
+        uxds = ux.open_dataset(grid_path, data_path)
+        res = uxds['Psi'].zonal_mean((-1.57,1.57,0.5))
+        # test the output is within 1 of 2
+        self.assertAlmostEqual(res.values, 2, delta=1)
+        res_0 = uxds['Psi'].zonal_mean(0)
+        # test the output is within 1 of 2
+        self.assertAlmostEqual(res_0.values, 2, delta=1)
