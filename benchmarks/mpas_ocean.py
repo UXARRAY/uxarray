@@ -101,3 +101,17 @@ class ConnectivityConstruction:
 
     def time_face_face_connectivity(self, resolution):
         ux.grid.connectivity._populate_face_face_connectivity(self.uxds.uxgrid)
+
+
+class MatplotlibConversion:
+    param_names = ['resolution', 'periodic_elements']
+    params = (['480km', '120km'], ['include', 'exclude', 'split'])
+
+    def setup(self, resolution, periodic_elements):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution, periodic_elements):
+        del self.uxds
+
+    def time_dataarray_to_polycollection(self, resolution, periodic_elements):
+        self.uxds[data_var].to_polycollection()

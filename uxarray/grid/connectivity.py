@@ -143,6 +143,7 @@ def _populate_n_nodes_per_face(grid):
     )
 
 
+@njit()
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
