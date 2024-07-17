@@ -8,8 +8,6 @@ from typing import (
     Union,
 )
 
-from geoviews.operation import projection
-
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
