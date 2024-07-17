@@ -12,7 +12,6 @@ import xarray as xr
 
 import cartopy.crs as ccrs
 
-import copy
 
 from numba import njit
 
