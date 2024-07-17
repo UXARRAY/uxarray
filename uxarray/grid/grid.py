@@ -8,6 +8,7 @@ from typing import (
     Union,
 )
 
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -1284,6 +1285,7 @@ class Grid:
         override: Optional[bool] = True,
         cache: Optional[bool] = True,
         periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
     ):
         if periodic_elements not in ["include", "exclude", "split"]:
             raise ValueError(
