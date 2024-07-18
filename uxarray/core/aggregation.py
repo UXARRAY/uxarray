@@ -5,7 +5,6 @@ from uxarray.grid.connectivity import get_face_node_partitions
 
 import uxarray.core.dataarray
 
-
 NUMPY_AGGREGATIONS = {
     "mean": np.mean,
     "max": np.max,
@@ -17,6 +16,19 @@ NUMPY_AGGREGATIONS = {
     "median": np.median,
     "all": np.all,
     "any": np.any,
+}
+
+DASK_AGGREGATIONS = {
+    "mean": da.mean,
+    "max": da.max,
+    "min": da.min,
+    "prod": da.prod,
+    "sum": da.sum,
+    "std": da.std,
+    "var": da.var,
+    "median": da.median,
+    "all": da.all,
+    "any": da.any,
 }
 
 
@@ -79,6 +91,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
             f"{uxda.uxgrid.n_face}."
         )
 
+    # apply aggregation
     if isinstance(uxda.data, np.ndarray):
         # apply aggregation using numpy
         aggregated_var = _apply_node_to_face_aggregation_numpy(
@@ -86,8 +99,8 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
         )
     elif isinstance(uxda.data, da.Array):
         # apply aggregation on dask array, TODO:
-        aggregated_var = _apply_node_to_face_aggregation_numpy(
-            uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
+        aggregated_var = _apply_node_to_face_aggregation_dask(
+            uxda, aggregation, aggregation_func_kwargs
         )
     else:
         raise ValueError
@@ -98,6 +111,44 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
         dims=uxda.dims,
         name=uxda.name,
     ).rename({"n_node": "n_face"})
+
+
+# def _apply_node_to_face_aggregation(
+#     uxda, aggregation_func, aggregation_func_kwargs
+# ):
+#     data = uxda.data
+#     face_node_conn = uxda.uxgrid.face_node_connectivity.values
+#     n_nodes_per_face = uxda.uxgrid.n_nodes_per_face.values
+#
+#     (
+#         change_ind,
+#         n_nodes_per_face_sorted_ind,
+#         element_sizes,
+#         size_counts,
+#     ) = get_face_node_partitions(n_nodes_per_face)
+#
+#     if isinstance(data, np.ndarray):
+#         result = np.empty(shape=(data.shape[:-1]) + (uxda.uxgrid.n_face,))
+#         agg = NUMPY_AGGREGATIONS[aggregation_func]
+#     elif isinstance(data, da.Array):
+#         result = da.empty(shape=(data.shape[:-1]) + (uxda.uxgrid.n_face,))
+#         agg = DASK_AGGREGATIONS[aggregation_func]
+#     else:
+#         raise ValueError
+#
+#     for e, start, end in zip(element_sizes, change_ind[:-1], change_ind[1:]):
+#         face_inds = n_nodes_per_face_sorted_ind[start:end]
+#         face_nodes_par = face_node_conn[face_inds, 0:e]
+#
+#         # apply aggregation function to current face node partition
+#         aggregation_par = agg(
+#             data[..., face_nodes_par], axis=-1, **aggregation_func_kwargs
+#         )
+#
+#         # store current aggregation
+#         result[..., face_inds] = aggregation_par
+#
+#     return result
 
 
 def _apply_node_to_face_aggregation_numpy(
@@ -132,9 +183,44 @@ def _apply_node_to_face_aggregation_numpy(
     return result
 
 
-def _apply_node_to_face_aggregation_dask(*args, **kwargs):
+def _apply_node_to_face_aggregation_dask(
+    uxda, aggregation_name, aggregation_func_kwargs
+):
     """Applies a Node to Face Topological aggregation on a Dask array."""
-    pass
+
+    data = uxda.data
+    face_node_conn = uxda.uxgrid.face_node_connectivity.values
+    n_nodes_per_face = uxda.uxgrid.n_nodes_per_face.values
+
+    (
+        change_ind,
+        n_nodes_per_face_sorted_ind,
+        element_sizes,
+        size_counts,
+    ) = get_face_node_partitions(n_nodes_per_face)
+
+    # create an empty dask array
+    result = da.empty(shape=(data.shape[:-1]) + (uxda.uxgrid.n_face,))
+
+    for e, start, end in zip(element_sizes, change_ind[:-1], change_ind[1:]):
+        face_inds = n_nodes_per_face_sorted_ind[start:end]
+        face_nodes_par = face_node_conn[face_inds, 0:e]
+
+        face_nodes_par_da = da.from_array(face_nodes_par)
+
+        data_1d = data[..., face_nodes_par_da.ravel()]
+
+        data_2d = data_1d.reshape(data.shape[:-1] + face_nodes_par.shape)
+
+        # apply aggregation
+        aggregation_par = getattr(data_2d, aggregation_name)(
+            axis=-1, **aggregation_func_kwargs
+        )
+
+        # store current aggregation
+        result[..., face_inds] = aggregation_par
+
+    return result
 
 
 def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
