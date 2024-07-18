@@ -16,6 +16,7 @@ from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
 
+
 from uxarray.core.gradient import (
     _calculate_grad_on_edge_from_faces,
     _calculate_edge_face_difference,
@@ -33,6 +34,8 @@ from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
+
+import cartopy.crs as ccrs
 
 
 class UxDataArray(xr.DataArray):
@@ -187,28 +190,30 @@ class UxDataArray(xr.DataArray):
             )
 
     def to_polycollection(
-        self, override=False, cache=True, correct_antimeridian_polygons=True
+        self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
     ):
-        """Constructs a ``matplotlib.collections.PolyCollection`` object with
-        polygons representing the geometry of the unstructured grid, with
-        polygons that cross the antimeridian split across the antimeridian.
+        """Converts a ``UxDataArray`` to a
+        ``matplotlib.collections.PolyCollection``, representing each face as a
+        polygon shaded with a face-centered data variable.
 
         Parameters
         ----------
-        override : bool
-            Flag to recompute the ``PolyCollection`` stored under the ``uxgrid`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``PolyCollection`` stored under the ``uxgrid`` accessor should be cached
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
-
-        Returns
-        -------
-        poly_collection : matplotlib.collections.PolyCollection
-            The output `PolyCollection` of polygons representing the geometry of the unstructured grid paired with
-            a data variable.
+        periodic_elements: str
+            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         """
-
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
             raise ValueError(
@@ -216,41 +221,31 @@ class UxDataArray(xr.DataArray):
                 f"for face-centered data."
             )
 
-        # face-centered data
-        if self.values.size == self.uxgrid.n_face:
-            (
-                poly_collection,
-                corrected_to_original_faces,
-            ) = self.uxgrid.to_polycollection(
-                override=override,
-                cache=cache,
-                correct_antimeridian_polygons=correct_antimeridian_polygons,
+        if self._face_centered():
+            poly_collection, corrected_to_original_faces = (
+                self.uxgrid.to_polycollection(
+                    override=override,
+                    cache=cache,
+                    periodic_elements=periodic_elements,
+                    return_indices=True,
+                    projection=projection,
+                )
             )
 
             # map data with antimeridian polygons
             if len(corrected_to_original_faces) > 0:
                 data = self.values[corrected_to_original_faces]
-
-            # no antimeridian polygons
             else:
                 data = self.values
 
             poly_collection.set_array(data)
-            return poly_collection, corrected_to_original_faces
 
-        # node-centered data
-        elif self.values.size == self.uxgrid.n_node:
-            raise ValueError(
-                f"Data Variable with size {self.values.size} mapped on the nodes of each polygon"
-                f"not supported yet."
-            )
-
-        # data not mapped to faces or nodes
+            if return_indices:
+                return poly_collection, corrected_to_original_faces
+            else:
+                return poly_collection
         else:
-            raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}."
-            )
+            raise ValueError("Data variable must be face centered.")
 
     def to_dataset(
         self,
