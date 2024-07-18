@@ -58,6 +58,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
 
+`Accurate Spherical Operators <user-guide/accurate-helpers.ipynb>`_
+ SHORT DESCRIPTION TODO
+
 Supplementary Guides
 --------------------
 
@@ -80,7 +83,8 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
    user-guide/topological-aggregations.ipynb
-   user-guide/area_calc.ipynb
    user-guide/holoviz.ipynb
    user-guide/remapping.ipynb
    user-guide/tree_structures.ipynb
+   user-guide/area_calc.ipynb
+   user-guide/accurate-helpers.ipynb
