@@ -58,6 +58,18 @@ def _get_zonal_faces_weight_at_constLat(
         - 'weight': The calculated weight of the face in radian (float).
         The DataFrame is indexed by the face indices, providing a mapping from each face to its corresponding weight.
     """
+
+    # Special case if the latitude_cart = 1 or -1, meaning right at the pole
+    if np.isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or np.isclose(
+        latitude_cart, -1, atol=ERROR_TOLERANCE):
+        # Now all candidate faces( the faces around the pole) are considered as the same weight
+        # If the face encompases the pole, then the weight is 1
+        weights = {face_index: 1 / len(faces_edges_cart_candidate) for face_index in range(len(faces_edges_cart_candidate))}
+        # Convert weights to DataFrame
+        weights_df = pd.DataFrame(list(weights.items()), columns=["face_index", "weight"])
+        return weights_df
+
+
     intervals_list = []
 
     # Iterate through all faces and their edges

@@ -2,17 +2,17 @@ import numpy as np
 from uxarray.grid.integrate import _get_zonal_faces_weight_at_constLat
 
 
-def _get_candidate_faces_at_constant_latitude(bounds, constLat: float) -> np.ndarray:
+def _get_candidate_faces_at_constant_latitude(bounds, constLat_rad: float) -> np.ndarray:
     """Return the indices of the faces whose latitude bounds contain the
     constant latitude.
 
     Parameters
     ----------
     bounds : np.ndarray, shape (n_face, 2, 2)
-        The latitude and longitude bounds of the faces.
+        The latitude and longitude bounds of the faces in radians.
 
-    constLat : float
-        The constant latitude to check against. Expected range is [-90, 90].
+    constLat_rad : float
+        The constant latitude to check against in radians . Expected range is [-np.pi, np.pi].
 
     Returns
     -------
@@ -21,15 +21,25 @@ def _get_candidate_faces_at_constant_latitude(bounds, constLat: float) -> np.nda
     """
 
     # Check if the constant latitude is within the range of [-90, 90]
-    if constLat < -90 or constLat > 90:
-        raise ValueError("The constant latitude must be within the range of [-90, 90].")
+    if constLat_rad < -np.pi or constLat_rad > np.pi:
+        raise ValueError("The constant latitude must be within the range of [-90, 90] degree.")
 
     # Extract the latitude bounds
     lat_bounds_min = bounds[:, 0, 0]  # Minimum latitude bound
     lat_bounds_max = bounds[:, 0, 1]  # Maximum latitude bound
+    target_bounds = np.array([[-1.51843645, -1.45388627], [3.14159265, 3.92699082]])
+
+    # for i, bound in enumerate(bounds):
+    #     if np.allclose(bound, target_bounds, atol=0.001):
+    #         print(i, bound)
+
+    min = lat_bounds_min[4004]
+    max = lat_bounds_max[4004]
+
+    temp = (min <= constLat_rad) & (max >= constLat_rad)
 
     # Check if the constant latitude is within the bounds of each face
-    within_bounds = (lat_bounds_min <= constLat) & (lat_bounds_max >= constLat)
+    within_bounds = (lat_bounds_min <= constLat_rad) & (lat_bounds_max >= constLat_rad)
 
     # Get the indices of faces where the condition is True
     candidate_faces = np.where(within_bounds)[0]
@@ -52,7 +62,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     face_edges_cart : np.ndarray, shape (n_face, n_edge, 2, 3)
         The Cartesian coordinates of the face edges.
     bounds : np.ndarray, shape (n_face, 2, 2)
-        The latitude and longitude bounds of the faces.
+        The latitude and longitude bounds of the faces in radians.
     face_data : np.ndarray, shape (..., n_face)
         The data on the faces.
     constLat : float
@@ -70,9 +80,8 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     """
 
     # Get the indices of the faces whose latitude bounds contain the constant latitude
-    candidate_faces_indices = _get_candidate_faces_at_constant_latitude(
-        face_bounds, constLat
-    )
+    constLat_rad = np.deg2rad(constLat)
+    candidate_faces_indices = _get_candidate_faces_at_constant_latitude(face_bounds, constLat_rad)
 
     # Check if there are no candidate faces,
     if len(candidate_faces_indices) == 0:

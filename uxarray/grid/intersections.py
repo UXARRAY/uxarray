@@ -183,19 +183,29 @@ def gca_constLat_intersection(
 
     # Now test which intersection point is within the GCA range
     if point_within_gca(p1, gca_cart, is_directed=is_directed):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(
-            p1, gca_cart, verbose=verbose
-        )
-        res = (
-            np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
-        )
+        try:
+            converged_pt = _newton_raphson_solver_for_gca_constLat(
+                p1, gca_cart, verbose=verbose
+            )
+            res = (
+                np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+            )
+        except RuntimeError as e:
+            print(f"Error encountered with initial guess: {p1}")
+            print(f"gca_cart: {gca_cart}")
+            raise
 
     if point_within_gca(p2, gca_cart, is_directed=is_directed):
-        converged_pt = _newton_raphson_solver_for_gca_constLat(
-            p2, gca_cart, verbose=verbose
-        )
-        res = (
-            np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
-        )
+        try:
+            converged_pt = _newton_raphson_solver_for_gca_constLat(
+                p2, gca_cart, verbose=verbose
+            )
+            res = (
+                np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+            )
+        except RuntimeError as e:
+            print(f"Error encountered with initial guess: {p2}")
+            print(f"gca_cart: {gca_cart}")
+            raise
 
     return res if res is not None else np.array([])

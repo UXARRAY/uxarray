@@ -433,9 +433,6 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
         south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] <= 0, axis=1)]# The equator one is assigned to the south edges
 
-        temp1 = _check_intersection(ref_edge_north, north_edges)
-        temp2 = _check_intersection(ref_edge_south, south_edges)
-        temp3 = (temp1 + temp2) % 2 != 0
         return (
             _check_intersection(ref_edge_north, north_edges)
             + _check_intersection(ref_edge_south, south_edges)
@@ -467,21 +464,10 @@ def _check_intersection(ref_edge, edges):
     intersection_count = 0
 
     for edge in edges:
-        #Convert the edge to a lon-lat coordinate using the _xyz_to_lonlat function
-
-        from uxarray.grid.coordinates import _xyz_to_lonlat_deg
-        node_1 =  _xyz_to_lonlat_deg(*edge[0])
-        node_2 =  _xyz_to_lonlat_deg(*edge[1])
-
-        if pole_point[2] == 1:
-            pass
-
 
         intersection_point = gca_gca_intersection(ref_edge, edge)
 
         if intersection_point.size != 0:
-            # Ensure the intersection_point is always a 2D array with shape (n, 3)
-
             # for each intersection point, check if it is a pole point
             for point in intersection_point:
                 if np.allclose(point, pole_point, atol=ERROR_TOLERANCE):

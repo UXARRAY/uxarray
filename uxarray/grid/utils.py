@@ -119,8 +119,7 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     try:
         inverse_jacobian = np.linalg.inv(jacobian)
     except np.linalg.LinAlgError:
-        raise warnings("Warning: Singular Jacobian matrix encountered.")
-        return None
+        raise RuntimeError("Error: Singular Jacobian matrix encountered.")
 
     return inverse_jacobian
 
@@ -164,19 +163,20 @@ def _newton_raphson_solver_for_gca_constLat(
             ]
         )
 
-        j_inv = _inv_jacobian(
-            w0_cart[0],
-            w1_cart[0],
-            w0_cart[1],
-            w1_cart[1],
-            w0_cart[2],
-            w1_cart[2],
-            y_guess[0],
-            y_guess[1],
-        )
-
-        if j_inv is None:
-            return None
+        try:
+            j_inv = _inv_jacobian(
+                w0_cart[0],
+                w1_cart[0],
+                w0_cart[1],
+                w1_cart[1],
+                w0_cart[2],
+                w1_cart[2],
+                y_guess[0],
+                y_guess[1],
+            )
+        except RuntimeError as e:
+            print(f"Encountered an error: {e}")
+            raise
 
         y_new = y_guess - np.matmul(j_inv, f_vector)
         error = np.max(np.abs(y_guess - y_new))
