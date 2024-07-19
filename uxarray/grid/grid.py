@@ -1,5 +1,6 @@
 """uxarray.core.grid module."""
 
+import uxarray as ux
 import xarray as xr
 import numpy as np
 
@@ -7,7 +8,6 @@ from typing import (
     Optional,
     Union,
 )
-
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -66,7 +66,6 @@ from uxarray.grid.validation import (
 )
 
 from uxarray.constants import INT_FILL_VALUE
-from uxarray.conventions import ugrid
 
 from xarray.core.utils import UncachedAccessor
 
@@ -1365,15 +1364,11 @@ class Grid:
         # Array to hold the final face connectivity information
         final_faces = []
 
-        # Hold total edges for later connectivity assignment
-        total_edges = 0
-
         for i in range(len(self.node_x)):
             # Get the number of edges, which is just how many faces are in the node_face
             n_edges = sum(
                 1 for w in self.node_face_connectivity[i].values if w != INT_FILL_VALUE
             )
-            total_edges += n_edges
 
             # If we have less than 3 edges, we can't construct anything but a line
             if n_edges < 3:
@@ -1390,18 +1385,12 @@ class Grid:
                 if node_idx != INT_FILL_VALUE
             ]
 
-            indx = 0
+            index = 0
 
-            # If we have a node with three faces surrounding it, just connect the face centers around the node
-            if n_edges == 3:
-                for node_idx in valid_node_indices:
-                    face_temp.set_node(indx, node_idx)
-                    indx += 1
-
-            # If we have a node with more faces surrounding it
-            else:
-                # TODO: make an algorithm that works for any number of edges
-                pass
+            # Connect the face centers around the node to make dual face
+            for node_idx in valid_node_indices:
+                face_temp.set_node(index, node_idx)
+                index += 1
 
             # Order the nodes using the angles so the faces have nodes in counter-clockwise sequence
             node_central = np.array([self.node_x[i], self.node_y[i], self.node_z[i]])
@@ -1465,109 +1454,23 @@ class Grid:
                     d_current_angle = d_next_angle
                 final_faces.append(face.edges)
 
-        array_face_nodes = []
-        max_face_nodes = 0
-        n_nodes_per_face = []
-        n_faces = len(final_faces)
-
-        # This is temporary just to get the face connectivity information
-        for face in final_faces:
-            if len(face) == 3:
-                array_face_nodes.append(
-                    [
-                        face[0][0],
-                        face[0][1],
-                        face[1][1],
-                        INT_FILL_VALUE,
-                        INT_FILL_VALUE,
-                        INT_FILL_VALUE,
-                    ]
-                )
-                n_nodes_per_face.append(len(face))
-            elif len(face) == 4:
-                array_face_nodes.append(
-                    [
-                        face[0][0],
-                        face[0][1],
-                        face[1][1],
-                        face[2][1],
-                        INT_FILL_VALUE,
-                        INT_FILL_VALUE,
-                    ]
-                )
-                n_nodes_per_face.append(len(face))
-            elif len(face) == 5:
-                array_face_nodes.append(
-                    [
-                        face[0][0],
-                        face[0][1],
-                        face[1][1],
-                        face[2][1],
-                        face[3][2],
-                        INT_FILL_VALUE,
-                    ]
-                )
-                n_nodes_per_face.append(len(face))
-            elif len(face) == 6:
-                array_face_nodes.append(
-                    [
-                        face[0][0],
-                        face[0][1],
-                        face[1][1],
-                        face[2][1],
-                        face[3][2],
-                        face[4][1],
-                    ]
-                )
-                n_nodes_per_face.append(len(face))
-            if len(face) > max_face_nodes:
-                max_face_nodes = len(face)
-
-        array_face_nodes = np.array(array_face_nodes)
-
-        # Construct the new grid
-        new_grid = xr.Dataset()
-
-        # Assign the dimensions
-        new_grid.expand_dims(dim={"n_node": len(dual_node_x)})
-        new_grid.expand_dims(dim={"n_edge": total_edges})
-        new_grid.expand_dims(dim={"n_faces": n_faces})
-        new_grid.expand_dims(dim={"n_max_face_nodes": max_face_nodes})
-        new_grid.expand_dims(dim={"n_max_face_edges": max_face_nodes})
-
-        # Assign the node xyz values
-        new_grid["node_x"] = xr.DataArray(
-            data=dual_node_x, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_X_ATTRS
-        )
-        new_grid["node_y"] = xr.DataArray(
-            data=dual_node_y, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
-        )
-        new_grid["node_z"] = xr.DataArray(
-            data=dual_node_z, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
+        # Empty array to hold `node_face_connectivity`
+        node_face_connectivity = np.full(
+            (len(final_faces), 6), INT_FILL_VALUE, dtype=ux.INT_DTYPE
         )
 
-        # Assign the face_node_connectivity
-        new_grid["face_node_connectivity"] = xr.DataArray(
-            data=array_face_nodes,
-            dims=["n_face", "n_max_face_nodes"],
-            attrs=self._ds["face_node_connectivity"].attrs,
+        # Populate the node_face array
+        for i, face in enumerate(final_faces):
+            faces = [
+                edge[0] for edge in face
+            ]  # Extract the first element of each edge tuple
+            node_face_connectivity[i, : len(faces)] = (
+                faces  # Assign the faces to the node_face array
+            )
+
+        # Construct dual mesh
+        dual = ux.Grid.from_topology(
+            self.face_lon.values, self.face_lat.values, node_face_connectivity
         )
 
-        # Assign the node latlon  values
-        new_grid["node_lat"] = xr.DataArray(
-            data=self.face_lat.values, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
-        )
-
-        new_grid["node_lon"] = xr.DataArray(
-            data=self.face_lon.values, dims=[ugrid.NODE_DIM], attrs=ugrid.FACE_LON_ATTRS
-        )
-
-        # Assign n_nodes_per_face
-        new_grid["n_nodes_per_face"] = xr.DataArray(
-            data=n_nodes_per_face,
-            dims=ugrid.N_NODES_PER_FACE_DIMS,
-            attrs=ugrid.N_NODES_PER_FACE_ATTRS,
-        )
-
-        # Replace old grid dataset with the new one
-        self._ds = new_grid
+        return dual

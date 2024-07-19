@@ -938,5 +938,4 @@ class TestLatlonBounds(TestCase):
 class TestDualMesh(TestCase):
     def test_dual_mesh_mpas(self):
         grid = ux.open_grid(gridfile_mpas_two)
-        grid.dual_mesh()
-        grid.plot().opts(width=600, height=400, title="Default Grid Plotting Method")
+        dual = grid.dual_mesh()
