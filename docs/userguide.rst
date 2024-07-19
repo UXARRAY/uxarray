@@ -31,8 +31,11 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
 
-`Plotting <user-guide/plotting.ipynb>`_
- Visualize unstructured grid datasets
+`Plotting API <user-guide/plotting.ipynb>`_
+ Visualize unstructured grid datasets using UXarray's plotting api
+
+`Plotting with Matplotlib <user-guide/mpl.ipynb>`_
+ Use Matplotlib for plotting with PolyCollection and LineCollection
 
 `Advanced Plotting Techniques <user-guide/advanced-plotting.ipynb>`_
  Deeper dive into getting the most out of UXarray's plotting functionality
@@ -52,6 +55,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
 
+`Face Area Calculations <user-guide/area_calc.ipynb>`_
+ Methods for computing the area of each face
+
 Supplementary Guides
 --------------------
 
@@ -70,7 +76,8 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/grid-formats.rst
    user-guide/data-structures.ipynb
    user-guide/plotting.ipynb
-   advanced-plotting.ipynb
+   user-guide/mpl.ipynb
+   user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/area_calc.ipynb
