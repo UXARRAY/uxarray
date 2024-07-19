@@ -143,6 +143,7 @@ def _populate_n_nodes_per_face(grid):
     )
 
 
+@njit()
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
@@ -433,3 +434,42 @@ def get_face_node_partitions(n_nodes_per_face):
     change_ind = np.concatenate((np.array([0]), change_ind))
 
     return change_ind, n_nodes_per_face_sorted_ind, element_sizes, size_counts
+
+
+def _populate_face_face_connectivity(grid):
+    """Constructs the UGRID connectivity variable (``face_face_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.face_face_connectivity``)."""
+    face_face = _build_face_face_connectivity(grid)
+
+    grid._ds["face_face_connectivity"] = xr.DataArray(
+        data=face_face,
+        dims=ugrid.FACE_FACE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_FACE_CONNECTIVITY_ATTRS,
+    )
+
+
+def _build_face_face_connectivity(grid):
+    """Returns face-face connectivity."""
+
+    # Dictionary to store each faces adjacent faces
+    face_neighbors = {i: [] for i in range(grid.n_face)}
+
+    # Loop through each edge_face and add to the dictionary every face that shares an edge
+    for edge_face in grid.edge_face_connectivity.values:
+        face1, face2 = edge_face
+        if face1 != INT_FILL_VALUE and face2 != INT_FILL_VALUE:
+            # Append to each face's dictionary index the opposite face index
+            face_neighbors[face1].append(face2)
+            face_neighbors[face2].append(face1)
+
+    # Convert to an array and pad it with fill values
+    face_face_conn = list(face_neighbors.values())
+    face_face_connectivity = [
+        np.pad(
+            arr, (0, grid.n_max_face_edges - len(arr)), constant_values=INT_FILL_VALUE
+        )
+        for arr in face_face_conn
+    ]
+
+    return face_face_connectivity
