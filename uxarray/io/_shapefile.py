@@ -2,7 +2,7 @@ import geopandas as gpd
 import xarray as xr
 import numpy as np
 from uxarray.conventions import ugrid
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _read_shpfile(filepath):
@@ -20,7 +20,7 @@ def _read_shpfile(filepath):
     # Initialize as an empty numpy array
     node_lon = np.array([])
     node_lat = np.array([])
-    connectivity = np.empty((0, max_coord_size - 1), dtype=np.intp)
+    connectivity = np.empty((0, max_coord_size - 1), dtype=INT_DTYPE)
 
     node_index = 0
 
@@ -122,12 +122,13 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
         # TODO: Fix to not use max_coord_size and something like a variable dim 2d array
         max_coord_size = connectivity.shape[1]
         new_row = np.array(range(node_index, node_index + coord_size_polygon))
-        new_row = np.pad(
-            new_row,
-            (0, max_coord_size - len(new_row)),
-            "constant",
-            constant_values=INT_FILL_VALUE,
-        )
+        # Determine the number of elements to pad
+        padding_length = max_coord_size - len(new_row)
+        # Create the padding array
+        padding_array = np.full(padding_length, INT_FILL_VALUE)
+        # Concatenate the original array and the padding array
+        new_row = np.concatenate((new_row, padding_array))
+        # Stack the new row onto the connectivity array
         connectivity = np.vstack((connectivity, new_row))
 
         node_index += coord_size_polygon
@@ -148,14 +149,14 @@ def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
     node_lat = np.append(node_lat, polygon.exterior.coords.xy[1][:-1])
     coord_size_polygon = len(polygon.exterior.coords.xy[0][:-1])
 
-    # TODO: Fix to not use max_coord_size and something like a variable dim 2d array
     new_row = np.array(range(node_index, node_index + coord_size_polygon))
-    new_row = np.pad(
-        new_row,
-        (0, max_coord_size - len(new_row)),
-        "constant",
-        constant_values=INT_FILL_VALUE,
-    )
+    # Determine the number of elements to pad
+    padding_length = max_coord_size - len(new_row)
+    # Create the padding array
+    padding_array = np.full(padding_length, INT_FILL_VALUE)
+    # Concatenate the original array and the padding array
+    new_row = np.concatenate((new_row, padding_array))
+    # Stack the new row onto the connectivity array
     connectivity = np.vstack((connectivity, new_row))
 
     node_index += coord_size_polygon
