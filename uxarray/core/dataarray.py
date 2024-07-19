@@ -412,12 +412,15 @@ class UxDataArray(xr.DataArray):
 
     # weighted_mean()
     # .weighted.mean()
+    # weights are only on grid - not supporting custom weights for now 
     def mean(self, dim=None, *, skipna=None, keep_attrs=None, weighted=False, **kwargs):
         if weighted:
             if self._face_centered():
+                grid_dim = "n_face"
                 # use face areas as weight
                 weights = self.uxgrid.face_areas
             elif self._edge_centered():
+                grid_dim = "n_edge"
                 # use edge magnitude as weight
                 weights = self.uxgrid.edge_node_distances
             else:
@@ -428,13 +431,13 @@ class UxDataArray(xr.DataArray):
                     "variables. Performing an unweighted mean."
                 )
 
-                return super().mean(dim=None, skipna=None, keep_attrs=None, **kwargs)
+                return super().mean(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
 
             # compute the total weight
             total_weight = weights.sum()
 
-            # compute weighted mean
-            weighted_mean = (self * weights).sum() / total_weight
+            # compute weighted mean #assumption on index of dimension (last one is geometry)
+            weighted_mean = (self * weights).sum(axis=-1) / total_weight
 
             # create a UxDataArray and return it
             return UxDataArray(weighted_mean, uxgrid=self.uxgrid)
