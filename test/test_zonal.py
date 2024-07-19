@@ -164,7 +164,7 @@ class TestZonalFunctions(TestCase):
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
-        res = uxds['psi'].zonal_mean()
+        res = uxds['psi'].zonal_mean((-90,90,0.5))
         print(res)
 
     def test_non_conservative_zonal_mean_outCSne30_test2(self):

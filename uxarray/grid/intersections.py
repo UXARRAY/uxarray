@@ -6,7 +6,6 @@ import platform
 import warnings
 from uxarray.utils.computing import cross_fma
 
-
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
@@ -27,21 +26,13 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     Returns
     -------
     np.ndarray
-        Cartesian coordinates of the intersection point(s).
+        Cartesian coordinates of the intersection point(s). Returns an empty array if no intersections,
+        a 2D array with one row if one intersection, and a 2D array with two rows if two intersections.
 
     Raises
     ------
     ValueError
         If the input GCAs are not in the cartesian [x, y, z] format.
-
-
-
-    Warning
-    -------
-        If the current input data cannot be computed accurately using floating-point arithmetic. Use with care
-
-        If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
-        is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
 
     # Support lists as an input
@@ -96,23 +87,32 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
     # If the cross_norms is zero, the two GCAs are parallel
     if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
-        return np.array([])
+        res = []
+        # Check if the two GCAs are overlapping
+        if point_within_gca(v0, [w0, w1]):
+            # The two GCAs are overlapping, return both end points
+            res.append(v0)
+
+        if point_within_gca(v1, [w0, w1]):
+            res.append(v1)
+        return np.array(res)
 
     # Normalize the cross_norms
     cross_norms = cross_norms / np.linalg.norm(cross_norms)
     x1 = cross_norms
     x2 = -x1
 
-    res = np.array([])
+    res = []
 
     # Determine which intersection point is within the GCAs range
     if point_within_gca(x1, [w0, w1]) and point_within_gca(x1, [v0, v1]):
-        res = np.append(res, x1)
+        res.append(x1)
 
-    elif point_within_gca(x2, [w0, w1]) and point_within_gca(x2, [v0, v1]):
-        res = np.append(res, x2)
+    if point_within_gca(x2, [w0, w1]) and point_within_gca(x2, [v0, v1]):
+        res.append(x2)
 
-    return res
+    return np.array(res)
+
 
 
 def gca_constLat_intersection(

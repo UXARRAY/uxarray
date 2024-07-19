@@ -195,6 +195,8 @@ def _get_faces_constLat_intersection_info(
 
     # Handle unique intersections and check for convex or concave cases
     unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
+    if len(unique_intersections) == 0:
+        pass
     if len(unique_intersections) == 2:
         # TODO: vectorize?
         unique_intersection_lonlat = np.array(
@@ -262,13 +264,20 @@ def _get_zonal_face_interval(
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
 
     # Call the vectorized function to process all edges
-    (
-        unique_intersections,
-        pt_lon_min,
-        pt_lon_max,
-    ) = _get_faces_constLat_intersection_info(
-        face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
-    )
+    try:
+        # Call the vectorized function to process all edges
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(
+            face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
+        )
+    except ValueError as e:
+        if str(e) == "No intersections are found for the face, please make sure the build_latlon_box generates the correct results":
+            print(
+                "ValueError: No intersections are found for the face, please make sure the build_latlon_box generates the correct results")
+            print(f"Face edges information: {face_edges_cart}")
+            print(f"Constant latitude: {latitude_cart}")
+            print(f"Face latlon bound information: {face_latlon_bound}")
+        else:
+            raise  # Re-raise the exception if it's not the expected ValueError
 
     # Convert intersection points to longitude-latitude
     longitudes = np.array(
