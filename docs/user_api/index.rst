@@ -103,6 +103,22 @@ Attributes
 
    UxDataArray.uxgrid
 
+Topological Aggregations
+----------
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.topological_mean
+   UxDataArray.topological_max
+   UxDataArray.topological_min
+   UxDataArray.topological_prod
+   UxDataArray.topological_sum
+   UxDataArray.topological_std
+   UxDataArray.topological_var
+   UxDataArray.topological_median
+   UxDataArray.topological_all
+   UxDataArray.topological_any
+
 Methods
 -------
 .. autosummary::
@@ -368,16 +384,6 @@ Connectivity
    :toctree: generated/
 
    grid.connectivity.close_face_nodes
-
-Coordinates
------------
-.. autosummary::
-   :toctree: generated/
-
-   grid.coordinates.node_lonlat_rad_to_xyz
-   grid.coordinates.node_xyz_to_lonlat_rad
-   grid.coordinates.normalize_in_place
-
 
 Arcs
 ----

@@ -8,9 +8,10 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, _build_edge_node_connectivity
+from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
+    _build_edge_node_connectivity, _build_face_face_connectivity, _populate_face_face_connectivity
 
-from uxarray.grid.coordinates import _populate_lonlat_coord, node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
@@ -459,7 +460,7 @@ class TestPopulateCoordinates(TestCase):
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
 
         vgrid = ux.open_grid(verts_cart, latlon=False)
-        _populate_lonlat_coord(vgrid)
+        _populate_node_latlon(vgrid)
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.n_node):
@@ -874,6 +875,23 @@ class TestConnectivity(TestCase):
         # no invalid entries should occur
         assert n_invalid == 0
 
+    def test_face_face_connectivity_construction(self):
+        """Tests the construction of face-face connectivity."""
+
+        # Open MPAS grid and read in face_face_connectivity
+        grid = ux.open_grid(gridfile_mpas)
+        face_face_conn_old = grid.face_face_connectivity.values
+
+        # Construct new face_face_connectivity using UXarray
+        face_face_conn_new = _build_face_face_connectivity(grid)
+
+        # Sort the arrays before comparison
+        face_face_conn_old_sorted = np.sort(face_face_conn_old, axis=None)
+        face_face_conn_new_sorted = np.sort(face_face_conn_new, axis=None)
+
+        # Assert the new and old face_face_connectivity contains the same faces
+        nt.assert_array_equal(face_face_conn_new_sorted, face_face_conn_old_sorted)
+
 
 class TestClassMethods(TestCase):
     gridfile_ugrid = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
@@ -913,6 +931,7 @@ class TestClassMethods(TestCase):
 
 
 class TestLatlonBounds(TestCase):
+    gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
     def test_populate_bounds_GCA_mix(self):
         face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -932,3 +951,9 @@ class TestLatlonBounds(TestCase):
         bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_MPAS(self):
+        xrds = xr.open_dataset(self.gridfile_mpas)
+        uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
+        bounds_xarray = uxgrid.bounds
+        pass

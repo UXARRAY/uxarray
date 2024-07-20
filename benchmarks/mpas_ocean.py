@@ -4,7 +4,7 @@ from pathlib import Path
 
 import uxarray as ux
 
-current_path = Path(os.path.dirname(os.path.realpath(__file__))).parents[0]
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 data_var = 'bottomDepth'
 
@@ -17,14 +17,14 @@ data_filename_120 = "oQU120.data.nc"
 filenames = [grid_filename_480, data_filename_480, grid_filename_120, data_filename_120]
 
 for filename in filenames:
-    if not os.path.isfile(filename):
+    if not os.path.isfile(current_path / filename):
         # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
         url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
-        _, headers = urllib.request.urlretrieve(url, filename=filename)
+        _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
 
 
-file_path_dict = {"480km": [grid_filename_480, data_filename_480],
-                  "120km": [grid_filename_120, data_filename_120]}
+file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
+                  "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
 
 
 class Gradient:
@@ -92,8 +92,26 @@ class ConnectivityConstruction:
     def setup(self, resolution):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
+
     def teardown(self, resolution):
         del self.uxds
 
     def time_n_nodes_per_face(self, resolution):
         self.uxds.uxgrid.n_nodes_per_face
+
+    def time_face_face_connectivity(self, resolution):
+        ux.grid.connectivity._populate_face_face_connectivity(self.uxds.uxgrid)
+
+
+class MatplotlibConversion:
+    param_names = ['resolution', 'periodic_elements']
+    params = (['480km', '120km'], ['include', 'exclude', 'split'])
+
+    def setup(self, resolution, periodic_elements):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution, periodic_elements):
+        del self.uxds
+
+    def time_dataarray_to_polycollection(self, resolution, periodic_elements):
+        self.uxds[data_var].to_polycollection()

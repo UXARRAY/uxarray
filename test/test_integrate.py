@@ -8,7 +8,7 @@ import pandas as pd
 import numpy.testing as nt
 
 import uxarray as ux
-from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -67,7 +67,7 @@ class TestFaceWeights(TestCase):
                            [1.6 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, 0.25 * np.pi]]
-        vertices = [node_lonlat_rad_to_xyz(v) for v in vertices_lonlat]
+        vertices = [_lonlat_rad_to_xyz(*v) for v in vertices_lonlat]
 
         face_edge_nodes = np.array([[vertices[0], vertices[1]],
                                     [vertices[1], vertices[2]],
@@ -101,7 +101,7 @@ class TestFaceWeights(TestCase):
                            [0.4 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, 0.25 * np.pi]]
 
-        vertices = [node_lonlat_rad_to_xyz(v) for v in vertices_lonlat]
+        vertices = [_lonlat_rad_to_xyz(*v) for v in vertices_lonlat]
 
         face_edge_nodes = np.array([[vertices[0], vertices[1]],
                                     [vertices[1], vertices[2]],
@@ -132,7 +132,7 @@ class TestFaceWeights(TestCase):
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi], [-0.4 * np.pi, 0.0],
                            [0.4 * np.pi, 0.0], [0.4 * np.pi, 0.25 * np.pi]]
 
-        vertices = [node_lonlat_rad_to_xyz(v) for v in vertices_lonlat]
+        vertices = [_lonlat_rad_to_xyz(*v) for v in vertices_lonlat]
 
         face_edge_nodes = np.array([[vertices[0], vertices[1]],
                                     [vertices[1], vertices[2]],
@@ -284,10 +284,10 @@ class TestFaceWeights(TestCase):
                   [np.pi, -0.25 * np.pi], [np.pi, 0.0]]
 
         # Convert the face vertices to xyz coordinates
-        face_0 = [node_lonlat_rad_to_xyz(v) for v in face_0]
-        face_1 = [node_lonlat_rad_to_xyz(v) for v in face_1]
-        face_2 = [node_lonlat_rad_to_xyz(v) for v in face_2]
-        face_3 = [node_lonlat_rad_to_xyz(v) for v in face_3]
+        face_0 = [_lonlat_rad_to_xyz(*v) for v in face_0]
+        face_1 = [_lonlat_rad_to_xyz(*v) for v in face_1]
+        face_2 = [_lonlat_rad_to_xyz(*v) for v in face_2]
+        face_3 = [_lonlat_rad_to_xyz(*v) for v in face_3]
 
         face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
                                       [face_0[1], face_0[2]],
@@ -347,10 +347,10 @@ class TestFaceWeights(TestCase):
                   [1.6 * np.pi, -0.01 * np.pi], [1.6 * np.pi, 0.25 * np.pi]]
 
         # Convert the face vertices to xyz coordinates
-        face_0 = [node_lonlat_rad_to_xyz(v) for v in face_0]
-        face_1 = [node_lonlat_rad_to_xyz(v) for v in face_1]
-        face_2 = [node_lonlat_rad_to_xyz(v) for v in face_2]
-        face_3 = [node_lonlat_rad_to_xyz(v) for v in face_3]
+        face_0 = [_lonlat_rad_to_xyz(*v) for v in face_0]
+        face_1 = [_lonlat_rad_to_xyz(*v) for v in face_1]
+        face_2 = [_lonlat_rad_to_xyz(*v) for v in face_2]
+        face_3 = [_lonlat_rad_to_xyz(*v) for v in face_3]
 
         face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
                                       [face_0[1], face_0[2]],
@@ -410,9 +410,9 @@ class TestFaceWeights(TestCase):
                   [np.deg2rad(40), np.deg2rad(20)], [np.deg2rad(40), np.deg2rad(40)]]
 
         # Convert the face vertices to xyz coordinates
-        face_0 = [node_lonlat_rad_to_xyz(v) for v in face_0]
-        face_1 = [node_lonlat_rad_to_xyz(v) for v in face_1]
-        face_2 = [node_lonlat_rad_to_xyz(v) for v in face_2]
+        face_0 = [_lonlat_rad_to_xyz(*v) for v in face_0]
+        face_1 = [_lonlat_rad_to_xyz(*v) for v in face_1]
+        face_2 = [_lonlat_rad_to_xyz(*v) for v in face_2]
 
 
         face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
