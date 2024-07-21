@@ -22,7 +22,6 @@ GDF_POLYGON_THRESHOLD = 100000
 
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
-
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
     """
     Identify unique intersection points from a list of points, considering floating point precision errors.
@@ -32,7 +31,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
     points : list of array-like
         A list containing the intersection points, where each point is an array-like structure (e.g., list, tuple, or numpy array) containing x, y, and z coordinates.
     tolerance : float, optional
-        The distance threshold within which two points are considered identical. Default is ERROR_TOLERANCE.
+        The distance threshold within which two points are considered identical. Default is 1e-6.
 
     Returns
     -------
@@ -47,34 +46,27 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
 
     .. math::
         \begin{aligned}
-            &\frac{\sqrt{(\tilde{P}_x - P_x)^2 + (\tilde{P}_y - P_y)^2}}{\sqrt{P_x^2 + P_y^2 + z_0^2}}\\
-            &= \frac{\sqrt{(P_x \varepsilon_{P_x})^2 + (P_y \varepsilon_{P_y})^2}}{\sqrt{P_x^2 + P_y^2 + z_0^2}}\\
-            &= \sqrt{(P_x \varepsilon_{P_x})^2 + (P_y \varepsilon_{P_y})^2}\\
-            &= \sqrt{(\tilde{P}_x - P_x)^2 + (\tilde{P}_y - P_y)^2}
+            &\frac{\sqrt{(\tilde{v}_x - v_x)^2 + (\tilde{v}_y - v_y)^2 + (\tilde{v}_z - v_z)^2}}{\sqrt{v_x^2 + v_y^2 + v_z^2}}\\
+            &= \sqrt{(\tilde{v}_x - v_x)^2 + (\tilde{v}_y - v_y)^2 + (\tilde{v}_z - v_z)^2}
         \end{aligned}
 
     This method ensures that small numerical inaccuracies do not lead to multiple close points being considered different.
     """
-    if len(points) == 0:
-        return []
+    unique_points = []
+    points = [np.array(point) for point in points]  # Ensure all points are numpy arrays
 
-    points = np.array(points)
-    unique_indices = []
+    def error_radius(p1, p2):
+        """Calculate the error radius between two points in 3D space."""
+        numerator = np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2 + (p1[2] - p2[2])**2)
+        denominator = np.sqrt(p2[0]**2 + p2[1]**2 + p2[2]**2)
+        return numerator / denominator
 
-    for i in range(len(points)):
-        if not unique_indices:
-            unique_indices.append(i)
-        else:
-            is_unique = True
-            for j in unique_indices:
-                angle = _angle_of_2_vectors(points[i:i + 1], points[j:j + 1])
-                if angle < tolerance:
-                    is_unique = False
-                    break
-            if is_unique:
-                unique_indices.append(i)
+    for point in points:
+        if not any(error_radius(point, unique_point) < tolerance for unique_point in unique_points):
+            unique_points.append(point)
 
-    return points[unique_indices]
+    return unique_points
+
 
 
 # General Helpers for Polygon Viz

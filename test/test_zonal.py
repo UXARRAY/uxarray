@@ -154,6 +154,22 @@ class TestZonalFunctions(TestCase):
         # Expected output is NaN
         self.assertTrue(np.isnan(zonal_mean))
 
+    def test_non_conservative_zonal_mean_outCSne30_oneLat(self):
+        """Test _non_conservative_zonal_mean function with outCSne30 data.
+
+        Dummy test to make sure the function runs without errors.
+        """
+        # Create test data
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+        constZ = -0.5150380749100542
+        contLat_rad = np.arcsin(constZ)
+        contLat_deg = np.rad2deg(np.arcsin(constZ))
+
+        res = uxds['psi'].zonal_mean(contLat_deg)
+
+
     def test_non_conservative_zonal_mean_outCSne30(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
 

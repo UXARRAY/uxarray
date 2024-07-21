@@ -68,8 +68,8 @@ def point_within_gca(pt, gca_cart, is_directed=False):
         _xyz_to_lonlat_rad(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
     )
     # Check if pt_lonlat is close to GCRv0_lonlat or GCRv1_lonlat
-    if np.isclose(pt_lonlat, GCRv0_lonlat, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE).all() or \
-            np.isclose(pt_lonlat, GCRv1_lonlat, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE).all():
+    if np.isclose(pt, gca_cart[0], rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE).all() or \
+            np.isclose(pt, gca_cart[1], rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE).all():
         return True
 
     # Convert the list to np.float64
@@ -90,7 +90,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     # TODO: use our own cross and dot function to check if the point is on the plane
     temp =  np.dot(np.cross(gca_cart[0], gca_cart[1]), pt)
     if not np.allclose(
-        np.dot(np.cross(gca_cart[0], gca_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE
+        np.dot(np.cross(gca_cart[0], gca_cart[1]), pt), 0, rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
     ):
         return False
 
@@ -104,9 +104,11 @@ def point_within_gca(pt, gca_cart, is_directed=False):
             return False
 
     # If the longnitude span is exactly 180 degree, then the GCA goes through the pole point
+    # Or if one of the endpoints is on the pole point, then the GCA goes through the pole point
     if np.isclose(
         abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0, atol=MACHINE_EPSILON
-    ):
+    ) or np.isclose(abs(GCRv0_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE) or np.isclose(
+            abs(GCRv1_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
         # Special case, if the pt is on the pole point, then set its longitude to the GCRv0_lonlat[0]
         # Since the point is our calculated properly, we use the atol=ERROR_TOLERANCE and rtol=ERROR_TOLERANCE
         if np.isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
@@ -114,28 +116,31 @@ def point_within_gca(pt, gca_cart, is_directed=False):
 
         # Special case, if one of the GCA endpoints is on the pole point, and another endpoint is not
         # then we need to check if the pt is on the GCA
-        if np.isclose(abs(GCRv0_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE) or np.isclose(
-            abs(GCRv1_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+        if np.isclose(abs(GCRv0_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0) or np.isclose(
+            abs(GCRv1_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0):
             # Identify the non-pole endpoint
             non_pole_endpoint = None
             if not np.isclose(
-                abs(GCRv0_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
+                abs(GCRv0_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0
             ):
                 non_pole_endpoint = GCRv0_lonlat
             elif not np.isclose(
-                abs(GCRv1_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
+                abs(GCRv1_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0
             ):
                 non_pole_endpoint = GCRv1_lonlat
 
             if non_pole_endpoint is not None and not np.isclose(
-                non_pole_endpoint[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON
+                non_pole_endpoint[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=0
             ):
-                return False
+                re1 = non_pole_endpoint[0]
+                re2 = pt_lonlat[0]
+                absolute_difference = np.abs(re1 - re2)
+                relative_error = absolute_difference / np.abs(pt_lonlat[0])
 
         if not np.isclose(
-            GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON
+            GCRv0_lonlat[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=0
         ) and not np.isclose(
-            GCRv1_lonlat[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON
+            GCRv1_lonlat[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=0
         ):
             return False
         else:

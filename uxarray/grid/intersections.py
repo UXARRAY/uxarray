@@ -1,7 +1,7 @@
 import numpy as np
 from uxarray.constants import  MACHINE_EPSILON, ERROR_TOLERANCE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
-from uxarray.grid.arcs import point_within_gca
+from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
 from uxarray.utils.computing import cross_fma
@@ -160,8 +160,12 @@ def gca_constLat_intersection(
     -------
         If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
+
+        If the intersection point cannot be converged using the Newton-Raphson method, the initial guess intersection
+        point is used instead, proceed with caution.
     """
     x1, x2 = gca_cart
+
 
 
     # Check if the constant latitude has the same latitude as the GCA endpoints
@@ -182,6 +186,16 @@ def gca_constLat_intersection(
         return res
 
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
+    lat_min = extreme_gca_latitude( gca_cart, extreme_type="min")
+    lat_max = extreme_gca_latitude( gca_cart, extreme_type="max")
+    constLat_rad = np.arcsin(constZ)
+
+    # Check if the constant latitude is within the GCA range
+    # Because the constant latitude is calculated from np.sin, which may have some floating-point error,
+    if not in_between(lat_min,constLat_rad, lat_max):
+        pass
+        return np.array([])
+
 
     if fma_disabled:
         n = np.cross(x1, x2)
@@ -207,6 +221,11 @@ def gca_constLat_intersection(
     p1 = np.array([p1_x, p1_y, constZ])
     p2 = np.array([p2_x, p2_y, constZ])
 
+    #convert the points to lon/lat
+    from uxarray.grid.coordinates import _xyz_to_lonlat_rad
+    p1_latlon = _xyz_to_lonlat_rad(*p1)
+    p2_latlon = _xyz_to_lonlat_rad(*p2)
+
     res = None
 
     # Now test which intersection point is within the GCA range
@@ -215,9 +234,20 @@ def gca_constLat_intersection(
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p1, gca_cart, verbose=verbose
             )
-            res = (
-                np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
-            )
+
+            if converged_pt is None:
+                # The point is not be able to be converged using the jacobi method, raise a warning and continue with p2
+                warnings.warn(
+                    "The intersection point cannot be converged using the Newton-Raphson method. "
+                    "The initial guess intersection point is used instead, procced with caution."
+                )
+                res = (
+                    np.array([p1]) if res is None else np.vstack((res, p1))
+                )
+            else:
+                res = (
+                    np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+                )
         except RuntimeError as e:
             print(f"Error encountered with initial guess: {p1}")
             print(f"gca_cart: {gca_cart}")
@@ -228,9 +258,19 @@ def gca_constLat_intersection(
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p2, gca_cart, verbose=verbose
             )
-            res = (
-                np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
-            )
+            if converged_pt is None:
+                # The point is not be able to be converged using the jacobi method, raise a warning and continue with p2
+                warnings.warn(
+                    "The intersection point cannot be converged using the Newton-Raphson method. "
+                    "The initial guess intersection point is used instead, procced with caution."
+                )
+                res = (
+                    np.array([p2]) if res is None else np.vstack((res, p2))
+                )
+            else:
+                res = (
+                    np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+                )
         except RuntimeError as e:
             print(f"Error encountered with initial guess: {p2}")
             print(f"gca_cart: {gca_cart}")

@@ -88,6 +88,17 @@ def _get_zonal_faces_weight_at_constLat(
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
+        # If any end of the interval is NaN
+        if face_interval_df.isnull().values.any():
+            # Skip this face as it is just being touched by the constant latitude
+            face_interval_df = _get_zonal_face_interval(
+                face_edges,
+                latitude_cart,
+                face_latlon_bound_candidate[face_index],
+                is_directed=is_directed,
+                is_latlonface=is_latlonface,
+                is_GCA_list=is_GCA_list,
+            )
         # Check if the DataFrame is empty (start and end are both 0)
         if (face_interval_df['start'] == 0).all() and (face_interval_df['end'] == 0).all():
             # Skip this face as it is just being touched by the constant latitude
@@ -115,10 +126,24 @@ def _get_zonal_faces_weight_at_constLat(
 
     except ValueError as e:
         print(f"An error occurred: {e}")
-        print(f"Face edges information: {face_edges}")
-        print(f"Constant latitude: {latitude_cart}")
-        print(f"Face latlon bound information: {face_latlon_bound_candidate[face_index]}")
-        # Handle the exception or propagate it further if necessary
+        # We know the face index is 52, print out all the information for debugging
+        print(f"Face index: 52")
+        print(f"Face edges information: {faces_edges_cart_candidate[52]}")
+        print(f"Constant z0: {latitude_cart}")
+        print(f"Face latlon bound information: {face_latlon_bound_candidate[52]}")
+
+
+
+
+
+
+        # print(f"Face index: {face_index}")
+        # print(f"Face edges information: {face_edges}")
+        # print(f"Constant z0: {latitude_cart}")
+        # print(f"Face latlon bound information: {face_latlon_bound_candidate[face_index]}")
+        # # And the face_interval_df
+        # print(f"Face interval information: {face_interval_df}")
+        # # Handle the exception or propagate it further if necessary
         raise
 
 
@@ -232,6 +257,13 @@ def _get_faces_constLat_intersection_info(
                 intersections = gca_constLat_intersection(
                     edge, latitude_cart, is_directed=is_directed
                 )
+
+                #If the intersection contains None values
+                if None in intersections:
+                    res = gca_constLat_intersection(
+                    edge, latitude_cart, is_directed=is_directed
+                )
+
 
                 intersections_lonlat_rad = np.array(
                     [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in intersections]
@@ -391,7 +423,7 @@ def _get_zonal_face_interval(
             raise
         else:
             # Set print options for full precision
-            np.set_printoptions(precision=16, suppress=False)
+            np.set_printoptions(precision=17, suppress=False)
 
             print(f"Face edges information: {face_edges_cart}")
             print(f"Constant z_0: {latitude_cart}")
@@ -439,7 +471,7 @@ def _process_overlapped_intervals(intervals_df):
         events.append((row["start"], "start", row["face_index"]))
         events.append((row["end"], "end", row["face_index"]))
 
-    events.sort()  # Sort by position and then by start/end
+    events.sort(key=lambda x: (x[0], x[1]))
 
     active_faces = set()
     last_position = None
@@ -447,6 +479,8 @@ def _process_overlapped_intervals(intervals_df):
     overlap_contributions = {}
 
     for position, event_type, face_idx in events:
+        if face_idx == 51:
+            pass
         if last_position is not None and active_faces:
             segment_length = position - last_position
             segment_weight = segment_length / len(active_faces) if active_faces else 0
@@ -457,11 +491,40 @@ def _process_overlapped_intervals(intervals_df):
             total_length += segment_length
 
         if event_type == "start":
-            active_faces.add(face_idx)
+            # use try catch to handle the case where the face_idx is not be able to be added
+            try:
+                active_faces.add(face_idx)
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                print(f"Face index: {face_idx}")
+                print(f"Position: {position}")
+                print(f"Event type: {event_type}")
+                print(f"Active faces: {active_faces}")
+                print(f"Last position: {last_position}")
+                print(f"Total length: {total_length}")
+                print(f"Overlap contributions: {overlap_contributions}")
+                print(f"Intervals data: {intervals_df}")
+                raise
+
         elif event_type == "end":
             if face_idx in active_faces:
+
                 active_faces.remove(face_idx)
             else:
+                # Print out intervals_data all untill face_idx
+                print(intervals_df[intervals_df["face_index"] <= face_idx])
+
+                # Print out the interval information in intervals_df for face_idx
+                print(intervals_df[intervals_df["face_index"] == face_idx])
+                # Print out the active_faces
+                print(active_faces)
+                # Print out the last_position
+                print(last_position)
+                # Print out the position
+                print(position)
+                # Print out the event_type
+                print(event_type)
+
                 raise ValueError(
                     f"Error: Trying to remove face_idx {face_idx} which is not in active_faces"
                 )

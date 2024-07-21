@@ -139,3 +139,16 @@ class TestGCAconstLatIntersection(TestCase):
 
         res = gca_constLat_intersection(GCR1_cart, np.sin(query_lat), verbose=False)
         self.assertTrue(res.shape[0] == 2)
+
+
+    def test_GCA_constLat_intersections_no_convege(self):
+        # It should return an one single point and a warning about unable to be converged should be raised
+        GCR1_cart = np.array([[-0.59647278, 0.59647278, -0.53706651],
+                              [-0.61362973, 0.61362973, -0.49690755]])
+
+        constZ = -0.5150380749100542
+
+        with self.assertWarns(UserWarning):
+            res = gca_constLat_intersection(GCR1_cart, constZ, verbose=False)
+            self.assertTrue(res.shape[0] == 1)
+
