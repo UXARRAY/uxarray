@@ -1016,6 +1016,11 @@ class UxDataArray(xr.DataArray):
         UxDataArray
             UxDataArray containing the zonal average of the data variable.
 
+        Raises
+        ------
+        NotImplementedError
+            If the latitude being queried is near the poles, i.e. the laritude range contains (89, 90) or (-90, -89).
+
         Example
         -------
         >>> uxds['var'].zonal_mean()
@@ -1028,6 +1033,21 @@ class UxDataArray(xr.DataArray):
             raise NotImplementedError(
                 "Zonal average computations are currently only supported for face-centered data variables."
             )
+
+        # Raise NotImplementedError for latitudes near the poles
+        PRECISION_ERROR_MESSAGE = "The current query range has exceeded the requirements of our safe error tolerance limit and will encounter floating point errors. This operation is not yet supported due to the precision issues of float64 near the poles."
+        if isinstance(lat, tuple):
+            start_lat, end_lat, step_size = lat
+            if (
+                89 < start_lat < 90
+                or 89 < end_lat < 90
+                or -90 < start_lat < -89
+                or -90 < end_lat < -89
+            ):
+                raise RuntimeError(PRECISION_ERROR_MESSAGE)
+        else:
+            if 89 < lat < 90 or -90 < lat < -89:
+                raise RuntimeError(PRECISION_ERROR_MESSAGE)
 
         # Get the data, face bounds, face node connectivity, and whether the faces are latlon
         data = self.values
