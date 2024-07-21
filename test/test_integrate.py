@@ -577,8 +577,38 @@ class TestFaceWeights(TestCase):
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
-    def test_get_zonal_faces_weight_at_constLat_near_pole(self):
-        # Corrected face_edges_cart
+    def test_get_zonal_faces_weight_at_constLat_on_pole(self):
+        #The face is touching the pole， so the weight should be 1.0 since there's only 1 face
+        face_edges_cart = np.array([[
+            [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
+             [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+
+            [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
+             [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+
+            [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+             [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+
+            [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
+             [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+        ]])
+
+        # Corrected face_bounds
+        face_bounds = np.array([
+            [-1.57079633, -1.4968158],
+            [3.14159265, 0.]
+        ])
+        constLat_cart = -1
+
+        weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+        # Define the expected DataFrame
+        expected_weight_df = pd.DataFrame({"face_index": [0], "weight": [1.0]})
+
+        # Assert that the resulting should have weight is 1.0
+        pd.testing.assert_frame_equal(weight_df, expected_weight_df)
+
+    def test_get_zonal_face_interval_pole(self):
+        #The face is touching the pole
         face_edges_cart = np.array([
             [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
              [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
@@ -598,13 +628,13 @@ class TestFaceWeights(TestCase):
             [-1.57079633, -1.4968158],
             [3.14159265, 0.]
         ])
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
-
-
         constLat_cart = -0.9986295347545738
-        constLat_rad = np.arcsin(constLat_cart)
-        constLat_deg = np.rad2deg(constLat_rad)
+
         weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+        # No Nan values should be present in the weight_df
+        self.assertFalse(weight_df.isnull().values.any())
+
+
 
 
     def test_get_zonal_faces_weight_at_constLat_near_pole2(self):
