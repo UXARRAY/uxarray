@@ -212,15 +212,6 @@ def _get_faces_constLat_intersection_info(
         - pt_lon_min (float): The min longnitude of the interseted intercal in radian if any; otherwise, None..
         - pt_lon_max (float): The max longnitude of the interseted intercal in radian, if any; otherwise, None.
     """
-    # Set local error tolerance based on proximity to poles, since the pole area is very problematic
-    if np.abs(latitude_cart) > np.sin(np.deg2rad(80)):  # Within 1 degrees of poles
-        local_error_tolerance = ERROR_TOLERANCE
-    else:
-        local_error_tolerance = ERROR_TOLERANCE
-
-
-
-
     valid_edges_mask = ~(np.any(face_edges_cart == DUMMY_EDGE_VALUE, axis=(1, 2)))
 
     # Apply mask to filter out dummy edges

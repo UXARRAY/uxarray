@@ -175,6 +175,35 @@ class TestFaceWeights(TestCase):
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 2)
 
+    def test_get_faces_constLat_intersection_info_longnitude_GCA(self):
+        # Obe the face edges is a longnitude GCA
+        face_edges_cart = np.array([
+            [[0.7712077764022706, -0.5008281859286025, -0.3929499889249659],
+             [0.792317035467913, -0.4574444537109257, -0.4037056936388817]],
+
+            [[0.792317035467913, -0.4574444537109257, -0.4037056936388817],
+             [0.8080397410032832, -0.466521961984161, -0.3597624715639418]],
+
+            [[0.8080397410032832, -0.466521961984161, -0.3597624715639418],
+             [0.7856841911322835, -0.5102292795765491, -0.3498091394855272]],
+
+            [[0.7856841911322835, -0.5102292795765491, -0.3498091394855272],
+             [0.7712077764022706, -0.5008281859286025, -0.3929499889249659]]
+        ])
+
+        latitude_cart = -0.374606593415912
+        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
+        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
+        #convert the  latitude_cart to radian
+        latitude_rad = np.arcsin(latitude_cart)
+        latitude_deg = np.rad2deg(latitude_rad)
+        is_directed=False
+        is_latlonface=False
+        is_GCA_list=None
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        # The expected unique_intersections length is 2
+        self.assertEqual(len(unique_intersections), 2)
+
 
 
     def test_get_zonal_face_interval(self):

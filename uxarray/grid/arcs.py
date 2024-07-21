@@ -94,9 +94,9 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     ):
         return False
 
-    if np.isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0, atol=MACHINE_EPSILON):
+    if np.isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if np.isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON):
+        if np.isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON):
             # Now use the latitude to determine if the pt falls between the interval
             return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
         else:
