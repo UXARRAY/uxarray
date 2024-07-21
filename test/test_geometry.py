@@ -621,7 +621,7 @@ class TestLatlonBoundsGCA(TestCase):
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_equator(self):
-        # Generate a face who has an edge as [0.0],[0,-0.05], touching the equator and the prime meridian
+        # the face is touching the equator
         face_edges_cart = np.array([
             [[0.99726469, -0.05226443, -0.05226443], [0.99862953, 0.0, -0.05233596]],
             [[0.99862953, 0.0, -0.05233596], [1.0, 0.0, 0.0]],
@@ -638,7 +638,7 @@ class TestLatlonBoundsGCA(TestCase):
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_southSphere(self):
-        # Generate a face who has an edge as [0.0],[0,-0.05], touching the equator and the prime meridian
+        # The face is near the south pole but doesn't contains the pole
         face_edges_cart = np.array([
             [[-1.04386773e-01, -5.20500333e-02, -9.93173799e-01], [-1.04528463e-01, -1.28010448e-17, -9.94521895e-01]],
             [[-1.04528463e-01, -1.28010448e-17, -9.94521895e-01], [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
@@ -655,7 +655,7 @@ class TestLatlonBoundsGCA(TestCase):
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_near_pole(self):
-        # Generate a face who has an edge as [0.0],[0,-0.05], touching the equator and the prime meridian
+        # The face is near the south pole but doesn't contains the pole
         face_edges_cart = np.array([
             [[3.58367950e-01, 0.00000000e+00, -9.33580426e-01], [3.57939780e-01, 4.88684203e-02, -9.32465008e-01]],
             [[3.57939780e-01, 4.88684203e-02, -9.32465008e-01], [4.06271283e-01, 4.78221112e-02, -9.12500241e-01]],
@@ -672,9 +672,7 @@ class TestLatlonBoundsGCA(TestCase):
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_near_pole2(self):
-        # Generate a face who has an edge as [0.0],[0,-0.05], touching the equator and the prime meridian
-        import numpy as np
-
+        # The face is near the south pole but doesn't contains the pole
         face_edges_cart = np.array([
             [[3.57939780e-01, -4.88684203e-02, -9.32465008e-01], [3.58367950e-01, 0.00000000e+00, -9.33580426e-01]],
             [[3.58367950e-01, 0.00000000e+00, -9.33580426e-01], [4.06736643e-01, 2.01762691e-16, -9.13545458e-01]],

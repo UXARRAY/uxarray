@@ -1,10 +1,11 @@
 import numpy as np
-from uxarray.constants import  MACHINE_EPSILON, ERROR_TOLERANCE
+from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
 from uxarray.utils.computing import cross_fma
+
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
@@ -44,14 +45,6 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
-
-    # Convert them into lat/lon in degrees
-    from uxarray.grid.coordinates import _xyz_to_lonlat_deg
-    w0_latlon = _xyz_to_lonlat_deg(*w0)
-    w1_latlon = _xyz_to_lonlat_deg(*w1)
-
-    v0_latlon = _xyz_to_lonlat_deg(*v0)
-    v1_latlon = _xyz_to_lonlat_deg(*v1)
 
     # Compute normals and orthogonal bases using FMA
     if fma_disabled:
@@ -122,7 +115,6 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     return np.array(res)
 
 
-
 def gca_constLat_intersection(
     gca_cart, constZ, fma_disabled=False, verbose=False, is_directed=False
 ):
@@ -166,36 +158,29 @@ def gca_constLat_intersection(
     """
     x1, x2 = gca_cart
 
-
-
     # Check if the constant latitude has the same latitude as the GCA endpoints
     # We are using the relative tolerance and ERROR_TOLERANCE since the constZ is calculated from np.sin, which
     # may have some floating-point error.
     res = None
     if np.isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
-        res = (
-            np.array([x1]) if res is None else np.vstack((res, x1))
-        )
+        res = np.array([x1]) if res is None else np.vstack((res, x1))
 
     if np.isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
-        res = (
-            np.array([x2]) if res is None else np.vstack((res, x2))
-        )
+        res = np.array([x2]) if res is None else np.vstack((res, x2))
 
     if res is not None:
         return res
 
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
-    lat_min = extreme_gca_latitude( gca_cart, extreme_type="min")
-    lat_max = extreme_gca_latitude( gca_cart, extreme_type="max")
+    lat_min = extreme_gca_latitude(gca_cart, extreme_type="min")
+    lat_max = extreme_gca_latitude(gca_cart, extreme_type="max")
     constLat_rad = np.arcsin(constZ)
 
     # Check if the constant latitude is within the GCA range
     # Because the constant latitude is calculated from np.sin, which may have some floating-point error,
-    if not in_between(lat_min,constLat_rad, lat_max):
+    if not in_between(lat_min, constLat_rad, lat_max):
         pass
         return np.array([])
-
 
     if fma_disabled:
         n = np.cross(x1, x2)
@@ -221,11 +206,6 @@ def gca_constLat_intersection(
     p1 = np.array([p1_x, p1_y, constZ])
     p2 = np.array([p2_x, p2_y, constZ])
 
-    #convert the points to lon/lat
-    from uxarray.grid.coordinates import _xyz_to_lonlat_rad
-    p1_latlon = _xyz_to_lonlat_rad(*p1)
-    p2_latlon = _xyz_to_lonlat_rad(*p2)
-
     res = None
 
     # Now test which intersection point is within the GCA range
@@ -241,14 +221,14 @@ def gca_constLat_intersection(
                     "The intersection point cannot be converged using the Newton-Raphson method. "
                     "The initial guess intersection point is used instead, procced with caution."
                 )
-                res = (
-                    np.array([p1]) if res is None else np.vstack((res, p1))
-                )
+                res = np.array([p1]) if res is None else np.vstack((res, p1))
             else:
                 res = (
-                    np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+                    np.array([converged_pt])
+                    if res is None
+                    else np.vstack((res, converged_pt))
                 )
-        except RuntimeError as e:
+        except RuntimeError:
             print(f"Error encountered with initial guess: {p1}")
             print(f"gca_cart: {gca_cart}")
             raise
@@ -264,14 +244,14 @@ def gca_constLat_intersection(
                     "The intersection point cannot be converged using the Newton-Raphson method. "
                     "The initial guess intersection point is used instead, procced with caution."
                 )
-                res = (
-                    np.array([p2]) if res is None else np.vstack((res, p2))
-                )
+                res = np.array([p2]) if res is None else np.vstack((res, p2))
             else:
                 res = (
-                    np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
+                    np.array([converged_pt])
+                    if res is None
+                    else np.vstack((res, converged_pt))
                 )
-        except RuntimeError as e:
+        except RuntimeError:
             print(f"Error encountered with initial guess: {p2}")
             print(f"gca_cart: {gca_cart}")
             raise

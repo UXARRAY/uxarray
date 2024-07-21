@@ -151,4 +151,3 @@ class TestGCAconstLatIntersection(TestCase):
         with self.assertWarns(UserWarning):
             res = gca_constLat_intersection(GCR1_cart, constZ, verbose=False)
             self.assertTrue(res.shape[0] == 1)
-

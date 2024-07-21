@@ -154,22 +154,6 @@ class TestZonalFunctions(TestCase):
         # Expected output is NaN
         self.assertTrue(np.isnan(zonal_mean))
 
-    def test_non_conservative_zonal_mean_outCSne30_oneLat(self):
-        """Test _non_conservative_zonal_mean function with outCSne30 data.
-
-        Dummy test to make sure the function runs without errors.
-        """
-        # Create test data
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
-        uxds = ux.open_dataset(grid_path, data_path)
-        constZ = -0.5150380749100542
-        contLat_rad = np.arcsin(constZ)
-        contLat_deg = np.rad2deg(np.arcsin(constZ))
-
-        res = uxds['psi'].zonal_mean(contLat_deg)
-
-
     def test_non_conservative_zonal_mean_outCSne30(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
 
@@ -180,6 +164,12 @@ class TestZonalFunctions(TestCase):
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
+
+
+        #TODO: Don't allow any query that is within the (89,90] and (-89,-90] range,
+        # as pole point is extremely sensitive to the query point, whether the constantLat is int or float,
+        # It doesn't matter, but don't ever get close to the pole point!!! within 1 degree !!!
+        # The 90 and -90 is already hard-coded in the function, so it should be fine.
         res = uxds['psi'].zonal_mean((-90,90,1))
         print(res)
 
@@ -188,7 +178,7 @@ class TestZonalFunctions(TestCase):
         grid_path = self.gridfile_ne30
         data_path = self.test_file_2
         uxds = ux.open_dataset(grid_path, data_path)
-        res = uxds['Psi'].zonal_mean((-1.57,1.57,0.5))
+        res = uxds['Psi'].zonal_mean((-90,90,1))
         # test the output is within 1 of 2
         self.assertAlmostEqual(res.values, 2, delta=1)
         res_0 = uxds['Psi'].zonal_mean(0)
@@ -200,7 +190,7 @@ class TestZonalFunctions(TestCase):
         grid_path = self.gridfile_ne30
         data_path = self.test_file_3
         uxds = ux.open_dataset(grid_path, data_path)
-        res = uxds['Psi'].zonal_mean((-1.57,1.57,0.5))
+        res = uxds['Psi'].zonal_mean((-90,90,1))
         # test the output is within 1 of 2
         self.assertAlmostEqual(res.values, 2, delta=1)
         res_0 = uxds['Psi'].zonal_mean(0)

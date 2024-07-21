@@ -1,7 +1,7 @@
 import numpy as np
 from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_gca_intersection
-from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca, _angle_of_2_vectors
+from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_lonlat_rad_face_edge_nodes,
@@ -22,9 +22,10 @@ GDF_POLYGON_THRESHOLD = 100000
 
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
+
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
-    """
-    Identify unique intersection points from a list of points, considering floating point precision errors.
+    """Identify unique intersection points from a list of points, considering
+    floating point precision errors.
 
     Parameters
     ----------
@@ -57,16 +58,20 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
 
     def error_radius(p1, p2):
         """Calculate the error radius between two points in 3D space."""
-        numerator = np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2 + (p1[2] - p2[2])**2)
-        denominator = np.sqrt(p2[0]**2 + p2[1]**2 + p2[2]**2)
+        numerator = np.sqrt(
+            (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2
+        )
+        denominator = np.sqrt(p2[0] ** 2 + p2[1] ** 2 + p2[2] ** 2)
         return numerator / denominator
 
     for point in points:
-        if not any(error_radius(point, unique_point) < tolerance for unique_point in unique_points):
+        if not any(
+            error_radius(point, unique_point) < tolerance
+            for unique_point in unique_points
+        ):
             unique_points.append(point)
 
     return unique_points
-
 
 
 # General Helpers for Polygon Viz
@@ -469,8 +474,6 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
 
     if location == pole:
         ref_edge = np.array([pole_point, REFERENCE_POINT_EQUATOR])
-        res = _check_intersection(ref_edge, face_edge_cart)
-        res1 = res % 2
         return _check_intersection(ref_edge, face_edge_cart) % 2 != 0
     elif location == "Equator":
         # smallest offset I can obtain when using the float64 type
@@ -479,12 +482,9 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         ref_edge_south = np.array([-pole_point, REFERENCE_POINT_EQUATOR])
 
         north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
-        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] <= 0, axis=1)]# The equator one is assigned to the south edges
-
-        res1 = _check_intersection(ref_edge_north, north_edges)
-        res2 = _check_intersection(ref_edge_south, south_edges)
-        res = (res1 + res2) % 2
-
+        south_edges = face_edge_cart[
+            np.any(face_edge_cart[:, :, 2] <= 0, axis=1)
+        ]  # The equator one is assigned to the south edges
         return (
             _check_intersection(ref_edge_north, north_edges)
             + _check_intersection(ref_edge_south, south_edges)
@@ -516,14 +516,6 @@ def _check_intersection(ref_edge, edges):
     intersection_points = []
 
     for edge in edges:
-        # Convert the edge to lonlat
-        from uxarray.grid.coordinates import _xyz_to_lonlat_deg
-        node1_lonlat = _xyz_to_lonlat_deg(*edge[0])
-        node2_lonlat = _xyz_to_lonlat_deg(*edge[1])
-
-        ref_point_lonlat = _xyz_to_lonlat_deg(*ref_point)
-        pole_point_lonlat = _xyz_to_lonlat_deg(*pole_point)
-
         intersection_point = gca_gca_intersection(ref_edge, edge)
 
         if intersection_point.size != 0:
@@ -539,11 +531,12 @@ def _check_intersection(ref_edge, edges):
     # If the unique intersection point is one and it is exactly one of the nodes of the face, return 0
     if len(intersection_points) == 1:
         for edge in edges:
-            if np.allclose(intersection_points[0], edge[0], atol=ERROR_TOLERANCE) or np.allclose(intersection_points[0], edge[1], atol=ERROR_TOLERANCE):
+            if np.allclose(
+                intersection_points[0], edge[0], atol=ERROR_TOLERANCE
+            ) or np.allclose(intersection_points[0], edge[1], atol=ERROR_TOLERANCE):
                 return 0
 
     return len(intersection_points)
-
 
 
 def _classify_polygon_location(face_edge_cart):

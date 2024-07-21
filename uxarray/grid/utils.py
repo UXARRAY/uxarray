@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, MACHINE_EPSILON
+from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
 import uxarray.utils.computing as ac_utils
 
@@ -132,7 +132,6 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
         print(f"Jacobian matrix:\n{jacobian}")
         print(f"An error occurred: {e}")
         raise
-
 
     return inverse_jacobian
 

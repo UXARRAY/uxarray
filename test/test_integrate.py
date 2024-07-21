@@ -79,17 +79,11 @@ class TestFaceWeights(TestCase):
         ])
 
         latitude_cart = -0.8660254037844386
-
-        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
-        #convert the  latitude_cart to radian
-        latitude_rad = np.arcsin(latitude_cart)
-        latitude_deg = np.rad2deg(latitude_rad)
         is_directed=False
         is_latlonface=False
         is_GCA_list=None
         unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
-        # The expected unique_intersections length is 2
+        # The expected unique_intersections length is 1
         self.assertEqual(len(unique_intersections), 1)
 
     def test_get_faces_constLat_intersection_info_on_pole(self):
@@ -106,14 +100,7 @@ class TestFaceWeights(TestCase):
             [[3.2046530646617680e-18, -5.2335956242942412e-02, -9.9862953475457394e-01],
              [-5.2264427688714095e-02, -5.2264427688714102e-02, -9.9726468863423734e-01]]
         ])
-
         latitude_cart = -0.9998476951563913
-
-        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
-        #convert the  latitude_cart to radian
-        latitude_rad = np.arcsin(latitude_cart)
-        latitude_deg = np.rad2deg(latitude_rad)
         is_directed=False
         is_latlonface=False
         is_GCA_list=None
@@ -134,10 +121,6 @@ class TestFaceWeights(TestCase):
         ])
 
         latitude_cart = -0.9876883405951378
-
-        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
-        #convert the  latitude_cart to radian
         latitude_rad = np.arcsin(latitude_cart)
         latitude_deg = np.rad2deg(latitude_rad)
         is_directed=False
@@ -149,6 +132,8 @@ class TestFaceWeights(TestCase):
 
 
     def test_get_faces_constLat_intersection_info_2(self):
+        # This might test the case where the calculated intersection points might suffer from floating point errors
+        # If not handled properly, the function might return more than 2 unique intersections
         face_edges_cart = np.array([[[0.6546536707079771, -0.37796447300922714, -0.6546536707079772],
                                      [0.6652465971273088, -0.33896007142593115, -0.6652465971273087]],
 
@@ -162,12 +147,6 @@ class TestFaceWeights(TestCase):
                                      [0.6546536707079771, -0.37796447300922714, -0.6546536707079772]]])
 
         latitude_cart = -0.6560590289905073
-
-        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
-        #convert the  latitude_cart to radian
-        latitude_rad = np.arcsin(latitude_cart)
-        latitude_deg = np.rad2deg(latitude_rad)
         is_directed=False
         is_latlonface=False
         is_GCA_list=None
@@ -192,11 +171,6 @@ class TestFaceWeights(TestCase):
         ])
 
         latitude_cart = -0.374606593415912
-        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
-        #convert the  latitude_cart to radian
-        latitude_rad = np.arcsin(latitude_cart)
-        latitude_deg = np.rad2deg(latitude_rad)
         is_directed=False
         is_latlonface=False
         is_GCA_list=None
@@ -240,6 +214,7 @@ class TestFaceWeights(TestCase):
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
     def test_get_zonal_face_interval_empty_interval(self):
+        # The following face is just touched by the latitude, but not intersected, so the interval should be empty
         face_edges_cart = np.array([
             [[-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01],
              [-5.4463903501502697e-01, -6.6699045092185599e-17, -8.3867056794542405e-01]],
@@ -260,13 +235,9 @@ class TestFaceWeights(TestCase):
             [3.14159265, 3.2321175]
         ])
 
-        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_rad(*v) for v in face] for face in face_edges_cart])
-        #convert the  latitude_cart to radian
-        latitude_rad = np.arcsin(latitude_cart)
-        latitude_deg = np.rad2deg(latitude_rad)
         res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds, is_directed=False)
-
+        expected_res = pd.DataFrame({"start": [0.0], "end": [0.0]})
+        pd.testing.assert_frame_equal(res, expected_res)
 
 
     def test_get_zonal_face_interval_FILL_VALUE(self):

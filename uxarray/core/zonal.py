@@ -2,7 +2,9 @@ import numpy as np
 from uxarray.grid.integrate import _get_zonal_faces_weight_at_constLat
 
 
-def _get_candidate_faces_at_constant_latitude(bounds, constLat_rad: float) -> np.ndarray:
+def _get_candidate_faces_at_constant_latitude(
+    bounds, constLat_rad: float
+) -> np.ndarray:
     """Return the indices of the faces whose latitude bounds contain the
     constant latitude.
 
@@ -22,21 +24,13 @@ def _get_candidate_faces_at_constant_latitude(bounds, constLat_rad: float) -> np
 
     # Check if the constant latitude is within the range of [-90, 90]
     if constLat_rad < -np.pi or constLat_rad > np.pi:
-        raise ValueError("The constant latitude must be within the range of [-90, 90] degree.")
+        raise ValueError(
+            "The constant latitude must be within the range of [-90, 90] degree."
+        )
 
     # Extract the latitude bounds
     lat_bounds_min = bounds[:, 0, 0]  # Minimum latitude bound
     lat_bounds_max = bounds[:, 0, 1]  # Maximum latitude bound
-    target_bounds = np.array([[-1.51843645, -1.45388627], [3.14159265, 3.92699082]])
-
-    # for i, bound in enumerate(bounds):
-    #     if np.allclose(bound, target_bounds, atol=0.001):
-    #         print(i, bound)
-
-    min = lat_bounds_min[4004]
-    max = lat_bounds_max[4004]
-
-    temp = (min <= constLat_rad) & (max >= constLat_rad)
 
     # Check if the constant latitude is within the bounds of each face
     within_bounds = (lat_bounds_min <= constLat_rad) & (lat_bounds_max >= constLat_rad)
@@ -81,7 +75,9 @@ def _non_conservative_zonal_mean_constant_one_latitude(
 
     # Get the indices of the faces whose latitude bounds contain the constant latitude
     constLat_rad = np.deg2rad(constLat)
-    candidate_faces_indices = _get_candidate_faces_at_constant_latitude(face_bounds, constLat_rad)
+    candidate_faces_indices = _get_candidate_faces_at_constant_latitude(
+        face_bounds, constLat_rad
+    )
 
     # Check if there are no candidate faces,
     if len(candidate_faces_indices) == 0:
@@ -175,7 +171,6 @@ def _non_conservative_zonal_mean_constant_latitudes(
     ...     face_edges_cart, face_bounds, face_data, 80, -10, -5
     ... ) # will return the zonal means for latitudes in [30, 20, 10, 0, -10]
     """
-
     # Check if the start latitude is within the range of [-90, 90]
     if start_lat < -90 or start_lat > 90:
         raise ValueError("The starting latitude must be within the range of [-90, 90].")
