@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
 import uxarray.utils.computing as ac_utils
 
@@ -140,7 +140,7 @@ def _newton_raphson_solver_for_gca_constLat(
     Returns:
         np.ndarray or None: The intersection point or None if the solver fails to converge.
     """
-    tolerance = ERROR_TOLERANCE
+    tolerance = MACHINE_EPSILON * 1000
     w0_cart, w1_cart = gca_cart
     error = float("inf")
     constZ = init_cart[2]

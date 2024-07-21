@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE
+from uxarray.constants import  MACHINE_EPSILON, ERROR_TOLERANCE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca
 import platform
@@ -45,6 +45,14 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
 
+    # Convert them into lat/lon in degrees
+    from uxarray.grid.coordinates import _xyz_to_lonlat_deg
+    w0_latlon = _xyz_to_lonlat_deg(*w0)
+    w1_latlon = _xyz_to_lonlat_deg(*w1)
+
+    v0_latlon = _xyz_to_lonlat_deg(*v0)
+    v1_latlon = _xyz_to_lonlat_deg(*v1)
+
     # Compute normals and orthogonal bases using FMA
     if fma_disabled:
         w0w1_norm = np.cross(w0, w1)
@@ -65,28 +73,28 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
     if not np.allclose(
-        np.dot(w0w1_norm, w0), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
+        np.dot(w0w1_norm, w0), 0, atol=MACHINE_EPSILON
+    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=MACHINE_EPSILON):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
     if not np.allclose(
-        np.dot(v0v1_norm, v0), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
+        np.dot(v0v1_norm, v0), 0, atol=MACHINE_EPSILON
+    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=MACHINE_EPSILON):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
 
     if not np.allclose(
-        np.dot(cross_norms, v0v1_norm), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
+        np.dot(cross_norms, v0v1_norm), 0, atol=MACHINE_EPSILON
+    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=MACHINE_EPSILON):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
         )
 
     # If the cross_norms is zero, the two GCAs are parallel
-    if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
+    if np.allclose(cross_norms, 0, atol=MACHINE_EPSILON):
         res = []
         # Check if the two GCAs are overlapping
         if point_within_gca(v0, [w0, w1]):
@@ -155,6 +163,26 @@ def gca_constLat_intersection(
     """
     x1, x2 = gca_cart
 
+
+    # Check if the constant latitude has the same latitude as the GCA endpoints
+    # We are using the relative tolerance and ERROR_TOLERANCE since the constZ is calculated from np.sin, which
+    # may have some floating-point error.
+    res = None
+    if np.isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+        res = (
+            np.array([x1]) if res is None else np.vstack((res, x1))
+        )
+
+    if np.isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+        res = (
+            np.array([x2]) if res is None else np.vstack((res, x2))
+        )
+
+    if res is not None:
+        return res
+
+    # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
+
     if fma_disabled:
         n = np.cross(x1, x2)
 
@@ -170,7 +198,7 @@ def gca_constLat_intersection(
 
     nx, ny, nz = n
 
-    s_tilde = np.sqrt(nx**2 + ny**2 - np.linalg.norm(n) ** 2 * constZ**2)
+    s_tilde = np.sqrt(nx**2 + ny**2 - (nx**2 + ny**2 + nz**2) * constZ**2)
     p1_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz + s_tilde * ny)
     p2_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz - s_tilde * ny)
     p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)

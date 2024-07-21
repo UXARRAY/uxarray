@@ -3,7 +3,7 @@ import numpy as np
 # from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _normalize_xyz
-from uxarray.constants import ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE,MACHINE_EPSILON
 
 
 def _to_list(obj):
@@ -67,6 +67,10 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     GCRv1_lonlat = np.array(
         _xyz_to_lonlat_rad(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
     )
+    # Check if pt_lonlat is close to GCRv0_lonlat or GCRv1_lonlat
+    if np.isclose(pt_lonlat, GCRv0_lonlat, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE).all() or \
+            np.isclose(pt_lonlat, GCRv1_lonlat, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE).all():
+        return True
 
     # Convert the list to np.float64
     gca_cart[0] = np.array(gca_cart[0], dtype=np.float64)
@@ -74,21 +78,25 @@ def point_within_gca(pt, gca_cart, is_directed=False):
 
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
-    if np.allclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
+    if np.allclose(angle, np.pi, rtol=0, atol=MACHINE_EPSILON):
         raise ValueError(
             "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
             "Consider breaking the Great Circle Arc"
             "into two Great Circle Arcs"
         )
 
+    # See if the point is on the plane of the GCA, because we are dealing with floating point numbers with np.dot
+    # we need to use the atol=ERROR_TOLERANCE
+    # TODO: use our own cross and dot function to check if the point is on the plane
+    temp =  np.dot(np.cross(gca_cart[0], gca_cart[1]), pt)
     if not np.allclose(
         np.dot(np.cross(gca_cart[0], gca_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE
     ):
         return False
 
-    if np.isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+    if np.isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0, atol=MACHINE_EPSILON):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if np.isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+        if np.isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON):
             # Now use the latitude to determine if the pt falls between the interval
             return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
         else:
@@ -97,15 +105,37 @@ def point_within_gca(pt, gca_cart, is_directed=False):
 
     # If the longnitude span is exactly 180 degree, then the GCA goes through the pole point
     if np.isclose(
-        abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0, atol=ERROR_TOLERANCE
+        abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0, atol=MACHINE_EPSILON
     ):
         # Special case, if the pt is on the pole point, then set its longitude to the GCRv0_lonlat[0]
-        if np.isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=0, atol=ERROR_TOLERANCE):
+        # Since the point is our calculated properly, we use the atol=ERROR_TOLERANCE and rtol=ERROR_TOLERANCE
+        if np.isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
             pt_lonlat[0] = GCRv0_lonlat[0]
+
+        # Special case, if one of the GCA endpoints is on the pole point, and another endpoint is not
+        # then we need to check if the pt is on the GCA
+        if np.isclose(abs(GCRv0_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE) or np.isclose(
+            abs(GCRv1_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+            # Identify the non-pole endpoint
+            non_pole_endpoint = None
+            if not np.isclose(
+                abs(GCRv0_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
+            ):
+                non_pole_endpoint = GCRv0_lonlat
+            elif not np.isclose(
+                abs(GCRv1_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
+            ):
+                non_pole_endpoint = GCRv1_lonlat
+
+            if non_pole_endpoint is not None and not np.isclose(
+                non_pole_endpoint[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON
+            ):
+                return False
+
         if not np.isclose(
-            GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE
+            GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON
         ) and not np.isclose(
-            GCRv1_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE
+            GCRv1_lonlat[0], pt_lonlat[0], rtol=0, atol=MACHINE_EPSILON
         ):
             return False
         else:
@@ -287,7 +317,7 @@ def extreme_gca_latitude(gca_cart, extreme_type):
 
     d_a_max = (
         np.clip(d_a_max, 0, 1)
-        if np.isclose(d_a_max, [0, 1], atol=ERROR_TOLERANCE).any()
+        if np.isclose(d_a_max, [0, 1], atol=MACHINE_EPSILON).any()
         else d_a_max
     )
 

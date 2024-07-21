@@ -1,7 +1,9 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.intersections import gca_constLat_intersection
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad,_xyz_to_lonlat_deg
+from uxarray.grid.geometry import _unique_points
+from uxarray.grid.arcs import _angle_of_2_vectors
 import pandas as pd
 
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
@@ -86,23 +88,39 @@ def _get_zonal_faces_weight_at_constLat(
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
-        for _, row in face_interval_df.iterrows():
-            intervals_list.append(
-                {"start": row["start"], "end": row["end"], "face_index": face_index}
-            )
+        # Check if the DataFrame is empty (start and end are both 0)
+        if (face_interval_df['start'] == 0).all() and (face_interval_df['end'] == 0).all():
+            # Skip this face as it is just being touched by the constant latitude
+            continue
+        else:
+            for _, row in face_interval_df.iterrows():
+                intervals_list.append(
+                    {"start": row["start"], "end": row["end"], "face_index": face_index}
+                )
 
     intervals_df = pd.DataFrame(intervals_list)
-    overlap_contributions, total_length = _process_overlapped_intervals(intervals_df)
+    try:
+        overlap_contributions, total_length = _process_overlapped_intervals(intervals_df)
+        # Further processing with overlap_contributions and total_length
 
-    # Calculate weights for each face
-    weights = {
-        face_index: overlap_contributions.get(face_index, 0.0) / total_length
-        for face_index in range(len(faces_edges_cart_candidate))
-    }
+        # Calculate weights for each face
+        weights = {
+            face_index: overlap_contributions.get(face_index, 0.0) / total_length
+            for face_index in range(len(faces_edges_cart_candidate))
+        }
 
-    # Convert weights to DataFrame
-    weights_df = pd.DataFrame(list(weights.items()), columns=["face_index", "weight"])
-    return weights_df
+        # Convert weights to DataFrame
+        weights_df = pd.DataFrame(list(weights.items()), columns=["face_index", "weight"])
+        return weights_df
+
+    except ValueError as e:
+        print(f"An error occurred: {e}")
+        print(f"Face edges information: {face_edges}")
+        print(f"Constant latitude: {latitude_cart}")
+        print(f"Face latlon bound information: {face_latlon_bound_candidate[face_index]}")
+        # Handle the exception or propagate it further if necessary
+        raise
+
 
 
 def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
@@ -166,9 +184,18 @@ def _get_faces_constLat_intersection_info(
     tuple
         A tuple containing:
         - intersections_pts_list_cart (list): A list of intersection points where each point is where an edge intersects with the latitude.
-        - overlap_flag (bool): A boolean indicating if any overlap with the latitude was detected.
-        - overlap_edge (np.ndarray or None): The edge that overlaps with the latitude, if any; otherwise, None.
+        - pt_lon_min (float): The min longnitude of the interseted intercal in radian if any; otherwise, None..
+        - pt_lon_max (float): The max longnitude of the interseted intercal in radian, if any; otherwise, None.
     """
+    # Set local error tolerance based on proximity to poles, since the pole area is very problematic
+    if np.abs(latitude_cart) > np.sin(np.deg2rad(80)):  # Within 1 degrees of poles
+        local_error_tolerance = ERROR_TOLERANCE
+    else:
+        local_error_tolerance = ERROR_TOLERANCE
+
+
+
+
     valid_edges_mask = ~(np.any(face_edges_cart == DUMMY_EDGE_VALUE, axis=(1, 2)))
 
     # Apply mask to filter out dummy edges
@@ -195,9 +222,21 @@ def _get_faces_constLat_intersection_info(
         # Calculate intersections (assuming a batch-capable intersection function)
         for idx, edge in enumerate(valid_edges):
             if is_GCA[idx]:
+                # convert the edge to lonlat
+
+                edge_lonlat_rad = np.array(
+                    [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in edge]
+                )
+                # convert the latitude to lonlat
+                latitude_lonlat_rad = np.arcsin(latitude_cart)
                 intersections = gca_constLat_intersection(
                     edge, latitude_cart, is_directed=is_directed
                 )
+
+                intersections_lonlat_rad = np.array(
+                    [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in intersections]
+                )
+
                 if intersections.size == 0:
                     continue
                 elif intersections.shape[0] == 2:
@@ -206,9 +245,17 @@ def _get_faces_constLat_intersection_info(
                     intersections_pts_list_cart.append(intersections[0])
 
     # Handle unique intersections and check for convex or concave cases
+    # Convert the intersection points to lonlat
+    intersections_lonlat_deg = np.array(
+        [_xyz_to_lonlat_deg(pt[0], pt[1], pt[2]) for pt in intersections_pts_list_cart]
+    )
+
+    # First, find the point in the intersection that is closed enough to the great circle arc end points
+
+
+    # Find the unique intersection points
     unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
-    if len(unique_intersections) == 0:
-        pass
+
     if len(unique_intersections) == 2:
         # TODO: vectorize?
         unique_intersection_lonlat = np.array(
@@ -218,7 +265,9 @@ def _get_faces_constLat_intersection_info(
         sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
         pt_lon_min, pt_lon_max = sorted_lonlat[:, 0]
         return unique_intersections, pt_lon_min, pt_lon_max
-    elif len(unique_intersections) != 0:
+    elif len(unique_intersections) == 1:
+        return unique_intersections, None, None
+    elif len(unique_intersections) != 0 and len(unique_intersections) != 1:
         raise ValueError(
             "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
         )
@@ -281,42 +330,79 @@ def _get_zonal_face_interval(
         unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(
             face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
         )
+
+        # Handle the special case where the unique_intersections is 1, which means the face is just being touched
+        if len(unique_intersections) == 1:
+            # If the face is just being touched, then just return the empty DataFrame
+            return pd.DataFrame({"start": [0.0], "end": [0.0]}, index=[0])
+
+        # Convert intersection points to longitude-latitude
+        longitudes = np.array(
+            [_xyz_to_lonlat_rad(*pt.tolist())[0] for pt in unique_intersections]
+        )
+
+        # Handle special wrap-around cases by checking the face bounds
+        if face_lon_bound_left >= face_lon_bound_right:
+            if not (
+                    (pt_lon_max >= np.pi and pt_lon_min >= np.pi)
+                    or (0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi)
+            ):
+                # If the anti-meridian is crossed, instead of just being touched,add the wrap-around points
+                if pt_lon_max != 2*np.pi and pt_lon_min != 0:
+                    # They're at different sides of the 0-lon, adding wrap-around points
+                    longitudes = np.append(longitudes, [0.0, 2 * np.pi])
+                elif pt_lon_max >= np.pi and pt_lon_min == 0:
+                    # That means the face is actually from pt_lon_max to 2*pi.
+                    # Replace the 0 in longnitude with 2*pi
+                    longitudes[longitudes == 0] = 2 * np.pi
+
+
+
+        # Ensure longitudes are sorted
+        longitudes = np.unique(longitudes)
+        longitudes.sort()
+
+        # Split the sorted longitudes into start and end points of intervals
+        starts = longitudes[::2]  # Start points
+        ends = longitudes[1::2]  # End points
+
+        # Create the intervals DataFrame
+        Intervals_df = pd.DataFrame({"start": starts, "end": ends})
+        # For consistency, sort the intervals by start
+        interval_df_sorted = Intervals_df.sort_values(by="start").reset_index(drop=True)
+        return interval_df_sorted
+
     except ValueError as e:
+        default_print_options = np.get_printoptions()
         if str(e) == "No intersections are found for the face, please make sure the build_latlon_box generates the correct results":
+            # Set print options for full precision
+            np.set_printoptions(precision=16, suppress=False)
+
             print(
-                "ValueError: No intersections are found for the face, please make sure the build_latlon_box generates the correct results")
+                "ValueError: No intersections are found for the face, please make sure the build_latlon_box generates the correct results"
+            )
             print(f"Face edges information: {face_edges_cart}")
-            print(f"Constant latitude: {latitude_cart}")
+            print(f"Constant z_0: {latitude_cart}")
             print(f"Face latlon bound information: {face_latlon_bound}")
+
+            # Reset print options to default
+            np.set_printoptions(**default_print_options)
+
+            raise
         else:
+            # Set print options for full precision
+            np.set_printoptions(precision=16, suppress=False)
+
+            print(f"Face edges information: {face_edges_cart}")
+            print(f"Constant z_0: {latitude_cart}")
+            print(f"Face latlon bound information: {face_latlon_bound}")
+
+            # Reset print options to default
+            np.set_printoptions(**default_print_options)
+
             raise  # Re-raise the exception if it's not the expected ValueError
 
-    # Convert intersection points to longitude-latitude
-    longitudes = np.array(
-        [_xyz_to_lonlat_rad(*pt.tolist())[0] for pt in unique_intersections]
-    )
 
-    # Handle special wrap-around cases by checking the face bounds
-    if face_lon_bound_left >= face_lon_bound_right:
-        if not (
-            (pt_lon_max >= np.pi and pt_lon_min >= np.pi)
-            or (0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi)
-        ):
-            # They're at different sides of the 0-lon, adding wrap-around points
-            longitudes = np.append(longitudes, [0.0, 2 * np.pi])
-
-    # Ensure longitudes are sorted
-    longitudes.sort()
-
-    # Split the sorted longitudes into start and end points of intervals
-    starts = longitudes[::2]  # Start points
-    ends = longitudes[1::2]  # End points
-
-    # Create the intervals DataFrame
-    Intervals_df = pd.DataFrame({"start": starts, "end": ends})
-    # For consistency, sort the intervals by start
-    interval_df_sorted = Intervals_df.sort_values(by="start").reset_index(drop=True)
-    return interval_df_sorted
 
 
 def _process_overlapped_intervals(intervals_df):
@@ -373,7 +459,12 @@ def _process_overlapped_intervals(intervals_df):
         if event_type == "start":
             active_faces.add(face_idx)
         elif event_type == "end":
-            active_faces.remove(face_idx)
+            if face_idx in active_faces:
+                active_faces.remove(face_idx)
+            else:
+                raise ValueError(
+                    f"Error: Trying to remove face_idx {face_idx} which is not in active_faces"
+                )
 
         last_position = position
 

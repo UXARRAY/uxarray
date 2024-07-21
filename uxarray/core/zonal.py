@@ -95,6 +95,23 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     candidate_face_edges_cart = face_edges_cart[candidate_faces_indices]
     candidate_face_bounds = face_bounds[candidate_faces_indices]
 
+
+
+    # Check if candidate_face_edges_cart matches the target array
+    # Your specified array for comparison
+    target_face_edges_cart = np.array([
+        [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+         [3.20465306e-18, 5.23359562e-02, -9.98629535e-01]],
+        [[3.20465306e-18, 5.23359562e-02, -9.98629535e-01],
+         [5.22644277e-02, 5.22644277e-02, -9.97264689e-01]],
+        [[5.22644277e-02, 5.22644277e-02, -9.97264689e-01],
+         [5.23359562e-02, 0.00000000e+00, -9.98629535e-01]],
+        [[5.23359562e-02, 0.00000000e+00, -9.98629535e-01],
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]]
+    ])
+    if np.array_equal(candidate_face_edges_cart, target_face_edges_cart):
+        pass
+
     weight_df = _get_zonal_faces_weight_at_constLat(
         candidate_face_edges_cart,
         np.sin(np.deg2rad(constLat)),

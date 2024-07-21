@@ -654,6 +654,43 @@ class TestLatlonBoundsGCA(TestCase):
         expected_bounds = np.array([[-1.51843645, -1.45388627], [3.14159265, 3.92699082]])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
+    def test_populate_bounds_near_pole(self):
+        # Generate a face who has an edge as [0.0],[0,-0.05], touching the equator and the prime meridian
+        face_edges_cart = np.array([
+            [[3.58367950e-01, 0.00000000e+00, -9.33580426e-01], [3.57939780e-01, 4.88684203e-02, -9.32465008e-01]],
+            [[3.57939780e-01, 4.88684203e-02, -9.32465008e-01], [4.06271283e-01, 4.78221112e-02, -9.12500241e-01]],
+            [[4.06271283e-01, 4.78221112e-02, -9.12500241e-01], [4.06736643e-01, 2.01762691e-16, -9.13545458e-01]],
+            [[4.06736643e-01, 2.01762691e-16, -9.13545458e-01], [3.58367950e-01, 0.00000000e+00, -9.33580426e-01]]
+        ])
+
+        # Apply the inverse transformation to get the lat lon coordinates
+        face_edges_lonlat = np.array(
+            [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
+
+        bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [0,0.13568803]])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_near_pole2(self):
+        # Generate a face who has an edge as [0.0],[0,-0.05], touching the equator and the prime meridian
+        import numpy as np
+
+        face_edges_cart = np.array([
+            [[3.57939780e-01, -4.88684203e-02, -9.32465008e-01], [3.58367950e-01, 0.00000000e+00, -9.33580426e-01]],
+            [[3.58367950e-01, 0.00000000e+00, -9.33580426e-01], [4.06736643e-01, 2.01762691e-16, -9.13545458e-01]],
+            [[4.06736643e-01, 2.01762691e-16, -9.13545458e-01], [4.06271283e-01, -4.78221112e-02, -9.12500241e-01]],
+            [[4.06271283e-01, -4.78221112e-02, -9.12500241e-01], [3.57939780e-01, -4.88684203e-02, -9.32465008e-01]]
+        ])
+
+
+        # Apply the inverse transformation to get the lat lon coordinates
+        face_edges_lonlat = np.array(
+            [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
+
+        bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [6.147497,4.960524e-16]])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
     def test_populate_bounds_node_on_pole(self):
         # Generate a normal face that is crossing the antimeridian
         vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]

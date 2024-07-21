@@ -8,8 +8,8 @@ import pandas as pd
 import numpy.testing as nt
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray as ux
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz
-from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg, _xyz_to_lonlat_rad
+from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat,_get_faces_constLat_intersection_info
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -63,6 +63,52 @@ class TestFaceWeights(TestCase):
     gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
+    def test_get_faces_constLat_intersection_info_nearpole(self):
+        face_edges_cart = np.array([
+            [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01], [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+            [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01], [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00], [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+            [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+        ])
+        latitude_cart=-0.9999619230641713
+        is_directed=False
+        is_latlonface=False
+        is_GCA_list=None
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        # The expected unique_intersections length is 2
+        self.assertEqual(len(unique_intersections), 2)
+
+
+    def test_get_faces_constLat_intersection_info_one_intersection(self):
+        face_edges_cart = np.array([
+            [[-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01],
+             [-5.4463903501502697e-01, -6.6699045092185599e-17, -8.3867056794542405e-01]],
+
+            [[-5.4463903501502697e-01, -6.6699045092185599e-17, -8.3867056794542405e-01],
+             [-4.9999999999999994e-01, -6.1232339957367648e-17, -8.6602540378443871e-01]],
+
+            [[-4.9999999999999994e-01, -6.1232339957367648e-17, -8.6602540378443871e-01],
+             [-4.9948581138450826e-01, -4.5339793804534498e-02, -8.6513480297773349e-01]],
+
+            [[-4.9948581138450826e-01, -4.5339793804534498e-02, -8.6513480297773349e-01],
+             [-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01]]
+        ])
+
+        latitude_cart = -0.8660254037844386
+
+        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
+        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
+        #convert the  latitude_cart to radian
+        latitude_rad = np.arcsin(latitude_cart)
+        latitude_deg = np.rad2deg(latitude_rad)
+        is_directed=False
+        is_latlonface=False
+        is_GCA_list=None
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        # The expected unique_intersections length is 2
+        self.assertEqual(len(unique_intersections), 1)
+
+
 
     def test_get_zonal_face_interval(self):
         """Test that the zonal face weights are correct."""
@@ -96,6 +142,35 @@ class TestFaceWeights(TestCase):
 
         # Asserting almost equal arrays
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
+
+    def test_get_zonal_face_interval_empty_interval(self):
+        face_edges_cart = np.array([
+            [[-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01],
+             [-5.4463903501502697e-01, -6.6699045092185599e-17, -8.3867056794542405e-01]],
+
+            [[-5.4463903501502697e-01, -6.6699045092185599e-17, -8.3867056794542405e-01],
+             [-4.9999999999999994e-01, -6.1232339957367648e-17, -8.6602540378443871e-01]],
+
+            [[-4.9999999999999994e-01, -6.1232339957367648e-17, -8.6602540378443871e-01],
+             [-4.9948581138450826e-01, -4.5339793804534498e-02, -8.6513480297773349e-01]],
+
+            [[-4.9948581138450826e-01, -4.5339793804534498e-02, -8.6513480297773349e-01],
+             [-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01]]
+        ])
+
+        latitude_cart = -0.8660254037844386
+        face_latlon_bounds = np.array([
+            [-1.04719755, -0.99335412],
+            [3.14159265, 3.2321175]
+        ])
+
+        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
+        face_edges_lonlat = np.array([[_xyz_to_lonlat_rad(*v) for v in face] for face in face_edges_cart])
+        #convert the  latitude_cart to radian
+        latitude_rad = np.arcsin(latitude_cart)
+        latitude_deg = np.rad2deg(latitude_rad)
+        res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds, is_directed=False)
+
 
 
     def test_get_zonal_face_interval_FILL_VALUE(self):
@@ -434,6 +509,58 @@ class TestFaceWeights(TestCase):
         ]), np.sin(0.1 * np.pi), latlon_bounds, is_directed=False)
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+
+    def test_get_zonal_faces_weight_at_constLat_near_pole(self):
+        # Corrected face_edges_cart
+        face_edges_cart = np.array([
+            [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
+             [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+
+            [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
+             [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+
+            [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+             [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+
+            [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
+             [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+        ])
+
+        # Corrected face_bounds
+        face_bounds = np.array([
+            [-1.57079633, -1.4968158],
+            [3.14159265, 0.]
+        ])
+        face_edges_lonlat = np.array([[_xyz_to_lonlat_deg(*v) for v in face] for face in face_edges_cart])
+
+
+        constLat_cart = -0.9986295347545738
+        constLat_rad = np.arcsin(constLat_cart)
+        constLat_deg = np.rad2deg(constLat_rad)
+        weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+
+
+    def test_get_zonal_faces_weight_at_constLat_near_pole2(self):
+        # Corrected face_edges_cart
+        face_edges_cart = np.array([
+            [[-4.39104682e-02, -5.44113714e-01, -8.37861645e-01], [-4.53397938e-02, -4.99485811e-01, -8.65134803e-01]],
+            [[-4.53397938e-02, -4.99485811e-01, -8.65134803e-01], [3.06161700e-17, -5.00000000e-01, -8.66025404e-01]],
+            [[3.06161700e-17, -5.00000000e-01, -8.66025404e-01], [3.33495225e-17, -5.44639035e-01, -8.38670568e-01]],
+            [[3.33495225e-17, -5.44639035e-01, -8.38670568e-01], [-4.39104682e-02, -5.44113714e-01, -8.37861645e-01]]
+        ])
+
+        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
+        face_edges_lonlat = np.array([[_xyz_to_lonlat_rad(*v) for v in face] for face in face_edges_cart])
+
+        # Corrected face_bounds
+        face_bounds = np.array([[-1.04719755, -0.99335412], [4.62186413, 4.71238898]])
+
+        constLat_cart = -0.8660254037844386
+        constLat_rad = np.arcsin(constLat_cart)
+        constLat_deg = np.rad2deg(constLat_rad)
+
+        weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+        pass
 
     def test_get_zonal_faces_weight_at_constLat_latlonface(self):
         face_0 = [[np.deg2rad(350), np.deg2rad(40)], [np.deg2rad(350), np.deg2rad(20)],
