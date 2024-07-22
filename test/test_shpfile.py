@@ -23,13 +23,14 @@ class TestShpfile(TestCase):
         assert(uxgrid.validate())
 
     def test_read_shpfile_multi(self):
-        """Read a shapefile."""
+        """Read a shapefile, that consists of multipolygons."""
 
         uxgrid = ux.Grid.from_shapefile(self.shp_filename_multi)
         assert(uxgrid.validate())
 
     def test_read_shpfile_5poly(self):
-        """Read a shapefile."""
+        """Read a shapefile, that consists of 5 polygons of different
+        shapes."""
 
         uxgrid = ux.Grid.from_shapefile(self.shp_filename_5poly)
         assert(uxgrid.validate())

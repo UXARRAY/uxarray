@@ -94,8 +94,12 @@ def _gpd_read(filepath):
     return gdf, max_polygon_nodes
 
 
-# Function to get number of nodes in a polygon/multipolygon
 def get_num_nodes(geom):
+    """Function to get number of nodes in a polygon/multipolygon.
+
+    Parameters: geom (gpd.geom): GeoPandas geometry object
+    Returns: Maximum number of nodes in a polygon or Multipolygon, return 0 for other types of geometry
+    """
     if geom.geom_type == "Polygon":
         return len(geom.exterior.coords)
     elif geom.geom_type == "MultiPolygon":
@@ -111,29 +115,40 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
     Returns: ugrid aware xarray.Dataset
     """
 
-    # Note: geometry.geoms is a list of Polygon objects - that don't have a hole and are not self-intersecting
+    # Note: geometry.geoms is a list of Polygon objects that don't have holes and are not self-intersecting
     for polygon in geometry.geoms:
-        # leave the last one, as a square has 5 points, 5 point is the same as the first one
+        # Append the longitude and latitude coordinates of the polygon's exterior (excluding the last coordinate)
+        # This is because a square has 5 points where the last point is the same as the first one
         node_lon = np.append(node_lon, polygon.exterior.coords.xy[0][:-1])
         node_lat = np.append(node_lat, polygon.exterior.coords.xy[1][:-1])
 
+        # Calculate the size of the polygon's coordinates
         coord_size_polygon = len(polygon.exterior.coords.xy[0][:-1])
 
-        # TODO: Fix to not use max_coord_size and something like a variable dim 2d array
+        # TODO: Fix to not use max_coord_size and implement a variable dim 2D array
         max_coord_size = connectivity.shape[1]
+
+        # Create a new row for the connectivity array with indices for the new polygon nodes
         new_row = np.array(range(node_index, node_index + coord_size_polygon))
-        # Determine the number of elements to pad
+
+        # Determine the number of elements to pad to match the max_coord_size
         padding_length = max_coord_size - len(new_row)
-        # Create the padding array
+
+        # Create a padding array filled with the specified INT_FILL_VALUE
         padding_array = np.full(padding_length, INT_FILL_VALUE)
-        # Concatenate the original array and the padding array
+
+        # Concatenate the new row with the padding array to maintain the required size
         new_row = np.concatenate((new_row, padding_array))
+
         # Stack the new row onto the connectivity array
         connectivity = np.vstack((connectivity, new_row))
 
+        # Update the node index to reflect the addition of the new polygon nodes
         node_index += coord_size_polygon
 
+    # Return the updated latitude and longitude arrays, connectivity array, and node index
     return node_lat, node_lon, connectivity, node_index
+
 
 
 def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
@@ -143,24 +158,34 @@ def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
     Returns: ugrid aware xarray.Dataset
     """
 
+    # Determine the maximum coordinate size from the connectivity array
     max_coord_size = connectivity.shape[1]
 
+    # Append the longitude and latitude coordinates of the polygon's exterior (excluding the last coordinate)
     node_lon = np.append(node_lon, polygon.exterior.coords.xy[0][:-1])
     node_lat = np.append(node_lat, polygon.exterior.coords.xy[1][:-1])
+
+    # Calculate the size of the polygon's coordinates
     coord_size_polygon = len(polygon.exterior.coords.xy[0][:-1])
 
+    # Create a new row for the connectivity array with indices for the new polygon nodes
     new_row = np.array(range(node_index, node_index + coord_size_polygon))
-    # Determine the number of elements to pad
+
+    # Determine the number of elements to pad to match the max_coord_size
     padding_length = max_coord_size - len(new_row)
-    # Create the padding array
+
+    # Create a padding array filled with the specified INT_FILL_VALUE
     padding_array = np.full(padding_length, INT_FILL_VALUE)
-    # Concatenate the original array and the padding array
+
+    # Concatenate the new row with the padding array to maintain the required size
     new_row = np.concatenate((new_row, padding_array))
+
     # Stack the new row onto the connectivity array
     connectivity = np.vstack((connectivity, new_row))
 
+    # Update the node index to reflect the addition of the new polygon nodes
     node_index += coord_size_polygon
 
-    # print(connectivity, "Connectivity size:", len(connectivity), type(connectivity))
-
+    # Return the updated latitude and longitude arrays, connectivity array, and node index
     return node_lat, node_lon, connectivity, node_index
+
