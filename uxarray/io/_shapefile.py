@@ -150,7 +150,6 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
     return node_lat, node_lon, connectivity, node_index
 
 
-
 def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
     """Read a polygon.
 
@@ -188,4 +187,3 @@ def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
 
     # Return the updated latitude and longitude arrays, connectivity array, and node index
     return node_lat, node_lon, connectivity, node_index
-
