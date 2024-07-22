@@ -155,26 +155,10 @@ class TestZonalFunctions(TestCase):
         # Expected output is NaN
         self.assertTrue(np.isnan(zonal_mean))
 
-    def test_non_conservative_zonal_mean_outCSne30_away_from_pole(self):
-        """Test _non_conservative_zonal_mean function with outCSne30 data.
-
-        Dummy test to make sure the function runs without errors.
-        """
-        # Create test data
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
-        uxds = ux.open_dataset(grid_path, data_path)
-
-
-
-        #Test everything away from the pole
-        res = uxds['psi'].zonal_mean((-89,89,0.1))
-        print(res)
-
     def test_non_conservative_zonal_mean_outCSne30_equator(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
 
-        Dummy test to make sure the function runs without errors.
+        Low error tolerance test at the equator.
         """
         # Create test data
         grid_path = self.gridfile_ne30
@@ -191,7 +175,8 @@ class TestZonalFunctions(TestCase):
     def test_non_conservative_zonal_mean_outCSne30(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
 
-        Dummy test to make sure the function runs without errors.
+        Dummy test to make sure the function runs from -90 to 90 with a
+        step of 1.
         """
         # Create test data
         grid_path = self.gridfile_ne30
@@ -201,25 +186,59 @@ class TestZonalFunctions(TestCase):
         res = uxds['psi'].zonal_mean((-90,90,1))
         print(res)
 
+    def test_non_conservative_zonal_mean_outCSne30_away_from_pole(self):
+        """Test _non_conservative_zonal_mean function with outCSne30 data.
+
+        Dummy test to make sure the function runs from -89 to 89 with a
+        step of 0.1. Latitude between (-90, -89) and (89, 90) are not
+        supported.
+        """
+        # Create test data
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        #Test everything away from the pole
+        res = uxds['psi'].zonal_mean((-89,89,0.1))
+        print(res)
+
+    def test_non_conservative_zonal_mean_outCSne30_at_pole(self):
+        """Test _non_conservative_zonal_mean function with outCSne30 data.
+
+        Dummy test to make sure the function runs at the pole.
+        """
+        # Create test data
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        #Test everything away from the pole
+        res_n90 = uxds['psi'].zonal_mean(90)
+        res_p90 = uxds['psi'].zonal_mean(-90)
+        # make sure the outputs are within 1 of 2
+        self.assertAlmostEqual(res_n90.values[0], 2, delta=1)
+        self.assertAlmostEqual(res_p90.values[0], 2, delta=1)
+
 
     def test_non_conservative_zonal_mean_outCSne30_test2(self):
+        """Test _non_conservative_zonal_mean function with outCSne30 data file
+        2."""
         # Create test data
         grid_path = self.gridfile_ne30
         data_path = self.test_file_2
         uxds = ux.open_dataset(grid_path, data_path)
-        res = uxds['Psi'].zonal_mean(0)
-        # test the output is within 1 of 2
-        self.assertAlmostEqual(res.values, 2, delta=1)
+        res = uxds['Psi'].zonal_mean((-89, 89, 0.1))
+        # test the outputs are within 1 of 2
+        np.testing.assert_array_almost_equal(res.values, np.full(res.values.shape, 2), decimal=0, err_msg="Values are not within 1 of 2")
 
 
     def test_non_conservative_zonal_mean_outCSne30_test3(self):
+        """Test _non_conservative_zonal_mean function with outCSne30 data file
+        3."""
         # Create test data
         grid_path = self.gridfile_ne30
         data_path = self.test_file_3
         uxds = ux.open_dataset(grid_path, data_path)
-        res = uxds['Psi'].zonal_mean((-90,90,1))
-        # test the output is within 1 of 2
-        self.assertAlmostEqual(res.values, 2, delta=1)
-        res_0 = uxds['Psi'].zonal_mean(0)
-        # test the output is within 1 of 2
-        self.assertAlmostEqual(res_0.values, 2, delta=1)
+        res = uxds['Psi'].zonal_mean((-89, 89, 0.1))
+        # test the outputs are within 1 of 2
+        np.testing.assert_array_almost_equal(res.values, np.full(res.values.shape, 2), decimal=0, err_msg="Values are not within 1 of 2")

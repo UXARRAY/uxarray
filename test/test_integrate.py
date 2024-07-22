@@ -38,6 +38,7 @@ class TestIntegrate(TestCase):
 
         nt.assert_almost_equal(integral, 4 * np.pi)
 
+
     def test_multi_dim(self):
         """Integral with 3D data mapped to each face."""
         uxgrid = ux.open_grid(self.gridfile_ne30)
@@ -57,6 +58,7 @@ class TestIntegrate(TestCase):
         assert integral.ndim == len(dims) - 1
 
         nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)
+
 
 
 class TestFaceWeights(TestCase):
@@ -86,6 +88,7 @@ class TestFaceWeights(TestCase):
         # The expected unique_intersections length is 1
         self.assertEqual(len(unique_intersections), 1)
 
+
     def test_get_faces_constLat_intersection_info_on_pole(self):
         face_edges_cart = np.array([
             [[-5.2264427688714095e-02, -5.2264427688714102e-02, -9.9726468863423734e-01],
@@ -107,6 +110,7 @@ class TestFaceWeights(TestCase):
         unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 2)
+
 
     def test_get_faces_constLat_intersection_info_near_pole(self):
         face_edges_cart = np.array([
@@ -132,8 +136,10 @@ class TestFaceWeights(TestCase):
 
 
     def test_get_faces_constLat_intersection_info_2(self):
-        # This might test the case where the calculated intersection points might suffer from floating point errors
-        # If not handled properly, the function might return more than 2 unique intersections
+        """This might test the case where the calculated intersection points
+        might suffer from floating point errors If not handled properly, the
+        function might return more than 2 unique intersections."""
+
         face_edges_cart = np.array([[[0.6546536707079771, -0.37796447300922714, -0.6546536707079772],
                                      [0.6652465971273088, -0.33896007142593115, -0.6652465971273087]],
 
@@ -153,6 +159,7 @@ class TestFaceWeights(TestCase):
         unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 2)
+
 
     def test_get_faces_constLat_intersection_info_longnitude_GCA(self):
         # Obe the face edges is a longnitude GCA
@@ -179,9 +186,16 @@ class TestFaceWeights(TestCase):
         self.assertEqual(len(unique_intersections), 2)
 
 
-
     def test_get_zonal_face_interval(self):
-        """Test that the zonal face weights are correct."""
+        """Test the _get_zonal_face_interval function for correct interval
+        computation.
+
+        This test verifies that the _get_zonal_face_interval function
+        accurately computes the zonal face intervals given a set of face
+        edge nodes and a constant latitude value (constZ). The expected
+        intervals are compared against the calculated intervals to
+        ensure correctness.
+        """
         vertices_lonlat = [[1.6 * np.pi, 0.25 * np.pi],
                            [1.6 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, -0.25 * np.pi],
@@ -213,8 +227,15 @@ class TestFaceWeights(TestCase):
         # Asserting almost equal arrays
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
+
     def test_get_zonal_face_interval_empty_interval(self):
-        # The following face is just touched by the latitude, but not intersected, so the interval should be empty
+        """Test the _get_zonal_face_interval function for cases where the
+        interval is empty.
+
+        This test verifies that the _get_zonal_face_interval function
+        correctly returns an empty interval when the latitude only
+        touches the face but does not intersect it.
+        """
         face_edges_cart = np.array([
             [[-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01],
              [-5.4463903501502697e-01, -6.6699045092185599e-17, -8.3867056794542405e-01]],
@@ -241,8 +262,9 @@ class TestFaceWeights(TestCase):
 
 
     def test_get_zonal_face_interval_FILL_VALUE(self):
+        """Test the _get_zonal_face_interval function for cases where there are
+        dummy nodes."""
         dummy_node = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
-        """Test that the zonal face weights are correct."""
         vertices_lonlat = [[1.6 * np.pi, 0.25 * np.pi],
                            [1.6 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, -0.25 * np.pi],
@@ -277,7 +299,6 @@ class TestFaceWeights(TestCase):
 
 
     def test_get_zonal_face_interval_GCA_constLat(self):
-        """Test that the zonal face weights are correct."""
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi],
                            [-0.4 * np.pi, -0.25 * np.pi],
                            [0.4 * np.pi, -0.25 * np.pi],
@@ -309,8 +330,10 @@ class TestFaceWeights(TestCase):
         # Asserting almost equal arrays
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
+
     def test_get_zonal_face_interval_equator(self):
-        """Test that the zonal face weights are correct."""
+        """Test that the face interval is correctly computed when the latitude
+        is at the equator."""
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi], [-0.4 * np.pi, 0.0],
                            [0.4 * np.pi, 0.0], [0.4 * np.pi, 0.25 * np.pi]]
 
@@ -359,8 +382,9 @@ class TestFaceWeights(TestCase):
         # Asserting almost equal arrays
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
-    def test_process_overlapped_intervals(self):
-        # Example data that has overlapping intervals and gap
+
+    def test_process_overlapped_intervals_overlap_and_gap(self):
+        # Test intervals data that has overlapping intervals and gap
         intervals_data = [
             {
                 'start': 0.0,
@@ -408,6 +432,7 @@ class TestFaceWeights(TestCase):
         nt.assert_array_equal(overlap_contributions,
                               expected_overlap_contributions)
 
+
     def test_process_overlapped_intervals_antimerdian(self):
         intervals_data = [
             {
@@ -454,6 +479,7 @@ class TestFaceWeights(TestCase):
         self.assertEqual(total_length, 350.0)
         nt.assert_array_equal(overlap_contributions,
                               expected_overlap_contributions)
+
 
     def test_get_zonal_faces_weight_at_constLat_equator(self):
         face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
@@ -515,6 +541,7 @@ class TestFaceWeights(TestCase):
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
+
     def test_get_zonal_faces_weight_at_constLat_regular(self):
         face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
                   [0.3 * np.pi, 0.0], [0.3 * np.pi, 0.25 * np.pi]]
@@ -567,8 +594,6 @@ class TestFaceWeights(TestCase):
             'weight': [0.375, 0.0625, 0.3125, 0.25]
         })
 
-
-
         # Assert the results is the same to the 3 decimal places
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
@@ -606,6 +631,7 @@ class TestFaceWeights(TestCase):
 
         # Assert that the resulting should have weight is 1.0
         pd.testing.assert_frame_equal(weight_df, expected_weight_df)
+
 
     def test_get_zonal_faces_weight_at_constLat_on_pole_faces(self):
         #there will be 4 faces touching the pole, so the weight should be 0.25 for each face
@@ -656,6 +682,7 @@ class TestFaceWeights(TestCase):
         # Assert that the DataFrame matches the expected DataFrame
         pd.testing.assert_frame_equal(weight_df, expected_weight_df)
 
+
     def test_get_zonal_face_interval_pole(self):
         #The face is touching the pole
         face_edges_cart = np.array([
@@ -684,9 +711,8 @@ class TestFaceWeights(TestCase):
         self.assertFalse(weight_df.isnull().values.any())
 
 
-
-
     def test_get_zonal_faces_weight_at_constLat_near_pole2(self):
+        # TODO: this test is not doing anything, remove?
         # Corrected face_edges_cart
         face_edges_cart = np.array([
             [[-4.39104682e-02, -5.44113714e-01, -8.37861645e-01], [-4.53397938e-02, -4.99485811e-01, -8.65134803e-01]],
@@ -707,6 +733,7 @@ class TestFaceWeights(TestCase):
 
         weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
         pass
+
 
     def test_get_zonal_faces_weight_at_constLat_latlonface(self):
         face_0 = [[np.deg2rad(350), np.deg2rad(40)], [np.deg2rad(350), np.deg2rad(20)],
