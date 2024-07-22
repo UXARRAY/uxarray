@@ -493,6 +493,11 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         warnings.warn(
             "The given face should not contain both pole points.", UserWarning
         )
+
+        # Print out the face information
+        print("Face Edges: ", face_edge_cart)
+        print("Face Location: ", location)
+        print("Pole Point: ", pole)
         return False
 
 
