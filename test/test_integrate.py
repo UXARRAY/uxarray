@@ -577,7 +577,7 @@ class TestFaceWeights(TestCase):
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
-    def test_get_zonal_faces_weight_at_constLat_on_pole(self):
+    def test_get_zonal_faces_weight_at_constLat_on_pole_one_face(self):
         #The face is touching the pole， so the weight should be 1.0 since there's only 1 face
         face_edges_cart = np.array([[
             [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
@@ -605,6 +605,57 @@ class TestFaceWeights(TestCase):
         expected_weight_df = pd.DataFrame({"face_index": [0], "weight": [1.0]})
 
         # Assert that the resulting should have weight is 1.0
+        pd.testing.assert_frame_equal(weight_df, expected_weight_df)
+
+    def test_get_zonal_faces_weight_at_constLat_on_pole_faces(self):
+        #there will be 4 faces touching the pole, so the weight should be 0.25 for each face
+        import numpy as np
+
+        face_edges_cart = np.array([
+            [
+                [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+                [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+                [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]],
+                [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+            ],
+            [
+                [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+                [[5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+                [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+                [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]]
+            ],
+            [
+                [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+                [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [-5.23359562e-02, -6.40930613e-18, 9.98629535e-01]],
+                [[-5.23359562e-02, -6.40930613e-18, 9.98629535e-01],
+                 [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
+                [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]]
+            ],
+            [
+                [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+                [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [-5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+                [[-5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [-5.23359562e-02, -6.40930613e-18, 9.98629535e-01]],
+                [[-5.23359562e-02, -6.40930613e-18, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]]
+            ]
+        ])
+
+        face_bounds = np.array([
+            [[1.4968158, 1.57079633], [4.71238898, 0.0]],
+            [[1.4968158, 1.57079633], [0.0, 1.57079633]],
+            [[1.4968158, 1.57079633], [3.14159265, 0.0]],
+            [[1.4968158, 1.57079633], [0.0, 3.14159265]]
+        ])
+
+        constLat_cart = 1.0
+
+        weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+        # Define the expected DataFrame
+        expected_weight_df = pd.DataFrame({
+            'face_index': [0, 1, 2, 3],
+            'weight': [0.25, 0.25, 0.25, 0.25]
+        })
+
+        # Assert that the DataFrame matches the expected DataFrame
         pd.testing.assert_frame_equal(weight_df, expected_weight_df)
 
     def test_get_zonal_face_interval_pole(self):
