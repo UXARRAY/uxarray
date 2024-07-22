@@ -1073,11 +1073,9 @@ class UxDataArray(xr.DataArray):
             ).values
 
         elif self._node_centered():
-            d_var = (
-                self.isel(
-                    n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
-                ).values,
-            )
+            d_var = self.isel(
+                n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
+            ).values
 
         else:
             raise ValueError(
