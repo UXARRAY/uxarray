@@ -1521,7 +1521,9 @@ class Grid:
 
         # Empty array to hold `node_face_connectivity`
         node_face_connectivity = np.full(
-            (len(final_faces), self.n_max_node_faces), INT_FILL_VALUE, dtype=ux.INT_DTYPE
+            (len(final_faces), self.n_max_node_faces),
+            INT_FILL_VALUE,
+            dtype=ux.INT_DTYPE,
         )
 
         # Populate the node_face array
