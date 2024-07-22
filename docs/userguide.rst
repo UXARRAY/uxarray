@@ -85,3 +85,4 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/holoviz.ipynb
    user-guide/remapping.ipynb
    user-guide/tree_structures.ipynb
+   user-guide/zonal-mean.ipynb
