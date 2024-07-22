@@ -189,61 +189,237 @@ def _newton_raphson_solver_for_gca_constLat(
     return np.append(y_new, constZ)
 
 
-# TODO: Consider re-implementation in the future / better integration with API
+def _swap_first_fill_value_with_last(arr):
+    """Swap the first occurrence of INT_FILL_VALUE in each sub-array with the
+    last value in the sub-array.
+
+    Parameters:
+    ----------
+    arr (np.ndarray): A 3D numpy array where the swap will be performed.
+
+    Returns:
+    -------
+    np.ndarray: The modified array with the swaps made.
+    """
+    # Find the indices of the first INT_FILL_VALUE in each sub-array
+    mask = arr == INT_FILL_VALUE
+    reshaped_mask = mask.reshape(arr.shape[0], -1)
+    first_true_indices = np.argmax(reshaped_mask, axis=1)
+
+    # If no INT_FILL_VALUE is found in a row, argmax will return 0, we need to handle this case
+    first_true_indices[~np.any(reshaped_mask, axis=1)] = -1
+
+    # Get the shape of the sub-arrays
+    subarray_shape = arr.shape[1:]
+
+    # Calculate the 2D indices within each sub-array
+    valid_indices = first_true_indices != -1
+    first_true_positions = np.unravel_index(
+        first_true_indices[valid_indices], subarray_shape
+    )
+
+    # Create an index array for the last value in each sub-array
+    last_indices = np.full((arr.shape[0],), subarray_shape[0] * subarray_shape[1] - 1)
+    last_positions = np.unravel_index(last_indices, subarray_shape)
+
+    # Swap the first INT_FILL_VALUE with the last value in each sub-array
+    row_indices = np.arange(arr.shape[0])
+
+    # Advanced indexing to swap values
+    (
+        arr[
+            row_indices[valid_indices], first_true_positions[0], first_true_positions[1]
+        ],
+        arr[
+            row_indices[valid_indices],
+            last_positions[0][valid_indices],
+            last_positions[1][valid_indices],
+        ],
+    ) = (
+        arr[
+            row_indices[valid_indices],
+            last_positions[0][valid_indices],
+            last_positions[1][valid_indices],
+        ],
+        arr[
+            row_indices[valid_indices], first_true_positions[0], first_true_positions[1]
+        ],
+    )
+
+    return arr
+
+
 def _get_cartesian_face_edge_nodes(
-    face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+    face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
 ):
     """Construct an array to hold the edge Cartesian coordinates connectivity
-    for a face in a grid.
+    for multiple faces in a grid.
 
     Parameters
     ----------
-    face_nodes_ind : np.ndarray, shape (n_nodes,)
-        The ith entry of Grid.face_node_connectivity, where n_nodes is the number of nodes in the face.
-    face_edges_ind : np.ndarray, shape (n_edges,)
-        The ith entry of Grid.face_edge_connectivity, where n_edges is the number of edges in the face.
-    edge_nodes_grid : np.ndarray, shape (n_edges, 2)
-        The entire Grid.edge_node_connectivity, where n_edges is the total number of edges in the grid.
-    node_x : np.ndarray, shape (n_nodes,)
-        The values of Grid.node_x, where n_nodes_total is the total number of nodes in the grid.
-    node_y : np.ndarray, shape (n_nodes,)
-        The values of Grid.node_y.
-    node_z : np.ndarray, shape (n_nodes,)
-        The values of Grid.node_z.
+    face_node_conn : np.ndarray
+        An array of shape (n_face, n_max_face_edges) containing the node indices for each face. Accessed through `grid.face_node_connectivity.value`.
+    n_face : int
+        The number of faces in the grid. Accessed through `grid.n_face`.
+    n_max_face_edges : int
+        The maximum number of edges for any face in the grid. Accessed through `grid.n_max_face_edges`.
+    node_x : np.ndarray
+        An array of shape (n_nodes,) containing the x-coordinate values of the nodes. Accessed through `grid.node_x`.
+    node_y : np.ndarray
+        An array of shape (n_nodes,) containing the y-coordinate values of the nodes. Accessed through `grid.node_y`.
+    node_z : np.ndarray
+        An array of shape (n_nodes,) containing the z-coordinate values of the nodes. Accessed through `grid.node_z`.
 
     Returns
     -------
-    face_edges : np.ndarray, shape (n_edges, 2, 3)
-        Face edge connectivity in Cartesian coordinates, where n_edges is the number of edges for the specific face.
+    face_edges_cartesian : np.ndarray
+        An array of shape (n_face, n_max_face_edges, 2, 3) containing the Cartesian coordinates of the edges
+        for each face. It might contain dummy values if the grid has holes.
+
+    Examples
+    --------
+    >>> face_node_conn = np.array([[0, 1, 2, 3, 4], [0, 1, 3, 4, INT_FILL_VALUE], [0, 1, 3, INT_FILL_VALUE, INT_FILL_VALUE]])
+    >>> n_face = 3
+    >>> n_max_face_edges = 5
+    >>> node_x = np.array([0, 1, 1, 0, 1, 0])
+    >>> node_y = np.array([0, 0, 1, 1, 2, 2])
+    >>> node_z = np.array([0, 0, 0, 0, 1, 1])
+    >>> _get_cartesian_face_edge_nodes(face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z)
+    array([[[[    0,     0,     0],
+         [    1,     0,     0]],
+
+        [[    1,     0,     0],
+         [    1,     1,     0]],
+
+        [[    1,     1,     0],
+         [    0,     1,     0]],
+
+        [[    0,     1,     0],
+         [    1,     2,     1]],
+
+        [[    1,     2,     1],
+         [    0,     0,     0]]],
+
+
+       [[[    0,     0,     0],
+         [    1,     0,     0]],
+
+        [[    1,     0,     0],
+         [    0,     1,     0]],
+
+        [[    0,     1,     0],
+         [    1,     2,     1]],
+
+        [[    1,     2,     1],
+         [    0,     0,     0]],
+
+        [[INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE],
+        [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]]],
+
+
+       [[[    0,     0,     0],
+         [    1,     0,     0]],
+
+        [[    1,     0,     0],
+         [    0,     1,     0]],
+
+        [[    0,     1,     0],
+         [    0,     0,     0]],
+
+        [[INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE],
+         [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]],
+
+        [[INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE],
+         [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]]]])
+    """
+    # Shift node connections to create edge connections
+    face_node_conn_shift = np.roll(face_node_conn, -1, axis=1)
+
+    # Construct edge connections by combining original and shifted node connections
+    face_edge_conn = np.array([face_node_conn, face_node_conn_shift]).T.swapaxes(0, 1)
+
+    # swap the first occurrence of INT_FILL_VALUE with the last value in each sub-array
+    face_edge_conn = _swap_first_fill_value_with_last(face_edge_conn)
+
+    # Get the indices of the nodes from face_edge_conn
+    face_edge_conn_flat = face_edge_conn.reshape(-1)
+
+    valid_mask = face_edge_conn_flat != INT_FILL_VALUE
+
+    # Get the valid node indices
+    valid_edges = face_edge_conn_flat[valid_mask]
+
+    #  Create an array to hold the Cartesian coordinates of the edges
+    face_edges_cartesian = np.full(
+        (len(face_edge_conn_flat), 3), INT_FILL_VALUE, dtype=float
+    )
+
+    # Fill the array with the Cartesian coordinates of the edges
+    face_edges_cartesian[valid_mask, 0] = node_x[valid_edges]
+    face_edges_cartesian[valid_mask, 1] = node_y[valid_edges]
+    face_edges_cartesian[valid_mask, 2] = node_z[valid_edges]
+
+    return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
+
+
+def _get_lonlat_rad_face_edge_nodes(
+    face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
+):
+    """Construct an array to hold the edge latitude and longitude in radians
+    connectivity for multiple faces in a grid.
+
+    Parameters
+    ----------
+    face_node_conn : np.ndarray
+        An array of shape (n_face, n_max_face_edges) containing the node indices for each face. Accessed through `grid.face_node_connectivity.value`.
+    n_face : int
+        The number of faces in the grid. Accessed through `grid.n_face`.
+    n_max_face_edges : int
+        The maximum number of edges for any face in the grid. Accessed through `grid.n_max_face_edges`.
+    node_lon : np.ndarray
+        An array of shape (n_nodes,) containing the longitude values of the nodes in degrees. Accessed through `grid.node_lon`.
+    node_lat : np.ndarray
+        An array of shape (n_nodes,) containing the latitude values of the nodes in degrees. Accessed through `grid.node_lat`.
+
+    Returns
+    -------
+    face_edges_lonlat_rad : np.ndarray
+        An array of shape (n_face, n_max_face_edges, 2, 2) containing the latitude and longitude coordinates
+        in radians for the edges of each face. It might contain dummy values if the grid has holes.
 
     Notes
     -----
-    - The function assumes that the inputs are well-formed and correspond to the same face.
-    - The output array contains the Cartesian coordinates for each edge of the face.
+    If the grid has holes, the function will return an entry of dummy value faces_edges_coordinates[i] filled with INT_FILL_VALUE.
     """
 
-    # Create a mask that is True for all values not equal to INT_FILL_VALUE
-    mask = face_edges_ind != INT_FILL_VALUE
+    # Convert node coordinates to radians
+    node_lon_rad = np.deg2rad(node_lon)
+    node_lat_rad = np.deg2rad(node_lat)
 
-    # Use the mask to select only the elements not equal to INT_FILL_VALUE
-    valid_edges = face_edges_ind[mask]
-    face_edges = edge_nodes_grid[valid_edges]
+    # Shift node connections to create edge connections
+    face_node_conn_shift = np.roll(face_node_conn, -1, axis=1)
 
-    # Ensure counter-clockwise order of edge nodes
-    # Start with the first two nodes
-    face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+    # Construct edge connections by combining original and shifted node connections
+    face_edge_conn = np.array([face_node_conn, face_node_conn_shift]).T.swapaxes(0, 1)
 
-    for idx in range(1, len(face_edges)):
-        if face_edges[idx][0] != face_edges[idx - 1][1]:
-            # Swap the node index in this edge if not in counter-clockwise order
-            face_edges[idx] = face_edges[idx][::-1]
+    # swap the first occurrence of INT_FILL_VALUE with the last value in each sub-array
+    face_edge_conn = _swap_first_fill_value_with_last(face_edge_conn)
 
-    # Fetch coordinates for each node in the face edges
-    cartesian_coordinates = np.array(
-        [
-            [[node_x[node], node_y[node], node_z[node]] for node in edge]
-            for edge in face_edges
-        ]
+    # Get the indices of the nodes from face_edge_conn
+    face_edge_conn_flat = face_edge_conn.reshape(-1)
+
+    valid_mask = face_edge_conn_flat != INT_FILL_VALUE
+
+    # Get the valid node indices
+    valid_edges = face_edge_conn_flat[valid_mask]
+
+    # Create an array to hold the latitude and longitude in radians for the edges
+    face_edges_lonlat_rad = np.full(
+        (len(face_edge_conn_flat), 2), INT_FILL_VALUE, dtype=float
     )
 
-    return cartesian_coordinates
+    # Fill the array with the latitude and longitude in radians for the edges
+    face_edges_lonlat_rad[valid_mask, 0] = node_lon_rad[valid_edges]
+    face_edges_lonlat_rad[valid_mask, 1] = node_lat_rad[valid_edges]
+
+    return face_edges_lonlat_rad.reshape(n_face, n_max_face_edges, 2, 2)

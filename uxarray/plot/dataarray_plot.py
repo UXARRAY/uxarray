@@ -13,30 +13,26 @@ import dask.dataframe as dd
 import holoviews as hv
 from holoviews.operation.datashader import rasterize as hds_rasterize
 
-from uxarray.plot.constants import N_FACE_THRESHOLD
+import numpy as np
 
 import pandas as pd
 
-import numpy as np
-
-import warnings
+import uxarray.plot.utils
 
 
 def plot(uxda, **kwargs):
-    """Default Plotting Method for UxDataArray."""
+    """Default plotting method for a ``UxDataArray``."""
+
     if uxda._face_centered():
-        # default to polygon plot
-        if uxda.uxgrid.n_face < N_FACE_THRESHOLD:
-            # vector polygons for small datasets
-            return polygons(uxda, **kwargs)
-        else:
-            # rasterized polygons for larger datasets
-            return rasterize(uxda, method="polygon", **kwargs)
-    if uxda._node_centered():
-        # default to point plot
-        return points(uxda, **kwargs)
+        return rasterize(uxda, method="polygon", **kwargs)
+
+    elif uxda._edge_centered() or uxda._node_centered():
+        return rasterize(uxda, method="point", **kwargs)
+
     else:
-        raise ValueError("Data must be either node or face centered.")
+        raise ValueError(
+            "Plotting variables on unstructured grids requires the data variable to be mapped to either the nodes, edges, or faces."
+        )
 
 
 def datashade(
@@ -96,7 +92,7 @@ def rasterize(
     uxda: UxDataArray,
     method: Optional[str] = "point",
     backend: Optional[str] = "bokeh",
-    exclude_antimeridian: Optional[bool] = False,
+    exclude_antimeridian: Optional[bool] = True,
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -208,75 +204,42 @@ def _point_raster(
 ):
     """Implementation of Point Rasterization."""
 
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
     if uxda._face_centered():
         # data mapped to face centroid coordinates
-        lon = uxda.uxgrid.face_lon.values
-        lat = uxda.uxgrid.face_lat.values
+        lon, lat = uxda.uxgrid.face_lon.values, uxda.uxgrid.face_lat.values
     elif uxda._node_centered():
         # data mapped to face corner coordinates
-        lon = uxda.uxgrid.node_lon.values
-        lat = uxda.uxgrid.node_lat.values
+        lon, lat = uxda.uxgrid.node_lon.values, uxda.uxgrid.node_lat.values
     elif uxda._edge_centered():
         # data mapped to face corner coordinates
-        lon = uxda.uxgrid.edge_lon.values
-        lat = uxda.uxgrid.edge_lat.values
+        lon, lat = uxda.uxgrid.edge_lon.values, uxda.uxgrid.edge_lat.values
     else:
         raise ValueError(
             f"The Dimension of Data Variable {uxda.name} is not Node or Face centered."
         )
 
-    # determine whether we need to recompute points, typically when a new projection is selected
-    recompute = True
-    if uxda._face_centered() == "center":
-        if (
-            uxda.uxgrid._centroid_points_df_proj[0] is not None
-            and uxda.uxgrid._centroid_points_df_proj[1] == projection
-        ):
-            recompute = False
-            points_df = uxda.uxgrid._centroid_points_df_proj[0]
+    if projection is not None:
+        # apply projection to coordinates
+        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
 
+    uxarray.plot.utils.backend.assign(backend=backend)
+
+    point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
+    point_df = pd.DataFrame.from_dict(point_dict)
+    point_ddf = dd.from_pandas(point_df, npartitions=npartitions)
+
+    # construct a holoviews points object
+    if backend == "matplotlib":
+        points = hv.Points(point_ddf, ["lon", "lat"]).opts(s=size)
     else:
-        if (
-            uxda.uxgrid._corner_points_df_proj[0] is not None
-            and uxda.uxgrid._corner_points_df_proj[1] == projection
-        ):
-            recompute = False
-            points_df = uxda.uxgrid._corner_points_df_proj[0]
-
-    if recompute:
-        # need to recompute points and/or projection
-        if projection is not None:
-            lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
-
-        point_dict = {"lon": lon, "lat": lat, "var": uxda.values}
-
-        # Construct Dask DataFrame
-        point_ddf = dd.from_dict(data=point_dict, npartitions=npartitions)
-
-        hv.extension("bokeh")
         points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
-
-        # cache computed points & projection
-        if cache:
-            if uxda._face_centered() == "center":
-                uxda.uxgrid._centroid_points_df_proj[0] = point_ddf
-                uxda.uxgrid._centroid_points_df_proj[1] = projection
-            else:
-                uxda.uxgrid._corner_points_df_proj[0] = point_ddf
-                uxda.uxgrid._corner_points_df_proj[1] = projection
-
-    else:
-        # use existing cached points & projection
-        points_df["var"] = pd.Series(uxda.values)
-        points = hv.Points(points_df, ["lon", "lat"]).opts(size=size)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         raster = hds_rasterize(
             points,
             pixel_ratio=pixel_ratio,
@@ -293,7 +256,6 @@ def _point_raster(
         )
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         raster = hds_rasterize(
             points,
             pixel_ratio=pixel_ratio,
@@ -322,7 +284,7 @@ def _point_raster(
 def _polygon_raster(
     uxda: UxDataArray,
     backend: Optional[str] = "bokeh",
-    exclude_antimeridian: Optional[bool] = False,
+    exclude_antimeridian: Optional[bool] = True,
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -340,7 +302,7 @@ def _polygon_raster(
 ):
     """Implementation of Polygon Rasterization."""
 
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
@@ -350,9 +312,10 @@ def _polygon_raster(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
+    uxarray.plot.utils.backend.assign(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         raster = hds_rasterize(
             hv_polygons,
             pixel_ratio=pixel_ratio,
@@ -369,7 +332,6 @@ def _polygon_raster(
         )
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         raster = hds_rasterize(
             hv_polygons,
             pixel_ratio=pixel_ratio,
@@ -423,13 +385,7 @@ def polygons(
     width: int
         Plot Width for Bokeh Backend
     """
-    if not exclude_antimeridian:
-        warnings.warn(
-            "Including Antimeridian Polygons may lead to visual artifacts. It is suggested to keep "
-            "'exclude_antimeridian' set to True."
-        )
-
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
@@ -439,15 +395,16 @@ def polygons(
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
 
+    uxarray.plot.utils.backend.assign(backend=backend)
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
 
-        return hv_polygons.opts(colorbar=colorbar, cmap=cmap, **kwargs)
+        return hv_polygons.opts(
+            colorbar=colorbar, xlabel=xlabel, ylabel=ylabel, cmap=cmap, **kwargs
+        )
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_polygons.opts(
             width=width,
             height=height,
@@ -536,7 +493,7 @@ def _plot_data_as_points(
 
     from holoviews import Points
 
-    if "clabel" not in kwargs:
+    if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
         kwargs["clabel"] = uxda.name
 
@@ -556,9 +513,10 @@ def _plot_data_as_points(
     verts = np.column_stack([lon, lat, uxda.values])
     hv_points = Points(verts, vdims=["z"])
 
+    uxarray.plot.utils.backend.assign(backend=backend)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
-        hv.extension("matplotlib")
         return hv_points.opts(
             color="z",
             colorbar=colorbar,
@@ -570,7 +528,6 @@ def _plot_data_as_points(
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        hv.extension("bokeh")
         return hv_points.opts(
             color="z",
             width=width,

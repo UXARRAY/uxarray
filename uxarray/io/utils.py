@@ -37,6 +37,9 @@ def _parse_grid_type(dataset):
         mesh_type = "MPAS"
     elif "maxNodePElement" in dataset.dims:
         mesh_type = "ESMF"
+    elif all(key in dataset.sizes for key in ["nf", "YCdim", "XCdim"]):
+        # expected dimensions for a GEOS cube sphere grid
+        mesh_type = "GEOS-CS"
     else:
         raise RuntimeError("Could not recognize dataset format.")
     return mesh_type

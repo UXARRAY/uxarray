@@ -103,6 +103,22 @@ Attributes
 
    UxDataArray.uxgrid
 
+Topological Aggregations
+----------
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.topological_mean
+   UxDataArray.topological_max
+   UxDataArray.topological_min
+   UxDataArray.topological_prod
+   UxDataArray.topological_sum
+   UxDataArray.topological_std
+   UxDataArray.topological_var
+   UxDataArray.topological_median
+   UxDataArray.topological_all
+   UxDataArray.topological_any
+
 Methods
 -------
 .. autosummary::
@@ -220,6 +236,11 @@ Dimensions
    Grid.n_face
    Grid.n_max_face_nodes
    Grid.n_max_face_edges
+   Grid.n_max_face_faces
+   Grid.n_max_edge_edges
+   Grid.n_max_node_faces
+   Grid.n_max_node_edges
+   Grid.n_max_node_nodes
    Grid.n_nodes_per_face
 
 Spherical Coordinates
@@ -255,13 +276,12 @@ Connectivity
    :toctree: generated/
 
    Grid.face_node_connectivity
-   Grid.edge_node_connectivity
-   Grid.node_node_connectivity
    Grid.face_edge_connectivity
-   Grid.edge_edge_connectivity
-   Grid.node_edge_connectivity
    Grid.face_face_connectivity
+   Grid.edge_node_connectivity
+   Grid.edge_edge_connectivity
    Grid.edge_face_connectivity
+   Grid.node_edge_connectivity
    Grid.node_face_connectivity
 
 Grid Descriptors
@@ -271,6 +291,7 @@ Grid Descriptors
 
    Grid.face_areas
    Grid.antimeridian_face_indices
+   Grid.bounds
 
 
 Attributes
@@ -279,7 +300,7 @@ Attributes
    :toctree: generated/
 
    Grid.grid_spec
-   Grid.parsed_attrs
+   Grid.attrs
 
 
 Plotting
@@ -363,16 +384,6 @@ Connectivity
    :toctree: generated/
 
    grid.connectivity.close_face_nodes
-
-Coordinates
------------
-.. autosummary::
-   :toctree: generated/
-
-   grid.coordinates.node_lonlat_rad_to_xyz
-   grid.coordinates.node_xyz_to_lonlat_rad
-   grid.coordinates.normalize_in_place
-
 
 Arcs
 ----

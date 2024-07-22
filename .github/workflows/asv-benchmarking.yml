@@ -1,0 +1,104 @@
+name: ASV Benchmarking
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      CONDA_ENV_FILE: ./ci/asv.yml
+      ASV_DIR: ./benchmarks
+
+    steps:
+      - name: Checkout uxarray
+        uses: actions/checkout@v4
+        with:
+          repository: UXARRAY/uxarray
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch all tags and branches for uxarray
+        run: |
+          git fetch --all --tags
+
+      - name: Checkout uxarray-asv
+        uses: actions/checkout@v4
+        with:
+          repository: UXARRAY/uxarray-asv
+          persist-credentials: false
+          fetch-depth: 0
+          ref: main
+          path: uxarray-asv
+
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: "24.1.2-0"
+          activate-environment: asv
+
+      - name: Get date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Cache environment
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONDA }}/envs
+          key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('./ci/asv.yml') }}-${{ env.CACHE_NUMBER }}
+        env:
+          CACHE_NUMBER: 0
+        id: cache
+
+      - name: Update environment
+        run:
+          conda env update -n asv -f ./ci/asv.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Conda list
+        run: |
+          conda info
+          conda list
+
+      - name: Copy existing results
+        run: |
+          if [ -d "uxarray-asv/results" ]; then
+            cp -r uxarray-asv/results benchmarks/
+          fi
+
+      - name: Run benchmarks
+        shell: bash -l {0}
+        id: benchmark
+        run: |
+          cd benchmarks
+          asv machine --machine GH-Actions --os ubuntu-latest --arch x64 --cpu "2-core unknown" --ram 7GB
+          asv run v2024.02.0..main --skip-existing --parallel || true
+
+      - name: Commit and push benchmark results
+        run: |
+          if [ -d "uxarray-asv/results" ]; then
+            rm -r uxarray-asv/results
+          fi
+          cp -r benchmarks/results/ uxarray-asv/
+          cd uxarray-asv
+          git config --local user.email "${{ secrets.UXARRAY_ASV_EMAIL }}"
+          git config --local user.name "${{ secrets.UXARRAY_ASV_USER_NAME }}"
+          git add results
+          git commit -m "[🤖] Update benchmark results"
+
+      - name: Push to uxarray-asv
+        if: github.ref == 'refs/heads/main' && github.repository == 'UXARRAY/uxarray'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.UXARRAY_ASV_PAT }}
+          branch: main
+          force: true
+          repository: UXARRAY/uxarray-asv
+          directory: uxarray-asv

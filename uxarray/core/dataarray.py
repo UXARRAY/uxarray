@@ -3,7 +3,7 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -15,6 +15,7 @@ from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
 
+
 from uxarray.core.gradient import (
     _calculate_grad_on_edge_from_faces,
     _calculate_edge_face_difference,
@@ -24,8 +25,11 @@ from uxarray.core.gradient import (
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
+from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
+
+import cartopy.crs as ccrs
 
 
 class UxDataArray(xr.DataArray):
@@ -180,28 +184,30 @@ class UxDataArray(xr.DataArray):
             )
 
     def to_polycollection(
-        self, override=False, cache=True, correct_antimeridian_polygons=True
+        self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
     ):
-        """Constructs a ``matplotlib.collections.PolyCollection`` object with
-        polygons representing the geometry of the unstructured grid, with
-        polygons that cross the antimeridian split across the antimeridian.
+        """Converts a ``UxDataArray`` to a
+        ``matplotlib.collections.PolyCollection``, representing each face as a
+        polygon shaded with a face-centered data variable.
 
         Parameters
         ----------
-        override : bool
-            Flag to recompute the ``PolyCollection`` stored under the ``uxgrid`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``PolyCollection`` stored under the ``uxgrid`` accessor should be cached
-        correct_antimeridian_polygons: bool, Optional
-            Parameter to select whether to correct and split antimeridian polygons
-
-        Returns
-        -------
-        poly_collection : matplotlib.collections.PolyCollection
-            The output `PolyCollection` of polygons representing the geometry of the unstructured grid paired with
-            a data variable.
+        periodic_elements: str
+            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         """
-
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
             raise ValueError(
@@ -209,47 +215,61 @@ class UxDataArray(xr.DataArray):
                 f"for face-centered data."
             )
 
-        # face-centered data
-        if self.values.size == self.uxgrid.n_face:
-            (
-                poly_collection,
-                corrected_to_original_faces,
-            ) = self.uxgrid.to_polycollection(
-                override=override,
-                cache=cache,
-                correct_antimeridian_polygons=correct_antimeridian_polygons,
+        if self._face_centered():
+            poly_collection, corrected_to_original_faces = (
+                self.uxgrid.to_polycollection(
+                    override=override,
+                    cache=cache,
+                    periodic_elements=periodic_elements,
+                    return_indices=True,
+                    projection=projection,
+                )
             )
 
             # map data with antimeridian polygons
             if len(corrected_to_original_faces) > 0:
                 data = self.values[corrected_to_original_faces]
-
-            # no antimeridian polygons
             else:
                 data = self.values
 
             poly_collection.set_array(data)
-            return poly_collection, corrected_to_original_faces
 
-        # node-centered data
-        elif self.values.size == self.uxgrid.n_node:
-            raise ValueError(
-                f"Data Variable with size {self.values.size} mapped on the nodes of each polygon"
-                f"not supported yet."
-            )
-
-        # data not mapped to faces or nodes
+            if return_indices:
+                return poly_collection, corrected_to_original_faces
+            else:
+                return poly_collection
         else:
-            raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}."
-            )
+            raise ValueError("Data variable must be face centered.")
 
-    def to_dataset(self) -> UxDataset:
-        """Converts a ``UxDataArray`` into a ``UxDataset`` with a single data
-        variable."""
-        xrds = super().to_dataset()
-        return uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+    def to_dataset(
+        self,
+        dim: Hashable = None,
+        *,
+        name: Hashable = None,
+        promote_attrs: bool = False,
+    ) -> UxDataset:
+        """Convert a UxDataArray to a UxDataset.
+
+        Parameters
+        ----------
+        dim : Hashable, optional
+            Name of the dimension on this array along which to split this array
+            into separate variables. If not provided, this array is converted
+            into a Dataset of one variable.
+        name : Hashable, optional
+            Name to substitute for this array's name. Only valid if ``dim`` is
+            not provided.
+        promote_attrs : bool, default: False
+            Set to True to shallow copy attrs of UxDataArray to returned UxDataset.
+
+        Returns
+        -------
+        uxds: UxDataSet
+        """
+        xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
+        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+
+        return uxds
 
     def nearest_neighbor_remap(
         self,
@@ -372,34 +392,455 @@ class UxDataArray(xr.DataArray):
         Can be used for remapping node-centered data to each face.
         """
 
-        if not self._node_centered():
-            # nodal average expects node-centered data
-            raise ValueError(
-                f"Data Variable must be mapped to the corner nodes of each face, with dimension "
-                f"{self.uxgrid.n_face}."
-            )
-
-        data = self.values
-        face_nodes = self.uxgrid.face_node_connectivity.values
-        n_nodes_per_face = self.uxgrid.n_nodes_per_face.values
-
-        # compute the nodal average while preserving original dimensions
-        data_nodal_average = np.array(
-            [
-                np.mean(data[..., cur_face[0:n_max_nodes]], axis=-1)
-                for cur_face, n_max_nodes in zip(face_nodes, n_nodes_per_face)
-            ]
+        warnings.warn(
+            "This function will be deprecated in a future release. Please use uxda.mean(destination=`face`) instead.",
+            DeprecationWarning,
         )
 
-        # set `n_nodes` as final dimension
-        data_nodal_average = np.moveaxis(data_nodal_average, 0, -1)
+        return self.topological_mean(destination="face")
 
-        return UxDataArray(
-            uxgrid=self.uxgrid,
-            data=data_nodal_average,
-            dims=self.dims,
-            name=self.name + "_nodal_average" if self.name is not None else None,
-        ).rename({"n_node": "n_face"})
+    def topological_mean(
+        self,
+        destination: Literal["node", "edge", "face"],
+        **kwargs,
+    ):
+        """Performs a topological mean aggregation.
+
+        See Also
+        --------
+        numpy.mean
+        dask.array.mean
+        xarray.DataArray.mean
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``mean`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "mean", **kwargs)
+
+    def topological_min(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological min aggregation.
+
+        See Also
+        --------
+        numpy.min
+        dask.array.min
+        xarray.DataArray.min
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``min`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "min", **kwargs)
+
+    def topological_max(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological max aggregation.
+
+        See Also
+        --------
+        numpy.max
+        dask.array.max
+        xarray.DataArray.max
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``max`` applied to its data.
+        """
+
+        return _uxda_grid_aggregate(self, destination, "max", **kwargs)
+
+    def topological_median(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological median aggregation.
+
+        See Also
+        --------
+        numpy.median
+        dask.array.median
+        xarray.DataArray.median
+
+        Parameters
+        ----------
+
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``median`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "median", **kwargs)
+
+    def topological_std(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological std aggregation.
+
+        See Also
+        --------
+        numpy.std
+        dask.array.std
+        xarray.DataArray.std
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``std`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "std", **kwargs)
+
+    def topological_var(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological var aggregation.
+
+        See Also
+        --------
+        numpy.var
+        dask.array.var
+        xarray.DataArray.var
+
+        Parameters
+        ----------
+
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``var`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "var", **kwargs)
+
+    def topological_sum(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological sum aggregation.
+
+        See Also
+        --------
+        numpy.sum
+        dask.array.sum
+        xarray.DataArray.sum
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``sum`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "sum", **kwargs)
+
+    def topological_prod(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological prod aggregation.
+
+        See Also
+        --------
+        numpy.prod
+        dask.array.prod
+        xarray.DataArray.prod
+
+        Parameters
+
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``prod`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "prod", **kwargs)
+
+    def topological_all(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological all aggregation.
+
+        See Also
+        --------
+        numpy.all
+        dask.array.all
+        xarray.DataArray.all
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``all`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "all", **kwargs)
+
+    def topological_any(
+        self,
+        destination=None,
+        **kwargs,
+    ):
+        """Performs a topological any aggregation.
+
+        See Also
+        --------
+        numpy.any
+        dask.array.any
+        xarray.DataArray.any
+
+        Parameters
+        ----------
+        destination: str,
+            Destination grid dimension for Aggregation.
+
+            Node-Centered Variable:
+            - ``destination='edge'``: Aggregation is applied on the nodes that saddle each edge, with the result stored
+            on each edge
+            - ``destination='face'``: Aggregation is applied on the nodes that surround each face, with the result stored
+            on each face.
+
+            Edge-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the edges that intersect each node, with the result stored
+            on each node.
+            - ``Destination='face'``: Aggregation is applied on the edges that surround each face, with the result stored
+            on each face.
+
+            Face-Centered Variable:
+            - ``destination='node'``: Aggregation is applied on the faces that saddle each node, with the result stored
+            on each node.
+            - ``Destination='edge'``: Aggregation is applied on the faces that saddle each edge, with the result stored
+            on each edge.
+
+
+        Returns
+        -------
+        reduced: UxDataArray
+            New UxDataArray with ``any`` applied to its data.
+        """
+        return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
     def gradient(
         self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
@@ -647,6 +1088,7 @@ class UxDataArray(xr.DataArray):
             uxgrid=sliced_grid,
             data=d_var,
             name=self.name,
+            coords=self.coords,
             dims=self.dims,
             attrs=self.attrs,
         )

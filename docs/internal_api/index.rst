@@ -118,6 +118,7 @@ Connectivity
    grid.connectivity._populate_edge_face_connectivity
    grid.connectivity._populate_n_nodes_per_face
 
+
 Geometry
 --------
 .. autosummary::
@@ -138,21 +139,25 @@ Geometry
    grid.geometry._check_intersection
    grid.geometry._get_latlonbox_width
    grid.geometry._insert_pt_in_latlonbox
+   grid.geometry._populate_face_latlon_bound
+   grid.geometry._populate_bounds
 
 Coordinates
 -----------
 .. autosummary::
    :toctree: generated/
 
-   grid.coordinates._get_lonlat_from_xyz
-   grid.coordinates._get_xyz_from_lonlat
-   grid.coordinates._populate_cartesian_xyz_coord
-   grid.coordinates._populate_lonlat_coord
+   grid.coordinates._lonlat_rad_to_xyz
+   grid.coordinates._xyz_to_lonlat_rad
+   grid.coordinates._xyz_to_lonlat_deg
+   grid.coordinates._normalize_xyz
+   grid.coordinates._populate_node_latlon
+   grid.coordinates._populate_node_xyz
    grid.coordinates._populate_face_centroids
-   grid.coordinates._construct_face_centroids
-   grid.coordinates._set_desired_longitude_range
    grid.coordinates._populate_edge_centroids
+   grid.coordinates._construct_face_centroids
    grid.coordinates._construct_edge_centroids
+   grid.coordinates._set_desired_longitude_range
 
 
 Arcs
@@ -161,7 +166,7 @@ Arcs
    :toctree: generated/
 
    grid.arcs._angle_of_2_vectors
-   grid.arcs._angle_of_2_vectors
+   grid.arcs._decide_pole_latitude
 
 
 Utils
@@ -171,7 +176,9 @@ Utils
 
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+   grid.utils._swap_first_fill_value_with_last
    grid.utils._get_cartesiain_face_edge_nodes
+   grid.utils._get_lonlat_rad_face_edge_nodes
 
 
 
@@ -203,6 +210,19 @@ Accurate Computing Utils
    utils.computing._two_square
    utils.computing._acc_sqrt
    utils.computing._split
+
+
+Integration
+-----------
+.. autosummary::
+   :toctree: generated/
+
+   grid.integrate._get_zonal_faces_weight_at_constLat
+   grid.integrate._get_zonal_face_interval
+   grid.integrate._process_overlapped_intervals
+   grid.integrate._is_edge_gca
+   grid.integrate._get_faces_constLat_intersection_info
+
 
 Remapping
 =========
@@ -303,6 +323,7 @@ Visualization
    plot.dataarray_plot._plot_data_as_points
    plot.dataarray_plot._polygon_raster
    plot.dataarray_plot._point_raster
+   plot.utils.HoloviewsBackend
 
 Slicing
 -------

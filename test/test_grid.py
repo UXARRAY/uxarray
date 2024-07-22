@@ -8,11 +8,14 @@ from pathlib import Path
 
 import uxarray as ux
 
-from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity
+from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
+    _build_edge_node_connectivity, _build_face_face_connectivity, _populate_face_face_connectivity
 
-from uxarray.grid.coordinates import _populate_lonlat_coord
+from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
+
+from uxarray.grid.arcs import extreme_gca_latitude
 
 try:
     import constants
@@ -392,7 +395,7 @@ class TestPopulateCoordinates(TestCase):
         # These points correspond to the eight vertices of a cube.
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-            360 - 45.0001052295749
+                                                360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -435,7 +438,7 @@ class TestPopulateCoordinates(TestCase):
 
         lon_deg = [
             45.0001052295749, 45.0001052295749, 360 - 45.0001052295749,
-            360 - 45.0001052295749
+                                                360 - 45.0001052295749
         ]
         lat_deg = [
             35.2655522903022, -35.2655522903022, 35.2655522903022,
@@ -457,7 +460,7 @@ class TestPopulateCoordinates(TestCase):
         verts_cart = np.stack((cart_x, cart_y, cart_z), axis=1)
 
         vgrid = ux.open_grid(verts_cart, latlon=False)
-        _populate_lonlat_coord(vgrid)
+        _populate_node_latlon(vgrid)
         # The connectivity in `__from_vert__()` will be formed in a reverse order
         lon_deg, lat_deg = zip(*reversed(list(zip(lon_deg, lat_deg))))
         for i in range(0, vgrid.n_node):
@@ -589,7 +592,7 @@ class TestConnectivity(TestCase):
         for face_idx in range(len(face_edges_connectivity)):
             res_face_nodes_connectivity.append(face_nodes_dict[face_idx])
             while len(res_face_nodes_connectivity[face_idx]
-                     ) < original_face_nodes_connectivity.shape[1]:
+                      ) < original_face_nodes_connectivity.shape[1]:
                 res_face_nodes_connectivity[face_idx].append(ux.INT_FILL_VALUE)
 
         return np.array(res_face_nodes_connectivity)
@@ -643,6 +646,8 @@ class TestConnectivity(TestCase):
         """Tests the construction of (``Mesh2_edge_nodes``) on an MPAS grid
         with known edge nodes."""
 
+        from uxarray.grid.connectivity import _build_edge_node_connectivity
+
         # grid with known edge node connectivity
         mpas_grid_ux = ux.open_grid(self.mpas_filepath)
         edge_nodes_expected = mpas_grid_ux._ds['edge_node_connectivity'].values
@@ -652,8 +657,12 @@ class TestConnectivity(TestCase):
         edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
         # construct edge nodes
-        _build_edge_node_connectivity(mpas_grid_ux, repopulate=True)
-        edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
+        edge_nodes_output, _, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
+                                                          mpas_grid_ux.n_face,
+                                                          mpas_grid_ux.n_max_face_nodes)
+
+        # _populate_face_edge_connectivity(mpas_grid_ux)
+        # edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
 
         self.assertTrue(np.array_equal(edge_nodes_expected, edge_nodes_output))
 
@@ -704,28 +713,6 @@ class TestConnectivity(TestCase):
                 self.assertTrue(
                     np.array_equal(reverted_mesh2_edge_nodes[i],
                                    original_face_nodes_connectivity[i]))
-
-    def test_build_face_edges_connectivity_mpas(self):
-        tgrid = ux.open_grid(self.mpas_filepath)
-
-        face_node_connectivity = tgrid._ds["face_node_connectivity"]
-
-        _populate_face_edge_connectivity(tgrid)
-        mesh2_face_edges = tgrid._ds.face_edge_connectivity
-        mesh2_edge_nodes = tgrid._ds.edge_node_connectivity
-
-        # Assert if the mesh2_face_edges sizes are correct.
-        self.assertEqual(mesh2_face_edges.sizes["n_face"],
-                         face_node_connectivity.sizes["n_face"])
-        self.assertEqual(mesh2_face_edges.sizes["n_max_face_edges"],
-                         face_node_connectivity.sizes["n_max_face_nodes"])
-
-        # Assert if the mesh2_edge_nodes sizes are correct.
-        # Euler formular for determining the edge numbers: n_face = n_edges - n_nodes + 2
-        num_edges = mesh2_face_edges.sizes["n_face"] + tgrid._ds[
-            "node_lon"].sizes["n_node"] - 2
-        size = mesh2_edge_nodes.sizes["n_edge"]
-        self.assertEqual(mesh2_edge_nodes.sizes["n_edge"], num_edges)
 
     def test_build_face_edges_connectivity_fillvalues(self):
         verts = [
@@ -872,7 +859,7 @@ class TestConnectivity(TestCase):
                 # shared edge
                 n_shared += 1
             elif edge_face[0] != INT_FILL_VALUE and edge_face[
-                    1] == INT_FILL_VALUE:
+                1] == INT_FILL_VALUE:
                 # edge borders one face
                 n_solo += 1
             else:
@@ -887,6 +874,23 @@ class TestConnectivity(TestCase):
 
         # no invalid entries should occur
         assert n_invalid == 0
+
+    def test_face_face_connectivity_construction(self):
+        """Tests the construction of face-face connectivity."""
+
+        # Open MPAS grid and read in face_face_connectivity
+        grid = ux.open_grid(gridfile_mpas)
+        face_face_conn_old = grid.face_face_connectivity.values
+
+        # Construct new face_face_connectivity using UXarray
+        face_face_conn_new = _build_face_face_connectivity(grid)
+
+        # Sort the arrays before comparison
+        face_face_conn_old_sorted = np.sort(face_face_conn_old, axis=None)
+        face_face_conn_new_sorted = np.sort(face_face_conn_new, axis=None)
+
+        # Assert the new and old face_face_connectivity contains the same faces
+        nt.assert_array_equal(face_face_conn_new_sorted, face_face_conn_old_sorted)
 
 
 class TestClassMethods(TestCase):
@@ -924,3 +928,32 @@ class TestClassMethods(TestCase):
         uxgrid = ux.Grid.from_face_vertices(multi_face_latlon, latlon=True)
 
         single_face_cart = [(0.0,)]
+
+
+class TestLatlonBounds(TestCase):
+    gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+    def test_populate_bounds_GCA_mix(self):
+        face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+        face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+        face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+        faces = [face_1, face_2, face_3, face_4]
+
+        # Hand calculated bounds for the above faces in radians
+        expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
+                           [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
+                           [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
+                           [[1.04719755,1.57079633],[0.,         6.28318531]]]
+
+
+        grid = ux.Grid.from_face_vertices(faces, latlon=True)
+        bounds_xarray = grid.bounds
+        face_bounds = bounds_xarray.values
+        nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_MPAS(self):
+        xrds = xr.open_dataset(self.gridfile_mpas)
+        uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
+        bounds_xarray = uxgrid.bounds
+        pass

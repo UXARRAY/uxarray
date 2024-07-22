@@ -71,7 +71,10 @@ jobs:
           python -m pytest test -v --cov=./uxarray --cov-report=xml
 
       - name: Upload code coverage to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        if: github.repository == 'UXARRAY/uxarray'
+        uses: codecov/codecov-action@v4.5.0
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           file: ./coverage.xml
           flags: unittests

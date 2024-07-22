@@ -68,7 +68,7 @@ class TestGeometryConversions(TestCase):
             uxds_geoflow['v1'].to_polycollection()
 
         # grid conversion
-        pc_geoflow_grid, _ = uxds_geoflow.uxgrid.to_polycollection()
+        pc_geoflow_grid = uxds_geoflow.uxgrid.to_polycollection(periodic_elements='split')
 
         polygon_shells = _build_polygon_shells(
             uxds_geoflow.uxgrid.node_lon.values,
@@ -95,7 +95,7 @@ class TestGeometryConversions(TestCase):
         corrected_polygon_shells, _ = _build_corrected_polygon_shells(
             polygon_shells)
 
-        pc_geoflow_data, _ = uxds_ne30['psi'].to_polycollection()
+        pc_geoflow_data = uxds_ne30['psi'].to_polycollection(periodic_elements='split')
 
         assert len(pc_geoflow_data._paths) == len(corrected_polygon_shells)
 
@@ -122,10 +122,10 @@ class TestGeometryConversions(TestCase):
         v1_nodal_average = uxds['v1'].nodal_average()
 
         # final dimension should match number of faces
-        self.assertEquals(v1_nodal_average.shape[-1], uxds.uxgrid.n_face)
+        self.assertEqual(v1_nodal_average.shape[-1], uxds.uxgrid.n_face)
 
         # all other dimensions should remain unchanged
-        self.assertEquals(uxds['v1'].shape[0:-1], v1_nodal_average.shape[0:-1])
+        self.assertEqual(uxds['v1'].shape[0:-1], v1_nodal_average.shape[0:-1])
 
         # test on a sample mesh with 4 verts
         verts = [[[-170, 40], [180, 30], [165, 25], [-170, 20]]]
@@ -138,4 +138,4 @@ class TestGeometryConversions(TestCase):
         uxda_nodal_average = uxda.nodal_average()
 
         # resulting data should be the mean of the corner nodes of the single face
-        self.assertEquals(uxda_nodal_average, np.mean(data))
+        self.assertEqual(uxda_nodal_average, np.mean(data))

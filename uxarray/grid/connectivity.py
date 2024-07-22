@@ -4,6 +4,7 @@ import xarray as xr
 from scipy import sparse
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
 
 from numba import njit
 
@@ -137,11 +138,12 @@ def _populate_n_nodes_per_face(grid):
     # add to internal dataset
     grid._ds["n_nodes_per_face"] = xr.DataArray(
         data=n_nodes_per_face,
-        dims=["n_face"],
-        attrs={"long_name": "number of non-fill value nodes for each face"},
+        dims=ugrid.N_NODES_PER_FACE_DIMS,
+        attrs=ugrid.N_NODES_PER_FACE_ATTRS,
     )
 
 
+@njit()
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
@@ -165,18 +167,13 @@ def _populate_edge_node_connectivity(grid):
         grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes
     )
 
+    edge_node_attrs = ugrid.EDGE_NODE_CONNECTIVITY_ATTRS
+    edge_node_attrs["inverse_indices"] = inverse_indices
+    edge_node_attrs["fill_value_mask"] = fill_value_mask
+
     # add edge_node_connectivity to internal dataset
     grid._ds["edge_node_connectivity"] = xr.DataArray(
-        edge_nodes,
-        dims=["n_edge", "Two"],
-        attrs={
-            "cf_role": "edge_node_connectivity",
-            "_FillValue": INT_FILL_VALUE,
-            "long_name": "Maps every edge to the two nodes that it connects",
-            "start_index": INT_DTYPE(0),
-            "inverse_indices": inverse_indices,
-            "fill_value_mask": fill_value_mask,
-        },
+        edge_nodes, dims=ugrid.EDGE_NODE_CONNECTIVITY_DIMS, attrs=edge_node_attrs
     )
 
 
@@ -250,12 +247,8 @@ def _populate_edge_face_connectivity(grid):
 
     grid._ds["edge_face_connectivity"] = xr.DataArray(
         data=edge_faces,
-        dims=["n_edge", "Two"],
-        attrs={
-            "cf_role": "edge_face_connectivity",
-            "start_index": INT_DTYPE(0),
-            "long_name": "Maps the faces that saddle a given edge",
-        },
+        dims=ugrid.EDGE_FACE_CONNECTIVITY_DIMS,
+        attrs=ugrid.EDGE_FACE_CONNECTIVITY_ATTRS,
     )
 
 
@@ -297,12 +290,8 @@ def _populate_face_edge_connectivity(grid):
 
     grid._ds["face_edge_connectivity"] = xr.DataArray(
         data=face_edges,
-        dims=["n_face", "n_max_face_edges"],
-        attrs={
-            "cf_role": "face_edges_connectivity",
-            "start_index": INT_DTYPE(0),
-            "long_name": "Maps every edge to the two nodes that it connects",
-        },
+        dims=ugrid.FACE_EDGE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_EDGE_CONNECTIVITY_ATTRS,
     )
 
 
@@ -323,12 +312,8 @@ def _populate_node_face_connectivity(grid):
 
     grid._ds["node_face_connectivity"] = xr.DataArray(
         node_faces,
-        dims=["n_node", "n_max_node_faces"],  # TODO
-        attrs={
-            "long_name": "Maps every node to the faces that " "it connects",
-            "nMaxNumFacesPerNode": n_max_faces_per_node,  # todo, this possibly duplicates nNodes_per_face
-            "_FillValue": INT_FILL_VALUE,
-        },
+        dims=ugrid.NODE_FACE_CONNECTIVITY_DIMS,
+        attrs=ugrid.NODE_FACE_CONNECTIVITY_ATTRS,
     )
 
 
@@ -427,3 +412,64 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     node_indices = flattened_matrix[valid_node_mask]
     non_filled_element_flags = np.ones(len(node_indices))
     return face_indices, node_indices, non_filled_element_flags
+
+
+def get_face_node_partitions(n_nodes_per_face):
+    """Returns the indices of how to partition `face_node_connectivity` by
+    element size."""
+
+    # sort number of nodes per face in ascending order
+    n_nodes_per_face_sorted_ind = np.argsort(n_nodes_per_face)
+
+    # unique element sizes and their respective counts
+    element_sizes, size_counts = np.unique(n_nodes_per_face, return_counts=True)
+    element_sizes_sorted_ind = np.argsort(element_sizes)
+
+    # sort elements by their size
+    element_sizes = element_sizes[element_sizes_sorted_ind]
+    size_counts = size_counts[element_sizes_sorted_ind]
+
+    # find the index at the point where the geometry changes from one shape to another
+    change_ind = np.cumsum(size_counts)
+    change_ind = np.concatenate((np.array([0]), change_ind))
+
+    return change_ind, n_nodes_per_face_sorted_ind, element_sizes, size_counts
+
+
+def _populate_face_face_connectivity(grid):
+    """Constructs the UGRID connectivity variable (``face_face_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.face_face_connectivity``)."""
+    face_face = _build_face_face_connectivity(grid)
+
+    grid._ds["face_face_connectivity"] = xr.DataArray(
+        data=face_face,
+        dims=ugrid.FACE_FACE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_FACE_CONNECTIVITY_ATTRS,
+    )
+
+
+def _build_face_face_connectivity(grid):
+    """Returns face-face connectivity."""
+
+    # Dictionary to store each faces adjacent faces
+    face_neighbors = {i: [] for i in range(grid.n_face)}
+
+    # Loop through each edge_face and add to the dictionary every face that shares an edge
+    for edge_face in grid.edge_face_connectivity.values:
+        face1, face2 = edge_face
+        if face1 != INT_FILL_VALUE and face2 != INT_FILL_VALUE:
+            # Append to each face's dictionary index the opposite face index
+            face_neighbors[face1].append(face2)
+            face_neighbors[face2].append(face1)
+
+    # Convert to an array and pad it with fill values
+    face_face_conn = list(face_neighbors.values())
+    face_face_connectivity = [
+        np.pad(
+            arr, (0, grid.n_max_face_edges - len(arr)), constant_values=INT_FILL_VALUE
+        )
+        for arr in face_face_conn
+    ]
+
+    return face_face_connectivity

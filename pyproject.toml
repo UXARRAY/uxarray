@@ -1,0 +1,80 @@
+[project]
+classifiers=[
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  'Operating System :: Microsoft :: Windows',
+  'Operating System :: Unix',
+  'Operating System :: MacOS',
+  "Topic :: Scientific/Engineering",
+]
+
+dynamic = ["version"]
+keywords = ["unstructured grids"]
+description = "Xarray-styled package for reading and directly operating on unstructured grid datasets following UGRID conventions"
+license = {file = "LICENSE"}
+name = "uxarray"
+readme = "README.md"
+requires-python = ">=3.9"
+
+# minimal dependencies start
+dependencies = [
+  "antimeridian",
+  "cartopy",
+  "dask[dataframe]",
+  "datashader",
+  "geoviews",
+  "holoviews",
+  "matplotlib",
+  "matplotlib-inline",
+  "netcdf4",
+  "numba",
+  "numpy<2.0.0",
+  "pandas<2.1.0",
+  "pyarrow",
+  "requests",
+  "scikit-learn",
+  "scipy",
+  "shapely",
+  "spatialpandas",
+  "xarray",
+]
+# minimal dependencies end
+
+[project.optional-dependencies]
+complete = ["uxarray[math, dev]"]
+math = ['gmpy2', 'pyfma']
+dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff']
+
+[project.urls]
+Documentation = "https://uxarray.readthedocs.io/"
+Source = "https://github.com/UXARRAY/uxarray"
+Tracker = "https://github.com/UXARRAY/uxarray/issues"
+
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools>=60",
+  "setuptools-scm>=8",
+]
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.setuptools_scm]
+fallback_version = "9999"
+
+[tool.ruff]
+extend-exclude = ["test","benchmarks"]
+
+[tool.ruff.lint]
+ignore-init-module-imports = false
+
+[tool.ruff.lint.per-file-ignores]
+"docs/*" = ["E402", "F401"]
+"uxarray/plot/*" = ["E402", "F401"]
