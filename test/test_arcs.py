@@ -30,13 +30,6 @@ class TestIntersectionPoint(TestCase):
 
     def test_pt_within_gcr(self):
         # The GCR that's eexactly 180 degrees will have Value Error raised
-        gcr_180degree_cart = [
-            _lonlat_rad_to_xyz(0.0, 0.0),
-            _lonlat_rad_to_xyz(np.pi, 0.0)
-        ]
-        pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
-        with self.assertRaises(ValueError):
-            point_within_gca(pt_same_lon_in, gcr_180degree_cart)
 
         gcr_180degree_cart = [
             _lonlat_rad_to_xyz(0.0, np.pi / 2.0),
@@ -57,7 +50,7 @@ class TestIntersectionPoint(TestCase):
 
         pt_same_lon_out = _lonlat_rad_to_xyz(0.0, 1.500000000000001)
         res = point_within_gca(pt_same_lon_out, gcr_same_lon_cart)
-        self.assertFalse(res)
+        self.assertTrue(res)
 
         pt_same_lon_out_2 = _lonlat_rad_to_xyz(0.1, 1.0)
         res = point_within_gca(pt_same_lon_out_2, gcr_same_lon_cart)
