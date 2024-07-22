@@ -609,8 +609,6 @@ class TestFaceWeights(TestCase):
 
     def test_get_zonal_faces_weight_at_constLat_on_pole_faces(self):
         #there will be 4 faces touching the pole, so the weight should be 0.25 for each face
-        import numpy as np
-
         face_edges_cart = np.array([
             [
                 [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
