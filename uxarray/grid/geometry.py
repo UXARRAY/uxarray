@@ -489,16 +489,19 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
             _check_intersection(ref_edge_north, north_edges)
             + _check_intersection(ref_edge_south, south_edges)
         ) % 2 != 0
-    else:
-        warnings.warn(
-            "The given face should not contain both pole points.", UserWarning
-        )
-
-        # Print out the face information
-        print("Face Edges: ", face_edge_cart)
-        print("Face Location: ", location)
-        print("Pole Point: ", pole)
+    elif (
+        location == "North"
+        and pole == "South"
+        or location == "South"
+        and pole == "North"
+    ):
         return False
+    else:
+        raise ValueError(
+            "Invalid pole point query. Current location: {}, query pole point: {}".format(
+                location, pole
+            )
+        )
 
 
 def _check_intersection(ref_edge, edges):
