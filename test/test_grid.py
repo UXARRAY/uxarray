@@ -933,6 +933,7 @@ class TestClassMethods(TestCase):
 
 class TestLatlonBounds(TestCase):
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+
     def test_populate_bounds_GCA_mix(self):
         face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -958,7 +959,22 @@ class TestLatlonBounds(TestCase):
         bounds_xarray = uxgrid.bounds
         pass
 
+
 class TestDualMesh(TestCase):
+    """Test Dual Mesh Construction."""
+
     def test_dual_mesh_mpas(self):
-        grid = ux.open_grid(gridfile_mpas_two)
-        dual = grid.dual_mesh()
+        # Open a grid with and without dual
+        grid = ux.open_grid(gridfile_mpas, use_dual=False)
+        mpas_dual = ux.open_grid(gridfile_mpas, use_dual=True)
+
+        # Construct Dual
+        dual = grid.compute_dual()
+
+        # Assert the dimensions are the same
+        assert dual.n_face == mpas_dual.n_face
+        assert dual.n_node == mpas_dual.n_node
+        assert dual.n_max_face_nodes == mpas_dual.n_max_face_nodes
+
+        # Assert the faces are the same
+        assert dual.face_node_connectivity.all() == mpas_dual.face_node_connectivity.all()

@@ -1381,7 +1381,27 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def dual_mesh(self):
+    def compute_dual(self, method="global"):
+        """Compute the dual mesh for a grid, returns a new grid object.
+
+         Parameters
+        ----------
+        method: str, default="global"
+            Method for constructing the dual mesh, either "global" or "local"
+
+        Returns:
+        --------
+        dual : Grid
+            Dual Mesh Grid constructed
+        """
+
+        if method == "local":
+            raise ValueError("Local Dual Mesh is not yet supported, use global")
+        elif method != "global":
+            raise ValueError(
+                f"Invalid method: {method}. Please use a supported method instead"
+            )
+
         # Class for storing the faces, by their edges
         class Face:
             """Initialize the edges for the face."""
@@ -1501,7 +1521,7 @@ class Grid:
 
         # Empty array to hold `node_face_connectivity`
         node_face_connectivity = np.full(
-            (len(final_faces), 6), INT_FILL_VALUE, dtype=ux.INT_DTYPE
+            (len(final_faces), self.n_max_node_faces), INT_FILL_VALUE, dtype=ux.INT_DTYPE
         )
 
         # Populate the node_face array

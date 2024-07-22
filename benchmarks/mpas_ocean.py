@@ -115,3 +115,18 @@ class MatplotlibConversion:
 
     def time_dataarray_to_polycollection(self, resolution, periodic_elements):
         self.uxds[data_var].to_polycollection()
+
+
+class DualMesh:
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution):
+        del self.uxds
+
+    def time_dual_mesh_construction(self, resolution):
+        self.uxds.uxgrid.
+        self.uxds.uxgrid.compute_dual(method="global")
