@@ -1034,7 +1034,7 @@ class UxDataArray(xr.DataArray):
                 "Zonal average computations are currently only supported for face-centered data variables."
             )
 
-        # Raise NotImplementedError for latitudes near the poles
+        # Raise RuntimeError for latitudes near the poles
         PRECISION_ERROR_MESSAGE = "The current query range has exceeded the requirements of our safe error tolerance limit and will encounter floating point errors. This operation is not yet supported due to the precision issues of float64 near the poles."
         if isinstance(lat, tuple):
             start_lat, end_lat, step_size = lat
