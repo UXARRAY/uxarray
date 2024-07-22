@@ -999,16 +999,17 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 5)):
+    def zonal_mean(self, lat_deg=(-90, 90, 5)):
         """Computes the Zonal Mean for face-centered data. The zonal average
         can be computed over a range of latitudes with a specified step size,
         or for a single latitude.
 
         Parameters
         ----------
-        lat : tuple or float, default=(-90, 90, 5)
+        lat_deg : tuple or float, default=(-90, 90, 5)
+            Latitude values in degrees for which to compute the zonal average.
             If a tuple, it should contain the start, end, and step size of the latitude range
-            to compute the zonal average. The range of latitudes is [start_lat, end_lat] inclusive.
+            to compute the zonal average. The range of latitudes is [start_lat_deg, end_lat_deg] inclusive.
             If a single float, the zonal average is computed for that specific latitude.
 
         Returns
@@ -1036,17 +1037,17 @@ class UxDataArray(xr.DataArray):
 
         # Raise RuntimeError for latitudes near the poles
         PRECISION_ERROR_MESSAGE = "The current query range has exceeded the requirements of our safe error tolerance limit and will encounter floating point errors. This operation is not yet supported due to the precision issues of float64 near the poles."
-        if isinstance(lat, tuple):
-            start_lat, end_lat, step_size = lat
+        if isinstance(lat_deg, tuple):
+            start_lat_deg, end_lat_deg, step_size_deg = lat_deg
             if (
-                89 < start_lat < 90
-                or 89 < end_lat < 90
-                or -90 < start_lat < -89
-                or -90 < end_lat < -89
+                89 < start_lat_deg < 90
+                or 89 < end_lat_deg < 90
+                or -90 < start_lat_deg < -89
+                or -90 < end_lat_deg < -89
             ):
                 raise RuntimeError(PRECISION_ERROR_MESSAGE)
         else:
-            if 89 < lat < 90 or -90 < lat < -89:
+            if 89 < lat_deg < 90 or -90 < lat_deg < -89:
                 raise RuntimeError(PRECISION_ERROR_MESSAGE)
 
         # Get the data, face bounds, face node connectivity, and whether the faces are latlon
@@ -1065,34 +1066,34 @@ class UxDataArray(xr.DataArray):
         )
 
         # If lat is a tuple, compute the zonal average for the given range of latitudes
-        if isinstance(lat, tuple):
-            start_lat, end_lat, step_size = lat
+        if isinstance(lat_deg, tuple):
+            start_lat_deg, end_lat_deg, step_size_deg = lat_deg
             # Call the function and get both latitudes and zonal means
             latitudes, _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
                 face_edges_cart,
                 face_bounds,
                 data,
-                start_lat,
-                end_lat,
-                step_size,
+                start_lat_deg,
+                end_lat_deg,
+                step_size_deg,
                 is_latlonface=is_latlonface,
             )
         # If lat is a single value, compute the zonal average for that latitude
         else:
             _zonal_avg_res = _non_conservative_zonal_mean_constant_one_latitude(
-                face_edges_cart, face_bounds, data, lat, is_latlonface=is_latlonface
+                face_edges_cart, face_bounds, data, lat_deg, is_latlonface=is_latlonface
             )
-            latitudes = [lat]
+            latitudes = [lat_deg]
 
         # Set the dimension of the result
-        dims = list(self.dims[:-1]) + ["latitude"]
+        dims = list(self.dims[:-1]) + ["latitude_deg"]
 
         # Result is stored and returned as a UxDataArray
         uxda = UxDataArray(
             _zonal_avg_res,
             uxgrid=self.uxgrid,
             dims=dims,
-            coords={"latitude": latitudes},
+            coords={"latitude_deg": latitudes},
             name=self.name + "_zonal_average"
             if self.name is not None
             else "zonal_average",

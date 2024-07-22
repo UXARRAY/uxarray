@@ -45,7 +45,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     face_edges_cart: np.ndarray,
     face_bounds: np.ndarray,
     face_data: np.ndarray,
-    constLat: float,
+    constLat_deg: float,
     is_latlonface=False,
 ) -> float:
     """Helper function for _non_conservative_zonal_mean_constant_latitudes.
@@ -59,7 +59,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(
         The latitude and longitude bounds of the faces in radians.
     face_data : np.ndarray, shape (..., n_face)
         The data on the faces.
-    constLat : float
+    constLat_deg : float
         The constant latitude in degrees. Expected range is [-90, 90].
     is_latlonface : bool, optional
         A flag indicating if the current face is a latitudinal/longitudinal (latlon) face,
@@ -74,7 +74,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     """
 
     # Get the indices of the faces whose latitude bounds contain the constant latitude
-    constLat_rad = np.deg2rad(constLat)
+    constLat_rad = np.deg2rad(constLat_deg)
     candidate_faces_indices = _get_candidate_faces_at_constant_latitude(
         face_bounds, constLat_rad
     )
@@ -93,7 +93,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(
 
     weight_df = _get_zonal_faces_weight_at_constLat(
         candidate_face_edges_cart,
-        np.sin(np.deg2rad(constLat)),
+        np.sin(np.deg2rad(constLat_deg)),
         candidate_face_bounds,
         is_directed=False,
         is_latlonface=is_latlonface,
@@ -110,17 +110,19 @@ def _non_conservative_zonal_mean_constant_latitudes(
     face_edges_cart: np.ndarray,
     face_bounds: np.ndarray,
     face_data: np.ndarray,
-    start_lat: float,
-    end_lat: float,
-    step_size: float,
+    start_lat_deg: float,
+    end_lat_deg: float,
+    step_size_deg: float,
     is_latlonface=False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Calculate the zonal mean of the data from start_lat to end_lat degrees
-    latitude, with a given step size. The range of latitudes is [start_lat,
-    end_lat] inclusive. The step size can be positive or negative. If the step
-    size is positive and start_lat > end_lat, the function will return an empty
-    array. Similarly, if the step size is negative and start_lat < end_lat, the
-    function will return an empty array.
+    """Calculate the zonal mean of the data from start_lat_deg to end_lat_deg
+    degrees latitude, with a given step size. The range of latitudes is.
+
+    [start_lat_deg, end_lat_deg] inclusive. The step size can be positive or
+    negative. If the step size is positive and start_lat_deg > end_lat_deg, the
+    function will return an empty array. Similarly, if the step size is
+    negative and start_lat_deg < end_lat_deg, the function will return an empty
+    array.
 
     Parameters
     ----------
@@ -130,11 +132,11 @@ def _non_conservative_zonal_mean_constant_latitudes(
         The latitude and longitude bounds of the faces.
     face_data : np.ndarray, shape (..., n_face)
         The data on the faces. It may have multiple non-grid dimensions (e.g., time, level).
-    start_lat : float
+    start_lat_deg : float
         The starting latitude in degrees. Expected range is [-90, 90].
-    end_lat : float
+    end_lat_deg : float
         The ending latitude in degrees. Expected range is [-90, 90].
-    step_size : float
+    step_size_deg : float
         The step size in degrees for the latitude.
     is_latlonface : bool, optional
         A flag indicating if the current face is a latitudinal/longitudinal (latlon) face,
@@ -146,9 +148,9 @@ def _non_conservative_zonal_mean_constant_latitudes(
     -------
     tuple
         A tuple containing:
-        - np.ndarray: The latitudes used in the range [start_lat to end_lat] with the given step size.
-        - np.ndarray: The zonal mean of the data from start_lat to end_lat degrees latitude, with a step size of step_size. The shape of the output array is [..., n_latitudes]
-        where n_latitudes is the number of latitudes in the range [start_lat, end_lat] inclusive. If a latitude does not have any faces whose latitude bounds contain it, the zonal mean for that latitude will be NaN.
+        - np.ndarray: The latitudes used in the range [start_lat_deg to end_lat_deg] with the given step size.
+        - np.ndarray: The zonal mean of the data from start_lat_deg to end_lat_deg degrees latitude, with a step size of step_size_deg. The shape of the output array is [..., n_latitudes]
+        where n_latitudes is the number of latitudes in the range [start_lat_deg, end_lat_deg] inclusive. If a latitude does not have any faces whose latitude bounds contain it, the zonal mean for that latitude will be NaN.
 
     Raises
     ------
@@ -172,14 +174,14 @@ def _non_conservative_zonal_mean_constant_latitudes(
     ... ) # will return the zonal means for latitudes in [30, 20, 10, 0, -10]
     """
     # Check if the start latitude is within the range of [-90, 90]
-    if start_lat < -90 or start_lat > 90:
+    if start_lat_deg < -90 or start_lat_deg > 90:
         raise ValueError("The starting latitude must be within the range of [-90, 90].")
     # Check if the end latitude is within the range of [-90, 90]
-    if end_lat < -90 or end_lat > 90:
+    if end_lat_deg < -90 or end_lat_deg > 90:
         raise ValueError("The ending latitude must be within the range of [-90, 90].")
 
-    # Generate latitudes from start_lat to end_lat with the given step size, inclusive
-    latitudes = np.arange(start_lat, end_lat + step_size, step_size)
+    # Generate latitudes from start_lat_deg to end_lat_deg with the given step size, inclusive
+    latitudes = np.arange(start_lat_deg, end_lat_deg + step_size_deg, step_size_deg)
 
     # Initialize an empty list to store the zonal mean for each latitude
     zonal_means = []

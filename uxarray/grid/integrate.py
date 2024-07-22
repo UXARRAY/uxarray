@@ -57,14 +57,22 @@ def _get_zonal_faces_weight_at_constLat(
         - 'face_index': The index of the face (integer).
         - 'weight': The calculated weight of the face in radian (float).
         The DataFrame is indexed by the face indices, providing a mapping from each face to its corresponding weight.
+
+    Notes
+    -----
+    Special handling is implemented for the cases when the latitude_cart is close to 1 or -1,
+    which corresponds to the poles (90 and -90 degrees). In these cases, if a pole point is
+    inside a face, that face's value is the only value that should be considered. If the pole
+    point is not inside any face, it lies on the boundary of surrounding faces, and their weights
+    are considered evenly since they only contain points rather than intervals.
+    This treatment is hard-coded in the function and should be tested with appropriate test cases.
     """
 
-    # Special case if the latitude_cart = 1 or -1, meaning right at the pole
-    # TODO: Add documentation here, saying the -90 and 90 treament is hard-coded in the function, so it should be fine.
-    # It's based on: if a pole point is inside a face, then this face's value is the only value that should be considered.
-    # If the pole point is not inside any face, then its on the boundary of faces around it, so their weights are even
-    # since they don't have interval but only points.
-    # Also add a testcase for it in the test_get_zonal_faces_weight_at_constLat
+    # Special case if the latitude_cart is 1 or -1, meaning right at the pole
+    # If the latitude_cart is close to 1 or -1 (indicating the pole), handle it separately.
+    # The -90 and 90 treatment is hard-coded in the function, based on:
+    # If a pole point is inside a face, then this face's value is the only value that should be considered.
+    # If the pole point is not inside any face, then it's on the boundary of faces around it, so their weights are even.
     if np.isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or np.isclose(
         latitude_cart, -1, atol=ERROR_TOLERANCE
     ):
