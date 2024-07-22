@@ -200,6 +200,7 @@ class TestZonalFunctions(TestCase):
         res_n90 = uxds['psi'].zonal_mean(90)
         res_p90 = uxds['psi'].zonal_mean(-90)
         # make sure the outputs are within 1 of 2
+        # TODO: What is the ground truth for this zonal mean? AssertionError: 0.9145375250498399 != 2 within 1 delta (1.0854624749501602 difference)
         self.assertAlmostEqual(res_n90.values[0], 2, delta=1)
         self.assertAlmostEqual(res_p90.values[0], 2, delta=1)
 
