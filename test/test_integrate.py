@@ -711,30 +711,6 @@ class TestFaceWeights(TestCase):
         self.assertFalse(weight_df.isnull().values.any())
 
 
-    def test_get_zonal_faces_weight_at_constLat_near_pole2(self):
-        # TODO: this test is not doing anything, remove?
-        # Corrected face_edges_cart
-        face_edges_cart = np.array([
-            [[-4.39104682e-02, -5.44113714e-01, -8.37861645e-01], [-4.53397938e-02, -4.99485811e-01, -8.65134803e-01]],
-            [[-4.53397938e-02, -4.99485811e-01, -8.65134803e-01], [3.06161700e-17, -5.00000000e-01, -8.66025404e-01]],
-            [[3.06161700e-17, -5.00000000e-01, -8.66025404e-01], [3.33495225e-17, -5.44639035e-01, -8.38670568e-01]],
-            [[3.33495225e-17, -5.44639035e-01, -8.38670568e-01], [-4.39104682e-02, -5.44113714e-01, -8.37861645e-01]]
-        ])
-
-        # Convert the face vertices to latlon coordinates using the _xyz_to_lonlat_rad function
-        face_edges_lonlat = np.array([[_xyz_to_lonlat_rad(*v) for v in face] for face in face_edges_cart])
-
-        # Corrected face_bounds
-        face_bounds = np.array([[-1.04719755, -0.99335412], [4.62186413, 4.71238898]])
-
-        constLat_cart = -0.8660254037844386
-        constLat_rad = np.arcsin(constLat_cart)
-        constLat_deg = np.rad2deg(constLat_rad)
-
-        weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
-        pass
-
-
     def test_get_zonal_faces_weight_at_constLat_latlonface(self):
         face_0 = [[np.deg2rad(350), np.deg2rad(40)], [np.deg2rad(350), np.deg2rad(20)],
                   [np.deg2rad(10), np.deg2rad(20)], [np.deg2rad(10), np.deg2rad(40)]]
