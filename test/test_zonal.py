@@ -5,6 +5,7 @@ from unittest import TestCase
 from unittest.mock import patch
 import numpy.testing as nt
 from uxarray.core.zonal import _get_candidate_faces_at_constant_latitude, _non_conservative_zonal_mean_constant_one_latitude
+from uxarray.constants import ERROR_TOLERANCE
 import os
 from pathlib import Path
 
@@ -169,6 +170,22 @@ class TestZonalFunctions(TestCase):
         #Test everything away from the pole
         res = uxds['psi'].zonal_mean((-89,89,0.1))
         print(res)
+
+    def test_non_conservative_zonal_mean_outCSne30_equator(self):
+        """Test _non_conservative_zonal_mean function with outCSne30 data.
+
+        Dummy test to make sure the function runs without errors.
+        """
+        # Create test data
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        #Test everything away from the pole
+        res = uxds['psi'].zonal_mean(0)
+
+        # Assert res.values[0] should be around 1 within ERROR_TOLERANCE
+        self.assertAlmostEqual(res.values[0], 1, delta=ERROR_TOLERANCE)
 
 
     def test_non_conservative_zonal_mean_outCSne30(self):
