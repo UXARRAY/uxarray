@@ -402,7 +402,7 @@ class UxDataArray(xr.DataArray):
     def topological_mean(
         self,
         destination: Literal["node", "edge", "face"],
-        connectivity_chunks='auto',
+        connectivity_chunks="auto",
         **kwargs,
     ):
         """Performs a topological mean aggregation.
@@ -442,7 +442,9 @@ class UxDataArray(xr.DataArray):
         reduced: UxDataArray
             New UxDataArray with ``mean`` applied to its data.
         """
-        return _uxda_grid_aggregate(self, destination, "mean", connectivity_chunks, **kwargs)
+        return _uxda_grid_aggregate(
+            self, destination, "mean", connectivity_chunks, **kwargs
+        )
 
     def topological_min(
         self,

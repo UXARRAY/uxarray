@@ -18,7 +18,10 @@ NUMPY_AGGREGATIONS = {
     "any": np.any,
 }
 
-def _uxda_grid_aggregate(uxda, destination, aggregation, connectivity_chunks='auto', **kwargs):
+
+def _uxda_grid_aggregate(
+    uxda, destination, aggregation, connectivity_chunks="auto", **kwargs
+):
     """Applies a desired aggregation on the data stored in the provided
     UxDataArray."""
     if destination is None:
@@ -29,9 +32,13 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, connectivity_chunks='au
     if uxda._node_centered():
         # aggregation of a node-centered data variable
         if destination == "face":
-            return _node_to_face_aggregation(uxda, aggregation, connectivity_chunks, kwargs)
+            return _node_to_face_aggregation(
+                uxda, aggregation, connectivity_chunks, kwargs
+            )
         elif destination == "edge":
-            return _node_to_edge_aggregation(uxda, aggregation, connectivity_chunks, kwargs)
+            return _node_to_edge_aggregation(
+                uxda, aggregation, connectivity_chunks, kwargs
+            )
         else:
             raise ValueError(
                 f"Invalid destination for a node-centered data variable. Expected"
@@ -69,7 +76,9 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, connectivity_chunks='au
         )
 
 
-def _node_to_face_aggregation(uxda, aggregation, connectivity_chunks, aggregation_func_kwargs):
+def _node_to_face_aggregation(
+    uxda, aggregation, connectivity_chunks, aggregation_func_kwargs
+):
     """Applies a Node to Face Topological aggregation."""
     if not uxda._node_centered():
         raise ValueError(
@@ -101,7 +110,9 @@ def _node_to_face_aggregation(uxda, aggregation, connectivity_chunks, aggregatio
 
 
 def _apply_node_to_face_aggregation_numpy(
-    uxda, aggregation_func, aggregation_func_kwargs,
+    uxda,
+    aggregation_func,
+    aggregation_func_kwargs,
 ):
     """Applies a Node to Face Topological aggregation on a Numpy array."""
     data = uxda.values
@@ -133,7 +144,10 @@ def _apply_node_to_face_aggregation_numpy(
 
 
 def _apply_node_to_face_aggregation_dask(
-    uxda,  aggregation_name, aggregation_func_kwargs, connectivity_chunks,
+    uxda,
+    aggregation_name,
+    aggregation_func_kwargs,
+    connectivity_chunks,
 ):
     """Applies a Node to Face Topological aggregation on a Dask array."""
 
@@ -147,9 +161,6 @@ def _apply_node_to_face_aggregation_dask(
         element_sizes,
         size_counts,
     ) = get_face_node_partitions(n_nodes_per_face)
-
-
-
 
     # create an empty dask array to store the result
     result = da.empty(shape=(data.shape[:-1]) + (uxda.uxgrid.n_face,))
