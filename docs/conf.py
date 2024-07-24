@@ -200,10 +200,10 @@ autodoc_typehints = "none"
 
 # notebooks to exclude from run-time execution, will use rendered version
 nb_execution_excludepatterns = [
-    "3_75km_mpas.ipynb",
-    "e3sm-calc-workflow.ipynb",
-    "e3sm-load-viz.ipynb",
-    "parallel-load-ux-with-dask.ipynb",
+    "examples/visualization/3_75km_mpas.ipynb",
+    "examples/e3sm-calc-workflow.ipynb",
+    "examples/e3sm-load-viz.ipynb",
+    "user-guide/parallel-load-ux-with-dask.ipynb",
 ]
 
 
