@@ -977,4 +977,4 @@ class TestDualMesh(TestCase):
         assert dual.n_max_face_nodes == mpas_dual.n_max_face_nodes
 
         # Assert the faces are the same
-        assert dual.face_node_connectivity.all() == mpas_dual.face_node_connectivity.all()
+        nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
