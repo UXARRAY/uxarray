@@ -33,6 +33,8 @@ gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "gri
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
 gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
+gridfile_geos = current_path / 'meshfiles' / "geos-cs" / "c12" / 'test-c12.native.nc4'
+
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
@@ -962,6 +964,15 @@ class TestLatlonBounds(TestCase):
 
 class TestDualMesh(TestCase):
     """Test Dual Mesh Construction."""
+
+    def test_remove_duplicate_nodes(self):
+        grid = ux.open_grid(gridfile_geos)
+
+        new_grid = grid.merge_duplicate_node_indices()
+
+        pass
+
+
 
     def test_dual_mesh_mpas(self):
         # Open a grid with and without dual

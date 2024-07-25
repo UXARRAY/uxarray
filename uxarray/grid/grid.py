@@ -342,6 +342,63 @@ class Grid:
         else:
             raise RuntimeError("Mesh validation failed.")
 
+    def merge_duplicate_node_indices(self):
+        from uxarray.grid.validation import _find_duplicate_nodes
+        from uxarray.conventions import ugrid
+
+        duplicate_node_dict = _find_duplicate_nodes(self)
+
+        node_conn_names = [
+            "face_node_connectivity",
+            "edge_node_connectivity",
+            "node_node_connectivity",
+        ]
+
+        # if inplace:
+        #
+        #     if len(duplicate_node_dict) == 0:
+        #         return
+        #
+        #     for conn_name in node_conn_names:
+        #         if conn_name in self._ds:
+        #             corrected_conn = _merge_duplicate_node_indices_on_connectivity(self._ds[conn_name].values, duplicate_node_dict)
+        #             self._ds[conn_name].values = corrected_conn
+
+        # not in place, return a new grid
+        if len(duplicate_node_dict) == 0:
+            # TODO
+            return self
+
+        grid_from_topo_kwargs = {}
+
+        new_conn = copy.deepcopy(self.face_node_connectivity.values).ravel()
+
+        for idx, item in enumerate(new_conn):
+            if item in duplicate_node_dict:
+                # O(1)
+                new_conn[idx] = duplicate_node_dict[item]
+
+        new_conn = new_conn.reshape(self.face_node_connectivity.values.shape)
+
+        grid_from_topo_kwargs["face_node_connectivity"] = new_conn
+
+        # for conn_name in node_conn_names:
+        #     if conn_name in self._ds:
+        #         corrected_conn = _merge_duplicate_node_indices_on_connectivity(self._ds[conn_name].values,
+        #                                                                        duplicate_node_dict)
+        #         grid_from_topo_kwargs[conn_name] = corrected_conn
+
+        for coord_name in ugrid.SPHERICAL_COORD_NAMES + ugrid.CARTESIAN_COORD_NAMES:
+            if coord_name in self._ds:
+                grid_from_topo_kwargs[coord_name] = self._ds[coord_name].values
+
+        for conn_name in ugrid.CONNECTIVITY_NAMES:
+            if conn_name in self._ds and conn_name not in node_conn_names:
+                grid_from_topo_kwargs[conn_name] = self._ds[conn_name].values
+
+        # changed from self
+        return ux.Grid.from_topology(**grid_from_topo_kwargs)
+
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
@@ -1424,10 +1481,6 @@ class Grid:
             # If we have less than 3 edges, we can't construct anything but a line
             if n_edges < 3:
                 continue
-
-            # Initialize our face objects, one to hold the unordered faces, one to hold the correctly ordered faces
-            # face = Face(n_edges)
-            # face_temp = Face(n_edges)
 
             from uxarray.constants import INT_DTYPE
 

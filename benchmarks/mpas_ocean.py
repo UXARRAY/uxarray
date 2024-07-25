@@ -128,5 +128,4 @@ class DualMesh:
         del self.uxds
 
     def time_dual_mesh_construction(self, resolution):
-        self.uxds.uxgrid.
         self.uxds.uxgrid.compute_dual(method="global")
