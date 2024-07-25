@@ -82,6 +82,7 @@ def _find_duplicate_nodes(grid):
             occurrences[tpl].append((INT_DTYPE(index)))
         else:
             occurrences[tpl] = [INT_DTYPE(index)]
+
     duplicate_dict = {}
 
     for tpl, indices in occurrences.items():

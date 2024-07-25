@@ -341,56 +341,15 @@ def _build_node_faces_connectivity(face_nodes, n_node):
         if len(face_indicies) > n_max_node_faces:
             n_max_node_faces = len(face_indicies)
 
-    node_face_connectivity = np.full((n_node, n_max_node_faces), INT_FILL_VALUE)
+    node_face_connectivity = np.full(
+        (n_node, n_max_node_faces), INT_FILL_VALUE, dtype=INT_DTYPE
+    )
 
     for node_idx, face_indices in enumerate(node_face_conn.values()):
         n_faces = len(face_indices)
         node_face_connectivity[node_idx, 0:n_faces] = face_indices
 
     return node_face_connectivity, n_max_node_faces
-
-    # # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
-    # # indexes (similar to an adjacency matrix)
-    # face_indices, node_indices, non_filled_element_flags = _face_nodes_to_sparse_matrix(
-    #     face_nodes
-    # )
-    # coo_matrix = sparse.coo_matrix(
-    #     (non_filled_element_flags, (node_indices, face_indices))
-    # )
-    # csr_matrix = coo_matrix.tocsr()
-    # # get the row and column indices of the non-zero elements
-    # rows, cols = csr_matrix.nonzero()
-    # # Find the frequency of each face to determine the maximum number of faces per node
-    # freq = np.bincount(rows)
-    # nMaxNumFacesPerNode = freq.max()
-    #
-    # node_face_connectivity = [[]] * n_node
-    #
-    # # find the indices where the array changes value
-    # change_indices = np.where(np.diff(rows) != 0)[0] + 1
-    #
-    # # split the array at the change indices to get subarrays of consecutive same elements
-    # subarrays = np.split(rows, change_indices)
-    #
-    # # get the start and end indices for each subarray
-    # start_indices = np.cumsum([0] + [len(subarray) for subarray in subarrays[:-1]])
-    # end_indices = np.cumsum([len(subarray) for subarray in subarrays]) - 1
-    #
-    # for node_index in range(n_node):
-    #     node_face_connectivity[node_index] = cols[
-    #         start_indices[node_index] : end_indices[node_index] + 1
-    #     ]
-    #     if len(node_face_connectivity[node_index]) < nMaxNumFacesPerNode:
-    #         node_face_connectivity[node_index] = np.append(
-    #             node_face_connectivity[node_index],
-    #             np.full(
-    #                 nMaxNumFacesPerNode - len(node_face_connectivity[node_index]),
-    #                 INT_FILL_VALUE,
-    #                 dtype=INT_DTYPE,
-    #             ),
-    #         )
-    #
-    # return node_face_connectivity, nMaxNumFacesPerNode
 
 
 def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:

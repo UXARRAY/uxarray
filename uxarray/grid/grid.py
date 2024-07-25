@@ -343,61 +343,64 @@ class Grid:
             raise RuntimeError("Mesh validation failed.")
 
     def merge_duplicate_node_indices(self):
-        from uxarray.grid.validation import _find_duplicate_nodes
-        from uxarray.conventions import ugrid
+        from uxarray.grid.validation import (
+            _find_duplicate_nodes,
+            _merge_duplicate_node_indices_on_connectivity,
+        )
 
-        duplicate_node_dict = _find_duplicate_nodes(self)
+        # create a dictionary of duplicate node indices
+        duplicate_node_indices = _find_duplicate_nodes(self)
 
-        node_conn_names = [
-            "face_node_connectivity",
-            "edge_node_connectivity",
-            "node_node_connectivity",
-        ]
+        new_face_node_connectivity = _merge_duplicate_node_indices_on_connectivity(
+            self.face_node_connectivity.values, duplicate_node_indices
+        )
 
-        # if inplace:
+        # new_face_node_connectivity = self.face_node_connectivity.values.copy().ravel()
         #
-        #     if len(duplicate_node_dict) == 0:
-        #         return
+        # for idx, item in enumerate(new_face_node_connectivity):
+        #     if item in duplicate_node_indices:
+        #         new_face_node_connectivity[idx] = duplicate_node_indices[item]
         #
-        #     for conn_name in node_conn_names:
-        #         if conn_name in self._ds:
-        #             corrected_conn = _merge_duplicate_node_indices_on_connectivity(self._ds[conn_name].values, duplicate_node_dict)
-        #             self._ds[conn_name].values = corrected_conn
+        # new_face_node_connectivity = new_face_node_connectivity.reshape((self.n_face, self.n_max_face_nodes))
 
-        # not in place, return a new grid
-        if len(duplicate_node_dict) == 0:
-            # TODO
-            return self
+        # grid_from_topo_kwargs = {}
 
-        grid_from_topo_kwargs = {}
+        return ux.Grid.from_topology(
+            self.node_lon.values, self.node_lat.values, new_face_node_connectivity
+        )
 
-        new_conn = copy.deepcopy(self.face_node_connectivity.values).ravel()
+        # grid_from_topo_kwargs = {}
+        #
+        # new_conn = copy.deepcopy(self.face_node_connectivity.values).ravel()
+        #
+        # for idx, item in enumerate(new_conn):
+        #     if item in duplicate_node_dict:
+        #         # O(1)
+        #         new_conn[idx] = duplicate_node_dict[item]
+        #
+        # new_conn = new_conn.reshape(self.face_node_connectivity.values.shape)
+        #
+        # self._ds['face_node_connectivity'].data = new_conn
 
-        for idx, item in enumerate(new_conn):
-            if item in duplicate_node_dict:
-                # O(1)
-                new_conn[idx] = duplicate_node_dict[item]
-
-        new_conn = new_conn.reshape(self.face_node_connectivity.values.shape)
-
-        grid_from_topo_kwargs["face_node_connectivity"] = new_conn
+        #
+        # grid_from_topo_kwargs["face_node_connectivity"] = new_conn
 
         # for conn_name in node_conn_names:
         #     if conn_name in self._ds:
         #         corrected_conn = _merge_duplicate_node_indices_on_connectivity(self._ds[conn_name].values,
         #                                                                        duplicate_node_dict)
         #         grid_from_topo_kwargs[conn_name] = corrected_conn
-
-        for coord_name in ugrid.SPHERICAL_COORD_NAMES + ugrid.CARTESIAN_COORD_NAMES:
-            if coord_name in self._ds:
-                grid_from_topo_kwargs[coord_name] = self._ds[coord_name].values
-
-        for conn_name in ugrid.CONNECTIVITY_NAMES:
-            if conn_name in self._ds and conn_name not in node_conn_names:
-                grid_from_topo_kwargs[conn_name] = self._ds[conn_name].values
-
-        # changed from self
-        return ux.Grid.from_topology(**grid_from_topo_kwargs)
+        #
+        # for coord_name in ugrid.SPHERICAL_COORD_NAMES + ugrid.CARTESIAN_COORD_NAMES:
+        #     if coord_name in self._ds:
+        #         grid_from_topo_kwargs[coord_name] = self._ds[coord_name].values
+        #
+        # for conn_name in ugrid.CONNECTIVITY_NAMES:
+        #     if conn_name in self._ds and conn_name not in node_conn_names:
+        #         grid_from_topo_kwargs[conn_name] = self._ds[conn_name].values
+        #
+        # # changed from self
+        # return self.from_topology(**grid_from_topo_kwargs)
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
@@ -1594,7 +1597,7 @@ class Grid:
             )
 
         # Construct dual mesh
-        dual = ux.Grid.from_topology(
+        dual = self.from_topology(
             self.face_lon.values, self.face_lat.values, node_face_connectivity
         )
 
@@ -1677,22 +1680,3 @@ def _set_node(edges, ix_local, ix_node):
 
     ix_prev = (ix_local + n_edges - 1) % n_edges
     edges[ix_prev][1] = ix_node
-
-
-class Face:
-    """Initialize the edges for the face."""
-
-    def __init__(self, edge_count=0):
-        self.edges = [[None, None] for _ in range(edge_count)]
-
-    def __getitem__(self, ix):
-        return self.edges[ix][0]
-
-    """Function for setting a node, and when setting it constructs an edge"""
-
-    def set_node(self, ix_local, ix_node):
-        n_edges = len(self.edges)
-        self.edges[ix_local][0] = ix_node
-
-        ix_prev = (ix_local + n_edges - 1) % n_edges
-        self.edges[ix_prev][1] = ix_node
