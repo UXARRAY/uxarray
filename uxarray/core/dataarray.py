@@ -437,7 +437,7 @@ class UxDataArray(xr.DataArray):
             total_weight = weights.sum()
 
             # compute weighted mean #assumption on index of dimension (last one is geometry)
-            weighted_mean = (self * weights).sum(axis=-1) / total_weight
+            weighted_mean = (self * weights).sum(dim=grid_dim) / total_weight
 
             # create a UxDataArray and return it
             return UxDataArray(weighted_mean, uxgrid=self.uxgrid)
