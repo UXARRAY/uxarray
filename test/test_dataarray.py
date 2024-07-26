@@ -68,7 +68,7 @@ class TestGeometryConversions(TestCase):
             uxds_geoflow['v1'].to_polycollection()
 
         # grid conversion
-        pc_geoflow_grid, _ = uxds_geoflow.uxgrid.to_polycollection()
+        pc_geoflow_grid = uxds_geoflow.uxgrid.to_polycollection(periodic_elements='split')
 
         polygon_shells = _build_polygon_shells(
             uxds_geoflow.uxgrid.node_lon.values,
@@ -95,7 +95,7 @@ class TestGeometryConversions(TestCase):
         corrected_polygon_shells, _ = _build_corrected_polygon_shells(
             polygon_shells)
 
-        pc_geoflow_data, _ = uxds_ne30['psi'].to_polycollection()
+        pc_geoflow_data = uxds_ne30['psi'].to_polycollection(periodic_elements='split')
 
         assert len(pc_geoflow_data._paths) == len(corrected_polygon_shells)
 
