@@ -418,11 +418,11 @@ class UxDataArray(xr.DataArray):
             if self._face_centered():
                 grid_dim = "n_face"
                 # use face areas as weight
-                weights = self.uxgrid.face_areas
+                weights = da.from_array(self.uxgrid.face_areas.values)
             elif self._edge_centered():
                 grid_dim = "n_edge"
                 # use edge magnitude as weight
-                weights = self.uxgrid.edge_node_distances
+                weights = da.from_array(self.uxgrid.edge_node_distances.values)
             else:
                 # apply regular Xarray mean
                 warnings.warn(
