@@ -198,6 +198,7 @@ def _nearest_neighbor_uxda(
     uxda_remap = uxarray.core.dataarray.UxDataArray(
         data=destination_data,
         name=source_uxda.name,
+        coords=source_uxda.coords,
         dims=destination_dims,
         uxgrid=destination_grid,
     )
