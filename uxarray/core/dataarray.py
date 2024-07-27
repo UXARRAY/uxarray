@@ -128,6 +128,12 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
+    def from_xarray(self, data_array, uxgrid):
+        """Take a ``xarray.DataArray`` and convert it to a
+        ``uxarray.UxDataArray``"""
+
+        pass
+
     def to_geodataframe(self, override=False, cache=True, exclude_antimeridian=False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -398,6 +404,42 @@ class UxDataArray(xr.DataArray):
         )
 
         return self.topological_mean(destination="face")
+
+    # weighted_mean()
+    # .weighted.mean()
+    # weights are only on grid - not supporting custom weights for now 
+    def mean(self, dim=None, *, skipna=None, keep_attrs=None, weighted=False, **kwargs):
+        if weighted:
+            if self._face_centered():
+                grid_dim = "n_face"
+                # use face areas as weight
+                weights = da.from_array(self.uxgrid.face_areas.values)
+            elif self._edge_centered():
+                grid_dim = "n_edge"
+                # use edge magnitude as weight
+                weights = da.from_array(self.uxgrid.edge_node_distances.values)
+            else:
+                # apply regular Xarray mean
+                warnings.warn(
+                    "Attempting to perform a weighted mean calculation on a variable that does not have"
+                    "associated weights. Weighted mean is only supported for face or edge centered "
+                    "variables. Performing an unweighted mean."
+                )
+
+                return super().mean(dim=dim, skipna=skipna, keep_attrs=keep_attrs, **kwargs)
+
+            # compute the total weight
+            total_weight = weights.sum()
+
+            # compute weighted mean #assumption on index of dimension (last one is geometry)
+            weighted_mean = (self * weights).sum(dim=grid_dim) / total_weight
+
+            # create a UxDataArray and return it
+            return UxDataArray(weighted_mean, uxgrid=self.uxgrid)
+
+        else:
+            # apply regular Xarray mean
+            return super().mean(dim=None, skipna=None, keep_attrs=None, **kwargs)
 
     def topological_mean(
         self,

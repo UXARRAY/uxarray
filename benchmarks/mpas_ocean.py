@@ -98,10 +98,27 @@ class ConnectivityConstruction:
 
     def time_n_nodes_per_face(self, resolution):
         self.uxds.uxgrid.n_nodes_per_face
-
+        
     def time_face_face_connectivity(self, resolution):
         ux.grid.connectivity._populate_face_face_connectivity(self.uxds.uxgrid)
 
+
+class WeightedMean:
+
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        _ = self.uxds.uxgrid.face_areas
+        _ = self.uxds.uxgrid.edge_node_distances
+
+    def teardown(self, resolution):
+        del self.uxds
+
+
+    def time_weighted_mean_face_centered(self, resolution):
+        self.uxds['bottomDepth'].mean(weighted=True)
 
 class MatplotlibConversion:
     param_names = ['resolution', 'periodic_elements']
@@ -115,3 +132,4 @@ class MatplotlibConversion:
 
     def time_dataarray_to_polycollection(self, resolution, periodic_elements):
         self.uxds[data_var].to_polycollection()
+
