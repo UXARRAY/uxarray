@@ -68,6 +68,12 @@ from uxarray.grid.validation import (
     _check_area,
 )
 
+from uxarray.grid.validation import (
+    _find_duplicate_nodes,
+    _merge_duplicate_node_indices_on_connectivity,
+)
+from uxarray.conventions import ugrid
+
 from uxarray.constants import INT_FILL_VALUE
 
 from xarray.core.utils import UncachedAccessor
@@ -342,65 +348,53 @@ class Grid:
         else:
             raise RuntimeError("Mesh validation failed.")
 
-    def merge_duplicate_node_indices(self):
-        from uxarray.grid.validation import (
-            _find_duplicate_nodes,
-            _merge_duplicate_node_indices_on_connectivity,
-        )
-
+    def merge_duplicate_node_indices(self, inplace=True):
         # create a dictionary of duplicate node indices
         duplicate_node_indices = _find_duplicate_nodes(self)
 
-        new_face_node_connectivity = _merge_duplicate_node_indices_on_connectivity(
-            self.face_node_connectivity.values, duplicate_node_indices
-        )
+        node_conn_names = [
+            "face_node_connectivity",
+            "edge_node_connectivity",
+            "node_node_connectivity",
+        ]
 
-        # new_face_node_connectivity = self.face_node_connectivity.values.copy().ravel()
-        #
-        # for idx, item in enumerate(new_face_node_connectivity):
-        #     if item in duplicate_node_indices:
-        #         new_face_node_connectivity[idx] = duplicate_node_indices[item]
-        #
-        # new_face_node_connectivity = new_face_node_connectivity.reshape((self.n_face, self.n_max_face_nodes))
+        if inplace:
+            if len(duplicate_node_indices) == 0:
+                return
 
-        # grid_from_topo_kwargs = {}
+            for conn_name in node_conn_names:
+                if conn_name in self._ds:
+                    corrected_conn = _merge_duplicate_node_indices_on_connectivity(
+                        self._ds[conn_name].values, duplicate_node_indices
+                    )
+                    self._ds[conn_name].values = corrected_conn
 
-        return ux.Grid.from_topology(
-            self.node_lon.values, self.node_lat.values, new_face_node_connectivity
-        )
+            return
 
-        # grid_from_topo_kwargs = {}
-        #
-        # new_conn = copy.deepcopy(self.face_node_connectivity.values).ravel()
-        #
-        # for idx, item in enumerate(new_conn):
-        #     if item in duplicate_node_dict:
-        #         # O(1)
-        #         new_conn[idx] = duplicate_node_dict[item]
-        #
-        # new_conn = new_conn.reshape(self.face_node_connectivity.values.shape)
-        #
-        # self._ds['face_node_connectivity'].data = new_conn
+        else:
+            # not in place, return a new grid
+            if len(duplicate_node_indices) == 0:
+                # TODO
+                return self
+            grid_from_topo_kwargs = {}
 
-        #
-        # grid_from_topo_kwargs["face_node_connectivity"] = new_conn
+            for conn_name in node_conn_names:
+                if conn_name in self._ds:
+                    corrected_conn = _merge_duplicate_node_indices_on_connectivity(
+                        self._ds[conn_name].values, duplicate_node_indices
+                    )
+                    grid_from_topo_kwargs[conn_name] = corrected_conn
 
-        # for conn_name in node_conn_names:
-        #     if conn_name in self._ds:
-        #         corrected_conn = _merge_duplicate_node_indices_on_connectivity(self._ds[conn_name].values,
-        #                                                                        duplicate_node_dict)
-        #         grid_from_topo_kwargs[conn_name] = corrected_conn
-        #
-        # for coord_name in ugrid.SPHERICAL_COORD_NAMES + ugrid.CARTESIAN_COORD_NAMES:
-        #     if coord_name in self._ds:
-        #         grid_from_topo_kwargs[coord_name] = self._ds[coord_name].values
-        #
-        # for conn_name in ugrid.CONNECTIVITY_NAMES:
-        #     if conn_name in self._ds and conn_name not in node_conn_names:
-        #         grid_from_topo_kwargs[conn_name] = self._ds[conn_name].values
-        #
-        # # changed from self
-        # return self.from_topology(**grid_from_topo_kwargs)
+            for coord_name in ugrid.SPHERICAL_COORD_NAMES + ugrid.CARTESIAN_COORD_NAMES:
+                if coord_name in self._ds:
+                    grid_from_topo_kwargs[coord_name] = self._ds[coord_name].values
+
+            for conn_name in ugrid.CONNECTIVITY_NAMES:
+                if conn_name in self._ds and conn_name not in node_conn_names:
+                    grid_from_topo_kwargs[conn_name] = self._ds[conn_name].values
+
+            # changed from self
+            return self.from_topology(**grid_from_topo_kwargs)
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
@@ -1528,57 +1522,6 @@ class Grid:
                     dual_node_z,
                 )
                 final_faces.append(_face)
-
-                # node_zero = node_0 - node_central
-                #
-                # node_cross = np.cross(node_0, node_central)
-                # node_zero_mag = np.linalg.norm(node_zero)
-                #
-                # d_angles = np.zeros(n_edges, dtype=np.float64)
-                # d_angles[0] = 0.0
-                # for j in range(1, n_edges):
-                #     if face_temp[j] is not None:
-                #         sub = np.array(
-                #             [
-                #                 dual_node_x[face_temp[j]],
-                #                 dual_node_y[face_temp[j]],
-                #                 dual_node_z[face_temp[j]],
-                #             ]
-                #         )
-                #         node_diff = sub - node_central
-                #         node_diff_mag = np.linalg.norm(node_diff)
-                #
-                #         d_side = np.dot(node_cross, node_diff)
-                #         d_dot_norm = np.dot(node_zero, node_diff) / (
-                #             node_zero_mag * node_diff_mag
-                #         )
-                #
-                #         if d_dot_norm > 1.0:
-                #             d_dot_norm = 1.0
-                #
-                #         d_angles[j] = np.arccos(d_dot_norm)
-                #
-                #         if d_side > 0.0:
-                #             d_angles[j] = -d_angles[j] + 2.0 * np.pi
-                #
-                # d_current_angle = 0.0
-                # face.set_node(0, face_temp[0])
-                #
-                # for j in range(1, n_edges):
-                #     ix_next_node = -1
-                #     d_next_angle = 2.0 * np.pi
-                #
-                #     for k in range(1, n_edges):
-                #         if d_current_angle < d_angles[k] < d_next_angle:
-                #             ix_next_node = k
-                #             d_next_angle = d_angles[k]
-                #
-                #     if ix_next_node == -1:
-                #         continue
-                #
-                #     face.set_node(j, face_temp[ix_next_node])
-                #     d_current_angle = d_next_angle
-                # final_faces.append(face.edges)
 
         # Empty array to hold `node_face_connectivity`
         node_face_connectivity = np.full(
