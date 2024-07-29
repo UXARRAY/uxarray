@@ -1,15 +1,17 @@
-DESCRIPTOR_NAMES = ["face_areas", "n_nodes_per_face", "edge_face_distances", "edge_node_distances"]
+DESCRIPTOR_NAMES = [
+    "face_areas",
+    "n_nodes_per_face",
+    "edge_face_distances",
+    "edge_node_distances",
+]
 
 
 FACE_AREAS_DIMS = ["n_face"]
 
-FACE_AREAS_ATTRS = {"cf_role": "face_areas",
-                    "long_name": "Area of each face."}
+FACE_AREAS_ATTRS = {"cf_role": "face_areas", "long_name": "Area of each face."}
 
 
 # TODO: add n_nodes_per_face
-
-
 
 
 EDGE_FACE_DISTANCES_DIMS = ["n_edge"]

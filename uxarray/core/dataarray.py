@@ -90,9 +90,6 @@ class UxDataArray(xr.DataArray):
             return f"<pre>{escape(repr(self))}</pre>"
         return array_repr(self)
 
-
-
-
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
         """Override to make the result a ``uxarray.UxDataArray`` class."""

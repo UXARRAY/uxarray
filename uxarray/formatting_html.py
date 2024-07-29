@@ -18,44 +18,62 @@ def _grid_header(grid, header_name=None):
 
     return header_components
 
+
 def _grid_sections(grid, max_items_collapse=15):
-    cartesian_coordinates = list([coord for coord in ugrid.CARTESIAN_COORDS if coord in grid._ds])
-    spherical_coordinates = list([coord for coord in ugrid.SPHERICAL_COORDS if coord in grid._ds])
-    descritor = list([desc for desc in descriptors.DESCRIPTOR_NAMES if desc in grid._ds])
+    cartesian_coordinates = list(
+        [coord for coord in ugrid.CARTESIAN_COORDS if coord in grid._ds]
+    )
+    spherical_coordinates = list(
+        [coord for coord in ugrid.SPHERICAL_COORDS if coord in grid._ds]
+    )
+    descritor = list(
+        [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in grid._ds]
+    )
     connectivity = grid.connectivity
 
     sections = [xrfm.dim_section(grid._ds)]
 
     if spherical_coordinates:
-        sections.append(grid_spherical_coordinates_section(grid._ds[spherical_coordinates],
-                                                           max_items_collapse=max_items_collapse,
-                                                           name='Spherical Coordinates'
-                                                           ))
+        sections.append(
+            grid_spherical_coordinates_section(
+                grid._ds[spherical_coordinates],
+                max_items_collapse=max_items_collapse,
+                name="Spherical Coordinates",
+            )
+        )
     if cartesian_coordinates:
-        sections.append(grid_cartesian_coordinates_section(grid._ds[cartesian_coordinates],
-                                                           max_items_collapse=max_items_collapse,
-                                                           name='Cartesian Coordinates',
-                                                           ))
+        sections.append(
+            grid_cartesian_coordinates_section(
+                grid._ds[cartesian_coordinates],
+                max_items_collapse=max_items_collapse,
+                name="Cartesian Coordinates",
+            )
+        )
 
-    sections.append(grid_connectivity_section(grid._ds[connectivity],
-                                              max_items_collapse=max_items_collapse,
-                                              name='Connectivity'
-                                              ))
+    sections.append(
+        grid_connectivity_section(
+            grid._ds[connectivity],
+            max_items_collapse=max_items_collapse,
+            name="Connectivity",
+        )
+    )
 
     if descritor:
-        sections.append(grid_descriptor_section(grid._ds[descritor],
-                                                max_items_collapse=max_items_collapse,
-                                                name="Descriptors"
-                                                ))
+        sections.append(
+            grid_descriptor_section(
+                grid._ds[descritor],
+                max_items_collapse=max_items_collapse,
+                name="Descriptors",
+            )
+        )
 
-    sections.append(grid_attr_section(grid._ds.attrs,
-                                      max_items_collapse=max_items_collapse,
-                                      name='Attributes'
-                                      ))
+    sections.append(
+        grid_attr_section(
+            grid._ds.attrs, max_items_collapse=max_items_collapse, name="Attributes"
+        )
+    )
 
     return sections
-
-
 
 
 def grid_repr(grid, max_items_collapse=15, header_name=None) -> str:
@@ -74,7 +92,6 @@ grid_spherical_coordinates_section = partial(
 
 grid_cartesian_coordinates_section = partial(
     xrfm._mapping_section,
-
     details_func=xrfm.summarize_vars,
     expand_option_name="display_expand_data_vars",
 )
@@ -98,20 +115,19 @@ grid_attr_section = partial(
 )
 
 
-import uuid
-
-from html import escape
-
 def _obj_repr_with_grid(obj, header_components, sections):
     """Return HTML repr of an uxarray object.
 
-    If CSS is not injected (untrusted notebook), fallback to the plain text repr.
+    If CSS is not injected (untrusted notebook), fallback to the plain
+    text repr.
     """
     # Construct header and sections for the main object
     header = f"<div class='xr-header'>{''.join(h for h in header_components)}</div>"
     sections = "".join(f"<li class='xr-section-item'>{s}</li>" for s in sections)
 
-    grid_html_repr = grid_repr(obj.uxgrid, max_items_collapse=0, header_name='ux.Dataset.uxgrid')
+    grid_html_repr = grid_repr(
+        obj.uxgrid, max_items_collapse=0, header_name="ux.Dataset.uxgrid"
+    )
 
     icons_svg, css_style = xrfm._load_static_files()
     obj_repr_html = (
@@ -186,4 +202,3 @@ def array_repr(arr) -> str:
     sections.append(xrfm.attr_section(arr.attrs))
 
     return _obj_repr_with_grid(arr, header_components, sections)
-
