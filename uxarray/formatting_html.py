@@ -77,6 +77,7 @@ def _grid_sections(grid, max_items_collapse=15):
 
 
 def grid_repr(grid, max_items_collapse=15, header_name=None) -> str:
+    """HTML repr for ``Grid`` class."""
     header_components = _grid_header(grid, header_name)
 
     sections = _grid_sections(grid, max_items_collapse)
@@ -157,6 +158,7 @@ def _obj_repr_with_grid(obj, header_components, sections):
 
 
 def dataset_repr(ds) -> str:
+    """HTML repr for ``UxDataset`` class."""
     obj_type = f"uxarray.{type(ds).__name__}"
 
     header_components = [f"<div class='xr-obj-type'>{escape(obj_type)}</div>"]
@@ -173,7 +175,7 @@ def dataset_repr(ds) -> str:
 
 
 def array_repr(arr) -> str:
-    obj_type = f"uxarray.{type(arr).__name__}"
+    """HTML repr for ``UxDataArray`` class."""
 
     dims = OrderedDict((k, v) for k, v in zip(arr.dims, arr.shape))
     if hasattr(arr, "xindexes"):
