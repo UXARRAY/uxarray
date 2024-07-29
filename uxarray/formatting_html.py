@@ -127,7 +127,9 @@ def _obj_repr_with_grid(obj, header_components, sections):
     sections = "".join(f"<li class='xr-section-item'>{s}</li>" for s in sections)
 
     grid_html_repr = grid_repr(
-        obj.uxgrid, max_items_collapse=0, header_name="ux.Dataset.uxgrid"
+        obj.uxgrid,
+        max_items_collapse=0,
+        header_name=f"uxarray.{type(obj).__name__}.uxgrid",
     )
 
     icons_svg, css_style = xrfm._load_static_files()
