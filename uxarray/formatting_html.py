@@ -185,7 +185,7 @@ def array_repr(arr) -> str:
     else:
         indexed_dims = {}
 
-    obj_type = f"xarray.{type(arr).__name__}"
+    obj_type = f"uxarray.{type(arr).__name__}"
     arr_name = f"'{arr.name}'" if getattr(arr, "name", None) else ""
 
     header_components = [
