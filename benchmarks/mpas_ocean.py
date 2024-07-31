@@ -134,18 +134,33 @@ class ConstructTreeStructures:
         self.uxds.uxgrid.get_ball_tree()
 
 
-class Remapping:
-    param_names = ['resolution']
-    params = ['480km', '120km']
+class RemapDownsample:
 
-    def setup(self, resolution):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+    def setup(self):
+        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
+        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
 
-    def teardown(self, resolution):
-        del self.uxds
+    def teardown(self):
+        del self.uxds_120, self.uxds_480
 
-    def time_nearest_neighbor_remapping(self, resolution):
-        self.uxds["bottomDepth"].remap.nearest_neighbor(self.uxds.uxgrid)
+    def time_nearest_neighbor_remapping(self):
+        self.uxds_120["bottomDepth"].remap.nearest_neighbor(self.uxds_480.uxgrid)
 
-    def time_inverse_distance_weighted_remapping(self, resolution):
-        self.uxds["bottomDepth"].remap.inverse_distance_weighted(self.uxds.uxgrid)
+    def time_inverse_distance_weighted_remapping(self):
+        self.uxds_120["bottomDepth"].remap.inverse_distance_weighted(self.uxds_480.uxgrid)
+
+
+class RemapUpsample:
+
+    def setup(self):
+        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
+        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
+
+    def teardown(self):
+        del self.uxds_120, self.uxds_480
+
+    def time_nearest_neighbor_remapping(self):
+        self.uxds_480["bottomDepth"].remap.nearest_neighbor(self.uxds_120.uxgrid)
+
+    def time_inverse_distance_weighted_remapping(self):
+        self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
