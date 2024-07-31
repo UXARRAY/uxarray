@@ -3,7 +3,14 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
+
 from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
+
+from uxarray.formatting_html import array_repr
+
+from html import escape
+
+from xarray.core.options import OPTIONS
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -77,6 +84,11 @@ class UxDataArray(xr.DataArray):
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
     remap = UncachedAccessor(UxDataArrayRemapAccessor)
+
+    def _repr_html_(self) -> str:
+        if OPTIONS["display_style"] == "text":
+            return f"<pre>{escape(repr(self))}</pre>"
+        return array_repr(self)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -1073,11 +1085,9 @@ class UxDataArray(xr.DataArray):
             ).values
 
         elif self._node_centered():
-            d_var = (
-                self.isel(
-                    n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
-                ).values,
-            )
+            d_var = self.isel(
+                n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
+            ).values
 
         else:
             raise ValueError(
