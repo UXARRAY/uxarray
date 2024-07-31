@@ -285,7 +285,7 @@ Connectivity
      <tr>
        <td>face_face</td>
        <td class="yes-cell">Yes</td>
-       <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
