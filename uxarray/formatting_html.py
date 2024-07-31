@@ -33,22 +33,20 @@ def _grid_sections(grid, max_items_collapse=15):
 
     sections = [xrfm.dim_section(grid._ds)]
 
-    if spherical_coordinates:
-        sections.append(
-            grid_spherical_coordinates_section(
-                grid._ds[spherical_coordinates],
-                max_items_collapse=max_items_collapse,
-                name="Spherical Coordinates",
-            )
+    sections.append(
+        grid_spherical_coordinates_section(
+            grid._ds[spherical_coordinates],
+            max_items_collapse=max_items_collapse,
+            name="Spherical Coordinates",
         )
-    if cartesian_coordinates:
-        sections.append(
-            grid_cartesian_coordinates_section(
-                grid._ds[cartesian_coordinates],
-                max_items_collapse=max_items_collapse,
-                name="Cartesian Coordinates",
-            )
+    )
+    sections.append(
+        grid_cartesian_coordinates_section(
+            grid._ds[cartesian_coordinates],
+            max_items_collapse=max_items_collapse,
+            name="Cartesian Coordinates",
         )
+    )
 
     sections.append(
         grid_connectivity_section(
@@ -58,14 +56,13 @@ def _grid_sections(grid, max_items_collapse=15):
         )
     )
 
-    if descritor:
-        sections.append(
-            grid_descriptor_section(
-                grid._ds[descritor],
-                max_items_collapse=max_items_collapse,
-                name="Descriptors",
-            )
+    sections.append(
+        grid_descriptor_section(
+            grid._ds[descritor],
+            max_items_collapse=max_items_collapse,
+            name="Descriptors",
         )
+    )
 
     sections.append(
         grid_attr_section(
