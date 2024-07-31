@@ -115,3 +115,37 @@ class MatplotlibConversion:
 
     def time_dataarray_to_polycollection(self, resolution, periodic_elements):
         self.uxds[data_var].to_polycollection()
+
+
+class ConstructTreeStructures:
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution):
+        del self.uxds
+
+    def time_kd_tree(self, resolution):
+        self.uxds.uxgrid.get_kd_tree()
+
+    def time_ball_tree(self, resolution):
+        self.uxds.uxgrid.get_ball_tree()
+
+
+class Remapping:
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution):
+        del self.uxds
+
+    def time_nearest_neighbor_remapping(self, resolution):
+        self.uxds["bottomDepth"].remap.nearest_neighbor(self.uxds.uxgrid)
+
+    def time_inverse_distance_weighted_remapping(self, resolution):
+        self.uxds["bottomDepth"].remap.inverse_distance_weighted(self.uxds.uxgrid)
