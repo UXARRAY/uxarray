@@ -3,6 +3,10 @@
 import xarray as xr
 import numpy as np
 
+from html import escape
+
+from xarray.core.options import OPTIONS
+
 from typing import (
     Optional,
     Union,
@@ -23,6 +27,8 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 
+from uxarray.formatting_html import grid_repr
+
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import (
@@ -39,6 +45,7 @@ from uxarray.grid.connectivity import (
     _populate_n_nodes_per_face,
     _populate_node_face_connectivity,
     _populate_edge_face_connectivity,
+    _populate_face_face_connectivity,
 )
 
 from uxarray.grid.geometry import (
@@ -66,10 +73,13 @@ from uxarray.grid.validation import (
     _check_area,
 )
 
-
 from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
+
+import cartopy.crs as ccrs
+
+import copy
 
 
 class Grid:
@@ -148,11 +158,16 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
 
-        # initialize cached data structures (visualization)
+        # initialize cached data structures and flags (visualization)
         self._gdf = None
         self._gdf_exclude_am = None
         self._poly_collection = None
+        self._poly_collection_periodic_state = None
+        self._poly_collection_projection_state = None
+        self._corrected_to_original_faces = None
         self._line_collection = None
+        self._line_collection_periodic_state = None
+        self._line_collection_projection_state = None
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
@@ -387,6 +402,11 @@ class Grid:
             + descriptors_heading
             + descriptors_str
         )
+
+    def _repr_html_(self) -> str:
+        if OPTIONS["display_style"] == "text":
+            return f"<pre>{escape(repr(self))}</pre>"
+        return grid_repr(self)
 
     def __getitem__(self, item):
         """Implementation of getitem operator for indexing a grid to obtain
@@ -850,9 +870,7 @@ class Grid:
         Dimensions ``(n_face, n_max_face_faces)``
         """
         if "face_face_connectivity" not in self._ds:
-            raise NotImplementedError(
-                "Construction of `face_face_connectivity` not yet supported."
-            )
+            _populate_face_face_connectivity(self)
 
         return self._ds["face_face_connectivity"]
 
@@ -1282,73 +1300,110 @@ class Grid:
 
     def to_polycollection(
         self,
-        override: Optional[bool] = False,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
-        correct_antimeridian_polygons: Optional[bool] = True,
+        override: Optional[bool] = False,
     ):
-        """Constructs a ``matplotlib.collections.PolyCollection`` object with
-        polygons representing the geometry of the unstructured grid, with
-        polygons that cross the antimeridian split.
+        """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
+        representing each face as a polygon.
 
         Parameters
         ----------
-        override : bool
-            Flag to recompute the ``PolyCollection`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``PolyCollection`` should be cached
-
-        Returns
-        -------
-        polycollection : matplotlib.collections.PolyCollection
-            The output `PolyCollection` containing faces represented as polygons
-        corrected_to_original_faces: list
-            Original indices used to map the corrected polygon shells to their entries in face nodes
+        periodic_elements: str
+            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         """
 
-        # use cached polycollection
+        if periodic_elements not in ["include", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+            )
+
+        if self._poly_collection is not None:
+            if (
+                self._poly_collection_periodic_state != periodic_elements
+                or self._poly_collection_projection_state != projection
+            ):
+                # cached PolyCollection has a different projection or periodic element handling method
+                override = True
+
         if self._poly_collection is not None and not override:
-            return self._poly_collection
+            # use cached PolyCollection
+            if return_indices:
+                return copy.deepcopy(
+                    self._poly_collection
+                ), self._corrected_to_original_faces
+            else:
+                return copy.deepcopy(self._poly_collection)
 
         (
             poly_collection,
             corrected_to_original_faces,
-        ) = _grid_to_matplotlib_polycollection(self)
+        ) = _grid_to_matplotlib_polycollection(self, periodic_elements, projection)
 
-        # cache computed polycollection
         if cache:
+            # cache PolyCollection, indices, and state
             self._poly_collection = poly_collection
+            self._corrected_to_original_faces = corrected_to_original_faces
+            self._poly_collection_periodic_state = periodic_elements
+            self._poly_collection_projection_state = projection
 
-        return poly_collection, corrected_to_original_faces
+        if return_indices:
+            return copy.deepcopy(poly_collection), corrected_to_original_faces
+        else:
+            return copy.deepcopy(poly_collection)
 
     def to_linecollection(
-        self, override: Optional[bool] = False, cache: Optional[bool] = True
+        self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
     ):
-        """Constructs a ``matplotlib.collections.LineCollection`` object with
-        line segments representing the geometry of the unstructured grid,
-        corrected near the antimeridian.
+        """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
+        representing each edge as a line.
 
         Parameters
         ----------
-        override : bool
-            Flag to recompute the ``LineCollection`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``LineCollection`` should be cached
-
-        Returns
-        -------
-        line_collection : matplotlib.collections.LineCollection
-            The output `LineCollection` containing faces represented as polygons
+        periodic_elements: str
+            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         """
+        if periodic_elements not in ["include", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+            )
 
-        # use cached line collection
-        if self._line_collection is not None and not override:
-            return self._line_collection
+        if self._line_collection is not None:
+            if (
+                self._line_collection_periodic_state != periodic_elements
+                or self._line_collection_projection_state != projection
+            ):
+                override = True
 
-        line_collection = _grid_to_matplotlib_linecollection(self)
+            if not override:
+                return self._line_collection
 
-        # cache computed line collection
+        line_collection = _grid_to_matplotlib_linecollection(self, periodic_elements)
+
         if cache:
             self._line_collection = line_collection
+            self._line_collection_periodic_state = periodic_elements
+            self._line_collection_projection_state = periodic_elements
 
         return line_collection
 
