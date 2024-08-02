@@ -83,6 +83,12 @@ is receptive to additional functionality requests.
 
 [SEATS Project Homepage](https://seatstandards.org)
 
+## Contributors
+
+Thank you to all of our contributors!
+
+[![Contributors](https://contrib.rocks/image?repo=UXARRAY/uxarray)](https://github.com/UXARRAY/uxarray/graphs/contributors)
+
 ## Citing UXarray
 
 If you'd like to cite our work, please follow [How to cite
