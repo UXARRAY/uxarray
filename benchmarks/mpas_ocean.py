@@ -164,3 +164,29 @@ class RemapUpsample:
 
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
+
+from uxarray.grid.coordinates import _construct_face_centerpoints, _construct_face_centroids
+
+class ConstructFaceLatLon:
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+
+    def teardown(self, resolution):
+        del self.uxgrid
+
+    def time_welzl(self, resolution):
+        _construct_face_centerpoints(self.uxgrid.node_lon,
+                                     self.uxgrid.node_lat,
+                                     self.uxgrid.face_nodes,
+                                     self.uxgrid.n_nodes_per_face)
+
+
+    def time_cartesian_averaging(self, resolution):
+        _construct_face_centroids(self.uxgrid.node_x,
+                                  self.uxgrid.node_y,
+                                  self.uxgrid.node_z,
+                                  self.uxgrid.face_nodes,
+                                  self.uxgrid.n_nodes_per_face)
