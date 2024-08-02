@@ -17,6 +17,8 @@ from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.arcs import extreme_gca_latitude
 
+from uxarray.grid.validation import _find_duplicate_nodes
+
 try:
     import constants
 except ImportError:
@@ -965,13 +967,6 @@ class TestLatlonBounds(TestCase):
 class TestDualMesh(TestCase):
     """Test Dual Mesh Construction."""
 
-    def test_remove_duplicate_nodes(self):
-        grid = ux.open_grid(gridfile_geos)
-
-        new_grid = grid.merge_duplicate_node_indices(inplace=False)
-
-        pass
-
     def test_dual_mesh_mpas(self):
         # Open a grid with and without dual
         grid = ux.open_grid(gridfile_mpas, use_dual=False)
@@ -987,3 +982,19 @@ class TestDualMesh(TestCase):
 
         # Assert the faces are the same
         nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
+
+
+class TestMergeDuplicateNodes(TestCase):
+    """Test duplicate node merging."""
+    def test_remove_duplicate_nodes(self):
+        # Test the use of `grid.merge_duplicate_node_indices`
+        grid = ux.open_grid(gridfile_geos)
+
+        new_grid = grid.merge_duplicate_node_indices(inplace=False)
+
+        # Create the duplication dictionary
+        duplicate_node_dict = _find_duplicate_nodes(new_grid)
+
+        # Test that each node only has one dictionary entry
+        for nodes in duplicate_node_dict.items():
+            nt.assert_equal(len(nodes), 2)
