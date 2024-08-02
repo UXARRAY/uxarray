@@ -180,7 +180,7 @@ class ConstructFaceLatLon:
     def time_welzl(self, resolution):
         _construct_face_centerpoints(self.uxgrid.node_lon,
                                      self.uxgrid.node_lat,
-                                     self.uxgrid.face_nodes,
+                                     self.uxgrid.face_node_connectivity,
                                      self.uxgrid.n_nodes_per_face)
 
 
@@ -188,5 +188,5 @@ class ConstructFaceLatLon:
         _construct_face_centroids(self.uxgrid.node_x,
                                   self.uxgrid.node_y,
                                   self.uxgrid.node_z,
-                                  self.uxgrid.face_nodes,
+                                  self.uxgrid.face_node_connectivity,
                                   self.uxgrid.n_nodes_per_face)

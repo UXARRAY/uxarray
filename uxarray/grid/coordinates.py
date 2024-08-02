@@ -359,7 +359,7 @@ def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_fac
         Latitudes of the nodes.
     face_nodes : array_like
         Indices of nodes per face.
-    n_nodes_per_face : int
+    n_nodes_per_face : array_like
         Number of nodes per face.
 
     Returns
