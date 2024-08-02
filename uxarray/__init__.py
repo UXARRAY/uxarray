@@ -8,7 +8,6 @@ from .core.dataarray import UxDataArray
 from .grid import Grid
 
 from .constants import INT_DTYPE, INT_FILL_VALUE
-from .cmaps import diverging, sequential
 
 
 try:
