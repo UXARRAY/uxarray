@@ -1468,7 +1468,7 @@ class Grid:
                 f"Invalid method: {method}. Please use a supported method instead"
             )
 
-        if _check_duplicate_nodes:
+        if not _check_duplicate_nodes(self):
             raise RuntimeError(
                 "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
             )
