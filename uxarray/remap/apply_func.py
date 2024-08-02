@@ -21,7 +21,7 @@ def _apply_func_remap(
     remap_to: str = "face centers",
     coord_type: str = "spherical",
     func: func = np.mean,
-    r: float = None,
+    r: float = 1.,
 ) -> np.array:
     """Apply neighborhood function Remapping between two grids.
 
@@ -37,7 +37,7 @@ def _apply_func_remap(
         Location of where to map data, either "nodes", "edge centers", or "face centers".
     coord_type: str, default="spherical"
         Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian".
-    r : float, default=None
+    r : float, default=1.
         radius of neighborhoodFor spherical coordinates, the radius is in units of degrees,
         and for cartesian coordinates, the radius is in meters.
 
@@ -148,11 +148,11 @@ def _apply_func_remap(
 
 def _apply_func_remap_uxda(
     source_uxda: UxDataArray,
-    destination_obj: Union[Grid, UxDataArray, UxDataset],
+    destination_grid: Grid,
     remap_to: str = "face centers",
     coord_type: str = "spherical",
     func: func = np.mean,
-    r=5,
+    r=1.,
 ):
     """Neighborhood function Remapping implementation for ``UxDataArray``.
 
@@ -160,14 +160,14 @@ def _apply_func_remap_uxda(
     ---------
     source_uxda : UxDataArray
         Source UxDataArray for remapping
-    destination_obj : Grid, UxDataArray, UxDataset
-        Destination for remapping
+    destination_grid : Grid
+        Destination grid for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates for the computations when
         remapping.
-    r : float, default=5
+    r : float, default=1.
         Radius of neighborhood.
     """
 
@@ -192,16 +192,6 @@ def _apply_func_remap_uxda(
     destination_dims = list(source_uxda.dims)
     destination_dims[-1] = destination_dim
 
-    if isinstance(destination_obj, Grid):
-        destination_grid = destination_obj
-    elif isinstance(
-        destination_obj,
-        (uxarray.core.dataarray.UxDataArray, uxarray.core.dataset.UxDataset),
-    ):
-        destination_grid = destination_obj.uxgrid
-    else:
-        raise ValueError("TODO: Invalid Input")
-
     # perform remapping
     destination_data = _apply_func_remap(
         source_uxda.uxgrid,
@@ -220,30 +210,16 @@ def _apply_func_remap_uxda(
         dims=destination_dims,
         uxgrid=destination_grid,
     )
-    # add remapped variable to existing UxDataset
-    if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
-        uxds = destination_obj.copy()
-        uxds[source_uxda.name] = uxda_remap
-        return uxds
-
-    # construct a UxDataset from remapped variable and existing variable
-    elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
-        uxds = destination_obj.copy().to_dataset()
-        uxds[source_uxda.name] = uxda_remap
-        return uxds
-
-    # return UxDataArray with remapped variable
-    else:
-        return uxda_remap
+    return uxda_remap
 
 
 def _apply_func_remap_uxds(
     source_uxds: UxDataset,
-    destination_obj: Union[Grid, UxDataArray, UxDataset],
+    destination_grid: Grid,
     remap_to: str = "face centers",
     coord_type: str = "spherical",
     func: func = np.mean,
-    r: float = 5,
+    r: float = 1.,
 ):
     """Neighboohood function implementation for ``UxDataset``.
 
@@ -251,29 +227,21 @@ def _apply_func_remap_uxds(
     ---------
     source_uxds : UxDataset
         Source UxDataset for remapping
-    destination_obj : Grid, UxDataArray, UxDataset
-        Destination for remapping
+    destination_grid : Grid
+        Destination grid for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates
     func : func = np.mean
         function to apply to neighborhood
-    r : float, default=5
-        Radius of neighborhood
+    r : float, default=1.
+        Radius of neighborhood in deg
     """
 
-    if isinstance(destination_obj, Grid):
-        destination_uxds = uxarray.core.dataset.UxDataset(uxgrid=destination_obj)
-    elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
-        destination_uxds = destination_obj.to_dataset()
-    elif isinstance(destination_obj, uxarray.core.dataset.UxDataset):
-        destination_uxds = destination_obj
-    else:
-        raise ValueError
-
+    destination_uxds = uxarray.core.dataset.UxDataset(uxgrid=destination_grid)
     for var_name in source_uxds.data_vars:
-        destination_uxds = _apply_func_remap_uxda(
+        destination_uxds[var_name] = _apply_func_remap_uxda(
             source_uxds[var_name],
             destination_uxds,
             remap_to,
