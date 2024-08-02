@@ -178,15 +178,15 @@ class ConstructFaceLatLon:
         del self.uxgrid
 
     def time_welzl(self, resolution):
-        _construct_face_centerpoints(self.uxgrid.node_lon,
-                                     self.uxgrid.node_lat,
-                                     self.uxgrid.face_node_connectivity,
-                                     self.uxgrid.n_nodes_per_face)
+        _construct_face_centerpoints(self.uxgrid.node_lon.values,
+                                     self.uxgrid.node_lat.values,
+                                     self.uxgrid.face_node_connectivity.values,
+                                     self.uxgrid.n_nodes_per_face.values)
 
 
     def time_cartesian_averaging(self, resolution):
-        _construct_face_centroids(self.uxgrid.node_x,
-                                  self.uxgrid.node_y,
-                                  self.uxgrid.node_z,
-                                  self.uxgrid.face_node_connectivity,
-                                  self.uxgrid.n_nodes_per_face)
+        _construct_face_centroids(self.uxgrid.node_x.values,
+                                  self.uxgrid.node_y.values,
+                                  self.uxgrid.node_z.values,
+                                  self.uxgrid.face_node_connectivity.values,
+                                  self.uxgrid.n_nodes_per_face.values)
