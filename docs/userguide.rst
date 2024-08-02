@@ -59,7 +59,7 @@ These user guides provide detailed explanations of the core functionality in UXa
  Methods for computing the area of each face
 
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
-Construct Dual Mesh
+ Construct Dual Mesh
 
 Supplementary Guides
 --------------------

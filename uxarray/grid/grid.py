@@ -1458,6 +1458,11 @@ class Grid:
                 f"Invalid method: {method}. Please use a supported method instead"
             )
 
+        if _check_duplicate_nodes:
+            raise RuntimeError(
+                "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
+            )
+
         # Class for storing the faces, by their edges
 
         # Get the dual node xyz, which is the face centers

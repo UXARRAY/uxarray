@@ -998,3 +998,16 @@ class TestMergeDuplicateNodes(TestCase):
         # Test that each node only has one dictionary entry
         for nodes in duplicate_node_dict.items():
             nt.assert_equal(len(nodes), 2)
+
+    def test_inplace_remove_duplicate_nodes(self):
+        # Test inplace use of `grid.merge_duplicate_node_indices`
+        grid = ux.open_grid(gridfile_geos)
+
+        grid.merge_duplicate_node_indices(inplace=True)
+
+        # Create the duplication dictionary
+        duplicate_node_dict = _find_duplicate_nodes(grid)
+
+        # Test that each node only has one dictionary entry
+        for nodes in duplicate_node_dict.items():
+            nt.assert_equal(len(nodes), 2)

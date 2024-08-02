@@ -210,6 +210,7 @@ IO
    Grid.to_polycollection
    Grid.to_linecollection
    Grid.validate
+   Grid.merge_duplicate_node_indices
 
 
 Methods
