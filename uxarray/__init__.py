@@ -8,7 +8,7 @@ from .core.dataarray import UxDataArray
 from .grid import Grid
 
 from .constants import INT_DTYPE, INT_FILL_VALUE
-
+from .cmaps import sequential, diverging
 
 try:
     from importlib.metadata import version as _version
@@ -30,4 +30,6 @@ __all__ = (
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
+    "sequential",
+    "diverging",
 )
