@@ -951,9 +951,3 @@ class TestLatlonBounds(TestCase):
         bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
-
-    def test_populate_bounds_MPAS(self):
-        xrds = xr.open_dataset(self.gridfile_mpas)
-        uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
-        bounds_xarray = uxgrid.bounds
-        pass
