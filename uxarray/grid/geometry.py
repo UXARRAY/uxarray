@@ -483,8 +483,9 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
 
         north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
         south_edges = face_edge_cart[
-            np.any(face_edge_cart[:, :, 2] <= 0, axis=1)
-        ]  # The equator one is assigned to the south edges
+            ~np.isin(face_edge_cart, north_edges).all(axis=(1, 2))
+        ]
+        # The equator one is assigned to the south edges
         return (
             _check_intersection(ref_edge_north, north_edges)
             + _check_intersection(ref_edge_south, south_edges)
@@ -1032,15 +1033,17 @@ def _populate_bounds(
     for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
         face_edges_cartesian = faces_edges_cartesian[face_idx]
 
-        # Skip processing if the face is a dummy face
-        if np.any(face_edges_cartesian == INT_FILL_VALUE):
-            continue
+        # Remove the edge in the face that contains the fill value
+        face_edges_cartesian = face_edges_cartesian[
+            np.all(face_edges_cartesian != INT_FILL_VALUE, axis=(1, 2))
+        ]
 
         face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
 
-        # Skip processing if the face is a dummy face
-        if np.any(face_edges_lonlat_rad == INT_FILL_VALUE):
-            continue
+        # Remove the edge in the face that contains the fill value
+        face_edges_lonlat_rad = face_edges_lonlat_rad[
+            np.all(face_edges_lonlat_rad != INT_FILL_VALUE, axis=(1, 2))
+        ]
 
         is_GCA_list = (
             is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None

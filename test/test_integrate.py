@@ -88,6 +88,35 @@ class TestFaceWeights(TestCase):
         # The expected unique_intersections length is 1
         self.assertEqual(len(unique_intersections), 1)
 
+    def test_get_faces_constLat_intersection_info_encompass_pole(self):
+        face_edges_cart = np.array([
+            [[0.03982285692494229, 0.00351700770436231, 0.9992005658140627],
+             [0.00896106681877875, 0.03896060263227105, 0.9992005658144913]],
+
+            [[0.00896106681877875, 0.03896060263227105, 0.9992005658144913],
+             [-0.03428461218295055, 0.02056197086916728, 0.9992005658132106]],
+
+            [[-0.03428461218295055, 0.02056197086916728, 0.9992005658132106],
+             [-0.03015012448894485, -0.02625260499902213, 0.9992005658145248]],
+
+            [[-0.03015012448894485, -0.02625260499902213, 0.9992005658145248],
+             [0.01565081128889155, -0.03678697293262131, 0.9992005658167203]],
+
+            [[0.01565081128889155, -0.03678697293262131, 0.9992005658167203],
+             [0.03982285692494229, 0.00351700770436231, 0.9992005658140627]]
+        ])
+
+        latitude_cart = 0.9993908270190958
+        # Convert the latitude to degrees
+        latitude_rad = np.arcsin(latitude_cart)
+        latitude_deg = np.rad2deg(latitude_rad)
+        print(latitude_deg)
+        is_directed=False
+        is_latlonface=False
+        is_GCA_list=None
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        # The expected unique_intersections length should be no greater than 2* n_edges
+        self.assertLessEqual(len(unique_intersections), 2*len(face_edges_cart))
 
     def test_get_faces_constLat_intersection_info_on_pole(self):
         face_edges_cart = np.array([
@@ -161,30 +190,30 @@ class TestFaceWeights(TestCase):
         self.assertEqual(len(unique_intersections), 2)
 
 
-    def test_get_faces_constLat_intersection_info_longnitude_GCA(self):
-        # Obe the face edges is a longnitude GCA
-        face_edges_cart = np.array([
-            [[0.7712077764022706, -0.5008281859286025, -0.3929499889249659],
-             [0.792317035467913, -0.4574444537109257, -0.4037056936388817]],
+    def test_get_faces_constLat_intersection_info_2(self):
+        """This might test the case where the calculated intersection points
+        might suffer from floating point errors If not handled properly, the
+        function might return more than 2 unique intersections."""
 
-            [[0.792317035467913, -0.4574444537109257, -0.4037056936388817],
-             [0.8080397410032832, -0.466521961984161, -0.3597624715639418]],
+        face_edges_cart = np.array([[[0.6546536707079771, -0.37796447300922714, -0.6546536707079772],
+                                     [0.6652465971273088, -0.33896007142593115, -0.6652465971273087]],
 
-            [[0.8080397410032832, -0.466521961984161, -0.3597624715639418],
-             [0.7856841911322835, -0.5102292795765491, -0.3498091394855272]],
+                                    [[0.6652465971273088, -0.33896007142593115, -0.6652465971273087],
+                                     [0.6949903639307233, -0.3541152775760984, -0.6257721344312508]],
 
-            [[0.7856841911322835, -0.5102292795765491, -0.3498091394855272],
-             [0.7712077764022706, -0.5008281859286025, -0.3929499889249659]]
-        ])
+                                    [[0.6949903639307233, -0.3541152775760984, -0.6257721344312508],
+                                     [0.6829382762718700, -0.39429459764546304, -0.6149203859609873]],
 
-        latitude_cart = -0.374606593415912
+                                    [[0.6829382762718700, -0.39429459764546304, -0.6149203859609873],
+                                     [0.6546536707079771, -0.37796447300922714, -0.6546536707079772]]])
+
+        latitude_cart = -0.6560590289905073
         is_directed=False
         is_latlonface=False
         is_GCA_list=None
         unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 2)
-
 
     def test_get_zonal_face_interval(self):
         """Test the _get_zonal_face_interval function for correct interval
@@ -259,6 +288,45 @@ class TestFaceWeights(TestCase):
         res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds, is_directed=False)
         expected_res = pd.DataFrame({"start": [0.0], "end": [0.0]})
         pd.testing.assert_frame_equal(res, expected_res)
+
+    def test_get_zonal_face_interval_encompass_pole(self):
+        """Test the _get_zonal_face_interval function for cases where the face
+        encompasses the pole inside."""
+        face_edges_cart = np.array([
+            [[0.03982285692494229, 0.00351700770436231, 0.9992005658140627],
+             [0.00896106681877875, 0.03896060263227105, 0.9992005658144913]],
+
+            [[0.00896106681877875, 0.03896060263227105, 0.9992005658144913],
+             [-0.03428461218295055, 0.02056197086916728, 0.9992005658132106]],
+
+            [[-0.03428461218295055, 0.02056197086916728, 0.9992005658132106],
+             [-0.03015012448894485, -0.02625260499902213, 0.9992005658145248]],
+
+            [[-0.03015012448894485, -0.02625260499902213, 0.9992005658145248],
+             [0.01565081128889155, -0.03678697293262131, 0.9992005658167203]],
+
+            [[0.01565081128889155, -0.03678697293262131, 0.9992005658167203],
+             [0.03982285692494229, 0.00351700770436231, 0.9992005658140627]]
+        ])
+
+        latitude_cart = 0.9993908270190958
+
+        face_latlon_bounds = np.array([
+            [np.arcsin(0.9992005658145248), 0.5*np.pi],
+            [0, 2*np.pi]
+        ])
+        # Expected result DataFrame
+        expected_df = pd.DataFrame({
+            'start': [0.000000, 1.101091, 2.357728, 3.614365, 4.871002, 6.127640],
+            'end': [0.331721, 1.588358, 2.844995, 4.101632, 5.358270, 6.283185]
+        })
+
+        # Call the function to get the result
+        res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds, is_directed=False)
+
+        # Assert the result matches the expected DataFrame
+        pd.testing.assert_frame_equal(res,  expected_df)
+
 
 
     def test_get_zonal_face_interval_FILL_VALUE(self):

@@ -92,6 +92,8 @@ def _get_zonal_faces_weight_at_constLat(
 
     # Iterate through all faces and their edges
     for face_index, face_edges in enumerate(faces_edges_cart_candidate):
+        # Remove the Int_fill_value from the face_edges
+        face_edges = face_edges[np.all(face_edges != INT_FILL_VALUE, axis=(1, 2))]
         if is_face_GCA_list is not None:
             is_GCA_list = is_face_GCA_list[face_index]
         else:
@@ -107,14 +109,7 @@ def _get_zonal_faces_weight_at_constLat(
         # If any end of the interval is NaN
         if face_interval_df.isnull().values.any():
             # Skip this face as it is just being touched by the constant latitude
-            face_interval_df = _get_zonal_face_interval(
-                face_edges,
-                latitude_cart,
-                face_latlon_bound_candidate[face_index],
-                is_directed=is_directed,
-                is_latlonface=is_latlonface,
-                is_GCA_list=is_GCA_list,
-            )
+            continue
         # Check if the DataFrame is empty (start and end are both 0)
         if (face_interval_df["start"] == 0).all() and (
             face_interval_df["end"] == 0
@@ -250,6 +245,7 @@ def _get_faces_constLat_intersection_info(
                 intersections = gca_constLat_intersection(
                     edge, latitude_cart, is_directed=is_directed
                 )
+
                 if intersections.size == 0:
                     continue
                 elif intersections.shape[0] == 2:
@@ -272,9 +268,25 @@ def _get_faces_constLat_intersection_info(
     elif len(unique_intersections) == 1:
         return unique_intersections, None, None
     elif len(unique_intersections) != 0 and len(unique_intersections) != 1:
-        raise ValueError(
-            "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
-        )
+        # If the unique intersections numbers is larger than n_edges * 2, then it means the face is concave
+        if len(unique_intersections) > len(valid_edges) * 2:
+            raise ValueError(
+                "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
+            )
+        else:
+            # Now return all the intersections points and the pt_lon_min, pt_lon_max
+            unique_intersection_lonlat = np.array(
+                [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
+            )
+
+            sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
+            # Extract the minimum and maximum longitudes
+            pt_lon_min, pt_lon_max = (
+                np.min(sorted_lonlat[:, 0]),
+                np.max(sorted_lonlat[:, 0]),
+            )
+
+            return unique_intersections, pt_lon_min, pt_lon_max
     elif len(unique_intersections) == 0:
         raise ValueError(
             "No intersections are found for the face, please make sure the build_latlon_box generates the correct results"
@@ -348,7 +360,9 @@ def _get_zonal_face_interval(
         )
 
         # Handle special wrap-around cases by checking the face bounds
-        if face_lon_bound_left >= face_lon_bound_right:
+        if face_lon_bound_left >= face_lon_bound_right or (
+            face_lon_bound_left == 0 and face_lon_bound_right == 2 * np.pi
+        ):
             if not (
                 (pt_lon_max >= np.pi and pt_lon_min >= np.pi)
                 or (0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi)
