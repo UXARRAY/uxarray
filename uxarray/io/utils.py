@@ -40,6 +40,8 @@ def _parse_grid_type(dataset):
     elif all(key in dataset.sizes for key in ["nf", "YCdim", "XCdim"]):
         # expected dimensions for a GEOS cube sphere grid
         mesh_type = "GEOS-CS"
+    elif "vertex_of_cell" in dataset:
+        mesh_type = "ICON"
     else:
         raise RuntimeError("Could not recognize dataset format.")
     return mesh_type
