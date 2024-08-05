@@ -14,6 +14,7 @@ from xarray.core.options import OPTIONS
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -27,6 +28,11 @@ from uxarray.core.gradient import (
     _calculate_grad_on_edge_from_faces,
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
+)
+
+from uxarray.core.zonal import (
+    _non_conservative_zonal_mean_constant_latitudes,
+    _non_conservative_zonal_mean_constant_one_latitude,
 )
 
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
@@ -1005,7 +1011,107 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-        pass
+    def zonal_mean(self, lat_deg=(-90, 90, 5)):
+        """Computes the Zonal Mean for face-centered data. The zonal average
+        can be computed over a range of latitudes with a specified step size,
+        or for a single latitude.
+
+        Parameters
+        ----------
+        lat_deg : tuple or float, default=(-90, 90, 5)
+            Latitude values in degrees for which to compute the zonal average.
+            If a tuple, it should contain the start, end, and step size of the latitude range
+            to compute the zonal average. The range of latitudes is [start_lat_deg, end_lat_deg] inclusive.
+            If a single float, the zonal average is computed for that specific latitude.
+
+        Returns
+        -------
+        UxDataArray
+            UxDataArray containing the zonal average of the data variable.
+
+        Raises
+        ------
+        NotImplementedError
+            If the latitude being queried is near the poles, i.e. the laritude range contains (89, 90) or (-90, -89).
+
+        Example
+        -------
+        >>> uxds['var'].zonal_mean()
+        >>> uxds['var'].zonal_mean(lat=30.0)
+        >>> uxds['var'].zonal_mean(lat=(-60, 60, 10))
+        """
+
+        # Check if the data is face-centered
+        if not self._face_centered():
+            raise NotImplementedError(
+                "Zonal average computations are currently only supported for face-centered data variables."
+            )
+
+        # Raise RuntimeError for latitudes near the poles
+        PRECISION_ERROR_MESSAGE = "The current query range has exceeded the requirements of our safe error tolerance limit and will encounter floating point errors. This operation is not yet supported due to the precision issues of float64 near the poles."
+        if isinstance(lat_deg, tuple):
+            start_lat_deg, end_lat_deg, step_size_deg = lat_deg
+            if (
+                89 < start_lat_deg < 90
+                or 89 < end_lat_deg < 90
+                or -90 < start_lat_deg < -89
+                or -90 < end_lat_deg < -89
+            ):
+                raise RuntimeError(PRECISION_ERROR_MESSAGE)
+        else:
+            if 89 < lat_deg < 90 or -90 < lat_deg < -89:
+                raise RuntimeError(PRECISION_ERROR_MESSAGE)
+
+        # Get the data, face bounds, face node connectivity, and whether the faces are latlon
+        data = self.values
+        face_bounds = self.uxgrid.bounds.values
+        is_latlonface = False  # Currently not used, but may be useful in the future
+
+        # Get the list of face polygons represented by edges in Cartesian coordinates
+        face_edges_cart = _get_cartesian_face_edge_nodes(
+            self.uxgrid.face_node_connectivity.values,
+            self.uxgrid.n_face,
+            self.uxgrid.n_max_face_edges,
+            self.uxgrid.node_x.values,
+            self.uxgrid.node_y.values,
+            self.uxgrid.node_z.values,
+        )
+
+        # If lat is a tuple, compute the zonal average for the given range of latitudes
+        if isinstance(lat_deg, tuple):
+            start_lat_deg, end_lat_deg, step_size_deg = lat_deg
+            # Call the function and get both latitudes and zonal means
+            latitudes, _zonal_avg_res = _non_conservative_zonal_mean_constant_latitudes(
+                face_edges_cart,
+                face_bounds,
+                data,
+                start_lat_deg,
+                end_lat_deg,
+                step_size_deg,
+                is_latlonface=is_latlonface,
+            )
+        # If lat is a single value, compute the zonal average for that latitude
+        else:
+            _zonal_avg_res = _non_conservative_zonal_mean_constant_one_latitude(
+                face_edges_cart, face_bounds, data, lat_deg, is_latlonface=is_latlonface
+            )
+            latitudes = [lat_deg]
+
+        # Set the dimension of the result
+        dims = list(self.dims[:-1]) + ["latitude_deg"]
+
+        # Result is stored and returned as a UxDataArray
+        uxda = UxDataArray(
+            _zonal_avg_res,
+            uxgrid=self.uxgrid,
+            dims=dims,
+            coords={"latitude_deg": latitudes},
+            name=self.name + "_zonal_average"
+            if self.name is not None
+            else "zonal_average",
+        )
+
+        return uxda
 
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the

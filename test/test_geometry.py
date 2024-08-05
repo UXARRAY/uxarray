@@ -11,7 +11,6 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import extreme_gca_latitude
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds
 
 from spatialpandas.geometry import MultiPolygon
@@ -366,6 +365,19 @@ class TestLatlonBoundUtils(TestCase):
                                expected_max_latitude,
                                delta=ERROR_TOLERANCE)
 
+    def test_extreme_gca_latitude_max_short(self):
+        # Define a great circle arc in 3D space that has a small span
+        gca_cart = np.array( [[ 0.65465367, -0.37796447, -0.65465367], [ 0.6652466,  -0.33896007, -0.6652466 ]])
+
+        # Calculate the maximum latitude
+        max_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'max')
+
+        # Check if the maximum latitude is correct
+        expected_max_latitude = self._max_latitude_rad_iterative(gca_cart)
+        self.assertAlmostEqual(max_latitude,
+                               expected_max_latitude,
+                               delta=ERROR_TOLERANCE)
+
     def test_extreme_gca_latitude_min(self):
         # Define a great circle arc that is symmetrical around 0 degrees longitude
         gca_cart = np.array([
@@ -620,6 +632,103 @@ class TestLatlonBoundsGCA(TestCase):
         expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
         bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_equator(self):
+        # the face is touching the equator
+        face_edges_cart = np.array([
+            [[0.99726469, -0.05226443, -0.05226443], [0.99862953, 0.0, -0.05233596]],
+            [[0.99862953, 0.0, -0.05233596], [1.0, 0.0, 0.0]],
+            [[1.0, 0.0, 0.0], [0.99862953, -0.05233596, 0.0]],
+            [[0.99862953, -0.05233596, 0.0], [0.99726469, -0.05226443, -0.05226443]]
+        ]
+        )
+        # Apply the inverse transformation to get the lat lon coordinates
+        face_edges_lonlat = np.array(
+            [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
+
+        bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
+        expected_bounds = np.array([[-0.05235988, 0], [6.23082543, 0]])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_southSphere(self):
+        # The face is near the south pole but doesn't contains the pole
+        face_edges_cart = np.array([
+            [[-1.04386773e-01, -5.20500333e-02, -9.93173799e-01], [-1.04528463e-01, -1.28010448e-17, -9.94521895e-01]],
+            [[-1.04528463e-01, -1.28010448e-17, -9.94521895e-01], [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+            [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]],
+            [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01], [-1.04386773e-01, -5.20500333e-02, -9.93173799e-01]]
+        ])
+
+        # Apply the inverse transformation to get the lat lon coordinates
+        face_edges_lonlat = np.array(
+            [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
+
+        bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
+        expected_bounds = np.array([[-1.51843645, -1.45388627], [3.14159265, 3.92699082]])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_near_pole(self):
+        # The face is near the south pole but doesn't contains the pole
+        face_edges_cart = np.array([
+            [[3.58367950e-01, 0.00000000e+00, -9.33580426e-01], [3.57939780e-01, 4.88684203e-02, -9.32465008e-01]],
+            [[3.57939780e-01, 4.88684203e-02, -9.32465008e-01], [4.06271283e-01, 4.78221112e-02, -9.12500241e-01]],
+            [[4.06271283e-01, 4.78221112e-02, -9.12500241e-01], [4.06736643e-01, 2.01762691e-16, -9.13545458e-01]],
+            [[4.06736643e-01, 2.01762691e-16, -9.13545458e-01], [3.58367950e-01, 0.00000000e+00, -9.33580426e-01]]
+        ])
+
+        # Apply the inverse transformation to get the lat lon coordinates
+        face_edges_lonlat = np.array(
+            [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
+
+        bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [0,0.13568803]])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_near_pole2(self):
+        # The face is near the south pole but doesn't contains the pole
+        face_edges_cart = np.array([
+            [[3.57939780e-01, -4.88684203e-02, -9.32465008e-01], [3.58367950e-01, 0.00000000e+00, -9.33580426e-01]],
+            [[3.58367950e-01, 0.00000000e+00, -9.33580426e-01], [4.06736643e-01, 2.01762691e-16, -9.13545458e-01]],
+            [[4.06736643e-01, 2.01762691e-16, -9.13545458e-01], [4.06271283e-01, -4.78221112e-02, -9.12500241e-01]],
+            [[4.06271283e-01, -4.78221112e-02, -9.12500241e-01], [3.57939780e-01, -4.88684203e-02, -9.32465008e-01]]
+        ])
+
+
+        # Apply the inverse transformation to get the lat lon coordinates
+        face_edges_lonlat = np.array(
+            [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
+
+        bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [6.147497,4.960524e-16]])
+        nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+    def test_populate_bounds_long_face(self):
+        """Test case where one of the face edges is a longitude GCA."""
+        face_edges_cart = np.array([
+            [[9.9999946355819702e-01, -6.7040475551038980e-04, 8.0396590055897832e-04],
+             [9.9999439716339111e-01, -3.2541253603994846e-03, -8.0110825365409255e-04]],
+            [[9.9999439716339111e-01, -3.2541253603994846e-03, -8.0110825365409255e-04],
+             [9.9998968839645386e-01, -3.1763643492013216e-03, -3.2474612817168236e-03]],
+            [[9.9998968839645386e-01, -3.1763643492013216e-03, -3.2474612817168236e-03],
+             [9.9998861551284790e-01, -8.2993711112067103e-04, -4.7004125081002712e-03]],
+            [[9.9998861551284790e-01, -8.2993711112067103e-04, -4.7004125081002712e-03],
+             [9.9999368190765381e-01, 1.7522916896268725e-03, -3.0944822356104851e-03]],
+            [[9.9999368190765381e-01, 1.7522916896268725e-03, -3.0944822356104851e-03],
+             [9.9999833106994629e-01, 1.6786820488050580e-03, -6.4892979571595788e-04]],
+            [[9.9999833106994629e-01, 1.6786820488050580e-03, -6.4892979571595788e-04],
+             [9.9999946355819702e-01, -6.7040475551038980e-04, 8.0396590055897832e-04]]
+        ])
+
+        face_edges_lonlat = np.array(
+            [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
+
+        bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
+
+        # The expected bounds should not contains the south pole [0,-0.5*np.pi]
+        self.assertTrue(bounds[1][0] !=  0.0)
+
+
+
 
     def test_populate_bounds_node_on_pole(self):
         # Generate a normal face that is crossing the antimeridian
@@ -1116,6 +1225,8 @@ class TestLatlonBoundsGCAList(TestCase):
                                              is_GCA_list=[True, False, True, False])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
+
+
     def test_populate_bounds_antimeridian(self):
         # Generate a normal face that is crossing the antimeridian
         vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -1173,7 +1284,7 @@ class TestLatlonBoundsGCAList(TestCase):
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_edge_over_pole(self):
-        # Generate a normal face that is crossing the antimeridian
+        # Generate a normal face that is around the north pole
         vertices_lonlat = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
         vertices_lonlat = np.array(vertices_lonlat)
 

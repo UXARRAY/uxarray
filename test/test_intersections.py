@@ -13,10 +13,6 @@ class TestGCAGCAIntersection(TestCase):
 
     def test_get_GCA_GCA_intersections_antimeridian(self):
         # Test the case where the two GCAs are on the antimeridian
-
-
-
-
         GCA1 = _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(89.99))
         GCR1_cart = np.array([
             _lonlat_rad_to_xyz(np.deg2rad(170.0),
@@ -45,6 +41,7 @@ class TestGCAGCAIntersection(TestCase):
         ])
 
         res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
+        res_cart = res_cart[0]
 
         # Test if the result is normalized
         self.assertTrue(
@@ -70,7 +67,10 @@ class TestGCAGCAIntersection(TestCase):
             _lonlat_rad_to_xyz(-0.5 * np.pi - 0.01, 0.0)
         ])
         res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
-        self.assertTrue(np.array_equal(res_cart, np.array([])))
+        res_cart = res_cart[0]
+        expected_res = np.array(_lonlat_rad_to_xyz(0.5 * np.pi, 0.0))
+        # Test if two results are equal within the error tolerance
+        self.assertAlmostEqual(np.linalg.norm(res_cart - expected_res), 0.0, delta=ERROR_TOLERANCE)
 
     def test_get_GCA_GCA_intersections_perpendicular(self):
         # Test the case where the two GCAs are perpendicular to each other
@@ -85,7 +85,7 @@ class TestGCAGCAIntersection(TestCase):
             _lonlat_rad_to_xyz(*[-0.5 * np.pi - 0.01, 0.0])
         ])
         res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
-
+        res_cart = res_cart[0]
         # Test if the result is normalized
         self.assertTrue(
             np.allclose(np.linalg.norm(res_cart, axis=0),
@@ -139,3 +139,15 @@ class TestGCAconstLatIntersection(TestCase):
 
         res = gca_constLat_intersection(GCR1_cart, np.sin(query_lat), verbose=False)
         self.assertTrue(res.shape[0] == 2)
+
+
+    def test_GCA_constLat_intersections_no_convege(self):
+        # It should return an one single point and a warning about unable to be converged should be raised
+        GCR1_cart = np.array([[-0.59647278, 0.59647278, -0.53706651],
+                              [-0.61362973, 0.61362973, -0.49690755]])
+
+        constZ = -0.5150380749100542
+
+        with self.assertWarns(UserWarning):
+            res = gca_constLat_intersection(GCR1_cart, constZ, verbose=False)
+            self.assertTrue(res.shape[0] == 1)

@@ -178,6 +178,7 @@ Calculus Operators
    UxDataArray.integrate
    UxDataArray.gradient
    UxDataArray.difference
+   UxDataArray.zonal_mean
 
 
 

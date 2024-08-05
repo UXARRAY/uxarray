@@ -23,6 +23,57 @@ GDF_POLYGON_THRESHOLD = 100000
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
+def _unique_points(points, tolerance=ERROR_TOLERANCE):
+    """Identify unique intersection points from a list of points, considering
+    floating point precision errors.
+
+    Parameters
+    ----------
+    points : list of array-like
+        A list containing the intersection points, where each point is an array-like structure (e.g., list, tuple, or numpy array) containing x, y, and z coordinates.
+    tolerance : float, optional
+        The distance threshold within which two points are considered identical. Default is 1e-6.
+
+    Returns
+    -------
+    list of np.ndarray
+        A list of unique snapped points in Cartesian coordinates.
+
+    Notes
+    -----
+    Given the nature of the mathematical equations and the spherical surface, it is more reasonable to calculate the "error radius" of the results using the following formula.
+    In the equation below, \(\tilde{P}_x\) and \(\tilde{P}_y\) are the calculated results, and \(P_x\) and \(P_y\) are the actual intersection points for the \(x\) and \(y\) coordinates, respectively.
+    The \(z\) coordinate is always the input \(z_0\), the constant latitude, so it is not included in this error calculation.
+
+    .. math::
+        \begin{aligned}
+            &\frac{\sqrt{(\tilde{v}_x - v_x)^2 + (\tilde{v}_y - v_y)^2 + (\tilde{v}_z - v_z)^2}}{\sqrt{v_x^2 + v_y^2 + v_z^2}}\\
+            &= \sqrt{(\tilde{v}_x - v_x)^2 + (\tilde{v}_y - v_y)^2 + (\tilde{v}_z - v_z)^2}
+        \end{aligned}
+
+    This method ensures that small numerical inaccuracies do not lead to multiple close points being considered different.
+    """
+    unique_points = []
+    points = [np.array(point) for point in points]  # Ensure all points are numpy arrays
+
+    def error_radius(p1, p2):
+        """Calculate the error radius between two points in 3D space."""
+        numerator = np.sqrt(
+            (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2
+        )
+        denominator = np.sqrt(p2[0] ** 2 + p2[1] ** 2 + p2[2] ** 2)
+        return numerator / denominator
+
+    for point in points:
+        if not any(
+            error_radius(point, unique_point) < tolerance
+            for unique_point in unique_points
+        ):
+            unique_points.append(point)
+
+    return unique_points
+
+
 # General Helpers for Polygon Viz
 # ----------------------------------------------------------------------------------------------------------------------
 @njit
@@ -431,17 +482,27 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         ref_edge_south = np.array([-pole_point, REFERENCE_POINT_EQUATOR])
 
         north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
-        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0, axis=1)]
-
+        south_edges = face_edge_cart[
+            ~np.isin(face_edge_cart, north_edges).all(axis=(1, 2))
+        ]
+        # The equator one is assigned to the south edges
         return (
             _check_intersection(ref_edge_north, north_edges)
             + _check_intersection(ref_edge_south, south_edges)
         ) % 2 != 0
-    else:
-        warnings.warn(
-            "The given face should not contain both pole points.", UserWarning
-        )
+    elif (
+        location == "North"
+        and pole == "South"
+        or location == "South"
+        and pole == "North"
+    ):
         return False
+    else:
+        raise ValueError(
+            "Invalid pole point query. Current location: {}, query pole point: {}".format(
+                location, pole
+            )
+        )
 
 
 def _check_intersection(ref_edge, edges):
@@ -461,17 +522,30 @@ def _check_intersection(ref_edge, edges):
         Count of intersections.
     """
     pole_point, ref_point = ref_edge
-    intersection_count = 0
+    intersection_points = []
 
     for edge in edges:
         intersection_point = gca_gca_intersection(ref_edge, edge)
 
         if intersection_point.size != 0:
-            if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
-                return True
-            intersection_count += 1
+            # for each intersection point, check if it is a pole point
+            for point in intersection_point:
+                if np.allclose(point, pole_point, atol=ERROR_TOLERANCE):
+                    return True
+                intersection_points.append(point)
 
-    return intersection_count
+    # only return the unique intersection points, the unique tolerance is set to ERROR_TOLERANCE
+    intersection_points = _unique_points(intersection_points, tolerance=ERROR_TOLERANCE)
+
+    # If the unique intersection point is one and it is exactly one of the nodes of the face, return 0
+    if len(intersection_points) == 1:
+        for edge in edges:
+            if np.allclose(
+                intersection_points[0], edge[0], atol=ERROR_TOLERANCE
+            ) or np.allclose(intersection_points[0], edge[1], atol=ERROR_TOLERANCE):
+                return 0
+
+    return len(intersection_points)
 
 
 def _classify_polygon_location(face_edge_cart):
@@ -959,15 +1033,17 @@ def _populate_bounds(
     for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
         face_edges_cartesian = faces_edges_cartesian[face_idx]
 
-        # Skip processing if the face is a dummy face
-        if np.any(face_edges_cartesian == INT_FILL_VALUE):
-            continue
+        # Remove the edge in the face that contains the fill value
+        face_edges_cartesian = face_edges_cartesian[
+            np.all(face_edges_cartesian != INT_FILL_VALUE, axis=(1, 2))
+        ]
 
         face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
 
-        # Skip processing if the face is a dummy face
-        if np.any(face_edges_lonlat_rad == INT_FILL_VALUE):
-            continue
+        # Remove the edge in the face that contains the fill value
+        face_edges_lonlat_rad = face_edges_lonlat_rad[
+            np.all(face_edges_lonlat_rad != INT_FILL_VALUE, axis=(1, 2))
+        ]
 
         is_GCA_list = (
             is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None
@@ -979,6 +1055,9 @@ def _populate_bounds(
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
+
+        if temp_latlon_array[face_idx][0][0] == temp_latlon_array[face_idx][0][1]:
+            pass
 
         assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
         assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
