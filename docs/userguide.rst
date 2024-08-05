@@ -49,6 +49,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
 
+`Zonal Mean <user-guide/topological-aggregations.ipynb>`_
+ Compute the average across lines of constant latitude
+
 `Calculus Operators <user-guide/calculus.ipynb>`_
  Apply calculus operators (gradient, integral) on unstructured grid data
 
@@ -85,4 +88,3 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/holoviz.ipynb
    user-guide/remapping.ipynb
    user-guide/tree_structures.ipynb
-   user-guide/zonal-mean.ipynb
