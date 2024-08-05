@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--This file contains all the Entity and Attribute Information--><gfc:FC_FeatureCatalogue xmlns:gmx="http://www.isotc211.org/2005/gmx"
+                         xmlns:gco="http://www.isotc211.org/2005/gco"
+                         xmlns:gmd="http://www.isotc211.org/2005/gmd"
+                         xmlns:xlink="http://www.w3.org/1999/xlink"
+                         xmlns:gml="http://www.opengis.net/gml/3.2"
+                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                         xmlns:gfc="http://www.isotc211.org/2005/gfc"
+                         xsi:schemaLocation="https://www.ngdc.noaa.gov/metadata/published/xsd/schema/gfc/featureCataloging.xsd http://www.isotc211.org/2005/gfc">
+   <gmx:name>
+      <gco:CharacterString>Feature Catalog for the 2018 United States 1:20,000,000 Cartographic Boundary File</gco:CharacterString>
+   </gmx:name>
+   <gmx:scope>
+      <gco:CharacterString>The United States at a scale of 1:20,000,000</gco:CharacterString>
+   </gmx:scope>
+   <gmx:versionNumber>
+      <gco:CharacterString>cb_2018_nation_20m</gco:CharacterString>
+   </gmx:versionNumber>
+   <gmx:versionDate>
+      <gco:Date>2019-05</gco:Date>
+   </gmx:versionDate>
+   <gmx:language>
+      <gco:CharacterString>eng</gco:CharacterString>
+   </gmx:language>
+   <gmx:characterSet>
+      <gmd:MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_CharacterSetCode"
+                               codeListValue="utf8"
+                               codeSpace="004">utf8
+            </gmd:MD_CharacterSetCode>
+   </gmx:characterSet>
+   <gfc:producer xlink:href="https://www.ngdc.noaa.gov/docucomp/1df27e57-4768-42de-909b-52f530601fba"
+                 xlink:title="U.S Department of Commerce, U.S Census Bureau, Geographic Customer Services Branch"/>
+   <gfc:featureType>
+      <gfc:FC_FeatureType>
+         <gfc:typeName>
+            <gco:LocalName>cb_2018_us_nation_20m.shp</gco:LocalName>
+         </gfc:typeName>
+         <gfc:definition>
+            <gco:CharacterString>Current Nation (national)</gco:CharacterString>
+         </gfc:definition>
+         <gfc:isAbstract>
+            <gco:Boolean>false</gco:Boolean>
+         </gfc:isAbstract>
+         <gfc:featureCatalogue uuidref="2018_nation_20m.ea.iso.xml"/>
+         <gfc:carrierOfCharacteristics>
+            <gfc:FC_FeatureAttribute>
+               <gfc:memberName>
+                  <gco:LocalName>AFFGEOID</gco:LocalName>
+               </gfc:memberName>
+               <gfc:definition>
+                  <gco:CharacterString>American FactFinder summary level code + geovariant code + '00US'</gco:CharacterString>
+               </gfc:definition>
+               <gfc:cardinality gco:nilReason="unknown"/>
+               <gfc:definitionReference xlink:title="U.S. Census Bureau"
+                                        xlink:href="http://www.ngdc.noaa.gov/docucomp/eb139e38-ee29-4d59-b157-5e874d4420c4"/>
+               <gfc:listedValue>
+                  <gfc:FC_ListedValue>
+                     <gfc:label>
+                        <gco:CharacterString>American FactFinder geographic identifier</gco:CharacterString>
+                     </gfc:label>
+                     <gfc:definitionReference xlink:title="U.S. Census Bureau"
+                                              xlink:href="http://www.ngdc.noaa.gov/docucomp/eb139e38-ee29-4d59-b157-5e874d4420c4"/>
+                  </gfc:FC_ListedValue>
+               </gfc:listedValue>
+            </gfc:FC_FeatureAttribute>
+         </gfc:carrierOfCharacteristics>
+         <gfc:carrierOfCharacteristics>
+            <gfc:FC_FeatureAttribute>
+               <gfc:memberName>
+                  <gco:LocalName>GEOID</gco:LocalName>
+               </gfc:memberName>
+               <gfc:definition>
+                  <gco:CharacterString>Nation identifier</gco:CharacterString>
+               </gfc:definition>
+               <gfc:cardinality gco:nilReason="unknown"/>
+               <gfc:definitionReference xlink:title="U.S. Census Bureau"
+                                        xlink:href="http://www.ngdc.noaa.gov/docucomp/eb139e38-ee29-4d59-b157-5e874d4420c4"/>
+               <gfc:listedValue>
+                  <gfc:FC_ListedValue>
+                     <gfc:label>
+                        <gco:CharacterString>US</gco:CharacterString>
+                     </gfc:label>
+                     <gfc:definition>
+                        <gco:CharacterString>United States</gco:CharacterString>
+                     </gfc:definition>
+                     <gfc:definitionReference xlink:title="U.S. Census Bureau"
+                                              xlink:href="http://www.ngdc.noaa.gov/docucomp/eb139e38-ee29-4d59-b157-5e874d4420c4"/>
+                  </gfc:FC_ListedValue>
+               </gfc:listedValue>
+            </gfc:FC_FeatureAttribute>
+         </gfc:carrierOfCharacteristics>
+         <gfc:carrierOfCharacteristics>
+            <gfc:FC_FeatureAttribute>
+               <gfc:memberName>
+                  <gco:LocalName>NAME</gco:LocalName>
+               </gfc:memberName>
+               <gfc:definition>
+                  <gco:CharacterString>Nation name</gco:CharacterString>
+               </gfc:definition>
+               <gfc:cardinality gco:nilReason="unknown"/>
+               <gfc:definitionReference xlink:title="U.S. Census Bureau"
+                                        xlink:href="http://www.ngdc.noaa.gov/docucomp/eb139e38-ee29-4d59-b157-5e874d4420c4"/>
+               <gfc:listedValue>
+                  <gfc:FC_ListedValue>
+                     <gfc:label>
+                        <gco:CharacterString>United States</gco:CharacterString>
+                     </gfc:label>
+                     <gfc:definition>
+                        <gco:CharacterString>Nation</gco:CharacterString>
+                     </gfc:definition>
+                     <gfc:definitionReference xlink:title="U.S. Census Bureau"
+                                              xlink:href="http://www.ngdc.noaa.gov/docucomp/eb139e38-ee29-4d59-b157-5e874d4420c4"/>
+                  </gfc:FC_ListedValue>
+               </gfc:listedValue>
+            </gfc:FC_FeatureAttribute>
+         </gfc:carrierOfCharacteristics>
+      </gfc:FC_FeatureType>
+   </gfc:featureType>
+</gfc:FC_FeatureCatalogue>
