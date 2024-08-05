@@ -101,7 +101,7 @@ def _non_conservative_zonal_mean_constant_one_latitude(
 
     # Compute the zonal mean(weighted average) of the candidate faces
     weights = weight_df["weight"].values
-    zonal_mean = np.sum(candidate_face_data * weights) / np.sum(weights)
+    zonal_mean = np.sum(candidate_face_data * weights, axis=-1) / np.sum(weights)
 
     return zonal_mean
 
