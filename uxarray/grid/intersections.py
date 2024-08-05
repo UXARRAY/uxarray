@@ -174,6 +174,7 @@ def gca_constLat_intersection(
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
     lat_min = extreme_gca_latitude(gca_cart, extreme_type="min")
     lat_max = extreme_gca_latitude(gca_cart, extreme_type="max")
+
     constLat_rad = np.arcsin(constZ)
 
     # Check if the constant latitude is within the GCA range

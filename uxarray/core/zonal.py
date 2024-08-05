@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 from uxarray.grid.integrate import _get_zonal_faces_weight_at_constLat
 
 
@@ -49,7 +50,8 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     is_latlonface=False,
 ) -> float:
     """Helper function for _non_conservative_zonal_mean_constant_latitudes.
-    Calculate the zonal mean of the data at a constant latitude.
+    Calculate the zonal mean of the data at a constant latitude. And if only
+    one face is found, return the data of that face.
 
     Parameters
     ----------
@@ -81,7 +83,10 @@ def _non_conservative_zonal_mean_constant_one_latitude(
 
     # Check if there are no candidate faces,
     if len(candidate_faces_indices) == 0:
-        # Return NaN if there are no candidate faces
+        # Return NaN if there are no candidate faces and raise a warning saying no candidate faces found at this latitude
+        warnings.warn(
+            f"No candidate faces found at the constant latitude {constLat_deg} degrees."
+        )
         return np.nan
 
     # Get the face data of the candidate faces
@@ -90,6 +95,10 @@ def _non_conservative_zonal_mean_constant_one_latitude(
     # Get the list of face polygon represented by edges in Cartesian coordinates
     candidate_face_edges_cart = face_edges_cart[candidate_faces_indices]
     candidate_face_bounds = face_bounds[candidate_faces_indices]
+
+    # Hardcoded the scenario when only one face is found
+    if len(candidate_faces_indices) == 1:
+        return candidate_face_data[0]
 
     weight_df = _get_zonal_faces_weight_at_constLat(
         candidate_face_edges_cart,

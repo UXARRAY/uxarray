@@ -6,9 +6,9 @@ from unittest.mock import patch
 import numpy.testing as nt
 from uxarray.core.zonal import _get_candidate_faces_at_constant_latitude, _non_conservative_zonal_mean_constant_one_latitude
 from uxarray.constants import ERROR_TOLERANCE
+from uxarray.grid.coordinates import _populate_node_xyz
 import os
 from pathlib import Path
-
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 class TestZonalFunctions(TestCase):
@@ -17,6 +17,10 @@ class TestZonalFunctions(TestCase):
     dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
     test_file_2 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_test2.nc"
     test_file_3 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_test3.nc"
+
+    # MPAS data
+    # Construct the MPAS grid file path
+    mpas_gridfile = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
 
     def test_get_candidate_faces_at_constant_latitude(self):
         """Test _get_candidate_faces_at_constant_latitude function."""
@@ -203,27 +207,3 @@ class TestZonalFunctions(TestCase):
         # TODO: What is the ground truth for this zonal mean? AssertionError: 0.9145375250498399 != 2 within 1 delta (1.0854624749501602 difference)
         self.assertAlmostEqual(res_n90.values[0], 1, delta=1)
         self.assertAlmostEqual(res_p90.values[0], 1, delta=1)
-
-    # Additonal fact checking tests, taken from the original test_zonal.py. Commented out for now as they take a long time to run.
-    # def test_non_conservative_zonal_mean_outCSne30_test2(self):
-    #     """Test _non_conservative_zonal_mean function with outCSne30 data file
-    #     2."""
-    #     # Create test data
-    #     grid_path = self.gridfile_ne30
-    #     data_path = self.test_file_2
-    #     uxds = ux.open_dataset(grid_path, data_path)
-    #     res = uxds['Psi'].zonal_mean((-89, 89, 0.1))
-    #     # test the outputs are within 1 of 2
-    #     np.testing.assert_array_almost_equal(res.values, np.full(res.values.shape, 2), decimal=0, err_msg="Values are not within 1 of 2")
-
-
-    # def test_non_conservative_zonal_mean_outCSne30_test3(self):
-    #     """Test _non_conservative_zonal_mean function with outCSne30 data file
-    #     3."""
-    #     # Create test data
-    #     grid_path = self.gridfile_ne30
-    #     data_path = self.test_file_3
-    #     uxds = ux.open_dataset(grid_path, data_path)
-    #     res = uxds['Psi'].zonal_mean((-89, 89, 0.1))
-    #     # test the outputs are within 1 of 2
-    #     np.testing.assert_array_almost_equal(res.values, np.full(res.values.shape, 2), decimal=0, err_msg="Values are not within 1 of 2")
