@@ -24,6 +24,7 @@ across various interesting datasets.
 
    examples/visualization/3_75km_mpas.ipynb
    examples/visualization/mpas_topology.ipynb
+   examples/visualization/e3sm-load-viz.ipynb
 
 
 
@@ -39,6 +40,7 @@ The following notebooks showcase workflows of Uxarray in action.
    :hidden:
 
    examples/working-with-mpas-grids.ipynb
+   examples/e3sm-calc-workflow.ipynb
 
 External Examples
 -----------------
