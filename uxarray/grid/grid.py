@@ -70,7 +70,11 @@ from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
     _check_area,
+    _merge_duplicate_node_indices_on_connectivity,
+    _find_duplicate_nodes,
 )
+
+from uxarray.conventions import ugrid
 
 from xarray.core.utils import UncachedAccessor
 
@@ -1157,6 +1161,67 @@ class Grid:
             )
 
         return self._face_areas, self._face_jacobian
+
+    def merge_duplicate_node_indices(self, inplace=True):
+        """Merges duplicate node indices within the ``face_node_connectivity``,
+        ``edge_node_connectivity`` and ``node_node_connectivity``.
+
+        Identical nodes (i.e. those with the same latitude and longitude) that are referenced separately within
+        connectivity arrays are merged into a single index, referencing one of those nodes instead.
+
+        Parameters
+        ----------
+        inplace : bool, optional
+            When inplace is True, modifies the origin grid, otherwise returns a new Grid.
+        """
+        # create a dictionary of duplicate node indices
+        duplicate_node_indices = _find_duplicate_nodes(self)
+
+        # connectivity arrays that contain node indices
+        node_conn_names = [
+            "face_node_connectivity",
+            "edge_node_connectivity",
+            "node_node_connectivity",
+        ]
+
+        if inplace:
+            if len(duplicate_node_indices) == 0:
+                # no duplicates are found
+                return
+
+            for conn_name in node_conn_names:
+                if conn_name in self._ds:
+                    corrected_conn = _merge_duplicate_node_indices_on_connectivity(
+                        self._ds[conn_name].values, duplicate_node_indices
+                    )
+                    self._ds[conn_name].values = corrected_conn
+
+            return
+
+        else:
+            # not in place, return a new grid
+            if len(duplicate_node_indices) == 0:
+                # no duplicates are found, return original grid
+                return self
+            grid_from_topo_kwargs = {}
+
+            for conn_name in node_conn_names:
+                if conn_name in self._ds:
+                    corrected_conn = _merge_duplicate_node_indices_on_connectivity(
+                        self._ds[conn_name].values, duplicate_node_indices
+                    )
+                    grid_from_topo_kwargs[conn_name] = corrected_conn
+
+            for coord_name in ugrid.SPHERICAL_COORD_NAMES + ugrid.CARTESIAN_COORD_NAMES:
+                if coord_name in self._ds:
+                    grid_from_topo_kwargs[coord_name] = self._ds[coord_name].values
+
+            for conn_name in ugrid.CONNECTIVITY_NAMES:
+                if conn_name in self._ds and conn_name not in node_conn_names:
+                    grid_from_topo_kwargs[conn_name] = self._ds[conn_name].values
+
+            # changed from self
+            return self.from_topology(**grid_from_topo_kwargs)
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns a xarray Dataset representation in a specific grid format
