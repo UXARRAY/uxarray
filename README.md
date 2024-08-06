@@ -4,14 +4,15 @@
 [comment]: <> (<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='400'>)
 
 
+# UXarray: Xarray-styled package for working with unstructured grids
 
-
-| CI           | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![Code Coverage Status][codecov-badge]][codecov-link]          |
-| :----------- | :--------------------------------------------------------------------------------------------------------------------------: |
-| **Docs**     |                                                                    [![Documentation Status][rtd-badge]][rtd-link]            |
-| **Package**  |                                                         [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link] |
-| **License**  |                                                                        [![License][license-badge]][repo-link]                |
-| **Citing**   |                                                                              [![DOI][doi-badge]][doi-link]                   |
+| CI             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![Code Coverage Status][codecov-badge]][codecov-link] |
+|:---------------|:-------------------------------------------------------------------------------------------------------------------:|
+| **Docs**       |                                   [![Documentation Status][rtd-badge]][rtd-link]                                    |
+| **Benchmarks** |                                       [![ASV Repostory][asv-badge]][asv-link]                                       |
+| **Package**    |                        [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                         |
+| **License**    |                                       [![License][license-badge]][repo-link]                                        |
+| **Citing**     |                                            [![DOI][doi-badge]][doi-link]                                            |
 
 
 
@@ -82,6 +83,12 @@ is receptive to additional functionality requests.
 
 [SEATS Project Homepage](https://seatstandards.org)
 
+## Contributors
+
+Thank you to all of our contributors!
+
+[![Contributors](https://contrib.rocks/image?repo=UXARRAY/uxarray)](https://github.com/UXARRAY/uxarray/graphs/contributors)
+
 ## Citing UXarray
 
 If you'd like to cite our work, please follow [How to cite
@@ -117,19 +124,22 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
   </tr>
 </table>
 
+[![Available on pypi](https://img.shields.io/pypi/v/xarray.svg)](https://pypi.python.org/pypi/xarray/)
 
 
-[github-ci-badge]: https://img.shields.io/github/actions/workflow/status/UXARRAY/uxarray/ci.yml?branch=main&label=CI&logo=github&style=for-the-badge
-[github-ci-link]: https://github.com/UXARRAY/uxarray/actions?query=workflow%3ACI
-[codecov-badge]: https://img.shields.io/codecov/c/github/UXARRAY/uxarray.svg?logo=codecov&style=for-the-badge
-[codecov-link]: https://codecov.io/gh/UXARRAY/uxarray
-[rtd-badge]: https://img.shields.io/readthedocs/uxarray/latest.svg?style=for-the-badge
+[github-ci-badge]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml/badge.svg
+[github-ci-link]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml
+[codecov-badge]: https://codecov.io/github/UXARRAY/uxarray/graph/badge.svg?token=lPxJeGNxE0
+[codecov-link]: https://codecov.io/github/UXARRAY/uxarray
+[rtd-badge]: https://readthedocs.org/projects/uxarray/badge/?version=latest
 [rtd-link]: https://uxarray.readthedocs.io/en/latest/?badge=latest
-[pypi-badge]: https://img.shields.io/pypi/v/uxarray?logo=pypi&style=for-the-badge
-[pypi-link]: https://pypi.org/project/uxarray
+[pypi-badge]: https://img.shields.io/pypi/v/uxarray.svg
+[pypi-link]: https://pypi.python.org/pypi/uxarray/
 [conda-badge]: https://img.shields.io/conda/vn/conda-forge/uxarray
 [conda-link]: https://anaconda.org/conda-forge/uxarray
-[license-badge]: https://img.shields.io/github/license/UXARRAY/uxarray?style=for-the-badge
+[license-badge]: https://img.shields.io/github/license/UXARRAY/uxarray
+[asv-badge]: https://img.shields.io/badge/benchmarked%20by-asv-green.svg?style=flat
+[asv-link]: https://uxarray.github.io/uxarray-asv/
 [doi-badge]: https://zenodo.org/badge/421447986.svg
 [doi-link]: https://zenodo.org/badge/latestdoi/421447986
 [repo-link]: https://github.com/UXARRAY/uxarray

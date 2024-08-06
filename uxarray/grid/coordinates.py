@@ -472,4 +472,4 @@ def _set_desired_longitude_range(ds):
     for lon_name in ["node_lon", "edge_lon", "face_lon"]:
         if lon_name in ds:
             if ds[lon_name].max() > 180:
-                ds[lon_name] = (ds[lon_name] + 180) % 360 - 180
+                ds[lon_name].data = (ds[lon_name].data + 180) % 360 - 180
