@@ -20,7 +20,6 @@ def _check_connectivity(grid):
 
     # check if the size of unique nodes in connectivity is equal to the number of nodes
     if nodes_in_conn.size == grid.n_node:
-        print("-All nodes are referenced by at least one element.")
         return True
     else:
         warn(
@@ -48,8 +47,21 @@ def _check_duplicate_nodes(grid):
         )
         return False
     else:
-        print("-No duplicate nodes found in the mesh.")
         return True
+
+
+def _check_duplicate_nodes_indices(grid):
+    """Check if there are duplicate node indices, returns True if there are."""
+
+    # Create a duplication dictionary
+    duplicate_node_dict = _find_duplicate_nodes(grid)
+
+    for face_nodes in grid.face_node_connectivity.values:
+        for node in face_nodes:
+            if node in duplicate_node_dict.keys():
+                return True
+
+    return False
 
 
 def _check_area(grid):
@@ -63,7 +75,6 @@ def _check_area(grid):
         )
         return False
     else:
-        print("-No face area is close to zero.")
         return True
 
 
@@ -92,17 +103,3 @@ def _find_duplicate_nodes(grid):
                 duplicate_dict[duplicate_idx] = source_idx
 
     return duplicate_dict
-
-
-def _merge_duplicate_node_indices_on_connectivity(conn, duplicate_dict):
-    new_conn = conn.copy().ravel()
-
-    for idx, item in enumerate(new_conn):
-        if item in duplicate_dict:
-            # O(1)
-            new_conn[idx] = duplicate_dict[item]
-
-    new_conn = new_conn.reshape(conn.shape)
-
-    # this might not be needed
-    return new_conn

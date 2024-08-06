@@ -6,6 +6,7 @@ import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
+import uxarray
 import uxarray as ux
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
@@ -982,32 +983,3 @@ class TestDualMesh(TestCase):
 
         # Assert the faces are the same
         nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
-
-
-class TestMergeDuplicateNodes(TestCase):
-    """Test duplicate node merging."""
-    def test_remove_duplicate_nodes(self):
-        # Test the use of `grid.merge_duplicate_node_indices`
-        grid = ux.open_grid(gridfile_geos)
-
-        new_grid = grid.merge_duplicate_node_indices(inplace=False)
-
-        # Create the duplication dictionary
-        duplicate_node_dict = _find_duplicate_nodes(new_grid)
-
-        # Test that each node only has one dictionary entry
-        for nodes in duplicate_node_dict.items():
-            nt.assert_equal(len(nodes), 2)
-
-    def test_inplace_remove_duplicate_nodes(self):
-        # Test inplace use of `grid.merge_duplicate_node_indices`
-        grid = ux.open_grid(gridfile_geos)
-
-        grid.merge_duplicate_node_indices(inplace=True)
-
-        # Create the duplication dictionary
-        duplicate_node_dict = _find_duplicate_nodes(grid)
-
-        # Test that each node only has one dictionary entry
-        for nodes in duplicate_node_dict.items():
-            nt.assert_equal(len(nodes), 2)

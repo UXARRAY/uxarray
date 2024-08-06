@@ -1,10 +1,8 @@
 """uxarray.core.grid module."""
 
-import uxarray as ux
 import xarray as xr
 import numpy as np
 
-from numba import njit
 from html import escape
 
 from xarray.core.options import OPTIONS
@@ -70,16 +68,13 @@ from uxarray.subset import GridSubsetAccessor
 from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
+    _check_duplicate_nodes_indices,
     _check_area,
 )
 
-from uxarray.grid.validation import (
-    _find_duplicate_nodes,
-    _merge_duplicate_node_indices_on_connectivity,
-)
+
 from uxarray.conventions import ugrid
 
-from uxarray.constants import INT_FILL_VALUE
 
 from xarray.core.utils import UncachedAccessor
 
@@ -88,6 +83,8 @@ from warnings import warn
 import cartopy.crs as ccrs
 
 import copy
+
+from uxarray.grid.dual import construct_dual
 
 
 class Grid:
@@ -353,58 +350,10 @@ class Grid:
         else:
             raise RuntimeError("Mesh validation failed.")
 
-    def merge_duplicate_node_indices(self, inplace=True):
-        # create a dictionary of duplicate node indices
-        duplicate_node_indices = _find_duplicate_nodes(self)
-
-        node_conn_names = [
-            "face_node_connectivity",
-            "edge_node_connectivity",
-            "node_node_connectivity",
-        ]
-
-        if inplace:
-            if len(duplicate_node_indices) == 0:
-                return
-
-            for conn_name in node_conn_names:
-                if conn_name in self._ds:
-                    corrected_conn = _merge_duplicate_node_indices_on_connectivity(
-                        self._ds[conn_name].values, duplicate_node_indices
-                    )
-                    self._ds[conn_name].values = corrected_conn
-
-            return
-
-        else:
-            # not in place, return a new grid
-            if len(duplicate_node_indices) == 0:
-                # TODO
-                return self
-            grid_from_topo_kwargs = {}
-
-            for conn_name in node_conn_names:
-                if conn_name in self._ds:
-                    corrected_conn = _merge_duplicate_node_indices_on_connectivity(
-                        self._ds[conn_name].values, duplicate_node_indices
-                    )
-                    grid_from_topo_kwargs[conn_name] = corrected_conn
-
-            for coord_name in ugrid.SPHERICAL_COORD_NAMES + ugrid.CARTESIAN_COORD_NAMES:
-                if coord_name in self._ds:
-                    grid_from_topo_kwargs[coord_name] = self._ds[coord_name].values
-
-            for conn_name in ugrid.CONNECTIVITY_NAMES:
-                if conn_name in self._ds and conn_name not in node_conn_names:
-                    grid_from_topo_kwargs[conn_name] = self._ds[conn_name].values
-
-            # changed from self
-            return self.from_topology(**grid_from_topo_kwargs)
-
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
-        from uxarray.conventions import ugrid, descriptors
+        from uxarray.conventions import descriptors
 
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
@@ -1468,173 +1417,17 @@ class Grid:
                 f"Invalid method: {method}. Please use a supported method instead"
             )
 
-        if not _check_duplicate_nodes(self):
+        if _check_duplicate_nodes_indices(self):
             raise RuntimeError(
                 "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
             )
 
-        # Class for storing the faces, by their edges
-
-        # Get the dual node xyz, which is the face centers
-        dual_node_x = self.face_x.values
-        dual_node_y = self.face_y.values
-        dual_node_z = self.face_z.values
-
-        node_face_connectivity = self.node_face_connectivity.values
-
-        # Array to hold the final face connectivity information
-        final_faces = []
-
-        for i in range(self.n_node):
-            # Get the number of edges, which is just how many faces are in the node_face
-            # TODO: outside of the loop with a vectorized implementation (1 sum call)
-            n_edges = sum(1 for w in node_face_connectivity[i] if w != INT_FILL_VALUE)
-
-            # If we have less than 3 edges, we can't construct anything but a line
-            if n_edges < 3:
-                continue
-
-            from uxarray.constants import INT_DTYPE
-
-            _face_edges = np.array(
-                [[INT_FILL_VALUE, INT_FILL_VALUE] for _ in range(n_edges)],
-                dtype=INT_DTYPE,
-            )
-            _temp_face_edges = np.array(
-                [[INT_FILL_VALUE, INT_FILL_VALUE] for _ in range(n_edges)],
-                dtype=INT_DTYPE,
-            )
-
-            valid_node_indices = node_face_connectivity[i][0:n_edges]
-
-            index = 0
-
-            # Connect the face centers around the node to make dual face
-            for node_idx in valid_node_indices:
-                # face_temp.set_node(index, node_idx)
-                _set_node(_temp_face_edges, index, node_idx)
-                index += 1
-
-            # Order the nodes using the angles so the faces have nodes in counter-clockwise sequence
-            node_central = np.array([self.node_x[i], self.node_y[i], self.node_z[i]])
-            node_0 = np.array(
-                [
-                    dual_node_x[_temp_face_edges[0][0]],
-                    dual_node_y[_temp_face_edges[0][0]],
-                    dual_node_z[_temp_face_edges[0][0]],
-                ]
-            )
-
-            if _temp_face_edges[0][0] is not INT_FILL_VALUE:
-                _face = _order_nodes(
-                    _face_edges,
-                    _temp_face_edges,
-                    node_0,
-                    node_central,
-                    n_edges,
-                    dual_node_x,
-                    dual_node_y,
-                    dual_node_z,
-                )
-                final_faces.append(_face)
-
-        # Empty array to hold `node_face_connectivity`
-        node_face_connectivity = np.full(
-            (len(final_faces), self.n_max_node_faces),
-            INT_FILL_VALUE,
-            dtype=ux.INT_DTYPE,
-        )
-
-        # Populate the node_face array
-        for i, face in enumerate(final_faces):
-            faces = [
-                edge[0] for edge in face
-            ]  # Extract the first element of each edge tuple
-            node_face_connectivity[i, : len(faces)] = (
-                faces  # Assign the faces to the node_face array
-            )
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self)
 
         # Construct dual mesh
         dual = self.from_topology(
-            self.face_lon.values, self.face_lat.values, node_face_connectivity
+            self.face_lon.values, self.face_lat.values, dual_node_face_conn
         )
 
         return dual
-
-
-@njit
-def _order_nodes(
-    face_edges,
-    temp_face_edges,
-    node_0,
-    node_central,
-    n_edges,
-    dual_node_x,
-    dual_node_y,
-    dual_node_z,
-):
-    node_zero = node_0 - node_central
-
-    node_cross = np.cross(node_0, node_central)
-    node_zero_mag = np.linalg.norm(node_zero)
-
-    d_angles = np.zeros(n_edges, dtype=np.float64)
-    d_angles[0] = 0.0
-    for j in range(1, n_edges):
-        _cur_face_temp_idx = temp_face_edges[j][0]
-
-        if _cur_face_temp_idx is not INT_FILL_VALUE:
-            sub = np.array(
-                [
-                    dual_node_x[_cur_face_temp_idx],
-                    dual_node_y[_cur_face_temp_idx],
-                    dual_node_z[_cur_face_temp_idx],
-                ]
-            )
-            node_diff = sub - node_central
-            node_diff_mag = np.linalg.norm(node_diff)
-
-            d_side = np.dot(node_cross, node_diff)
-            d_dot_norm = np.dot(node_zero, node_diff) / (node_zero_mag * node_diff_mag)
-
-            if d_dot_norm > 1.0:
-                d_dot_norm = 1.0
-
-            d_angles[j] = np.arccos(d_dot_norm)
-
-            if d_side > 0.0:
-                d_angles[j] = -d_angles[j] + 2.0 * np.pi
-
-    d_current_angle = 0.0
-    # face.set_node(0, face_temp[0])
-
-    _set_node(face_edges, 0, temp_face_edges[0][0])
-
-    for j in range(1, n_edges):
-        ix_next_node = -1
-        d_next_angle = 2.0 * np.pi
-
-        for k in range(1, n_edges):
-            if d_current_angle < d_angles[k] < d_next_angle:
-                ix_next_node = k
-                d_next_angle = d_angles[k]
-
-        if ix_next_node == -1:
-            continue
-
-        # face.set_node(j, face_temp[ix_next_node])
-
-        _set_node(face_edges, j, temp_face_edges[ix_next_node][0])
-
-        d_current_angle = d_next_angle
-
-    return face_edges
-
-
-@njit()
-def _set_node(edges, ix_local, ix_node):
-    n_edges = len(edges)
-    edges[ix_local][0] = ix_node
-
-    ix_prev = (ix_local + n_edges - 1) % n_edges
-    edges[ix_prev][1] = ix_node
