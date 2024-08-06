@@ -3,131 +3,19 @@ import numpy as np
 
 import warnings
 
-from uxarray.constants import ERROR_TOLERANCE
+
 from uxarray.conventions import ugrid
-
-from typing import Union
-
-from numba import njit
-
-
-@njit(cache=True)
-def _lonlat_rad_to_xyz(
-    lon: Union[np.ndarray, float],
-    lat: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Spherical latitude and longitude coordinates into Cartesian x,
-    y, z coordinates."""
-    x = np.cos(lon) * np.cos(lat)
-    y = np.sin(lon) * np.cos(lat)
-    z = np.sin(lat)
-
-    return x, y, z
-
-
-def _xyz_to_lonlat_rad(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
-
-    Parameters
-    ----------
-    x : Union[np.ndarray, float]
-        Cartesian x coordinates
-    y: Union[np.ndarray, float]
-        Cartesiain y coordinates
-    z: Union[np.ndarray, float]
-        Cartesian z coordinates
-    normalize: bool
-        Flag to select whether to normalize the coordinates
-
-    Returns
-    -------
-    lon : Union[np.ndarray, float]
-        Longitude in radians
-    lat: Union[np.ndarray, float]
-        Latitude in radians
-    """
-
-    if normalize:
-        x, y, z = _normalize_xyz(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
-
-    lon = np.arctan2(y, x, dtype=np.float64)
-    lat = np.arcsin(z, dtype=np.float64)
-
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
-
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
-
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
-
-    return lon, lat
-
-
-def _xyz_to_lonlat_deg(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
-
-    Parameters
-    ----------
-    x : Union[np.ndarray, float]
-        Cartesian x coordinates
-    y: Union[np.ndarray, float]
-        Cartesiain y coordinates
-    z: Union[np.ndarray, float]
-        Cartesian z coordinates
-    normalize: bool
-        Flag to select whether to normalize the coordinates
-
-    Returns
-    -------
-    lon : Union[np.ndarray, float]
-        Longitude in degrees
-    lat: Union[np.ndarray, float]
-        Latitude in degrees
-    """
-    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
-
-    lon = np.rad2deg(lon_rad)
-    lat = np.rad2deg(lat_rad)
-
-    lon = (lon + 180) % 360 - 180
-    return lon, lat
-
-
-def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Normalizes a set of Cartesiain coordinates."""
-    denom = np.linalg.norm(
-        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
-    )
-
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
+from uxarray.grid.arcs import _angle_of_2_vectors
+from uxarray.grid.utils import (
+    _xyz_to_lonlat_rad,
+    _lonlat_rad_to_xyz,
+    _xyz_to_lonlat_deg,
+    _normalize_xyz,
+)
 
 
 def _populate_node_latlon(grid) -> None:
-    """Populates the latitude and longitude coordinates of a Grid (`node_lon`,
+    """Populates the lon and lat coordinates of a Grid (`node_lon`,
     `node_lat`)"""
     lon_rad, lat_rad = _xyz_to_lonlat_rad(
         grid.node_x.values, grid.node_y.values, grid.node_z.values
@@ -227,10 +115,84 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
+def _populate_face_centerpoints(grid, repopulate=False):
+    """Calculates the face centerpoints using Welzl's algorithm. It is a
+    randomized algorithm for finding the center and radius of the smallest
+    circle that encloses a set of points. It is here adapted to work on a unit
+    sphere. Also, this algorithm cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    grid : Grid
+        The grid containing the nodes and faces.
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False.
+    """
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+
+    node_lon = grid.node_lon.values
+    node_lat = grid.node_lat.values
+
+    centerpoint_lat = []
+    centerpoint_lon = []
+
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+
+    # Check if the centerpoints are already populated
+    if "face_lon" not in grid._ds or repopulate:
+        centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
+            node_lon, node_lat, face_nodes, n_nodes_per_face
+        )
+    # get the cartesian coordinates of the centerpoints
+    ctrpt_x, ctrpt_y, ctrpt_z = _lonlat_rad_to_xyz(centerpoint_lon, centerpoint_lat)
+
+    # set the grid variables for centerpoints
+    if "face_lon" not in grid._ds or repopulate:
+        grid._ds["face_lon"] = xr.DataArray(
+            centerpoint_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
+        )
+        grid._ds["face_lat"] = xr.DataArray(
+            centerpoint_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
+        )
+
+    if "face_x" not in grid._ds or repopulate:
+        grid._ds["face_x"] = xr.DataArray(
+            ctrpt_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
+        )
+
+        grid._ds["face_y"] = xr.DataArray(
+            ctrpt_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
+        )
+
+        grid._ds["face_z"] = xr.DataArray(
+            ctrpt_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
+        )
+
+
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
-    Averaging."""
+    Averaging.
 
+    Parameters
+    ----------
+    node_x : numpy.ndarray
+        X coordinates of the nodes.
+    node_y : numpy.ndarray
+        Y coordinates of the nodes.
+    node_z : numpy.ndarray
+        Z coordinates of the nodes.
+    face_nodes : numpy.ndarray
+        Indices of nodes per face.
+    n_nodes_per_face : numpy.ndarray
+        Number of nodes per face.
+
+    Returns
+    -------
+    tuple
+        The x, y, and z coordinates of the centroids.
+    """
     centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
@@ -242,6 +204,186 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
         centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
 
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
+
+
+def circle_from_two_points(p1, p2):
+    """Calculate the smallest circle that encloses two points on a unit sphere.
+
+    Parameters
+    ----------
+    p1 : tuple
+        The first point as a tuple of (latitude, longitude).
+    p2 : tuple
+        The second point as a tuple of (latitude, longitude).
+
+    Returns
+    -------
+    tuple
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
+    """
+    center_lon = (p1[0] + p2[0]) / 2
+    center_lat = (p1[1] + p2[1]) / 2
+    center = (center_lon, center_lat)
+    v1, v2 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (p1, p2))
+    distance = _angle_of_2_vectors(v1, v2)
+    radius = distance / 2
+    return center, radius
+
+
+def circle_from_three_points(p1, p2, p3):
+    """Calculate the smallest circle that encloses three points on a unit
+    sphere. This is a placeholder implementation.
+
+    Parameters
+    ----------
+    p1 : tuple
+        The first point.
+    p2 : tuple
+        The second point.
+    p3 : tuple
+        The third point.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
+    """
+    center = p1  # Placeholder center
+    v1, v2, v3 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (p1, p2, p3))
+    radius = (
+        max(
+            _angle_of_2_vectors(v1, v2),
+            _angle_of_2_vectors(v1, v3),
+            _angle_of_2_vectors(v2, v3),
+        )
+        / 2
+    )
+    return center, radius
+
+
+def is_inside_circle(circle, point):
+    """Check if a point is inside a given circle on a unit sphere.
+
+    Parameters
+    ----------
+    circle : tuple
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
+    point : tuple
+        The point to check, as a tuple of (lon, lat).
+
+    Returns
+    -------
+    bool
+        True if the point is inside the circle, False otherwise.
+    """
+    center, radius = circle
+    v1, v2 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (center, point))
+    distance = _angle_of_2_vectors(v1, v2)
+    return distance <= radius
+
+
+def welzl_recursive(points, boundary, R):
+    """Recursive helper function for Welzl's algorithm to find the smallest
+    enclosing circle.
+
+    Parameters
+    ----------
+    points : numpy.ndarray
+        The set of points to consider.
+    boundary : numpy.ndarray
+        The current boundary points of the minimal enclosing circle.
+    R : tuple
+        The current minimal enclosing circle.
+
+    Returns
+    -------
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
+    """
+    # Base case: no points or boundary has 3 points
+    if len(points) == 0 or len(boundary) == 3:
+        # Construct the minimal circle based on the number of boundary points
+        if len(boundary) == 0:
+            return R
+        elif len(boundary) == 1:
+            return (boundary[0], 0)
+        elif len(boundary) == 2:
+            return circle_from_two_points(boundary[0], boundary[1])
+        elif len(boundary) == 3:
+            return circle_from_three_points(boundary[0], boundary[1], boundary[2])
+
+    # Choose a point from the set and remove it
+    p = points[-1]
+    temp_points = np.delete(points, -1, axis=0)
+    circle = welzl_recursive(temp_points, boundary, R)
+
+    # Check if the chosen point is inside the current circle
+    if circle and is_inside_circle(circle, p):
+        return circle
+    else:
+        # If not, the point must be on the boundary of the minimal enclosing circle
+        return welzl_recursive(temp_points, np.append(boundary, [p], axis=0), R)
+
+
+def smallest_enclosing_circle(points):
+    """Find the smallest circle that encloses all given points on a unit sphere
+    using Welzl's algorithm.
+
+    Parameters
+    ----------
+    points : numpy.ndarray
+        An array of points as tuples of (lon, lat).
+
+    Returns
+    -------
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
+    """
+    np.random.shuffle(
+        points
+    )  # Randomize the input to increase the chance of an optimal solution
+    return welzl_recursive(points, np.empty((0, 2)), None)
+
+
+def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
+    """Constructs the face centerpoint using Welzl's algorithm.
+
+    Parameters
+    ----------
+    node_lon : array_like
+        Longitudes of the nodes.
+    node_lat : array_like
+        Latitudes of the nodes.
+    face_nodes : array_like
+        Indices of nodes per face.
+    n_nodes_per_face : array_like
+        Number of nodes per face.
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        Two arrays containing the longitudes and latitudes of the centerpoints.
+
+    Notes
+    -----
+    This function calculates the centerpoints of faces defined by nodes on a sphere, using Welzl's algorithm to
+    find the smallest enclosing circle for each face.
+    """
+    ctrpt_lon = np.zeros(face_nodes.shape[0], dtype=np.float64)
+    ctrpt_lat = np.zeros(face_nodes.shape[0], dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        points_array = np.column_stack(
+            (
+                node_lon[face_nodes[face_idx, :n_max_nodes]],
+                node_lat[face_nodes[face_idx, :n_max_nodes]],
+            )
+        )
+        circle = smallest_enclosing_circle(points_array)
+        ctrpt_lon[face_idx] = circle[0][0]
+        ctrpt_lat[face_idx] = circle[0][1]
+
+    return ctrpt_lon, ctrpt_lat
 
 
 def _populate_edge_centroids(grid, repopulate=False):

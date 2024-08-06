@@ -4,7 +4,8 @@ import numpy as np
 import numpy.testing as nt
 import uxarray as ux
 from pathlib import Path
-from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _normalize_xyz
+from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _populate_face_centerpoints
+from uxarray.grid.utils import _normalize_xyz
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -107,3 +108,20 @@ class TestCentroids(TestCase):
 
         nt.assert_array_almost_equal(expected_edge_lon, computed_edge_lon)
         nt.assert_array_almost_equal(expected_edge_lat, computed_edge_lat)
+
+    def test_face_centerpoint(self):
+        """Use points from an actual spherical face and get the centerpoint."""
+
+        points = np.array([(-35.26438968, -45.0), (-36.61769496, -42.0), (-33.78769181, -42.0), (-32.48416571, -45.0)])
+        uxgrid = ux.open_grid(points, latlon=True)
+
+        # Uses the @property from get face_lon/lat - default is average or centroid
+        ctr_lon = uxgrid.face_lon.values[0]
+        ctr_lat = uxgrid.face_lat.values[0]
+
+        # now explicitly get the centerpoints stored to face_lon/lat using welzl's centerpoint algorithm
+        uxgrid.compute_face_center(method = "welzl")
+
+        # Test the values of the calculated centerpoint, giving high tolerance of two decimal place
+        nt.assert_array_almost_equal(ctr_lon, uxgrid.face_lon.values[0], decimal=2)
+        nt.assert_array_almost_equal(ctr_lat, uxgrid.face_lat.values[0], decimal=2)

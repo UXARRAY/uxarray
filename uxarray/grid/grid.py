@@ -34,6 +34,7 @@ from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
+    _populate_face_centerpoints,
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
@@ -343,6 +344,28 @@ class Grid:
             return True
         else:
             raise RuntimeError("Mesh validation failed.")
+
+    def compute_face_center(self, method="average"):
+        """Constructs a face_lon and face_lat.
+
+        Parameters
+        ----------
+        method : str, default="average"
+            other supported method is Welzl's algorithm, takes value "welzl"
+
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("GRID_FILE_NAME")
+        >>> face_lat = uxgrid.construct_face_center(method="welzl")
+        """
+        if method == "average":
+            _populate_face_centroids(self, repopulate=True)
+        elif method == "welzl":
+            _populate_face_centerpoints(self, repopulate=True)
+        else:
+            raise ValueError("unknown method for face center calculation")
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
