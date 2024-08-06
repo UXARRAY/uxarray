@@ -141,34 +141,32 @@ def _populate_face_centerpoints(grid, repopulate=False):
     n_nodes_per_face = grid.n_nodes_per_face.values
 
     # Check if the centerpoints are already populated
-    if "face_lon_ctrpt" not in grid._ds or repopulate:
-        # Construct the centerpoints if there are none stored
-        if "face_x_ctrpt" not in grid._ds:
-            centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
-                node_lon, node_lat, face_nodes, n_nodes_per_face
-            )
+    if "face_lon" not in grid._ds or repopulate:
+        centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
+            node_lon, node_lat, face_nodes, n_nodes_per_face
+        )
     # get the cartesian coordinates of the centerpoints
     ctrpt_x, ctrpt_y, ctrpt_z = _lonlat_rad_to_xyz(centerpoint_lon, centerpoint_lat)
 
     # set the grid variables for centerpoints
-    if "face_lon_ctrpt" not in grid._ds or repopulate:
-        grid._ds["face_lon_ctrpt"] = xr.DataArray(
+    if "face_lon" not in grid._ds or repopulate:
+        grid._ds["face_lon"] = xr.DataArray(
             centerpoint_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
         )
-        grid._ds["face_lat_ctrpt"] = xr.DataArray(
+        grid._ds["face_lat"] = xr.DataArray(
             centerpoint_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
         )
 
-    if "face_x_ctrpt" not in grid._ds or repopulate:
-        grid._ds["face_x_ctrpt"] = xr.DataArray(
+    if "face_x" not in grid._ds or repopulate:
+        grid._ds["face_x"] = xr.DataArray(
             ctrpt_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
         )
 
-        grid._ds["face_y_ctrpt"] = xr.DataArray(
+        grid._ds["face_y"] = xr.DataArray(
             ctrpt_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
         )
 
-        grid._ds["face_z_ctrpt"] = xr.DataArray(
+        grid._ds["face_z"] = xr.DataArray(
             ctrpt_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
         )
 
@@ -195,7 +193,6 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     tuple
         The x, y, and z coordinates of the centroids.
     """
-
     centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)

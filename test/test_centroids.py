@@ -114,12 +114,14 @@ class TestCentroids(TestCase):
 
         points = np.array([(-35.26438968, -45.0), (-36.61769496, -42.0), (-33.78769181, -42.0), (-32.48416571, -45.0)])
         uxgrid = ux.open_grid(points, latlon=True)
-        _populate_face_centerpoints(uxgrid)
 
-        # the expected centerpoint should be close to centroid for this case
+        # Uses the @property from get face_lon/lat - default is average or centroid
         ctr_lon = uxgrid.face_lon.values[0]
         ctr_lat = uxgrid.face_lat.values[0]
 
-        # Test the values of the calculated centerpoint, giving high tolerance of one decimal place
-        nt.assert_array_almost_equal(ctr_lon, uxgrid.face_lon_ctrpt.values[0], decimal=1)
-        nt.assert_array_almost_equal(ctr_lat, uxgrid.face_lat_ctrpt.values[0], decimal=1)
+        # now explicitly get the centerpoints stored to face_lon/lat using welzl's centerpoint algorithm
+        uxgrid.compute_face_center(method = "welzl")
+
+        # Test the values of the calculated centerpoint, giving high tolerance of two decimal place
+        nt.assert_array_almost_equal(ctr_lon, uxgrid.face_lon.values[0], decimal=2)
+        nt.assert_array_almost_equal(ctr_lat, uxgrid.face_lat.values[0], decimal=2)

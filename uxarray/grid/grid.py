@@ -345,6 +345,28 @@ class Grid:
         else:
             raise RuntimeError("Mesh validation failed.")
 
+    def compute_face_center(self, method="average"):
+        """Constructs a face_lon and face_lat.
+
+        Parameters
+        ----------
+        method : str, default="average"
+            other supported method is Welzl's algorithm, takes value "welzl"
+
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("GRID_FILE_NAME")
+        >>> face_lat = uxgrid.construct_face_center(method="welzl")
+        """
+        if method == "average":
+            _populate_face_centroids(self, repopulate=True)
+        elif method == "welzl":
+            _populate_face_centerpoints(self, repopulate=True)
+        else:
+            raise ValueError("unknown method for face center calculation")
+
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
@@ -730,60 +752,6 @@ class Grid:
         if "face_z" not in self._ds:
             _populate_face_centroids(self)
         return self._ds["face_z"]
-
-    @property
-    def face_lon_ctrpt(self) -> xr.DataArray:
-        """Longitude of the center of each face in degrees.
-
-        Dimensions: ``(n_face, )``
-        """
-        if "face_lon_ctrpt" not in self._ds:
-            _populate_face_centerpoints(self)
-            _set_desired_longitude_range(self._ds)
-        return self._ds["face_lon_ctrpt"]
-
-    @property
-    def face_lat_ctrpt(self) -> xr.DataArray:
-        """Latitude of the center of each face in degrees.
-
-        Dimensions: ``(n_face, )``
-        """
-        if "face_lat_ctrpt" not in self._ds:
-            _populate_face_centerpoints(self)
-            _set_desired_longitude_range(self._ds)
-
-        return self._ds["face_lat_ctrpt"]
-
-    @property
-    def face_x_ctrpt(self) -> xr.DataArray:
-        """Cartesian x location of the center of each face in meters.
-
-        Dimensions: ``(n_face, )``
-        """
-        if "face_x_ctrpt" not in self._ds:
-            _populate_face_centerpoints(self)
-
-        return self._ds["face_x_ctrpt"]
-
-    @property
-    def face_y_ctrpt(self) -> xr.DataArray:
-        """Cartesian y location of the center of each face in meters.
-
-        Dimensions: ``(n_face, )``
-        """
-        if "face_y_ctrpt" not in self._ds:
-            _populate_face_centerpoints(self)
-        return self._ds["face_y_ctrpt"]
-
-    @property
-    def face_z_ctrpt(self) -> xr.DataArray:
-        """Cartesian z location of the center of each face in meters.
-
-        Dimensions: ``(n_face, )``
-        """
-        if "face_z_ctrpt" not in self._ds:
-            _populate_face_centerpoints(self)
-        return self._ds["face_z_ctrpt"]
 
     @property
     def face_node_connectivity(self) -> xr.DataArray:
