@@ -37,6 +37,7 @@ from uxarray.grid.coordinates import (
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
+    _normalize_xyz,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -70,6 +71,7 @@ from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
     _check_area,
+    _check_normalization,
 )
 
 from xarray.core.utils import UncachedAccessor
@@ -1157,6 +1159,38 @@ class Grid:
             )
 
         return self._face_areas, self._face_jacobian
+
+    def normalize_cartesian_coordinates(self):
+        """Normalizes Cartesian coordinates."""
+
+        if _check_normalization(self):
+            # check if coordinates are already normalized
+            return
+
+        if "node_x" in self._ds:
+            # normalize node coordinates
+            node_x, node_y, node_z = _normalize_xyz(
+                self.node_x.values, self.node_y.values, self.node_z.values
+            )
+            self.node_x.data = node_x
+            self.node_y.data = node_y
+            self.node_z.data = node_z
+        if "edge_x" in self._ds:
+            # normalize edge coordinates
+            edge_x, edge_y, edge_z = _normalize_xyz(
+                self.edge_x.values, self.edge_y.values, self.edge_z.values
+            )
+            self.edge_x.data = edge_x
+            self.edge_y.data = edge_y
+            self.edge_z.data = edge_z
+        if "face_x" in self._ds:
+            # normalize face coordinates
+            face_x, face_y, face_z = _normalize_xyz(
+                self.face_x.values, self.face_y.values, self.face_z.values
+            )
+            self.face_x.data = face_x
+            self.face_y.data = face_y
+            self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns a xarray Dataset representation in a specific grid format
