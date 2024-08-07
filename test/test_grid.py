@@ -957,3 +957,8 @@ class TestLatlonBounds(TestCase):
         uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
         bounds_xarray = uxgrid.bounds
         pass
+
+
+    def test_opti_bounds(self):
+        uxgrid = ux.open_grid(gridfile_CSne8)
+        bounds = uxgrid.bounds
