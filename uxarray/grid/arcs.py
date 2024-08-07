@@ -2,7 +2,7 @@ import numpy as np
 
 # from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_no_norm
 from uxarray.constants import ERROR_TOLERANCE
 
 from uxarray.utils.computing import isclose, cross, dot
@@ -102,12 +102,12 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
     """
     # Convert the cartesian coordinates to lonlat coordinates
-    pt_lonlat = np.array(_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]))
+    pt_lonlat = np.array(_xyz_to_lonlat_rad_no_norm(pt[0], pt[1], pt[2]))
     GCRv0_lonlat = np.array(
-        _xyz_to_lonlat_rad(gca_cart[0][0], gca_cart[0][1], gca_cart[0][2])
+        _xyz_to_lonlat_rad_no_norm(gca_cart[0][0], gca_cart[0][1], gca_cart[0][2])
     )
     GCRv1_lonlat = np.array(
-        _xyz_to_lonlat_rad(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
+        _xyz_to_lonlat_rad_no_norm(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
     )
 
     # Convert the list to np.float64
@@ -342,8 +342,8 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         else d_a_max
     )
 
-    _, lat_n1 = _xyz_to_lonlat_rad(n1[0], n1[1], n1[2])
-    _, lat_n2 = _xyz_to_lonlat_rad(n2[0], n2[1], n2[2])
+    _, lat_n1 = _xyz_to_lonlat_rad_no_norm(n1[0], n1[1], n1[2])
+    _, lat_n2 = _xyz_to_lonlat_rad_no_norm(n2[0], n2[1], n2[2])
 
     if 0 < d_a_max < 1:
         node3 = (1 - d_a_max) * n1 + d_a_max * n2

@@ -10,6 +10,8 @@ from typing import Union
 
 from numba import njit
 
+import math
+
 
 @njit(cache=True)
 def _lonlat_rad_to_xyz(
@@ -23,6 +25,27 @@ def _lonlat_rad_to_xyz(
     z = np.sin(lat)
 
     return x, y, z
+
+
+@njit
+def _xyz_to_lonlat_rad_no_norm(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+):
+    """TODO:"""
+    lon = math.atan2(y, x)
+    lat = math.asin(z)
+
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
+
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
 
 
 def _xyz_to_lonlat_rad(
