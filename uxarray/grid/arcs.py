@@ -2,7 +2,7 @@ import numpy as np
 
 # from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _normalize_xyz
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.constants import ERROR_TOLERANCE
 
 from uxarray.utils.computing import isclose, cross, dot
@@ -125,7 +125,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
         )
 
     if not isclose(
-        dot(cross(gca_cart[0], gca_cart[1]), pt),
+        dot(cross(np.asarray(gca_cart[0]), np.asarray(gca_cart[1])), pt),
         0,
         rtol=0.0,
         atol=ERROR_TOLERANCE,
@@ -330,7 +330,8 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         raise ValueError("extreme_type must be either 'max' or 'min'")
 
     n1, n2 = gca_cart
-    dot_n1_n2 = dot(n1, n2)
+
+    dot_n1_n2 = dot(np.asarray(n1), np.asarray(n2))
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
@@ -346,7 +347,7 @@ def extreme_gca_latitude(gca_cart, extreme_type):
 
     if 0 < d_a_max < 1:
         node3 = (1 - d_a_max) * n1 + d_a_max * n2
-        node3 = np.array(_normalize_xyz(node3[0], node3[1], node3[2]))
+        # node3 = np.array(_normalize_xyz(node3[0], node3[1], node3[2]))
         d_lat_rad = np.arcsin(np.clip(node3[2], -1, 1))
 
         return (
