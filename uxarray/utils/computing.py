@@ -17,8 +17,8 @@ def allclose(a, b, rtol=1e-05, atol=1e-08):
 
 
 @njit
-def cross(a, b):
-    return np.cross(a, b)
+def cross(a, b, out=None):
+    return np.cross(a, b, out)
 
 
 @njit
