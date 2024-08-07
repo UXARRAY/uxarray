@@ -16,6 +16,16 @@ def allclose(a, b, rtol=1e-05, atol=1e-08):
     return np.allclose(a, b, rtol=rtol, atol=atol)
 
 
+@njit
+def cross(a, b):
+    return np.cross(a, b)
+
+
+@njit
+def dot(a, b):
+    return np.dot(a, b)
+
+
 def _fmms(a, b, c, d):
     """
     Calculate the difference of products using the FMA (fused multiply-add) operation: (a * b) - (c * d).

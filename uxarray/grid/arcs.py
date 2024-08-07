@@ -5,7 +5,7 @@ import numpy as np
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _normalize_xyz
 from uxarray.constants import ERROR_TOLERANCE
 
-from uxarray.utils.computing import isclose
+from uxarray.utils.computing import isclose, cross, dot
 
 from numba import njit
 
@@ -42,7 +42,7 @@ def _point_within_gca(
 
     # TODO: comment
     if not isclose(
-        np.dot(np.cross(gca_a_xyz, gca_b_xyz), pt_xyz), 0, rtol=0, atol=ERROR_TOLERANCE
+        dot(cross(gca_a_xyz, gca_b_xyz), pt_xyz), 0, rtol=0, atol=ERROR_TOLERANCE
     ):
         return False
 
@@ -125,7 +125,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
         )
 
     if not isclose(
-        np.dot(np.cross(gca_cart[0], gca_cart[1]), pt),
+        dot(cross(gca_cart[0], gca_cart[1]), pt),
         0,
         rtol=0.0,
         atol=ERROR_TOLERANCE,
@@ -330,12 +330,13 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         raise ValueError("extreme_type must be either 'max' or 'min'")
 
     n1, n2 = gca_cart
-    dot_n1_n2 = np.dot(n1, n2)
+    dot_n1_n2 = dot(n1, n2)
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
     d_a_max = (
         np.clip(d_a_max, 0, 1)
+        # TODO:
         if np.isclose(d_a_max, [0, 1], atol=ERROR_TOLERANCE).any()
         else d_a_max
     )

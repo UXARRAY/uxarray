@@ -4,7 +4,7 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose
+from uxarray.utils.computing import cross_fma, allclose, cross
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
@@ -56,9 +56,9 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
 
     # Compute normals and orthogonal bases using FMA
     if fma_disabled:
-        w0w1_norm = np.cross(w0, w1)
-        v0v1_norm = np.cross(v0, v1)
-        cross_norms = np.cross(w0w1_norm, v0v1_norm)
+        w0w1_norm = cross(w0, w1)
+        v0v1_norm = cross(v0, v1)
+        cross_norms = cross(w0w1_norm, v0v1_norm)
     else:
         w0w1_norm = cross_fma(w0, w1)
         v0v1_norm = cross_fma(v0, v1)
@@ -156,7 +156,7 @@ def gca_constLat_intersection(
     x1, x2 = gca_cart
 
     if fma_disabled:
-        n = np.cross(x1, x2)
+        n = cross(x1, x2)
 
     else:
         # Raise a warning for Windows users
