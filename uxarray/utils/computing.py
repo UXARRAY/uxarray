@@ -5,9 +5,8 @@ from numba import njit
 
 
 @njit
-def isclose(a, b, rtol, atol):
+def isclose(a, b, rtol=1e-05, atol=1e-08):
     """TODO Docstring."""
-    # return abs(a - b) <= max(rtol * max(abs(a), abs(b)), atol)
     return np.isclose(a, b, rtol=rtol, atol=atol)
 
 

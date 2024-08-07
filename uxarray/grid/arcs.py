@@ -337,8 +337,8 @@ def extreme_gca_latitude(gca_cart, extreme_type):
 
     d_a_max = (
         np.clip(d_a_max, 0, 1)
-        # TODO:
-        if np.isclose(d_a_max, [0, 1], atol=ERROR_TOLERANCE).any()
+        if isclose(d_a_max, 0, atol=ERROR_TOLERANCE)
+        or isclose(d_a_max, 1, atol=ERROR_TOLERANCE)
         else d_a_max
     )
 
