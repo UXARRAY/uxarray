@@ -22,8 +22,8 @@ def cross(a, b):
 
 
 @njit
-def dot(a, b, out=None):
-    return np.dot(a, b, out)
+def dot(a, b):
+    return np.dot(a, b)
 
 
 def _fmms(a, b, c, d):
