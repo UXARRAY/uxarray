@@ -17,13 +17,13 @@ def allclose(a, b, rtol=1e-05, atol=1e-08):
 
 
 @njit
-def cross(a, b, out=None):
-    return np.cross(a, b, out)
+def cross(a, b):
+    return np.cross(a, b)
 
 
 @njit
-def dot(a, b):
-    return np.dot(a, b)
+def dot(a, b, out=None):
+    return np.dot(a, b, out)
 
 
 def _fmms(a, b, c, d):
