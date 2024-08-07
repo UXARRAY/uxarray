@@ -4,7 +4,7 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma
+from uxarray.utils.computing import cross_fma, allclose
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
@@ -73,29 +73,29 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
             )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not np.allclose(
-        np.dot(w0w1_norm, w0), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
+    if not allclose(np.dot(w0w1_norm, w0), 0, atol=ERROR_TOLERANCE) or not allclose(
+        np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
-    if not np.allclose(
-        np.dot(v0v1_norm, v0), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
+    if not allclose(np.dot(v0v1_norm, v0), 0, atol=ERROR_TOLERANCE) or not allclose(
+        np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
 
-    if not np.allclose(
+    if not allclose(
         np.dot(cross_norms, v0v1_norm), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
+    ) or not allclose(np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
         )
 
     # If the cross_norms is zero, the two GCAs are parallel
-    if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
+    if allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
         return np.array([])
 
     # Normalize the cross_norms

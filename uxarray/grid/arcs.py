@@ -5,6 +5,8 @@ import numpy as np
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _normalize_xyz
 from uxarray.constants import ERROR_TOLERANCE
 
+from uxarray.utils.computing import isclose
+
 from numba import njit
 
 
@@ -19,11 +21,6 @@ def _to_list(obj):
     return obj
 
 
-@njit
-def _isclose(a, b, rtol, atol):
-    return abs(a - b) <= max(rtol * max(abs(a), abs(b)), atol)
-
-
 def _point_within_gca(
     pt_latlon,
     pt_xyz,
@@ -36,7 +33,7 @@ def _point_within_gca(
     # TODO: Angle
     angle = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
 
-    if _isclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
+    if isclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
         raise ValueError(
             "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
             "Consider breaking the Great Circle Arc"
@@ -44,15 +41,15 @@ def _point_within_gca(
         )
 
     # TODO: comment
-    if not _isclose(
+    if not isclose(
         np.dot(np.cross(gca_a_xyz, gca_b_xyz), pt_xyz), 0, rtol=0, atol=ERROR_TOLERANCE
     ):
         return False
 
     # TODO: describe block
-    if _isclose(gca_a_latlon[0], gca_b_latlon[0], rtol=0, atol=ERROR_TOLERANCE):
+    if isclose(gca_a_latlon[0], gca_b_latlon[0], rtol=0, atol=ERROR_TOLERANCE):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if _isclose(gca_a_latlon[0], pt_latlon[0], rtol=0, atol=ERROR_TOLERANCE):
+        if isclose(gca_a_latlon[0], pt_latlon[0], rtol=0, atol=ERROR_TOLERANCE):
             # Now use the latitude to determine if the pt falls between the interval
             return in_between(gca_a_latlon[1], pt_latlon[1], gca_b_latlon[1])
         else:
@@ -120,21 +117,24 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
 
-    if _isclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
+    if isclose(angle, np.pi, rtol=0.0, atol=ERROR_TOLERANCE):
         raise ValueError(
             "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
             "Consider breaking the Great Circle Arc"
             "into two Great Circle Arcs"
         )
 
-    if not _isclose(
-        np.dot(np.cross(gca_cart[0], gca_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE
+    if not isclose(
+        np.dot(np.cross(gca_cart[0], gca_cart[1]), pt),
+        0,
+        rtol=0.0,
+        atol=ERROR_TOLERANCE,
     ):
         return False
 
-    if _isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+    if isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if _isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+        if isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE):
             # Now use the latitude to determine if the pt falls between the interval
             return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
         else:
@@ -142,15 +142,17 @@ def point_within_gca(pt, gca_cart, is_directed=False):
             return False
 
     # If the longnitude span is exactly 180 degree, then the GCA goes through the pole point
-    if _isclose(
-        abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0, atol=ERROR_TOLERANCE
+    if isclose(
+        abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0.0, atol=ERROR_TOLERANCE
     ):
         # Special case, if the pt is on the pole point, then set its longitude to the GCRv0_lonlat[0]
-        if _isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=0, atol=ERROR_TOLERANCE):
+        if isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=0.0, atol=ERROR_TOLERANCE):
             pt_lonlat[0] = GCRv0_lonlat[0]
-        if not _isclose(
-            GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE
-        ) and not _isclose(GCRv1_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+        if not isclose(
+            GCRv0_lonlat[0], pt_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE
+        ) and not isclose(
+            GCRv1_lonlat[0], pt_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE
+        ):
             return False
         else:
             # Determine the pole latitude and latitude extension
