@@ -21,44 +21,6 @@ def _to_list(obj):
     return obj
 
 
-def _point_within_gca(
-    pt_latlon,
-    pt_xyz,
-    gca_a_latlon,
-    gca_a_xyz,
-    gca_b_latlon,
-    gca_b_xyz,
-    is_directed=False,
-):
-    # TODO: Angle
-    angle = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
-
-    if isclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
-        raise ValueError(
-            "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
-            "Consider breaking the Great Circle Arc"
-            "into two Great Circle Arcs"
-        )
-
-    # TODO: comment
-    if not isclose(
-        dot(cross(gca_a_xyz, gca_b_xyz), pt_xyz), 0, rtol=0, atol=ERROR_TOLERANCE
-    ):
-        return False
-
-    # TODO: describe block
-    if isclose(gca_a_latlon[0], gca_b_latlon[0], rtol=0, atol=ERROR_TOLERANCE):
-        # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if isclose(gca_a_latlon[0], pt_latlon[0], rtol=0, atol=ERROR_TOLERANCE):
-            # Now use the latitude to determine if the pt falls between the interval
-            return in_between(gca_a_latlon[1], pt_latlon[1], gca_b_latlon[1])
-        else:
-            # If the pt and the GCA are not on the same longitude when the GCA is a longnitude arc, then the pt is not on the GCA
-            return False
-
-    pass
-
-
 def point_within_gca(pt, gca_cart, is_directed=False):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
