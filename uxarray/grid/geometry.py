@@ -6,6 +6,8 @@ from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_lonlat_rad_face_edge_nodes,
 )
+
+from uxarray.utils.computing import isclose
 import warnings
 import pandas as pd
 import xarray as xr
@@ -612,18 +614,16 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     # Check for pole points and update latitudes
     is_pole_point = (
         lon_pt == INT_FILL_VALUE
-        and np.isclose(
-            new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE
-        ).any()
+        and isclose(new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE).any()
     )
 
     if is_pole_point:
         # Check if the new point is close to the North Pole
-        if np.isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
+        if isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
             latlon_box[0][1] = 0.5 * np.pi
 
         # Check if the new point is close to the South Pole
-        elif np.isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
+        elif isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
             latlon_box[0][0] = -0.5 * np.pi
 
         return latlon_box
@@ -850,16 +850,16 @@ def _populate_face_latlon_bound(
             )
 
             # Insert extreme latitude points into the latlonbox if they differ from the node latitudes
-            if not np.isclose(
+            if not isclose(
                 node1_lat_rad, lat_max, atol=ERROR_TOLERANCE
-            ) and not np.isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
+            ) and not isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
                 # Insert the maximum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
-            elif not np.isclose(
+            elif not isclose(
                 node1_lat_rad, lat_min, atol=ERROR_TOLERANCE
-            ) and not np.isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
+            ) and not isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
                 # Insert the minimum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
