@@ -149,6 +149,15 @@ def _normalize_xyz(
     return x_norm, y_norm, z_norm
 
 
+@njit
+def _normalize_xyz_scalar(x: float, y: float, z: float):
+    denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm
+
+
 def _populate_node_latlon(grid) -> None:
     """Populates the latitude and longitude coordinates of a Grid (`node_lon`,
     `node_lat`)"""
