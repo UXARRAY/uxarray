@@ -614,7 +614,8 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     # Check for pole points and update latitudes
     is_pole_point = (
         lon_pt == INT_FILL_VALUE
-        and isclose(new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE).any()
+        and isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE)
+        or isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE)
     )
 
     if is_pole_point:
