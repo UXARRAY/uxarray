@@ -7,7 +7,7 @@ import warnings
 from uxarray.utils.computing import cross_fma, allclose, cross, dot
 
 
-def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
+def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
