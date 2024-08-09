@@ -953,5 +953,6 @@ class TestLatlonBounds(TestCase):
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_opti_bounds(self):
+        import uxarray
         uxgrid = ux.open_grid(gridfile_CSne8)
         bounds = uxgrid.bounds

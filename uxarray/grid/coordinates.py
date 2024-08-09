@@ -33,7 +33,27 @@ def _xyz_to_lonlat_rad_no_norm(
     y: Union[np.ndarray, float],
     z: Union[np.ndarray, float],
 ):
-    """TODO:"""
+    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
+    longitude without normalization, decorated with Numba.
+
+    Parameters
+    ----------
+    x : float
+        Cartesian x coordinate
+    y: float
+        Cartesiain y coordinate
+    z: float
+        Cartesian z coordinate
+
+
+    Returns
+    -------
+    lon : float
+        Longitude in radians
+    lat: float
+        Latitude in radians
+    """
+
     lon = math.atan2(y, x)
     lat = math.asin(z)
 

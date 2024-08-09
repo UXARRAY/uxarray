@@ -6,8 +6,10 @@ import platform
 import warnings
 from uxarray.utils.computing import cross_fma, allclose, cross, dot
 
+import uxarray.constants
 
-def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
+
+def gca_gca_intersection(gca1_cart, gca2_cart):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
@@ -54,12 +56,13 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
 
-    # Compute normals and orthogonal bases using FMA
-    if fma_disabled:
+    if not uxarray.constants.ENABLE_FMA:
+        # Compute normals and orthogonal bases without FMA
         w0w1_norm = cross(w0, w1)
         v0v1_norm = cross(v0, v1)
         cross_norms = cross(w0w1_norm, v0v1_norm)
     else:
+        # Compute normals and orthogonal bases using FMA
         w0w1_norm = cross_fma(w0, w1)
         v0v1_norm = cross_fma(v0, v1)
         cross_norms = cross_fma(w0w1_norm, v0v1_norm)
