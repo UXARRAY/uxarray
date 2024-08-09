@@ -6,6 +6,7 @@ import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
+import uxarray
 import uxarray as ux
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
@@ -16,6 +17,8 @@ from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.arcs import extreme_gca_latitude
+
+from uxarray.grid.validation import _find_duplicate_nodes
 
 try:
     import constants
@@ -31,6 +34,9 @@ gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne3
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
+
+gridfile_geos = current_path / 'meshfiles' / "geos-cs" / "c12" / 'test-c12.native.nc4'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
@@ -658,8 +664,8 @@ class TestConnectivity(TestCase):
 
         # construct edge nodes
         edge_nodes_output, _, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
-                                                          mpas_grid_ux.n_face,
-                                                          mpas_grid_ux.n_max_face_nodes)
+                                                                mpas_grid_ux.n_face,
+                                                                mpas_grid_ux.n_max_face_nodes)
 
         # _populate_face_edge_connectivity(mpas_grid_ux)
         # edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
@@ -932,6 +938,7 @@ class TestClassMethods(TestCase):
 
 class TestLatlonBounds(TestCase):
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+
     def test_populate_bounds_GCA_mix(self):
         face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -941,11 +948,10 @@ class TestLatlonBounds(TestCase):
         faces = [face_1, face_2, face_3, face_4]
 
         # Hand calculated bounds for the above faces in radians
-        expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
-                           [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
-                           [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
-                           [[1.04719755,1.57079633],[0.,         6.28318531]]]
-
+        expected_bounds = [[[0.17453293, 1.07370494], [0.17453293, 0.87266463]],
+                           [[0.17453293, 1.10714872], [6.10865238, 0.87266463]],
+                           [[1.04719755, 1.57079633], [3.66519143, 0.52359878]],
+                           [[1.04719755, 1.57079633], [0., 6.28318531]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
         bounds_xarray = grid.bounds
@@ -956,3 +962,23 @@ class TestLatlonBounds(TestCase):
         import uxarray
         uxgrid = ux.open_grid(gridfile_CSne8)
         bounds = uxgrid.bounds
+
+
+class TestDualMesh(TestCase):
+    """Test Dual Mesh Construction."""
+
+    def test_dual_mesh_mpas(self):
+        # Open a grid with and without dual
+        grid = ux.open_grid(gridfile_mpas, use_dual=False)
+        mpas_dual = ux.open_grid(gridfile_mpas, use_dual=True)
+
+        # Construct Dual
+        dual = grid.compute_dual()
+
+        # Assert the dimensions are the same
+        assert dual.n_face == mpas_dual.n_face
+        assert dual.n_node == mpas_dual.n_node
+        assert dual.n_max_face_nodes == mpas_dual.n_max_face_nodes
+
+        # Assert the faces are the same
+        nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)

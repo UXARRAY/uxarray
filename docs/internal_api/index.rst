@@ -190,6 +190,9 @@ Validation
    grid.validation._check_connectivity
    grid.validation._check_duplicate_nodes
    grid.validation._check_area
+   grid.validation._check_duplicate_nodes_indices
+   grid.validation._find_duplicate_nodes
+
 
 Accurate Computing Utils
 ------------------------
