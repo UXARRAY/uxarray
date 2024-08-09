@@ -22,7 +22,9 @@ def _to_list(obj):
 
 
 @njit
-def case_a(angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed):
+def _point_within_gca_body(
+    angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
+):
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
     if isclose(angle, np.pi, rtol=0.0, atol=ERROR_TOLERANCE):
         raise ValueError(
@@ -177,9 +179,10 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
 
-    out = case_a(
+    out = _point_within_gca_body(
         angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
     )
+
     return out
 
 
