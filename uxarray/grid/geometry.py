@@ -940,7 +940,7 @@ def _populate_bounds(
     intervals_tuple_list = []
     intervals_name_list = []
 
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+    face_edges_cartesian = _get_cartesian_face_edge_nodes(
         grid.face_node_connectivity.values,
         grid.n_face,
         grid.n_max_face_edges,
@@ -949,7 +949,7 @@ def _populate_bounds(
         grid.node_z.values,
     )
 
-    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+    face_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
         grid.face_node_connectivity.values,
         grid.n_face,
         grid.n_max_face_edges,
@@ -957,17 +957,26 @@ def _populate_bounds(
         grid.node_lat.values,
     )
 
-    for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
-        face_edges_cartesian = faces_edges_cartesian[face_idx]
+    face_node_connectivity = grid.face_node_connectivity.values
 
-        # Skip processing if the face is a dummy face
-        if np.any(face_edges_cartesian == INT_FILL_VALUE):
-            continue
+    # # TODO: vectorize dummy face check
+    s = face_edges_cartesian.shape
+    dummy_face_face_edges_cart = np.any(
+        face_edges_cartesian.reshape((s[0], s[1] * s[2] * s[3])) == INT_FILL_VALUE,
+        axis=1,
+    )
 
-        face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
+    s = face_edges_lonlat_rad.shape
+    dummy_face_face_edges_latlon = np.any(
+        face_edges_lonlat_rad.reshape((s[0], s[1] * s[2] * s[3])) == INT_FILL_VALUE,
+        axis=1,
+    )
 
-        # Skip processing if the face is a dummy face
-        if np.any(face_edges_lonlat_rad == INT_FILL_VALUE):
+    dummy_faces = dummy_face_face_edges_cart | dummy_face_face_edges_latlon
+
+    for face_idx, face_nodes in enumerate(face_node_connectivity):
+        if dummy_faces[face_idx]:
+            # skip dummy faces
             continue
 
         is_GCA_list = (
@@ -975,14 +984,15 @@ def _populate_bounds(
         )
 
         temp_latlon_array[face_idx] = _populate_face_latlon_bound(
-            face_edges_cartesian,
-            face_edges_lonlat_rad,
+            face_edges_cartesian[face_idx],
+            face_edges_lonlat_rad[face_idx],
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
 
-        assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
-        assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
+        # # do we need this ?
+        # assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
+        # assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
         lat_array = temp_latlon_array[face_idx][0]
 
         # Now store the latitude intervals in the tuples
@@ -1002,7 +1012,7 @@ def _populate_bounds(
         attrs={
             "cf_role": "face_latlon_bounds",
             "_FillValue": INT_FILL_VALUE,
-            "long_name": "Provides the latitude and longitude bounds for each face in radians.",
+            "long_name": "Latitude and Longitude bounds for each face in radians.",
             "start_index": INT_DTYPE(0),
             "latitude_intervalsIndex": intervalsIndex,
             "latitude_intervals_name_map": df_intervals_map,
