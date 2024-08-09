@@ -5,6 +5,18 @@ from numba import njit
 
 
 @njit
+def all(a):
+    """Numba decorated implementation of ``np.all()``
+
+    See Also
+    --------
+    numpy.all
+    """
+
+    return np.all(a)
+
+
+@njit
 def isclose(a, b, rtol=1e-05, atol=1e-08):
     """Numba decorated implementation of ``np.isclose()``
 

@@ -7,7 +7,7 @@ from uxarray.grid.utils import (
     _get_lonlat_rad_face_edge_nodes,
 )
 
-from uxarray.utils.computing import isclose
+from uxarray.utils.computing import isclose, allclose, all
 import warnings
 import pandas as pd
 import xarray as xr
@@ -469,7 +469,7 @@ def _check_intersection(ref_edge, edges):
         intersection_point = gca_gca_intersection(ref_edge, edge)
 
         if intersection_point.size != 0:
-            if np.allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
+            if allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
                 return True
             intersection_count += 1
 
@@ -490,9 +490,9 @@ def _classify_polygon_location(face_edge_cart):
         Returns either 'North', 'South' or 'Equator' based on the polygon's location.
     """
     z_coords = face_edge_cart[:, :, 2]
-    if np.all(z_coords > 0):
+    if all(z_coords > 0):
         return "North"
-    elif np.all(z_coords < 0):
+    elif all(z_coords < 0):
         return "South"
     else:
         return "Equator"
@@ -586,7 +586,7 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
     array([[1.0, 2.0], [3.0, 4.0]])
     """
-    if np.all(new_pt == INT_FILL_VALUE):
+    if all(new_pt == INT_FILL_VALUE):
         return old_box
 
     latlon_box = np.copy(old_box)  # Create a copy of the old box
@@ -770,9 +770,7 @@ def _populate_face_latlon_bound(
             )
 
             # Check if the node matches the pole point or if the pole point is within the edge_cart
-            if np.allclose(
-                n1_cart, pole_point, atol=ERROR_TOLERANCE
-            ) or point_within_gca(
+            if allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(
                 pole_point, np.array([n1_cart, n2_cart]), is_directed=False
             ):
                 is_center_pole = False
