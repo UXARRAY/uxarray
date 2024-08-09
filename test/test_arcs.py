@@ -36,7 +36,7 @@ class TestIntersectionPoint(TestCase):
         ]
         pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
         with self.assertRaises(ValueError):
-            point_within_gca(pt_same_lon_in, gcr_180degree_cart)
+            point_within_gca(np.asarray(pt_same_lon_in), np.asarray(gcr_180degree_cart))
 
         gcr_180degree_cart = [
             _lonlat_rad_to_xyz(0.0, np.pi / 2.0),
@@ -45,7 +45,7 @@ class TestIntersectionPoint(TestCase):
 
         pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
         with self.assertRaises(ValueError):
-            point_within_gca(pt_same_lon_in, gcr_180degree_cart)
+            point_within_gca(np.asarray(pt_same_lon_in), np.asarray(gcr_180degree_cart))
 
         # Test when the point and the GCA all have the same longitude
         gcr_same_lon_cart = [
