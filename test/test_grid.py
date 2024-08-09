@@ -963,7 +963,7 @@ class TestLatlonBounds(TestCase):
         uxgrid = ux.open_grid(gridfile_CSne8)
         bounds = uxgrid.bounds
 
-        
+
 class TestDualMesh(TestCase):
     """Test Dual Mesh Construction."""
 
