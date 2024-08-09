@@ -21,64 +21,9 @@ def _to_list(obj):
     return obj
 
 
-def point_within_gca(pt, gca_cart, is_directed=False):
-    """Check if a point lies on a given Great Circle Arc (GCA). The anti-
-    meridian case is also considered.
-
-    Parameters
-    ----------
-    pt : numpy.ndarray (float)
-        Cartesian coordinates of the point.
-    gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
-        Cartesian coordinates of the Great Circle Arc (GCR).
-    is_directed : bool, optional, default = False
-        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
-        For the case of the anti-podal case, the direction is v_0--> the pole point that on the same hemisphere as v_0-->v_1
-
-    Returns
-    -------
-    bool
-        True if the point lies between the two endpoints of the GCR, False otherwise.
-
-    Raises
-    ------
-    ValueError
-        If the input GCR spans exactly 180 degrees (π radians), as this GCR can have multiple planes.
-        In such cases, consider breaking the GCR into two separate GCRs.
-
-    ValueError
-        If the input GCR spans more than 180 degrees (π radians).
-        In such cases, consider breaking the GCR into two separate GCRs.
-
-    Notes
-    -----
-    The function checks if the given point is on the Great Circle Arc by considering its cartesian coordinates and
-    accounting for the anti-meridian case.
-
-    The anti-meridian case occurs when the GCR crosses the anti-meridian (0 longitude).
-    In this case, the function handles scenarios where the GCA spans across more than 180 degrees, requiring specific operation.
-
-    The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
-
-    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
-    """
-    # Convert the cartesian coordinates to lonlat coordinates
-    pt_lonlat = np.array(_xyz_to_lonlat_rad_no_norm(pt[0], pt[1], pt[2]))
-    GCRv0_lonlat = np.array(
-        _xyz_to_lonlat_rad_no_norm(gca_cart[0][0], gca_cart[0][1], gca_cart[0][2])
-    )
-    GCRv1_lonlat = np.array(
-        _xyz_to_lonlat_rad_no_norm(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
-    )
-
-    # Convert the list to np.float64
-    gca_cart[0] = np.array(gca_cart[0], dtype=np.float64)
-    gca_cart[1] = np.array(gca_cart[1], dtype=np.float64)
-
-    # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
+@njit
+def case_a(angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed):
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
-
     if isclose(angle, np.pi, rtol=0.0, atol=ERROR_TOLERANCE):
         raise ValueError(
             "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
@@ -175,6 +120,67 @@ def point_within_gca(pt, gca_cart, is_directed=False):
             return in_between(GCRv1_lonlat_max, pt_lonlat[0], 2 * np.pi) or in_between(
                 0.0, pt_lonlat[0], GCRv0_lonlat_min
             )
+
+
+def point_within_gca(pt, gca_cart, is_directed=False):
+    """Check if a point lies on a given Great Circle Arc (GCA). The anti-
+    meridian case is also considered.
+
+    Parameters
+    ----------
+    pt : numpy.ndarray (float)
+        Cartesian coordinates of the point.
+    gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
+        Cartesian coordinates of the Great Circle Arc (GCR).
+    is_directed : bool, optional, default = False
+        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
+        For the case of the anti-podal case, the direction is v_0--> the pole point that on the same hemisphere as v_0-->v_1
+
+    Returns
+    -------
+    bool
+        True if the point lies between the two endpoints of the GCR, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        If the input GCR spans exactly 180 degrees (π radians), as this GCR can have multiple planes.
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    ValueError
+        If the input GCR spans more than 180 degrees (π radians).
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    Notes
+    -----
+    The function checks if the given point is on the Great Circle Arc by considering its cartesian coordinates and
+    accounting for the anti-meridian case.
+
+    The anti-meridian case occurs when the GCR crosses the anti-meridian (0 longitude).
+    In this case, the function handles scenarios where the GCA spans across more than 180 degrees, requiring specific operation.
+
+    The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
+
+    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
+    """
+    # Convert the cartesian coordinates to lonlat coordinates
+    pt_lonlat = np.array(_xyz_to_lonlat_rad_no_norm(pt[0], pt[1], pt[2]))
+    GCRv0_lonlat = np.array(
+        _xyz_to_lonlat_rad_no_norm(gca_cart[0][0], gca_cart[0][1], gca_cart[0][2])
+    )
+    GCRv1_lonlat = np.array(
+        _xyz_to_lonlat_rad_no_norm(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
+    )
+    gca_cart = np.asarray(gca_cart)
+
+    # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
+    angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
+
+    out = case_a(
+        angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
+    )
+    return out
 
 
 @njit
