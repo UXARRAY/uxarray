@@ -14,6 +14,12 @@ from uxarray.plot.accessor import UxDatasetPlotAccessor
 
 from xarray.core.utils import UncachedAccessor
 
+from uxarray.formatting_html import dataset_repr
+
+from html import escape
+
+from xarray.core.options import OPTIONS
+
 from uxarray.remap import UxDatasetRemapAccessor
 
 from warnings import warn
@@ -75,6 +81,11 @@ class UxDataset(xr.Dataset):
     # declare plotting accessor
     plot = UncachedAccessor(UxDatasetPlotAccessor)
     remap = UncachedAccessor(UxDatasetRemapAccessor)
+
+    def _repr_html_(self) -> str:
+        if OPTIONS["display_style"] == "text":
+            return f"<pre>{escape(repr(self))}</pre>"
+        return dataset_repr(self)
 
     def __getitem__(self, key):
         """Override to make sure the result is an instance of
