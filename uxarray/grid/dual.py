@@ -34,7 +34,7 @@ def construct_dual(grid):
     )
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def construct_faces(
     n_node,
     n_edges,
@@ -46,6 +46,7 @@ def construct_faces(
     node_y,
     node_z,
 ):
+    max_edges = len(node_face_connectivity[0])
     for i in range(n_node):
         # If we have less than 3 edges, we can't construct anything but a line
         if n_edges[i] < 3:
@@ -85,6 +86,7 @@ def construct_faces(
                 dual_node_x,
                 dual_node_y,
                 dual_node_z,
+                max_edges,
             )
             node_face_connectivity[i] = _face
     return node_face_connectivity
@@ -99,6 +101,7 @@ def _order_nodes(
     dual_node_x,
     dual_node_y,
     dual_node_z,
+    max_edges,
 ):
     node_zero = node_0 - node_central
 
@@ -107,7 +110,7 @@ def _order_nodes(
 
     d_angles = np.zeros(n_edges, dtype=np.float64)
     d_angles[0] = 0.0
-    final_face = np.array([INT_FILL_VALUE for _ in range(n_edges)], dtype=INT_DTYPE)
+    final_face = np.array([INT_FILL_VALUE for _ in range(max_edges)], dtype=INT_DTYPE)
     for j in range(1, n_edges):
         _cur_face_temp_idx = temp_face[j]
 
