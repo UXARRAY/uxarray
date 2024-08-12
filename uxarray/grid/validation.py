@@ -20,7 +20,6 @@ def _check_connectivity(grid):
 
     # check if the size of unique nodes in connectivity is equal to the number of nodes
     if nodes_in_conn.size == grid.n_node:
-        print("-All nodes are referenced by at least one element.")
         return True
     else:
         warn(
@@ -48,9 +47,21 @@ def _check_duplicate_nodes(grid):
         )
         return False
     else:
-        print("-No duplicate nodes found in the mesh.")
         return True
 
+
+def _check_duplicate_nodes_indices(grid):
+    """Check if there are duplicate node indices, returns True if there are."""
+
+    # Create a duplication dictionary
+    duplicate_node_dict = _find_duplicate_nodes(grid)
+
+    for face_nodes in grid.face_node_connectivity.values:
+        for node in face_nodes:
+            if node in duplicate_node_dict.keys():
+                return True
+
+    return False
 
 def _check_area(grid):
     """Check if each face area is greater than our constant ERROR_TOLERANCE."""
@@ -63,7 +74,6 @@ def _check_area(grid):
         )
         return False
     else:
-        print("-No face area is close to zero.")
         return True
 
 
@@ -74,7 +84,7 @@ def _find_duplicate_nodes(grid):
         (lon, lat) for lon, lat in zip(grid.node_lon.values, grid.node_lat.values)
     ]
 
-    # dictionary to track first occurrence and later indices
+    # # Dictionary to track first occurrence and subsequent indice
     occurrences = {}
 
     # Iterate through the list and track occurrences
@@ -91,9 +101,6 @@ def _find_duplicate_nodes(grid):
             source_idx = indices[0]
             for duplicate_idx in indices[1:]:
                 duplicate_dict[duplicate_idx] = source_idx
-
-    return duplicate_dict
-
 
 def _merge_duplicate_node_indices_on_connectivity(conn, duplicate_dict):
     """Replaces duplicate node indices that occur in a given connectivity."""

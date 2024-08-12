@@ -6,6 +6,7 @@ import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
+import uxarray
 import uxarray as ux
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
@@ -16,6 +17,8 @@ from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.arcs import extreme_gca_latitude
+
+from uxarray.grid.validation import _find_duplicate_nodes
 
 try:
     import constants
@@ -31,7 +34,10 @@ gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne3
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
-gridfile_geos_cs = current_path / "meshfiles" / "geos-cs" / "c12" / "test-c12.native.nc4"
+
+gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
+
+gridfile_geos = current_path / 'meshfiles' / "geos-cs" / "c12" / 'test-c12.native.nc4'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
@@ -957,3 +963,23 @@ class TestLatlonBounds(TestCase):
         import uxarray
         uxgrid = ux.open_grid(gridfile_CSne8)
         bounds = uxgrid.bounds
+
+
+class TestDualMesh(TestCase):
+    """Test Dual Mesh Construction."""
+
+    def test_dual_mesh_mpas(self):
+        # Open a grid with and without dual
+        grid = ux.open_grid(gridfile_mpas, use_dual=False)
+        mpas_dual = ux.open_grid(gridfile_mpas, use_dual=True)
+
+        # Construct Dual
+        dual = grid.compute_dual()
+
+        # Assert the dimensions are the same
+        assert dual.n_face == mpas_dual.n_face
+        assert dual.n_node == mpas_dual.n_node
+        assert dual.n_max_face_nodes == mpas_dual.n_max_face_nodes
+
+        # Assert the faces are the same
+        nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)

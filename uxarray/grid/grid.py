@@ -12,7 +12,6 @@ from typing import (
     Union,
 )
 
-
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -69,12 +68,14 @@ from uxarray.subset import GridSubsetAccessor
 from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
+    _check_duplicate_nodes_indices,
     _check_area,
     _merge_duplicate_node_indices_on_connectivity,
     _find_duplicate_nodes,
 )
 
 from uxarray.conventions import ugrid
+
 
 from xarray.core.utils import UncachedAccessor
 
@@ -83,6 +84,8 @@ from warnings import warn
 import cartopy.crs as ccrs
 
 import copy
+
+from uxarray.grid.dual import construct_dual
 
 
 class Grid:
@@ -351,7 +354,7 @@ class Grid:
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
-        from uxarray.conventions import ugrid, descriptors
+        from uxarray.conventions import descriptors
 
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
@@ -1455,3 +1458,39 @@ class Grid:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
+
+    def compute_dual(self, method="global"):
+        """Compute the dual mesh for a grid, returns a new grid object.
+
+         Parameters
+        ----------
+        method: str, default="global"
+            Method for constructing the dual mesh, either "global" or "local"
+
+        Returns:
+        --------
+        dual : Grid
+            Dual Mesh Grid constructed
+        """
+
+        if method == "local":
+            raise ValueError("Local Dual Mesh is not yet supported, use global")
+        elif method != "global":
+            raise ValueError(
+                f"Invalid method: {method}. Please use a supported method instead"
+            )
+
+        if _check_duplicate_nodes_indices(self):
+            raise RuntimeError(
+                "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
+            )
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self)
+
+        # Construct dual mesh
+        dual = self.from_topology(
+            self.face_lon.values, self.face_lat.values, dual_node_face_conn
+        )
+
+        return dual
