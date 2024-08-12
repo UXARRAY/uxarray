@@ -80,6 +80,7 @@ def _check_area(grid):
 
 def _find_duplicate_nodes(grid):
     """Creates a dictionary mapping which node indices reference duplicates."""
+
     # list of tuple indices
     lonlat_t = [
         (lon, lat) for lon, lat in zip(grid.node_lon.values, grid.node_lat.values)
@@ -102,6 +103,8 @@ def _find_duplicate_nodes(grid):
             source_idx = indices[0]
             for duplicate_idx in indices[1:]:
                 duplicate_dict[duplicate_idx] = source_idx
+
+    return duplicate_dict
 
 
 def _merge_duplicate_node_indices_on_connectivity(conn, duplicate_dict):

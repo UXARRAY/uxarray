@@ -34,7 +34,7 @@ def construct_dual(grid):
     )
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def construct_faces(
     n_node,
     n_edges,

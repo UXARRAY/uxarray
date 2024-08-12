@@ -983,3 +983,12 @@ class TestDualMesh(TestCase):
 
         # Assert the faces are the same
         nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
+
+
+    def test_duplicate(self):
+        uxgrid = ux.open_grid(gridfile_geos)
+        uxgrid.merge_duplicate_node_indices()
+
+        uxgrid.compute_dual()
+
+        pass
