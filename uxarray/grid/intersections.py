@@ -4,10 +4,12 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma
+from uxarray.utils.computing import cross_fma, allclose, cross, dot
+
+import uxarray.constants
 
 
-def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
+def gca_gca_intersection(gca1_cart, gca2_cart):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
@@ -54,12 +56,13 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
 
-    # Compute normals and orthogonal bases using FMA
-    if fma_disabled:
-        w0w1_norm = np.cross(w0, w1)
-        v0v1_norm = np.cross(v0, v1)
-        cross_norms = np.cross(w0w1_norm, v0v1_norm)
+    if not uxarray.constants.ENABLE_FMA:
+        # Compute normals and orthogonal bases without FMA
+        w0w1_norm = cross(w0, w1)
+        v0v1_norm = cross(v0, v1)
+        cross_norms = cross(w0w1_norm, v0v1_norm)
     else:
+        # Compute normals and orthogonal bases using FMA
         w0w1_norm = cross_fma(w0, w1)
         v0v1_norm = cross_fma(v0, v1)
         cross_norms = cross_fma(w0w1_norm, v0v1_norm)
@@ -73,29 +76,29 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
             )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not np.allclose(
-        np.dot(w0w1_norm, w0), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE):
+    if not allclose(dot(w0w1_norm, w0), 0, atol=ERROR_TOLERANCE) or not allclose(
+        dot(w0w1_norm, w1), 0, atol=ERROR_TOLERANCE
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
-    if not np.allclose(
-        np.dot(v0v1_norm, v0), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE):
+    if not allclose(dot(v0v1_norm, v0), 0, atol=ERROR_TOLERANCE) or not allclose(
+        dot(v0v1_norm, v1), 0, atol=ERROR_TOLERANCE
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
 
-    if not np.allclose(
-        np.dot(cross_norms, v0v1_norm), 0, atol=ERROR_TOLERANCE
-    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
+    if not allclose(
+        dot(cross_norms, v0v1_norm), 0, atol=ERROR_TOLERANCE
+    ) or not allclose(dot(cross_norms, w0w1_norm), 0, atol=ERROR_TOLERANCE):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
         )
 
     # If the cross_norms is zero, the two GCAs are parallel
-    if np.allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
+    if allclose(cross_norms, 0, atol=ERROR_TOLERANCE):
         return np.array([])
 
     # Normalize the cross_norms
@@ -156,7 +159,7 @@ def gca_constLat_intersection(
     x1, x2 = gca_cart
 
     if fma_disabled:
-        n = np.cross(x1, x2)
+        n = cross(x1, x2)
 
     else:
         # Raise a warning for Windows users
