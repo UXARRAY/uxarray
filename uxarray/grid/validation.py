@@ -63,6 +63,7 @@ def _check_duplicate_nodes_indices(grid):
 
     return False
 
+
 def _check_area(grid):
     """Check if each face area is greater than our constant ERROR_TOLERANCE."""
     areas = grid.face_areas
@@ -101,6 +102,7 @@ def _find_duplicate_nodes(grid):
             source_idx = indices[0]
             for duplicate_idx in indices[1:]:
                 duplicate_dict[duplicate_idx] = source_idx
+
 
 def _merge_duplicate_node_indices_on_connectivity(conn, duplicate_dict):
     """Replaces duplicate node indices that occur in a given connectivity."""
