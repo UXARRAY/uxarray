@@ -10,8 +10,6 @@ grid_geoflow = current_path / "test" / "meshfiles" / "ugrid" / "geoflow-small" /
 grid_scrip = current_path / "test" / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
 grid_mpas= current_path / "test" / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
 
-
-
 class FaceBounds:
 
     params = [grid_quad_hex, grid_geoflow, grid_scrip, grid_mpas]
