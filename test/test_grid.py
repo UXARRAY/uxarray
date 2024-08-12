@@ -34,6 +34,7 @@ gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne3
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+
 gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
 gridfile_geos = current_path / 'meshfiles' / "geos-cs" / "c12" / 'test-c12.native.nc4'
@@ -982,3 +983,12 @@ class TestDualMesh(TestCase):
 
         # Assert the faces are the same
         nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
+
+
+    def test_duplicate(self):
+        uxgrid = ux.open_grid(gridfile_geos)
+        uxgrid.merge_duplicate_node_indices()
+
+        uxgrid.compute_dual()
+
+        pass
