@@ -18,6 +18,7 @@ NetCDF file format. As of the most recent release, the following grid formats ar
 * EXODUS
 * ESMF
 * GEOS CS
+* ICON
 
 While each of these formats can be encoded in the UGRID conventions, the amount of information that is parsed from them
 varies. The following sections describes how each format is converted into the UGRID conventions and what variables
