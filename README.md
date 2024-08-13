@@ -1,5 +1,5 @@
 
-<img src="https://github.com/UXARRAY/uxarray/blob/cc632a57c34266d32d373621cb6bb8ba9d2188d1/docs/_static/images/logos/logo_blue.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/blob/cc632a57c34266d32d373621cb6bb8ba9d2188d1/docs/_static/images/logos/logo_blue.svg" width="600"/><br>
+<img src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" width="600"/><br>
 
 -----------------
 
