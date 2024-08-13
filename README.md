@@ -1,10 +1,12 @@
 
+<img src="https://github.com/UXARRAY/uxarray/blob/cc632a57c34266d32d373621cb6bb8ba9d2188d1/docs/_static/images/logos/logo_blue.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/blob/cc632a57c34266d32d373621cb6bb8ba9d2188d1/docs/_static/images/logos/logo_blue.svg" width="600"/><br>
 
+-----------------
 
 [comment]: <> (<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='400'>)
 
 
-# UXarray: Xarray-styled package for working with unstructured grids
+# Xarray extension for analyizing and visualuzing unstructured grids written around the UGRID conventions
 
 | CI             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![Code Coverage Status][codecov-badge]][codecov-link] |
 |:---------------|:-------------------------------------------------------------------------------------------------------------------:|
