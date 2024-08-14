@@ -30,7 +30,7 @@ dependencies:
     - holoviews
     - geoviews
     - cartopy
-    - pandas<2.1.0
+    - pandas
     - geocat-datafiles
     - spatialpandas
     - pip:

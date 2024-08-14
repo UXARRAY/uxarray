@@ -15,8 +15,8 @@ dependencies:
   - matplotlib-inline
   - netcdf4
   - numba
-  - numpy<2
-  - pandas<2.1.0
+  - numpy
+  - pandas
   - pathlib
   - pre_commit
   - pyarrow
