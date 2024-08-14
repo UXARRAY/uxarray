@@ -126,9 +126,6 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
   </tr>
 </table>
 
-[![Available on pypi](https://img.shields.io/pypi/v/xarray.svg)](https://pypi.python.org/pypi/xarray/)
-
-
 [github-ci-badge]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml/badge.svg
 [github-ci-link]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml
 [codecov-badge]: https://codecov.io/github/UXARRAY/uxarray/graph/badge.svg?token=lPxJeGNxE0
