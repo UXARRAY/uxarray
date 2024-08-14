@@ -14,21 +14,10 @@
     height: auto;
 }
 
-/* override toc css */
-/* controls dropdown icon color */
-.bd-toc-item.active {
-    margin-bottom: 1rem;
-    color: #283618;
-}
-
-/* controls sidebar header color */
-.caption-text {
-    color: #283618;
-}
 
 .toc-entry > .nav-link.active {
   font-weight: 400;
-  color: #016691;
+  color: #542437;
   background-color: transparent;
   border-left: 2px solid #016691;
 }
