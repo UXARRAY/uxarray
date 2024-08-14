@@ -63,8 +63,8 @@ requires = [
   "setuptools-scm>=8",
 ]
 
-[tool.setuptools.packages]
-find = {}
+[tool.setuptools]
+packages = ["uxarray"]
 
 [tool.setuptools_scm]
 fallback_version = "9999"

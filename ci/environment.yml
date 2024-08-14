@@ -29,7 +29,6 @@ dependencies:
   - shapely
   - spatialpandas
   - xarray
+  - asv
   - pip:
-    - git+https://github.com/airspeed-velocity/asv
     - pyfma
-    - git+https://github.com/airspeed-velocity/asv
