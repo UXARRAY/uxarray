@@ -7,6 +7,7 @@ classifiers=[
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   'Operating System :: Microsoft :: Windows',
   'Operating System :: Unix',
   'Operating System :: MacOS',
@@ -14,7 +15,7 @@ classifiers=[
 ]
 
 dynamic = ["version"]
-keywords = ["unstructured grids"]
+keywords = ["unstructured grids", "xarray", "ugrid", "mpas", "exodus", "scrip", ]
 description = "Xarray-styled package for reading and directly operating on unstructured grid datasets following UGRID conventions"
 license = {file = "LICENSE"}
 name = "uxarray"
@@ -48,7 +49,7 @@ dependencies = [
 [project.optional-dependencies]
 complete = ["uxarray[math, dev]"]
 math = ['gmpy2', 'pyfma']
-dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff']
+dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
 
 [project.urls]
 Documentation = "https://uxarray.readthedocs.io/"
