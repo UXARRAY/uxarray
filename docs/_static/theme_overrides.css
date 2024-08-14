@@ -13,23 +13,3 @@
     text-align: left;
     margin-left: max(45px, 15%);
 }
-
-
-/* Change color of TOC elements on hover */
-.sphinxsidebarwrapper .toctree-l1 a:hover,
-.sphinxsidebarwrapper .toctree-l2 a:hover,
-.sphinxsidebarwrapper .toctree-l3 a:hover {
-    color: #016691; /* Replace with your desired color */
-}
-
-/* Change color of card elements on hover */
-.grid-item-card:hover {
-    background-color: #016691; /* Replace with your desired background color */
-    color: white; /* Replace with your desired text color */
-    border-color: #016691; /* Replace with your desired border color */
-}
-
-/* Additional styling for links within the card */
-.grid-item-card:hover a {
-    color: #016691; /* Replace with your desired link color */
-}
