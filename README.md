@@ -1,5 +1,5 @@
 
-<img src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" width="600"/><br>
+<img src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" width="450"/><br>
 
 -----------------
 
@@ -125,9 +125,6 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
     <td><a href="https://pangeo.io/">Pangeo</a> supports collaborative efforts to develop software and infrastructure to enable Big Data geoscience research.</td>
   </tr>
 </table>
-
-[![Available on pypi](https://img.shields.io/pypi/v/xarray.svg)](https://pypi.python.org/pypi/xarray/)
-
 
 [github-ci-badge]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml/badge.svg
 [github-ci-link]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml
