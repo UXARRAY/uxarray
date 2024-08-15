@@ -13,7 +13,7 @@
 | **Code Coverage**             |  [![Code Coverage Status][codecov-badge]][codecov-link] |
 | **Docs**       |                                   [![Documentation Status][rtd-badge]][rtd-link]                                    |
 | **Benchmarks** |                                       [![ASV Repostory][asv-badge]][asv-link]                                       |
-| **Package**    |                        [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                         |
+| **Releases**    |                        ![Github release](https://img.shields.io/github/release/UXARRAY/uxarray.svg?label=tag&colorB=11ccbb) [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                         |
 | **License**    |                                       [![License][license-badge]][repo-link]                                        |
 | **Citing**     |                                            [![DOI][doi-badge]][doi-link]                                            |
 
