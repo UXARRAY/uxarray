@@ -77,7 +77,7 @@ is receptive to additional functionality requests.
 
 [Contributor’s Guide](https://uxarray.readthedocs.io/en/latest/contributing.html)
 
-[Installation](https://uxarray.readthedocs.io/en/latest/installation.html)
+[Installation](https://uxarray.readthedocs.io/en/latest/getting-started/installation.html)
 
 [Project Raijin Homepage](https://raijin.ucar.edu/)
 
