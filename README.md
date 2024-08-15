@@ -19,7 +19,7 @@
 
 -----------------
 
-## What is it? 
+## What is it?
 
 UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
@@ -144,6 +144,3 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
 [doi-badge]: https://zenodo.org/badge/421447986.svg
 [doi-link]: https://zenodo.org/badge/latestdoi/421447986
 [repo-link]: https://github.com/UXARRAY/uxarray
-
-
-
