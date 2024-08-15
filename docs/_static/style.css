@@ -18,10 +18,15 @@
 /* controls dropdown icon color */
 .bd-toc-item.active {
     margin-bottom: 1rem;
-    color: #016691;
+    color: #343741;
 }
 
 /* controls sidebar header color */
 .caption-text {
-    color: #016691;
+    color: #343741;
+}
+/* Change color of selected item in the sidebar */
+.bd-sidebar .nav-item.active > a {
+    background-color: transparent; /* Replace with your desired background color */
+    color: #016691;       /* Replace with your desired text color */
 }
