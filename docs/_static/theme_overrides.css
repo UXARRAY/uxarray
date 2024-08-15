@@ -3,13 +3,33 @@
     max-width: none !important;
 }
 
-.custom-title {
-    font-weight: bold;
-    color: #283618;
-    text-align: left;
+/* override the default image top css */
+.sd-card-img-top {
+    width: 15% !important;
+    position: absolute !important;
+    padding-left: 10px;
+    min-width: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+
+}
+
+/* override the default background image behavior */
+.sd-card-img {
+    height: auto;
 }
 
 .custom-body {
     text-align: left;
     margin-left: max(45px, 15%);
+}
+
+html[data-theme="light"] {
+    --pst-color-primary: #016691;
+    --pst-color-secondary: #049390;
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: #016691;
+    --pst-color-secondary: #049390;
 }
