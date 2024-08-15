@@ -14,14 +14,13 @@ diverging = LinearSegmentedColormap.from_list(
 
 # UXarray themed sequential color map
 sequential = LinearSegmentedColormap.from_list(
-    "sequential", ((0.000, (0.698, 0.463, 0.231)), (1.000, (0.498, 0.584, 0.322)))
+    "sequential", ((0.000, (0.004, 0.400, 0.569)), (1.000, (0.016, 0.576, 0.565)))
 )
 
-sequential_orange = LinearSegmentedColormap.from_list(
-    "sequential_orange",
-    ((0.000, (1.000, 1.000, 1.000)), (1.000, (0.698, 0.416, 0.137))),
+sequential_blue = LinearSegmentedColormap.from_list(
+    "blue", ((0.000, (0.004, 0.400, 0.569)), (1.000, (1.000, 1.000, 1.000)))
 )
 
 sequential_green = LinearSegmentedColormap.from_list(
-    "my_gradient", ((0.000, (1.000, 1.000, 1.000)), (1.000, (0.498, 0.584, 0.322)))
+    "green", ((0.000, (0.016, 0.576, 0.565)), (1.000, (1.000, 1.000, 1.000)))
 )

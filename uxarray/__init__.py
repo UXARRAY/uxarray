@@ -10,7 +10,7 @@ from .core.dataarray import UxDataArray
 from .grid import Grid
 
 from .constants import INT_DTYPE, INT_FILL_VALUE
-from .cmaps import sequential, diverging, sequential_orange, sequential_green
+from .cmaps import sequential, diverging, sequential_blue, sequential_green
 
 try:
     from importlib.metadata import version as _version
@@ -49,7 +49,7 @@ __all__ = (
     "Grid",
     "sequential",
     "diverging",
-    "sequential_orange",
+    "sequential_blue",
     "sequential_green",
     "enable_fma",
     "disable_fma",
