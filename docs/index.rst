@@ -112,9 +112,6 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
     UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
 
-Supported By
-------------
-
 .. raw:: html
 
    <table>
