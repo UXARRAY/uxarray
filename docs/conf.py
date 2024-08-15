@@ -198,8 +198,8 @@ html_favicon = "_static/images/logos/h_dark.svg"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
-html_css_files = ["style.css"]
+# html_static_path = ["_static"]
+# html_css_files = ["style.css"]
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = "uxarraydoc"
