@@ -43,8 +43,11 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
 
-`Remapping <user-guide/remapping.ipynb>`_
- Remap (a.k.a Regrid) between unstructured grids
+`Remapping (Unstructured to Unstructured) <user-guide/remapping-u2u.ipynb>`_
+ Remap/Regrid between unstructured grids
+
+`Remapping (Unstructured to Structured) <user-guide/remapping-u2s.ipynb>`_
+ Remap/Regrid from unstructured to structured grids
 
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
@@ -57,6 +60,7 @@ These user guides provide detailed explanations of the core functionality in UXa
 
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
+
 
 Supplementary Guides
 --------------------
