@@ -973,7 +973,7 @@ class TestDualMesh(TestCase):
         mpas_dual = ux.open_grid(gridfile_mpas, use_dual=True)
 
         # Construct Dual
-        dual = grid.compute_dual()
+        dual = grid.get_dual()
 
         # Assert the dimensions are the same
         assert dual.n_face == mpas_dual.n_face

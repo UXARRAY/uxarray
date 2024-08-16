@@ -1397,7 +1397,7 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def compute_dual(self, method="global"):
+    def get_dual(self, method="global"):
         """Compute the dual mesh for a grid, returns a new grid object.
 
          Parameters
@@ -1405,7 +1405,7 @@ class Grid:
         method: str, default="global"
             Method for constructing the dual mesh, either "global" or "local"
 
-        Returns:
+        Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed

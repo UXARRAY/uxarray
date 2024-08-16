@@ -1,9 +1,24 @@
 import numpy as np
+import uxarray as ux
 from numba import njit
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 
 def construct_dual(grid):
+    """Constructs a dual mesh from a given grid, by connecting the face centers to make a grid centered over the primal
+    mesh face centers, with the nodes of the primal mesh being the face centers of the dual mesh.
+
+    Parameters
+    ----------
+    grid: Grid
+        Primal mesh to construct dual from
+
+    Returns
+    --------
+    new_node_face_connectivity : ndarray
+        Constructed node_face_connectivity for the dual mesh
+    """
+
     # Get the dual node xyz, which is the face centers
     dual_node_x = grid.face_x.values
     dual_node_y = grid.face_y.values
@@ -21,7 +36,7 @@ def construct_dual(grid):
     n_edges = np.sum(n_edges_mask, axis=1)
 
     # Construct and return the faces
-    return construct_faces(
+    new_node_face_connectivity = construct_faces(
         n_node,
         n_edges,
         dual_node_x,
@@ -32,6 +47,8 @@ def construct_dual(grid):
         node_y,
         node_z,
     )
+
+    return new_node_face_connectivity
 
 
 @njit(cache=True)
@@ -46,10 +63,41 @@ def construct_faces(
     node_y,
     node_z,
 ):
+    """Construct the faces of the dual mesh based on a given node_face_connectivity
+
+    Parameters
+    ----------
+    n_node: np.ndarray
+        number of nodes in the primal mesh
+    n_edges: np.ndarray
+        array of the number of edges for each dual face
+    dual_node_x: np.ndarray
+        x node coordinates for the dual mesh
+    dual_node_y: np.ndarray
+        y node coordinates for the dual mesh
+    dual_node_z: np.ndarray
+        z node coordinates for the dual mesh
+    node_face_connectivity: np.ndarray
+        `node_face_connectivity` of the primal mesh
+    node_x: np.ndarray
+        x node coordinates from the primal mesh
+    node_y: np.ndarray
+        y node coordinates from the primal mesh
+    node_z: np.ndarray
+        z node coordinates from the primal mesh
+
+
+    Returns
+    --------
+    node_face_connectivity : ndarray
+        Constructed node_face_connectivity for the dual mesh
+    """
+
+    max_edges = len(node_face_connectivity[0])
     for i in range(n_node):
         # If we have less than 3 edges, we can't construct anything but a line
-        if n_edges[i] < 3:
-            continue
+        # if n_edges[i] < 3:
+        #     continue
 
         # Construct temporary face to hold unordered face nodes
         temp_face = np.array(
@@ -85,6 +133,7 @@ def construct_faces(
                 dual_node_x,
                 dual_node_y,
                 dual_node_z,
+                max_edges
             )
             node_face_connectivity[i] = _face
     return node_face_connectivity
@@ -99,7 +148,35 @@ def _order_nodes(
     dual_node_x,
     dual_node_y,
     dual_node_z,
+    max_edges,
 ):
+    """Correctly order the nodes of each face in a counter-clockwise fashion.
+
+    Parameters
+    ----------
+    temp_face: np.ndarray
+        Face holding unordered nodes
+    node_0: np.ndarray
+        Starting node
+    node_central: np.ndarray
+        Face center
+    n_edges: int
+        Number of edges in the face
+    dual_node_x: np.ndarray
+        x node coordinates for the dual mesh
+    dual_node_y: np.ndarray
+        y node coordinates for the dual mesh
+    dual_node_z: np.ndarray
+        z node coordinates for the dual mesh
+    max_edges: int
+        Max number of edges a face could have
+
+
+    Returns
+    --------
+    final_face : np.ndarray
+        The face in proper counter-clockwise order
+    """
     node_zero = node_0 - node_central
 
     node_cross = np.cross(node_0, node_central)
@@ -107,7 +184,7 @@ def _order_nodes(
 
     d_angles = np.zeros(n_edges, dtype=np.float64)
     d_angles[0] = 0.0
-    final_face = np.array([INT_FILL_VALUE for _ in range(n_edges)], dtype=INT_DTYPE)
+    final_face = np.array([INT_FILL_VALUE for _ in range(max_edges)], dtype=INT_DTYPE)
     for j in range(1, n_edges):
         _cur_face_temp_idx = temp_face[j]
 
