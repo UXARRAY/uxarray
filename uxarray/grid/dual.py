@@ -1,12 +1,12 @@
 import numpy as np
-import uxarray as ux
 from numba import njit
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 
 def construct_dual(grid):
-    """Constructs a dual mesh from a given grid, by connecting the face centers to make a grid centered over the primal
-    mesh face centers, with the nodes of the primal mesh being the face centers of the dual mesh.
+    """Constructs a dual mesh from a given grid, by connecting the face centers
+    to make a grid centered over the primal mesh face centers, with the nodes
+    of the primal mesh being the face centers of the dual mesh.
 
     Parameters
     ----------
@@ -63,7 +63,8 @@ def construct_faces(
     node_y,
     node_z,
 ):
-    """Construct the faces of the dual mesh based on a given node_face_connectivity
+    """Construct the faces of the dual mesh based on a given
+    node_face_connectivity.
 
     Parameters
     ----------
@@ -133,7 +134,7 @@ def construct_faces(
                 dual_node_x,
                 dual_node_y,
                 dual_node_z,
-                max_edges
+                max_edges,
             )
             node_face_connectivity[i] = _face
     return node_face_connectivity
