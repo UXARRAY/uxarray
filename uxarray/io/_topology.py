@@ -60,7 +60,7 @@ def _process_connectivity(conn, orig_fv, start_index):
 
     if orig_fv is None:
         # no fill values, adjust start index
-        return conn - 1
+        return conn - start_index
 
     if orig_fv != INT_FILL_VALUE:
         conn = _replace_fill_values(conn, orig_fv, INT_FILL_VALUE, INT_DTYPE)
