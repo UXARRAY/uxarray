@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
@@ -10,6 +10,7 @@ from uxarray.remap.inverse_distance_weighted import (
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
+    from xarray import Dataset
 
 from uxarray.grid import Grid
 
@@ -31,10 +32,11 @@ class UxDataArrayRemapAccessor:
 
     def nearest_neighbor(
         self,
-        destination_grid: Optional[Grid] = None,
-        destination_obj: Optional[Grid, UxDataArray, UxDataset] = None,
+        destination_grid: Optional[Grid, Dataset] = None,
+        destination_obj: Optional[Grid, UxDataArray, UxDataset, Dataset] = None,
         remap_to: str = "face centers",
         coord_type: str = "spherical",
+        coord_names: Union[tuple, list] = ("lon", "lat"),
     ):
         """Nearest Neighbor Remapping between a source (``UxDataArray``) and
         destination.`.
@@ -60,7 +62,7 @@ class UxDataArrayRemapAccessor:
 
         if destination_grid is not None:
             return _nearest_neighbor_uxda(
-                self.uxda, destination_grid, remap_to, coord_type
+                self.uxda, destination_grid, remap_to, coord_type, coord_names
             )
         elif destination_obj is not None:
             warn(
@@ -68,7 +70,7 @@ class UxDataArrayRemapAccessor:
                 DeprecationWarning,
             )
             return _nearest_neighbor_uxda(
-                self.uxda, destination_obj, remap_to, coord_type
+                self.uxda, destination_obj, remap_to, coord_type, coord_names
             )
 
     def inverse_distance_weighted(

@@ -140,6 +140,18 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
+    def to_structured(
+        self, lon: np.ndarray, lat: np.ndarray, method: str = "nearest neighbor"
+    ):
+        # add checks for (-180, 180), (-90, 90)
+
+        destination_grid = xr.Dataset(coords=dict(lon=("lon", lon), lat=("lat", lat)))
+
+        if method == "nearest neighbor":
+            return self.remap.nearest_neighbor(destination_grid)
+        else:
+            raise ValueError("TODO")
+
     def to_geodataframe(self, override=False, cache=True, exclude_antimeridian=False):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
