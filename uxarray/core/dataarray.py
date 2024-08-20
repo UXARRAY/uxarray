@@ -6,6 +6,7 @@ import numpy as np
 
 from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
 
+import uxarray
 from uxarray.formatting_html import array_repr
 
 from html import escape
@@ -14,6 +15,8 @@ from xarray.core.options import OPTIONS
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -1102,3 +1105,55 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             attrs=self.attrs,
         )
+
+    def get_dual(self, method="global"):
+        """Compute the dual mesh for a data array, returns a new data array
+        object.
+
+         Parameters
+        ----------
+        method: str, default="global"
+            Method for constructing the dual mesh, either "global" or "local"
+
+        Returns
+        --------
+        dual : uxda
+            Dual Mesh `uxda` constructed
+        """
+
+        if method == "local":
+            raise ValueError("Local Dual Mesh is not yet supported, use global")
+        elif method != "global":
+            raise ValueError(
+                f"Invalid method: {method}. Please use a supported method instead"
+            )
+
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise RuntimeError(
+                "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
+            )
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self.uxgrid)
+
+        # Construct dual mesh
+        dual = self.uxgrid.from_topology(
+            self.uxgrid.face_lon.values,
+            self.uxgrid.face_lat.values,
+            dual_node_face_conn,
+        )
+
+        data = self.values
+
+        # Get the correct dimensions
+        if self._face_centered():
+            dims = "n_node"
+        elif self._node_centered():
+            dims = "n_face"
+        elif self._edge_centered():
+            dims = "n_edge"
+
+        # Construct the new data array
+        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims)
+
+        return uxda
