@@ -97,8 +97,8 @@ def construct_faces(
     max_edges = len(node_face_connectivity[0])
     for i in range(n_node):
         # If we have less than 3 edges, we can't construct anything but a line
-        # if n_edges[i] < 3:
-        #     continue
+        if n_edges[i] < 3:
+            continue
 
         # Construct temporary face to hold unordered face nodes
         temp_face = np.array(
