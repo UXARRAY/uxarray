@@ -3,6 +3,10 @@
 import xarray as xr
 import numpy as np
 
+from html import escape
+
+from xarray.core.options import OPTIONS
+
 from typing import (
     Optional,
     Union,
@@ -23,6 +27,9 @@ from uxarray.io._esmf import _read_esmf
 from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
+from uxarray.io._icon import _read_icon
+
+from uxarray.formatting_html import grid_repr
 
 from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
@@ -211,6 +218,8 @@ class Grid:
                 grid_ds, source_dims_dict = _read_esmf(dataset)
             elif source_grid_spec == "GEOS-CS":
                 grid_ds, source_dims_dict = _read_geos_cs(dataset)
+            elif source_grid_spec == "ICON":
+                grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
             elif source_grid_spec == "Shapefile":
                 raise ValueError("Shapefiles not yet supported")
             else:
@@ -414,6 +423,11 @@ class Grid:
             + descriptors_heading
             + descriptors_str
         )
+
+    def _repr_html_(self) -> str:
+        if OPTIONS["display_style"] == "text":
+            return f"<pre>{escape(repr(self))}</pre>"
+        return grid_repr(self)
 
     def __getitem__(self, item):
         """Implementation of getitem operator for indexing a grid to obtain
@@ -899,6 +913,7 @@ class Grid:
                 "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time."
             )
             _populate_bounds(self)
+
         return self._ds["bounds"]
 
     @property

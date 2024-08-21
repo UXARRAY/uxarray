@@ -2,8 +2,12 @@ import numpy as np
 
 # from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _normalize_xyz
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_no_norm, _normalize_xyz_scalar
 from uxarray.constants import ERROR_TOLERANCE
+
+from uxarray.utils.computing import isclose, cross, dot
+
+from numba import njit
 
 
 def _to_list(obj):
@@ -17,78 +21,29 @@ def _to_list(obj):
     return obj
 
 
-def point_within_gca(pt, gca_cart, is_directed=False):
-    """Check if a point lies on a given Great Circle Arc (GCA). The anti-
-    meridian case is also considered.
-
-    Parameters
-    ----------
-    pt : numpy.ndarray (float)
-        Cartesian coordinates of the point.
-    gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
-        Cartesian coordinates of the Great Circle Arc (GCR).
-    is_directed : bool, optional, default = False
-        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
-        For the case of the anti-podal case, the direction is v_0--> the pole point that on the same hemisphere as v_0-->v_1
-
-    Returns
-    -------
-    bool
-        True if the point lies between the two endpoints of the GCR, False otherwise.
-
-    Raises
-    ------
-    ValueError
-        If the input GCR spans exactly 180 degrees (π radians), as this GCR can have multiple planes.
-        In such cases, consider breaking the GCR into two separate GCRs.
-
-    ValueError
-        If the input GCR spans more than 180 degrees (π radians).
-        In such cases, consider breaking the GCR into two separate GCRs.
-
-    Notes
-    -----
-    The function checks if the given point is on the Great Circle Arc by considering its cartesian coordinates and
-    accounting for the anti-meridian case.
-
-    The anti-meridian case occurs when the GCR crosses the anti-meridian (0 longitude).
-    In this case, the function handles scenarios where the GCA spans across more than 180 degrees, requiring specific operation.
-
-    The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
-
-    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
-    """
-    # Convert the cartesian coordinates to lonlat coordinates
-    pt_lonlat = np.array(_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]))
-    GCRv0_lonlat = np.array(
-        _xyz_to_lonlat_rad(gca_cart[0][0], gca_cart[0][1], gca_cart[0][2])
-    )
-    GCRv1_lonlat = np.array(
-        _xyz_to_lonlat_rad(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
-    )
-
-    # Convert the list to np.float64
-    gca_cart[0] = np.array(gca_cart[0], dtype=np.float64)
-    gca_cart[1] = np.array(gca_cart[1], dtype=np.float64)
-
-    # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
+@njit
+def _point_within_gca_body(
+    angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
+):
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
-    if np.allclose(angle, np.pi, rtol=0, atol=ERROR_TOLERANCE):
+    if isclose(angle, np.pi, rtol=0.0, atol=ERROR_TOLERANCE):
         raise ValueError(
             "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
             "Consider breaking the Great Circle Arc"
             "into two Great Circle Arcs"
         )
 
-    if not np.allclose(
-        np.dot(np.cross(gca_cart[0], gca_cart[1]), pt), 0, rtol=0, atol=ERROR_TOLERANCE
+    if not isclose(
+        dot(cross(np.asarray(gca_cart[0]), np.asarray(gca_cart[1])), pt),
+        0,
+        rtol=0.0,
+        atol=ERROR_TOLERANCE,
     ):
         return False
 
-    if np.isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+    if isclose(GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if np.isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE):
+        if isclose(GCRv0_lonlat[0], pt_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE):
             # Now use the latitude to determine if the pt falls between the interval
             return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
         else:
@@ -96,16 +51,16 @@ def point_within_gca(pt, gca_cart, is_directed=False):
             return False
 
     # If the longnitude span is exactly 180 degree, then the GCA goes through the pole point
-    if np.isclose(
-        abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0, atol=ERROR_TOLERANCE
+    if isclose(
+        abs(GCRv1_lonlat[0] - GCRv0_lonlat[0]), np.pi, rtol=0.0, atol=ERROR_TOLERANCE
     ):
         # Special case, if the pt is on the pole point, then set its longitude to the GCRv0_lonlat[0]
-        if np.isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=0, atol=ERROR_TOLERANCE):
+        if isclose(abs(pt_lonlat[1]), np.pi / 2, rtol=0.0, atol=ERROR_TOLERANCE):
             pt_lonlat[0] = GCRv0_lonlat[0]
-        if not np.isclose(
-            GCRv0_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE
-        ) and not np.isclose(
-            GCRv1_lonlat[0], pt_lonlat[0], rtol=0, atol=ERROR_TOLERANCE
+        if not isclose(
+            GCRv0_lonlat[0], pt_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE
+        ) and not isclose(
+            GCRv1_lonlat[0], pt_lonlat[0], rtol=0.0, atol=ERROR_TOLERANCE
         ):
             return False
         else:
@@ -169,6 +124,69 @@ def point_within_gca(pt, gca_cart, is_directed=False):
             )
 
 
+def point_within_gca(pt, gca_cart, is_directed=False):
+    """Check if a point lies on a given Great Circle Arc (GCA). The anti-
+    meridian case is also considered.
+
+    Parameters
+    ----------
+    pt : numpy.ndarray (float)
+        Cartesian coordinates of the point.
+    gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
+        Cartesian coordinates of the Great Circle Arc (GCR).
+    is_directed : bool, optional, default = False
+        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
+        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
+        For the case of the anti-podal case, the direction is v_0--> the pole point that on the same hemisphere as v_0-->v_1
+
+    Returns
+    -------
+    bool
+        True if the point lies between the two endpoints of the GCR, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        If the input GCR spans exactly 180 degrees (π radians), as this GCR can have multiple planes.
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    ValueError
+        If the input GCR spans more than 180 degrees (π radians).
+        In such cases, consider breaking the GCR into two separate GCRs.
+
+    Notes
+    -----
+    The function checks if the given point is on the Great Circle Arc by considering its cartesian coordinates and
+    accounting for the anti-meridian case.
+
+    The anti-meridian case occurs when the GCR crosses the anti-meridian (0 longitude).
+    In this case, the function handles scenarios where the GCA spans across more than 180 degrees, requiring specific operation.
+
+    The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
+
+    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
+    """
+    # Convert the cartesian coordinates to lonlat coordinates
+    pt_lonlat = np.array(_xyz_to_lonlat_rad_no_norm(pt[0], pt[1], pt[2]))
+    GCRv0_lonlat = np.array(
+        _xyz_to_lonlat_rad_no_norm(gca_cart[0][0], gca_cart[0][1], gca_cart[0][2])
+    )
+    GCRv1_lonlat = np.array(
+        _xyz_to_lonlat_rad_no_norm(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
+    )
+    gca_cart = np.asarray(gca_cart)
+
+    # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
+    angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
+
+    out = _point_within_gca_body(
+        angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
+    )
+
+    return out
+
+
+@njit
 def in_between(p, q, r) -> bool:
     """Determines whether the number q is between p and r.
 
@@ -190,6 +208,7 @@ def in_between(p, q, r) -> bool:
     return p <= q <= r or r <= q <= p
 
 
+@njit
 def _decide_pole_latitude(lat1, lat2):
     """Determine the pole latitude based on the latitudes of two points on a
     Great Circle Arc (GCA).
@@ -229,6 +248,7 @@ def _decide_pole_latitude(lat1, lat2):
     return closest_pole
 
 
+@njit
 def _angle_of_2_vectors(u, v):
     """Calculate the angle between two 3D vectors u and v in radians. Can be
     used to calcualte the span of a GCR.
@@ -281,22 +301,24 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         raise ValueError("extreme_type must be either 'max' or 'min'")
 
     n1, n2 = gca_cart
-    dot_n1_n2 = np.dot(n1, n2)
+
+    dot_n1_n2 = dot(np.asarray(n1), np.asarray(n2))
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
     d_a_max = (
         np.clip(d_a_max, 0, 1)
-        if np.isclose(d_a_max, [0, 1], atol=ERROR_TOLERANCE).any()
+        if isclose(d_a_max, 0, atol=ERROR_TOLERANCE)
+        or isclose(d_a_max, 1, atol=ERROR_TOLERANCE)
         else d_a_max
     )
 
-    _, lat_n1 = _xyz_to_lonlat_rad(n1[0], n1[1], n1[2])
-    _, lat_n2 = _xyz_to_lonlat_rad(n2[0], n2[1], n2[2])
+    _, lat_n1 = _xyz_to_lonlat_rad_no_norm(n1[0], n1[1], n1[2])
+    _, lat_n2 = _xyz_to_lonlat_rad_no_norm(n2[0], n2[1], n2[2])
 
     if 0 < d_a_max < 1:
         node3 = (1 - d_a_max) * n1 + d_a_max * n2
-        node3 = np.array(_normalize_xyz(node3[0], node3[1], node3[2]))
+        node3 = np.array(_normalize_xyz_scalar(node3[0], node3[1], node3[2]))
         d_lat_rad = np.arcsin(np.clip(node3[2], -1, 1))
 
         return (

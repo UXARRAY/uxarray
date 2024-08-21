@@ -30,10 +30,10 @@ dependencies:
     - holoviews
     - geoviews
     - cartopy
-    - pandas<2.1.0
+    - pandas
     - geocat-datafiles
     - spatialpandas
     - geopandas
     - pip:
       - antimeridian
-      - pyfma
+      - git+https://github.com/philipc2/pyfma.git # fix until https://github.com/nschloe/pyfma/pull/17 is merged
