@@ -93,11 +93,15 @@ def construct_faces(
     node_face_connectivity : ndarray
         Constructed node_face_connectivity for the dual mesh
     """
-
+    correction = 0
     max_edges = len(node_face_connectivity[0])
+    construct_node_face_connectivity = np.full(
+        (np.sum(n_edges > 2), max_edges), INT_FILL_VALUE, dtype=INT_DTYPE
+    )
     for i in range(n_node):
         # If we have less than 3 edges, we can't construct anything but a line
         if n_edges[i] < 3:
+            correction += 1
             continue
 
         # Construct temporary face to hold unordered face nodes
@@ -136,8 +140,8 @@ def construct_faces(
                 dual_node_z,
                 max_edges,
             )
-            node_face_connectivity[i] = _face
-    return node_face_connectivity
+            construct_node_face_connectivity[i - correction] = _face
+    return construct_node_face_connectivity
 
 
 @njit(cache=True)
