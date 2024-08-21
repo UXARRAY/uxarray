@@ -1154,6 +1154,6 @@ class UxDataArray(xr.DataArray):
             dims = "n_edge"
 
         # Construct the new data array
-        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims)
+        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
 
         return uxda
