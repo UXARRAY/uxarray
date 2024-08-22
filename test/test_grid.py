@@ -31,6 +31,7 @@ gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne3
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+gridfile_mpas_holes = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
@@ -47,6 +48,14 @@ class TestGrid(TestCase):
         """Test to check the validate function."""
         grid_mpas = ux.open_grid(gridfile_mpas)
         assert (grid_mpas.validate())
+
+    def test_grid_with_holes(self):
+        """Test _holes_in_mesh function."""
+        grid_without_holes = ux.open_grid(gridfile_mpas)
+        grid_with_holes = ux.open_grid(gridfile_mpas_holes)
+
+        self.assertTrue(grid_with_holes.contains_holes())
+        self.assertFalse(grid_without_holes.contains_holes())
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
@@ -658,8 +667,8 @@ class TestConnectivity(TestCase):
 
         # construct edge nodes
         edge_nodes_output, _, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
-                                                          mpas_grid_ux.n_face,
-                                                          mpas_grid_ux.n_max_face_nodes)
+                                                                mpas_grid_ux.n_face,
+                                                                mpas_grid_ux.n_max_face_nodes)
 
         # _populate_face_edge_connectivity(mpas_grid_ux)
         # edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
@@ -932,6 +941,7 @@ class TestClassMethods(TestCase):
 
 class TestLatlonBounds(TestCase):
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+
     def test_populate_bounds_GCA_mix(self):
         face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -941,11 +951,10 @@ class TestLatlonBounds(TestCase):
         faces = [face_1, face_2, face_3, face_4]
 
         # Hand calculated bounds for the above faces in radians
-        expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
-                           [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
-                           [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
-                           [[1.04719755,1.57079633],[0.,         6.28318531]]]
-
+        expected_bounds = [[[0.17453293, 1.07370494], [0.17453293, 0.87266463]],
+                           [[0.17453293, 1.10714872], [6.10865238, 0.87266463]],
+                           [[1.04719755, 1.57079633], [3.66519143, 0.52359878]],
+                           [[1.04719755, 1.57079633], [0., 6.28318531]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
         bounds_xarray = grid.bounds

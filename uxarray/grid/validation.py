@@ -1,7 +1,9 @@
 import numpy as np
 from warnings import warn
 
-from uxarray.constants import ERROR_TOLERANCE
+from numba import njit
+
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 
 
 # validation helper functions
@@ -65,3 +67,14 @@ def _check_area(self):
     else:
         print("-No face area is close to zero.")
         return True
+
+
+@njit(cache=True)
+def _mesh_contains_holes(edge_face_connectivity):
+    """Check if a mesh has holes in it."""
+
+    # If an edge only has one face saddling it than the mesh has holes in it
+    for edge in edge_face_connectivity:
+        if edge[1] == INT_FILL_VALUE:
+            return True
+    return False

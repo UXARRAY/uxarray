@@ -71,6 +71,7 @@ from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
     _check_area,
+    _mesh_contains_holes,
 )
 
 from xarray.core.utils import UncachedAccessor
@@ -346,6 +347,10 @@ class Grid:
             return True
         else:
             raise RuntimeError("Mesh validation failed.")
+
+    def contains_holes(self):
+        """Check the grid for holes."""
+        return _mesh_contains_holes(self.edge_face_connectivity.values)
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
