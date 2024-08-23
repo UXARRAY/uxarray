@@ -74,7 +74,4 @@ def _mesh_contains_holes(edge_face_connectivity):
     """Check if a mesh has holes in it."""
 
     # If an edge only has one face saddling it than the mesh has holes in it
-    for edge in edge_face_connectivity:
-        if edge[1] == INT_FILL_VALUE:
-            return True
-    return False
+    return np.any(edge_face_connectivity[:, 1] == INT_FILL_VALUE)
