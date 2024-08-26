@@ -348,10 +348,6 @@ class Grid:
         else:
             raise RuntimeError("Mesh validation failed.")
 
-    def contains_holes(self):
-        """Check the grid for holes."""
-        return _mesh_contains_holes(self.edge_face_connectivity.values)
-
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
@@ -908,6 +904,11 @@ class Grid:
         if self._face_jacobian is None:
             _ = self.face_areas
         return self._face_jacobian
+
+    @property
+    def index_holes(self):
+        """Check the grid for holes."""
+        return _mesh_contains_holes(self.edge_face_connectivity.values)
 
     def get_ball_tree(
         self,

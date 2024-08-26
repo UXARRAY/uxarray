@@ -69,9 +69,9 @@ def _check_area(self):
         return True
 
 
-@njit(cache=True)
 def _mesh_contains_holes(edge_face_connectivity):
     """Check if a mesh has holes in it."""
 
     # If an edge only has one face saddling it than the mesh has holes in it
-    return np.any(edge_face_connectivity[:, 1] == INT_FILL_VALUE)
+    edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
+    return edge_with_holes

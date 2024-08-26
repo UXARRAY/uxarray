@@ -54,8 +54,8 @@ class TestGrid(TestCase):
         grid_without_holes = ux.open_grid(gridfile_mpas)
         grid_with_holes = ux.open_grid(gridfile_mpas_holes)
 
-        self.assertTrue(grid_with_holes.contains_holes())
-        self.assertFalse(grid_without_holes.contains_holes())
+        self.assertTrue(grid_with_holes.index_holes.size != 0)
+        self.assertTrue(grid_without_holes.index_holes.size == 0)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
