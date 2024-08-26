@@ -26,6 +26,7 @@ from uxarray.io._esmf import _read_esmf
 from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
+from uxarray.io._icon import _read_icon
 
 from uxarray.formatting_html import grid_repr
 
@@ -216,6 +217,8 @@ class Grid:
                 grid_ds, source_dims_dict = _read_esmf(dataset)
             elif source_grid_spec == "GEOS-CS":
                 grid_ds, source_dims_dict = _read_geos_cs(dataset)
+            elif source_grid_spec == "ICON":
+                grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
             elif source_grid_spec == "Shapefile":
                 raise ValueError("Shapefiles not yet supported")
             else:
@@ -891,6 +894,7 @@ class Grid:
                 "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time."
             )
             _populate_bounds(self)
+
         return self._ds["bounds"]
 
     @property
