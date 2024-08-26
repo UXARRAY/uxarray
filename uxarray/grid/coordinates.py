@@ -363,27 +363,29 @@ def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_fac
     -------
     tuple of numpy.ndarray
         Two arrays containing the longitudes and latitudes of the centerpoints.
-
-    Notes
-    -----
-    This function calculates the centerpoints of faces defined by nodes on a sphere, using Welzl's algorithm to
-    find the smallest enclosing circle for each face.
     """
-    ctrpt_lon = np.zeros(face_nodes.shape[0], dtype=np.float64)
-    ctrpt_lat = np.zeros(face_nodes.shape[0], dtype=np.float64)
+    num_faces = face_nodes.shape[0]
+    ctrpt_lon = np.zeros(num_faces, dtype=np.float64)
+    ctrpt_lat = np.zeros(num_faces, dtype=np.float64)
 
-    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
-        points_array = np.column_stack(
+    # Pre-compute all points arrays
+    points_arrays = [
+        np.column_stack(
             (
                 node_lon[face_nodes[face_idx, :n_max_nodes]],
                 node_lat[face_nodes[face_idx, :n_max_nodes]],
             )
         )
-        circle = smallest_enclosing_circle(points_array)
-        ctrpt_lon[face_idx] = circle[0][0]
-        ctrpt_lat[face_idx] = circle[0][1]
+        for face_idx, n_max_nodes in enumerate(n_nodes_per_face)
+    ]
 
-    return ctrpt_lon, ctrpt_lat
+    # Compute circles for all faces
+    circles = [smallest_enclosing_circle(points) for points in points_arrays]
+
+    # Extract centerpoints
+    ctrpt_lon, ctrpt_lat = zip(*[circle[0] for circle in circles])
+
+    return np.array(ctrpt_lon), np.array(ctrpt_lat)
 
 
 def _populate_edge_centroids(grid, repopulate=False):
