@@ -2,7 +2,7 @@ import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import warnings
 import uxarray.utils.computing as ac_utils
-import math 
+import math
 
 from typing import Union
 
@@ -478,6 +478,7 @@ def _xyz_to_lonlat_rad(
 
     return lon, lat
 
+
 @njit
 def _xyz_to_lonlat_rad_no_norm(
     x: Union[np.ndarray, float],
@@ -548,6 +549,7 @@ def _lonlat_rad_to_xyz(
 
     return x, y, z
 
+
 def _xyz_to_lonlat_deg(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
@@ -582,6 +584,7 @@ def _xyz_to_lonlat_deg(
 
     lon = (lon + 180) % 360 - 180
     return lon, lat
+
 
 @njit
 def _normalize_xyz_scalar(x: float, y: float, z: float):
