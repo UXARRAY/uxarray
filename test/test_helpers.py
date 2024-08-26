@@ -186,7 +186,7 @@ class TestConstants(TestCase):
         """Tests _replace_fill_values() helper function attempting to use a
         fill value that is not representable by the current dtype."""
 
-        face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=np.uint32)
+        face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=np.int32)
         # invalid fill value with dtype should raise a valueError
         with self.assertRaises(ValueError):
             # INT_FILL_VALUE (max(uint32) not representable by int16)

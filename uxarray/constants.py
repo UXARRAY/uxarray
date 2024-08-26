@@ -15,4 +15,6 @@ ERROR_TOLERANCE = 1.0e-8
 ENABLE_JIT_CACHE = True
 ENABLE_JIT = True
 
+ENABLE_FMA = False
+
 GRID_DIMS = ["n_node", "n_edge", "n_face"]

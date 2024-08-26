@@ -8,11 +8,11 @@ from uxarray.conventions import ugrid
 from uxarray.grid.arcs import _angle_of_2_vectors
 from uxarray.grid.utils import (
     _xyz_to_lonlat_rad,
+    _xyz_to_lonlat_rad_no_norm,
     _lonlat_rad_to_xyz,
     _xyz_to_lonlat_deg,
     _normalize_xyz,
 )
-
 
 def _populate_node_latlon(grid) -> None:
     """Populates the lon and lat coordinates of a Grid (`node_lon`,
