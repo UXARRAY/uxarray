@@ -5,13 +5,17 @@ from uxarray.conventions import ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
-def _read_shpfile(filepath):
-    """Read shape file, use geopandas.
+def _read_geodataframe(filepath, driver=None, **kwargs):
+    """Read geospatial data, using geopandas.
 
     Parameters
     ----------
     filepath : str
-        Filepath to shapefile, note all files .shp, .shx, .dbf, etc. must be in the same directory.
+        Filepath to geospatial data.
+    driver : str, optional
+        Driver to use, by default None, in which case geopandas will try to infer the driver from the file extension.
+    **kwargs
+        Keyword arguments to pass to geopandas.read_file().
 
     Returns
     -------
@@ -20,7 +24,7 @@ def _read_shpfile(filepath):
     """
     grid_ds = xr.Dataset()
 
-    gdf, max_coord_size = _gpd_read(filepath)
+    gdf, max_coord_size = _gpd_read(filepath, driver=driver, **kwargs)
 
     node_lon, node_lat, connectivity = _extract_geometry_info(gdf, max_coord_size)
 
@@ -39,13 +43,17 @@ def _read_shpfile(filepath):
     return grid_ds, None
 
 
-def _gpd_read(filepath):
-    """Read a shapefile using geopandas.
+def _gpd_read(filepath, driver=None, **kwargs):
+    """Read a geospatial data using geopandas.
 
     Parameters
     ----------
     filepath : str
-        Filepath to shapefile.
+        Filepath to geospatial data.
+    driver : str, optional
+        Driver to use, by default None, in which case geopandas will try to infer the driver from the file extension.
+    **kwargs
+        Keyword arguments to pass to geopandas.read_file().
 
     Returns
     -------
@@ -55,10 +63,10 @@ def _gpd_read(filepath):
         Maximum number of nodes in a polygon/multipolygon.
     """
     try:
-        gdf = gpd.read_file(filepath)
+        gdf = gpd.read_file(filepath, driver=driver, **kwargs)
         gdf = _set_crs(gdf)
     except Exception as e:
-        print(f"An error occurred while reading the shapefile: {e}")
+        print(f"An error occurred while reading the geospatial data: {e}")
 
     max_polygon_nodes = gdf["geometry"].apply(_get_num_nodes).max()
 
