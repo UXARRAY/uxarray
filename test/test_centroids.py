@@ -4,7 +4,7 @@ import numpy as np
 import numpy.testing as nt
 import uxarray as ux
 from pathlib import Path
-from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _populate_face_centerpoints
+from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _populate_face_centerpoints, _is_inside_circle, _circle_from_three_points, _circle_from_two_points
 from uxarray.grid.utils import _normalize_xyz
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -64,7 +64,8 @@ class TestCentroids(TestCase):
         expected_face_x = uxgrid.face_lon.values
         expected_face_y = uxgrid.face_lat.values
 
-        _populate_face_centroids(uxgrid, repopulate=True)
+        # _populate_face_centroids(uxgrid, repopulate=True)
+        uxgrid.compute_face_center(method="average")
 
         # computed_face_x = (uxgrid.face_lon.values + 180) % 360 - 180
         computed_face_x = uxgrid.face_lon.values
@@ -108,6 +109,46 @@ class TestCentroids(TestCase):
 
         nt.assert_array_almost_equal(expected_edge_lon, computed_edge_lon)
         nt.assert_array_almost_equal(expected_edge_lat, computed_edge_lat)
+
+class TestCenterPoints(TestCase):
+
+    def test_circle_from_two_points(self):
+        """Test creation of circle from 2 points."""
+        p1 = (0, 0)
+        p2 = (0, 90)
+        center, radius = _circle_from_two_points(p1, p2)
+
+        # The expected radius in radians should be half the angle between the two vectors
+        expected_center = (0.0, 45.0)
+        expected_radius = np.deg2rad(45.0)
+
+        assert np.allclose(center, expected_center), f"Expected center {expected_center}, but got {center}"
+        assert np.allclose(radius, expected_radius), f"Expected radius {expected_radius}, but got {radius}"
+
+    def test_circle_from_three_points(self):
+        """Test creation of circle from 3 points."""
+        p1 = (0, 0)
+        p2 = (0, 90)
+        p3 = (90, 0)
+        center, radius = _circle_from_three_points(p1, p2, p3)
+        expected_radius = np.deg2rad(45.0)
+        expected_center = (30.0, 30.0)
+
+        assert np.allclose(center, expected_center), f"Expected center {expected_center}, but got {center}"
+        assert np.allclose(radius, expected_radius), f"Expected radius {expected_radius}, but got {radius}"
+
+    def test_is_inside_circle(self):
+        """Test if a points is inside the circle."""
+        # Define the circle
+        circle = ((0.0, 0.0), 1)  # Center at lon/lat with a radius in radians (angular measure of the radius)
+
+        # Define test points
+        point_inside = (30.0, 30.0)  # Should be inside the circle
+        point_outside = (90.0, 0.0)  # Should be outside the circle
+
+        # Test _is_inside_circle function
+        assert _is_inside_circle(circle, point_inside), f"Point {point_inside} should be inside the circle."
+        assert not _is_inside_circle(circle, point_outside), f"Point {point_outside} should be outside the circle."
 
     def test_face_centerpoint(self):
         """Use points from an actual spherical face and get the centerpoint."""

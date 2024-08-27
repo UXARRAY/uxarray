@@ -207,7 +207,7 @@ def _populate_face_centerpoints(grid, repopulate=False):
 
 
 @njit
-def circle_from_two_points(p1, p2):
+def _circle_from_two_points(p1, p2):
     """Calculate the smallest circle that encloses two points on a unit sphere.
 
     Parameters
@@ -236,7 +236,7 @@ def circle_from_two_points(p1, p2):
 
 
 @njit
-def circle_from_three_points(p1, p2, p3):
+def _circle_from_three_points(p1, p2, p3):
     """Calculate the smallest circle that encloses three points on a unit
     sphere. This is a placeholder implementation.
 
@@ -276,7 +276,7 @@ def circle_from_three_points(p1, p2, p3):
 
 
 @njit
-def is_inside_circle(circle, point):
+def _is_inside_circle(circle, point):
     """Check if a point is inside a given circle on a unit sphere.
 
     Parameters
@@ -299,7 +299,7 @@ def is_inside_circle(circle, point):
 
 
 @njit
-def welzl_recursive(points, boundary, R):
+def _welzl_recursive(points, boundary, R):
     """Recursive helper function for Welzl's algorithm to find the smallest
     enclosing circle.
 
@@ -324,18 +324,18 @@ def welzl_recursive(points, boundary, R):
             # Return a default circle if no boundary points are available
             return ((0.0, 0.0), 0.0)
         elif len(boundary) == 1:
-            return circle_from_two_points(boundary[0], boundary[0])
+            return _circle_from_two_points(boundary[0], boundary[0])
         elif len(boundary) == 2:
-            return circle_from_two_points(boundary[0], boundary[1])
+            return _circle_from_two_points(boundary[0], boundary[1])
         elif len(boundary) == 3:
-            return circle_from_three_points(boundary[0], boundary[1], boundary[2])
+            return _circle_from_three_points(boundary[0], boundary[1], boundary[2])
 
     p = points[-1]
     temp_points = points[:-1]
-    circle = welzl_recursive(temp_points, boundary, R)
+    circle = _welzl_recursive(temp_points, boundary, R)
 
     # Check if the chosen point is inside the current circle
-    if circle and is_inside_circle(circle, p):
+    if circle and _is_inside_circle(circle, p):
         return circle
     # If not, the point must be on the boundary of the minimal enclosing circle
     else:
@@ -344,10 +344,10 @@ def welzl_recursive(points, boundary, R):
         )
         new_boundary[:-1] = boundary
         new_boundary[-1] = p
-        return welzl_recursive(temp_points, new_boundary, R)
+        return _welzl_recursive(temp_points, new_boundary, R)
 
 
-def smallest_enclosing_circle(points):
+def _smallest_enclosing_circle(points):
     """Find the smallest circle that encloses all given points on a unit sphere
     using Welzl's algorithm.
 
@@ -364,7 +364,7 @@ def smallest_enclosing_circle(points):
     np.random.shuffle(
         points
     )  # Randomize the input to increase the chance of an optimal solution
-    return welzl_recursive(points, np.empty((0, 2)), None)
+    return _welzl_recursive(points, np.empty((0, 2)), None)
 
 
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
@@ -402,7 +402,7 @@ def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_fac
     ]
 
     # Compute circles for all faces
-    circles = [smallest_enclosing_circle(points) for points in points_arrays]
+    circles = [_smallest_enclosing_circle(points) for points in points_arrays]
 
     # Extract centerpoints
     ctrpt_lon, ctrpt_lat = zip(*[circle[0] for circle in circles])

@@ -147,10 +147,6 @@ Coordinates
 .. autosummary::
    :toctree: generated/
 
-   grid.coordinates._lonlat_rad_to_xyz
-   grid.coordinates._xyz_to_lonlat_rad
-   grid.coordinates._xyz_to_lonlat_deg
-   grid.coordinates._normalize_xyz
    grid.coordinates._populate_node_latlon
    grid.coordinates._populate_node_xyz
    grid.coordinates._populate_face_centroids
@@ -158,6 +154,13 @@ Coordinates
    grid.coordinates._construct_face_centroids
    grid.coordinates._construct_edge_centroids
    grid.coordinates._set_desired_longitude_range
+   grid.coordinates._populate_face_centerpoints
+   grid.coordinates._circle_from_two_points
+   grid.coordinates._circle_from_three_points
+   grid.coordinates._is_inside_circle
+   grid.coordinates._welzl_recursive
+   grid.coordinates._smallest_enclosing_circle
+   grid.coordinates._construct_face_centerpoints
 
 
 Arcs
@@ -179,7 +182,12 @@ Utils
    grid.utils._swap_first_fill_value_with_last
    grid.utils._get_cartesiain_face_edge_nodes
    grid.utils._get_lonlat_rad_face_edge_nodes
-
+   grid.utils._lonlat_rad_to_xyz
+   grid.utils._xyz_to_lonlat_rad
+   grid.utils._xyz_to_lonlat_rad_no_norm
+   grid.utils._xyz_to_lonlat_deg
+   grid.utils._normalize_xyz
+   grid.utils._normalize_xyz_scalar
 
 
 Validation
