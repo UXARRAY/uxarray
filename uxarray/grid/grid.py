@@ -71,7 +71,7 @@ from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
     _check_area,
-    _mesh_contains_holes,
+    _index_faces_on_partial_grid,
 )
 
 from xarray.core.utils import UncachedAccessor
@@ -907,8 +907,11 @@ class Grid:
 
     @property
     def index_holes(self):
-        """Check the grid for holes."""
-        return _mesh_contains_holes(self.edge_face_connectivity.values)
+        """Check the grid for faces that are next a hole inside a partial grid.
+        Returns"""
+        if "index_holes" not in self._ds:
+            self._ds["index_holes"] = _index_faces_on_partial_grid(self.edge_face_connectivity.values)
+        return self._ds["index_holes"]
 
     def get_ball_tree(
         self,

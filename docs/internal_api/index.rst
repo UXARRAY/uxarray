@@ -190,7 +190,7 @@ Validation
    grid.validation._check_connectivity
    grid.validation._check_duplicate_nodes
    grid.validation._check_area
-   grid.validation._mesh_contains_holes
+   grid.validation._index_faces_on_partial_grid
 
 Accurate Computing Utils
 ------------------------

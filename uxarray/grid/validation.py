@@ -69,8 +69,8 @@ def _check_area(self):
         return True
 
 
-def _mesh_contains_holes(edge_face_connectivity):
-    """Check if a mesh has holes in it."""
+def _index_faces_on_partial_grid(edge_face_connectivity):
+    """Index the missing faces on a partial grid."""
 
     # If an edge only has one face saddling it than the mesh has holes in it
     edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
