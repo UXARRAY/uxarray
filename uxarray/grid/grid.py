@@ -908,9 +908,13 @@ class Grid:
     @property
     def index_holes(self):
         """Check the grid for faces that are next a hole inside a partial grid.
-        Returns"""
+
+        Returns
+        """
         if "index_holes" not in self._ds:
-            self._ds["index_holes"] = _index_faces_on_partial_grid(self.edge_face_connectivity.values)
+            self._ds["index_holes"] = _index_faces_on_partial_grid(
+                self.edge_face_connectivity.values
+            )
         return self._ds["index_holes"]
 
     def get_ball_tree(

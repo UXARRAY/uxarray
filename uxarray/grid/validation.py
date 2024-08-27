@@ -1,7 +1,6 @@
 import numpy as np
 from warnings import warn
 
-from numba import njit
 
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 
