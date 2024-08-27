@@ -3,7 +3,6 @@ import numpy as np
 
 import warnings
 
-
 from uxarray.conventions import ugrid
 from uxarray.grid.arcs import _angle_of_2_vectors
 from uxarray.grid.utils import (
@@ -115,6 +114,41 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
+def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging.
+
+    Parameters
+    ----------
+    node_x : numpy.ndarray
+        X coordinates of the nodes.
+    node_y : numpy.ndarray
+        Y coordinates of the nodes.
+    node_z : numpy.ndarray
+        Z coordinates of the nodes.
+    face_nodes : numpy.ndarray
+        Indices of nodes per face.
+    n_nodes_per_face : numpy.ndarray
+        Number of nodes per face.
+
+    Returns
+    -------
+    tuple
+        The x, y, and z coordinates of the centroids.
+    """
+    centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        # Compute Cartesian Average
+        centroid_x[face_idx] = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y[face_idx] = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
+
+
 def _populate_face_centerpoints(grid, repopulate=False):
     """Calculates the face centerpoints using Welzl's algorithm. It is a
     randomized algorithm for finding the center and radius of the smallest
@@ -169,41 +203,6 @@ def _populate_face_centerpoints(grid, repopulate=False):
         grid._ds["face_z"] = xr.DataArray(
             ctrpt_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
         )
-
-
-def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
-    """Constructs the xyz centroid coordinate for each face using Cartesian
-    Averaging.
-
-    Parameters
-    ----------
-    node_x : numpy.ndarray
-        X coordinates of the nodes.
-    node_y : numpy.ndarray
-        Y coordinates of the nodes.
-    node_z : numpy.ndarray
-        Z coordinates of the nodes.
-    face_nodes : numpy.ndarray
-        Indices of nodes per face.
-    n_nodes_per_face : numpy.ndarray
-        Number of nodes per face.
-
-    Returns
-    -------
-    tuple
-        The x, y, and z coordinates of the centroids.
-    """
-    centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
-    centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
-    centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
-
-    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
-        # Compute Cartesian Average
-        centroid_x[face_idx] = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_y[face_idx] = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
-
-    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
 def circle_from_two_points(p1, p2):
