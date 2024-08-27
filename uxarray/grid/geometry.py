@@ -387,6 +387,15 @@ def _grid_to_matplotlib_linecollection(grid, periodic_elements):
     # need transform? consider adding it later if needed
     return LineCollection(lines)
 
+def _point_inside_polygon():
+    """Determines if a point is inside a polygon.
+
+    Returns
+    -------
+    bool
+        True if point is inside polygon, False otherwise.
+    """
+    pass
 
 def _pole_point_inside_polygon(pole, face_edge_cart):
     """Determines if a pole point is inside a polygon.
