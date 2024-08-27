@@ -11,6 +11,7 @@ from uxarray.grid.utils import (
     _xyz_to_lonlat_deg,
     _normalize_xyz,
 )
+from numba import njit
 
 
 def _populate_node_latlon(grid) -> None:
@@ -205,6 +206,7 @@ def _populate_face_centerpoints(grid, repopulate=False):
         )
 
 
+@njit
 def circle_from_two_points(p1, p2):
     """Calculate the smallest circle that encloses two points on a unit sphere.
 
@@ -223,12 +225,17 @@ def circle_from_two_points(p1, p2):
     center_lon = (p1[0] + p2[0]) / 2
     center_lat = (p1[1] + p2[1]) / 2
     center = (center_lon, center_lat)
-    v1, v2 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (p1, p2))
+
+    v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
+    v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
+
     distance = _angle_of_2_vectors(v1, v2)
     radius = distance / 2
+
     return center, radius
 
 
+@njit
 def circle_from_three_points(p1, p2, p3):
     """Calculate the smallest circle that encloses three points on a unit
     sphere. This is a placeholder implementation.
@@ -247,8 +254,15 @@ def circle_from_three_points(p1, p2, p3):
     tuple
         A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
     """
-    center = p1  # Placeholder center
-    v1, v2, v3 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (p1, p2, p3))
+    # Placeholder implementation for three-point circle calculation
+    center_lon = (p1[0] + p2[0] + p3[0]) / 3
+    center_lat = (p1[1] + p2[1] + p3[1]) / 3
+    center = (center_lon, center_lat)
+
+    v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
+    v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
+    v3 = np.array(_lonlat_rad_to_xyz(np.radians(p3[0]), np.radians(p3[1])))
+
     radius = (
         max(
             _angle_of_2_vectors(v1, v2),
@@ -257,9 +271,11 @@ def circle_from_three_points(p1, p2, p3):
         )
         / 2
     )
+
     return center, radius
 
 
+@njit
 def is_inside_circle(circle, point):
     """Check if a point is inside a given circle on a unit sphere.
 
@@ -276,11 +292,13 @@ def is_inside_circle(circle, point):
         True if the point is inside the circle, False otherwise.
     """
     center, radius = circle
-    v1, v2 = (np.array(_lonlat_rad_to_xyz(*np.radians(p))) for p in (center, point))
+    v1 = np.array(_lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1])))
+    v2 = np.array(_lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1])))
     distance = _angle_of_2_vectors(v1, v2)
     return distance <= radius
 
 
+@njit
 def welzl_recursive(points, boundary, R):
     """Recursive helper function for Welzl's algorithm to find the smallest
     enclosing circle.
@@ -303,25 +321,30 @@ def welzl_recursive(points, boundary, R):
     if len(points) == 0 or len(boundary) == 3:
         # Construct the minimal circle based on the number of boundary points
         if len(boundary) == 0:
-            return R
+            # Return a default circle if no boundary points are available
+            return ((0.0, 0.0), 0.0)
         elif len(boundary) == 1:
-            return (boundary[0], 0)
+            return circle_from_two_points(boundary[0], boundary[0])
         elif len(boundary) == 2:
             return circle_from_two_points(boundary[0], boundary[1])
         elif len(boundary) == 3:
             return circle_from_three_points(boundary[0], boundary[1], boundary[2])
 
-    # Choose a point from the set and remove it
     p = points[-1]
-    temp_points = np.delete(points, -1, axis=0)
+    temp_points = points[:-1]
     circle = welzl_recursive(temp_points, boundary, R)
 
     # Check if the chosen point is inside the current circle
     if circle and is_inside_circle(circle, p):
         return circle
+    # If not, the point must be on the boundary of the minimal enclosing circle
     else:
-        # If not, the point must be on the boundary of the minimal enclosing circle
-        return welzl_recursive(temp_points, np.append(boundary, [p], axis=0), R)
+        new_boundary = np.empty(
+            (boundary.shape[0] + 1, boundary.shape[1]), dtype=boundary.dtype
+        )
+        new_boundary[:-1] = boundary
+        new_boundary[-1] = p
+        return welzl_recursive(temp_points, new_boundary, R)
 
 
 def smallest_enclosing_circle(points):
