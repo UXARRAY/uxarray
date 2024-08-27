@@ -3,6 +3,7 @@ message: "If you use the UXarray software, please cite it as below."
 authors:
 - family-names: "Chen"
   given-names: "Hongyu"
+  orcid: "https://orcid.org/0000-0001-7743-4761"
 - family-names: "Chmielowiec"
   given-names: "Philip"
   orcid: "https://orcid.org/0009-0001-4744-1511"
