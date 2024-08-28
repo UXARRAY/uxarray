@@ -54,6 +54,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
+    _construct_hole_edge_indices,
 )
 
 from uxarray.grid.neighbors import (
@@ -71,7 +72,6 @@ from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
     _check_area,
-    _index_faces_on_partial_grid,
 )
 
 from xarray.core.utils import UncachedAccessor
@@ -906,16 +906,14 @@ class Grid:
         return self._face_jacobian
 
     @property
-    def index_holes(self):
-        """Check the grid for faces that are next a hole inside a partial grid.
-
-        Returns
-        """
-        if "index_holes" not in self._ds:
-            self._ds["index_holes"] = _index_faces_on_partial_grid(
+    def hole_edge_indices(self):
+        """Index of which edges border a region of the grid not covered by any
+        geometry, know asg a hole, in a partial grid."""
+        if "hole_edge_indices" not in self._ds:
+            self._ds["hole_edge_indices"] = _construct_hole_edge_indices(
                 self.edge_face_connectivity.values
             )
-        return self._ds["index_holes"]
+        return self._ds["hole_edge_indices"]
 
     def get_ball_tree(
         self,

@@ -210,7 +210,7 @@ IO
    Grid.to_polycollection
    Grid.to_linecollection
    Grid.validate
-   Grid.index_holes
+   Grid.hole_edge_indices
 
 
 Methods

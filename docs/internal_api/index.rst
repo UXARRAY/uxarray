@@ -141,6 +141,7 @@ Geometry
    grid.geometry._insert_pt_in_latlonbox
    grid.geometry._populate_face_latlon_bound
    grid.geometry._populate_bounds
+   grid.geometry._construct_hole_edge_indices
 
 Coordinates
 -----------
@@ -190,7 +191,6 @@ Validation
    grid.validation._check_connectivity
    grid.validation._check_duplicate_nodes
    grid.validation._check_area
-   grid.validation._index_faces_on_partial_grid
 
 Accurate Computing Utils
 ------------------------
