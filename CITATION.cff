@@ -43,6 +43,7 @@ authors:
   given-names: "Colin"
 - family-names: "Zedwick"
   given-names: "Aaron"
+  orcid: "https://orcid.org/0000-0003-3229-3381"
 title: "uxarray"
 abstract: "Xarray extension for unstructured climate and global weather data analysis and visualization."
 license: Apache-2.0
