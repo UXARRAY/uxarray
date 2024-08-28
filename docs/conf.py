@@ -187,18 +187,18 @@ html_logo = "_static/images/logos/uxarray_logo_h_dark.svg"
 # pixels large.
 html_favicon = "_static/images/logos/uxarray_logo_h_dark.svg"
 
-# # Assuming your `conf.py` has a sibling folder called `_static` with these files
-# html_theme_options = {
-#    "logo": {
-#       "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",
-#       "image_dark": "_static/images/logos/uxarray_logo_h_light.svg",
-#    }
-# }
+# Assuming your `conf.py` has a sibling folder called `_static` with these files
+html_theme_options = {
+    "logo": {
+        "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",
+        "image_dark": "_static/images/logos/uxarray_logo_h_light.svg",
+    }
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ["_static"]
+html_static_path = ["_static"]
 # html_css_files = ["style.css"]
 
 # Output file base name for HTML help builder.
