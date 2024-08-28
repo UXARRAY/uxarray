@@ -32,7 +32,7 @@ jobs:
           cache-environment-key: "${{runner.os}}-${{runner.arch}}-py${{env.PYTHON_VERSION}}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}-benchmark"
           create-args: >-
             asv
-            build
+            python-build
             mamba
 
       - name: Run Benchmarks
