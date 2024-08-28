@@ -180,18 +180,18 @@ html_theme_options = dict(
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "_static/images/logos/uxarray_logo-h-dark.svg"
+html_logo = "_static/images/logos/uxarray_logo_h_dark.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = "_static/images/logos/uxarray_logo-h-dark.svg"
+html_favicon = "_static/images/logos/uxarray_logo_h_dark.svg"
 
 # # Assuming your `conf.py` has a sibling folder called `_static` with these files
 # html_theme_options = {
 #    "logo": {
-#       "image_light": "_static/images/logos/uxarray_logo-h-dark.svg",
-#       "image_dark": "_static/images/logos/uxarray_logo-h-light.svg",
+#       "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",
+#       "image_dark": "_static/images/logos/uxarray_logo_h_light.svg",
 #    }
 # }
 
