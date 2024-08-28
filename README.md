@@ -1,10 +1,10 @@
-
-<img src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/blob/c8fb393066acd864ef5dceb1956379775a4f21dd/docs/_static/images/logos/h_blue.svg" width="450"/><br>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="/docs/_static/images/logos/uxarray_logo_h_light.svg">
+  <source media="(prefers-color-scheme: light)" srcset="/docs/_static/images/logos/uxarray_logo_h_dark.svg">
+  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png" width="450">
+</picture>
 
 -----------------
-
-[comment]: <> (<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='350'>)
-
 
 # Xarray extension for unstructured climate and global weather data
 |    |    |
