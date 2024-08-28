@@ -1078,8 +1078,16 @@ class Grid:
             _ = self.face_areas
         return self._face_jacobian
 
-    def chunk(self):
-        # TODO: add general chunking method
+    def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
+        """Converts all arrays to dask arrays with given chunks across grid
+        dimensions.
+
+        Non-dask arrays will be converted to dask arrays. Dask arrays will be chunked to the given chunk size.
+
+        Parameters
+        ----------
+        """
+
         pass
 
     def get_ball_tree(
