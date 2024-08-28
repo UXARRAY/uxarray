@@ -497,6 +497,13 @@ class Grid:
         return set([conn for conn in CONNECTIVITY_NAMES if conn in self._ds])
 
     @property
+    def descriptors(self) -> set:
+        """Names of all descriptor variables."""
+        from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
+
+        return set([desc for desc in DESCRIPTOR_NAMES if desc in self._ds])
+
+    @property
     def parsed_attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
         warn(
@@ -1080,15 +1087,69 @@ class Grid:
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
-        dimensions.
+        dimensions in-place.
 
         Non-dask arrays will be converted to dask arrays. Dask arrays will be chunked to the given chunk size.
 
         Parameters
         ----------
+        n_node : int, tuple
+            How to chunk node variables. Must be one of the following forms:
+
+            - A blocksize like 1000.
+            - A blockshape like (1000, 1000).
+            - Explicit sizes of all blocks along all dimensions like
+              ((1000, 1000, 500), (400, 400)).
+            - A size in bytes, like "100 MiB" which will choose a uniform
+              block-like shape
+            - The word "auto" which acts like the above, but uses a configuration
+              value ``array.chunk-size`` for the chunk size
+
+            -1 or None as a blocksize indicate the size of the corresponding
+            dimension.
+
+        n_edge : int, tuple
+            How to chunk edge variables. Must be one of the following forms:
+
+            - A blocksize like 1000.
+            - A blockshape like (1000, 1000).
+            - Explicit sizes of all blocks along all dimensions like
+              ((1000, 1000, 500), (400, 400)).
+            - A size in bytes, like "100 MiB" which will choose a uniform
+              block-like shape
+            - The word "auto" which acts like the above, but uses a configuration
+              value ``array.chunk-size`` for the chunk size
+
+            -1 or None as a blocksize indicate the size of the corresponding
+            dimension.
+
+        n_face : int, tuple
+            How to chunk face variables. Must be one of the following forms:
+
+            - A blocksize like 1000.
+            - A blockshape like (1000, 1000).
+            - Explicit sizes of all blocks along all dimensions like
+              ((1000, 1000, 500), (400, 400)).
+            - A size in bytes, like "100 MiB" which will choose a uniform
+              block-like shape
+            - The word "auto" which acts like the above, but uses a configuration
+              value ``array.chunk-size`` for the chunk size
+
+            -1 or None as a blocksize indicate the size of the corresponding
+            dimension.
         """
 
-        pass
+        grid_var_names = self.coordinates | self.connectivity | self.descriptors
+
+        for var_name in grid_var_names:
+            grid_var = getattr(self, var_name)
+
+            if "n_node" in grid_var.dims:
+                setattr(self, var_name, grid_var.chunk(chunks={"n_node": n_node}))
+            elif "n_edge" in grid_var.dims:
+                setattr(self, var_name, grid_var.chunk(chunks={"n_edge": n_edge}))
+            elif "n_face" in grid_var.dims:
+                setattr(self, var_name, grid_var.chunk(chunks={"n_face": n_face}))
 
     def get_ball_tree(
         self,
