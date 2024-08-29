@@ -13,15 +13,3 @@
 .sd-card-img {
     height: auto;
 }
-
-/* override toc css */
-/* controls dropdown icon color */
-.bd-toc-item.active {
-    margin-bottom: 1rem;
-    color: #283618;
-}
-
-/* controls sidebar header color */
-.caption-text {
-    color: #283618;
-}
