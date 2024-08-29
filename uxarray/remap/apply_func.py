@@ -6,7 +6,6 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
 import numpy as np
-from functools import partial
 
 import uxarray.core.dataarray
 import uxarray.core.dataset
@@ -138,7 +137,6 @@ def _apply_func_remap(
     destination_shape[-1] = len(neighbor_indices)
     destination_data = np.empty(destination_shape)
     # Apply function to indices on last axis.
-    func = partial(func, axis=-1)
     for i, idx in enumerate(neighbor_indices):
         if len(idx):
             destination_data[..., i] = func(source_data[..., idx])
