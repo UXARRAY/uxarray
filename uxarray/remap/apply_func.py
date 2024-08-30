@@ -46,7 +46,6 @@ def _apply_func_remap(
         Data mapped to the destination grid.
     """
 
-
     source_data = np.asarray(source_data)
     n_elements = source_data.shape[-1]
 

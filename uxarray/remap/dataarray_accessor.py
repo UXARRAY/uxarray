@@ -29,7 +29,7 @@ class UxDataArrayRemapAccessor:
         )
         methods_heading += "  * inverse_distance_weighted(destination_obj, remap_to, coord_type, power, k)\n"
         methods_heading += (
-                "  * apply_func(destination_grid, remap_to, coord_type, func, r)\n"
+            "  * apply_func(destination_grid, remap_to, coord_type, func, r)\n"
         )
 
         return prefix + methods_heading
