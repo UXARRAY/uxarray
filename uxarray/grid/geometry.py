@@ -15,6 +15,9 @@ import xarray as xr
 
 import cartopy.crs as ccrs
 
+from spatialpandas.geometry import PolygonArray
+from spatialpandas import GeoDataFrame
+
 
 from numba import njit
 
@@ -133,6 +136,13 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection):
             projection,
             antimeridian_face_indices,
         )
+    elif periodic_elements == "include":
+        if projected_polygon_shells is not None:
+            geometry = PolygonArray.from_exterior_coords(projected_polygon_shells)
+        else:
+            geometry = PolygonArray.from_exterior_coords(polygon_shells)
+        gdf = GeoDataFrame({"geometry": geometry})
+
     else:
         gdf = _build_geodataframe_without_antimeridian(
             polygon_shells,
@@ -162,16 +172,18 @@ def _build_geodataframe_without_antimeridian(
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` excluding any faces that cross
     the antimeridian."""
-    from spatialpandas.geometry import PolygonArray
     from spatialpandas import GeoDataFrame
 
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
-        shells = projected_polygon_shells
+        shells_without_antimeridian = np.delete(
+            projected_polygon_shells, antimeridian_face_indices, axis=0
+        )
     else:
-        shells = polygon_shells
+        shells_without_antimeridian = np.delete(
+            polygon_shells, antimeridian_face_indices, axis=0
+        )
 
-    shells_without_antimeridian = np.delete(shells, antimeridian_face_indices, axis=0)
     geometry = PolygonArray.from_exterior_coords(shells_without_antimeridian)
 
     gdf = GeoDataFrame({"geometry": geometry})
