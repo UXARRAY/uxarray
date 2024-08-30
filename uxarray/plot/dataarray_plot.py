@@ -93,7 +93,7 @@ def rasterize(
     method: Optional[str] = "point",
     backend: Optional[str] = "bokeh",
     periodic_elements: Optional[str] = "exclude",
-    exclude_antimeridian: Optional[bool] = True,
+    exclude_antimeridian: Optional[bool] = None,
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -369,7 +369,7 @@ def _polygon_raster(
 def polygons(
     uxda: UxDataArray,
     backend: Optional[str] = "bokeh",
-    exclude_antimeridian: Optional[bool] = True,
+    exclude_antimeridian: Optional[bool] = None,
     projection: Optional = None,
     periodic_elements: Optional[str] = "exclude",
     width: Optional[int] = 1000,

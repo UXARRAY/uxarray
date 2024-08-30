@@ -1295,7 +1295,8 @@ class Grid:
                 DeprecationWarning(
                     "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
                     "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
-                )
+                ),
+                stacklevel=2,
             )
             if exclude_antimeridian:
                 periodic_elements = "exclude"
