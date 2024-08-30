@@ -331,9 +331,10 @@ class UxDataArrayPlotAccessor:
     @functools.wraps(dataarray_plot.rasterize)
     def rasterize(
         self,
-        method: Optional[str] = "polygon",
+        method: Optional[str] = "point",
         backend: Optional[str] = "bokeh",
-        exclude_antimeridian: Optional[bool] = False,
+        periodic_elements: Optional[str] = "exclude",
+        exclude_antimeridian: Optional[bool] = True,
         pixel_ratio: Optional[float] = 1.0,
         dynamic: Optional[bool] = False,
         precompute: Optional[bool] = True,
@@ -377,6 +378,7 @@ class UxDataArrayPlotAccessor:
             self._uxda,
             method=method,
             backend=backend,
+            periodic_elements=periodic_elements,
             exclude_antimeridian=exclude_antimeridian,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
@@ -399,6 +401,8 @@ class UxDataArrayPlotAccessor:
     def polygons(
         self,
         backend: Optional[str] = "bokeh",
+        projection: Optional = None,
+        periodic_elements: Optional[str] = "exclude",
         exclude_antimeridian: Optional[bool] = False,
         width: Optional[int] = 1000,
         height: Optional[int] = 500,
@@ -425,6 +429,8 @@ class UxDataArrayPlotAccessor:
         return dataarray_plot.polygons(
             self._uxda,
             backend=backend,
+            projection=projection,
+            periodic_elements=periodic_elements,
             exclude_antimeridian=exclude_antimeridian,
             width=width,
             height=height,

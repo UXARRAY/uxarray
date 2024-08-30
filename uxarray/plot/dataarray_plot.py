@@ -92,6 +92,7 @@ def rasterize(
     uxda: UxDataArray,
     method: Optional[str] = "point",
     backend: Optional[str] = "bokeh",
+    periodic_elements: Optional[str] = "exclude",
     exclude_antimeridian: Optional[bool] = True,
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
@@ -162,6 +163,7 @@ def rasterize(
         raster = _polygon_raster(
             uxda=uxda,
             backend=backend,
+            periodic_elements=periodic_elements,
             exclude_antimeridian=exclude_antimeridian,
             dynamic=dynamic,
             precompute=precompute,
@@ -174,6 +176,7 @@ def rasterize(
             pixel_ratio=pixel_ratio,
             cache=cache,
             override=override,
+            projection=projection,
             **kwargs,
         )
     else:
@@ -285,6 +288,7 @@ def _polygon_raster(
     uxda: UxDataArray,
     backend: Optional[str] = "bokeh",
     exclude_antimeridian: Optional[bool] = True,
+    periodic_elements: Optional[str] = "exclude",
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -298,6 +302,7 @@ def _polygon_raster(
     ylabel: Optional[str] = "Latitude",
     cache: Optional[bool] = True,
     override: Optional[bool] = False,
+    projection: Optional[ccrs] = None,
     **kwargs,
 ):
     """Implementation of Polygon Rasterization."""
@@ -307,7 +312,11 @@ def _polygon_raster(
         kwargs["clabel"] = uxda.name
 
     gdf = uxda.to_geodataframe(
-        exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
+        projection=projection,
+        periodic_elements=periodic_elements,
+        exclude_antimeridian=exclude_antimeridian,
+        cache=cache,
+        override=override,
     )
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
@@ -362,6 +371,7 @@ def polygons(
     backend: Optional[str] = "bokeh",
     exclude_antimeridian: Optional[bool] = True,
     projection: Optional = None,
+    periodic_elements: Optional[str] = "exclude",
     width: Optional[int] = 1000,
     height: Optional[int] = 500,
     colorbar: Optional[bool] = True,
@@ -390,7 +400,11 @@ def polygons(
         kwargs["clabel"] = uxda.name
 
     gdf = uxda.to_geodataframe(
-        exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
+        projection=projection,
+        periodic_elements=periodic_elements,
+        exclude_antimeridian=exclude_antimeridian,
+        cache=cache,
+        override=override,
     )
 
     hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
