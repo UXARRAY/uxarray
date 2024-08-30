@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
@@ -82,7 +83,7 @@ class UxDatasetRemapAccessor:
         destination_grid: Grid = None,
         remap_to: str = "face centers",
         coord_type: str = "spherical",
-        func: func = np.mean,
+        func: Callable = np.mean,
         r=1,
     ):
         """Neighborhood function Remapping between a source (``UxDataset``) and
@@ -96,7 +97,7 @@ class UxDatasetRemapAccessor:
             Location of where to map data, either "nodes", "edge centers", or "face centers"
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
-        func : func, default = np.mean
+        func : Callable, default = np.mean
             Function to apply to neighborhood
         r : float, default=1
             Radius of neighborhood in deg

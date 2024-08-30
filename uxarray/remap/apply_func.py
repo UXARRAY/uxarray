@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ def _apply_func_remap(
     source_data: np.ndarray,
     remap_to: str = "face centers",
     coord_type: str = "spherical",
-    func: func = np.mean,
+    func: Callable = np.mean,
     r: float = 1.0,
 ) -> np.array:
     """Apply neighborhood function Remapping between two grids.
@@ -148,7 +149,7 @@ def _apply_func_remap_uxda(
     destination_grid: Grid,
     remap_to: str = "face centers",
     coord_type: str = "spherical",
-    func: func = np.mean,
+    func: Callable = np.mean,
     r=1.0,
 ):
     """Neighborhood function Remapping implementation for ``UxDataArray``.
@@ -215,7 +216,7 @@ def _apply_func_remap_uxds(
     destination_grid: Grid,
     remap_to: str = "face centers",
     coord_type: str = "spherical",
-    func: func = np.mean,
+    func: Callable = np.mean,
     r: float = 1.0,
 ):
     """Neighboohood function implementation for ``UxDataset``.
@@ -230,7 +231,7 @@ def _apply_func_remap_uxds(
         Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
         Indicates whether to remap using on Spherical or Cartesian coordinates
-    func : func = np.mean
+    func : Callable = np.mean
         function to apply to neighborhood
     r : float, default=1.
         Radius of neighborhood in deg
