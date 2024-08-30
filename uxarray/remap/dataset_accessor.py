@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 from uxarray.grid import Grid
 import numpy as np
 
+
 class UxDatasetRemapAccessor:
     def __init__(self, uxds: UxDataset):
         self.uxds = uxds
@@ -27,7 +28,9 @@ class UxDatasetRemapAccessor:
             "  * nearest_neighbor(destination_obj, remap_to, coord_type)\n"
         )
         methods_heading += "  * inverse_distance_weighted(destination_obj, remap_to, coord_type, power, k)\n"
-        methods_heading += "  * apply_func(destination_grid, remap_to, coord_type, func, r)\n"
+        methods_heading += (
+                "  * apply_func(destination_grid, remap_to, coord_type, func, r)\n"
+        )
 
         return prefix + methods_heading
 
@@ -82,8 +85,8 @@ class UxDatasetRemapAccessor:
         func: func = np.mean,
         r=1,
     ):
-        """Neighborhood function Remapping between a source
-        (``UxDataset``) and destination.`.
+        """Neighborhood function Remapping between a source (``UxDataset``) and
+        destination.`.
 
         Parameters
         ---------
@@ -114,8 +117,8 @@ class UxDatasetRemapAccessor:
         power=2,
         k=8,
     ):
-        """Inverse Distance Weighted Remapping between a source
-        (``UxDataset``) and destination.`.
+        """Inverse Distance Weighted Remapping between a source (``UxDataset``)
+        and destination.`.
 
         Parameters
         ---------
