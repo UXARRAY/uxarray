@@ -12,6 +12,7 @@ import warnings
 import pandas as pd
 import xarray as xr
 
+
 import cartopy.crs as ccrs
 
 
@@ -88,7 +89,7 @@ def _build_polygon_shells(
     return polygon_shells
 
 
-def _grid_to_polygon_geodataframe(grid, exclude_antimeridian):
+def _grid_to_polygon_geodataframe(grid, periodic_elements, projection):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     with a geometry column of polygons."""
 
@@ -101,44 +102,76 @@ def _grid_to_polygon_geodataframe(grid, exclude_antimeridian):
         grid.n_nodes_per_face.values,
     )
 
+    if projection is not None:
+        # build projected polygon shells
+        projected_polygon_shells = _build_polygon_shells(
+            grid.node_lon.values,
+            grid.node_lat.values,
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_nodes,
+            grid.n_nodes_per_face.values,
+            projection=projection,
+        )
+    else:
+        projected_polygon_shells = None
+
     antimeridian_face_indices = _build_antimeridian_face_indices(
         polygon_shells[:, :, 0]
     )
 
-    if grid.n_face > GDF_POLYGON_THRESHOLD:
-        warnings.warn(
-            "Converting to a GeoDataFrame with over 1,000,000 faces may take some time."
-        )
+    # TODO: do we need this warning?
+    # if grid.n_face > GDF_POLYGON_THRESHOLD:
+    #     warnings.warn(
+    #         "Converting to a GeoDataFrame with over 1,000,000 faces may take some time."
+    #     )
 
-    if len(grid.antimeridian_face_indices) == 0:
-        # if no faces cross antimeridian, no need to correct
-        exclude_antimeridian = True
-
-    if exclude_antimeridian:
-        # build gdf without antimeridian faces
-        gdf = _build_geodataframe_without_antimeridian(
-            polygon_shells, antimeridian_face_indices
+    if periodic_elements == "split":
+        gdf = _build_geodataframe_with_antimeridian(
+            polygon_shells,
+            projected_polygon_shells,
+            projection,
+            antimeridian_face_indices,
         )
     else:
-        # build with antimeridian faces
-        gdf = _build_geodataframe_with_antimeridian(
-            polygon_shells, antimeridian_face_indices
+        gdf = _build_geodataframe_without_antimeridian(
+            polygon_shells,
+            projected_polygon_shells,
+            antimeridian_face_indices,
         )
 
-    return gdf
+    non_nan_polygon_indices = None
+    if projection is not None:
+        shells_d = np.delete(
+            projected_polygon_shells, antimeridian_face_indices, axis=0
+        )
+
+        # Check for NaN in each sub-array and invert the condition
+        does_not_contain_nan = ~np.isnan(shells_d).any(axis=1)
+
+        # Get the indices where NaN is NOT present
+        non_nan_polygon_indices = np.where(does_not_contain_nan)[0]
+
+    return gdf, non_nan_polygon_indices
 
 
 # Helpers (NO ANTIMERIDIAN)
 # ----------------------------------------------------------------------------------------------------------------------
-def _build_geodataframe_without_antimeridian(polygon_shells, antimeridian_face_indices):
+def _build_geodataframe_without_antimeridian(
+    polygon_shells, projected_polygon_shells, antimeridian_face_indices
+):
     """Builds a ``spatialpandas.GeoDataFrame`` excluding any faces that cross
     the antimeridian."""
     from spatialpandas.geometry import PolygonArray
     from spatialpandas import GeoDataFrame
 
-    shells_without_antimeridian = np.delete(
-        polygon_shells, antimeridian_face_indices, axis=0
-    )
+    if projected_polygon_shells is not None:
+        # use projected shells if a projection is applied
+        shells = projected_polygon_shells
+    else:
+        shells = polygon_shells
+
+    shells_without_antimeridian = np.delete(shells, antimeridian_face_indices, axis=0)
     geometry = PolygonArray.from_exterior_coords(shells_without_antimeridian)
 
     gdf = GeoDataFrame({"geometry": geometry})
@@ -148,7 +181,9 @@ def _build_geodataframe_without_antimeridian(polygon_shells, antimeridian_face_i
 
 # Helpers (ANTIMERIDIAN)
 # ----------------------------------------------------------------------------------------------------------------------
-def _build_geodataframe_with_antimeridian(polygon_shells, antimeridian_face_indices):
+def _build_geodataframe_with_antimeridian(
+    polygon_shells, projected_polygon_shells, projection, antimeridian_face_indices
+):
     """Builds a ``spatialpandas.GeoDataFrame`` including any faces that cross
     the antimeridian."""
     # import optional dependencies
@@ -156,7 +191,7 @@ def _build_geodataframe_with_antimeridian(polygon_shells, antimeridian_face_indi
     from spatialpandas import GeoDataFrame
 
     polygons = _build_corrected_shapely_polygons(
-        polygon_shells, antimeridian_face_indices
+        polygon_shells, projected_polygon_shells, antimeridian_face_indices
     )
 
     geometry = MultiPolygonArray(polygons)
@@ -166,15 +201,23 @@ def _build_geodataframe_with_antimeridian(polygon_shells, antimeridian_face_indi
     return gdf
 
 
-def _build_corrected_shapely_polygons(polygon_shells, antimeridian_face_indices):
+def _build_corrected_shapely_polygons(
+    polygon_shells, projected_polygon_shells, antimeridian_face_indices
+):
     import antimeridian
     from shapely import polygons as Polygons
 
-    # list of shapely Polygons representing each face in our grid
-    polygons = Polygons(polygon_shells)
+    if projected_polygon_shells is not None:
+        # use projected shells if a projection is applied
+        shells = projected_polygon_shells
+    else:
+        shells = polygon_shells
 
-    # obtain each antimeridian polygon
-    antimeridian_polygons = polygons[antimeridian_face_indices]
+    # list of shapely Polygons representing each face in our grid
+    polygons = Polygons(shells)
+
+    # construct antimeridian polygons
+    antimeridian_polygons = Polygons(polygon_shells[antimeridian_face_indices])
 
     # correct each antimeridian polygon
     corrected_polygons = [antimeridian.fix_polygon(P) for P in antimeridian_polygons]

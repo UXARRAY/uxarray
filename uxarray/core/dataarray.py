@@ -140,7 +140,14 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
-    def to_geodataframe(self, override=False, cache=True, exclude_antimeridian=False):
+    def to_geodataframe(
+        self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
+        exclude_antimeridian: Optional[bool] = None,
+    ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
         representing the geometry of the unstructured grid, and a data column
@@ -168,19 +175,31 @@ class UxDataArray(xr.DataArray):
             )
 
         if self.values.size == self.uxgrid.n_face:
-            gdf = self.uxgrid.to_geodataframe(
-                override=override,
+            gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
+                periodic_elements=periodic_elements,
+                projection=projection,
                 cache=cache,
+                override=override,
                 exclude_antimeridian=exclude_antimeridian,
+                return_non_nan_polygon_indices=True,
             )
 
-            if exclude_antimeridian:
-                gdf[self.name] = np.delete(
+            if periodic_elements == "exclude":
+                _data = np.delete(
                     self.values, self.uxgrid.antimeridian_face_indices, axis=0
                 )
+                # gdf[self.name] = np.delete(
+                #     self.values, self.uxgrid.antimeridian_face_indices, axis=0
+                # )
             else:
-                gdf[self.name] = self.values
-            return gdf
+                # gdf[self.name] = self.values
+                _data = self.values
+
+            if non_nan_polygon_indices is not None:
+                # TODO:
+                _data = _data[non_nan_polygon_indices]
+
+            gdf[self.name] = _data
 
         elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
@@ -194,6 +213,8 @@ class UxDataArray(xr.DataArray):
                 f"Data Variable with size {self.values.size} does not match the number of faces "
                 f"({self.uxgrid.n_face}."
             )
+
+        return gdf
 
     def to_polycollection(
         self,

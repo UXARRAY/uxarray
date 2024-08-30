@@ -63,6 +63,8 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 
+from spatialpandas import GeoDataFrame
+
 from uxarray.plot.accessor import GridPlotAccessor
 
 from uxarray.subset import GridSubsetAccessor
@@ -158,16 +160,23 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
 
-        # initialize cached data structures and flags (visualization)
+        # cached GeoDataFrame & Flags for visualization
         self._gdf = None
         self._gdf_exclude_am = None
+        self._gdf_periodic_state = None
+        self._gdf_projection_state = None
+        self._gdf_non_nan_polygon_indices = None
+
+        # cached PolyCollection & Flags for visualization
         self._poly_collection = None
         self._poly_collection_periodic_state = None
         self._poly_collection_projection_state = None
         self._corrected_to_original_faces = None
+        # cached LineCollection & Flags for visualization
         self._line_collection = None
         self._line_collection_periodic_state = None
         self._line_collection_projection_state = None
+
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
@@ -177,11 +186,30 @@ class Grid:
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self._ds)
 
+        self.central_longitude = 0.0
+
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
+
+    def _clear_visualization_structures_and_flags(self):
+        """TODO:"""
+        self._antimeridian_face_indices = None
+
+        self._gdf = None
+        self._gdf_exclude_am = None
+        self._gdf_periodic_state = None
+        self._gdf_projection_state = None
+        self._gdf_non_nan_polygon_indices = None
+        self._poly_collection = None
+        self._poly_collection_periodic_state = None
+        self._poly_collection_projection_state = None
+        self._corrected_to_original_faces = None
+        self._line_collection = None
+        self._line_collection_periodic_state = None
+        self._line_collection_projection_state = None
 
     @classmethod
     def from_dataset(
@@ -1199,11 +1227,31 @@ class Grid:
 
         return out_ds
 
+    def set_central_longitude(self, central_longitude=0.0):
+        # TODO:
+
+        source_projection = ccrs.PlateCarree(central_longitude=self.central_longitude)
+        destination_projection = ccrs.PlateCarree(central_longitude=central_longitude)
+
+        self.central_longitude = central_longitude
+
+        lonlat_proj = destination_projection.transform_points(
+            source_projection, self.node_lon.values, self.node_lat.values
+        )
+
+        self._ds["node_lon"].data = lonlat_proj[:, 0]
+
+        self._clear_visualization_structures_and_flags()
+
     def to_geodataframe(
         self,
-        override: Optional[bool] = False,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
         cache: Optional[bool] = True,
-        exclude_antimeridian: Optional[bool] = False,
+        override: Optional[bool] = False,
+        exclude_antimeridian: Optional[bool] = None,
+        return_non_nan_polygon_indices: Optional[bool] = False,
+        exclude_nan_polygons: Optional[bool] = True,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -1225,27 +1273,83 @@ class Grid:
             The output `GeoDataFrame` with a filled out "geometry" collumn
         """
 
+        if projection is not None:
+            if periodic_elements == "split":
+                raise ValueError(
+                    "Setting ``periodic_elements='split'`` is not supported when a "
+                    "projection is provided."
+                )
+
+            if "lon_0" in projection._proj4_params:
+                central_longitude = projection._proj4_params["lon_0"]
+
+                if central_longitude != 0:
+                    raise ValueError(
+                        "Projections with shifted central longitudes not supported. Please "
+                        "use ``Grid.set_central_longitude(central_longitude)`` to set a "
+                        "central longitude."
+                    )
+
+        if exclude_antimeridian is not None:
+            warn(
+                DeprecationWarning(
+                    "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
+                    "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
+                )
+            )
+            if exclude_antimeridian:
+                periodic_elements = "exclude"
+            else:
+                periodic_elements = "split"
+
+        if periodic_elements not in ["include", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+            )
+
         if self._gdf is not None:
-            # determine if we need to recompute a cached GeoDataFrame based on antimeridian
-            if self._gdf_exclude_am != exclude_antimeridian:
-                # cached gdf should match the exclude_antimeridian_flag
+            if (
+                self._gdf_periodic_state != periodic_elements
+                or self._gdf_projection_state != projection
+            ):
+                # cached GeoDataFrame has a different projection or periodic element handling method
                 override = True
 
-        # use cached geodataframe
         if self._gdf is not None and not override:
-            return self._gdf
+            # use cached PolyCollection
+            if return_non_nan_polygon_indices:
+                return self._gdf, self._gdf_non_nan_polygon_indices
+            else:
+                return self._gdf
 
-        # construct a geodataframe with the faces stored as polygons as the geometry
-        gdf = _grid_to_polygon_geodataframe(
-            self, exclude_antimeridian=exclude_antimeridian
+        # TODO
+        # construct a GeoDataFrame with the faces stored as polygons as the geometry
+        gdf, non_nan_polygon_indices = _grid_to_polygon_geodataframe(
+            self, periodic_elements, projection
         )
 
-        # cache computed geodataframe
+        if exclude_nan_polygons and non_nan_polygon_indices is not None:
+            # TODO
+            gdf = GeoDataFrame({"geometry": gdf["geometry"][non_nan_polygon_indices]})
+
         if cache:
             self._gdf = gdf
-            self._gdf_exclude_am = exclude_antimeridian
+            self._gdf_non_nan_polygon_indices = non_nan_polygon_indices
+            self._gdf_periodic_state = periodic_elements
+            self._gdf_projection_state = projection
+
+        if return_non_nan_polygon_indices:
+            return gdf, non_nan_polygon_indices
 
         return gdf
+
+        #
+        # # cache computed geodataframe
+        # if cache:
+        #     self._gdf = gdf
+        #     self._gdf_exclude_am = exclude_antimeridian
+        #
+        # return gdf
 
     def to_polycollection(
         self,
