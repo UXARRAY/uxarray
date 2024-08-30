@@ -82,6 +82,24 @@ class GeoDataFrame:
     def peakmem_to_geodataframe(self, resolution, periodic_elements):
         gdf = self.uxds[data_var].to_geodataframe(periodic_elements=periodic_elements)
 
+import cartopy.crs as ccrs
+
+class GeoDataFrameProjection:
+
+    param_names = ['resolution', 'projection']
+    params = [['480km', '120km'],
+              [ccrs.Robinson(), ccrs.Orthographic(), ccrs.LambertCylindrical(), ccrs.Mollweide()]]
+
+
+    def setup(self, resolution, projection):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution, projection):
+        del self.uxds
+
+    def time_to_geodataframe(self, resolution, projection):
+        self.uxds[data_var].to_geodataframe(periodic_elements='exclude', projection=projection)
+
 
 class ConnectivityConstruction:
 
