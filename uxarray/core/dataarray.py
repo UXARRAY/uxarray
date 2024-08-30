@@ -167,6 +167,19 @@ class UxDataArray(xr.DataArray):
             The output `GeoDataFrame` with a filled out "geometry" and 1D data column representing the geometry of the unstructured grid
         """
 
+        if exclude_antimeridian is not None:
+            warn(
+                DeprecationWarning(
+                    "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
+                    "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
+                ),
+                stacklevel=2,
+            )
+            if exclude_antimeridian:
+                periodic_elements = "exclude"
+            else:
+                periodic_elements = "split"
+
         if self.values.ndim > 1:
             # data is multidimensional, must be a 1D slice
             raise ValueError(
@@ -188,9 +201,6 @@ class UxDataArray(xr.DataArray):
                 _data = np.delete(
                     self.values, self.uxgrid.antimeridian_face_indices, axis=0
                 )
-                # gdf[self.name] = np.delete(
-                #     self.values, self.uxgrid.antimeridian_face_indices, axis=0
-                # )
             else:
                 # gdf[self.name] = self.values
                 _data = self.values
