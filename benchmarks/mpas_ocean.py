@@ -65,22 +65,22 @@ class Integrate:
 
 class GeoDataFrame:
 
-    param_names = ['resolution', 'exclude_antimeridian']
+    param_names = ['resolution', 'periodic_elements']
     params = [['480km', '120km'],
-              [True, False]]
+              ["exclude", "split"]]
 
 
-    def setup(self, resolution, exclude_antimeridian):
+    def setup(self, resolution, periodic_elements):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
-    def teardown(self, resolution, exclude_antimeridian):
+    def teardown(self, resolution, periodic_elements):
         del self.uxds
 
-    def time_to_geodataframe(self, resolution, exclude_antimeridian):
-        self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    def time_to_geodataframe(self, resolution, periodic_elements):
+        self.uxds[data_var].to_geodataframe(periodic_elements=periodic_elements)
 
-    def peakmem_to_geodataframe(self, resolution, exclude_antimeridian):
-        gdf = self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    def peakmem_to_geodataframe(self, resolution, periodic_elements):
+        gdf = self.uxds[data_var].to_geodataframe(periodic_elements=periodic_elements)
 
 
 class ConnectivityConstruction:
