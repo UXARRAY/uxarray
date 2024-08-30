@@ -33,7 +33,8 @@ class UxDatasetRemapAccessor:
 
     def nearest_neighbor(
         self,
-        destination_grid: Grid = None,
+        destination_grid: Optional[Grid] = None,
+        destination_obj: Optional[Grid, UxDataArray, UxDataset] = None,
         remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
@@ -44,12 +45,20 @@ class UxDatasetRemapAccessor:
         ---------
         destination_grid : Grid
             Destination Grid for remapping
+        destination_obj : Grid, UxDataArray, UxDataset
+            Optional destination for remapping, deprecating
         remap_to : str, default="nodes"
             Location of where to map data, either "nodes", "edge centers", or "face centers"
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
-        if destination_grid is None:
+
+        if destination_grid is not None and destination_obj is not None:
+            raise ValueError(
+                "Only one destination allowed, "
+                "please remove either `destination_grid` or `destination_obj`."
+            )
+        elif destination_grid is None and destination_obj is None:
             raise ValueError("Destination needed for remap.")
 
         if destination_grid is not None:
