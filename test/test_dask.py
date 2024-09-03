@@ -12,6 +12,9 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 mpas_grid = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
+csne30_grid = current_path / 'meshfiles' / "ugrid" / "outCSne30" / 'outCSne30.ug'
+csne30_data = current_path / 'meshfiles' / "ugrid" / "outCSne30" / 'outCSne30_var2.nc'
+
 
 def test_grid_chunking():
     """Tests the chunking of an entire grid."""
@@ -40,3 +43,9 @@ def test_individual_var_chunking():
 
     # face_node_conn should now be a dask array
     assert isinstance(uxgrid.face_node_connectivity.data, da.Array)
+
+
+def test_uxds_chunking():
+    uxds = ux.open_dataset(csne30_grid, csne30_data, chunks={"n_face": 4})
+
+    pass
