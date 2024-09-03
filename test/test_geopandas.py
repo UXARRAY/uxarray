@@ -37,7 +37,7 @@ class TestGeopandas(TestCase):
         assert (uxgrid.validate())
 
     def test_read_geojson(self):
-        """Read a geojson file with a few of Chicago building.
+        """Read a geojson file with a few of Chicago buildings.
 
         Number of polygons: 10
         Polygon 1: 26 sides
