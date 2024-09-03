@@ -18,3 +18,5 @@ ENABLE_JIT = True
 ENABLE_FMA = False
 
 GRID_DIMS = ["n_node", "n_edge", "n_face"]
+
+WGS84_CRS = "EPSG:4326"

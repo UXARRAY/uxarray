@@ -2,7 +2,7 @@ import geopandas as gpd
 import xarray as xr
 import numpy as np
 from uxarray.conventions import ugrid
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, WGS84_CRS
 
 
 def _read_geodataframe(filepath, driver=None, **kwargs):
@@ -87,11 +87,11 @@ def _set_crs(gdf):
         GeoDataFrame with CRS set.
     """
     if gdf.crs is None:
-        gdf = gdf.set_crs("EPSG:4326")
+        gdf = gdf.set_crs(WGS84_CRS)
         print("Original CRS: None\nAssigned CRS:", gdf.crs)
 
-    if gdf.crs != "EPSG:4326":
-        gdf = gdf.to_crs("EPSG:4326")
+    if gdf.crs != WGS84_CRS:
+        gdf = gdf.to_crs(WGS84_CRS)
         print("Transformed CRS:", gdf.crs)
 
     return gdf
@@ -187,14 +187,14 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
         Updated node index.
     """
     for polygon in geometry.geoms:
-        node_lon, node_lat, connectivity, node_index = _append_polygon_coords(
+        node_lon, node_lat, connectivity, node_index = _read_polygon(
             polygon, node_lat, node_lon, connectivity, node_index
         )
     return node_lat, node_lon, connectivity, node_index
 
 
 def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
-    """Read a polygon.
+    """Read a polygon and append its coordinates.
 
     Parameters
     ----------
@@ -220,36 +220,7 @@ def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
     int
         Updated node index.
     """
-    return _append_polygon_coords(polygon, node_lat, node_lon, connectivity, node_index)
-
-
-def _append_polygon_coords(polygon, node_lat, node_lon, connectivity, node_index):
-    """Append polygon coordinates to node and connectivity arrays.
-
-    Parameters
-    ----------
-    polygon : gpd.GeoSeries
-        GeoPandas geometry object.
-    node_lat : np.ndarray
-        Array of latitudes.
-    node_lon : np.ndarray
-        Array of longitudes.
-    connectivity : np.ndarray
-        Connectivity array.
-    node_index : int
-        Index of the current node.
-
-    Returns
-    -------
-    np.ndarray
-        Updated array of latitudes.
-    np.ndarray
-        Updated array of longitudes.
-    np.ndarray
-        Updated connectivity array.
-    int
-        Updated node index.
-    """
+    # Append polygon coordinates to node arrays
     node_lon = np.append(node_lon, polygon.exterior.coords.xy[0][:-1])
     node_lat = np.append(node_lat, polygon.exterior.coords.xy[1][:-1])
 
