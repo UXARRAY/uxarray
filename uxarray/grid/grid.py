@@ -1400,26 +1400,14 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_dual(self, method="global"):
+    def get_dual(self):
         """Compute the dual mesh for a grid, returns a new grid object.
-
-         Parameters
-        ----------
-        method: str, default="global"
-            Method for constructing the dual mesh, either "global" or "local"
 
         Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed
         """
-
-        if method == "local":
-            raise ValueError("Local Dual Mesh is not yet supported, use global")
-        elif method != "global":
-            raise ValueError(
-                f"Invalid method: {method}. Please use a supported method instead"
-            )
 
         if _check_duplicate_nodes_indices(self):
             raise RuntimeError(
