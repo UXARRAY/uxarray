@@ -48,6 +48,7 @@ Methods
    :toctree: generated/
 
    UxDataset.info
+   UxDataset.get_dual
 
 
 Remapping
@@ -126,6 +127,7 @@ Methods
 
    UxDataArray.integrate
    UxDataArray.isel
+   UxDataArray.get_dual
 
 
 Remapping
@@ -224,7 +226,7 @@ Methods
    Grid.get_kd_tree
    Grid.copy
    Grid.isel
-   Grid.compute_dual
+   Grid.get_dual
 
 
 Dimensions
