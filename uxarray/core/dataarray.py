@@ -177,12 +177,14 @@ class UxDataArray(xr.DataArray):
                 exclude_antimeridian=exclude_antimeridian,
             )
 
+            var_name = self.name if self.name is not None else "var"
+
             if exclude_antimeridian:
-                gdf[self.name] = np.delete(
+                gdf[var_name] = np.delete(
                     self.values, self.uxgrid.antimeridian_face_indices, axis=0
                 )
             else:
-                gdf[self.name] = self.values
+                gdf[var_name] = self.values
             return gdf
 
         elif self.values.size == self.uxgrid.n_node:
