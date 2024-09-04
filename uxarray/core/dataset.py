@@ -7,8 +7,11 @@ import sys
 
 from typing import Optional, IO, Union
 
+import uxarray
 from uxarray.grid import Grid
 from uxarray.core.dataarray import UxDataArray
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
 
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 
@@ -396,3 +399,56 @@ class UxDataset(xr.Dataset):
         return self.remap.inverse_distance_weighted(
             destination_obj, remap_to, coord_type, power, k
         )
+
+    def get_dual(self):
+        """Compute the dual mesh for a dataset, returns a new dataset object.
+
+        Returns
+        --------
+        dual : uxds
+            Dual Mesh `uxds` constructed
+        """
+
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise RuntimeError(
+                "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
+            )
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self.uxgrid)
+
+        # Construct dual mesh
+        dual = self.uxgrid.from_topology(
+            self.uxgrid.face_lon.values,
+            self.uxgrid.face_lat.values,
+            dual_node_face_conn,
+        )
+
+        # Initialize new dataset
+        dataset = uxarray.UxDataset(uxgrid=dual)
+
+        # For each data array in the dataset, reconstruct the data array with the dual mesh
+        for var in self.data_vars:
+            dims = []
+
+            # Get the correct dimensions
+            if self[var]._face_centered():
+                dims.append("n_node")
+            elif self[var]._node_centered():
+                dims.append("n_face")
+            elif self[var]._edge_centered():
+                dims.append("n_edge")
+
+            # Keep any other dimensions that might be associated
+            dims.extend(self[var].dims[1:])
+
+            # Get the values from the data array
+            data = self[var].values
+
+            # Construct the new data array
+            uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=var)
+
+            # Add data array to dataset
+            dataset[var] = uxda
+
+        return dataset

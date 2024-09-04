@@ -1106,27 +1106,15 @@ class UxDataArray(xr.DataArray):
             attrs=self.attrs,
         )
 
-    def get_dual(self, method="global"):
+    def get_dual(self):
         """Compute the dual mesh for a data array, returns a new data array
         object.
-
-         Parameters
-        ----------
-        method: str, default="global"
-            Method for constructing the dual mesh, either "global" or "local"
 
         Returns
         --------
         dual : uxda
             Dual Mesh `uxda` constructed
         """
-
-        if method == "local":
-            raise ValueError("Local Dual Mesh is not yet supported, use global")
-        elif method != "global":
-            raise ValueError(
-                f"Invalid method: {method}. Please use a supported method instead"
-            )
 
         if _check_duplicate_nodes_indices(self.uxgrid):
             raise RuntimeError(
@@ -1146,12 +1134,17 @@ class UxDataArray(xr.DataArray):
         data = self.values
 
         # Get the correct dimensions
+        dims = []
+
         if self._face_centered():
-            dims = "n_node"
+            dims.append("n_node")
         elif self._node_centered():
-            dims = "n_face"
+            dims.append("n_face")
         elif self._edge_centered():
-            dims = "n_edge"
+            dims.append("n_edge")
+
+        # Keep any other dimensions that might be associated
+        dims.extend(self.dims[1:])
 
         # Construct the new data array
         uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)

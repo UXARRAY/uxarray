@@ -982,3 +982,10 @@ class TestDualMesh(TestCase):
 
         # Assert the faces are the same
         nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
+
+    def test_dual_mesh_ds(self):
+        # Open a grid with and without dual
+        grid = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+        print(grid)
+        # Construct Dual
+        dual = grid.get_dual()
