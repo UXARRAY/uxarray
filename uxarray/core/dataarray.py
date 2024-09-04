@@ -196,7 +196,7 @@ class UxDataArray(xr.DataArray):
                 exclude_antimeridian=exclude_antimeridian,
                 return_non_nan_polygon_indices=True,
             )
-            
+
             var_name = self.name if self.name is not None else "var"
 
             if periodic_elements == "exclude":
