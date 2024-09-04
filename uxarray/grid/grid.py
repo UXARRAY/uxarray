@@ -195,7 +195,8 @@ class Grid:
     subset = UncachedAccessor(GridSubsetAccessor)
 
     def _clear_visualization_structures_and_flags(self):
-        """TODO:"""
+        """Internal helper for clearing the state of visualization structures
+        and flags."""
         self._antimeridian_face_indices = None
 
         self._gdf = None
@@ -1228,7 +1229,11 @@ class Grid:
         return out_ds
 
     def set_central_longitude(self, central_longitude=0.0):
-        # TODO:
+        """Sets the central longitude of a grid to a desired value.
+
+        Used for visualization of projections with different central
+        longitude values.
+        """
 
         source_projection = ccrs.PlateCarree(central_longitude=self.central_longitude)
         destination_projection = ccrs.PlateCarree(central_longitude=central_longitude)
