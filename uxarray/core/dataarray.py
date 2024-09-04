@@ -150,21 +150,34 @@ class UxDataArray(xr.DataArray):
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid, and a data column
-        representing a 1D slice of data mapped to each Polygon.
+        representing the geometry of the unstructured grid paired with a slice
+        of data mapped to the polygons.
+
+        Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
+        parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
+        Setting ``periodic_elements='exclude'`` will exclude any periodic polygon from the computed GeoDataFrame.
+        Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
+        is best used for grids that do not initially include any periodic polygons.
+
 
         Parameters
-        override: bool
-            Flag to recompute the ``GeoDataFrame`` stored under the ``uxgrid`` if one is already cached
-        cache: bool
-            Flag to indicate if the computed ``GeoDataFrame`` stored under the ``uxgrid`` accessor should be cached
-        exclude_antimeridian: bool, Optional
-            Selects whether to exclude any face that contains an edge that crosses the antimeridian
+        ----------
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']
+        projection: ccrs.Projection, optional
+            Geographic projection used to transform polygons
+        cache: bool, optional
+            Flag used to select whether to cache the computed GeoDataFrame
+        override: bool, optional
+            Flag used to select whether to ignore any cached GeoDataFrame
+        exclude_antimeridian: bool, optional
+            Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
 
         Returns
         -------
         gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" and 1D data column representing the geometry of the unstructured grid
+            The output ``GeoDataFrame`` with a filled out "geometry" column of polygons and a data column with the
+            same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """
 
         if exclude_antimeridian is not None:
@@ -242,7 +255,7 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+            Method for handling elements that cross the antimeridian. One of ['exclude', 'split', 'ignore']
         projection: ccrs.Projection
             Cartopy geographic projection to use
         return_indices: bool

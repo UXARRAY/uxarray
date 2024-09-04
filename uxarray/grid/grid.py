@@ -1255,22 +1255,37 @@ class Grid:
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid. Additionally, any
-        polygon that crosses the antimeridian is split into MultiPolygons.
+        representing the geometry of the unstructured grid.
+
+        Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
+        parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
+        Setting ``periodic_elements='exclude'`` will exclude any periodic polygon from the computed GeoDataFrame.
+        Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
+        is best used for grids that do not initially include any periodic polygons.
+
 
         Parameters
         ----------
-        override : bool
-            Flag to recompute the ``GeoDataFrame`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``GeoDataFrame`` should be cached
-        exclude_antimeridian: bool
-            Selects whether to exclude any face that contains an edge that crosses the antimeridian
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']
+        projection: ccrs.Projection, optional
+            Geographic projection used to transform polygons
+        cache: bool, optional
+            Flag used to select whether to cache the computed GeoDataFrame
+        override: bool, optional
+            Flag used to select whether to ignore any cached GeoDataFrame
+        exclude_antimeridian: bool, optional
+            Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
+        return_non_nan_polygon_indices: bool, optional
+            Flag used to select whether to return the indices of any non-nan polygons
+        exclude_nan_polygons: bool, optional
+            Flag to select whether to exclude any nan polygons
+
 
         Returns
         -------
         gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" collumn
+            The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
 
         if projection is not None:
@@ -1366,7 +1381,7 @@ class Grid:
         Parameters
         ----------
         periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+            Method for handling elements that cross the antimeridian. One of ['exclude', 'split', 'ignore']
         projection: ccrs.Projection
             Cartopy geographic projection to use
         return_indices: bool
