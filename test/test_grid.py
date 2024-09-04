@@ -982,3 +982,9 @@ class TestDualMesh(TestCase):
 
         # Assert the faces are the same
         nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
+
+    def test_dual_duplicate(self):
+        # Test that dual mesh throws an exception if duplicate nodes exist
+        dataset = ux.open_dataset(gridfile_geoflow, gridfile_geoflow)
+
+        nt.assert_raises(RuntimeError, dataset.get_dual)
