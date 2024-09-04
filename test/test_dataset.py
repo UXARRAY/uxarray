@@ -5,6 +5,7 @@ import numpy.testing as nt
 import xarray as xr
 
 import uxarray as ux
+from uxarray import UxDataset
 
 try:
     import constants
@@ -77,3 +78,11 @@ class TestUxDataset(TestCase):
 
         ds_small_480km = ux.open_dataset(small_file_480km, small_file_480km)
         assert isinstance(ds_small_480km, ux.core.dataset.UxDataset)
+
+    def test_get_dual(self):
+        """Tests the creation of the dual mesh on a data set."""
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        dual = uxds.get_dual()
+
+        assert isinstance(dual, UxDataset)
+        self.assertTrue(len(uxds.data_vars) == len(dual.data_vars))
