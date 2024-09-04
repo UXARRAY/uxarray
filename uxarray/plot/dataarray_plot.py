@@ -319,7 +319,9 @@ def _polygon_raster(
         override=override,
     )
 
-    hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+    hv_polygons = hv.Polygons(
+        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
+    )
 
     uxarray.plot.utils.backend.assign(backend=backend)
 
@@ -407,7 +409,9 @@ def polygons(
         override=override,
     )
 
-    hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+    hv_polygons = hv.Polygons(
+        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
+    )
 
     uxarray.plot.utils.backend.assign(backend=backend)
     if backend == "matplotlib":

@@ -196,20 +196,21 @@ class UxDataArray(xr.DataArray):
                 exclude_antimeridian=exclude_antimeridian,
                 return_non_nan_polygon_indices=True,
             )
+            
+            var_name = self.name if self.name is not None else "var"
 
             if periodic_elements == "exclude":
                 _data = np.delete(
                     self.values, self.uxgrid.antimeridian_face_indices, axis=0
                 )
             else:
-                # gdf[self.name] = self.values
                 _data = self.values
 
             if non_nan_polygon_indices is not None:
                 # TODO:
                 _data = _data[non_nan_polygon_indices]
 
-            gdf[self.name] = _data
+            gdf[var_name] = _data
 
         elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
