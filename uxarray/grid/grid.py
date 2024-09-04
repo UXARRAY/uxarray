@@ -907,8 +907,8 @@ class Grid:
 
     @property
     def hole_edge_indices(self):
-        """Index of which edges border a region of the grid not covered by any
-        geometry, know asg a hole, in a partial grid."""
+        """Indices of edges that border a region of the grid not covered by any
+        geometry, know as a hole, in a partial grid."""
         if "hole_edge_indices" not in self._ds:
             self._ds["hole_edge_indices"] = _construct_hole_edge_indices(
                 self.edge_face_connectivity.values
