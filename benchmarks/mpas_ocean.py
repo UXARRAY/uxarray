@@ -88,7 +88,7 @@ class GeoDataFrameProjection:
 
     param_names = ['resolution', 'projection']
     params = [['480km', '120km'],
-              [ccrs.Robinson(), ccrs.Orthographic(), ccrs.LambertCylindrical(), ccrs.Mollweide()]]
+              ["Robinson", "Orthographic", "LambertCylindrical", "Mollweide"]]
 
 
     def setup(self, resolution, projection):
@@ -98,7 +98,7 @@ class GeoDataFrameProjection:
         del self.uxds
 
     def time_to_geodataframe(self, resolution, projection):
-        self.uxds[data_var].to_geodataframe(periodic_elements='exclude', projection=projection)
+        self.uxds[data_var].to_geodataframe(periodic_elements='exclude', projection=getattr(ccrs, projection)())
 
 
 class ConnectivityConstruction:
