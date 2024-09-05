@@ -138,7 +138,7 @@ def _extract_geometry_info(gdf, max_coord_size):
     # Convert lists to numpy arrays at the end
     node_lon = np.array(node_lon_list)
     node_lat = np.array(node_lat_list)
-    
+
     return node_lon, node_lat, connectivity
 
 
