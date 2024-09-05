@@ -116,8 +116,8 @@ def _extract_geometry_info(gdf, max_coord_size):
     np.ndarray
         Connectivity array.
     """
-    node_lon = np.array([])
-    node_lat = np.array([])
+    node_lon_list = []
+    node_lat_list = []
     connectivity = np.empty((0, max_coord_size - 1), dtype=INT_DTYPE)
 
     node_index = 0
@@ -126,15 +126,19 @@ def _extract_geometry_info(gdf, max_coord_size):
         geometry = row["geometry"]
         if geometry.geom_type == "Polygon":
             node_lat, node_lon, connectivity, node_index = _read_polygon(
-                geometry, node_lat, node_lon, connectivity, node_index
+                geometry, node_lat_list, node_lon_list, connectivity, node_index
             )
         elif geometry.geom_type == "MultiPolygon":
             node_lat, node_lon, connectivity, node_index = _read_multipolygon(
-                geometry, node_lat, node_lon, connectivity, node_index
+                geometry, node_lat_list, node_lon_list, connectivity, node_index
             )
         else:
             print(f"Unsupported geometry type: {geometry.geom_type}")
 
+    # Convert lists to numpy arrays at the end
+    node_lon = np.array(node_lon_list)
+    node_lat = np.array(node_lat_list)
+    
     return node_lon, node_lat, connectivity
 
 
@@ -166,10 +170,10 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
     ----------
     geometry : gpd.GeoSeries
         GeoPandas geometry object.
-    node_lat : np.ndarray
-        Array of latitudes.
-    node_lon : np.ndarray
-        Array of longitudes.
+    node_lat : list
+        List of latitudes.
+    node_lon : list
+        List of longitudes.
     connectivity : np.ndarray
         Connectivity array.
     node_index : int
@@ -190,7 +194,7 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
         node_lon, node_lat, connectivity, node_index = _read_polygon(
             polygon, node_lat, node_lon, connectivity, node_index
         )
-    return node_lat, node_lon, connectivity, node_index
+    return np.array(node_lat), np.array(node_lon), connectivity, node_index
 
 
 def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
@@ -200,10 +204,10 @@ def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
     ----------
     polygon : gpd.GeoSeries
         GeoPandas geometry object.
-    node_lat : np.ndarray
-        Array of latitudes.
-    node_lon : np.ndarray
-        Array of longitudes.
+    node_lat : list
+        List of latitudes.
+    node_lon : list
+        List of longitudes.
     connectivity : np.ndarray
         Connectivity array.
     node_index : int
@@ -220,9 +224,9 @@ def _read_polygon(polygon, node_lat, node_lon, connectivity, node_index):
     int
         Updated node index.
     """
-    # Append polygon coordinates to node arrays
-    node_lon = np.append(node_lon, polygon.exterior.coords.xy[0][:-1])
-    node_lat = np.append(node_lat, polygon.exterior.coords.xy[1][:-1])
+    # Append polygon coordinates to node lists
+    node_lon.extend(polygon.exterior.coords.xy[0][:-1])
+    node_lat.extend(polygon.exterior.coords.xy[1][:-1])
 
     coord_size_polygon = len(polygon.exterior.coords.xy[0][:-1])
     max_coord_size = connectivity.shape[1]
