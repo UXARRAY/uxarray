@@ -884,6 +884,18 @@ class Grid:
         return self._ds["face_areas"]
 
     @property
+    def face_edge_signs(self) -> xr.DataArray:
+        """The sign of the edges for each face.
+
+        TODO:
+        """
+
+        if "face_edge_signs" not in self._ds:
+            self._ds["face_edge_signs"] = ...
+
+        return self._ds["face_edge_signs"]
+
+    @property
     def bounds(self):
         """Latitude Longitude Bounds for each Face in degrees.
 
