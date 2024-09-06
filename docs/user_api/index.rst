@@ -147,7 +147,7 @@ Remapping
    :toctree: generated/
    :template: autosummary/accessor_method.rst
 
-   UxDataArray.remap.nearest_neighbor_remap
+   UxDataArray.remap.nearest_neighbor
    UxDataArray.remap.inverse_distance_weighted_remap
    UxDataArray.nodal_average
 
