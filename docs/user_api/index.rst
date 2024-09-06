@@ -148,7 +148,7 @@ Remapping
    :template: autosummary/accessor_method.rst
 
    UxDataArray.remap.nearest_neighbor
-   UxDataArray.remap.inverse_distance_weighted_remap
+   UxDataArray.remap.inverse_distance_weighted
    UxDataArray.nodal_average
 
 Plotting
