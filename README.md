@@ -1,26 +1,31 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/UXARRAY/uxarray/e252a7669acc6a733bca14ac244bbf02e665dbb0/docs/_static/images/logos/uxarray_logo_h_light.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/UXARRAY/uxarray/e252a7669acc6a733bca14ac244bbf02e665dbb0/docs/_static/images/logos/uxarray_logo_h_dark.svg">
+  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png" width="450">
+</picture>
 
+-----------------
 
-
-[comment]: <> (<img src='https://raw.githubusercontent.com/UXARRAY/uxarray/a2d893cf597dd1a6e775f9dad029c662c64a39c7/docs/_static/images/logos/uxarray_logo_quad_tri.svg' width='400'>)
-
-
-# UXarray: Xarray-styled package for working with unstructured grids
-
-| CI             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![Code Coverage Status][codecov-badge]][codecov-link] |
-|:---------------|:-------------------------------------------------------------------------------------------------------------------:|
+# Xarray extension for unstructured climate and global weather data
+|    |    |
+| --- | --- |
+| **Build Status**             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![CI Upstream](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml/badge.svg)](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml) |
+| **Code Coverage**             |  [![Code Coverage Status][codecov-badge]][codecov-link] |
 | **Docs**       |                                   [![Documentation Status][rtd-badge]][rtd-link]                                    |
 | **Benchmarks** |                                       [![ASV Repostory][asv-badge]][asv-link]                                       |
-| **Package**    |                        [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                         |
+| **Releases**    |                        ![Github release](https://img.shields.io/github/release/UXARRAY/uxarray.svg?label=tag&colorB=11ccbb) [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                         |
 | **License**    |                                       [![License][license-badge]][repo-link]                                        |
 | **Citing**     |                                            [![DOI][doi-badge]][doi-link]                                            |
 
+-----------------
 
+## What is it?
 
 UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
 data. UXarray provides Xarray-styled functionality to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
-MPAS, SCRIP, ESMF, and Exodus grid formats. This effort is a result of the
+MPAS, ICON, SCRIP, ESMF, and Exodus grid formats. This effort is a result of the
 collaboration between Project Raijin (NSF NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
 Livermore National Laboratory). The UXarray team welcomes community
@@ -38,8 +43,7 @@ We have created UXarray based on [Xarray](https://docs.xarray.dev/en/stable/)
 (via inheritance of Xarray Dataset and DataArray classes), a Pangeo ecosystem package
 commonly-used for structured grids recognition, to support reading and
 recognizing unstructured grid model outputs. We picked the name "UXarray"
-(pronounced "you-ex-array") and preferred to capitalize the first two letters to
-emphasize it builds upon Xarray for Unstructured grids.
+(pronounced "you-ex-array"), with the "U" representing unstructured grids.
 
 ## UXarray Functionality
 
@@ -77,7 +81,7 @@ is receptive to additional functionality requests.
 
 [Contributor’s Guide](https://uxarray.readthedocs.io/en/latest/contributing.html)
 
-[Installation](https://uxarray.readthedocs.io/en/latest/installation.html)
+[Installation](https://uxarray.readthedocs.io/en/latest/getting-started/installation.html)
 
 [Project Raijin Homepage](https://raijin.ucar.edu/)
 
@@ -123,9 +127,6 @@ UXarray](https://uxarray.readthedocs.io/en/latest/citation.html).
     <td><a href="https://pangeo.io/">Pangeo</a> supports collaborative efforts to develop software and infrastructure to enable Big Data geoscience research.</td>
   </tr>
 </table>
-
-[![Available on pypi](https://img.shields.io/pypi/v/xarray.svg)](https://pypi.python.org/pypi/xarray/)
-
 
 [github-ci-badge]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml/badge.svg
 [github-ci-link]: https://github.com/UXARRAY/uxarray/actions/workflows/ci.yml
