@@ -165,6 +165,13 @@ def open_dataset(
         grid_filename_or_obj, latlon=latlon, use_dual=use_dual, **grid_kwargs
     )
 
+    if "chunks" in kwargs:
+        # correctly chunk standardized ugrid dimension names
+        source_dims_dict = uxgrid._source_dims_dict
+        for original_grid_dim, ugrid_grid_dim in source_dims_dict.items():
+            if ugrid_grid_dim in kwargs["chunks"]:
+                kwargs["chunks"][original_grid_dim] = kwargs["chunks"][ugrid_grid_dim]
+
     # UxDataset
     ds = xr.open_dataset(filename_or_obj, **kwargs)  # type: ignore
 
@@ -253,6 +260,13 @@ def open_mfdataset(
     uxgrid = open_grid(
         grid_filename_or_obj, latlon=latlon, use_dual=use_dual, **grid_kwargs
     )
+
+    if "chunks" in kwargs:
+        # correctly chunk standardized ugrid dimension names
+        source_dims_dict = uxgrid._source_dims_dict
+        for original_grid_dim, ugrid_grid_dim in source_dims_dict.items():
+            if ugrid_grid_dim in kwargs["chunks"]:
+                kwargs["chunks"][original_grid_dim] = kwargs["chunks"][ugrid_grid_dim]
 
     # UxDataset
     ds = xr.open_mfdataset(paths, **kwargs)  # type: ignore
