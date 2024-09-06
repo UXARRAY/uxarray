@@ -10,6 +10,8 @@ from typing import Union
 
 from numba import njit
 
+import math
+
 
 @njit(cache=True)
 def _lonlat_rad_to_xyz(
@@ -23,6 +25,47 @@ def _lonlat_rad_to_xyz(
     z = np.sin(lat)
 
     return x, y, z
+
+
+@njit
+def _xyz_to_lonlat_rad_no_norm(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+):
+    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
+    longitude without normalization, decorated with Numba.
+
+    Parameters
+    ----------
+    x : float
+        Cartesian x coordinate
+    y: float
+        Cartesiain y coordinate
+    z: float
+        Cartesian z coordinate
+
+
+    Returns
+    -------
+    lon : float
+        Longitude in radians
+    lat: float
+        Latitude in radians
+    """
+
+    lon = math.atan2(y, x)
+    lat = math.asin(z)
+
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
+
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
 
 
 def _xyz_to_lonlat_rad(
@@ -120,6 +163,15 @@ def _normalize_xyz(
         np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
     )
 
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm
+
+
+@njit
+def _normalize_xyz_scalar(x: float, y: float, z: float):
+    denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
     x_norm = x / denom
     y_norm = y / denom
     z_norm = z / denom
@@ -330,4 +382,4 @@ def _set_desired_longitude_range(ds):
     for lon_name in ["node_lon", "edge_lon", "face_lon"]:
         if lon_name in ds:
             if ds[lon_name].max() > 180:
-                ds[lon_name] = (ds[lon_name] + 180) % 360 - 180
+                ds[lon_name].data = (ds[lon_name].data + 180) % 360 - 180

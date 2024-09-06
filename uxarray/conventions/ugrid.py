@@ -1,4 +1,4 @@
-from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
+from uxarray.constants import INT_FILL_VALUE
 
 CONVENTIONS_ATTR = "UGRID-v1.0"
 
@@ -144,7 +144,6 @@ FACE_NODE_CONNECTIVITY_ATTRS = {
     "long name": "Maps every face to its corner nodes.",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
-    "dtype": INT_DTYPE,
 }
 FACE_NODE_CONNECTIVITY_DIMS = ["n_face", "n_max_face_nodes"]
 
@@ -153,7 +152,6 @@ FACE_EDGE_CONNECTIVITY_ATTRS = {
     "long name": "Maps every face to its edges.",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
-    "dtype": INT_DTYPE,
 }
 FACE_EDGE_CONNECTIVITY_DIMS = [
     "n_face",
@@ -165,7 +163,6 @@ FACE_FACE_CONNECTIVITY_ATTRS = {
     "long name": "Faces that neighbor each face.",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
-    "dtype": INT_DTYPE,
 }
 FACE_FACE_CONNECTIVITY_DIMS = [
     "n_face",
@@ -177,7 +174,6 @@ EDGE_NODE_CONNECTIVITY_ATTRS = {
     "cf_role": "edge_node_connectivity",
     "long name": "Maps every edge to the two nodes that it connects.",
     "start_index": 0,
-    "dtype": INT_DTYPE,
 }
 EDGE_NODE_CONNECTIVITY_DIMS = ["n_edge", "two"]
 
@@ -198,7 +194,6 @@ EDGE_FACE_CONNECTIVITY_ATTRS = {
     "long name": "Faces that neighbor each edge",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
-    "dtype": INT_DTYPE,
 }
 EDGE_FACE_CONNECTIVITY_DIMS = ["n_edge", "two"]
 
@@ -208,7 +203,6 @@ NODE_EDGE_CONNECTIVITY_ATTRS = {
     "long name": "Edges that neighbor each node",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
-    "dtype": INT_DTYPE,
 }
 
 NODE_EDGE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_edges"]
@@ -218,7 +212,6 @@ NODE_FACE_CONNECTIVITY_ATTRS = {
     "long name": "Faces that neighbor each node",
     "start_index": 0,
     "_FillValue": INT_FILL_VALUE,
-    "dtype": INT_DTYPE,
 }
 
 NODE_FACE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_faces"]
@@ -227,7 +220,6 @@ NODE_FACE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_faces"]
 N_NODES_PER_FACE_ATTRS = {
     "cf_role": "n_nodes_per_face",
     "long name": "Number of nodes per face",
-    "dtype": INT_DTYPE,
 }
 
 N_NODES_PER_FACE_DIMS = ["n_face"]

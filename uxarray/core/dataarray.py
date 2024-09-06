@@ -3,7 +3,14 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 
+
 from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
+
+from uxarray.formatting_html import array_repr
+
+from html import escape
+
+from xarray.core.options import OPTIONS
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
@@ -77,6 +84,11 @@ class UxDataArray(xr.DataArray):
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
     remap = UncachedAccessor(UxDataArrayRemapAccessor)
+
+    def _repr_html_(self) -> str:
+        if OPTIONS["display_style"] == "text":
+            return f"<pre>{escape(repr(self))}</pre>"
+        return array_repr(self)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -162,12 +174,14 @@ class UxDataArray(xr.DataArray):
                 exclude_antimeridian=exclude_antimeridian,
             )
 
+            var_name = self.name if self.name is not None else "var"
+
             if exclude_antimeridian:
-                gdf[self.name] = np.delete(
+                gdf[var_name] = np.delete(
                     self.values, self.uxgrid.antimeridian_face_indices, axis=0
                 )
             else:
-                gdf[self.name] = self.values
+                gdf[var_name] = self.values
             return gdf
 
         elif self.values.size == self.uxgrid.n_node:
@@ -1068,17 +1082,17 @@ class UxDataArray(xr.DataArray):
         if self._face_centered():
             d_var = self.isel(
                 n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
-            ).values
+            )
 
         elif self._edge_centered():
             d_var = self.isel(
                 n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
-            ).values
+            )
 
         elif self._node_centered():
             d_var = self.isel(
                 n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
-            ).values
+            )
 
         else:
             raise ValueError(
