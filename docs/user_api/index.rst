@@ -54,9 +54,16 @@ Remapping
 ---------
 .. autosummary::
    :toctree: generated/
+   :template: autosummary/accessor.rst
 
-   UxDataset.nearest_neighbor_remap
-   UxDataset.inverse_distance_weighted_remap
+   UxDataArray.remap
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor.rst
+
+   UxDataset.remap.nearest_neighbor_remap
+   UxDataset.remap.inverse_distance_weighted_remap
 
 Plotting
 --------
@@ -132,9 +139,16 @@ Remapping
 ---------
 .. autosummary::
    :toctree: generated/
+   :template: autosummary/accessor.rst
 
-   UxDataArray.nearest_neighbor_remap
-   UxDataArray.inverse_distance_weighted_remap
+   UxDataArray.remap
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
+
+   UxDataArray.remap.nearest_neighbor_remap
+   UxDataArray.remap.inverse_distance_weighted_remap
    UxDataArray.nodal_average
 
 Plotting
