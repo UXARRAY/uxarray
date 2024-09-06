@@ -71,13 +71,19 @@ def _check_normalization(grid):
     """Checks whether all the cartesiain coordinates are normalized."""
 
     if "node_x" in grid._ds:
-        if not (grid.node_x**2 + grid.node_y**2 + grid.node_z**2).all():
+        if not (
+            np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
+        ).all():
             return False
     if "edge_x" in grid._ds:
-        if not (grid.edge_x**2 + grid.edge_y**2 + grid.edge_z**2).all():
+        if not (
+            np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
+        ).all():
             return False
     if "face_x" in grid._ds:
-        if not (grid.face_x**2 + grid.face_y**2 + grid.face_z**2).all():
+        if not (
+            np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
+        ).all():
             return False
 
     return True

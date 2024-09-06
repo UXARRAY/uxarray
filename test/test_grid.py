@@ -961,9 +961,29 @@ class TestLatlonBounds(TestCase):
 
 class TestNormalizeExistingCoordinates(TestCase):
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+    gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 
-    def test_mpas_norm(self):
+    def test_non_norm_initial(self):
+        """Check the normalization of coordinates that were initially parsed as
+        non-normalized."""
         from uxarray.grid.validation import _check_normalization
         uxgrid = ux.open_grid(self.gridfile_mpas)
 
-        _check_normalization(uxgrid)
+        # Make the coordinates not normalized
+        uxgrid.node_x.data = 5 * uxgrid.node_x.data
+        uxgrid.node_y.data = 5 * uxgrid.node_y.data
+        uxgrid.node_z.data = 5 * uxgrid.node_z.data
+        assert not _check_normalization(uxgrid)
+
+        uxgrid.normalize_cartesian_coordinates()
+
+        assert _check_normalization(uxgrid)
+
+    def test_norm_initial(self):
+        """Coordinates should be normalized for grids that we construct
+        them."""
+        from uxarray.grid.validation import _check_normalization
+        uxgrid = ux.open_grid(self.gridfile_CSne30)
+
+        assert _check_normalization(uxgrid)
+        pass
