@@ -176,6 +176,9 @@ class Grid:
         self._ball_tree = None
         self._kd_tree = None
 
+        # flag to track if coordinates are normalized
+        self._normalized = None
+
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self._ds)
 

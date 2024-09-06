@@ -70,20 +70,29 @@ def _check_area(grid):
 def _check_normalization(grid):
     """Checks whether all the cartesiain coordinates are normalized."""
 
+    if grid._normalized is not None:
+        return grid._normalized
+
     if "node_x" in grid._ds:
         if not (
             np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
         ).all():
+            grid._normalized = False
             return False
     if "edge_x" in grid._ds:
         if not (
             np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
         ).all():
+            grid._normalized = False
             return False
     if "face_x" in grid._ds:
         if not (
             np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
         ).all():
+            grid._normalized = False
             return False
+
+    # set the grid as normalized
+    grid._normalized = True
 
     return True
