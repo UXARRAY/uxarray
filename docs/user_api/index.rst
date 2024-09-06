@@ -63,7 +63,7 @@ Remapping
    :template: autosummary/accessor.rst
 
    UxDataset.remap.nearest_neighbor
-   UxDataset.remap.inverse_distance_weighted_remap
+   UxDataset.remap.inverse_distance_weighted
 
 Plotting
 --------
