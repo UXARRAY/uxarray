@@ -957,3 +957,13 @@ class TestLatlonBounds(TestCase):
         uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
         bounds_xarray = uxgrid.bounds
         pass
+
+
+class TestNormalizeExistingCoordinates(TestCase):
+    gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+
+    def test_mpas_norm(self):
+        from uxarray.grid.validation import _check_normalization
+        uxgrid = ux.open_grid(self.gridfile_mpas)
+
+        _check_normalization(uxgrid)
