@@ -4,7 +4,7 @@ import xarray as xr
 import numpy as np
 
 
-from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
+from typing import TYPE_CHECKING, Optional, Hashable, Literal
 
 from uxarray.formatting_html import array_repr
 
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
 
 from xarray.core.utils import UncachedAccessor
-
-from warnings import warn
 
 
 from uxarray.core.gradient import (

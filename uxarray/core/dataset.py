@@ -5,7 +5,7 @@ import xarray as xr
 
 import sys
 
-from typing import Optional, IO, Union
+from typing import Optional, IO
 
 from uxarray.grid import Grid
 from uxarray.core.dataarray import UxDataArray
