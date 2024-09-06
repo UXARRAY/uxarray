@@ -76,19 +76,31 @@ def _check_normalization(grid):
 
     if "node_x" in grid._ds:
         if not (
-            np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
         ).all():
             grid._normalized = False
             return False
     if "edge_x" in grid._ds:
         if not (
-            np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
         ).all():
             grid._normalized = False
             return False
     if "face_x" in grid._ds:
         if not (
-            np.isclose((grid.node_x**2 + grid.node_y**2 + grid.node_z**2), 1.0)
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
         ).all():
             grid._normalized = False
             return False
