@@ -310,7 +310,9 @@ def _polygon_raster(
         exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
     )
 
-    hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+    hv_polygons = hv.Polygons(
+        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
+    )
 
     uxarray.plot.utils.backend.assign(backend=backend)
 
@@ -393,7 +395,9 @@ def polygons(
         exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
     )
 
-    hv_polygons = hv.Polygons(gdf, vdims=[uxda.name])
+    hv_polygons = hv.Polygons(
+        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
+    )
 
     uxarray.plot.utils.backend.assign(backend=backend)
     if backend == "matplotlib":

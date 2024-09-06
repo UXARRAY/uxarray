@@ -125,6 +125,7 @@ def _slice_face_indices(grid, indices, inclusive=True):
                     ds[conn_name].values
                 ),
                 dims=ds[conn_name].dims,
+                attrs=ds[conn_name].attrs,
             )
 
         elif "_connectivity" in conn_name:
