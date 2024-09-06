@@ -62,7 +62,7 @@ Remapping
    :toctree: generated/
    :template: autosummary/accessor.rst
 
-   UxDataset.remap.nearest_neighbor_remap
+   UxDataset.remap.nearest_neighbor
    UxDataset.remap.inverse_distance_weighted_remap
 
 Plotting
