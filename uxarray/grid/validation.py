@@ -70,7 +70,8 @@ def _check_area(grid):
 def _check_normalization(grid):
     """Checks whether all the cartesiain coordinates are normalized."""
 
-    if grid._normalized is not None:
+    if grid._normalized is True:
+        # grid is already normalized, no need to run extra checks
         return grid._normalized
 
     if "node_x" in grid._ds:
