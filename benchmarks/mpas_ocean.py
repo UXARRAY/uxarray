@@ -3,6 +3,7 @@ import urllib.request
 from pathlib import Path
 
 import uxarray as ux
+from uxarray.grid.geometry import _construct_hole_edge_indices
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -176,5 +177,5 @@ class HoleEdgeIndices:
     def teardown(self, resolution):
         del self.uxds
 
-    def time_construct_hole_edge_indices(self):
-        ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+    def time_construct_hole_edge_indices(self, resolution):
+        _construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
