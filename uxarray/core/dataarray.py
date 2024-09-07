@@ -6,6 +6,7 @@ import numpy as np
 
 from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
 
+from uxarray.constants import GRID_DIMS
 from uxarray.formatting_html import array_repr
 
 from html import escape
@@ -1044,8 +1045,6 @@ class UxDataArray(xr.DataArray):
         > uxda.subset(n_node=[1, 2, 3])
         """
 
-        from uxarray.constants import GRID_DIMS
-
         if any(grid_dim in kwargs for grid_dim in GRID_DIMS) and not ignore_grid:
             # slicing a grid-dimension through Grid object
 
@@ -1102,3 +1101,116 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             attrs=self.attrs,
         )
+
+    def neighborhood_filter(
+        self,
+        func: Callable = np.mean,
+        r: float = 1.0,
+    ) -> UxDataArray:
+        """Apply neighborhood filter
+        Parameters:
+        -----------
+        func: Callable, default=np.mean
+            Apply this function to neighborhood
+        r : float, default=1.
+            Radius of neighborhood. For spherical coordinates, the radius is in units of degrees,
+            and for cartesian coordinates, the radius is in meters.
+        Returns:
+        --------
+        destination_data : np.ndarray
+            Filtered data.
+        """
+
+        if self._face_centered():
+            data_mapping = "face centers"
+        elif self._node_centered():
+            data_mapping = "nodes"
+        elif self._edge_centered():
+            data_mapping = "edge centers"
+        else:
+            raise ValueError(
+                f"Data_mapping is not face, node, or edge. Could not define data_mapping."
+            )
+
+        # reconstruct because the cached tree could be built from
+        # face centers, edge centers or nodes.
+        tree = self.uxgrid.get_ball_tree(coordinates=data_mapping, reconstruct=True)
+
+        coordinate_system = tree.coordinate_system
+
+        if coordinate_system == "spherical":
+            if data_mapping == "nodes":
+                lon, lat = (
+                    self.uxgrid.node_lon.values,
+                    self.uxgrid.node_lat.values,
+                )
+            elif data_mapping == "face centers":
+                lon, lat = (
+                    self.uxgrid.face_lon.values,
+                    self.uxgrid.face_lat.values,
+                )
+            elif data_mapping == "edge centers":
+                lon, lat = (
+                    self.uxgrid.edge_lon.values,
+                    self.uxgrid.edge_lat.values,
+                )
+            else:
+                raise ValueError(
+                    f"Invalid data_mapping. Expected 'nodes', 'edge centers', or 'face centers', "
+                    f"but received: {data_mapping}"
+                )
+
+            dest_coords = np.c_[lon, lat]
+
+        elif coordinate_system == "cartesian":
+            if data_mapping == "nodes":
+                x, y, z = (
+                    self.uxgrid.node_x.values,
+                    self.uxgrid.node_y.values,
+                    self.uxgrid.node_z.values,
+                )
+            elif data_mapping == "face centers":
+                x, y, z = (
+                    self.uxgrid.face_x.values,
+                    self.uxgrid.face_y.values,
+                    self.uxgrid.face_z.values,
+                )
+            elif data_mapping == "edge centers":
+                x, y, z = (
+                    self.uxgrid.edge_x.values,
+                    self.uxgrid.edge_y.values,
+                    self.uxgrid.edge_z.values,
+                )
+            else:
+                raise ValueError(
+                    f"Invalid data_mapping. Expected 'nodes', 'edge centers', or 'face centers', "
+                    f"but received: {data_mapping}"
+                )
+
+            dest_coords = np.c_[x, y, z]
+
+        else:
+            raise ValueError(
+                f"Invalid coordinate_system. Expected either 'spherical' or 'cartesian', but received {coordinate_system}"
+            )
+
+        neighbor_indices = tree.query_radius(dest_coords, r=r)
+
+        destination_data = np.empty(self.data.shape)
+
+        # assert last dimension is a GRID dimension.
+        assert self.dims[-1] in GRID_DIMS, (
+                f"expected last dimension of uxDataArray {self.data.dims[-1]} "
+                f"to be one of {GRID_DIMS}"
+                )
+        # Apply function to indices on last axis.
+        for i, idx in enumerate(neighbor_indices):
+            if len(idx):
+                destination_data[..., i] = func(self.data[..., idx])
+
+        # construct data array for filtered variable
+        uxda_filter = self._copy()
+
+        uxda_filter.data = destination_data
+
+        return uxda_filter

@@ -7,6 +7,7 @@ import sys
 
 from typing import Optional, IO, Union
 
+from uxarray.constants import GRID_DIMS
 from uxarray.grid import Grid
 from uxarray.core.dataarray import UxDataArray
 
@@ -337,6 +338,41 @@ class UxDataset(xr.Dataset):
 
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def neighborhood_filter(
+        self,
+        func: Callable = np.mean,
+        r: float = 1.0,
+    ):
+        """Neighborhood function implementation for ``UxDataset``.
+        Parameters
+        ---------
+        func : Callable = np.mean
+            Apply this function to neighborhood
+        r : float, default=1.
+            Radius of neighborhood
+        """
+
+
+        destination_uxds = self._copy()
+        # Loop through uxDataArrays in uxDataset
+        for var_name in self.data_vars:
+            uxda = self[var_name]
+
+            # Skip if uxDataArray has no GRID dimension.
+            grid_dims = [dim for dim in uxda.dims if dim in GRID_DIMS]
+            if len(grid_dims) == 0:
+                continue
+
+            # Put GRID dimension last for UxDataArray.neighborhood_filter.
+            remember_dim_order = uxda.dims
+            uxda = uxda.transpose(..., grid_dims[0])
+            # Filter uxDataArray.
+            uxda = uxda.neighborhood_filter(func, r)
+            # Restore old dimension order.
+            destination_uxds[var_name] = uxda.transpose(*remember_dim_order)
+
+        return destination_uxds
 
     def nearest_neighbor_remap(
         self,
