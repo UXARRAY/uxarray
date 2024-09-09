@@ -1198,9 +1198,10 @@ class UxDataArray(xr.DataArray):
 
         neighbor_indices = tree.query_radius(dest_coords, r=r)
 
+        # Construct numpy array for filtered variable.
         destination_data = np.empty(self.data.shape)
 
-        # assert last dimension is a GRID dimension.
+        # Assert last dimension is a GRID dimension.
         assert self.dims[-1] in GRID_DIMS, (
             f"expected last dimension of uxDataArray {self.data.dims[-1]} "
             f"to be one of {GRID_DIMS}"
@@ -1210,7 +1211,7 @@ class UxDataArray(xr.DataArray):
             if len(idx):
                 destination_data[..., i] = func(self.data[..., idx])
 
-        # construct data array for filtered variable
+        # Construct UxDataArray for filtered variable.
         uxda_filter = self._copy()
 
         uxda_filter.data = destination_data
