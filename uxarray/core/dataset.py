@@ -350,7 +350,8 @@ class UxDataset(xr.Dataset):
         func : Callable = np.mean
             Apply this function to neighborhood
         r : float, default=1.
-            Radius of neighborhood
+            Radius of neighborhood. For spherical coordinates, the radius is in units of degrees,
+            and for cartesian coordinates, the radius is in meters.
         """
 
         destination_uxds = self._copy()

@@ -1162,7 +1162,7 @@ class UxDataArray(xr.DataArray):
                     f"but received: {data_mapping}"
                 )
 
-            dest_coords = np.c_[lon, lat]
+            dest_coords = np.vstack((lon, lat)).T
 
         elif coordinate_system == "cartesian":
             if data_mapping == "nodes":
@@ -1189,7 +1189,7 @@ class UxDataArray(xr.DataArray):
                     f"but received: {data_mapping}"
                 )
 
-            dest_coords = np.c_[x, y, z]
+            dest_coords = np.vstack((x, y, z)).T
 
         else:
             raise ValueError(
