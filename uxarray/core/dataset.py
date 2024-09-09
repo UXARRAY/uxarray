@@ -5,7 +5,7 @@ import xarray as xr
 
 import sys
 
-from typing import Optional, IO, Union
+from typing import Callable, Optional, IO, Union
 
 from uxarray.constants import GRID_DIMS
 from uxarray.grid import Grid

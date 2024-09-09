@@ -4,7 +4,7 @@ import xarray as xr
 import numpy as np
 
 
-from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
+from typing import TYPE_CHECKING, Callable, Optional, Union, Hashable, Literal
 
 from uxarray.constants import GRID_DIMS
 from uxarray.formatting_html import array_repr
