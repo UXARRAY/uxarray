@@ -8,6 +8,7 @@ dependencies:
   - dask
   - datashader
   - gmpy2
+  - geoviews
   - h5netcdf
   - hdf5
   - holoviews
