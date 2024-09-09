@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 from cartopy import crs as ccrs
 import dask.dataframe as dd
 import holoviews as hv
+import geoviews as gv
 from holoviews.operation.datashader import rasterize as hds_rasterize
 
 import numpy as np
@@ -319,11 +320,19 @@ def _polygon_raster(
         override=override,
     )
 
+    # TODO:
+    # proj = projection if projection is not None else ccrs.PlateCarree()
+
+    uxarray.plot.utils.backend.assign(backend=backend)
+
+    # TODO: can't use gv polygons (see geoviews #743)
+    # gv_polygons = gv.Polygons(
+    #     gdf, vdims=[uxda.name if uxda.name is not None else "var"], crs=proj
+    # ).opts(projection=proj)
+
     hv_polygons = hv.Polygons(
         gdf, vdims=[uxda.name if uxda.name is not None else "var"]
     )
-
-    uxarray.plot.utils.backend.assign(backend=backend)
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
@@ -409,21 +418,24 @@ def polygons(
         override=override,
     )
 
-    hv_polygons = hv.Polygons(
-        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
-    )
+    proj = projection if projection is not None else ccrs.PlateCarree()
 
     uxarray.plot.utils.backend.assign(backend=backend)
+
+    gv_polygons = gv.Polygons(
+        gdf, vdims=[uxda.name if uxda.name is not None else "var"], crs=proj
+    ).opts(projection=proj)
+
     if backend == "matplotlib":
         # use holoviews matplotlib backend
 
-        return hv_polygons.opts(
+        return gv_polygons.opts(
             colorbar=colorbar, xlabel=xlabel, ylabel=ylabel, cmap=cmap, **kwargs
         )
 
     elif backend == "bokeh":
         # use holoviews bokeh backend
-        return hv_polygons.opts(
+        return gv_polygons.opts(
             width=width,
             height=height,
             colorbar=colorbar,
