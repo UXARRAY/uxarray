@@ -1131,7 +1131,7 @@ class UxDataArray(xr.DataArray):
             data_mapping = "edge centers"
         else:
             raise ValueError(
-                f"Data_mapping is not face, node, or edge. Could not define data_mapping."
+                "Data_mapping is not face, node, or edge. Could not define data_mapping."
             )
 
         # reconstruct because the cached tree could be built from
@@ -1202,9 +1202,9 @@ class UxDataArray(xr.DataArray):
 
         # assert last dimension is a GRID dimension.
         assert self.dims[-1] in GRID_DIMS, (
-                f"expected last dimension of uxDataArray {self.data.dims[-1]} "
-                f"to be one of {GRID_DIMS}"
-                )
+            f"expected last dimension of uxDataArray {self.data.dims[-1]} "
+            f"to be one of {GRID_DIMS}"
+        )
         # Apply function to indices on last axis.
         for i, idx in enumerate(neighbor_indices):
             if len(idx):

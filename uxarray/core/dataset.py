@@ -353,7 +353,6 @@ class UxDataset(xr.Dataset):
             Radius of neighborhood
         """
 
-
         destination_uxds = self._copy()
         # Loop through uxDataArrays in uxDataset
         for var_name in self.data_vars:
