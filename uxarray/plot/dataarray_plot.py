@@ -321,23 +321,24 @@ def _polygon_raster(
     )
 
     # TODO:
-    # proj = projection if projection is not None else ccrs.PlateCarree()
+    proj = projection if projection is not None else ccrs.PlateCarree()
 
     uxarray.plot.utils.backend.assign(backend=backend)
 
-    # TODO: can't use gv polygons (see geoviews #743)
-    # gv_polygons = gv.Polygons(
-    #     gdf, vdims=[uxda.name if uxda.name is not None else "var"], crs=proj
-    # ).opts(projection=proj)
-
-    hv_polygons = hv.Polygons(
-        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
-    )
+    if backend == "matplotlib":
+        _polygons = gv.Polygons(
+            gdf, vdims=[uxda.name if uxda.name is not None else "var"], crs=proj
+        ).opts(projection=proj)
+    else:
+        # GeoViews Issue with Projections:
+        _polygons = hv.Polygons(
+            gdf, vdims=[uxda.name if uxda.name is not None else "var"]
+        )
 
     if backend == "matplotlib":
         # use holoviews matplotlib backend
         raster = hds_rasterize(
-            hv_polygons,
+            _polygons,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
             precompute=precompute,
@@ -353,7 +354,7 @@ def _polygon_raster(
     elif backend == "bokeh":
         # use holoviews bokeh backend
         raster = hds_rasterize(
-            hv_polygons,
+            _polygons,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
             precompute=precompute,
