@@ -65,7 +65,7 @@ class TestCentroids(TestCase):
         expected_face_y = uxgrid.face_lat.values
 
         # _populate_face_centroids(uxgrid, repopulate=True)
-        uxgrid.compute_face_center(method="average")
+        uxgrid.construct_face_centers(method="cartesian average")
 
         # computed_face_x = (uxgrid.face_lon.values + 180) % 360 - 180
         computed_face_x = uxgrid.face_lon.values
@@ -161,7 +161,7 @@ class TestCenterPoints(TestCase):
         ctr_lat = uxgrid.face_lat.values[0]
 
         # now explicitly get the centerpoints stored to face_lon/lat using welzl's centerpoint algorithm
-        uxgrid.compute_face_center(method = "welzl")
+        uxgrid.construct_face_centers(method = "welzl")
 
         # Test the values of the calculated centerpoint, giving high tolerance of two decimal place
         nt.assert_array_almost_equal(ctr_lon, uxgrid.face_lon.values[0], decimal=2)

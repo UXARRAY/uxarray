@@ -348,13 +348,18 @@ class Grid:
         else:
             raise RuntimeError("Mesh validation failed.")
 
-    def compute_face_center(self, method="average"):
-        """Constructs a face_lon and face_lat.
+    def construct_face_centers(self, method="cartesian average"):
+        """Constructs face centers, this method provides users direct control
+        of the method for constructing the face centers, the default method is
+        "cartesian average", but a more efficient method is "welzl" that is
+        based on the recursive Welzl algorithm. It must be noted that this
+        method can override the parsed/recompute the original parsed face
+        centers.
 
         Parameters
         ----------
-        method : str, default="average"
-            other supported method is Welzl's algorithm, takes value "welzl"
+        method : str, default="cartesian average"
+            Supported methods are "cartesian average" and "welzl"
 
 
         Usage
@@ -363,12 +368,14 @@ class Grid:
         >>> uxgrid = ux.open_grid("GRID_FILE_NAME")
         >>> face_lat = uxgrid.construct_face_center(method="welzl")
         """
-        if method == "average":
+        if method == "cartesian average":
             _populate_face_centroids(self, repopulate=True)
         elif method == "welzl":
             _populate_face_centerpoints(self, repopulate=True)
         else:
-            raise ValueError("unknown method for face center calculation")
+            raise ValueError(
+                f"Unknown method for face center calculation. Expected one of ['cartesian average', 'welzl'] but received {method}"
+            )
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
