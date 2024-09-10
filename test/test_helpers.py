@@ -261,6 +261,9 @@ class TestFaceEdgeConnectivityHelper(TestCase):
         node_y = grid.node_y.values
         node_z = grid.node_z.values
 
+        # node_lat = grid.node_lat.values
+        # node_lon = grid.node_lon.values
+
         # Call the function to test
         face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
             face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
@@ -268,7 +271,7 @@ class TestFaceEdgeConnectivityHelper(TestCase):
 
         # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
-            'North', face_edges_connectivity_cartesian[0]
+            'North', face_edges_connectivity_cartesian[0], 
         )
 
         # Assert that the result is True
