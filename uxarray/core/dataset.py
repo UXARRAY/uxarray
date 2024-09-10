@@ -427,23 +427,16 @@ class UxDataset(xr.Dataset):
         # Initialize new dataset
         dataset = uxarray.UxDataset(uxgrid=dual)
 
+        # Dictionary to swap dimensions
+        dim_map = {"n_face": "n_node", "n_node": "n_face"}
+
         # For each data array in the dataset, reconstruct the data array with the dual mesh
         for var in self.data_vars:
-            dims = []
-
-            # Get the correct dimensions
-            if self[var]._face_centered():
-                dims.append("n_node")
-            elif self[var]._node_centered():
-                dims.append("n_face")
-            elif self[var]._edge_centered():
-                dims.append("n_edge")
-
-            # Keep any other dimensions that might be associated
-            dims.extend(self[var].dims[1:])
+            # Get correct dimensions for the dual
+            dims = [dim_map.get(dim, dim) for dim in self[var].dims]
 
             # Get the values from the data array
-            data = self[var].values
+            data = np.array(self[var].values)
 
             # Construct the new data array
             uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=var)

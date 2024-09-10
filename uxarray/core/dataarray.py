@@ -1133,20 +1133,14 @@ class UxDataArray(xr.DataArray):
             dual_node_face_conn,
         )
 
-        data = self.values
+        # Dictionary to swap dimensions
+        dim_map = {"n_face": "n_node", "n_node": "n_face"}
 
-        # Get the correct dimensions
-        dims = []
+        # Get correct dimensions for the dual
+        dims = [dim_map.get(dim, dim) for dim in self.dims]
 
-        if self._face_centered():
-            dims.append("n_node")
-        elif self._node_centered():
-            dims.append("n_face")
-        elif self._edge_centered():
-            dims.append("n_edge")
-
-        # Keep any other dimensions that might be associated
-        dims.extend(self.dims[1:])
+        # Get the values from the data array
+        data = np.array(self.values)
 
         # Construct the new data array
         uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
