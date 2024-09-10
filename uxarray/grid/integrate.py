@@ -9,6 +9,7 @@ DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
 def _get_zonal_faces_weight_at_constLat(
     faces_edges_cart,
+    faces_edges_rad,
     latitude_cart,
     face_latlon_bound,
     is_directed=False,
@@ -22,6 +23,9 @@ def _get_zonal_faces_weight_at_constLat(
     ----------
     face_edges_cart : np.ndarray
         A list of face polygon represented by edges in Cartesian coordinates. Shape: (n_faces, n_edges, 2, 3)
+
+    face_edges_rad : np.ndarray
+        A list of face polygon represented by edges in radian. Shape: (n_faces, n_edges, 2, 2)
 
     latitude_cart : float
         The latitude in Cartesian coordinates (The normalized z coordinate)
@@ -56,13 +60,14 @@ def _get_zonal_faces_weight_at_constLat(
     intervals_list = []
 
     # Iterate through all faces and their edges
-    for face_index, face_edges in enumerate(faces_edges_cart):
+    for face_index, face_edges_cart in enumerate(faces_edges_cart):
         if is_face_GCA_list is not None:
             is_GCA_list = is_face_GCA_list[face_index]
         else:
             is_GCA_list = None
         face_interval_df = _get_zonal_face_interval(
-            face_edges,
+            face_edges_cart,
+            faces_edges_rad[face_index],
             latitude_cart,
             face_latlon_bound[face_index],
             is_directed=is_directed,
@@ -122,7 +127,7 @@ def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
 
 
 def _get_faces_constLat_intersection_info(
-    face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
+    face_edges_cart, face_edges_rad, latitude_cart, is_GCA_list, is_latlonface, is_directed
 ):
     """Processes each edge of a face polygon in a vectorized manner to
     determine overlaps and calculate the intersections for a given latitude and
@@ -132,6 +137,8 @@ def _get_faces_constLat_intersection_info(
     ----------
     face_edges_cart : np.ndarray
         A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3).
+    face_edges_rad : np.ndarray
+        A face polygon represented by edges in radian. Shape: (n_edges, 2, 2).
     latitude_cart : float
         The latitude in Cartesian coordinates to which intersections or overlaps are calculated.
     is_GCA_list : np.ndarray or None
@@ -155,10 +162,11 @@ def _get_faces_constLat_intersection_info(
     valid_edges_mask = ~(np.any(face_edges_cart == DUMMY_EDGE_VALUE, axis=(1, 2)))
 
     # Apply mask to filter out dummy edges
-    valid_edges = face_edges_cart[valid_edges_mask]
+    valid_edges_cart = face_edges_cart[valid_edges_mask]
+    valid_edges_rad = face_edges_rad[valid_edges_mask]
 
     # Extract Z coordinates for edge determination
-    edges_z = valid_edges[:, :, 2]
+    edges_z = valid_edges_cart[:, :, 2]
 
     # Determine if each edge is GCA or constant latitude
     is_GCA = _is_edge_gca(is_GCA_list, is_latlonface, edges_z)
@@ -173,13 +181,14 @@ def _get_faces_constLat_intersection_info(
     intersections_pts_list_cart = []
     if overlap_flag:
         overlap_index = np.where(overlaps_with_latitude & ~is_GCA)[0][0]
-        intersections_pts_list_cart.extend(valid_edges[overlap_index])
+        intersections_pts_list_cart.extend(valid_edges_cart[overlap_index])
     else:
         # Calculate intersections (assuming a batch-capable intersection function)
-        for idx, edge in enumerate(valid_edges):
+        for idx, edge_cart in enumerate(valid_edges_cart):
             if is_GCA[idx]:
+                edge_rad = valid_edges_rad[idx]
                 intersections = gca_constLat_intersection(
-                    edge, latitude_cart, is_directed=is_directed
+                    edge_cart, edge_rad, latitude_cart, is_directed=is_directed
                 )
                 if intersections.size == 0:
                     continue
@@ -211,6 +220,7 @@ def _get_faces_constLat_intersection_info(
 
 def _get_zonal_face_interval(
     face_edges_cart,
+    face_edges_rad,
     latitude_cart,
     face_latlon_bound,
     is_directed=False,
@@ -233,6 +243,8 @@ def _get_zonal_face_interval(
     ----------
     face_edges_cart : np.ndarray
         A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+    face_edges_rad : np.ndarray
+        A face polygon represented by edges in radian. Shape: (n_edges, 2, 2)
     latitude_cart : float
         The latitude in cartesian, the normalized Z coordinates.
     face_latlon_bound : np.ndarray
@@ -262,7 +274,7 @@ def _get_zonal_face_interval(
         pt_lon_min,
         pt_lon_max,
     ) = _get_faces_constLat_intersection_info(
-        face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
+        face_edges_cart, face_edges_rad, latitude_cart, is_GCA_list, is_latlonface, is_directed
     )
 
     # Convert intersection points to longitude-latitude

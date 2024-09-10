@@ -122,7 +122,7 @@ def gca_gca_intersection(gca1_cart, gca1_rad, gca2_cart, gca2_rad):
 
 
 def gca_constLat_intersection(
-    gca_cart, constZ, fma_disabled=False, verbose=False, is_directed=False
+    gca_cart, gca_rad, constZ, fma_disabled=False, verbose=False, is_directed=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
@@ -134,6 +134,7 @@ def gca_constLat_intersection(
     Parameters
     ----------
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
+    gca_rad : [2, 2] np.ndarray Latitude and longitude of the two end points of the GCA.
     constZ : float
         The constant latitude represented in cartesian of the latitude line.
     fma_disabled : bool, optional (default=False)
@@ -159,10 +160,10 @@ def gca_constLat_intersection(
         If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
-    x1, x2 = gca_cart
+    x1_cart, x2_cart = gca_cart
 
     if fma_disabled:
-        n = cross(x1, x2)
+        n = cross(x1_cart, x2_cart)
 
     else:
         # Raise a warning for Windows users
@@ -172,7 +173,7 @@ def gca_constLat_intersection(
                 "https://bugs.python.org/msg312480)"
                 "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
             )
-        n = cross_fma(x1, x2)
+        n = cross_fma(x1_cart, x2_cart)
 
     nx, ny, nz = n
 
@@ -188,7 +189,7 @@ def gca_constLat_intersection(
     res = None
 
     # Now test which intersection point is within the GCA range
-    if point_within_gca(p1_cart, gca_cart, is_directed=is_directed):
+    if point_within_gca(p1_cart, gca_cart, gca_rad, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
             p1_cart, gca_cart, verbose=verbose
         )
@@ -196,7 +197,7 @@ def gca_constLat_intersection(
             np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
         )
 
-    if point_within_gca(p2_cart, gca_cart, is_directed=is_directed):
+    if point_within_gca(p2_cart, gca_cart, gca_rad, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
             p2_cart, gca_cart, verbose=verbose
         )
