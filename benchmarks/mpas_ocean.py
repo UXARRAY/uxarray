@@ -167,7 +167,24 @@ class RemapUpsample:
         self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
 
 
+
+class HoleEdgeIndices:
+
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+
+    def teardown(self, resolution):
+        del self.uxds
+    
+    def time_dual_mesh_construction(self, resolution):
+        self.uxds.uxgrid.get_dual()
+        
+        
 class DualMesh:
+  
     param_names = ['resolution']
     params = ['480km', '120km']
 
@@ -177,5 +194,5 @@ class DualMesh:
     def teardown(self, resolution):
         del self.uxds
 
-    def time_dual_mesh_construction(self, resolution):
-        self.uxds.uxgrid.get_dual()
+    def time_construct_hole_edge_indices(self, resolution):
+        ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)

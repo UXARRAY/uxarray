@@ -35,8 +35,8 @@ gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.di
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
 gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
-
 gridfile_geos = current_path / 'meshfiles' / "geos-cs" / "c12" / 'test-c12.native.nc4'
+gridfile_mpas_holes = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
@@ -53,6 +53,14 @@ class TestGrid(TestCase):
         """Test to check the validate function."""
         grid_mpas = ux.open_grid(gridfile_mpas)
         assert (grid_mpas.validate())
+
+    def test_grid_with_holes(self):
+        """Test _holes_in_mesh function."""
+        grid_without_holes = ux.open_grid(gridfile_mpas)
+        grid_with_holes = ux.open_grid(gridfile_mpas_holes)
+
+        self.assertTrue(grid_with_holes.hole_edge_indices.size != 0)
+        self.assertTrue(grid_without_holes.hole_edge_indices.size == 0)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
