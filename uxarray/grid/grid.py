@@ -220,7 +220,9 @@ class Grid:
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
             elif source_grid_spec == "Shapefile":
-                raise ValueError("Shapefiles not yet supported")
+                raise ValueError(
+                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                )
             else:
                 raise ValueError("Unsupported Grid Format")
         else:
@@ -237,14 +239,21 @@ class Grid:
         filename: str,
         **kwargs,
     ):
-        """Constructs a ``Grid`` object from a shapefile.
+        """Constructs a ``Grid`` object from a using geopandas read_file.
 
         Parameters
         ----------
         filename : str
-           shapefile filename
+            Path to shapefile or geojson filename
         """
-        source_grid_spec = "Shapefile"
+
+        if str(filename).endswith(".shp"):
+            source_grid_spec = "Shapefile"
+        elif str(filename).endswith(".geojson"):
+            source_grid_spec = "GeoJSON"
+        else:
+            source_grid_spec = "OtherGeoFormat"
+
         grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
