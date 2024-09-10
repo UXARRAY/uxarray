@@ -225,6 +225,7 @@ Methods
    Grid.copy
    Grid.isel
    Grid.compute_face_center
+   Grid.chunk
 
 
 Dimensions
