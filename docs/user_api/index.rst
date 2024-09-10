@@ -227,6 +227,7 @@ Methods
    Grid.copy
    Grid.isel
    Grid.get_dual
+   Grid.chunk
 
 
 Dimensions
