@@ -120,6 +120,11 @@ The Goddard Earth Observing System (GEOS) Cube Sphere (CS) grid format is equidi
 6 identical faces that wrap a sphere, with some number of grid cells per face. For example, a C720 GEOS-CS grid has
 6 faces, each with 720x720 elements.
 
+References
+----------
+* https://gmao.gsfc.nasa.gov/gmaoftp/ops/GEOSIT_sample/doc/CS_Description_c180_v1.pdf
+
+
 ICON
 ====
 The climate model ICON is the central research tool at the Max Planck Institute for Meteorology (MPI-M). CON, which
@@ -136,10 +141,6 @@ References
 ----------
 * https://mpimet.mpg.de/en/research/modeling
 * https://scivis2017.dkrz.de/hd-cp-2/en-icon_grid.pdf
-
-References
-----------
-* https://gmao.gsfc.nasa.gov/gmaoftp/ops/GEOSIT_sample/doc/CS_Description_c180_v1.pdf
 
 Parsed Variables
 ================
@@ -328,7 +329,7 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
-       <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
      <tr>
        <td>edge_edge</td>

@@ -75,6 +75,13 @@ def _primal_to_ugrid(in_ds, out_ds):
         attrs=ugrid.EDGE_FACE_CONNECTIVITY_ATTRS,
     )
 
+    edge_node_connectivity = in_ds["edge_vertices"].T - 1
+    out_ds["edge_node_connectivity"] = xr.DataArray(
+        data=edge_node_connectivity,
+        dims=ugrid.EDGE_NODE_CONNECTIVITY_DIMS,
+        attrs=ugrid.EDGE_NODE_CONNECTIVITY_ATTRS,
+    )
+
     return out_ds, source_dims_dict
 
 
