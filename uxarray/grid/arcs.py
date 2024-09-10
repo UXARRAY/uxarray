@@ -23,8 +23,9 @@ def _to_list(obj):
 
 @njit
 def _point_within_gca_body(
-    angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
+    angle, gca_cart, pt, gca_latlon_rad, pt_lonlat, is_directed
 ):
+    GCRv0_lonlat, GCRv1_lonlat = gca_latlon_rad
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
     if isclose(angle, np.pi, rtol=0.0, atol=ERROR_TOLERANCE):
         raise ValueError(
@@ -124,17 +125,21 @@ def _point_within_gca_body(
             )
 
 
-def point_within_gca(pt, gca_cart, is_directed=False):
+# def point_within_gca(pt, gca_cart, is_directed=False):
+def point_within_gca(pt_cart, pt_latlon_rad, gca_cart, gca_latlon_rad, is_directed=False):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
 
     Parameters
     ----------
-    pt : numpy.ndarray (float)
+    pt_cart : numpy.ndarray of shape (3,), (float)
         Cartesian coordinates of the point.
+    pt_latlon_rad : numpy.ndarray of shape (2,), (float)
+        Latitude and longitude coordinates of the point in radians.
     gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
-        Cartesian coordinates of the Great Circle Arc (GCR).
-    TODO: add latlon coordinates input
+        Cartesian coordinates of the Great Circle Arc (GCA).
+    gca_latlon_rad : numpy.ndarray of shape (2, 2), (float)
+        Latitude and longitude coordinates of the GCA endpoints in radians.
     is_directed : bool, optional, default = False
         If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
         and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
@@ -165,23 +170,14 @@ def point_within_gca(pt, gca_cart, is_directed=False):
 
     The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
 
-    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
+    Please ensure that the input latlon coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
     """
-    # Convert the cartesian coordinates to lonlat coordinates
-    pt_lonlat = np.array(_xyz_to_lonlat_rad_no_norm(pt[0], pt[1], pt[2]))
-    GCRv0_lonlat = np.array(
-        _xyz_to_lonlat_rad_no_norm(gca_cart[0][0], gca_cart[0][1], gca_cart[0][2])
-    )
-    GCRv1_lonlat = np.array(
-        _xyz_to_lonlat_rad_no_norm(gca_cart[1][0], gca_cart[1][1], gca_cart[1][2])
-    )
-    gca_cart = np.asarray(gca_cart)
 
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
 
     out = _point_within_gca_body(
-        angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
+        angle, gca_cart, pt_cart, gca_latlon_rad, pt_latlon_rad, is_directed
     )
 
     return out
