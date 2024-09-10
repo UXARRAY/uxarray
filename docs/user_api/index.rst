@@ -149,7 +149,6 @@ Remapping
 
    UxDataArray.remap.nearest_neighbor
    UxDataArray.remap.inverse_distance_weighted
-   UxDataArray.nodal_average
 
 Plotting
 --------

@@ -338,20 +338,6 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def nodal_average(self):
-        """Computes the Nodal Average of a Data Variable, which is the mean of
-        the nodes that surround each face.
-
-        Can be used for remapping node-centered data to each face.
-        """
-
-        warnings.warn(
-            "This function will be deprecated in a future release. Please use uxda.mean(destination=`face`) instead.",
-            DeprecationWarning,
-        )
-
-        return self.topological_mean(destination="face")
-
     def topological_mean(
         self,
         destination: Literal["node", "edge", "face"],
@@ -825,7 +811,7 @@ class UxDataArray(xr.DataArray):
         Face-centered variable
         >>> uxds['var'].gradient()
         Node-centered variable
-        >>> uxds['var'].nodal_average().gradient()
+        >>> uxds['var'].topological_mean(destination="face").gradient()
         """
 
         if not self._face_centered():
