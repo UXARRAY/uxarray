@@ -1,5 +1,6 @@
 import numpy as np
 from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_no_norm
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 from uxarray.grid.utils import (
@@ -17,13 +18,14 @@ import cartopy.crs as ccrs
 
 from numba import njit
 
-POLE_POINTS = {"North": np.array([0.0, 0.0, 1.0]), "South": np.array([0.0, 0.0, -1.0])}
+POLE_POINTS_CART = {"North": np.array([0.0, 0.0, 1.0]), "South": np.array([0.0, 0.0, -1.0])}
+POLE_POINTS_RAD = {"North": np.array([0.5 * np.pi, 0.0]), "South": np.array([-0.5 * np.pi, 0.0])}    #TODO: Check added constant correctness
 
 # number of faces/polygons before raising a warning for performance
 GDF_POLYGON_THRESHOLD = 100000
 
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
-
+REFERENCE_POINT_EQUATOR_RAD = np.array([0.0, 0.0])    #TODO: Check added constant correctness
 
 # General Helpers for Polygon Viz
 # ----------------------------------------------------------------------------------------------------------------------
@@ -388,7 +390,7 @@ def _grid_to_matplotlib_linecollection(grid, periodic_elements):
     return LineCollection(lines)
 
 
-def _pole_point_inside_polygon(pole, face_edge_cart):
+def _pole_point_inside_polygon(pole, face_edge_cart, face_edge_lonlat_rad):
     """Determines if a pole point is inside a polygon.
 
     .. note::
@@ -400,6 +402,8 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         Either 'North' or 'South'.
     face_edge_cart : np.ndarray
         A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+    face_edge_lonlat_rad : np.ndarray
+        A face polygon represented by edges in latitude-longitude coordinates. Shape: (n_edges, 2, 2)
 
     Returns
     -------
@@ -416,28 +420,38 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
     UserWarning
         Raised if the face contains both pole points.
     """
-    if pole not in POLE_POINTS:
+    if pole not in POLE_POINTS_CART:
         raise ValueError('Pole point must be either "North" or "South"')
 
     # Classify the polygon's location
     location = _classify_polygon_location(face_edge_cart)
-    pole_point = POLE_POINTS[pole]
+    pole_point_cart = POLE_POINTS_CART[pole]
+    pole_point_rad = POLE_POINTS_RAD[pole]
 
     if location == pole:
-        ref_edge = np.array([pole_point, REFERENCE_POINT_EQUATOR])
-        return _check_intersection(ref_edge, face_edge_cart) % 2 != 0
+        ref_edge_cart = np.array([pole_point_cart, REFERENCE_POINT_EQUATOR])
+        ref_edge_rad = np.array([pole_point_rad, REFERENCE_POINT_EQUATOR_RAD])
+        return _check_intersection(ref_edge_cart, ref_edge_rad, face_edge_cart, face_edge_lonlat_rad) % 2 != 0
     elif location == "Equator":
         # smallest offset I can obtain when using the float64 type
 
-        ref_edge_north = np.array([pole_point, REFERENCE_POINT_EQUATOR])
-        ref_edge_south = np.array([-pole_point, REFERENCE_POINT_EQUATOR])
+        ref_edge_north_cart = np.array([POLE_POINTS_CART['North'], REFERENCE_POINT_EQUATOR])
+        ref_edge_north_rad = np.array([POLE_POINTS_RAD['North'], REFERENCE_POINT_EQUATOR_RAD])
 
-        north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
-        south_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] < 0, axis=1)]
+        ref_edge_south_cart = np.array([POLE_POINTS_CART['South'], REFERENCE_POINT_EQUATOR])
+        ref_edge_south_rad = np.array([POLE_POINTS_RAD["South"], REFERENCE_POINT_EQUATOR_RAD])
+
+        north_edges_mask = np.any(face_edge_cart[:, :, 2] > 0, axis=1)
+        south_edges_mask = np.any(face_edge_cart[:, :, 2] < 0, axis=1)
+        north_edges_cart = face_edge_cart[north_edges_mask]
+        north_edges_rad = face_edge_lonlat_rad[north_edges_mask]
+
+        south_edges_cart = face_edge_cart[south_edges_mask]
+        south_edges_rad = face_edge_lonlat_rad[south_edges_mask]
 
         return (
-            _check_intersection(ref_edge_north, north_edges)
-            + _check_intersection(ref_edge_south, south_edges)
+            _check_intersection(ref_edge_north_cart, ref_edge_north_rad, north_edges_cart, north_edges_rad)
+            + _check_intersection(ref_edge_south_cart, ref_edge_south_rad, south_edges_cart, south_edges_rad)
         ) % 2 != 0
     else:
         warnings.warn(
@@ -446,14 +460,16 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         return False
 
 
-def _check_intersection(ref_edge, edges):
+def _check_intersection(ref_edge_cart, ref_edge_rad, edges_cart, edges_lonlat_rad):
     """Check the number of intersections of the reference edge with the given
     edges.
 
     Parameters
     ----------
-    ref_edge : np.ndarray
-        Reference edge to check intersections against.
+    ref_edge_cart : np.ndarray
+        Reference edge to check intersections against in Cartesian coordinates. Shape: (2, 3)
+    ref_edge_rad : np.ndarray
+        Reference edge check intersections against in radian coordinates. Shape: (2, 2)
     edges : np.ndarray
         Edges to check for intersections. Shape: (n_edges, 2, 3)
 
@@ -462,14 +478,15 @@ def _check_intersection(ref_edge, edges):
     int
         Count of intersections.
     """
-    pole_point, ref_point = ref_edge
+    pole_point_cart, _ = ref_edge_cart
     intersection_count = 0
 
-    for edge in edges:
-        intersection_point = gca_gca_intersection(ref_edge, edge)
+    for edge_cart, edge_rad in zip(edges_cart, edges_lonlat_rad):
+        # TODO: pass in lat_lon in addition to cartesian
+        intersection_point_cart = gca_gca_intersection(ref_edge_cart, ref_edge_rad, edge_cart, edge_rad)
 
-        if intersection_point.size != 0:
-            if allclose(intersection_point, pole_point, atol=ERROR_TOLERANCE):
+        if intersection_point_cart.size != 0:
+            if allclose(intersection_point_cart, pole_point_cart, atol=ERROR_TOLERANCE):
                 return True
             intersection_count += 1
 
@@ -728,8 +745,8 @@ def _populate_face_latlon_bound(
     """
 
     # Check if face_edges contains pole points
-    has_north_pole = _pole_point_inside_polygon("North", face_edges_cartesian)
-    has_south_pole = _pole_point_inside_polygon("South", face_edges_cartesian)
+    has_north_pole = _pole_point_inside_polygon("North", face_edges_cartesian, face_edges_lonlat_rad)
+    has_south_pole = _pole_point_inside_polygon("South", face_edges_cartesian, face_edges_lonlat_rad)
 
     face_latlon_array = np.full((2, 2), INT_FILL_VALUE, dtype=np.float64)
 

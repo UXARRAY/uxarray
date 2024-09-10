@@ -1,5 +1,6 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_no_norm
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca
 import platform
@@ -9,7 +10,7 @@ from uxarray.utils.computing import cross_fma, allclose, cross, dot
 import uxarray.constants
 
 
-def gca_gca_intersection(gca1_cart, gca2_cart):
+def gca_gca_intersection(gca1_cart, gca1_rad, gca2_cart, gca2_rad):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
@@ -19,10 +20,13 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
 
     Parameters
     ----------
+    # TODO: change dimensions to [2, 3]
+    # TODO: add lat_lon as input
     gca1_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the first GCA.
     gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
+    # TODO: delete this argument?
     fma_disabled : bool, optional (default=False)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
 
@@ -46,13 +50,11 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
 
-    # Support lists as an input
-    gca1_cart = np.asarray(gca1_cart)
-    gca2_cart = np.asarray(gca2_cart)
     # Check if the two GCAs are in the cartesian format (size of three)
     if gca1_cart.shape[1] != 3 or gca2_cart.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
+    # TODO: Check upsteam and pass in lat_lon in addition to cartesian
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
 
@@ -103,17 +105,22 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
 
     # Normalize the cross_norms
     cross_norms = cross_norms / np.linalg.norm(cross_norms)
-    x1 = cross_norms
-    x2 = -x1
+    pt1_cart = cross_norms
+    pt2_cart = -pt1_cart
+    
+    # Calculate latitude/longitude for x1 and x2 (not avoidable here since point x1 and x2 are generated from gcas)
+    pt1_latlon_rad = np.array(_xyz_to_lonlat_rad_no_norm(pt1_cart[0], pt1_cart[1], pt1_cart[2]))
+    pt2_latlon_rad = np.array(_xyz_to_lonlat_rad_no_norm(pt2_cart[0], pt2_cart[1], pt2_cart[2]))
 
     res = np.array([])
 
     # Determine which intersection point is within the GCAs range
-    if point_within_gca(x1, [w0, w1]) and point_within_gca(x1, [v0, v1]):
-        res = np.append(res, x1)
+    # TODO: add gca lat_lon as input
+    if point_within_gca(pt1_cart, pt1_latlon_rad, gca1_cart, gca1_rad) and point_within_gca(pt1_cart, pt1_latlon_rad, gca2_cart, gca2_rad):
+        res = np.append(res, pt1_cart)
 
-    elif point_within_gca(x2, [w0, w1]) and point_within_gca(x2, [v0, v1]):
-        res = np.append(res, x2)
+    elif point_within_gca(pt2_cart, pt2_latlon_rad, gca1_cart, gca1_rad) and point_within_gca(pt2_cart, pt2_latlon_rad, gca2_cart, gca2_rad):
+        res = np.append(res, pt2_cart)
 
     return res
 

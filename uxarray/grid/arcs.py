@@ -175,6 +175,7 @@ def point_within_gca(pt_cart, pt_latlon_rad, gca_cart, gca_latlon_rad, is_direct
 
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
+    gca_cart = np.asarray(gca_cart)  # TODO: Make sure upsteam pass in np.array?
 
     out = _point_within_gca_body(
         angle, gca_cart, pt_cart, gca_latlon_rad, pt_latlon_rad, is_directed
