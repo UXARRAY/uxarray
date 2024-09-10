@@ -126,7 +126,7 @@ def _point_within_gca_body(
 
 
 # def point_within_gca(pt, gca_cart, is_directed=False):
-def point_within_gca(pt_cart, pt_latlon_rad, gca_cart, gca_latlon_rad, is_directed=False):
+def point_within_gca(pt_cart, gca_cart, gca_latlon_rad, is_directed=False):
     """Check if a point lies on a given Great Circle Arc (GCA). The anti-
     meridian case is also considered.
 
@@ -134,8 +134,6 @@ def point_within_gca(pt_cart, pt_latlon_rad, gca_cart, gca_latlon_rad, is_direct
     ----------
     pt_cart : numpy.ndarray of shape (3,), (float)
         Cartesian coordinates of the point.
-    pt_latlon_rad : numpy.ndarray of shape (2,), (float)
-        Latitude and longitude coordinates of the point in radians.
     gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
         Cartesian coordinates of the Great Circle Arc (GCA).
     gca_latlon_rad : numpy.ndarray of shape (2, 2), (float)
@@ -176,6 +174,8 @@ def point_within_gca(pt_cart, pt_latlon_rad, gca_cart, gca_latlon_rad, is_direct
     # First if the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
     angle = _angle_of_2_vectors(gca_cart[0], gca_cart[1])
     gca_cart = np.asarray(gca_cart)  # TODO: Make sure upsteam pass in np.array?
+    # This conversion is neccessary since the input all the input points are computed from existing GCRs and does not have the radiance information
+    pt_latlon_rad = np.array(_xyz_to_lonlat_rad_no_norm(pt_cart[0], pt_cart[1], pt_cart[2]))
 
     out = _point_within_gca_body(
         angle, gca_cart, pt_cart, gca_latlon_rad, pt_latlon_rad, is_directed

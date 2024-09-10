@@ -107,19 +107,15 @@ def gca_gca_intersection(gca1_cart, gca1_rad, gca2_cart, gca2_rad):
     cross_norms = cross_norms / np.linalg.norm(cross_norms)
     pt1_cart = cross_norms
     pt2_cart = -pt1_cart
-    
-    # Calculate latitude/longitude for x1 and x2 (not avoidable here since point x1 and x2 are generated from gcas)
-    pt1_latlon_rad = np.array(_xyz_to_lonlat_rad_no_norm(pt1_cart[0], pt1_cart[1], pt1_cart[2]))
-    pt2_latlon_rad = np.array(_xyz_to_lonlat_rad_no_norm(pt2_cart[0], pt2_cart[1], pt2_cart[2]))
 
     res = np.array([])
 
     # Determine which intersection point is within the GCAs range
     # TODO: add gca lat_lon as input
-    if point_within_gca(pt1_cart, pt1_latlon_rad, gca1_cart, gca1_rad) and point_within_gca(pt1_cart, pt1_latlon_rad, gca2_cart, gca2_rad):
+    if point_within_gca(pt1_cart, gca1_cart, gca1_rad) and point_within_gca(pt1_cart, pt1_latlon_rad, gca2_cart, gca2_rad):
         res = np.append(res, pt1_cart)
 
-    elif point_within_gca(pt2_cart, pt2_latlon_rad, gca1_cart, gca1_rad) and point_within_gca(pt2_cart, pt2_latlon_rad, gca2_cart, gca2_rad):
+    elif point_within_gca(pt2_cart, gca1_cart, gca1_rad) and point_within_gca(pt2_cart, pt2_latlon_rad, gca2_cart, gca2_rad):
         res = np.append(res, pt2_cart)
 
     return res
@@ -186,23 +182,23 @@ def gca_constLat_intersection(
     p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
     p2_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz + s_tilde * nx)
 
-    p1 = np.array([p1_x, p1_y, constZ])
-    p2 = np.array([p2_x, p2_y, constZ])
+    p1_cart = np.array([p1_x, p1_y, constZ])
+    p2_cart = np.array([p2_x, p2_y, constZ])
 
     res = None
 
     # Now test which intersection point is within the GCA range
-    if point_within_gca(p1, gca_cart, is_directed=is_directed):
+    if point_within_gca(p1_cart, gca_cart, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
-            p1, gca_cart, verbose=verbose
+            p1_cart, gca_cart, verbose=verbose
         )
         res = (
             np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
         )
 
-    if point_within_gca(p2, gca_cart, is_directed=is_directed):
+    if point_within_gca(p2_cart, gca_cart, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
-            p2, gca_cart, verbose=verbose
+            p2_cart, gca_cart, verbose=verbose
         )
         res = (
             np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
