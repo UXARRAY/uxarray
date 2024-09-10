@@ -766,7 +766,7 @@ def _populate_face_latlon_bound(
 
         for i in range(face_edges_cartesian.shape[0]):
             edge_cart = face_edges_cartesian[i]
-            edge_lonlat = face_edges_lonlat_rad[i]
+            edge_rad = face_edges_lonlat_rad[i]
 
             # Skip processing if the edge_cart is marked as a dummy with a fill value
             if np.any(edge_cart == INT_FILL_VALUE):
@@ -774,7 +774,7 @@ def _populate_face_latlon_bound(
 
             # Extract cartesian coordinates of the edge_cart's endpoints
             n1_cart, n2_cart = edge_cart
-            n1_lonlat, n2_lonlat = edge_lonlat
+            n1_lonlat, n2_lonlat = edge_rad
 
             # Convert latitudes and longitudes of the nodes to radians
             node1_lon_rad, node1_lat_rad = n1_lonlat
@@ -788,7 +788,7 @@ def _populate_face_latlon_bound(
 
             # Check if the node matches the pole point or if the pole point is within the edge_cart
             if allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(
-                pole_point, np.array([n1_cart, n2_cart]), is_directed=False
+                pole_point, edge_cart, edge_rad, is_directed=False
             ):
                 is_center_pole = False
                 face_latlon_array = _insert_pt_in_latlonbox(
@@ -835,7 +835,7 @@ def _populate_face_latlon_bound(
         # Iterate through each edge_cart of a face to update the bounding box (latlonbox) with extreme latitudes and longitudes
         for i in range(face_edges_cartesian.shape[0]):
             edge_cart = face_edges_cartesian[i]
-            edge_lonlat = face_edges_lonlat_rad[i]
+            edge_rad = face_edges_lonlat_rad[i]
 
             # Skip processing if the edge_cart is marked as a dummy with a fill value
             if np.any(edge_cart == INT_FILL_VALUE):
@@ -843,7 +843,7 @@ def _populate_face_latlon_bound(
 
             # Extract cartesian coordinates of the edge_cart's endpoints
             n1_cart, n2_cart = edge_cart
-            n1_lonlat, n2_lonlat = edge_lonlat
+            n1_lonlat, n2_lonlat = edge_rad
 
             # Convert latitudes and longitudes of the nodes to radians
             node1_lon_rad, node1_lat_rad = n1_lonlat

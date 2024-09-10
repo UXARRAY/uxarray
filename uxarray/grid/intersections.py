@@ -112,10 +112,10 @@ def gca_gca_intersection(gca1_cart, gca1_rad, gca2_cart, gca2_rad):
 
     # Determine which intersection point is within the GCAs range
     # TODO: add gca lat_lon as input
-    if point_within_gca(pt1_cart, gca1_cart, gca1_rad) and point_within_gca(pt1_cart, pt1_latlon_rad, gca2_cart, gca2_rad):
+    if point_within_gca(pt1_cart, gca1_cart, gca1_rad) and point_within_gca(pt1_cart, gca2_cart, gca2_rad):
         res = np.append(res, pt1_cart)
 
-    elif point_within_gca(pt2_cart, gca1_cart, gca1_rad) and point_within_gca(pt2_cart, pt2_latlon_rad, gca2_cart, gca2_rad):
+    elif point_within_gca(pt2_cart, gca1_cart, gca1_rad) and point_within_gca(pt2_cart, gca2_cart, gca2_rad):
         res = np.append(res, pt2_cart)
 
     return res
