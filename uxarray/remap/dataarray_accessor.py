@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
-from uxarray.remap.inverse_distance_weighted import (
-    _inverse_distance_weighted_remap_uxda,
-)
+from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap_uxda
+from uxarray.remap.bilinear import _bilinear_uxda
+
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -119,3 +119,25 @@ class UxDataArrayRemapAccessor:
             return _inverse_distance_weighted_remap_uxda(
                 self.uxda, destination_obj, remap_to, coord_type, power, k
             )
+
+    def bilinear(
+        self,
+        destination_grid: Grid = None,
+        remap_to: str = "face centers",
+        coord_type: str = "spherical",
+    ):
+        """Bilinear Remapping between a source (``UxDataArray``) and destination.`.
+
+        Parameters
+        ---------
+        destination_grid : Grid
+            Destination Grid for remapping
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        coord_type : str, default="spherical"
+            Indicates whether to remap using on spherical or cartesian coordinates
+        """
+        if destination_grid is None:
+            raise ValueError("Destination needed for remap.")
+
+        return _bilinear_uxda(self.uxda, destination_grid, remap_to, coord_type)
