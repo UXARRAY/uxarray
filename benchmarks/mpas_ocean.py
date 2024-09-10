@@ -178,13 +178,13 @@ class HoleEdgeIndices:
 
     def teardown(self, resolution):
         del self.uxds
-    
+
     def time_dual_mesh_construction(self, resolution):
         self.uxds.uxgrid.get_dual()
-        
-        
+
+
 class DualMesh:
-  
+
     param_names = ['resolution']
     params = ['480km', '120km']
 
