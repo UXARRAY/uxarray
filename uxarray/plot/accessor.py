@@ -296,7 +296,10 @@ class UxDataArrayPlotAccessor:
         else:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
-    def polygons(self, periodic_elements="exclude", *args, **kwargs):
+    def polygons(self, periodic_elements="exclude", backend=None, *args, **kwargs):
+        if backend is not None:
+            uxarray.plot.utils.backend.assign(backend)
+
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = True
         if "projection" not in kwargs:
@@ -315,7 +318,10 @@ class UxDataArrayPlotAccessor:
             **kwargs,
         )
 
-    def points(self, *args, **kwargs):
+    def points(self, backend=None, *args, **kwargs):
+        if backend is not None:
+            uxarray.plot.utils.backend.assign(backend)
+
         uxgrid = self._uxda.uxgrid
         data_mapping = self._uxda.data_mapping
 

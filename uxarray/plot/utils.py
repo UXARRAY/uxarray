@@ -36,3 +36,6 @@ class HoloviewsBackend:
 
 # global reference to holoviews backend utility class
 backend = HoloviewsBackend()
+
+# set default backend to matplotlib
+backend.assign("matplotlib")
