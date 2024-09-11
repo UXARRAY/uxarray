@@ -3,7 +3,9 @@ from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
-from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap_uxda
+from uxarray.remap.inverse_distance_weighted import (
+    _inverse_distance_weighted_remap_uxda,
+)
 from uxarray.remap.bilinear import _bilinear_uxda
 
 
@@ -126,7 +128,8 @@ class UxDataArrayRemapAccessor:
         remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
-        """Bilinear Remapping between a source (``UxDataArray``) and destination.`.
+        """Bilinear Remapping between a source (``UxDataArray``) and
+        destination.`.
 
         Parameters
         ---------

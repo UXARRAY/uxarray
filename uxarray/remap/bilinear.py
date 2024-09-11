@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -10,6 +10,7 @@ import numpy as np
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
+from uxarray.grid.area import calculate_face_area
 
 
 def _bilinear(
@@ -18,9 +19,9 @@ def _bilinear(
     remap_to: str = "face centers",
     coord_type: str = "spherical",
 ) -> np.ndarray:
-    """Bilinear Remapping between two grids, mapping data that resides
-    on the corner nodes, edge centers, or face centers on the source grid to
-    the corner nodes, edge centers, or face centers of the destination grid.
+    """Bilinear Remapping between two grids, mapping data that resides on the
+    corner nodes, edge centers, or face centers on the source grid to the
+    corner nodes, edge centers, or face centers of the destination grid.
 
     Parameters
     ---------
@@ -36,6 +37,8 @@ def _bilinear(
     destination_data : np.ndarray
         Data mapped to destination grid
     """
+
+    # TODO: The source data has to be on the face centers, if it is not a topological aggregation needs to be done
 
     # ensure array is a np.ndarray
     source_data = np.asarray(source_uxda.data)
@@ -66,24 +69,40 @@ def _bilinear(
                 destination_grid.node_lon.values,
                 destination_grid.node_lat.values,
             )
+            data_size = destination_grid.n_node
         elif remap_to == "edge centers":
             lon, lat = (
                 destination_grid.edge_lon.values,
                 destination_grid.edge_lat.values,
             )
+            data_size = destination_grid.n_edge
         elif remap_to == "face centers":
             lon, lat = (
                 destination_grid.face_lon.values,
                 destination_grid.face_lat.values,
             )
+            data_size = destination_grid.n_face
         else:
             raise ValueError(
                 f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
                 f"but received: {remap_to}"
             )
         # TODO: Find dual polygon that contains point
+        # TODO: Create `calculate_bilinear_weights`
+        values = np.ndarray(data_size)
+        if source_grid.hole_edge_indices == 0:
+            for i, point in enumerate(destination_grid):
+                # Find a subset of polygons that contain the point
+                polygons_subset = find_polygons_subset(dual, point)
 
-        # TODO: Get bilinear weights
+                # Search the subset to find which one contains the point
+                for polygon in polygons_subset:
+                    if point_in_polygon(polygon, point):
+                        # TODO: Get indices of the nodes of the polygon
+                        polygon_ind = None
+                        weights = calculate_bilinear_weights(polygon, point)
+                        values[i] = np.sum(weights * source_data[..., polygon_ind], axis=-1)
+                        break
 
     elif coord_type == "cartesian":
         # get destination coordinates
@@ -120,7 +139,7 @@ def _bilinear(
         )
 
     # TODO: Apply bilinear weights to destination data
-    destination_data = None
+    destination_data = values
 
     return destination_data
 
@@ -161,9 +180,7 @@ def _bilinear_uxda(
         raise ValueError("TODO: Invalid Input")
 
     # perform remapping
-    destination_data = _bilinear(
-        source_uxda, destination_grid, remap_to, coord_type
-    )
+    destination_data = _bilinear(source_uxda, destination_grid, remap_to, coord_type)
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
         data=destination_data,
@@ -207,3 +224,50 @@ def _bilinear_uxds(
         )
 
     return destination_uxds
+
+
+def calculate_bilinear_weights(polygon, point):
+    """Calculates the bilinear weights for a point inside a triangle.
+
+    Returns an array with 3 weights for each node of the triangle
+    """
+
+    # Find the area of the whole triangle
+    x = np.array(
+        [polygon.node_x.values[0], polygon.node_x.values[1], polygon.node_x.values[2]]
+    )
+    y = np.array(
+        [polygon.node_y.values[0], polygon.node_y.values[1], polygon.node_y.values[2]]
+    )
+    z = np.array(
+        [polygon.node_z.values[0], polygon.node_z.values[1], polygon.node_z.values[2]]
+    )
+    area = calculate_face_area(x, y, z)
+
+    # Find the area of sub triangle: point, vertex b, vertex c
+    x = np.array([point[0], polygon.node_x.values[1], polygon.node_x.values[2]])
+    y = np.array([point[1], polygon.node_y.values[1], polygon.node_y.values[2]])
+    z = np.array([point[2], polygon.node_z.values[1], polygon.node_z.values[2]])
+    area_pbc = calculate_face_area(x, y, z)
+
+    # Find the area of sub triangle: vertex a, point, vertex c
+    x = np.array([polygon.node_x.values[0], point[0], polygon.node_x.values[2]])
+    y = np.array([polygon.node_y.values[0], point[1], polygon.node_y.values[2]])
+    z = np.array([polygon.node_z.values[0], point[2], polygon.node_z.values[2]])
+    area_apc = calculate_face_area(x, y, z)
+
+    # Find the area of sub triangle: vertex a, vertex b, point
+    x = np.array([polygon.node_x.values[0], polygon.node_x.values[1], point[0]])
+    y = np.array([polygon.node_y.values[0], polygon.node_y.values[1], point[1]])
+    z = np.array([polygon.node_z.values[0], polygon.node_z.values[1], point[2]])
+    area_abp = calculate_face_area(x, y, z)
+
+    weight_a = area_pbc[0] / area[0]
+    weight_b = area_apc[0] / area[0]
+    weight_c = area_abp[0] / area[0]
+
+    return np.array([weight_a, weight_b, weight_c])
+
+
+def find_polygons_subset(dual, point):
+    pass
