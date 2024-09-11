@@ -1076,3 +1076,12 @@ def _populate_bounds(
         return bounds
     else:
         grid._ds["bounds"] = bounds
+
+
+def _construct_hole_edge_indices(edge_face_connectivity):
+    """Index the missing edges on a partial grid with holes, that is a region
+    of the grid that is not covered by any geometry."""
+
+    # If an edge only has one face saddling it than the mesh has holes in it
+    edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
+    return edge_with_holes
