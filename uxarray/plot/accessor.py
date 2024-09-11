@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from multiprocessing.managers import Value
 from typing import TYPE_CHECKING, Any, Optional
 
 import functools
@@ -13,7 +15,17 @@ import uxarray.plot.grid_plot as grid_plot
 import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
 
+import warnings
+
 import cartopy.crs as ccrs
+
+import numpy as np
+import pandas as pd
+
+import holoviews as hv
+import hvplot.pandas
+
+from holoviews import Points
 
 
 class GridPlotAccessor:
@@ -265,9 +277,8 @@ class UxDataArrayPlotAccessor:
     def __init__(self, uxda: UxDataArray) -> None:
         self._uxda = uxda
 
-    @functools.wraps(dataarray_plot.plot)
     def __call__(self, **kwargs) -> Any:
-        return dataarray_plot.plot(self._uxda, **kwargs)
+        return self.polygons(**kwargs)
 
     def __getattr__(self, name: str) -> Any:
         """When a function that isn't part of the class is invoked (i.e.
@@ -285,49 +296,87 @@ class UxDataArrayPlotAccessor:
         else:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
-    @functools.wraps(dataarray_plot.datashade)
-    def datashade(
-        self,
-        *args,
-        method: Optional[str] = "polygon",
-        plot_height: Optional[int] = 300,
-        plot_width: Optional[int] = 600,
-        x_range: Optional[tuple] = (-180, 180),
-        y_range: Optional[tuple] = (-90, 90),
-        cmap: Optional[str] = "Blues",
-        agg: Optional[str] = "mean",
-        **kwargs,
-    ):
-        """Visualizes an unstructured grid data variable using data shading
-        (rasterization + shading)
+    def polygons(self, periodic_elements="exclude", *args, **kwargs):
+        if "rasterize" not in kwargs:
+            kwargs["rasterize"] = True
+        if "projection" not in kwargs:
+            kwargs["projection"] = ccrs.PlateCarree()
+        if "clabel" not in kwargs and self._uxda.name is not None:
+            kwargs["clabel"] = self._uxda.name
+        if "crs" not in kwargs:
+            kwargs["crs"] = ccrs.PlateCarree()
 
-        Parameters
-        ----------
-        method: str, optional
-            Selects which method to use for data shading
-        plot_width, plot_height : int, optional
-           Width and height of the output aggregate in pixels.
-        x_range, y_range : tuple, optional
-           A tuple representing the bounds inclusive space ``[min, max]`` along
-           the axis.
-        cmap: str, optional
-            Colormap used for shading
-        agg : str, optional
-            Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
-        """
-        return dataarray_plot.datashade(
-            self._uxda,
+        gdf = self._uxda.to_geodataframe(periodic_elements=periodic_elements)
+
+        return gdf.hvplot.polygons(
+            c=self._uxda.name if self._uxda.name is not None else "var",
+            geo=True,
             *args,
-            method=method,
-            plot_height=plot_height,
-            plot_width=plot_width,
-            x_range=x_range,
-            y_range=y_range,
-            cmap=cmap,
-            agg=agg,
             **kwargs,
         )
 
+    def points(self, *args, **kwargs):
+        uxgrid = self._uxda.uxgrid
+        data_mapping = self._uxda.data_mapping
+
+        if data_mapping == "nodes":
+            lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
+        elif data_mapping == "faces":
+            lon, lat = uxgrid.face_lon.values, uxgrid.face_lat.values
+        elif data_mapping == "edges":
+            lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
+        else:
+            raise ValueError("TODO: ")
+
+        verts = {"lon": lon, "lat": lat, "z": self._uxda.values}
+
+        points_df = pd.DataFrame.from_dict(verts)
+
+        return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
+
+    # @functools.wraps(dataarray_plot.datashade)
+    # def datashade(
+    #     self,
+    #     *args,
+    #     method: Optional[str] = "polygon",
+    #     plot_height: Optional[int] = 300,
+    #     plot_width: Optional[int] = 600,
+    #     x_range: Optional[tuple] = (-180, 180),
+    #     y_range: Optional[tuple] = (-90, 90),
+    #     cmap: Optional[str] = "Blues",
+    #     agg: Optional[str] = "mean",
+    #     **kwargs,
+    # ):
+    #     """Visualizes an unstructured grid data variable using data shading
+    #     (rasterization + shading)
+    #
+    #     Parameters
+    #     ----------
+    #     method: str, optional
+    #         Selects which method to use for data shading
+    #     plot_width, plot_height : int, optional
+    #        Width and height of the output aggregate in pixels.
+    #     x_range, y_range : tuple, optional
+    #        A tuple representing the bounds inclusive space ``[min, max]`` along
+    #        the axis.
+    #     cmap: str, optional
+    #         Colormap used for shading
+    #     agg : str, optional
+    #         Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
+    #     """
+    #     return dataarray_plot.datashade(
+    #         self._uxda,
+    #         *args,
+    #         method=method,
+    #         plot_height=plot_height,
+    #         plot_width=plot_width,
+    #         x_range=x_range,
+    #         y_range=y_range,
+    #         cmap=cmap,
+    #         agg=agg,
+    #         **kwargs,
+    #     )
+    #
     @functools.wraps(dataarray_plot.rasterize)
     def rasterize(
         self,
@@ -374,6 +423,13 @@ class UxDataArrayPlotAccessor:
         or run holoviews.help(holoviews.operation.datashader.rasterize).
         """
 
+        warnings.warn(
+            "``UxDataArray.plot.rasterize()`` will be deprecated in a future release. Please use "
+            "``UxDataArray.plot.polygons(rasterize=True)`` or ``UxDataArray.plot.points(rasterize=True)``",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         return dataarray_plot.rasterize(
             self._uxda,
             method=method,
@@ -394,87 +450,6 @@ class UxDataArrayPlotAccessor:
             cache=cache,
             override=override,
             size=size,
-            **kwargs,
-        )
-
-    @functools.wraps(dataarray_plot.polygons)
-    def polygons(
-        self,
-        backend: Optional[str] = "bokeh",
-        projection: Optional = None,
-        periodic_elements: Optional[str] = "exclude",
-        exclude_antimeridian: Optional[bool] = None,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        colorbar: Optional[bool] = True,
-        cmap: Optional[str] = "Blues",
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        **kwargs,
-    ):
-        """Vector polygon plot shaded using a face-centered data variable.
-
-        Parameters
-        ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-        exclude_antimeridian: bool,
-            Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-
-        return dataarray_plot.polygons(
-            self._uxda,
-            backend=backend,
-            projection=projection,
-            periodic_elements=periodic_elements,
-            exclude_antimeridian=exclude_antimeridian,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            cache=cache,
-            override=override,
-            **kwargs,
-        )
-
-    @functools.wraps(dataarray_plot.points)
-    def points(
-        self,
-        backend: Optional[str] = "bokeh",
-        projection: Optional = None,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        colorbar: Optional[bool] = True,
-        cmap: Optional[str] = "Blues",
-        **kwargs,
-    ):
-        """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
-        Face Coordinates.
-
-        Parameters
-        ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-
-        return dataarray_plot.points(
-            self._uxda,
-            backend=backend,
-            projection=projection,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
             **kwargs,
         )
 
