@@ -55,6 +55,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
+    _construct_hole_edge_indices,
 )
 
 from uxarray.grid.neighbors import (
@@ -1114,6 +1115,16 @@ class Grid:
         if self._face_jacobian is None:
             _ = self.face_areas
         return self._face_jacobian
+
+    @property
+    def hole_edge_indices(self):
+        """Indices of edges that border a region of the grid not covered by any
+        geometry, know as a hole, in a partial grid."""
+        if "hole_edge_indices" not in self._ds:
+            self._ds["hole_edge_indices"] = _construct_hole_edge_indices(
+                self.edge_face_connectivity.values
+            )
+        return self._ds["hole_edge_indices"]
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
