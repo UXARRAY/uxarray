@@ -163,6 +163,10 @@ def _populate_face_centerpoints(grid, repopulate=False):
         The grid containing the nodes and faces.
     repopulate : bool, optional
         Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False.
+
+    Returns
+    -------
+    None, populates the grid with the face centerpoints: face_lon, face_lat
     """
     # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
