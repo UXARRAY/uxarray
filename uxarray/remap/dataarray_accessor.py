@@ -1,6 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
-from warnings import warn
+from typing import TYPE_CHECKING
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 from uxarray.remap.inverse_distance_weighted import (
@@ -8,7 +7,6 @@ from uxarray.remap.inverse_distance_weighted import (
 )
 
 if TYPE_CHECKING:
-    from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
 
 from uxarray.grid import Grid
@@ -48,9 +46,7 @@ class UxDataArrayRemapAccessor:
             Indicates whether to remap using on spherical or cartesian coordinates
         """
 
-        return _nearest_neighbor_uxda(
-            self.uxda, destination_grid, remap_to, coord_type
-        )
+        return _nearest_neighbor_uxda(self.uxda, destination_grid, remap_to, coord_type)
 
     def inverse_distance_weighted(
         self,
