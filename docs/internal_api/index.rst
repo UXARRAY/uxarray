@@ -286,8 +286,8 @@ SCRIP
    io._scrip._encode_scrip
 
 
-GeoDataFrame
-------------
+GeoPandas
+---------
 .. autosummary::
    :toctree: generated/
 
