@@ -235,9 +235,10 @@ class Grid:
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
-    def from_geodataframe(
+    def from_file(
         cls,
         filename: str,
+        backend: Optional[str] = "geopandas",
         **kwargs,
     ):
         """Constructs a ``Grid`` object from a using geopandas read_file.
@@ -246,16 +247,36 @@ class Grid:
         ----------
         filename : str
             Path to shapefile or geojson filename
+        backend : str, default='geopandas'
+            Backend to use to read the file, netcdf or geopandas.
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> grid = ux.Grid.from_file("path/to/file.shp")
+
+        Note
+        ----
+        All formats supported by `geopandas.read_file` can be used.
+        See more at: https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas-read-file
         """
 
-        if str(filename).endswith(".shp"):
-            source_grid_spec = "Shapefile"
-        elif str(filename).endswith(".geojson"):
-            source_grid_spec = "GeoJSON"
-        else:
-            source_grid_spec = "OtherGeoFormat"
+        # determine grid/mesh specification
+        if backend == "geopandas":
+            if str(filename).endswith(".shp"):
+                source_grid_spec = "Shapefile"
+            elif str(filename).endswith(".geojson"):
+                source_grid_spec = "GeoJSON"
+            else:
+                source_grid_spec = "OtherGeoFormat"
 
-        grid_ds, source_dims_dict = _read_geodataframe(filename)
+            grid_ds, source_dims_dict = _read_geodataframe(filename)
+
+        elif backend == "netcdf":
+            grid_ds, source_dims_dict = cls.from_dataset(filename)
+
+        else:
+            raise ValueError("Backend not supported")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 

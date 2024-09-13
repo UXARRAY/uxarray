@@ -20,20 +20,20 @@ class TestGeopandas(TestCase):
     def test_read_shpfile(self):
         """Read a shapefile."""
 
-        uxgrid = ux.Grid.from_geodataframe(self.shp_filename)
+        uxgrid = ux.Grid.from_file(self.shp_filename)
         assert (uxgrid.validate())
 
     def test_read_shpfile_multi(self):
         """Read a shapefile, that consists of multipolygons."""
 
-        uxgrid = ux.Grid.from_geodataframe(self.shp_filename_multi)
+        uxgrid = ux.Grid.from_file(self.shp_filename_multi)
         assert (uxgrid.validate())
 
     def test_read_shpfile_5poly(self):
         """Read a shapefile, that consists of 5 polygons of different
         shapes."""
 
-        uxgrid = ux.Grid.from_geodataframe(self.shp_filename_5poly)
+        uxgrid = ux.Grid.from_file(self.shp_filename_5poly)
         assert (uxgrid.validate())
 
     def test_read_geojson(self):
@@ -52,6 +52,6 @@ class TestGeopandas(TestCase):
         Polygon 10: 19 sides
         """
 
-        uxgrid = ux.Grid.from_geodataframe(self.geojson_filename)
+        uxgrid = ux.Grid.from_file(self.geojson_filename)
         assert (uxgrid.n_face == 10)
         assert (uxgrid.n_max_face_nodes == 36)
