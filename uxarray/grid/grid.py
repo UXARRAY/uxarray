@@ -362,6 +362,10 @@ class Grid:
         method : str, default="cartesian average"
             Supported methods are "cartesian average" and "welzl"
 
+        Returns
+        -------
+        None
+            This method constructs the face_lon and face_lat attributes for the grid object.
 
         Usage
         -----
