@@ -10,9 +10,13 @@ INT_FILL_VALUE = np.iinfo(INT_DTYPE).min
 # half of the working precision is already the most optimal value for the error tolerance,
 # more tailored values will be used in the future.
 
-ERROR_TOLERANCE = 1.0e-8
+ERROR_TOLERANCE = np.float64(1.0e-8)
 
-ENABLE_JIT_CACHE = True
+# The below value is the machine epsilon for the float64 data type, it will be used in the most basic operations as a
+# error tolerance, mainly in the intersection calculations.
+MACHINE_EPSILON = np.finfo(float).eps
+
+ENABLE_JIT_CACHE = False
 ENABLE_JIT = True
 
 ENABLE_FMA = False
