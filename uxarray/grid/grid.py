@@ -241,14 +241,15 @@ class Grid:
         backend: Optional[str] = "geopandas",
         **kwargs,
     ):
-        """Constructs a ``Grid`` object from a using geopandas read_file.
+        """Constructs a ``Grid`` object from a using the read_file method with
+        a specified backend.
 
         Parameters
         ----------
         filename : str
             Path to shapefile or geojson filename
         backend : str, default='geopandas'
-            Backend to use to read the file, netcdf or geopandas.
+            Backend to use to read the file, xarray or geopandas.
 
         Usage
         -----
@@ -272,7 +273,7 @@ class Grid:
 
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
-        elif backend == "netcdf":
+        elif backend == "xarray":
             grid_ds, source_dims_dict = cls.from_dataset(filename)
 
         else:
