@@ -14,7 +14,7 @@ ERROR_TOLERANCE = np.float64(1.0e-8)
 
 # The below value is the machine epsilon for the float64 data type, it will be used in the most basic operations as a
 # error tolerance, mainly in the intersection calculations.
-MACHINE_EPSILON = np.finfo(float).eps
+MACHINE_EPSILON = np.float64(np.finfo(float).eps)
 
 ENABLE_JIT_CACHE = False
 ENABLE_JIT = True
