@@ -56,6 +56,8 @@ class TestLineCollection(TestCase):
         lines = uxgrid.to_linecollection()
 
 
+
+
 class TestPredicate(TestCase):
 
     def test_pole_point_inside_polygon_from_vertice_north(self):
@@ -159,6 +161,7 @@ class TestPredicate(TestCase):
         result = ux.grid.geometry._pole_point_inside_polygon(
             'North', face_edge_cart)
         self.assertTrue(result, "North pole should be inside the polygon")
+
 
 
 class TestLatlonBoundUtils(TestCase):
