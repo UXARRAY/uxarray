@@ -1,31 +1,45 @@
-from asv_runner.benchmarks.mark import skip_benchmark_if
+from asv_runner.benchmarks.mark import skip_benchmark_if, timeout_class_at
 
 import uxarray as ux
 import os
 
 
-# 30km, 15km, 7.5km, 3.75km
 
-file_path_dict = {"30km": ["/glade/campaign/cisl/vast/uxarray/data/dyamond/30km/grid.nc", "/glade/"],
-                  "15km": ["/glade/campaign/cisl/vast/uxarray/data/dyamond/15km/grid.nc", "/glade/"],
-                  "7.5km":["/glade/campaign/cisl/vast/uxarray/data/dyamond/7.5km/grid.nc", "/glade/"],
-                  "3.75km":["/glade/campaign/cisl/vast/uxarray/data/dyamond/3.75km/grid.nc", "/glade/"]}
+# TODO: ...
+grid_path_dict = {"30km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/30km/grid.nc",
+                  "15km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/15km/grid.nc",
+                  "7.5km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/7.5km/grid.nc",
+                  "3.75km":"/glade/campaign/cisl/vast/uxarray/data/dyamond/3.75km/grid.nc"}
 
+# TODO: ...
+data_path_dict = ...
+
+# TODO: ...
 all_paths_exist = True
-for file_paths in file_path_dict.values():
+for file_paths in grid_path_dict.values():
     for file_path in file_paths:
         all_paths_exist = all_paths_exist and os.path.exists(file_path)
 
-@skip_benchmark_if(not all_paths_exist)
-class MatplotlibConversion:
-    param_names = ['resolution', 'periodic_elements']
-    params = (['30km', '15km', '7.5km', '3.75km'], ['include', 'exclude', 'split'])
+
+class BaseGridBenchmark:
+    """Base class for Grid Benchmarks across the four supported resolutions
+    (30km, 15km, 7.5km, 3.75km)"""
+    param_names = ['resolution']
+    params = [['30km', '15km', '7.5km', '3.75km'],]
 
     def setup(self, resolution, periodic_elements):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution[0]])
+        self.uxgrid = ux.open_grid(grid_path_dict[resolution])
 
     def teardown(self, resolution, periodic_elements):
         del self.uxgrid
 
-    def time_grid_to_polycollection(self, resolution, periodic_elements):
-        self.uxgrid.to_polycollection()
+
+@timeout_class_at(1000)
+class GeoDataFrameConversion(BaseGridBenchmark):
+
+    param_names = BaseGridBenchmark.param_names
+    params = BaseGridBenchmark.params
+
+    @skip_benchmark_if(not all_paths_exist)
+    def time_to_geodataframe(self, resolution):
+        self.uxgrid.to_geodataframe(exclude_antimeridian=True)
