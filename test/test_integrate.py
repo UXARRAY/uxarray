@@ -8,8 +8,10 @@ import pandas as pd
 import numpy.testing as nt
 
 import uxarray as ux
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
-from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat
+from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat,_get_faces_constLat_intersection_info
+
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
