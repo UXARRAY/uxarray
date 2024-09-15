@@ -80,7 +80,7 @@ class TestPlot(TestCase):
 
             uxds['v1'][0][0].plot.points(backend=backend)
 
-            uxds['v1'][0][0].nodal_average().plot.polygons(backend=backend)
+            uxds['v1'][0][0].topological_mean(destination='face').plot.polygons(backend=backend)
 
 
     def test_clabel(self):
@@ -103,7 +103,6 @@ class TestXarrayMethods(TestCase):
 
         # plot.hist() is an xarray method
         assert hasattr(uxds['v1'].plot, 'hist')
-
 
     def test_dataarray(self):
         """Tests whether a Xarray Dataset method can be called through the
