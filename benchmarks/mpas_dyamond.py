@@ -36,10 +36,6 @@ class BaseGridBenchmark:
 
 @timeout_class_at(1000)
 class GeoDataFrameConversion(BaseGridBenchmark):
-
-    param_names = BaseGridBenchmark.param_names
-    params = BaseGridBenchmark.params
-
     @skip_benchmark_if(not all_paths_exist)
     def time_to_geodataframe(self, resolution):
         self.uxgrid.to_geodataframe(exclude_antimeridian=True)
