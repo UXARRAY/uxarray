@@ -24,6 +24,7 @@ GDF_POLYGON_THRESHOLD = 100000
 
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
+
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
     """Identify unique intersection points from a list of points, considering
     floating point precision errors.
@@ -73,7 +74,6 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
             unique_points.append(point)
 
     return unique_points
-
 
 
 # General Helpers for Polygon Viz
@@ -531,7 +531,9 @@ def _check_intersection(ref_edge, edges):
 
         if intersection_point.size != 0:
             # Handle both single point and multiple points case
-            if intersection_point.ndim == 1:  # If there's only one point, make it a 2D array
+            if (
+                intersection_point.ndim == 1
+            ):  # If there's only one point, make it a 2D array
                 intersection_point = [intersection_point]  # Convert to list of points
 
             # for each intersection point, check if it is a pole point
@@ -574,7 +576,6 @@ def _classify_polygon_location(face_edge_cart):
         return "South"
     else:
         return "Equator"
-
 
 
 def _get_latlonbox_width(latlonbox_rad):

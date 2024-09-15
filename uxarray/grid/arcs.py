@@ -46,6 +46,19 @@ def _point_within_gca_body(
     ):
         return False
 
+    if isclose(
+        GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
+    ):
+        # If the pt and the GCA are on the same longitude (the y coordinates are the same)
+        if np.isclose(
+            GCRv0_lonlat[0], pt_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
+        ):
+            # Now use the latitude to determine if the pt falls between the interval
+            return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
+        else:
+            # If the pt and the GCA are not on the same longitude when the GCA is a longnitude arc, then the pt is not on the GCA
+            return False
+
     # If the longnitude span is exactly 180 degree, then the GCA goes through the pole point
     # Or if one of the endpoints is on the pole point, then the GCA goes through the pole point
     if (
