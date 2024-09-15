@@ -7,7 +7,6 @@ from uxarray.grid.utils import (
     _get_lonlat_rad_face_edge_nodes,
 )
 
-from uxarray.utils.computing import isclose, allclose, all
 import warnings
 import pandas as pd
 import xarray as xr
@@ -1064,7 +1063,6 @@ def _populate_bounds(
             is_GCA_list=is_GCA_list,
         )
 
-
         assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
         assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
         lat_array = temp_latlon_array[face_idx][0]
@@ -1097,7 +1095,6 @@ def _populate_bounds(
         return bounds
     else:
         grid._ds["bounds"] = bounds
-
 
 
 def _construct_hole_edge_indices(edge_face_connectivity):

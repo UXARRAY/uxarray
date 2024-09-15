@@ -2,7 +2,11 @@ import numpy as np
 
 # from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _normalize_xyz, _xyz_to_lonlat_rad_no_norm,_normalize_xyz_scalar
+from uxarray.grid.coordinates import (
+    _xyz_to_lonlat_rad,
+    _xyz_to_lonlat_rad_no_norm,
+    _normalize_xyz_scalar,
+)
 from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
 
 from uxarray.utils.computing import isclose, cross, dot, allclose
@@ -361,7 +365,6 @@ def extreme_gca_latitude(gca_cart, extreme_type):
     _, lat_n1 = _xyz_to_lonlat_rad(n1[0], n1[1], n1[2])
     _, lat_n2 = _xyz_to_lonlat_rad(n2[0], n2[1], n2[2])
 
-
     if 0 < d_a_max < 1:
         node3 = (1 - d_a_max) * n1 + d_a_max * n2
         node3 = np.array(_normalize_xyz_scalar(node3[0], node3[1], node3[2]))
@@ -374,4 +377,3 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         )
     else:
         return max(lat_n1, lat_n2) if extreme_type == "max" else min(lat_n1, lat_n2)
-

@@ -1413,7 +1413,8 @@ class TestLatlonBoundsMix(TestCase):
 class TestLatlonBoundsFiles:
 
     def test_face_bounds(self):
-        """Test to ensure ``Grid.face_bounds`` works correctly for all grid files."""
+        """Test to ensure ``Grid.face_bounds`` works correctly for all grid
+        files."""
         for grid_path in grid_files_latlonBound:
             try:
                 # Open the grid file
