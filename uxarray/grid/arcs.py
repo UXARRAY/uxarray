@@ -2,7 +2,7 @@ import numpy as np
 
 # from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad_no_norm, _normalize_xyz_scalar
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _normalize_xyz, _xyz_to_lonlat_rad_no_norm,_normalize_xyz_scalar
 from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
 
 from uxarray.utils.computing import isclose, cross, dot, allclose
@@ -50,7 +50,7 @@ def _point_within_gca_body(
         GCRv0_lonlat[0], GCRv1_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
     ):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if np.isclose(
+        if isclose(
             GCRv0_lonlat[0], pt_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
         ):
             # Now use the latitude to determine if the pt falls between the interval
@@ -347,20 +347,20 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         raise ValueError("extreme_type must be either 'max' or 'min'")
 
     n1, n2 = gca_cart
-
-    dot_n1_n2 = dot(np.asarray(n1), np.asarray(n2))
+    dot_n1_n2 = np.dot(n1, n2)
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
     d_a_max = (
         np.clip(d_a_max, 0, 1)
-        if isclose(d_a_max, 0, atol=ERROR_TOLERANCE)
-        or isclose(d_a_max, 1, atol=ERROR_TOLERANCE)
+        if np.isclose(d_a_max, [0, 1], atol=MACHINE_EPSILON).any()
         else d_a_max
     )
 
-    _, lat_n1 = _xyz_to_lonlat_rad_no_norm(n1[0], n1[1], n1[2])
-    _, lat_n2 = _xyz_to_lonlat_rad_no_norm(n2[0], n2[1], n2[2])
+    # Before we make sure the grid coordinates are normalized, do not try to skip the normalization steps!
+    _, lat_n1 = _xyz_to_lonlat_rad(n1[0], n1[1], n1[2])
+    _, lat_n2 = _xyz_to_lonlat_rad(n2[0], n2[1], n2[2])
+
 
     if 0 < d_a_max < 1:
         node3 = (1 - d_a_max) * n1 + d_a_max * n2
@@ -374,3 +374,4 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         )
     else:
         return max(lat_n1, lat_n2) if extreme_type == "max" else min(lat_n1, lat_n2)
+

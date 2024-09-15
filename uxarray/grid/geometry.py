@@ -1064,8 +1064,6 @@ def _populate_bounds(
             is_GCA_list=is_GCA_list,
         )
 
-        if temp_latlon_array[face_idx][0][0] == temp_latlon_array[face_idx][0][1]:
-            pass
 
         assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
         assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
