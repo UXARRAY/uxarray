@@ -666,7 +666,7 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
     array([[1.0, 2.0], [3.0, 4.0]])
     """
-    if all(new_pt == INT_FILL_VALUE):
+    if np.all(new_pt == INT_FILL_VALUE):
         return old_box
 
     latlon_box = np.copy(old_box)  # Create a copy of the old box
@@ -694,17 +694,18 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     # Check for pole points and update latitudes
     is_pole_point = (
         lon_pt == INT_FILL_VALUE
-        and isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE)
-        or isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE)
+        and np.isclose(
+            new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE
+        ).any()
     )
 
     if is_pole_point:
         # Check if the new point is close to the North Pole
-        if isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
+        if np.isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
             latlon_box[0][1] = 0.5 * np.pi
 
         # Check if the new point is close to the South Pole
-        elif isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
+        elif np.isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
             latlon_box[0][0] = -0.5 * np.pi
 
         return latlon_box
@@ -850,7 +851,9 @@ def _populate_face_latlon_bound(
             )
 
             # Check if the node matches the pole point or if the pole point is within the edge_cart
-            if allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(
+            if np.allclose(
+                n1_cart, pole_point, atol=ERROR_TOLERANCE
+            ) or point_within_gca(
                 pole_point, np.array([n1_cart, n2_cart]), is_directed=False
             ):
                 is_center_pole = False
@@ -929,16 +932,16 @@ def _populate_face_latlon_bound(
             )
 
             # Insert extreme latitude points into the latlonbox if they differ from the node latitudes
-            if not isclose(
+            if not np.isclose(
                 node1_lat_rad, lat_max, atol=ERROR_TOLERANCE
-            ) and not isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
+            ) and not np.isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
                 # Insert the maximum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
-            elif not isclose(
+            elif not np.isclose(
                 node1_lat_rad, lat_min, atol=ERROR_TOLERANCE
-            ) and not isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
+            ) and not np.isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
                 # Insert the minimum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
@@ -1018,7 +1021,7 @@ def _populate_bounds(
     intervals_tuple_list = []
     intervals_name_list = []
 
-    face_edges_cartesian = _get_cartesian_face_edge_nodes(
+    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
         grid.face_node_connectivity.values,
         grid.n_face,
         grid.n_max_face_edges,
@@ -1027,7 +1030,7 @@ def _populate_bounds(
         grid.node_z.values,
     )
 
-    face_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
         grid.face_node_connectivity.values,
         grid.n_face,
         grid.n_max_face_edges,
@@ -1035,42 +1038,37 @@ def _populate_bounds(
         grid.node_lat.values,
     )
 
-    face_node_connectivity = grid.face_node_connectivity.values
+    for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
+        face_edges_cartesian = faces_edges_cartesian[face_idx]
 
-    # # TODO: vectorize dummy face check
-    s = face_edges_cartesian.shape
-    dummy_face_face_edges_cart = np.any(
-        face_edges_cartesian.reshape((s[0], s[1] * s[2] * s[3])) == INT_FILL_VALUE,
-        axis=1,
-    )
+        # Remove the edge in the face that contains the fill value
+        face_edges_cartesian = face_edges_cartesian[
+            np.all(face_edges_cartesian != INT_FILL_VALUE, axis=(1, 2))
+        ]
 
-    s = face_edges_lonlat_rad.shape
-    dummy_face_face_edges_latlon = np.any(
-        face_edges_lonlat_rad.reshape((s[0], s[1] * s[2] * s[3])) == INT_FILL_VALUE,
-        axis=1,
-    )
+        face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
 
-    dummy_faces = dummy_face_face_edges_cart | dummy_face_face_edges_latlon
-
-    for face_idx, face_nodes in enumerate(face_node_connectivity):
-        if dummy_faces[face_idx]:
-            # skip dummy faces
-            continue
+        # Remove the edge in the face that contains the fill value
+        face_edges_lonlat_rad = face_edges_lonlat_rad[
+            np.all(face_edges_lonlat_rad != INT_FILL_VALUE, axis=(1, 2))
+        ]
 
         is_GCA_list = (
             is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None
         )
 
         temp_latlon_array[face_idx] = _populate_face_latlon_bound(
-            face_edges_cartesian[face_idx],
-            face_edges_lonlat_rad[face_idx],
+            face_edges_cartesian,
+            face_edges_lonlat_rad,
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
 
-        # # do we need this ?
-        # assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
-        # assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
+        if temp_latlon_array[face_idx][0][0] == temp_latlon_array[face_idx][0][1]:
+            pass
+
+        assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
+        assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
         lat_array = temp_latlon_array[face_idx][0]
 
         # Now store the latitude intervals in the tuples
@@ -1090,7 +1088,7 @@ def _populate_bounds(
         attrs={
             "cf_role": "face_latlon_bounds",
             "_FillValue": INT_FILL_VALUE,
-            "long_name": "Latitude and Longitude bounds for each face in radians.",
+            "long_name": "Provides the latitude and longitude bounds for each face in radians.",
             "start_index": INT_DTYPE(0),
             "latitude_intervalsIndex": intervalsIndex,
             "latitude_intervals_name_map": df_intervals_map,
@@ -1101,6 +1099,7 @@ def _populate_bounds(
         return bounds
     else:
         grid._ds["bounds"] = bounds
+
 
 
 def _construct_hole_edge_indices(edge_face_connectivity):
