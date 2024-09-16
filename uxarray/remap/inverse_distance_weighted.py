@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -159,7 +159,7 @@ def _inverse_distance_weighted_remap(
 
 def _inverse_distance_weighted_remap_uxda(
     source_uxda: UxDataArray,
-    destination_obj: Union[Grid, UxDataArray, UxDataset],
+    destination_grid: Grid,
     remap_to: str = "face centers",
     coord_type: str = "spherical",
     power=2,
@@ -171,8 +171,8 @@ def _inverse_distance_weighted_remap_uxda(
     ---------
     source_uxda : UxDataArray
         Source UxDataArray for remapping
-    destination_obj : Grid, UxDataArray, UxDataset
-        Destination for remapping
+    destination_grid : Grid
+        Destination grid for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
     coord_type : str, default="spherical"
@@ -206,16 +206,6 @@ def _inverse_distance_weighted_remap_uxda(
     destination_dims = list(source_uxda.dims)
     destination_dims[-1] = destination_dim
 
-    if isinstance(destination_obj, Grid):
-        destination_grid = destination_obj
-    elif isinstance(
-        destination_obj,
-        (uxarray.core.dataarray.UxDataArray, uxarray.core.dataset.UxDataset),
-    ):
-        destination_grid = destination_obj.uxgrid
-    else:
-        raise ValueError("TODO: Invalid Input")
-
     # perform remapping
     destination_data = _inverse_distance_weighted_remap(
         source_uxda.uxgrid,
@@ -234,26 +224,14 @@ def _inverse_distance_weighted_remap_uxda(
         dims=destination_dims,
         uxgrid=destination_grid,
     )
-    # add remapped variable to existing UxDataset
-    if isinstance(destination_obj, uxarray.core.dataset.UxDataset):
-        uxds = destination_obj.copy()
-        uxds[source_uxda.name] = uxda_remap
-        return uxds
-
-    # construct a UxDataset from remapped variable and existing variable
-    elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
-        uxds = destination_obj.copy().to_dataset()
-        uxds[source_uxda.name] = uxda_remap
-        return uxds
 
     # return UxDataArray with remapped variable
-    else:
-        return uxda_remap
+    return uxda_remap
 
 
 def _inverse_distance_weighted_remap_uxds(
     source_uxds: UxDataset,
-    destination_obj: Union[Grid, UxDataArray, UxDataset],
+    destination_grid: Grid,
     remap_to: str = "face centers",
     coord_type: str = "spherical",
     power=2,
@@ -265,7 +243,7 @@ def _inverse_distance_weighted_remap_uxds(
     ---------
     source_uxds : UxDataset
         Source UxDataset for remapping
-    destination_obj : Grid, UxDataArray, UxDataset
+    destination_grid : Grid
         Destination for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
@@ -277,20 +255,11 @@ def _inverse_distance_weighted_remap_uxds(
     k : int, default=8
         Number of nearest neighbors to consider in the weighted calculation.
     """
-
-    if isinstance(destination_obj, Grid):
-        destination_uxds = uxarray.core.dataset.UxDataset(uxgrid=destination_obj)
-    elif isinstance(destination_obj, uxarray.core.dataset.UxDataArray):
-        destination_uxds = destination_obj.to_dataset()
-    elif isinstance(destination_obj, uxarray.core.dataset.UxDataset):
-        destination_uxds = destination_obj
-    else:
-        raise ValueError
-
+    destination_uxds = uxarray.UxDataset(uxgrid=destination_grid)
     for var_name in source_uxds.data_vars:
-        destination_uxds = _inverse_distance_weighted_remap_uxda(
+        destination_uxds[var_name] = _inverse_distance_weighted_remap_uxda(
             source_uxds[var_name],
-            destination_uxds,
+            destination_grid,
             remap_to,
             coord_type,
             power,
