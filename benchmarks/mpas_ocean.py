@@ -37,17 +37,12 @@ class DatasetBenchmark:
     params = [['480km', '120km'],]
 
 
-    def setup(self, *args, **kwargs):
+    def setup(self, resolution, *args, **kwargs):
 
-        if "resolution" in kwargs:
-            resolution = kwargs["resolution"]
-        elif len(args) > 0:
-            resolution = args[0]
-        else:
-            raise ValueError("Resolution not provided")
+
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
-    def teardown(self, *args, **kwargs):
+    def teardown(self, resolution, *args, **kwargs):
         del self.uxds
 
 class GridBenchmark:
@@ -56,18 +51,11 @@ class GridBenchmark:
     param_names = ['resolution', ]
     params = [['480km', '120km'], ]
 
-    def setup(self, *args, **kwargs):
-
-        if "resolution" in kwargs:
-            resolution = kwargs["resolution"]
-        elif len(args) > 0:
-            resolution = args[0]
-        else:
-            raise ValueError("Resolution not provided")
+    def setup(self, resolution, *args, **kwargs):
 
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
 
-    def teardown(self, resolution, **kwargs):
+    def teardown(self, resolution, *args, **kwargs):
         del self.uxgrid
 
 
