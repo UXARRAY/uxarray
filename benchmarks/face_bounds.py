@@ -28,16 +28,3 @@ class FaceBounds:
     def peakmem_face_bounds(self, grid_path):
         """Peak memory usage obtain ``Grid.face_bounds."""
         face_bounds = self.uxgrid.bounds
-
-from asv_runner.benchmarks.mark import skip_benchmark_if, timeout_class_at
-@timeout_class_at(1000)
-class Bounds:
-    def setup(self):
-        self.uxgrid = ux.open_grid(r"C:\Users\chmie\PycharmProjects\ncar-uxarray\uxarray-hongyu\benchmarks\oQU120.grid.nc")
-
-    def teardown(self):
-        del self.uxgrid
-
-    def time_face_bounds(self):
-        """Time to obtain ``Grid.face_bounds``"""
-        self.uxgrid.bounds
