@@ -4,6 +4,8 @@ from uxarray.grid.intersections import gca_constLat_intersection
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 import pandas as pd
 
+from uxarray.utils.computing import isclose
+
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
 
