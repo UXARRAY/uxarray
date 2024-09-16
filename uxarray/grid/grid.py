@@ -352,7 +352,7 @@ class Grid:
     def construct_face_centers(self, method="cartesian average"):
         """Constructs face centers, this method provides users direct control
         of the method for constructing the face centers, the default method is
-        "cartesian average", but a more efficient method is "welzl" that is
+        "cartesian average", but a more accurate method is "welzl" that is
         based on the recursive Welzl algorithm. It must be noted that this
         method can override the parsed/recompute the original parsed face
         centers.
