@@ -92,7 +92,7 @@ class TestNearestNeighborRemap(TestCase):
         uxgrid = ux.open_grid(gridfile_ne30)
 
         uxda = uxds['v1']
-        out_da = uxda.remap.nearest_neighbor(destination_obj=uxgrid, remap_to="nodes")
+        out_da = uxda.remap.nearest_neighbor(destination_grid=uxgrid, remap_to="nodes")
 
         # Assert the remapping was successful and the variable is populated
         self.assertTrue(len(out_da) != 0)
@@ -112,40 +112,12 @@ class TestNearestNeighborRemap(TestCase):
 
         assert isinstance(remap_uxda_to_grid, UxDataArray)
 
-        remap_uxda_to_uxda = source_uxds['v1'].remap.nearest_neighbor(
-            destination_uxds['psi'])
-
-        # Dataset with two vars: original "psi" and remapped "v1"
-        assert isinstance(remap_uxda_to_uxda, UxDataset)
-        assert len(remap_uxda_to_uxda.data_vars) == 2
-
-        remap_uxda_to_uxds = source_uxds['v1'].remap.nearest_neighbor(
-            destination_uxds)
-
-        # Dataset with two vars: original "psi" and remapped "v1"
-        assert isinstance(remap_uxda_to_uxds, UxDataset)
-        assert len(remap_uxda_to_uxds.data_vars) == 2
-
         remap_uxds_to_grid = source_uxds.remap.nearest_neighbor(
             destination_uxds.uxgrid)
 
         # Dataset with three vars: remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_grid, UxDataset)
         assert len(remap_uxds_to_grid.data_vars) == 3
-
-        remap_uxds_to_uxda = source_uxds.remap.nearest_neighbor(
-            destination_uxds['psi'])
-
-        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
-        assert isinstance(remap_uxds_to_uxda, UxDataset)
-        assert len(remap_uxds_to_uxda.data_vars) == 4
-
-        remap_uxds_to_uxds = source_uxds.remap.nearest_neighbor(
-            destination_uxds)
-
-        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
-        assert isinstance(remap_uxds_to_uxds, UxDataset)
-        assert len(remap_uxds_to_uxds.data_vars) == 4
 
     def test_edge_centers_remapping(self):
         """Tests the ability to remap on edge centers using Nearest Neighbor
@@ -155,11 +127,11 @@ class TestNearestNeighborRemap(TestCase):
         source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
         destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
 
-        remap_to_edge_centers = source_grid['v1'].remap.nearest_neighbor(destination_obj=destination_grid,
+        remap_to_edge_centers = source_grid['v1'].remap.nearest_neighbor(destination_grid=destination_grid.uxgrid,
                                                                          remap_to="edge centers")
 
         # Assert the data variable lies on the "edge centers"
-        self.assertTrue(remap_to_edge_centers['v1']._edge_centered())
+        self.assertTrue(remap_to_edge_centers._edge_centered())
 
     def test_overwrite(self):
         """Tests that the remapping no longer overwrites the dataset."""
@@ -169,7 +141,7 @@ class TestNearestNeighborRemap(TestCase):
         destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
         # Perform remapping
-        remap_to_edge_centers = source_grid['v1'].remap.nearest_neighbor(destination_obj=destination_dataset,
+        remap_to_edge_centers = source_grid['v1'].remap.nearest_neighbor(destination_grid=destination_dataset.uxgrid,
                                                                                   remap_to="nodes")
 
         # Assert the remapped data is different from the original data
@@ -254,40 +226,12 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         assert isinstance(remap_uxda_to_grid, UxDataArray)
         assert len(remap_uxda_to_grid) == 1
 
-        remap_uxda_to_uxda = source_uxds['v1'].remap.inverse_distance_weighted(
-            destination_uxds['psi'], power=3, k=10)
-
-        # Dataset with two vars: original "psi" and remapped "v1"
-        assert isinstance(remap_uxda_to_uxda, UxDataset)
-        assert len(remap_uxda_to_uxda.data_vars) == 2
-
-        remap_uxda_to_uxds = source_uxds['v1'].remap.inverse_distance_weighted(
-            destination_uxds, power=3, k=10)
-
-        # Dataset with two vars: original "psi" and remapped "v1"
-        assert isinstance(remap_uxda_to_uxds, UxDataset)
-        assert len(remap_uxda_to_uxds.data_vars) == 2
-
         remap_uxds_to_grid = source_uxds.remap.inverse_distance_weighted(
             destination_uxds.uxgrid)
 
         # Dataset with three vars: remapped "v1, v2, v3"
         assert isinstance(remap_uxds_to_grid, UxDataset)
         assert len(remap_uxds_to_grid.data_vars) == 3
-
-        remap_uxds_to_uxda = source_uxds.remap.inverse_distance_weighted(
-            destination_uxds['psi'])
-
-        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
-        assert isinstance(remap_uxds_to_uxda, UxDataset)
-        assert len(remap_uxds_to_uxda.data_vars) == 4
-
-        remap_uxds_to_uxds = source_uxds.remap.inverse_distance_weighted(
-            destination_uxds)
-
-        # Dataset with four vars: original "psi" and remapped "v1, v2, v3"
-        assert isinstance(remap_uxds_to_uxds, UxDataset)
-        assert len(remap_uxds_to_uxds.data_vars) == 4
 
     def test_edge_remapping(self):
         """Tests the ability to remap on edge centers using Inverse Distance
@@ -299,11 +243,11 @@ class TestInverseDistanceWeightedRemapping(TestCase):
 
         # Perform remapping to the edge centers of the dataset
 
-        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(destination_obj=destination_grid,
+        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(destination_grid=destination_grid.uxgrid,
                                                                                   remap_to="edge centers")
 
         # Assert the data variable lies on the "edge centers"
-        self.assertTrue(remap_to_edge_centers['v1']._edge_centered())
+        self.assertTrue(remap_to_edge_centers._edge_centered())
 
     def test_overwrite(self):
         """Tests that the remapping no longer overwrites the dataset."""
@@ -313,7 +257,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
         # Perform Remapping
-        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(destination_obj=destination_dataset,
+        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(destination_grid=destination_dataset.uxgrid,
                                                                          remap_to="nodes")
 
         # Assert the remapped data is different from the original data
