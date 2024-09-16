@@ -69,14 +69,22 @@ class TestFaceWeights(TestCase):
                            [0.4 * np.pi, 0.25 * np.pi]]
         vertices = [_lonlat_rad_to_xyz(*v) for v in vertices_lonlat]
 
-        face_edge_nodes = np.array([[vertices[0], vertices[1]],
+        face_edge_nodes_cart = np.array([[vertices[0], vertices[1]],
                                     [vertices[1], vertices[2]],
                                     [vertices[2], vertices[3]],
                                     [vertices[3], vertices[0]]])
+        face_edge_nodes_rad = np.array([
+                                            [vertices_lonlat[0], vertices_lonlat[1]],
+                                            [vertices_lonlat[1], vertices_lonlat[2]],
+                                            [vertices_lonlat[2], vertices_lonlat[3]],
+                                            [vertices_lonlat[3], vertices_lonlat[0]]
+                                        ])
 
         constZ = np.sin(0.20)
         # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
-        interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
+        interval_df = _get_zonal_face_interval(face_edge_nodes_cart,
+                                               face_edge_nodes_rad,
+                                               constZ,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                                                          0.4 * np.pi]]),
                                                is_directed=False)
@@ -94,6 +102,7 @@ class TestFaceWeights(TestCase):
         # Asserting almost equal arrays
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
+    # TODO: ERROR
     def test_get_zonal_face_interval_GCA_constLat(self):
         """Test that the zonal face weights are correct."""
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi],
@@ -103,13 +112,16 @@ class TestFaceWeights(TestCase):
 
         vertices = [_lonlat_rad_to_xyz(*v) for v in vertices_lonlat]
 
-        face_edge_nodes = np.array([[vertices[0], vertices[1]],
+        face_edge_nodes_cart = np.array([[vertices[0], vertices[1]],
                                     [vertices[1], vertices[2]],
                                     [vertices[2], vertices[3]],
                                     [vertices[3], vertices[0]]])
-
+        face_edge_nodes_rad = np.array([[vertices_lonlat[0], vertices_lonlat[1]],
+                                        [vertices_lonlat[1], vertices_lonlat[2]],
+                                        [vertices_lonlat[2], vertices_lonlat[3]],
+                                        [vertices_lonlat[3], vertices_lonlat[0]]])
         constZ = np.sin(0.20 * np.pi)
-        interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
+        interval_df = _get_zonal_face_interval(face_edge_nodes_cart, face_edge_nodes_rad, constZ,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                                                          0.4 * np.pi]]),
                                                is_directed=False, is_GCA_list=np.array([True, False, True, False]))
@@ -127,6 +139,7 @@ class TestFaceWeights(TestCase):
         # Asserting almost equal arrays
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
+    # TODO: ERROR
     def test_get_zonal_face_interval_equator(self):
         """Test that the zonal face weights are correct."""
         vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi], [-0.4 * np.pi, 0.0],
@@ -134,12 +147,16 @@ class TestFaceWeights(TestCase):
 
         vertices = [_lonlat_rad_to_xyz(*v) for v in vertices_lonlat]
 
-        face_edge_nodes = np.array([[vertices[0], vertices[1]],
+        face_edge_nodes_cart = np.array([[vertices[0], vertices[1]],
                                     [vertices[1], vertices[2]],
                                     [vertices[2], vertices[3]],
                                     [vertices[3], vertices[0]]])
+        face_edge_nodes_rad = np.array([[vertices_lonlat[0], vertices_lonlat[1]],
+                                        [vertices_lonlat[1], vertices_lonlat[2]],
+                                        [vertices_lonlat[2], vertices_lonlat[3]],
+                                        [vertices_lonlat[3], vertices_lonlat[0]]])
 
-        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0,
+        interval_df = _get_zonal_face_interval(face_edge_nodes_cart, face_edge_nodes_rad, 0.0,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                                                          0.4 * np.pi]]),
                                                is_directed=False, is_GCA_list=np.array([True, True, True, True]))
@@ -158,7 +175,7 @@ class TestFaceWeights(TestCase):
         nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
         # Even if we change the is_GCA_list to False, the result should be the same
-        interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0,
+        interval_df = _get_zonal_face_interval(face_edge_nodes_cart, 0.0,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                                                          0.4 * np.pi]]),
                                                is_directed=False, is_GCA_list=np.array([True, False, True, False]))

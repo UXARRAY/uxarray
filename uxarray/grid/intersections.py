@@ -1,5 +1,6 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_no_norm
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca
 import platform
@@ -9,7 +10,7 @@ from uxarray.utils.computing import cross_fma, allclose, cross, dot
 import uxarray.constants
 
 
-def gca_gca_intersection(gca1_cart, gca2_cart):
+def gca_gca_intersection(gca1_cart, gca1_rad, gca2_cart, gca2_rad):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
@@ -19,10 +20,13 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
 
     Parameters
     ----------
+    # TODO: change dimensions to [2, 3]
+    # TODO: add lat_lon as input
     gca1_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the first GCA.
     gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
+    # TODO: delete this argument?
     fma_disabled : bool, optional (default=False)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
 
@@ -46,13 +50,11 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
 
-    # Support lists as an input
-    gca1_cart = np.asarray(gca1_cart)
-    gca2_cart = np.asarray(gca2_cart)
     # Check if the two GCAs are in the cartesian format (size of three)
     if gca1_cart.shape[1] != 3 or gca2_cart.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
+    # TODO: Check upsteam and pass in lat_lon in addition to cartesian
     w0, w1 = gca1_cart
     v0, v1 = gca2_cart
 
@@ -103,23 +105,24 @@ def gca_gca_intersection(gca1_cart, gca2_cart):
 
     # Normalize the cross_norms
     cross_norms = cross_norms / np.linalg.norm(cross_norms)
-    x1 = cross_norms
-    x2 = -x1
+    pt1_cart = cross_norms
+    pt2_cart = -pt1_cart
 
     res = np.array([])
 
     # Determine which intersection point is within the GCAs range
-    if point_within_gca(x1, [w0, w1]) and point_within_gca(x1, [v0, v1]):
-        res = np.append(res, x1)
+    # TODO: add gca lat_lon as input
+    if point_within_gca(pt1_cart, gca1_cart, gca1_rad) and point_within_gca(pt1_cart, gca2_cart, gca2_rad):
+        res = np.append(res, pt1_cart)
 
-    elif point_within_gca(x2, [w0, w1]) and point_within_gca(x2, [v0, v1]):
-        res = np.append(res, x2)
+    elif point_within_gca(pt2_cart, gca1_cart, gca1_rad) and point_within_gca(pt2_cart, gca2_cart, gca2_rad):
+        res = np.append(res, pt2_cart)
 
     return res
 
 
 def gca_constLat_intersection(
-    gca_cart, constZ, fma_disabled=False, verbose=False, is_directed=False
+    gca_cart, gca_rad, constZ, fma_disabled=False, verbose=False, is_directed=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
@@ -131,6 +134,7 @@ def gca_constLat_intersection(
     Parameters
     ----------
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
+    gca_rad : [2, 2] np.ndarray Latitude and longitude of the two end points of the GCA.
     constZ : float
         The constant latitude represented in cartesian of the latitude line.
     fma_disabled : bool, optional (default=False)
@@ -156,10 +160,10 @@ def gca_constLat_intersection(
         If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
         is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
     """
-    x1, x2 = gca_cart
+    x1_cart, x2_cart = gca_cart
 
     if fma_disabled:
-        n = cross(x1, x2)
+        n = cross(x1_cart, x2_cart)
 
     else:
         # Raise a warning for Windows users
@@ -169,7 +173,7 @@ def gca_constLat_intersection(
                 "https://bugs.python.org/msg312480)"
                 "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
             )
-        n = cross_fma(x1, x2)
+        n = cross_fma(x1_cart, x2_cart)
 
     nx, ny, nz = n
 
@@ -179,23 +183,23 @@ def gca_constLat_intersection(
     p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
     p2_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz + s_tilde * nx)
 
-    p1 = np.array([p1_x, p1_y, constZ])
-    p2 = np.array([p2_x, p2_y, constZ])
+    p1_cart = np.array([p1_x, p1_y, constZ])
+    p2_cart = np.array([p2_x, p2_y, constZ])
 
     res = None
 
     # Now test which intersection point is within the GCA range
-    if point_within_gca(p1, gca_cart, is_directed=is_directed):
+    if point_within_gca(p1_cart, gca_cart, gca_rad, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
-            p1, gca_cart, verbose=verbose
+            p1_cart, gca_cart, verbose=verbose
         )
         res = (
             np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
         )
 
-    if point_within_gca(p2, gca_cart, is_directed=is_directed):
+    if point_within_gca(p2_cart, gca_cart, gca_rad, is_directed=is_directed):
         converged_pt = _newton_raphson_solver_for_gca_constLat(
-            p2, gca_cart, verbose=verbose
+            p2_cart, gca_cart, verbose=verbose
         )
         res = (
             np.array([converged_pt]) if res is None else np.vstack((res, converged_pt))
