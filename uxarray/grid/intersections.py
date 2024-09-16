@@ -48,9 +48,9 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
 
     # Compute normals and orthogonal bases using FMA
     if fma_disabled:
-        w0w1_norm = np.cross(w0, w1)
-        v0v1_norm = np.cross(v0, v1)
-        cross_norms = np.cross(w0w1_norm, v0v1_norm)
+        w0w1_norm = cross(w0, w1)
+        v0v1_norm = cross(v0, v1)
+        cross_norms = cross(w0w1_norm, v0v1_norm)
     else:
         w0w1_norm = cross_fma(w0, w1)
         v0v1_norm = cross_fma(v0, v1)
