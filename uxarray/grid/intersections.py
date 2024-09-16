@@ -4,7 +4,7 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma
+from uxarray.utils.computing import cross_fma, allclose, cross, dot
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
@@ -65,29 +65,29 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
             )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not np.allclose(
-        np.dot(w0w1_norm, w0), 0, atol=MACHINE_EPSILON
-    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=MACHINE_EPSILON):
+    if not allclose(
+        dot(w0w1_norm, w0), 0.0, atol=MACHINE_EPSILON
+    ) or not allclose(dot(w0w1_norm, w1), 0.0, atol=MACHINE_EPSILON):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
-    if not np.allclose(
-        np.dot(v0v1_norm, v0), 0, atol=MACHINE_EPSILON
-    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=MACHINE_EPSILON):
+    if not allclose(
+        dot(v0v1_norm, v0), 0.0,0.0, atol=MACHINE_EPSILON
+    ) or not allclose(dot(v0v1_norm, v1), 0.0, atol=MACHINE_EPSILON):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
 
-    if not np.allclose(
-        np.dot(cross_norms, v0v1_norm), 0, atol=MACHINE_EPSILON
-    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=MACHINE_EPSILON):
+    if not allclose(
+        dot(cross_norms, v0v1_norm), 0.0, atol=MACHINE_EPSILON
+    ) or not allclose(dot(cross_norms, w0w1_norm), 0.0, atol=MACHINE_EPSILON):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
         )
 
     # If the cross_norms is zero, the two GCAs are parallel
-    if np.allclose(cross_norms, 0, atol=MACHINE_EPSILON):
+    if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
         res = []
         # Check if the two GCAs are overlapping
         if point_within_gca(v0, [w0, w1]):

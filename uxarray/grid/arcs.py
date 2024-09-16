@@ -102,7 +102,7 @@ def _point_within_gca_body(
             ):
                 non_pole_endpoint = GCRv1_lonlat
 
-            if non_pole_endpoint is not None and not np.isclose(
+            if non_pole_endpoint is not None and not isclose(
                 non_pole_endpoint[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=0.0
             ):
                 return False
@@ -351,16 +351,17 @@ def extreme_gca_latitude(gca_cart, extreme_type):
         raise ValueError("extreme_type must be either 'max' or 'min'")
 
     n1, n2 = gca_cart
-    dot_n1_n2 = np.dot(n1, n2)
+
+    dot_n1_n2 = dot(np.asarray(n1), np.asarray(n2))
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
     d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
     d_a_max = (
         np.clip(d_a_max, 0, 1)
-        if np.isclose(d_a_max, [0, 1], atol=MACHINE_EPSILON).any()
+        if isclose(d_a_max, 0, atol=ERROR_TOLERANCE)
+        or isclose(d_a_max, 1, atol=ERROR_TOLERANCE)
         else d_a_max
     )
-
     # Before we make sure the grid coordinates are normalized, do not try to skip the normalization steps!
     _, lat_n1 = _xyz_to_lonlat_rad(n1[0], n1[1], n1[2])
     _, lat_n2 = _xyz_to_lonlat_rad(n2[0], n2[1], n2[2])
