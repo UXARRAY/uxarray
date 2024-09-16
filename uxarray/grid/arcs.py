@@ -2,7 +2,7 @@ import numpy as np
 
 # from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
 
-from uxarray.grid.utils import _xyz_to_lonlat_rad_no_norm, _normalize_xyz_scalar
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_no_norm, _normalize_xyz_scalar
 from uxarray.constants import ERROR_TOLERANCE
 
 from uxarray.utils.computing import isclose, cross, dot
