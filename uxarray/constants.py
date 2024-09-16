@@ -16,7 +16,7 @@ ERROR_TOLERANCE = np.float64(1.0e-8)
 # error tolerance, mainly in the intersection calculations.
 MACHINE_EPSILON = np.float64(np.finfo(float).eps)
 
-ENABLE_JIT_CACHE = False
+ENABLE_JIT_CACHE = True
 ENABLE_JIT = True
 
 ENABLE_FMA = False
