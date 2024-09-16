@@ -4,7 +4,7 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose, dot, cross
+from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
@@ -99,7 +99,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
         return np.array(res)
 
     # Normalize the cross_norms
-    cross_norms = cross_norms / np.linalg.norm(cross_norms)
+    cross_norms = cross_norms / norm(cross_norms)
     x1 = cross_norms
     x2 = -x1
 
