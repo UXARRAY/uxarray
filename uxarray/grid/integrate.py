@@ -93,7 +93,7 @@ def _get_zonal_faces_weight_at_constLat(
     # Iterate through all faces and their edges
     for face_index, face_edges in enumerate(faces_edges_cart_candidate):
         # Remove the Int_fill_value from the face_edges
-        face_edges = face_edges[np.all(face_edges != INT_FILL_VALUE, axis=(1, 2))]
+        face_edges = face_edges[all(face_edges != INT_FILL_VALUE, axis=(1, 2))]
         if is_face_GCA_list is not None:
             is_GCA_list = is_face_GCA_list[face_index]
         else:
