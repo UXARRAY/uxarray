@@ -35,10 +35,10 @@ class DatasetBenchmark:
     params = [['480km', '120km'],]
 
 
-    def setup(self, resolution, **kwargs):
+    def setup(self, resolution, **args):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
-    def teardown(self, resolution, **kwargs):
+    def teardown(self, resolution, **args):
         del self.uxds
 
 class GridBenchmark:
