@@ -1,5 +1,7 @@
 import os
 import urllib.request
+from distutils.command.install import value
+from multiprocessing.managers import Value
 from pathlib import Path
 
 import uxarray as ux
@@ -35,10 +37,17 @@ class DatasetBenchmark:
     params = [['480km', '120km'],]
 
 
-    def setup(self, resolution, **args):
+    def setup(self, *args, **kwargs):
+
+        if "resolution" in kwargs:
+            resolution = kwargs["resolution"]
+        elif len(args) > 0:
+            resolution = args[0]
+        else:
+            raise ValueError("Resolution not provided")
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
-    def teardown(self, resolution, **args):
+    def teardown(self, *args, **kwargs):
         del self.uxds
 
 class GridBenchmark:
@@ -47,7 +56,15 @@ class GridBenchmark:
     param_names = ['resolution', ]
     params = [['480km', '120km'], ]
 
-    def setup(self, resolution, **kwargs):
+    def setup(self, *args, **kwargs):
+
+        if "resolution" in kwargs:
+            resolution = kwargs["resolution"]
+        elif len(args) > 0:
+            resolution = args[0]
+        else:
+            raise ValueError("Resolution not provided")
+
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
 
     def teardown(self, resolution, **kwargs):
