@@ -1,7 +1,5 @@
 import os
 import urllib.request
-from distutils.command.install import value
-from multiprocessing.managers import Value
 from pathlib import Path
 
 import uxarray as ux
