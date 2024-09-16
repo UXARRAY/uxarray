@@ -184,7 +184,7 @@ def gca_constLat_intersection(
         return np.array([])
 
     if fma_disabled:
-        n = np.cross(x1, x2)
+        n = cross(x1, x2)
 
     else:
         # Raise a warning for Windows users
