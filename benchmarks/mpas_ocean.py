@@ -29,7 +29,8 @@ file_path_dict = {"480km": [current_path / grid_filename_480, current_path / dat
 
 
 class DatasetBenchmark:
-    """Class used as a template for benchmarks in this module."""
+    """Class used as a template for benchmarks requiring a ``UxDataset`` in
+    this module across both resolutions."""
     param_names = ['resolution',]
     params = [['480km', '120km'],]
 
@@ -39,6 +40,19 @@ class DatasetBenchmark:
 
     def teardown(self, resolution, **kwargs):
         del self.uxds
+
+class GridBenchmark:
+    """Class used as a template for benchmarks requiring a ``Grid`` in this
+    module across both resolutions."""
+    param_names = ['resolution', ]
+    params = [['480km', '120km'], ]
+
+    def setup(self, resolution, **kwargs):
+        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+
+    def teardown(self, resolution, **kwargs):
+        del self.uxgrid
+
 
 
 class Gradient(DatasetBenchmark):
@@ -58,7 +72,7 @@ class Integrate(DatasetBenchmark):
 
 class GeoDataFrame(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
-    params = DatasetBenchmark.params + [True, False]
+    params = DatasetBenchmark.params + [[True, False]]
 
 
     def time_to_geodataframe(self, resolution, exclude_antimeridian):
