@@ -850,9 +850,7 @@ def _populate_face_latlon_bound(
             )
 
             # Check if the node matches the pole point or if the pole point is within the edge_cart
-            if allclose(
-                n1_cart, pole_point, atol=ERROR_TOLERANCE
-            ) or point_within_gca(
+            if allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(
                 pole_point, np.array([n1_cart, n2_cart]), is_directed=False
             ):
                 is_center_pole = False

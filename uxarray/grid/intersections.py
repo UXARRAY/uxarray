@@ -4,7 +4,7 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose, cross, dot
+from uxarray.utils.computing import cross_fma, allclose, dot
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
@@ -65,16 +65,16 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
             )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not allclose(
-        dot(w0w1_norm, w0), 0.0, atol=MACHINE_EPSILON
-    ) or not allclose(dot(w0w1_norm, w1), 0.0, atol=MACHINE_EPSILON):
+    if not allclose(dot(w0w1_norm, w0), 0.0, atol=MACHINE_EPSILON) or not allclose(
+        dot(w0w1_norm, w1), 0.0, atol=MACHINE_EPSILON
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
-    if not allclose(
-        dot(v0v1_norm, v0), 0.0,0.0, atol=MACHINE_EPSILON
-    ) or not allclose(dot(v0v1_norm, v1), 0.0, atol=MACHINE_EPSILON):
+    if not allclose(dot(v0v1_norm, v0), 0.0, 0.0, atol=MACHINE_EPSILON) or not allclose(
+        dot(v0v1_norm, v1), 0.0, atol=MACHINE_EPSILON
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
