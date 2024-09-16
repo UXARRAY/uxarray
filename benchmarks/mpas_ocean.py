@@ -92,7 +92,7 @@ class ConnectivityConstruction(DatasetBenchmark):
 
 class MatplotlibConversion(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['periodic_elements']
-    params = DatasetBenchmark.params + ['include', 'exclude', 'split']
+    params = DatasetBenchmark.params + [['include', 'exclude', 'split']]
 
     def time_dataarray_to_polycollection(self, resolution, periodic_elements):
         self.uxds[data_var].to_polycollection()
