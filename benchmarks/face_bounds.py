@@ -10,8 +10,6 @@ grid_geoflow = current_path / "test" / "meshfiles" / "ugrid" / "geoflow-small" /
 grid_scrip = current_path / "test" / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
 grid_mpas= current_path / "test" / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
 
-
-
 class FaceBounds:
 
     params = [grid_quad_hex, grid_geoflow, grid_scrip, grid_mpas]
@@ -30,3 +28,13 @@ class FaceBounds:
     def peakmem_face_bounds(self, grid_path):
         """Peak memory usage obtain ``Grid.face_bounds."""
         face_bounds = self.uxgrid.bounds
+
+class Bounds:
+    def setup(self):
+        self.uxgrid = ux.open_grid(r"C:\Users\chmie\PycharmProjects\ncar-uxarray\uxarray-hongyu\benchmarks\oQU480.grid.nc")
+
+    def teardown(self):
+        del self.uxgrid
+
+    def time_bounds(self):
+        self.uxgrid.bounds

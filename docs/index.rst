@@ -15,7 +15,7 @@
 
 
 .. .. image:: _static/images/nsf.png
-..    :scale: 100%
+..   :scale: 100%
 ..   :align: right
 
 .. |
@@ -111,11 +111,6 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
     GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
     UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
-
---------------------
-
-Supported By
-============
 
 .. raw:: html
 

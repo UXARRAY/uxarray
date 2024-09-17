@@ -4,7 +4,7 @@ import xarray as xr
 import numpy as np
 
 
-from typing import TYPE_CHECKING, Optional, Union, Hashable, Literal
+from typing import TYPE_CHECKING, Optional, Hashable, Literal
 
 from uxarray.formatting_html import array_repr
 
@@ -20,8 +20,6 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
 
 from xarray.core.utils import UncachedAccessor
-
-from warnings import warn
 
 
 from uxarray.core.gradient import (
@@ -180,12 +178,14 @@ class UxDataArray(xr.DataArray):
                 exclude_antimeridian=exclude_antimeridian,
             )
 
+            var_name = self.name if self.name is not None else "var"
+
             if exclude_antimeridian:
-                gdf[self.name] = np.delete(
+                gdf[var_name] = np.delete(
                     self.values, self.uxgrid.antimeridian_face_indices, axis=0
                 )
             else:
-                gdf[self.name] = self.values
+                gdf[var_name] = self.values
             return gdf
 
         elif self.values.size == self.uxgrid.n_node:
@@ -289,65 +289,6 @@ class UxDataArray(xr.DataArray):
 
         return uxds
 
-    def nearest_neighbor_remap(
-        self,
-        destination_obj: Union[Grid, UxDataArray, UxDataset],
-        remap_to: str = "nodes",
-        coord_type: str = "spherical",
-    ):
-        """Nearest Neighbor Remapping between a source (``UxDataArray``) and
-        destination.`.
-
-        Parameters
-        ---------
-        destination_obj : Grid, UxDataArray, UxDataset
-            Destination for remapping
-        remap_to : str, default="nodes"
-            Location of where to map data, either "nodes" or "face centers"
-        coord_type : str, default="spherical"
-            Indicates whether to remap using on spherical or cartesian coordinates
-        """
-        warn(
-            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.nearest_neighbor() instead.",
-            DeprecationWarning,
-        )
-
-        return self.remap.nearest_neighbor(destination_obj, remap_to, coord_type)
-
-    def inverse_distance_weighted_remap(
-        self,
-        destination_obj: Union[Grid, UxDataArray, UxDataset],
-        remap_to: str = "nodes",
-        coord_type: str = "spherical",
-        power=2,
-        k=8,
-    ):
-        """Inverse Distance Weighted Remapping between a source
-        (``UxDataArray``) and destination.`.
-
-        Parameters
-        ---------
-        destination_obj : Grid, UxDataArray, UxDataset
-            Destination for remapping
-        remap_to : str, default="nodes"
-            Location of where to map data, either "nodes" or "face centers"
-        coord_type : str, default="spherical"
-            Indicates whether to remap using on spherical or cartesian coordinates
-        power : int, default=2
-            Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
-            power causes points that are further away to have less influence
-        k : int, default=8
-            Number of nearest neighbors to consider in the weighted calculation.
-        """
-        warn(
-            "This usage of remapping will be deprecated in a future release. It is advised to use uxds.remap.inverse_distance_weighted() instead.",
-            DeprecationWarning,
-        )
-
-        return self.remap.inverse_distance_weighted(
-            destination_obj, remap_to, coord_type, power, k
-        )
-
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> UxDataArray:
@@ -402,20 +343,6 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
-
-    def nodal_average(self):
-        """Computes the Nodal Average of a Data Variable, which is the mean of
-        the nodes that surround each face.
-
-        Can be used for remapping node-centered data to each face.
-        """
-
-        warnings.warn(
-            "This function will be deprecated in a future release. Please use uxda.mean(destination=`face`) instead.",
-            DeprecationWarning,
-        )
-
-        return self.topological_mean(destination="face")
 
     def topological_mean(
         self,
@@ -890,7 +817,7 @@ class UxDataArray(xr.DataArray):
         Face-centered variable
         >>> uxds['var'].gradient()
         Node-centered variable
-        >>> uxds['var'].nodal_average().gradient()
+        >>> uxds['var'].topological_mean(destination="face").gradient()
         """
 
         if not self._face_centered():
@@ -1183,17 +1110,17 @@ class UxDataArray(xr.DataArray):
         if self._face_centered():
             d_var = self.isel(
                 n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
-            ).values
+            )
 
         elif self._edge_centered():
             d_var = self.isel(
                 n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
-            ).values
+            )
 
         elif self._node_centered():
             d_var = self.isel(
                 n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
-            ).values
+            )
 
         else:
             raise ValueError(

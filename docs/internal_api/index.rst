@@ -141,6 +141,7 @@ Geometry
    grid.geometry._insert_pt_in_latlonbox
    grid.geometry._populate_face_latlon_bound
    grid.geometry._populate_bounds
+   grid.geometry._construct_hole_edge_indices
 
 Coordinates
 -----------

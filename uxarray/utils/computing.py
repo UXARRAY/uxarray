@@ -1,6 +1,76 @@
 import numpy as np
 import sys
 
+from numba import njit
+
+
+@njit
+def all(a):
+    """Numba decorated implementation of ``np.all()``
+
+    See Also
+    --------
+    numpy.all
+    """
+
+    return np.all(a)
+
+
+@njit
+def isclose(a, b, rtol=1e-05, atol=1e-08):
+    """Numba decorated implementation of ``np.isclose()``
+
+    See Also
+    --------
+    numpy.isclose
+    """
+
+    return np.isclose(a, b, rtol=rtol, atol=atol)
+
+
+@njit
+def allclose(a, b, rtol=1e-05, atol=1e-08):
+    """Numba decorated implementation of ``np.allclose()``
+
+    See Also
+    --------
+    numpy.allclose
+    """
+    return np.allclose(a, b, rtol=rtol, atol=atol)
+
+
+@njit
+def cross(a, b):
+    """Numba decorated implementation of ``np.cross()``
+
+    See Also
+    --------
+    numpy.cross
+    """
+    return np.cross(a, b)
+
+
+@njit
+def dot(a, b):
+    """Numba decorated implementation of ``np.dot()``
+
+    See Also
+    --------
+    numpy.dot
+    """
+    return np.dot(a, b)
+
+
+@njit
+def norm(x):
+    """Numba decorated implementation of ``np.linalg.norm()``
+
+    See Also
+    --------
+    numpy.linalg.norm
+    """
+    return np.linalg.norm(x)
+
 
 def _fmms(a, b, c, d):
     """

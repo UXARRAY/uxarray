@@ -6,6 +6,7 @@ from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_lonlat_rad_face_edge_nodes,
 )
+from uxarray.utils.computing import allclose, isclose
 import warnings
 import pandas as pd
 import xarray as xr
@@ -528,21 +529,27 @@ def _check_intersection(ref_edge, edges):
         intersection_point = gca_gca_intersection(ref_edge, edge)
 
         if intersection_point.size != 0:
+            # Handle both single point and multiple points case
+            if (
+                intersection_point.ndim == 1
+            ):  # If there's only one point, make it a 2D array
+                intersection_point = [intersection_point]  # Convert to list of points
+
             # for each intersection point, check if it is a pole point
             for point in intersection_point:
-                if np.allclose(point, pole_point, atol=ERROR_TOLERANCE):
+                if allclose(point, pole_point, atol=ERROR_TOLERANCE):
                     return True
                 intersection_points.append(point)
 
-    # only return the unique intersection points, the unique tolerance is set to ERROR_TOLERANCE
+    # Only return the unique intersection points, the unique tolerance is set to ERROR_TOLERANCE
     intersection_points = _unique_points(intersection_points, tolerance=ERROR_TOLERANCE)
 
     # If the unique intersection point is one and it is exactly one of the nodes of the face, return 0
     if len(intersection_points) == 1:
         for edge in edges:
-            if np.allclose(
+            if allclose(
                 intersection_points[0], edge[0], atol=ERROR_TOLERANCE
-            ) or np.allclose(intersection_points[0], edge[1], atol=ERROR_TOLERANCE):
+            ) or allclose(intersection_points[0], edge[1], atol=ERROR_TOLERANCE):
                 return 0
 
     return len(intersection_points)
@@ -686,18 +693,18 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     # Check for pole points and update latitudes
     is_pole_point = (
         lon_pt == INT_FILL_VALUE
-        and np.isclose(
-            new_pt[0], [0.5 * np.pi, -0.5 * np.pi], atol=ERROR_TOLERANCE
+        and isclose(
+            new_pt[0], np.asarray([0.5 * np.pi, -0.5 * np.pi]), atol=ERROR_TOLERANCE
         ).any()
     )
 
     if is_pole_point:
         # Check if the new point is close to the North Pole
-        if np.isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
+        if isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
             latlon_box[0][1] = 0.5 * np.pi
 
         # Check if the new point is close to the South Pole
-        elif np.isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
+        elif isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
             latlon_box[0][0] = -0.5 * np.pi
 
         return latlon_box
@@ -843,9 +850,7 @@ def _populate_face_latlon_bound(
             )
 
             # Check if the node matches the pole point or if the pole point is within the edge_cart
-            if np.allclose(
-                n1_cart, pole_point, atol=ERROR_TOLERANCE
-            ) or point_within_gca(
+            if allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(
                 pole_point, np.array([n1_cart, n2_cart]), is_directed=False
             ):
                 is_center_pole = False
@@ -924,16 +929,16 @@ def _populate_face_latlon_bound(
             )
 
             # Insert extreme latitude points into the latlonbox if they differ from the node latitudes
-            if not np.isclose(
+            if not isclose(
                 node1_lat_rad, lat_max, atol=ERROR_TOLERANCE
-            ) and not np.isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
+            ) and not isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
                 # Insert the maximum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
-            elif not np.isclose(
+            elif not isclose(
                 node1_lat_rad, lat_min, atol=ERROR_TOLERANCE
-            ) and not np.isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
+            ) and not isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
                 # Insert the minimum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
@@ -1091,3 +1096,12 @@ def _populate_bounds(
         return bounds
     else:
         grid._ds["bounds"] = bounds
+
+
+def _construct_hole_edge_indices(edge_face_connectivity):
+    """Index the missing edges on a partial grid with holes, that is a region
+    of the grid that is not covered by any geometry."""
+
+    # If an edge only has one face saddling it than the mesh has holes in it
+    edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
+    return edge_with_holes

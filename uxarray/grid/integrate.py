@@ -4,6 +4,8 @@ from uxarray.grid.intersections import gca_constLat_intersection
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 import pandas as pd
 
+from uxarray.utils.computing import isclose
+
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
 
@@ -73,7 +75,7 @@ def _get_zonal_faces_weight_at_constLat(
     # The -90 and 90 treatment is hard-coded in the function, based on:
     # If a pole point is inside a face, then this face's value is the only value that should be considered.
     # If the pole point is not inside any face, then it's on the boundary of faces around it, so their weights are even.
-    if np.isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or np.isclose(
+    if isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or isclose(
         latitude_cart, -1, atol=ERROR_TOLERANCE
     ):
         # Now all candidate faces( the faces around the pole) are considered as the same weight

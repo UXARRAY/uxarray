@@ -26,6 +26,13 @@ datafile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.
 grid_files = [gridfile_CSne8, gridfile_geoflow]
 data_files = [datafile_CSne30, datafile_geoflow]
 
+grid_quad_hex = current_path/ "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
+grid_geoflow = current_path/ "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+grid_mpas = current_path/ "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+
+
+# List of grid files to test
+grid_files_latlonBound = [grid_quad_hex, grid_geoflow, gridfile_CSne8, grid_mpas]
 
 class TestAntimeridian(TestCase):
 
@@ -53,6 +60,8 @@ class TestLineCollection(TestCase):
     def test_linecollection_execution(self):
         uxgrid = ux.open_grid(gridfile_CSne8)
         lines = uxgrid.to_linecollection()
+
+
 
 
 class TestPredicate(TestCase):
@@ -1397,6 +1406,31 @@ class TestLatlonBoundsMix(TestCase):
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
+
+
+# Test class
+class TestLatlonBoundsFiles:
+
+    def test_face_bounds(self):
+        """Test to ensure ``Grid.face_bounds`` works correctly for all grid
+        files."""
+        for grid_path in grid_files_latlonBound:
+            try:
+                # Open the grid file
+                self.uxgrid = ux.open_grid(grid_path)
+
+                # Test: Ensure the bounds are obtained
+                bounds = self.uxgrid.bounds
+                assert bounds is not None, f"Grid.face_bounds should not be None for {grid_path}"
+
+            except Exception as e:
+                # Print the failing grid file and re-raise the exception
+                print(f"Test failed for grid file: {grid_path}")
+                raise e
+
+            finally:
+                # Clean up the grid object
+                del self.uxgrid
 
 
 class TestGeoDataFrame(TestCase):

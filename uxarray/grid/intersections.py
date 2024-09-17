@@ -4,10 +4,10 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma
+from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
 
 
-def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
+def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
@@ -21,7 +21,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
         Cartesian coordinates of the first GCA.
     gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
-    fma_disabled : bool, optional (default=False)
+    fma_disabled : bool, optional (default=True)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
 
     Returns
@@ -48,9 +48,9 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
     # Compute normals and orthogonal bases using FMA
     if fma_disabled:
-        w0w1_norm = np.cross(w0, w1)
-        v0v1_norm = np.cross(v0, v1)
-        cross_norms = np.cross(w0w1_norm, v0v1_norm)
+        w0w1_norm = cross(w0, w1)
+        v0v1_norm = cross(v0, v1)
+        cross_norms = cross(w0w1_norm, v0v1_norm)
     else:
         w0w1_norm = cross_fma(w0, w1)
         v0v1_norm = cross_fma(v0, v1)
@@ -65,29 +65,29 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
             )
 
     # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not np.allclose(
-        np.dot(w0w1_norm, w0), 0, atol=MACHINE_EPSILON
-    ) or not np.allclose(np.dot(w0w1_norm, w1), 0, atol=MACHINE_EPSILON):
+    if not allclose(dot(w0w1_norm, w0), 0.0, atol=MACHINE_EPSILON) or not allclose(
+        dot(w0w1_norm, w1), 0.0, atol=MACHINE_EPSILON
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
         )
 
-    if not np.allclose(
-        np.dot(v0v1_norm, v0), 0, atol=MACHINE_EPSILON
-    ) or not np.allclose(np.dot(v0v1_norm, v1), 0, atol=MACHINE_EPSILON):
+    if not allclose(dot(v0v1_norm, v0), 0.0, 0.0, atol=MACHINE_EPSILON) or not allclose(
+        dot(v0v1_norm, v1), 0.0, atol=MACHINE_EPSILON
+    ):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
         )
 
-    if not np.allclose(
-        np.dot(cross_norms, v0v1_norm), 0, atol=MACHINE_EPSILON
-    ) or not np.allclose(np.dot(cross_norms, w0w1_norm), 0, atol=MACHINE_EPSILON):
+    if not allclose(
+        dot(cross_norms, v0v1_norm), 0.0, atol=MACHINE_EPSILON
+    ) or not allclose(dot(cross_norms, w0w1_norm), 0.0, atol=MACHINE_EPSILON):
         warnings.warn(
             "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
         )
 
     # If the cross_norms is zero, the two GCAs are parallel
-    if np.allclose(cross_norms, 0, atol=MACHINE_EPSILON):
+    if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
         res = []
         # Check if the two GCAs are overlapping
         if point_within_gca(v0, [w0, w1]):
@@ -99,7 +99,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
         return np.array(res)
 
     # Normalize the cross_norms
-    cross_norms = cross_norms / np.linalg.norm(cross_norms)
+    cross_norms = cross_norms / norm(cross_norms)
     x1 = cross_norms
     x2 = -x1
 
@@ -116,7 +116,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=False):
 
 
 def gca_constLat_intersection(
-    gca_cart, constZ, fma_disabled=False, verbose=False, is_directed=False
+    gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
@@ -130,7 +130,7 @@ def gca_constLat_intersection(
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
     constZ : float
         The constant latitude represented in cartesian of the latitude line.
-    fma_disabled : bool, optional (default=False)
+    fma_disabled : bool, optional (default=True)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
@@ -184,7 +184,7 @@ def gca_constLat_intersection(
         return np.array([])
 
     if fma_disabled:
-        n = np.cross(x1, x2)
+        n = cross(x1, x2)
 
     else:
         # Raise a warning for Windows users
@@ -230,9 +230,7 @@ def gca_constLat_intersection(
                     else np.vstack((res, converged_pt))
                 )
         except RuntimeError:
-            print(f"Error encountered with initial guess: {p1}")
-            print(f"gca_cart: {gca_cart}")
-            raise
+            raise RuntimeError(f"Error encountered with initial guess: {p1}")
 
     if point_within_gca(p2, gca_cart, is_directed=is_directed):
         try:
@@ -253,8 +251,6 @@ def gca_constLat_intersection(
                     else np.vstack((res, converged_pt))
                 )
         except RuntimeError:
-            print(f"Error encountered with initial guess: {p2}")
-            print(f"gca_cart: {gca_cart}")
-            raise
+            raise RuntimeError(f"Error encountered with initial guess: {p2}")
 
     return res if res is not None else np.array([])
