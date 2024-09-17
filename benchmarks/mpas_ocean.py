@@ -154,7 +154,7 @@ class RemapUpsample:
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
-    
+
 
 class DualMesh(DatasetBenchmark):
     def time_dual_mesh_construction(self, resolution):
