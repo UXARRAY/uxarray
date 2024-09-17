@@ -36,6 +36,7 @@ from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
+from warnings import warn
 
 import cartopy.crs as ccrs
 
@@ -1046,6 +1047,12 @@ class UxDataArray(xr.DataArray):
         if _check_duplicate_nodes_indices(self.uxgrid):
             raise RuntimeError(
                 "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
+            )
+
+        if self.hole_edge_indices.size != 0:
+            warn(
+                "This mesh is partial, which could cause inconsistent results and data will be lost",
+                Warning,
             )
 
         # Get dual mesh node face connectivity
