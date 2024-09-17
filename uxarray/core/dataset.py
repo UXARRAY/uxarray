@@ -355,7 +355,7 @@ class UxDataset(xr.Dataset):
                 "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
             )
 
-        if self.hole_edge_indices.size != 0:
+        if self.uxgrid.hole_edge_indices.size != 0:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
