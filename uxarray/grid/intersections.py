@@ -21,7 +21,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
         Cartesian coordinates of the first GCA.
     gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
-    fma_disabled : bool, optional (default=False)
+    fma_disabled : bool, optional (default=True)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
 
     Returns
@@ -130,7 +130,7 @@ def gca_constLat_intersection(
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
     constZ : float
         The constant latitude represented in cartesian of the latitude line.
-    fma_disabled : bool, optional (default=False)
+    fma_disabled : bool, optional (default=True)
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
