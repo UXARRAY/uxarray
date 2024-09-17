@@ -97,7 +97,7 @@ def _bilinear(
                 point = [lon[i], lat[i]]
                 # Find a subset of polygons that contain the point
                 polygons_subset = find_polygons_subset(dual, point)
-                print(polygons_subset)
+
                 weights = calculate_bilinear_weights(polygons_subset, point)
                 values[i] = np.sum(weights * polygons_subset.values, axis=-1)
                 # Search the subset to find which one contains the point
@@ -254,50 +254,47 @@ def calculate_bilinear_weights(polygon, point):
 
     Returns an array with 3 weights for each node of the triangle
     """
-    if len(point) == 2:
-        point = _lonlat_rad_to_xyz(point[1], point[0])
 
     # Find the area of the whole triangle
     x = np.array(
-        [polygon.uxgrid.node_x.values[0], polygon.uxgrid.node_x.values[1], polygon.uxgrid.node_x.values[2]]
+        [polygon.uxgrid.node_lon.values[0], polygon.uxgrid.node_lon.values[1], polygon.uxgrid.node_lon.values[2]]
     )
     y = np.array(
-        [polygon.uxgrid.node_y.values[0], polygon.uxgrid.node_y.values[1], polygon.uxgrid.node_y.values[2]]
+        [polygon.uxgrid.node_lat.values[0], polygon.uxgrid.node_lat.values[1], polygon.uxgrid.node_lat.values[2]]
     )
-    z = np.array(
-        [polygon.uxgrid.node_z.values[0], polygon.uxgrid.node_z.values[1], polygon.uxgrid.node_z.values[2]]
-    )
+
+    z = x * 0
     area = calculate_face_area(x, y, z)
 
     # Find the area of sub triangle: point, vertex b, vertex c
-    x_pbc = np.array([point[0], polygon.uxgrid.node_x.values[1], polygon.uxgrid.node_x.values[2]])
-    y_pbc = np.array([point[1], polygon.uxgrid.node_y.values[1], polygon.uxgrid.node_y.values[2]])
-    z_pbc = np.array([point[2], polygon.uxgrid.node_z.values[1], polygon.uxgrid.node_z.values[2]])
-    area_pbc = calculate_face_area(x_pbc, y_pbc, z_pbc)
+    x_pbc = np.array([point[0], polygon.uxgrid.node_lon.values[1], polygon.uxgrid.node_lon.values[2]])
+    y_pbc = np.array([point[1], polygon.uxgrid.node_lat.values[1], polygon.uxgrid.node_lat.values[2]])
+
+    area_pbc = calculate_face_area(x_pbc, y_pbc, z)
 
     # Find the area of sub triangle: vertex a, point, vertex c
-    x_apc = np.array([polygon.uxgrid.node_x.values[0], point[0], polygon.uxgrid.node_x.values[2]])
-    y_apc = np.array([polygon.uxgrid.node_y.values[0], point[1], polygon.uxgrid.node_y.values[2]])
-    z_apc = np.array([polygon.uxgrid.node_z.values[0], point[2], polygon.uxgrid.node_z.values[2]])
-    area_apc = calculate_face_area(x_apc, y_apc, z_apc)
+    x_apc = np.array([polygon.uxgrid.node_lon.values[0], point[0], polygon.uxgrid.node_lon.values[2]])
+    y_apc = np.array([polygon.uxgrid.node_lat.values[0], point[1], polygon.uxgrid.node_lat.values[2]])
+
+    area_apc = calculate_face_area(x_apc, y_apc, z)
 
     # Find the area of sub triangle: vertex a, vertex b, point
-    x_abp = np.array([polygon.uxgrid.node_x.values[0], polygon.uxgrid.node_x.values[1], point[0]])
-    y_abp = np.array([polygon.uxgrid.node_y.values[0], polygon.uxgrid.node_y.values[1], point[1]])
-    z_abp = np.array([polygon.uxgrid.node_z.values[0], polygon.uxgrid.node_z.values[1], point[2]])
-    area_abp = calculate_face_area(x_abp, y_abp, z_abp)
+    x_abp = np.array([polygon.uxgrid.node_lon.values[0], polygon.uxgrid.node_lon.values[1], point[0]])
+    y_abp = np.array([polygon.uxgrid.node_lat.values[0], polygon.uxgrid.node_lat.values[1], point[1]])
+
+    area_abp = calculate_face_area(x_abp, y_abp, z)
 
     weight_a = area_pbc[0] / area[0]
     weight_b = area_apc[0] / area[0]
     weight_c = area_abp[0] / area[0]
-    print(f"{weight_a + weight_b + weight_c} weight")
+
+    #print(point, polygon.uxgrid)
+    # print(f"{weight_a + weight_b + weight_c} weight")
     return np.array([weight_a, weight_b, weight_c])
 
 
 def find_polygons_subset(dual, point):
     """Find a subset of polygons to be searched for the polygon containing the point"""
-
-    point = _xyz_to_lonlat_rad(point[0], point[1], point[2])
 
     subset = dual.subset.nearest_neighbor(point, k=1,
                                           element='face centers')

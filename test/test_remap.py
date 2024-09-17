@@ -329,4 +329,4 @@ class TestBilinearRemapping(TestCase):
         destination = ux.open_dataset(destination, destination)
 
         bilinear_remap = source_uxds['latCell'].remap.bilinear(destination.uxgrid, remap_to='face centers',
-                                                               coord_type='cartesian')
+                                                               coord_type='spherical')
