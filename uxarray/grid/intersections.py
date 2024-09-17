@@ -230,9 +230,7 @@ def gca_constLat_intersection(
                     else np.vstack((res, converged_pt))
                 )
         except RuntimeError:
-            print(f"Error encountered with initial guess: {p1}")
-            print(f"gca_cart: {gca_cart}")
-            raise
+            raise RuntimeError(f"Error encountered with initial guess: {p1}")
 
     if point_within_gca(p2, gca_cart, is_directed=is_directed):
         try:
@@ -253,8 +251,6 @@ def gca_constLat_intersection(
                     else np.vstack((res, converged_pt))
                 )
         except RuntimeError:
-            print(f"Error encountered with initial guess: {p2}")
-            print(f"gca_cart: {gca_cart}")
-            raise
+            raise RuntimeError(f"Error encountered with initial guess: {p2}")
 
     return res if res is not None else np.array([])
