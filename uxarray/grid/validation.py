@@ -1,7 +1,6 @@
 import numpy as np
 from warnings import warn
 
-
 from uxarray.constants import ERROR_TOLERANCE
 
 
