@@ -247,7 +247,7 @@ class Grid:
         Parameters
         ----------
         filename : str
-            Path to shapefile or geojson filename
+            Path to grid file
         backend : str, default='geopandas'
             Backend to use to read the file, xarray or geopandas.
 
