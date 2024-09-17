@@ -992,4 +992,3 @@ class TestNormalizeExistingCoordinates(TestCase):
         uxgrid = ux.open_grid(self.gridfile_CSne30)
 
         assert _check_normalization(uxgrid)
-        pass
