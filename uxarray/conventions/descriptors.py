@@ -25,3 +25,9 @@ EDGE_NODE_DISTANCES_ATTRS = {
     "cf_role": "edge_node_distances",
     "long_name": "Distances between the nodes that make up " "each edge.",
 }
+
+HOLE_EDGE_INDICES_DIMS = ["n_edge"]
+HOLE_EDGE_INDICES_ATTRS = {
+    "cf_role": "hole_edge_indices",
+    "long_name": "Indices of edges that border a region of the grid not covered by any geometry",
+}
