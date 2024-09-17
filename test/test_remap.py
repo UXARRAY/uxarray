@@ -318,3 +318,15 @@ class TestInverseDistanceWeightedRemapping(TestCase):
 
         # Assert the remapped data is different from the original data
         assert not np.array_equal(destination_dataset['v1'], remap_to_edge_centers)
+
+
+class TestBilinearRemapping(TestCase):
+
+    def test_uxda_remap(self):
+        source = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc"
+        destination = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/oQU480.231010.nc"
+        source_uxds = ux.open_dataset(source, source)
+        destination = ux.open_dataset(destination, destination)
+
+        bilinear_remap = source_uxds['latCell'].remap.bilinear(destination.uxgrid, remap_to='face centers',
+                                                               coord_type='cartesian')
