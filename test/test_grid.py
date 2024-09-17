@@ -281,7 +281,6 @@ class TestGrid(TestCase):
 
         # Test read from scrip and from ugrid for grid class
         grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
-        pass
 
 
 class TestOperators(TestCase):
@@ -926,7 +925,6 @@ class TestClassMethods(TestCase):
         xrds = xr.open_dataset(self.gridfile_scrip)
         uxgrid = ux.Grid.from_dataset(xrds)
 
-        pass
 
     def test_from_face_vertices(self):
         single_face_latlon = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
@@ -965,7 +963,6 @@ class TestLatlonBounds(TestCase):
         xrds = xr.open_dataset(self.gridfile_mpas)
         uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
         bounds_xarray = uxgrid.bounds
-        pass
 
 
 class TestNormalizeExistingCoordinates(TestCase):
