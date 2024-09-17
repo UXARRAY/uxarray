@@ -116,7 +116,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
 
 
 def gca_constLat_intersection(
-    gca_cart, constZ, fma_disabled=False, verbose=False, is_directed=False
+    gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
