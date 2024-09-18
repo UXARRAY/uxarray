@@ -142,8 +142,25 @@ class HoleEdgeIndices(DatasetBenchmark):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
 class ZonalMean(DatasetBenchmark):
+
+    def setup(self, resolution, *args, **kwargs):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds.uxgrid.normalize_cartesian_coordinates()
     def time_zonal_mean(self, resolution):
         self.uxds['bottomDepth'].zonal_mean()
+
+class ZonalMeanExcludingBounds(DatasetBenchmark):
+
+    param_names = DatasetBenchmark.param_names + ['lat_step_size']
+    params = DatasetBenchmark.params + [[5, 10, 20, 40]]
+
+    def setup(self, resolution, *args, **kwargs):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds.uxgrid.normalize_cartesian_coordinates()
+        self.uxds.uxgrid.bounds
+
+    def time_zonal_mean(self, resolution, lat_step_size):
+        self.uxds['bottomDepth'].zonal_mean(lat_deg=(-90, 90, lat_step_size))
 
 class CheckNorm:
     param_names = ['resolution']
