@@ -95,7 +95,7 @@ class TestFaceWeights(TestCase):
         # The expected unique_intersections length is 1
         self.assertEqual(len(unique_intersections), 2)
 
-    
+
     def test_get_faces_constLat_intersection_info_one_intersection(self):
         face_edges_cart = np.array([
             [[-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01],
