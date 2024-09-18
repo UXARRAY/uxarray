@@ -28,4 +28,3 @@ class FaceBounds:
     def peakmem_face_bounds(self, grid_path):
         """Peak memory usage obtain ``Grid.face_bounds."""
         face_bounds = self.uxgrid.bounds
-
