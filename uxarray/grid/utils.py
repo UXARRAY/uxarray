@@ -7,6 +7,8 @@ from numba import njit
 
 from uxarray.constants import ENABLE_FMA
 
+from uxarray.utils.computing import cross, dot
+
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
@@ -188,8 +190,8 @@ def _newton_raphson_solver_for_gca_constLat(
     while error > tolerance and _iter < max_iter:
         f_vector = np.array(
             [
-                np.dot(
-                    np.cross(w0_cart, w1_cart),
+                dot(
+                    cross(w0_cart, w1_cart),
                     np.array([y_guess[0], y_guess[1], constZ]),
                 ),
                 y_guess[0] * y_guess[0]
