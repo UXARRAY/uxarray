@@ -6,8 +6,10 @@ import platform
 import warnings
 from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
 
+from uxarray.constants import ENABLE_FMA
 
-def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
+
+def gca_gca_intersection(gca1_cart, gca2_cart):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
 
@@ -21,8 +23,6 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
         Cartesian coordinates of the first GCA.
     gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
         Cartesian coordinates of the second GCA.
-    fma_disabled : bool, optional (default=True)
-        If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
 
     Returns
     -------
@@ -47,14 +47,17 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     v0, v1 = gca2_cart
 
     # Compute normals and orthogonal bases using FMA
-    if fma_disabled:
+    if ENABLE_FMA:
+        w0w1_norm = cross_fma(w0, w1)
+        v0v1_norm = cross_fma(v0, v1)
+        cross_norms = cross_fma(w0w1_norm, v0v1_norm)
         w0w1_norm = cross(w0, w1)
         v0v1_norm = cross(v0, v1)
         cross_norms = cross(w0w1_norm, v0v1_norm)
     else:
-        w0w1_norm = cross_fma(w0, w1)
-        v0v1_norm = cross_fma(v0, v1)
-        cross_norms = cross_fma(w0w1_norm, v0v1_norm)
+        w0w1_norm = cross(w0, w1)
+        v0v1_norm = cross(v0, v1)
+        cross_norms = cross(w0w1_norm, v0v1_norm)
 
         # Raise a warning for windows users
         if platform.system() == "Windows":
@@ -115,9 +118,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     return np.array(res)
 
 
-def gca_constLat_intersection(
-    gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
-):
+def gca_constLat_intersection(gca_cart, constZ, verbose=False, is_directed=False):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -130,8 +131,6 @@ def gca_constLat_intersection(
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
     constZ : float
         The constant latitude represented in cartesian of the latitude line.
-    fma_disabled : bool, optional (default=True)
-        If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
     is_directed : bool, optional (default=False)
@@ -183,10 +182,7 @@ def gca_constLat_intersection(
         pass
         return np.array([])
 
-    if fma_disabled:
-        n = cross(x1, x2)
-
-    else:
+    if ENABLE_FMA:
         # Raise a warning for Windows users
         if platform.system() == "Windows":
             warnings.warn(
@@ -195,6 +191,10 @@ def gca_constLat_intersection(
                 "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
             )
         n = cross_fma(x1, x2)
+        n = cross(x1, x2)
+
+    else:
+        n = cross(x1, x2)
 
     nx, ny, nz = n
 

@@ -5,6 +5,8 @@ import uxarray.utils.computing as ac_utils
 
 from numba import njit
 
+from uxarray.constants import ENABLE_FMA
+
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
@@ -84,7 +86,7 @@ def _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     return inverse_jacobian
 
 
-def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old, fma_disabled=True):
+def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     """Calculate the inverse Jacobian matrix for a given set of parameters.
 
     Parameters
@@ -128,15 +130,16 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old, fma_disabled=True):
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
     # The Jacobian Matrix
-    if fma_disabled:
-        # use numba when fma is disabled
-        jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
-    else:
+    if ENABLE_FMA:
         # use fma
         jacobian = [
             [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
             [2 * x_i_old, 2 * y_i_old],
         ]
+        jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
+    else:
+        # use fma
+        jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
 
     # First check if the Jacobian matrix is singular
     if np.linalg.matrix_rank(jacobian) < 2:
@@ -158,7 +161,7 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old, fma_disabled=True):
 
 
 def _newton_raphson_solver_for_gca_constLat(
-    init_cart, gca_cart, max_iter=1000, fma_disabled=True, verbose=False
+    init_cart, gca_cart, max_iter=1000, verbose=False
 ):
     """Solve for the intersection point between a great circle arc and a
     constant latitude.
@@ -207,7 +210,6 @@ def _newton_raphson_solver_for_gca_constLat(
                 w1_cart[2],
                 y_guess[0],
                 y_guess[1],
-                fma_disabled,
             )
 
             if j_inv is None:

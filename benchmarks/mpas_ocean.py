@@ -36,8 +36,6 @@ class DatasetBenchmark:
 
 
     def setup(self, resolution, *args, **kwargs):
-
-
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution, *args, **kwargs):
@@ -50,7 +48,6 @@ class GridBenchmark:
     params = [['480km', '120km'], ]
 
     def setup(self, resolution, *args, **kwargs):
-
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
 
     def teardown(self, resolution, *args, **kwargs):
@@ -144,3 +141,8 @@ class RemapUpsample:
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+
+
+class ZonalMean(DatasetBenchmark):
+    def time_zonal_mean(self, resolution):
+        self.uxds['bottomDepth'].zonal_mean()
