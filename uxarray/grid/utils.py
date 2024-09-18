@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
 import uxarray.utils.computing as ac_utils
 
@@ -116,11 +116,22 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
         [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
         [2 * x_i_old, 2 * y_i_old],
     ]
+
+    # First check if the Jacobian matrix is singular
+    if np.linalg.matrix_rank(jacobian) < 2:
+        warnings.warn("The Jacobian matrix is singular.")
+        return None
+
     try:
         inverse_jacobian = np.linalg.inv(jacobian)
-    except np.linalg.LinAlgError:
-        raise warnings("Warning: Singular Jacobian matrix encountered.")
-        return None
+    except np.linalg.LinAlgError as e:
+        # Print out the error message
+
+        cond_number = np.linalg.cond(jacobian)
+        print(f"Condition number: {cond_number}")
+        print(f"Jacobian matrix:\n{jacobian}")
+        print(f"An error occurred: {e}")
+        raise
 
     return inverse_jacobian
 
@@ -141,7 +152,7 @@ def _newton_raphson_solver_for_gca_constLat(
     Returns:
         np.ndarray or None: The intersection point or None if the solver fails to converge.
     """
-    tolerance = ERROR_TOLERANCE
+    tolerance = MACHINE_EPSILON * 100
     w0_cart, w1_cart = gca_cart
     error = float("inf")
     constZ = init_cart[2]
@@ -164,19 +175,23 @@ def _newton_raphson_solver_for_gca_constLat(
             ]
         )
 
-        j_inv = _inv_jacobian(
-            w0_cart[0],
-            w1_cart[0],
-            w0_cart[1],
-            w1_cart[1],
-            w0_cart[2],
-            w1_cart[2],
-            y_guess[0],
-            y_guess[1],
-        )
+        try:
+            j_inv = _inv_jacobian(
+                w0_cart[0],
+                w1_cart[0],
+                w0_cart[1],
+                w1_cart[1],
+                w0_cart[2],
+                w1_cart[2],
+                y_guess[0],
+                y_guess[1],
+            )
 
-        if j_inv is None:
-            return None
+            if j_inv is None:
+                return None
+        except RuntimeError as e:
+            print(f"Encountered an error: {e}")
+            raise
 
         y_new = y_guess - np.matmul(j_inv, f_vector)
         error = np.max(np.abs(y_guess - y_new))
