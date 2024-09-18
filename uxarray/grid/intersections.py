@@ -4,7 +4,7 @@ from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
+from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm, isclose
 
 from uxarray.constants import ENABLE_FMA
 
@@ -161,10 +161,10 @@ def gca_constLat_intersection(gca_cart, constZ, verbose=False, is_directed=False
     # We are using the relative tolerance and ERROR_TOLERANCE since the constZ is calculated from np.sin, which
     # may have some floating-point error.
     res = None
-    if np.isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+    if isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
         res = np.array([x1]) if res is None else np.vstack((res, x1))
 
-    if np.isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+    if isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
         res = np.array([x2]) if res is None else np.vstack((res, x2))
 
     if res is not None:
