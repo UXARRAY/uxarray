@@ -29,12 +29,3 @@ class FaceBounds:
         """Peak memory usage obtain ``Grid.face_bounds."""
         face_bounds = self.uxgrid.bounds
 
-class Bounds:
-    def setup(self):
-        self.uxgrid = ux.open_grid(r"C:\Users\chmie\PycharmProjects\ncar-uxarray\uxarray-hongyu\benchmarks\oQU480.grid.nc")
-
-    def teardown(self):
-        del self.uxgrid
-
-    def time_bounds(self):
-        self.uxgrid.bounds
