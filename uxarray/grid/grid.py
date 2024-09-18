@@ -151,6 +151,7 @@ class Grid:
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
+        self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
 
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
