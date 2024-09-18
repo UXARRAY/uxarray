@@ -50,7 +50,7 @@ class TestIntersectionPoint(TestCase):
 
         pt_same_lon_out = _lonlat_rad_to_xyz(0.0, 1.500000000000001)
         res = point_within_gca(pt_same_lon_out, gcr_same_lon_cart)
-        self.assertTrue(res)
+        self.assertFalse(res)
 
         pt_same_lon_out_2 = _lonlat_rad_to_xyz(0.1, 1.0)
         res = point_within_gca(pt_same_lon_out_2, gcr_same_lon_cart)

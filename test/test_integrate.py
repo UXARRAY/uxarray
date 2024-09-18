@@ -93,7 +93,7 @@ class TestFaceWeights(TestCase):
         is_GCA_list=None
         unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
         # The expected unique_intersections length is 1
-        self.assertEqual(len(unique_intersections), 1)
+        self.assertEqual(len(unique_intersections), 2)
 
     
     def test_get_faces_constLat_intersection_info_one_intersection(self):

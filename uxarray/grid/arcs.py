@@ -54,7 +54,7 @@ def _point_within_gca_body(
     ):
         # If the pt and the GCA are on the same longitude (the y coordinates are the same)
         if isclose(
-            GCRv0_lonlat[0], pt_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
+            GCRv0_lonlat[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=MACHINE_EPSILON
         ):
             # Now use the latitude to determine if the pt falls between the interval
             return in_between(GCRv0_lonlat[1], pt_lonlat[1], GCRv1_lonlat[1])
