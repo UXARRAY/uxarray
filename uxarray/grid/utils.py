@@ -3,6 +3,8 @@ from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
 import uxarray.utils.computing as ac_utils
 
+from numba import njit
+
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
@@ -68,7 +70,21 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     return grid_var
 
 
-def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
+@njit
+def _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
+    jacobian = np.array(
+        [
+            [(y0 * z1 - z0 * y1), (x0 * z1 - z0 * x1)],
+            [2 * x_i_old, 2 * y_i_old],
+        ]
+    )
+
+    inverse_jacobian = np.linalg.inv(jacobian)
+
+    return inverse_jacobian
+
+
+def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old, fma_disabled=True):
     """Calculate the inverse Jacobian matrix for a given set of parameters.
 
     Parameters
@@ -112,10 +128,15 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
     # The Jacobian Matrix
-    jacobian = [
-        [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
-        [2 * x_i_old, 2 * y_i_old],
-    ]
+    if fma_disabled:
+        # use numba when fma is disabled
+        jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
+    else:
+        # use fma
+        jacobian = [
+            [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
+            [2 * x_i_old, 2 * y_i_old],
+        ]
 
     # First check if the Jacobian matrix is singular
     if np.linalg.matrix_rank(jacobian) < 2:
@@ -137,7 +158,7 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
 
 
 def _newton_raphson_solver_for_gca_constLat(
-    init_cart, gca_cart, max_iter=1000, verbose=False
+    init_cart, gca_cart, max_iter=1000, fma_disabled=True, verbose=False
 ):
     """Solve for the intersection point between a great circle arc and a
     constant latitude.
@@ -176,6 +197,7 @@ def _newton_raphson_solver_for_gca_constLat(
         )
 
         try:
+            # TODO:
             j_inv = _inv_jacobian(
                 w0_cart[0],
                 w1_cart[0],
@@ -185,6 +207,7 @@ def _newton_raphson_solver_for_gca_constLat(
                 w1_cart[2],
                 y_guess[0],
                 y_guess[1],
+                fma_disabled,
             )
 
             if j_inv is None:
