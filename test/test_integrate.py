@@ -65,7 +65,37 @@ class TestIntegrate(TestCase):
 class TestFaceWeights(TestCase):
     gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+    def test_get_faces_constLat_intersection_0(self):
+        face_edges_cart = np.array(
+                            [
+                                [
+                                    [0.4173058582581286, 0.6425946703262667, -0.6425946703262667],
+                                    [0.3779644730092273, 0.6546536707079771, -0.6546536707079772]
+                                ],
+                                [
+                                    [0.3779644730092273, 0.6546536707079771, -0.6546536707079772],
+                                    [0.3942945976454632, 0.6829382762718699, -0.6149203859609872]
+                                ],
+                                [
+                                    [0.3942945976454632, 0.6829382762718699, -0.6149203859609872],
+                                    [0.4346360511835707, 0.6692808272283023, -0.6026231636073673]
+                                ],
+                                [
+                                    [0.4346360511835707, 0.6692808272283023, -0.6026231636073673],
+                                    [0.4173058582581286, 0.6425946703262667, -0.6425946703262667]
+                                ]
+                            ])
 
+
+        latitude_cart = -0.6293203910498374
+        is_directed=False
+        is_latlonface=False
+        is_GCA_list=None
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        # The expected unique_intersections length is 1
+        self.assertEqual(len(unique_intersections), 1)
+
+    
     def test_get_faces_constLat_intersection_info_one_intersection(self):
         face_edges_cart = np.array([
             [[-5.4411371445381629e-01, -4.3910468172333759e-02, -8.3786164521844386e-01],
