@@ -61,7 +61,6 @@ def open_grid(
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
-
     if "source_grid" in kwargs.keys():
         warn(
             "source_grid is no longer a supported kwarg",
