@@ -160,6 +160,7 @@ class Grid:
 
         # initialize attributes
         self._antimeridian_face_indices = None
+        self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
 
         # initialize cached data structures and flags (visualization)
         self._gdf = None
