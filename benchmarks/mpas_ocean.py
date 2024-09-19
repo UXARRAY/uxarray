@@ -148,14 +148,6 @@ class HoleEdgeIndices(DatasetBenchmark):
 
 class ConstructFaceLatLon(GridBenchmark):
 
-    param_names = ['resolution']
-    params = ['480km', '120km']
-
-    def setup(self, resolution):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
-
-    def teardown(self, resolution):
-        del self.uxgrid
 
     def time_welzl(self, resolution):
         from uxarray.grid.coordinates import _construct_face_centerpoints
