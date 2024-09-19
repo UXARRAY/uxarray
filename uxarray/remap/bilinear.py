@@ -11,6 +11,7 @@ import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
 from uxarray.grid.area import calculate_face_area
+from uxarray.grid.coordinates import _xyz_to_lonlat_deg
 
 
 def _bilinear(
@@ -38,29 +39,35 @@ def _bilinear(
         Data mapped to destination grid
     """
 
-    # TODO: The source data has to be on the face centers, if it is not a topological aggregation needs to be done
-
     # ensure array is a np.ndarray
     source_data = np.asarray(source_uxda.data)
     source_grid = source_uxda.uxgrid
 
     n_elements = source_data.shape[-1]
 
-    # Construct dual for searching
-    dual = source_uxda.get_dual()
-
+    # Find where the source data is located
     if n_elements == source_grid.n_node:
         source_data_mapping = "nodes"
-    elif n_elements == source_grid.n_edge:
-        source_data_mapping = "edge centers"
     elif n_elements == source_grid.n_face:
         source_data_mapping = "face centers"
+    elif n_elements == source_grid.n_edge:
+        # Since currently `topological_mean` is not supported for edge centers raise a `ValueError`
+        raise ValueError(
+            "'edges' is currently an unsupported source data dimension for bilinear remapping"
+        )
     else:
         raise ValueError(
             f"Invalid source_data shape. The final dimension should be either match the number of corner "
             f"nodes ({source_grid.n_node}), edge centers ({source_grid.n_edge}), or face centers ({source_grid.n_face}) in the"
             f" source grid, but received: {source_data.shape}"
         )
+
+    # If the data isn't face centered, take a `topological_mean` so the data will be face centered for the dual
+    if source_data_mapping != "face centers":
+        source_uxda = source_uxda.topological_mean(destination="face")
+
+    # Construct dual for searching
+    dual = source_uxda.get_dual()
 
     if coord_type == "spherical":
         # get destination coordinate pairs
@@ -87,8 +94,7 @@ def _bilinear(
                 f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
                 f"but received: {remap_to}"
             )
-        # TODO: Find dual polygon that contains point
-        # TODO: Create `calculate_bilinear_weights`
+        # TODO: Find subset of potential polygons that contains point
         values = np.ndarray(data_size)
         if source_grid.hole_edge_indices.size == 0:
             for i in range(len(lon)):
@@ -135,20 +141,16 @@ def _bilinear(
                 f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
                 f"but received: {remap_to}"
             )
-        # TODO: Find dual polygon that contains point
 
-        # TODO: Get bilinear weights
-        # TODO: Find dual polygon that contains point
-        # TODO: Create `calculate_bilinear_weights`
+        # TODO: Find subset of potential polygons that contains point
         values = np.ndarray(data_size)
         if source_grid.hole_edge_indices.size == 0:
             for i in range(len(cart_x)):
-                point = [cart_x[i], cart_y[i], cart_z[i]]
+                # Convert xyz to lat lon to use in subset and weights calculation
+                point = _xyz_to_lonlat_deg(cart_x[i], cart_y[i], cart_z[i])
 
                 # Find a subset of polygons that contain the point
                 polygons_subset = find_polygons_subset(dual, point)
-                # print(polygons_subset.uxgrid.node_lon.values, polygons_subset.uxgrid.node_lat.values,
-                #       point)
 
                 weights = calculate_bilinear_weights(polygons_subset, point)
                 values[i] = np.sum(weights * polygons_subset.values, axis=-1)
@@ -165,8 +167,6 @@ def _bilinear(
         raise ValueError(
             f"Invalid coord_type. Expected either 'spherical' or 'cartesian', but received {coord_type}"
         )
-
-    # TODO: Apply bilinear weights to destination data
 
     return values
 
@@ -305,7 +305,7 @@ def calculate_bilinear_weights(polygon, point):
     weight_a = area_pbc[0] / area[0]
     weight_b = area_apc[0] / area[0]
     weight_c = area_abp[0] / area[0]
-
+    # print(weight_a + weight_b + weight_c)
     return np.array([weight_a, weight_b, weight_c])
 
 
