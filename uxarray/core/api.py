@@ -61,7 +61,6 @@ def open_grid(
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
-    # extension = os.path.splitext(grid_filename_or_obj)
 
     if "source_grid" in kwargs.keys():
         warn(
