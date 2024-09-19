@@ -33,6 +33,7 @@ python -m pip install \
     pandas \
     scikit-learn \
     scipy \
+    geopandas \
     xarray
 
 # install rest from source

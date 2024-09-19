@@ -286,12 +286,17 @@ SCRIP
    io._scrip._encode_scrip
 
 
-Shapefile
+GeoPandas
 ---------
 .. autosummary::
    :toctree: generated/
 
-   io._shapefile._read_shpfile
+   io._geopandas._read_geodataframe
+   io._geopandas._read_geopandas
+   io._geopandas._encode_geopandas
+   io._geopandas._standardize_geopandas
+   io._geopandas._is_geopandas
+   io._geopandas._validate_minimum_geopandas
 
 Vertices
 --------
