@@ -1,6 +1,6 @@
 import numpy as np
 
-from uxarray.grid.utils import _lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 from numba import njit, config
 from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT

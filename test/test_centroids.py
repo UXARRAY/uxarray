@@ -5,7 +5,7 @@ import numpy.testing as nt
 import uxarray as ux
 from pathlib import Path
 from uxarray.grid.coordinates import _populate_face_centroids, _populate_edge_centroids, _populate_face_centerpoints, _is_inside_circle, _circle_from_three_points, _circle_from_two_points
-from uxarray.grid.utils import _normalize_xyz
+from uxarray.grid.coordinates import _normalize_xyz
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 

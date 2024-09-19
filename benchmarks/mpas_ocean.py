@@ -173,4 +173,3 @@ class CheckNorm:
     def time_check_norm(self, resolution):
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
-
