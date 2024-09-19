@@ -146,7 +146,7 @@ class HoleEdgeIndices(DatasetBenchmark):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
 
-class ConstructFaceLatLon:
+class ConstructFaceLatLon(GridBenchmark):
 
     param_names = ['resolution']
     params = ['480km', '120km']
