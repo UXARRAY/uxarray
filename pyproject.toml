@@ -42,6 +42,7 @@ dependencies = [
   "scipy",
   "shapely",
   "spatialpandas",
+  "geopandas",
   "xarray",
 ]
 # minimal dependencies end

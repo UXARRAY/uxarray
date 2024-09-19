@@ -281,7 +281,6 @@ class TestGrid(TestCase):
 
         # Test read from scrip and from ugrid for grid class
         grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
-        pass
 
 
 class TestOperators(TestCase):
@@ -926,7 +925,6 @@ class TestClassMethods(TestCase):
         xrds = xr.open_dataset(self.gridfile_scrip)
         uxgrid = ux.Grid.from_dataset(xrds)
 
-        pass
 
     def test_from_face_vertices(self):
         single_face_latlon = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
@@ -961,7 +959,35 @@ class TestLatlonBounds(TestCase):
         face_bounds = bounds_xarray.values
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
 
-    def test_opti_bounds(self):
-        import uxarray
-        uxgrid = ux.open_grid(gridfile_CSne8)
-        bounds = uxgrid.bounds
+    def test_populate_bounds_MPAS(self):
+        uxgrid = ux.open_grid(self.gridfile_mpas)
+        bounds_xarray = uxgrid.bounds
+
+
+class TestNormalizeExistingCoordinates(TestCase):
+    gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+    gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+
+    def test_non_norm_initial(self):
+        """Check the normalization of coordinates that were initially parsed as
+        non-normalized."""
+        from uxarray.grid.validation import _check_normalization
+        uxgrid = ux.open_grid(self.gridfile_mpas)
+
+        # Make the coordinates not normalized
+        uxgrid.node_x.data = 5 * uxgrid.node_x.data
+        uxgrid.node_y.data = 5 * uxgrid.node_y.data
+        uxgrid.node_z.data = 5 * uxgrid.node_z.data
+        assert not _check_normalization(uxgrid)
+
+        uxgrid.normalize_cartesian_coordinates()
+
+        assert _check_normalization(uxgrid)
+
+    def test_norm_initial(self):
+        """Coordinates should be normalized for grids that we construct
+        them."""
+        from uxarray.grid.validation import _check_normalization
+        uxgrid = ux.open_grid(self.gridfile_CSne30)
+
+        assert _check_normalization(uxgrid)
