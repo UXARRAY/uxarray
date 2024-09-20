@@ -155,16 +155,16 @@ def _bilinear(
                 weights = calculate_bilinear_weights(polygons_subset, point)
                 values[i] = np.sum(weights * polygons_subset.values, axis=-1)
                 # Search the subset to find which one contains the point
-                for polygon in polygons_subset:
-                    if point_in_polygon(polygon, point):
-                        if polygon.n_nodes == 3:
-                            # TODO: Get indices of the nodes of the polygon
-                            polygon_ind = None
-                            weights = calculate_bilinear_weights(polygon, point)
-                            values[i] = np.sum(weights * source_data[..., polygon_ind], axis=-1)
-                            break
-                        elif:
-                            polygon_triangle_split(polygon)
+                # for polygon in polygons_subset:
+                #     if point_in_polygon(polygon, point):
+                #         if polygon.n_nodes == 3:
+                #             # TODO: Get indices of the nodes of the polygon
+                #             polygon_ind = None
+                #             weights = calculate_bilinear_weights(polygon, point)
+                #             values[i] = np.sum(weights * source_data[..., polygon_ind], axis=-1)
+                #             break
+                #         elif:
+                #             polygon_triangle_split(polygon)
 
     else:
         raise ValueError(
@@ -334,5 +334,5 @@ def polygon_triangle_split(polygon, point):
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
 
         # TODO: Create point_inside_polygon() function
-        if point_inside_triangle([node1, node2, node3], point):
-            return [node1, node2, node3], [values[0], values[j + 1], values[j + 2]]
+        # if point_inside_triangle([node1, node2, node3], point):
+        #     return [node1, node2, node3], [values[0], values[j + 1], values[j + 2]]
