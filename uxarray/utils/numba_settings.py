@@ -1,5 +1,5 @@
 import uxarray.constants
-
+from uxarray.constants import ENABLE_JIT
 from numba import njit
 
 
@@ -51,9 +51,9 @@ def disable_jit():
     uxarray.constants.ENABLE_JIT = False
 
 
-def ux_njit(enable_jit=uxarray.constants.ENABLE_JIT, **kwargs):
+def ux_njit(**kwargs):
     def wrapper(func):
-        if enable_jit:
+        if ENABLE_JIT:
             return njit(func, **kwargs)
         return func
 

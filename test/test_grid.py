@@ -337,7 +337,7 @@ class TestFaceAreas(TestCase):
         """Computes the total face area of an MPAS mesh that lies on a unit
         sphere, with an expected total face area of 4pi."""
         mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
-        enable_jit()
+        disable_jit()
         primal_grid = ux.open_grid(mpas_grid_path, use_dual=False)
         dual_grid = ux.open_grid(mpas_grid_path, use_dual=True)
 
