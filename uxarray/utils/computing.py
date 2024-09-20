@@ -3,8 +3,10 @@ import sys
 from uxarray.constants import ENABLE_JIT_CACHE
 from numba import njit
 
+from uxarray.utils.numba_settings import ux_njit
 
-@njit(cache=ENABLE_JIT_CACHE)
+
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def all(a):
     """Numba decorated implementation of ``np.all()``
 
@@ -16,7 +18,7 @@ def all(a):
     return np.all(a)
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def isclose(a, b, rtol=1e-05, atol=1e-08):
     """Numba decorated implementation of ``np.isclose()``
 
@@ -28,7 +30,7 @@ def isclose(a, b, rtol=1e-05, atol=1e-08):
     return np.isclose(a, b, rtol=rtol, atol=atol)
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def allclose(a, b, rtol=1e-05, atol=1e-08):
     """Numba decorated implementation of ``np.allclose()``
 
@@ -39,7 +41,7 @@ def allclose(a, b, rtol=1e-05, atol=1e-08):
     return np.allclose(a, b, rtol=rtol, atol=atol)
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def cross(a, b):
     """Numba decorated implementation of ``np.cross()``
 
@@ -50,7 +52,7 @@ def cross(a, b):
     return np.cross(a, b)
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def dot(a, b):
     """Numba decorated implementation of ``np.dot()``
 
@@ -61,7 +63,7 @@ def dot(a, b):
     return np.dot(a, b)
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def norm(x):
     """Numba decorated implementation of ``np.linalg.norm()``
 

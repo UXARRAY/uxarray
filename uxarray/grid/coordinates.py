@@ -13,9 +13,10 @@ from numba import njit
 import math
 
 from uxarray.constants import ENABLE_JIT_CACHE
+from uxarray.utils.numba_settings import ux_njit
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _lonlat_rad_to_xyz(
     lon: Union[np.ndarray, float],
     lat: Union[np.ndarray, float],
@@ -29,7 +30,7 @@ def _lonlat_rad_to_xyz(
     return x, y, z
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _xyz_to_lonlat_rad_no_norm(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
@@ -70,7 +71,7 @@ def _xyz_to_lonlat_rad_no_norm(
     return lon, lat
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _xyz_to_lonlat_rad_scalar(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
@@ -220,7 +221,7 @@ def _normalize_xyz(
     return x_norm, y_norm, z_norm
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _normalize_xyz_scalar(x: float, y: float, z: float):
     denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
     x_norm = x / denom

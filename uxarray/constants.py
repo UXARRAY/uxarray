@@ -18,7 +18,6 @@ MACHINE_EPSILON = np.float64(np.finfo(float).eps)
 
 ENABLE_JIT_CACHE = True
 ENABLE_JIT = True
-
 ENABLE_FMA = False
 
 GRID_DIMS = ["n_node", "n_edge", "n_face"]

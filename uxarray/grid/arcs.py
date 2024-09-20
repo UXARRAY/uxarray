@@ -6,11 +6,13 @@ from uxarray.grid.coordinates import (
     _xyz_to_lonlat_rad_scalar,
     _normalize_xyz_scalar,
 )
-from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
+from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON, ENABLE_JIT_CACHE
 
 from uxarray.utils.computing import isclose, cross, dot, allclose
 
 from numba import njit
+
+from uxarray.utils.numba_settings import ux_njit
 
 
 def _to_list(obj):
@@ -24,7 +26,7 @@ def _to_list(obj):
     return obj
 
 
-@njit
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _point_within_gca_body(
     angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
 ):
@@ -241,7 +243,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     return out
 
 
-@njit
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def in_between(p, q, r) -> bool:
     """Determines whether the number q is between p and r.
 
@@ -263,7 +265,7 @@ def in_between(p, q, r) -> bool:
     return p <= q <= r or r <= q <= p
 
 
-@njit
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _decide_pole_latitude(lat1, lat2):
     """Determine the pole latitude based on the latitudes of two points on a
     Great Circle Arc (GCA).
@@ -303,7 +305,7 @@ def _decide_pole_latitude(lat1, lat2):
     return closest_pole
 
 
-@njit
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _angle_of_2_vectors(u, v):
     """Calculate the angle between two 3D vectors u and v in radians. Can be
     used to calcualte the span of a GCR.

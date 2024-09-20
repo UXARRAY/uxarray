@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE, ENABLE_JIT_CACHE
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 from uxarray.grid.utils import (
@@ -15,6 +15,8 @@ import cartopy.crs as ccrs
 
 
 from numba import njit
+
+from uxarray.utils.numba_settings import ux_njit
 
 POLE_POINTS = {"North": np.array([0.0, 0.0, 1.0]), "South": np.array([0.0, 0.0, -1.0])}
 
@@ -77,7 +79,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
 
 # General Helpers for Polygon Viz
 # ----------------------------------------------------------------------------------------------------------------------
-@njit
+@ux_njit(cache=ENABLE_JIT_CACHE)
 def _pad_closed_face_nodes(
     face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
