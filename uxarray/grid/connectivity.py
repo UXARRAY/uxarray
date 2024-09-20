@@ -6,7 +6,6 @@ from scipy import sparse
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ENABLE_JIT_CACHE
 from uxarray.conventions import ugrid
 
-from numba import njit
 
 from uxarray.utils.numba_settings import ux_njit
 

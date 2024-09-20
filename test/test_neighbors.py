@@ -33,7 +33,6 @@ dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCS
 shp_filename = current_path / "meshfiles" / "shp" / "grid_fire.shp"
 
 
-
 class TestBallTree(TestCase):
     corner_grid_files = [gridfile_CSne30, gridfile_mpas]
     center_grid_files = [gridfile_mpas]
@@ -135,7 +134,7 @@ class TestBallTree(TestCase):
             d, ind = uxgrid.get_ball_tree(coordinates="nodes",
                                           coordinate_system="cartesian",
                                           distance_metric="minkowski").query(
-                                              [1.0, 0.0, 0.0], k=2)
+                [1.0, 0.0, 0.0], k=2)
 
             # assert it returns the correct k neighbors and is not empty
             self.assertEqual(len(d), len(ind))
@@ -152,9 +151,9 @@ class TestBallTree(TestCase):
                                        coordinate_system="spherical",
                                        distance_metric="haversine",
                                        reconstruct=True).query_radius(
-                                           [3.0, 3.0],
-                                           r=15,
-                                           return_distance=False)
+                [3.0, 3.0],
+                r=15,
+                return_distance=False)
 
             # assert the indexes have been populated
             self.assertTrue(len(ind) != 0)
@@ -164,9 +163,9 @@ class TestBallTree(TestCase):
                                           coordinate_system="cartesian",
                                           distance_metric="minkowski",
                                           reconstruct=True).query_radius(
-                                              [0.0, 0.0, 1.0],
-                                              r=15,
-                                              return_distance=True)
+                [0.0, 0.0, 1.0],
+                r=15,
+                return_distance=True)
 
             # assert the distance and indexes have been populated
             self.assertTrue(len(d) and len(ind) != 0)
@@ -180,7 +179,7 @@ class TestBallTree(TestCase):
         # Test querying with distance and indexes
         d, ind = uxgrid.get_ball_tree(coordinates="face centers",
                                       coordinate_system="spherical").query(
-                                          [0.0, 0.0], return_distance=True, k=3)
+            [0.0, 0.0], return_distance=True, k=3)
 
         # assert the distance and indexes have been populated
         self.assertTrue(len(d) and len(ind) != 0)
@@ -188,11 +187,10 @@ class TestBallTree(TestCase):
         # Test querying with just indexes
         ind = uxgrid.get_ball_tree(coordinates="face centers",
                                    coordinate_system="spherical").query(
-                                       [0.0, 0.0], return_distance=False, k=3)
+            [0.0, 0.0], return_distance=False, k=3)
 
         # assert the indexes have been populated
         self.assertTrue(len(ind) != 0)
-
 
     def test_multi_point_query(self):
         """Tests a query on multiple points."""
@@ -212,9 +210,6 @@ class TestBallTree(TestCase):
                 single_ind = ind = uxgrid.get_ball_tree(coordinates="nodes").query_radius(cur_c, 45)
 
                 assert np.array_equal(single_ind, multi_ind[i])
-
-
-
 
 
 class TestKDTree(TestCase):
@@ -242,7 +237,7 @@ class TestKDTree(TestCase):
             uxgrid = ux.open_grid(grid_file)
             d, ind = uxgrid.get_kd_tree(coordinates="nodes",
                                         coordinate_system="spherical").query(
-                                            [3.0, 3.0], k=5)
+                [3.0, 3.0], k=5)
 
             # assert it returns the correct k neighbors and is not empty
             self.assertEqual(len(d), len(ind))
@@ -284,7 +279,7 @@ class TestKDTree(TestCase):
         d, ind = uxgrid.get_kd_tree(coordinates="face centers",
                                     coordinate_system="spherical",
                                     reconstruct=True).query_radius(
-                                        [3.0, 3.0], r=5, return_distance=True)
+            [3.0, 3.0], r=5, return_distance=True)
 
         # assert the distance and indexes have been populated
         self.assertTrue(len(d), len(ind))
@@ -292,7 +287,7 @@ class TestKDTree(TestCase):
         ind = uxgrid.get_kd_tree(coordinates="face centers",
                                  coordinate_system="spherical",
                                  reconstruct=True).query_radius(
-                                     [3.0, 3.0], r=5, return_distance=False)
+            [3.0, 3.0], r=5, return_distance=False)
 
         # assert the indexes have been populated
         self.assertTrue(len(ind))
@@ -304,7 +299,7 @@ class TestKDTree(TestCase):
         # Test querying with distance and indexes with spherical coordinates
         d, ind = uxgrid.get_kd_tree(coordinates="face centers",
                                     coordinate_system="spherical").query(
-                                        [0.0, 0.0], return_distance=True)
+            [0.0, 0.0], return_distance=True)
 
         # assert the distance and indexes have been populated
         assert d, ind

@@ -10,7 +10,6 @@ from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON, ENABLE_JIT_CACHE
 
 from uxarray.utils.computing import isclose, cross, dot, allclose
 
-from numba import njit
 
 from uxarray.utils.numba_settings import ux_njit
 

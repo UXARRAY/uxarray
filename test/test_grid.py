@@ -7,6 +7,7 @@ from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
+import uxarray.utils.numba_settings
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
     _build_edge_node_connectivity, _build_face_face_connectivity, _populate_face_face_connectivity
@@ -16,7 +17,7 @@ from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.arcs import extreme_gca_latitude
-from uxarray.utils.numba_settings import disable_jit
+from uxarray.utils.numba_settings import disable_jit, enable_jit
 
 try:
     import constants
@@ -303,7 +304,6 @@ class TestFaceAreas(TestCase):
 
     def test_calculate_total_face_area_triangle(self):
         """Create a uxarray grid from vertices and saves an exodus file."""
-        disable_jit()
         verts = [[[0.57735027, -5.77350269e-01, -0.57735027],
                   [0.57735027, 5.77350269e-01, -0.57735027],
                   [-0.57735027, 5.77350269e-01, -0.57735027]]]
@@ -337,7 +337,7 @@ class TestFaceAreas(TestCase):
         """Computes the total face area of an MPAS mesh that lies on a unit
         sphere, with an expected total face area of 4pi."""
         mpas_grid_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
-
+        enable_jit()
         primal_grid = ux.open_grid(mpas_grid_path, use_dual=False)
         dual_grid = ux.open_grid(mpas_grid_path, use_dual=True)
 

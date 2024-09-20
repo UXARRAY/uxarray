@@ -1,5 +1,10 @@
 import numpy as np
-from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE, ENABLE_JIT_CACHE
+from uxarray.constants import (
+    INT_DTYPE,
+    ERROR_TOLERANCE,
+    INT_FILL_VALUE,
+    ENABLE_JIT_CACHE,
+)
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 from uxarray.grid.utils import (
@@ -12,9 +17,6 @@ import pandas as pd
 import xarray as xr
 
 import cartopy.crs as ccrs
-
-
-from numba import njit
 
 from uxarray.utils.numba_settings import ux_njit
 

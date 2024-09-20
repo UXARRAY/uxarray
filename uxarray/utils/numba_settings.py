@@ -56,4 +56,5 @@ def ux_njit(enable_jit=uxarray.constants.ENABLE_JIT, **kwargs):
         if enable_jit:
             return njit(func, **kwargs)
         return func
+
     return wrapper

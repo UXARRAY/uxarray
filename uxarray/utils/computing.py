@@ -1,7 +1,6 @@
 import numpy as np
 import sys
 from uxarray.constants import ENABLE_JIT_CACHE
-from numba import njit
 
 from uxarray.utils.numba_settings import ux_njit
 

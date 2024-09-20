@@ -8,7 +8,6 @@ from uxarray.conventions import ugrid
 
 from typing import Union
 
-from numba import njit
 
 import math
 
