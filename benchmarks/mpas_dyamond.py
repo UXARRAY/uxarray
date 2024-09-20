@@ -16,9 +16,8 @@ data_path_dict = ...
 
 # TODO: ...
 all_paths_exist = True
-for file_paths in grid_path_dict.values():
-    for file_path in file_paths:
-        all_paths_exist = all_paths_exist and os.path.exists(file_path)
+for file_path in grid_path_dict.values():
+    all_paths_exist = all_paths_exist and os.path.exists(file_path)
 
 
 class BaseGridBenchmark:
@@ -27,10 +26,10 @@ class BaseGridBenchmark:
     param_names = ['resolution']
     params = [['30km', '15km', '7.5km', '3.75km'],]
 
-    def setup(self, resolution, periodic_elements):
+    def setup(self, resolution, **kwargs):
         self.uxgrid = ux.open_grid(grid_path_dict[resolution])
 
-    def teardown(self, resolution, periodic_elements):
+    def teardown(self, resolution, **kwargs):
         del self.uxgrid
 
 
