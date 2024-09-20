@@ -15,10 +15,10 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_deg
 
 
 def _bilinear(
-    source_uxda: UxDataArray,
-    destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
+        source_uxda: UxDataArray,
+        destination_grid: Grid,
+        remap_to: str = "face centers",
+        coord_type: str = "spherical",
 ) -> np.ndarray:
     """Bilinear Remapping between two grids, mapping data that resides on the
     corner nodes, edge centers, or face centers on the source grid to the
@@ -155,13 +155,16 @@ def _bilinear(
                 weights = calculate_bilinear_weights(polygons_subset, point)
                 values[i] = np.sum(weights * polygons_subset.values, axis=-1)
                 # Search the subset to find which one contains the point
-                # for polygon in polygons_subset:
-                #     if point_in_polygon(polygon, point):
-                #         # TODO: Get indices of the nodes of the polygon
-                #         polygon_ind = None
-                #         weights = calculate_bilinear_weights(polygon, point)
-                #         values[i] = np.sum(weights * source_data[..., polygon_ind], axis=-1)
-                #         break
+                for polygon in polygons_subset:
+                    if point_in_polygon(polygon, point):
+                        if polygon.n_nodes == 3:
+                            # TODO: Get indices of the nodes of the polygon
+                            polygon_ind = None
+                            weights = calculate_bilinear_weights(polygon, point)
+                            values[i] = np.sum(weights * source_data[..., polygon_ind], axis=-1)
+                            break
+                        elif:
+                            polygon_triangle_split(polygon)
 
     else:
         raise ValueError(
@@ -172,10 +175,10 @@ def _bilinear(
 
 
 def _bilinear_uxda(
-    source_uxda: UxDataArray,
-    destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
+        source_uxda: UxDataArray,
+        destination_grid: Grid,
+        remap_to: str = "face centers",
+        coord_type: str = "spherical",
 ):
     """Bilinear Remapping implementation for ``UxDataArray``.
 
@@ -218,10 +221,10 @@ def _bilinear_uxda(
 
 
 def _bilinear_uxds(
-    source_uxds: UxDataset,
-    destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
+        source_uxds: UxDataset,
+        destination_grid: Grid,
+        remap_to: str = "face centers",
+        coord_type: str = "spherical",
 ):
     """Bilinear Remapping implementation for ``UxDataset``.
 
@@ -315,3 +318,21 @@ def find_polygons_subset(dual, point):
 
     subset = dual.subset.nearest_neighbor(point, k=1, element="face centers")
     return subset
+
+
+def polygon_triangle_split(polygon, point):
+    """For a given polygon, split into triangles and find the one containing the point"""
+    triangles = polygon.n_nodes - 2
+    x = polygon.node_x.values
+    y = polygon.node_y.values
+    z = polygon.node_z.values
+    values = polygon.values
+
+    for j in range(0, triangles):
+        node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
+        node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
+        node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
+
+        # TODO: Create point_inside_polygon() function
+        if point_inside_triangle([node1, node2, node3], point):
+            return [node1, node2, node3], [values[0], values[j + 1], values[j + 2]]
