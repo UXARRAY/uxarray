@@ -855,7 +855,7 @@ def _populate_edge_node_distances(grid):
     )
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
     """Helper for computing the arc-distance between nodes compose each
     edge."""
