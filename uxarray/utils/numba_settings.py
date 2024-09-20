@@ -1,5 +1,7 @@
 import uxarray.constants
 
+from numba import njit
+
 
 def enable_jit_cache():
     """Allows Numba's JIT cache to be turned on.
@@ -47,3 +49,11 @@ def disable_jit():
     The default is on (True)
     """
     uxarray.constants.ENABLE_JIT = False
+
+
+def ux_njit(enable_jit=uxarray.constants.ENABLE_JIT, **kwargs):
+    def wrapper(func):
+        if enable_jit:
+            return njit(func, **kwargs)
+        return func
+    return wrapper
