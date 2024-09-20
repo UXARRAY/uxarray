@@ -140,7 +140,20 @@ class RemapUpsample:
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
 
-
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+
+class CheckNorm:
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+
+    def teardown(self, resolution):
+        del self.uxgrid
+
+    def time_check_norm(self, resolution):
+        from uxarray.grid.validation import _check_normalization
+        _check_normalization(self.uxgrid)

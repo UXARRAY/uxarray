@@ -12,10 +12,10 @@ from typing import (
     Union,
 )
 
-
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
+from uxarray.io._geopandas import _read_geodataframe
 from uxarray.io._ugrid import (
     _read_ugrid,
     _encode_ugrid,
@@ -38,6 +38,7 @@ from uxarray.grid.coordinates import (
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
+    _normalize_xyz,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -72,6 +73,7 @@ from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
     _check_area,
+    _check_normalization,
 )
 
 from xarray.core.utils import UncachedAccessor
@@ -158,6 +160,7 @@ class Grid:
 
         # initialize attributes
         self._antimeridian_face_indices = None
+        self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
 
         # initialize cached data structures and flags (visualization)
         self._gdf = None
@@ -174,6 +177,9 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
+
+        # flag to track if coordinates are normalized
+        self._normalized = None
 
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self._ds)
@@ -221,7 +227,9 @@ class Grid:
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
             elif source_grid_spec == "Shapefile":
-                raise ValueError("Shapefiles not yet supported")
+                raise ValueError(
+                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                )
             else:
                 raise ValueError("Unsupported Grid Format")
         else:
@@ -229,6 +237,53 @@ class Grid:
             source_grid_spec = kwargs.get("source_grid_spec", None)
             grid_ds = dataset
             source_dims_dict = {}
+
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_file(
+        cls,
+        filename: str,
+        backend: Optional[str] = "geopandas",
+        **kwargs,
+    ):
+        """Constructs a ``Grid`` object from a using the read_file method with
+        a specified backend.
+
+        Parameters
+        ----------
+        filename : str
+            Path to grid file
+        backend : str, default='geopandas'
+            Backend to use to read the file, xarray or geopandas.
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> grid = ux.Grid.from_file("path/to/file.shp")
+
+        Note
+        ----
+        All formats supported by `geopandas.read_file` can be used.
+        See more at: https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas-read-file
+        """
+
+        # determine grid/mesh specification
+        if backend == "geopandas":
+            if str(filename).endswith(".shp"):
+                source_grid_spec = "Shapefile"
+            elif str(filename).endswith(".geojson"):
+                source_grid_spec = "GeoJSON"
+            else:
+                source_grid_spec = "OtherGeoFormat"
+
+            grid_ds, source_dims_dict = _read_geodataframe(filename)
+
+        elif backend == "xarray":
+            grid_ds, source_dims_dict = cls.from_dataset(filename)
+
+        else:
+            raise ValueError("Backend not supported")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
@@ -1419,6 +1474,38 @@ class Grid:
             )
 
         return self._face_areas, self._face_jacobian
+
+    def normalize_cartesian_coordinates(self):
+        """Normalizes Cartesian coordinates."""
+
+        if _check_normalization(self):
+            # check if coordinates are already normalized
+            return
+
+        if "node_x" in self._ds:
+            # normalize node coordinates
+            node_x, node_y, node_z = _normalize_xyz(
+                self.node_x.values, self.node_y.values, self.node_z.values
+            )
+            self.node_x.data = node_x
+            self.node_y.data = node_y
+            self.node_z.data = node_z
+        if "edge_x" in self._ds:
+            # normalize edge coordinates
+            edge_x, edge_y, edge_z = _normalize_xyz(
+                self.edge_x.values, self.edge_y.values, self.edge_z.values
+            )
+            self.edge_x.data = edge_x
+            self.edge_y.data = edge_y
+            self.edge_z.data = edge_z
+        if "face_x" in self._ds:
+            # normalize face coordinates
+            face_x, face_y, face_z = _normalize_xyz(
+                self.face_x.values, self.face_y.values, self.face_z.values
+            )
+            self.face_x.data = face_x
+            self.face_y.data = face_y
+            self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns a xarray Dataset representation in a specific grid format
