@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from multiprocessing.managers import Value
 from typing import TYPE_CHECKING, Any, Optional
 
 import functools
@@ -44,11 +43,7 @@ class GridPlotAccessor:
     def points(self, element="nodes", backend=None, **kwargs):
         """TODO:"""
 
-        if uxarray.plot.utils.backend.backend is None:
-            # set initial backend if one isn't provided
-            uxarray.plot.utils.backend.assign("bokeh")
-        if backend is not None:
-            uxarray.plot.utils.backend.assign(backend)
+        uxarray.plot.utils.backend.assign(backend)
 
         if element in ["nodes", "corner nodes", "node_latlon"]:
             lon, lat = self._uxgrid.node_lon.values, self._uxgrid.node_lat.values
@@ -92,7 +87,7 @@ class GridPlotAccessor:
     def edges(self, periodic_elements="exclude", backend=None, **kwargs):
         """TODO:"""
 
-        uxarray.plot.utils.update_backend(backend)
+        uxarray.plot.utils.backend.assign(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = False
@@ -144,7 +139,7 @@ class UxDataArrayPlotAccessor:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
     def polygons(self, periodic_elements="exclude", backend=None, *args, **kwargs):
-        uxarray.plot.utils.update_backend(backend)
+        uxarray.plot.utils.backend.assign(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = True
@@ -165,7 +160,7 @@ class UxDataArrayPlotAccessor:
         )
 
     def points(self, backend=None, *args, **kwargs):
-        uxarray.plot.utils.update_backend(backend)
+        uxarray.plot.utils.backend.assign(backend)
 
         uxgrid = self._uxda.uxgrid
         data_mapping = self._uxda.data_mapping
