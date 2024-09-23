@@ -116,6 +116,11 @@ class GridPlotAccessor:
 
     node_coords.__doc__ = nodes.__doc__
 
+    def corner_nodes(self, backend=None, **kwargs):
+        return self.points(element="nodes", backend=backend, **kwargs)
+
+    corner_nodes.__doc__ = nodes.__doc__
+
     def edge_coords(self, backend=None, **kwargs):
         """Wrapper for ``Grid.plot.points(element='edge centers')
 
