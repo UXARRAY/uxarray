@@ -12,6 +12,7 @@ dependencies:
   - h5netcdf
   - hdf5
   - holoviews
+  - hvplot
   - matplotlib-base
   - matplotlib-inline
   - netcdf4

@@ -28,6 +28,7 @@ dependencies:
   - geopandas
   - xarray
   - asv
+  - hvplot
   - pip:
     - antimeridian
     - git+https://github.com/philipc2/pyfma.git # fix until https://github.com/nschloe/pyfma/pull/17 is merged
