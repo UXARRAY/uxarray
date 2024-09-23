@@ -40,17 +40,18 @@ def mesh(
         Plot Width for Bokeh Backend
     """
 
+    uxarray.plot.utils.update_backend(backend)
+    _backend = uxarray.plot.utils.backend.backend
+
     gdf = uxgrid.to_geodataframe(exclude_antimeridian=exclude_antimeridian)
 
     hv_paths = hv.Path(gdf)
 
-    uxarray.plot.utils.backend.assign(backend=backend)
-
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         # use holoviews matplotlib backend
         return hv_paths.opts(**kwargs)
 
-    elif backend == "bokeh":
+    elif _backend == "bokeh":
         # use holoviews bokeh backend
         return hv_paths.opts(
             width=width, height=height, xlabel=xlabel, ylabel=ylabel, **kwargs
@@ -175,13 +176,14 @@ def _plot_coords_as_points(
     else:
         raise ValueError("Invalid element selected.")
 
-    uxarray.plot.utils.backend.assign(backend=backend)
+    uxarray.plot.utils.update_backend(backend)
+    _backend = uxarray.plot.utils.backend.backend
 
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         # use holoviews matplotlib backend
         return hv_points.opts(**kwargs)
 
-    elif backend == "bokeh":
+    elif _backend == "bokeh":
         # use holoviews bokeh backend
         return hv_points.opts(
             width=width, height=height, xlabel=xlabel, ylabel=ylabel, **kwargs

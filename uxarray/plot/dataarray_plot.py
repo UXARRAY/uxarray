@@ -230,19 +230,20 @@ def _point_raster(
         # apply projection to coordinates
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
 
-    uxarray.plot.utils.backend.assign(backend=backend)
+    uxarray.plot.utils.update_backend(backend)
+    _backend = uxarray.plot.utils.backend.backend
 
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
     point_df = pd.DataFrame.from_dict(point_dict)
     point_ddf = dd.from_pandas(point_df, npartitions=npartitions)
 
     # construct a holoviews points object
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         points = hv.Points(point_ddf, ["lon", "lat"]).opts(s=size)
     else:
         points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         # use holoviews matplotlib backend
         raster = hds_rasterize(
             points,
@@ -258,7 +259,7 @@ def _point_raster(
             ylabel=ylabel,
             **kwargs,
         )
-    elif backend == "bokeh":
+    elif _backend == "bokeh":
         # use holoviews bokeh backend
         raster = hds_rasterize(
             points,
@@ -323,9 +324,10 @@ def _polygon_raster(
     # TODO:
     proj = projection if projection is not None else ccrs.PlateCarree()
 
-    uxarray.plot.utils.backend.assign(backend=backend)
+    uxarray.plot.utils.update_backend(backend)
+    _backend = uxarray.plot.utils.backend.backend
 
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         _polygons = gv.Polygons(
             gdf, vdims=[uxda.name if uxda.name is not None else "var"], crs=proj
         ).opts(projection=proj)
@@ -335,7 +337,7 @@ def _polygon_raster(
             gdf, vdims=[uxda.name if uxda.name is not None else "var"]
         )
 
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         # use holoviews matplotlib backend
         raster = hds_rasterize(
             _polygons,
@@ -421,20 +423,21 @@ def polygons(
 
     proj = projection if projection is not None else ccrs.PlateCarree()
 
-    uxarray.plot.utils.backend.assign(backend=backend)
+    uxarray.plot.utils.update_backend(backend)
+    _backend = uxarray.plot.utils.backend.backend
 
     gv_polygons = gv.Polygons(
         gdf, vdims=[uxda.name if uxda.name is not None else "var"], crs=proj
     ).opts(projection=proj)
 
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         # use holoviews matplotlib backend
 
         return gv_polygons.opts(
             colorbar=colorbar, xlabel=xlabel, ylabel=ylabel, cmap=cmap, **kwargs
         )
 
-    elif backend == "bokeh":
+    elif _backend == "bokeh":
         # use holoviews bokeh backend
         return gv_polygons.opts(
             width=width,
@@ -544,9 +547,10 @@ def _plot_data_as_points(
     verts = np.column_stack([lon, lat, uxda.values])
     hv_points = Points(verts, vdims=["z"])
 
-    uxarray.plot.utils.backend.assign(backend=backend)
+    uxarray.plot.utils.update_backend(backend)
+    _backend = uxarray.plot.utils.backend.backend
 
-    if backend == "matplotlib":
+    if _backend == "matplotlib":
         # use holoviews matplotlib backend
         return hv_points.opts(
             color="z",
@@ -557,7 +561,7 @@ def _plot_data_as_points(
             **kwargs,
         )
 
-    elif backend == "bokeh":
+    elif _backend == "bokeh":
         # use holoviews bokeh backend
         return hv_points.opts(
             color="z",

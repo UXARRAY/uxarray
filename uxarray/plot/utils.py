@@ -37,5 +37,12 @@ class HoloviewsBackend:
 # global reference to holoviews backend utility class
 backend = HoloviewsBackend()
 
-# set default backend to matplotlib
-backend.assign("matplotlib")
+
+def update_backend(plotting_backend: str = None):
+    """Assigns and updates the plotting backend."""
+
+    if backend.backend is None and plotting_backend is None:
+        # assign default backend is one isn't provided
+        backend.assign("bokeh")
+    if plotting_backend is not None:
+        backend.assign(plotting_backend)

@@ -44,6 +44,9 @@ class GridPlotAccessor:
     def points(self, element="nodes", backend=None, **kwargs):
         """TODO:"""
 
+        if uxarray.plot.utils.backend.backend is None:
+            # set initial backend if one isn't provided
+            uxarray.plot.utils.backend.assign("bokeh")
         if backend is not None:
             uxarray.plot.utils.backend.assign(backend)
 
@@ -89,8 +92,7 @@ class GridPlotAccessor:
     def edges(self, periodic_elements="exclude", backend=None, **kwargs):
         """TODO:"""
 
-        if backend is not None:
-            uxarray.plot.utils.backend.assign(backend)
+        uxarray.plot.utils.update_backend(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = False
@@ -142,8 +144,7 @@ class UxDataArrayPlotAccessor:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
     def polygons(self, periodic_elements="exclude", backend=None, *args, **kwargs):
-        if backend is not None:
-            uxarray.plot.utils.backend.assign(backend)
+        uxarray.plot.utils.update_backend(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = True
@@ -164,8 +165,7 @@ class UxDataArrayPlotAccessor:
         )
 
     def points(self, backend=None, *args, **kwargs):
-        if backend is not None:
-            uxarray.plot.utils.backend.assign(backend)
+        uxarray.plot.utils.update_backend(backend)
 
         uxgrid = self._uxda.uxgrid
         data_mapping = self._uxda.data_mapping
@@ -185,49 +185,6 @@ class UxDataArrayPlotAccessor:
 
         return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
 
-    # @functools.wraps(dataarray_plot.datashade)
-    # def datashade(
-    #     self,
-    #     *args,
-    #     method: Optional[str] = "polygon",
-    #     plot_height: Optional[int] = 300,
-    #     plot_width: Optional[int] = 600,
-    #     x_range: Optional[tuple] = (-180, 180),
-    #     y_range: Optional[tuple] = (-90, 90),
-    #     cmap: Optional[str] = "Blues",
-    #     agg: Optional[str] = "mean",
-    #     **kwargs,
-    # ):
-    #     """Visualizes an unstructured grid data variable using data shading
-    #     (rasterization + shading)
-    #
-    #     Parameters
-    #     ----------
-    #     method: str, optional
-    #         Selects which method to use for data shading
-    #     plot_width, plot_height : int, optional
-    #        Width and height of the output aggregate in pixels.
-    #     x_range, y_range : tuple, optional
-    #        A tuple representing the bounds inclusive space ``[min, max]`` along
-    #        the axis.
-    #     cmap: str, optional
-    #         Colormap used for shading
-    #     agg : str, optional
-    #         Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
-    #     """
-    #     return dataarray_plot.datashade(
-    #         self._uxda,
-    #         *args,
-    #         method=method,
-    #         plot_height=plot_height,
-    #         plot_width=plot_width,
-    #         x_range=x_range,
-    #         y_range=y_range,
-    #         cmap=cmap,
-    #         agg=agg,
-    #         **kwargs,
-    #     )
-    #
     @functools.wraps(dataarray_plot.rasterize)
     def rasterize(
         self,
