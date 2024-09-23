@@ -179,7 +179,7 @@ class UxDataArray(xr.DataArray):
         """
 
         if exclude_antimeridian is not None:
-            warn(
+            warnings.warn(
                 DeprecationWarning(
                     "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
                     "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."

@@ -7,7 +7,6 @@ from uxarray.grid.utils import (
     _get_lonlat_rad_face_edge_nodes,
 )
 from uxarray.utils.computing import allclose, isclose
-import warnings
 import pandas as pd
 import xarray as xr
 
