@@ -25,6 +25,7 @@ dependencies:
   - scipy
   - shapely
   - spatialpandas
+  - geopandas
   - xarray
   - asv
   - pip:

@@ -1,12 +1,11 @@
 import numpy as np
 from warnings import warn
 
-
 from uxarray.constants import ERROR_TOLERANCE
 
 
 # validation helper functions
-def _check_connectivity(self):
+def _check_connectivity(grid):
     """Check if all nodes are referenced by at least one element.
 
     If not, the mesh may have hanging nodes and may not a valid UGRID
@@ -15,28 +14,28 @@ def _check_connectivity(self):
 
     # Check if all nodes are referenced by at least one element
     # get unique nodes in connectivity
-    nodes_in_conn = np.unique(self.face_node_connectivity.values.flatten())
+    nodes_in_conn = np.unique(grid.face_node_connectivity.values.flatten())
     #  remove negative indices/fill values from the list
     nodes_in_conn = nodes_in_conn[nodes_in_conn >= 0]
 
     # check if the size of unique nodes in connectivity is equal to the number of nodes
-    if nodes_in_conn.size == self.n_node:
+    if nodes_in_conn.size == grid.n_node:
         print("-All nodes are referenced by at least one element.")
         return True
     else:
         warn(
             "Some nodes may not be referenced by any element. {0} and {1}".format(
-                nodes_in_conn.size, self.n_node
+                nodes_in_conn.size, grid.n_node
             ),
             RuntimeWarning,
         )
         return False
 
 
-def _check_duplicate_nodes(self):
+def _check_duplicate_nodes(grid):
     """Check if there are duplicate nodes in the mesh."""
 
-    coords1 = np.column_stack((np.vstack(self.node_lon), np.vstack(self.node_lat)))
+    coords1 = np.column_stack((np.vstack(grid.node_lon), np.vstack(grid.node_lat)))
     unique_nodes, indices = np.unique(coords1, axis=0, return_index=True)
     duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
 
@@ -53,9 +52,9 @@ def _check_duplicate_nodes(self):
         return True
 
 
-def _check_area(self):
+def _check_area(grid):
     """Check if each face area is greater than our constant ERROR_TOLERANCE."""
-    areas = self.face_areas
+    areas = grid.face_areas
     # Check if area of any face is close to zero
     if np.any(np.isclose(areas, 0, atol=ERROR_TOLERANCE)):
         warn(
@@ -66,3 +65,47 @@ def _check_area(self):
     else:
         print("-No face area is close to zero.")
         return True
+
+
+def _check_normalization(grid):
+    """Checks whether all the cartesiain coordinates are normalized."""
+
+    if grid._normalized is True:
+        # grid is already normalized, no need to run extra checks
+        return grid._normalized
+
+    if "node_x" in grid._ds:
+        if not (
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
+        ).all():
+            grid._normalized = False
+            return False
+    if "edge_x" in grid._ds:
+        if not (
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
+        ).all():
+            grid._normalized = False
+            return False
+    if "face_x" in grid._ds:
+        if not (
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
+        ).all():
+            grid._normalized = False
+            return False
+
+    # set the grid as normalized
+    grid._normalized = True
+
+    return True
