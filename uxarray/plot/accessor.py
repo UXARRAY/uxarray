@@ -120,7 +120,12 @@ class UxDataArrayPlotAccessor:
         self._uxda = uxda
 
     def __call__(self, **kwargs) -> Any:
-        return self.polygons(**kwargs)
+        if self._uxda._face_centered():
+            # polygons for face-centered data
+            return self.polygons(**kwargs)
+        else:
+            # points for node and edge centered data
+            return self.points(**kwargs)
 
     def __getattr__(self, name: str) -> Any:
         """When a function that isn't part of the class is invoked (i.e.
