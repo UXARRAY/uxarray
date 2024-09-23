@@ -61,6 +61,17 @@ def dot(a, b):
     return np.dot(a, b)
 
 
+@njit
+def norm(x):
+    """Numba decorated implementation of ``np.linalg.norm()``
+
+    See Also
+    --------
+    numpy.linalg.norm
+    """
+    return np.linalg.norm(x)
+
+
 def _fmms(a, b, c, d):
     """
     Calculate the difference of products using the FMA (fused multiply-add) operation: (a * b) - (c * d).
