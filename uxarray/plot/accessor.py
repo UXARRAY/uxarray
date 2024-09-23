@@ -18,13 +18,9 @@ import warnings
 
 import cartopy.crs as ccrs
 
-import numpy as np
 import pandas as pd
 
-import holoviews as hv
 import hvplot.pandas
-
-from holoviews import Points
 
 
 class GridPlotAccessor:
@@ -41,7 +37,37 @@ class GridPlotAccessor:
         return self.edges(**kwargs)
 
     def points(self, element="nodes", backend=None, **kwargs):
-        """TODO:"""
+        """Generate a point plot based on the specified grid element type
+        (nodes, faces, or edges).
+
+        This function retrieves longitude and latitude values for the specified element type
+        from the grid (e.g., node, face, or edge locations), converts them into a pandas
+        DataFrame, and creates a point plot using `hvplot`. The backend for plotting can
+        also be specified, and additional plotting options are accepted through `kwargs`.
+
+        Parameters
+        ----------
+        element : str, optional, default="nodes"
+            The type of grid element for which to retrieve points. Options include:
+            - "nodes" or "corner nodes" or "node_latlon" for grid nodes,
+            - "faces" or "face centers" or "face_latlon" for grid face centers,
+            - "edges" or "edge centers" or "edge_latlon" for grid edges.
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the selected coordinate
+
+        Raises
+        ------
+        ValueError
+            If the provided `element` is not one of the accepted options.
+        """
 
         uxarray.plot.utils.backend.assign(backend)
 
@@ -61,31 +87,115 @@ class GridPlotAccessor:
         return points_df.hvplot.points("lon", "lat", **kwargs)
 
     def nodes(self, backend=None, **kwargs):
-        """TODO:"""
+        """Generate a point plot for the grid corner nodes.
+
+        This function is a convenience wrapper around the `points` method, specifically
+        for plotting the grid nodes. It retrieves the longitude and latitude values
+        corresponding to the grid nodes and generates a point plot using `hvplot`. The
+        backend for plotting can also be specified, and additional plotting options
+        are accepted through `kwargs`.
+
+        Parameters
+        ----------
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the corner node coordinates
+        """
+
         return self.points(element="nodes", backend=backend, **kwargs)
 
     def node_coords(self, backend=None, **kwargs):
-        """TODO:"""
         return self.points(element="nodes", backend=backend, **kwargs)
 
+    node_coords.__doc__ = nodes.__doc__
+
     def edge_coords(self, backend=None, **kwargs):
-        """TODO:"""
+        """Wrapper for ``Grid.plot.points(element='edge centers')
+
+        Parameters
+        ----------
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the edge center coordinates
+        """
         return self.points(element="edges", backend=backend, **kwargs)
 
     def edge_centers(self, backend=None, **kwargs):
-        """TODO:"""
         return self.points(element="edges", backend=backend, **kwargs)
 
-    def facecoords(self, backend=None, **kwargs):
-        """TODO:"""
+    edge_centers.__doc__ = edge_coords.__doc__
+
+    def face_coords(self, backend=None, **kwargs):
+        """Wrapper for ``Grid.plot.points(element='face centers')
+
+        Parameters
+        ----------
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the face center coordinates
+        """
         return self.points(element="faces", backend=backend, **kwargs)
 
     def face_centers(self, backend=None, **kwargs):
-        """TODO:"""
         return self.points(element="faces", backend=backend, **kwargs)
 
+    face_centers.__doc__ = face_coords.__doc__
+
     def edges(self, periodic_elements="exclude", backend=None, **kwargs):
-        """TODO:"""
+        """Plots the edges of a grid as a path plot.
+
+        This function plots the edges of the grid as geographical paths using `hvplot`.
+        The plot can include or exclude periodic elements based on the provided option.
+        It automatically sets default values for rasterization, projection, and labeling,
+        which can be overridden by passing additional keyword arguments. The backend for
+        plotting can also be specified.
+
+        Parameters
+        ----------
+        periodic_elements : str, optional, default="exclude"
+            Specifies whether to include or exclude periodic elements in the grid.
+            Options are:
+            - "exclude": Exclude periodic elements,
+            - "include": Include periodic elements.
+            - "split": Split periodic elements.
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.paths`. These can include:
+            - "rasterize" (bool): Whether to rasterize the plot (default: False),
+            - "projection" (ccrs.Projection): The map projection to use (default: `ccrs.PlateCarree()`),
+            - "clabel" (str): Label for the edges (default: "edges"),
+            - "crs" (ccrs.Projection): Coordinate reference system for the plot (default: `ccrs.PlateCarree()`).
+            A full list can be found at https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        Returns
+        -------
+        gdf.hvplot.paths : hvplot.paths
+            A paths plot of the edges of the unstructured grid
+        """
 
         uxarray.plot.utils.backend.assign(backend)
 
@@ -105,8 +215,9 @@ class GridPlotAccessor:
         return gdf.hvplot.paths(geo=True, **kwargs)
 
     def mesh(self, periodic_elements="exclude", backend=None, **kwargs):
-        """TODO:"""
         return self.edges(periodic_elements, backend, **kwargs)
+
+    mesh.__doc__ = edges.__doc__
 
 
 class UxDataArrayPlotAccessor:
@@ -144,6 +255,37 @@ class UxDataArrayPlotAccessor:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
     def polygons(self, periodic_elements="exclude", backend=None, *args, **kwargs):
+        """Generated a shaded polygon plot.
+
+        This function plots the faces of an unstructured grid shaded with a face-centered data variable using `hvplot.
+        It allows for rasterization, projection settings, and labeling of the data variable to be
+        customized through keyword arguments. The backend for plotting can also be specified.
+        If a data array (`_uxda`) has a name, its name is used for color label.
+
+        Parameters
+        ----------
+        periodic_elements : str, optional, default="exclude"
+            Specifies whether to include or exclude periodic elements in the grid.
+            Options are:
+            - "exclude": Exclude periodic elements,
+            - "include": Include periodic elements.
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        *args : tuple
+            Additional positional arguments to be passed to `hvplot.polygons`.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.polygons`. These can include:
+            - "rasterize" (bool): Whether to rasterize the plot (default: True),
+            - "projection" (ccrs.Projection): The map projection to use (default: `ccrs.PlateCarree()`),
+            - "clabel" (str): Label for the colorbar, defaulting to the name of the data array (`_uxda.name`),
+            - "crs" (ccrs.Projection): Coordinate reference system for the plot (default: `ccrs.PlateCarree()`).
+            For additional customization, please refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.polygons : hvplot.polygons
+            A shaded polygon plot
+        """
         uxarray.plot.utils.backend.assign(backend)
 
         if "rasterize" not in kwargs:
@@ -165,6 +307,32 @@ class UxDataArrayPlotAccessor:
         )
 
     def points(self, backend=None, *args, **kwargs):
+        """Generate a point plot based on the specified grid element type
+        (nodes, faces, or edges) shaded with the data mapped to those elements.
+
+        This function retrieves longitude and latitude values for the specified element type
+        from the grid (e.g., node, face, or edge locations), converts them into a pandas
+        DataFrame, and creates a point plot using `hvplot`. The points are shaded with the data that is mapped
+        to the selected element.
+
+        Parameters
+        ----------
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A shaded point plot
+
+        Raises
+        ------
+        ValueError
+            If the data is not mapped to the nodes, edges, or faces.
+        """
         uxarray.plot.utils.backend.assign(backend)
 
         uxgrid = self._uxda.uxgrid
@@ -177,7 +345,9 @@ class UxDataArrayPlotAccessor:
         elif data_mapping == "edges":
             lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
         else:
-            raise ValueError("TODO: ")
+            raise ValueError(
+                "Data is not mapped to the nodes, edges, or faces of the grid."
+            )
 
         verts = {"lon": lon, "lat": lat, "z": self._uxda.values}
 
