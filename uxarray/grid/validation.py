@@ -4,6 +4,7 @@ from warnings import warn
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 
+
 # validation helper functions
 def _check_connectivity(grid):
     """Check if all nodes are referenced by at least one element.
@@ -63,6 +64,7 @@ def _check_duplicate_nodes_indices(grid):
 
     return False
 
+
 def _check_area(grid):
     """Check if each face area is greater than our constant ERROR_TOLERANCE."""
     areas = grid.face_areas
@@ -102,6 +104,7 @@ def _find_duplicate_nodes(grid):
                 duplicate_dict[duplicate_idx] = source_idx
 
     return duplicate_dict
+
 
 def _check_normalization(grid):
     """Checks whether all the cartesiain coordinates are normalized."""
