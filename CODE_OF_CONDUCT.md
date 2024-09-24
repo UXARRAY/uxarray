@@ -2,20 +2,22 @@
 
 ## Our Pledge
 
-We, as members, contributors, creators, stewards, and maintainers (participants), of
-UXarray pledge to make participation in our software, system or hardware project and
-community a safe, healthy, open, productive, welcoming, diverse, inclusive, and
-harassment-free experience for everyone, regardless of age, body size, visible or
-invisible disability, ethnicity, sex characteristics, gender identity and expression,
-level of experience, education, socio-economic status, nationality, personal appearance,
-race, caste, color, religion, or sexual identity and orientation, as well as any other
-characteristic protected under applicable US federal or state law.
+We, as members, contributors, creators, stewards, and maintainers, i.e. all the
+participants, of UXarray pledge to make participation in our software, system
+or hardware project and community a safe, healthy, open, productive, welcoming,
+diverse, inclusive, and harassment-free experience for everyone, regardless of
+age, body size, visible or invisible disability, ethnicity, sex characteristics,
+gender identity and expression, level of experience, education, socio-economic
+status, nationality, personal appearance, race, caste, color, religion, or
+sexual identity and orientation, as well as any other characteristic protected
+under applicable US federal or state law.
 
 All participants are required to abide by this Code of Conduct.
 
 ## Our Standards
 
-Examples of behaviors that contribute to a positive environment for our community include:
+Examples of behaviors that contribute to a positive environment for our community
+include:
 
 - Demonstrating empathy and kindness toward other people
 - Being considerate and respectful of and collaborative with differing opinions,
@@ -31,18 +33,18 @@ Examples of behaviors that contribute to a positive environment for our communit
 Examples of unacceptable behavior include, but are not limited to:
 
 - Public or private harassment, intimidation, or discrimination in any form
-- Physical, verbal, or written abuse by anyone to anyone, including repeated use of
-  pronouns other than those requested
-- The use of sexualized language or imagery, and sexual attention or advances of
-  any kind
+- Physical, verbal, or written abuse by anyone to anyone, including repeated
+  use of pronouns other than those requested
+- The use of sexualized language or imagery, and sexual attention or advances
+  of any kind
 - Personal attacks directed at other guests, members, participants, etc.
-- Publishing others’ private information, such as a physical or electronic address,
-  without explicit permission
+- Publishing others’ private information, such as a physical or electronic
+  address, without explicit permission
 - Alarming, intimidating, threatening, or hostile comments or conduct
 - Threatening or stalking anyone, including a participant
 - Trolling, insulting or derogatory comments, and personal or political attacks
-- Other conduct which could reasonably be considered inappropriate in a professional
-  setting
+- Other conduct which could reasonably be considered inappropriate in a
+  professional setting
 
 ## Enforcement Responsibilities
 
@@ -58,26 +60,28 @@ decisions when appropriate.
 
 ## Scope
 
-This Code of Conduct applies to all community spaces managed by UXarray whether they
-be physical, online or face-to-face, and also applies when an individual is officially
-representing the community in public spaces. This includes but is not limited to project
-code, code repository, associated web pages, documentation, mailing lists, project
-websites and wiki pages, issue tracker, meetings, telecons, events, use of official email
-or social media accounts, and any other forums created by the project team which the
-community uses for communication. In addition, violations of this Code of Conduct outside
-these spaces may affect a person's ability to participate within them. Representation of
-a project may be further defined and clarified by project maintainers.
+This Code of Conduct applies to all community spaces managed by UXarray whether
+they be physical, online or face-to-face, and also applies when an individual is
+officially representing the community in public spaces. This includes but is not
+limited to project code, code repository, associated web pages, documentation,
+mailing lists, project websites and wiki pages, issue tracker, meetings, telecons,
+events, use of official email or social media accounts, and any other forums
+created by the project team which the community uses for communication. In
+addition, violations of this Code of Conduct outside these spaces may affect a
+person's ability to participate within them. Representation of a project may be
+further defined and clarified by project maintainers.
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the
-the `@UXARRAY/uxarray-dev` GitHub handle as the community leaders in this group can view
-and manage the reported content, and hence are responsible for enforcement.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported to the the `@UXARRAY/uxarray-dev` GitHub handle as the community leaders
+in this group can view and manage the reported content, and hence are responsible
+for enforcement.
 
 All complaints will be reviewed and investigated promptly and fairly.
 
-All community leaders are obligated to respect the privacy and security of the reporter
-of any incident.
+All community leaders are obligated to respect the privacy and security of the
+reporter of any incident.
 
 ## Enforcement Guidelines
 
