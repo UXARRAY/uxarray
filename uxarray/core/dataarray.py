@@ -144,6 +144,7 @@ class UxDataArray(xr.DataArray):
         projection: Optional[ccrs.Projection] = None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
@@ -168,6 +169,9 @@ class UxDataArray(xr.DataArray):
             Flag used to select whether to cache the computed GeoDataFrame
         override: bool, optional
             Flag used to select whether to ignore any cached GeoDataFrame
+        engine: str, optional
+            Selects what library to use for creating a GeoDataFrame. One of ['spatialpandas', 'geopandas']. Defaults
+            to spatialpandas
         exclude_antimeridian: bool, optional
             Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
 
@@ -177,19 +181,6 @@ class UxDataArray(xr.DataArray):
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons and a data column with the
             same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """
-
-        if exclude_antimeridian is not None:
-            warnings.warn(
-                DeprecationWarning(
-                    "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
-                    "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
-                ),
-                stacklevel=2,
-            )
-            if exclude_antimeridian:
-                periodic_elements = "exclude"
-            else:
-                periodic_elements = "split"
 
         if self.values.ndim > 1:
             # data is multidimensional, must be a 1D slice
@@ -206,11 +197,14 @@ class UxDataArray(xr.DataArray):
                 override=override,
                 exclude_antimeridian=exclude_antimeridian,
                 return_non_nan_polygon_indices=True,
+                engine=engine,
             )
 
+            # set a default variable name if the data array is not named
             var_name = self.name if self.name is not None else "var"
 
             if periodic_elements == "exclude":
+                # index data to ignore data mapped to periodic elements
                 _data = np.delete(
                     self.values, self.uxgrid.antimeridian_face_indices, axis=0
                 )
@@ -218,7 +212,7 @@ class UxDataArray(xr.DataArray):
                 _data = self.values
 
             if non_nan_polygon_indices is not None:
-                # TODO:
+                # index data to ignore NaN polygons
                 _data = _data[non_nan_polygon_indices]
 
             gdf[var_name] = _data
@@ -226,11 +220,16 @@ class UxDataArray(xr.DataArray):
         elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
                 f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}. Current size matches the number of nodes."
+                f"({self.uxgrid.n_face}. Current size matches the number of nodes. Consider running "
+                f"``UxDataArray.topological_mean(destination='face') to aggregate the data onto the faces."
             )
-
-        # data not mapped to faces or nodes
+        elif self.values.size == self.uxgrid.n_edge:
+            raise ValueError(
+                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"({self.uxgrid.n_face}. Current size matches the number of edges."
+            )
         else:
+            # data is not mapped to
             raise ValueError(
                 f"Data Variable with size {self.values.size} does not match the number of faces "
                 f"({self.uxgrid.n_face}."

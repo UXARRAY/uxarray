@@ -170,12 +170,14 @@ class Grid:
         self._gdf_periodic_state = None
         self._gdf_projection_state = None
         self._gdf_non_nan_polygon_indices = None
+        self._gdf_engine = None
 
         # cached PolyCollection & Flags for visualization
         self._poly_collection = None
         self._poly_collection_periodic_state = None
         self._poly_collection_projection_state = None
         self._corrected_to_original_faces = None
+
         # cached LineCollection & Flags for visualization
         self._line_collection = None
         self._line_collection_periodic_state = None
@@ -1599,6 +1601,7 @@ class Grid:
         projection: Optional[ccrs.Projection] = None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
         return_non_nan_polygon_indices: Optional[bool] = False,
         exclude_nan_polygons: Optional[bool] = True,
@@ -1624,6 +1627,9 @@ class Grid:
             Flag used to select whether to cache the computed GeoDataFrame
         override: bool, optional
             Flag used to select whether to ignore any cached GeoDataFrame
+        engine: str, optional
+            Selects what library to use for creating a GeoDataFrame. One of ['spatialpandas', 'geopandas']. Defaults
+            to spatialpandas
         exclude_antimeridian: bool, optional
             Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
         return_non_nan_polygon_indices: bool, optional
@@ -1637,6 +1643,11 @@ class Grid:
         gdf : spatialpandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
+
+        if engine not in ["spatialpandas", "geopandas"]:
+            raise ValueError(
+                f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
+            )
 
         if projection is not None:
             if periodic_elements == "split":
@@ -1677,6 +1688,7 @@ class Grid:
             if (
                 self._gdf_periodic_state != periodic_elements
                 or self._gdf_projection_state != projection
+                or self._gdf_engine != engine
             ):
                 # cached GeoDataFrame has a different projection or periodic element handling method
                 override = True
@@ -1688,14 +1700,13 @@ class Grid:
             else:
                 return self._gdf
 
-        # TODO
         # construct a GeoDataFrame with the faces stored as polygons as the geometry
         gdf, non_nan_polygon_indices = _grid_to_polygon_geodataframe(
-            self, periodic_elements, projection
+            self, periodic_elements, projection, engine
         )
 
         if exclude_nan_polygons and non_nan_polygon_indices is not None:
-            # TODO
+            # exclude any polygons that contain NaN values
             gdf = GeoDataFrame({"geometry": gdf["geometry"][non_nan_polygon_indices]})
 
         if cache:
@@ -1703,19 +1714,12 @@ class Grid:
             self._gdf_non_nan_polygon_indices = non_nan_polygon_indices
             self._gdf_periodic_state = periodic_elements
             self._gdf_projection_state = projection
+            self._gdf_engine = engine
 
         if return_non_nan_polygon_indices:
             return gdf, non_nan_polygon_indices
 
         return gdf
-
-        #
-        # # cache computed geodataframe
-        # if cache:
-        #     self._gdf = gdf
-        #     self._gdf_exclude_am = exclude_antimeridian
-        #
-        # return gdf
 
     def to_polycollection(
         self,

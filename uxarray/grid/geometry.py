@@ -14,7 +14,10 @@ import xarray as xr
 import cartopy.crs as ccrs
 
 from spatialpandas.geometry import PolygonArray
-from spatialpandas import GeoDataFrame
+import shapely
+
+import spatialpandas
+import geopandas
 
 
 from numba import njit
@@ -141,7 +144,7 @@ def _build_polygon_shells(
     return polygon_shells
 
 
-def _grid_to_polygon_geodataframe(grid, periodic_elements, projection):
+def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     with a geometry column of polygons."""
 
@@ -172,31 +175,37 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection):
         polygon_shells[:, :, 0]
     )
 
-    # TODO: do we need this warning?
-    # if grid.n_face > GDF_POLYGON_THRESHOLD:
-    #     warnings.warn(
-    #         "Converting to a GeoDataFrame with over 1,000,000 faces may take some time."
-    #     )
-
     if periodic_elements == "split":
         gdf = _build_geodataframe_with_antimeridian(
             polygon_shells,
             projected_polygon_shells,
             projection,
             antimeridian_face_indices,
+            engine=geopandas,
         )
     elif periodic_elements == "include":
-        if projected_polygon_shells is not None:
-            geometry = PolygonArray.from_exterior_coords(projected_polygon_shells)
+        if engine == "geopandas":
+            # create a geopandas.GeoDataFrame
+            if projected_polygon_shells is not None:
+                geometry = projected_polygon_shells
+            else:
+                geometry = polygon_shells
+
+            gdf = geopandas.GeoDataFrame({"geometry": shapely.polygons(geometry)})
         else:
-            geometry = PolygonArray.from_exterior_coords(polygon_shells)
-        gdf = GeoDataFrame({"geometry": geometry})
+            # create a spatialpandas.GeoDataFrame
+            if projected_polygon_shells is not None:
+                geometry = PolygonArray.from_exterior_coords(projected_polygon_shells)
+            else:
+                geometry = PolygonArray.from_exterior_coords(polygon_shells)
+            gdf = spatialpandas.GeoDataFrame({"geometry": geometry})
 
     else:
         gdf = _build_geodataframe_without_antimeridian(
             polygon_shells,
             projected_polygon_shells,
             antimeridian_face_indices,
+            engine=engine,
         )
 
     non_nan_polygon_indices = None
@@ -217,12 +226,10 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection):
 # Helpers (NO ANTIMERIDIAN)
 # ----------------------------------------------------------------------------------------------------------------------
 def _build_geodataframe_without_antimeridian(
-    polygon_shells, projected_polygon_shells, antimeridian_face_indices
+    polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` excluding any faces that cross
     the antimeridian."""
-    from spatialpandas import GeoDataFrame
-
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells_without_antimeridian = np.delete(
@@ -233,9 +240,15 @@ def _build_geodataframe_without_antimeridian(
             polygon_shells, antimeridian_face_indices, axis=0
         )
 
-    geometry = PolygonArray.from_exterior_coords(shells_without_antimeridian)
-
-    gdf = GeoDataFrame({"geometry": geometry})
+    if engine == "geopandas":
+        # create a geopandas.GeoDataFrame
+        gdf = geopandas.GeoDataFrame(
+            {"geometry": shapely.polygons(shells_without_antimeridian)}
+        )
+    else:
+        # create a spatialpandas.GeoDataFrame
+        geometry = PolygonArray.from_exterior_coords(shells_without_antimeridian)
+        gdf = spatialpandas.GeoDataFrame({"geometry": geometry})
 
     return gdf
 
@@ -243,21 +256,27 @@ def _build_geodataframe_without_antimeridian(
 # Helpers (ANTIMERIDIAN)
 # ----------------------------------------------------------------------------------------------------------------------
 def _build_geodataframe_with_antimeridian(
-    polygon_shells, projected_polygon_shells, projection, antimeridian_face_indices
+    polygon_shells,
+    projected_polygon_shells,
+    projection,
+    antimeridian_face_indices,
+    engine,
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` including any faces that cross
     the antimeridian."""
     # import optional dependencies
     from spatialpandas.geometry import MultiPolygonArray
-    from spatialpandas import GeoDataFrame
 
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
     )
-
-    geometry = MultiPolygonArray(polygons)
-
-    gdf = GeoDataFrame({"geometry": geometry})
+    if engine == "geopandas":
+        # Create a geopandas.GeoDataFrame
+        gdf = geopandas.GeoDataFrame({"geometry": polygons})
+    else:
+        # Create a spatialpandas.GeoDataFrame
+        geometry = MultiPolygonArray(polygons)
+        gdf = spatialpandas.GeoDataFrame({"geometry": geometry})
 
     return gdf
 
