@@ -12,10 +12,10 @@ from typing import (
     Union,
 )
 
-
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
+from uxarray.io._geopandas import _read_geodataframe
 from uxarray.io._ugrid import (
     _read_ugrid,
     _encode_ugrid,
@@ -227,7 +227,9 @@ class Grid:
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
             elif source_grid_spec == "Shapefile":
-                raise ValueError("Shapefiles not yet supported")
+                raise ValueError(
+                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                )
             else:
                 raise ValueError("Unsupported Grid Format")
         else:
@@ -235,6 +237,53 @@ class Grid:
             source_grid_spec = kwargs.get("source_grid_spec", None)
             grid_ds = dataset
             source_dims_dict = {}
+
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_file(
+        cls,
+        filename: str,
+        backend: Optional[str] = "geopandas",
+        **kwargs,
+    ):
+        """Constructs a ``Grid`` object from a using the read_file method with
+        a specified backend.
+
+        Parameters
+        ----------
+        filename : str
+            Path to grid file
+        backend : str, default='geopandas'
+            Backend to use to read the file, xarray or geopandas.
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> grid = ux.Grid.from_file("path/to/file.shp")
+
+        Note
+        ----
+        All formats supported by `geopandas.read_file` can be used.
+        See more at: https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas-read-file
+        """
+
+        # determine grid/mesh specification
+        if backend == "geopandas":
+            if str(filename).endswith(".shp"):
+                source_grid_spec = "Shapefile"
+            elif str(filename).endswith(".geojson"):
+                source_grid_spec = "GeoJSON"
+            else:
+                source_grid_spec = "OtherGeoFormat"
+
+            grid_ds, source_dims_dict = _read_geodataframe(filename)
+
+        elif backend == "xarray":
+            grid_ds, source_dims_dict = cls.from_dataset(filename)
+
+        else:
+            raise ValueError("Backend not supported")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
