@@ -338,6 +338,14 @@ class UxDataArrayPlotAccessor:
         ValueError
             If the data is not mapped to the nodes, edges, or faces.
         """
+
+        if "pixel_ratio" in kwargs:
+            # use non-hvPlot raster until pixel ratio is officially supported
+            if "rasterize" in kwargs:
+                kwargs.pop("rasterize", None)
+
+            return dataarray_plot._point_raster(self._uxda, backend=backend, **kwargs)
+
         uxarray.plot.utils.backend.assign(backend)
 
         uxgrid = self._uxda.uxgrid
