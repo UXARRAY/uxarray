@@ -158,11 +158,13 @@ class UxDataArray(xr.DataArray):
         Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
         is best used for grids that do not initially include any periodic polygons.
 
-
         Parameters
         ----------
         periodic_elements : str, optional
-            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection, optional
             Geographic projection used to transform polygons
         cache: bool, optional
@@ -251,8 +253,11 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['exclude', 'split', 'ignore']
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection
             Cartopy geographic projection to use
         return_indices: bool

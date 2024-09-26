@@ -183,7 +183,7 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
             antimeridian_face_indices,
             engine=geopandas,
         )
-    elif periodic_elements == "include":
+    elif periodic_elements == "ignore":
         if engine == "geopandas":
             # create a geopandas.GeoDataFrame
             if projected_polygon_shells is not None:

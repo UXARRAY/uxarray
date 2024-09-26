@@ -1620,7 +1620,10 @@ class Grid:
         Parameters
         ----------
         periodic_elements : str, optional
-            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection, optional
             Geographic projection used to transform polygons
         cache: bool, optional
@@ -1679,7 +1682,7 @@ class Grid:
             else:
                 periodic_elements = "split"
 
-        if periodic_elements not in ["include", "exclude", "split"]:
+        if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
@@ -1734,8 +1737,11 @@ class Grid:
 
         Parameters
         ----------
-        periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['exclude', 'split', 'ignore']
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection
             Cartopy geographic projection to use
         return_indices: bool
@@ -1746,7 +1752,7 @@ class Grid:
             Flag to indicate whether to override a cached PolyCollection, if it exists
         """
 
-        if periodic_elements not in ["include", "exclude", "split"]:
+        if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
@@ -1797,8 +1803,11 @@ class Grid:
 
         Parameters
         ----------
-        periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection
             Cartopy geographic projection to use
         cache: bool
@@ -1806,7 +1815,7 @@ class Grid:
         override: bool
             Flag to indicate whether to override a cached PolyCollection, if it exists
         """
-        if periodic_elements not in ["include", "exclude", "split"]:
+        if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
