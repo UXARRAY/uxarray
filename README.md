@@ -1,8 +1,5 @@
+<img src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" width="450"/><br>
 
-<picture>
-  <source srcset="https://raw.githubusercontent.com/UXARRAY/uxarray/e252a7669acc6a733bca14ac244bbf02e665dbb0/docs/_static/images/logos/uxarray_logo_h_dark.svg">
-  <img alt="UXarray Package Logo" width="450">
-</picture>
 
 -----------------
 
