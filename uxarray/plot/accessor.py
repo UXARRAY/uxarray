@@ -271,7 +271,7 @@ class UxDataArrayPlotAccessor:
             Specifies whether to include or exclude periodic elements in the grid.
             Options are:
             - "exclude": Exclude periodic elements,
-            - "include": Include periodic elements.
+             - "split": Split periodic elements.
             - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
             The plotting backend to use. Defaults to None, which uses the default backend.
