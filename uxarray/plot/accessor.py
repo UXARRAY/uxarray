@@ -171,7 +171,7 @@ class GridPlotAccessor:
         """Plots the edges of a grid as a path plot.
 
         This function plots the edges of the grid as geographical paths using `hvplot`.
-        The plot can include or exclude periodic elements based on the provided option.
+        The plot can ignore, exclude, or split periodic elements based on the provided option.
         It automatically sets default values for rasterization, projection, and labeling,
         which can be overridden by passing additional keyword arguments. The backend for
         plotting can also be specified.
@@ -194,8 +194,6 @@ class GridPlotAccessor:
             - "crs" (ccrs.Projection): Coordinate reference system for the plot (default: `ccrs.PlateCarree()`).
             A full list can be found at https://hvplot.holoviz.org/user_guide/Customization.html
 
-        Returns
-        -------
         Returns
         -------
         gdf.hvplot.paths : hvplot.paths
