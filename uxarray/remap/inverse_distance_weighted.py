@@ -49,7 +49,7 @@ def _inverse_distance_weighted_remap(
     """
 
     if power > 5:
-        warnings.warn("It is recommended not to exceed a power of 5.0.")
+        warnings.warn("It is recommended not to exceed a power of 5.0.", UserWarning)
     if k > source_grid.n_node:
         raise ValueError(
             f"Number of nearest neighbors to be used in the calculation is {k}, but should not exceed the "
@@ -98,7 +98,9 @@ def _inverse_distance_weighted_remap(
                 f"but received: {remap_to}"
             )
 
-        _source_tree = source_grid.get_ball_tree(coordinates=source_data_mapping)
+        _source_tree = source_grid.get_ball_tree(
+            coordinates=source_data_mapping, reconstruct=True
+        )
 
         dest_coords = np.vstack([lon, lat]).T
 
@@ -133,6 +135,7 @@ def _inverse_distance_weighted_remap(
             coordinates=source_data_mapping,
             coordinate_system="cartesian",
             distance_metric="minkowski",
+            reconstruct=True,
         )
 
         dest_coords = np.vstack([x, y, z]).T

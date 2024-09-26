@@ -3,6 +3,7 @@ import numpy as np
 
 from unittest import TestCase
 from pathlib import Path
+import numpy.testing as nt
 
 import uxarray as ux
 
@@ -127,11 +128,15 @@ class TestNearestNeighborRemap(TestCase):
         source_grid = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
         destination_grid = ux.open_dataset(mpasfile_QU, mpasfile_QU)
 
-        remap_to_edge_centers = source_grid['v1'].remap.nearest_neighbor(destination_grid=destination_grid.uxgrid,
-                                                                         remap_to="edge centers")
+        remap_to_edge_centers_spherical = source_grid['v1'].remap.nearest_neighbor(destination_grid=destination_grid.uxgrid,
+                                                                         remap_to="edge centers", coord_type='spherical')
+
+        remap_to_edge_centers_carteisan = source_grid['v1'].remap.nearest_neighbor(destination_grid=destination_grid.uxgrid,
+                                                                         remap_to="edge centers", coord_type='cartesian')
 
         # Assert the data variable lies on the "edge centers"
-        self.assertTrue(remap_to_edge_centers._edge_centered())
+        self.assertTrue(remap_to_edge_centers_spherical._edge_centered())
+        self.assertTrue(remap_to_edge_centers_carteisan._edge_centered())
 
     def test_overwrite(self):
         """Tests that the remapping no longer overwrites the dataset."""
@@ -142,10 +147,73 @@ class TestNearestNeighborRemap(TestCase):
 
         # Perform remapping
         remap_to_edge_centers = source_grid['v1'].remap.nearest_neighbor(destination_grid=destination_dataset.uxgrid,
-                                                                                  remap_to="nodes")
+                                                                         remap_to="face centers", coord_type='cartesian')
 
         # Assert the remapped data is different from the original data
         assert not np.array_equal(destination_dataset['v1'], remap_to_edge_centers)
+
+    def test_source_data_remap(self):
+        """Test the remapping of all source data positions."""
+
+        # Open source and destination datasets to remap to
+        source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+        destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        # Remap from `face_centers`
+        face_centers = source_uxds['latCell'].remap.nearest_neighbor(
+            destination_grid=destination_dataset.uxgrid,
+            remap_to="nodes"
+        )
+
+        # Remap from `nodes`
+        nodes = source_uxds['latVertex'].remap.nearest_neighbor(
+            destination_grid=destination_dataset.uxgrid,
+            remap_to="nodes"
+        )
+
+        # Remap from `edges`
+        edges = source_uxds['angleEdge'].remap.nearest_neighbor(
+            destination_grid=destination_dataset.uxgrid,
+            remap_to="nodes"
+        )
+
+        self.assertTrue(len(face_centers.values) != 0)
+        self.assertTrue(len(nodes.values) != 0)
+        self.assertTrue(len(edges.values) != 0)
+
+    def test_value_errors(self):
+        """Tests the raising of value errors and warnings in the function."""
+
+        # Open source and destination datasets to remap to
+        source_uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        source_uxds_2 = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+        destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        # Raise ValueError when `remap_to` is invalid
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.nearest_neighbor(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="test", coord_type='spherical'
+            )
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.nearest_neighbor(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="test", coord_type="cartesian"
+            )
+
+        # Raise ValueError when `coord_type` is invalid
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.nearest_neighbor(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="nodes", coord_type="test"
+            )
+
+        # Raise ValueError when the source data is invalid
+        with nt.assert_raises(ValueError):
+            source_uxds_2['cellsOnCell'].remap.nearest_neighbor(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="nodes"
+            )
 
 
 class TestInverseDistanceWeightedRemapping(TestCase):
@@ -159,7 +227,7 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         destination_uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
         data_on_face_centers = dataset['v1'].remap.inverse_distance_weighted(
-            destination_uxds.uxgrid, remap_to="face centers")
+            destination_uxds.uxgrid, remap_to="face centers", power=6)
 
         assert not np.array_equal(dataset['v1'], data_on_face_centers)
 
@@ -243,11 +311,17 @@ class TestInverseDistanceWeightedRemapping(TestCase):
 
         # Perform remapping to the edge centers of the dataset
 
-        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(destination_grid=destination_grid.uxgrid,
-                                                                                  remap_to="edge centers")
+        remap_to_edge_centers_spherical = source_grid['v1'].remap.inverse_distance_weighted(
+            destination_grid=destination_grid.uxgrid,
+            remap_to="edge centers", coord_type='spherical')
+
+        remap_to_edge_centers_cartesian = source_grid['v1'].remap.inverse_distance_weighted(
+            destination_grid=destination_grid.uxgrid,
+            remap_to="edge centers", coord_type='cartesian')
 
         # Assert the data variable lies on the "edge centers"
-        self.assertTrue(remap_to_edge_centers._edge_centered())
+        self.assertTrue(remap_to_edge_centers_spherical._edge_centered())
+        self.assertTrue(remap_to_edge_centers_cartesian._edge_centered())
 
     def test_overwrite(self):
         """Tests that the remapping no longer overwrites the dataset."""
@@ -257,8 +331,93 @@ class TestInverseDistanceWeightedRemapping(TestCase):
         destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
 
         # Perform Remapping
-        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(destination_grid=destination_dataset.uxgrid,
-                                                                         remap_to="nodes")
+        remap_to_edge_centers = source_grid['v1'].remap.inverse_distance_weighted(
+            destination_grid=destination_dataset.uxgrid,
+            remap_to="face centers", coord_type='cartesian')
 
         # Assert the remapped data is different from the original data
         assert not np.array_equal(destination_dataset['v1'], remap_to_edge_centers)
+
+    def test_source_data_remap(self):
+        """Test the remapping of all source data positions."""
+
+        # Open source and destination datasets to remap to
+        source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+        destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        # Remap from `face_centers`
+        face_centers = source_uxds['latCell'].remap.inverse_distance_weighted(
+            destination_grid=destination_dataset.uxgrid,
+            remap_to="nodes"
+        )
+
+        # Remap from `nodes`
+        nodes = source_uxds['latVertex'].remap.inverse_distance_weighted(
+            destination_grid=destination_dataset.uxgrid,
+            remap_to="nodes"
+        )
+
+        # Remap from `edges`
+        edges = source_uxds['angleEdge'].remap.inverse_distance_weighted(
+            destination_grid=destination_dataset.uxgrid,
+            remap_to="nodes"
+        )
+
+        self.assertTrue(len(face_centers.values) != 0)
+        self.assertTrue(len(nodes.values) != 0)
+        self.assertTrue(len(edges.values) != 0)
+
+    def test_value_errors(self):
+        """Tests the raising of value errors and warnings in the function."""
+
+        # Open source and destination datasets to remap to
+        source_uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        source_uxds_2 = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+        destination_dataset = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+
+        # Raise ValueError when `k` =< 1
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.inverse_distance_weighted(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="nodes", k=1
+            )
+
+        # Raise ValueError when k is larger than `n_node`
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.inverse_distance_weighted(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="nodes", k=source_uxds.uxgrid.n_node + 1
+            )
+
+        # Raise ValueError when `remap_to` is invalid
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.inverse_distance_weighted(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="test", k=2, coord_type='spherical'
+            )
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.inverse_distance_weighted(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="test", k=2, coord_type="cartesian"
+            )
+
+        # Raise ValueError when `coord_type` is invalid
+        with nt.assert_raises(ValueError):
+            source_uxds['v1'].remap.inverse_distance_weighted(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="nodes", k=2, coord_type="test"
+            )
+
+        # Raise ValueError when the source data is invalid
+        with nt.assert_raises(ValueError):
+            source_uxds_2['cellsOnCell'].remap.inverse_distance_weighted(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="nodes"
+            )
+
+        # Raise UserWarning when `power` > 5
+        with nt.assert_warns(UserWarning):
+            source_uxds['v1'].remap.inverse_distance_weighted(
+                destination_grid=destination_dataset.uxgrid,
+                remap_to="nodes", power=6
+            )
