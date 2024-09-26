@@ -42,7 +42,7 @@ class TestAntimeridian(TestCase):
 
         uxgrid = ux.open_grid(verts, latlon=True)
 
-        gdf = uxgrid.to_geodataframe(periodic_elements='include')
+        gdf = uxgrid.to_geodataframe(periodic_elements='ignore')
 
         assert len(uxgrid.antimeridian_face_indices) == 1
 
