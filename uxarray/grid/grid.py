@@ -164,25 +164,32 @@ class Grid:
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
 
-        # cached GeoDataFrame & Flags for visualization
-        self._gdf = None
-        self._gdf_exclude_am = None
-        self._gdf_periodic_state = None
-        self._gdf_projection_state = None
-        self._gdf_non_nan_polygon_indices = None
-        self._gdf_engine = None
+        # cached parameters for GeoDataFrame conversions
+        self._gdf_cached_parameters = {
+            "gdf": None,
+            "periodic_elements": None,
+            "projection": None,
+            "non_nan_polygon_indices": None,
+            "engine": None,
+            "exclude_am": None,
+        }
 
-        # cached PolyCollection & Flags for visualization
-        self._poly_collection = None
-        self._poly_collection_periodic_state = None
-        self._poly_collection_projection_state = None
-        self._corrected_to_original_faces = None
+        # cached parameters for PolyCollection conversions
+        self._poly_collection_cached_parameters = {
+            "poly_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+            "corrected_to_original_faces": None,
+        }
 
-        # cached LineCollection & Flags for visualization
-        self._line_collection = None
-        self._line_collection_periodic_state = None
-        self._line_collection_projection_state = None
+        # cached parameters for LineCollection conversions
+        self._line_collection_cached_parameters = {
+            "line_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+        }
 
+        # TODO:
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
@@ -208,18 +215,12 @@ class Grid:
         and flags."""
         self._antimeridian_face_indices = None
 
-        self._gdf = None
-        self._gdf_exclude_am = None
-        self._gdf_periodic_state = None
-        self._gdf_projection_state = None
-        self._gdf_non_nan_polygon_indices = None
-        self._poly_collection = None
-        self._poly_collection_periodic_state = None
-        self._poly_collection_projection_state = None
-        self._corrected_to_original_faces = None
-        self._line_collection = None
-        self._line_collection_periodic_state = None
-        self._line_collection_projection_state = None
+        for key in self._gdf_cached_parameters.keys():
+            self._gdf_cached_parameters[key] = None
+        for key in self._poly_collection_cached_parameters.keys():
+            self._poly_collection_cached_parameters[key] = None
+        for key in self._line_collection_cached_parameters.keys():
+            self._line_collection_cached_parameters[key] = None
 
     @classmethod
     def from_dataset(
@@ -1687,21 +1688,23 @@ class Grid:
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if self._gdf is not None:
+        if self._gdf_cached_parameters["gdf"] is not None:
             if (
-                self._gdf_periodic_state != periodic_elements
-                or self._gdf_projection_state != projection
-                or self._gdf_engine != engine
+                self._gdf_cached_parameters["periodic_elements"] != periodic_elements
+                or self._gdf_cached_parameters["projection"] != projection
+                or self._gdf_cached_parameters["engine"] != engine
             ):
                 # cached GeoDataFrame has a different projection or periodic element handling method
                 override = True
 
-        if self._gdf is not None and not override:
+        if self._gdf_cached_parameters["gdf"] is not None and not override:
             # use cached PolyCollection
             if return_non_nan_polygon_indices:
-                return self._gdf, self._gdf_non_nan_polygon_indices
+                return self._gdf_cached_parameters["gdf"], self._gdf_cached_parameters[
+                    "non_nan_polygon_indices"
+                ]
             else:
-                return self._gdf
+                return self._gdf_cached_parameters["gdf"]
 
         # construct a GeoDataFrame with the faces stored as polygons as the geometry
         gdf, non_nan_polygon_indices = _grid_to_polygon_geodataframe(
@@ -1713,11 +1716,13 @@ class Grid:
             gdf = GeoDataFrame({"geometry": gdf["geometry"][non_nan_polygon_indices]})
 
         if cache:
-            self._gdf = gdf
-            self._gdf_non_nan_polygon_indices = non_nan_polygon_indices
-            self._gdf_periodic_state = periodic_elements
-            self._gdf_projection_state = projection
-            self._gdf_engine = engine
+            self._gdf_cached_parameters["gdf"] = gdf
+            self._gdf_cached_parameters["non_nan_polygon_indices"] = (
+                non_nan_polygon_indices
+            )
+            self._gdf_cached_parameters["periodic_elements"] = periodic_elements
+            self._gdf_cached_parameters["projection"] = projection
+            self._gdf_cached_parameters["engine"] = engine
 
         if return_non_nan_polygon_indices:
             return gdf, non_nan_polygon_indices
@@ -1757,22 +1762,30 @@ class Grid:
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if self._poly_collection is not None:
+        if self._poly_collection_cached_parameters["poly_collection"] is not None:
             if (
-                self._poly_collection_periodic_state != periodic_elements
-                or self._poly_collection_projection_state != projection
+                self._poly_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._poly_collection_cached_parameters["projection"] != projection
             ):
                 # cached PolyCollection has a different projection or periodic element handling method
                 override = True
 
-        if self._poly_collection is not None and not override:
+        if (
+            self._poly_collection_cached_parameters["poly_collection"] is not None
+            and not override
+        ):
             # use cached PolyCollection
             if return_indices:
                 return copy.deepcopy(
-                    self._poly_collection
-                ), self._corrected_to_original_faces
+                    self._poly_collection_cached_parameters["poly_collection"]
+                ), self._poly_collection_cached_parameters[
+                    "corrected_to_original_faces"
+                ]
             else:
-                return copy.deepcopy(self._poly_collection)
+                return copy.deepcopy(
+                    self._poly_collection_cached_parameters["poly_collection"]
+                )
 
         (
             poly_collection,
@@ -1781,10 +1794,14 @@ class Grid:
 
         if cache:
             # cache PolyCollection, indices, and state
-            self._poly_collection = poly_collection
-            self._corrected_to_original_faces = corrected_to_original_faces
-            self._poly_collection_periodic_state = periodic_elements
-            self._poly_collection_projection_state = projection
+            self._poly_collection_cached_parameters["poly_collection"] = poly_collection
+            self._poly_collection_cached_parameters["corrected_to_original_faces"] = (
+                corrected_to_original_faces
+            )
+            self._poly_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._poly_collection_cached_parameters["projection"] = projection
 
         if return_indices:
             return copy.deepcopy(poly_collection), corrected_to_original_faces
@@ -1820,22 +1837,27 @@ class Grid:
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if self._line_collection is not None:
+        if self._line_collection_cached_parameters["line_collection"] is not None:
             if (
-                self._line_collection_periodic_state != periodic_elements
-                or self._line_collection_projection_state != projection
+                self._line_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._line_collection_cached_parameters["projection"] != projection
             ):
                 override = True
 
             if not override:
-                return self._line_collection
+                return self._line_collection_cached_parameters["line_collection"]
 
         line_collection = _grid_to_matplotlib_linecollection(self, periodic_elements)
 
         if cache:
-            self._line_collection = line_collection
-            self._line_collection_periodic_state = periodic_elements
-            self._line_collection_projection_state = periodic_elements
+            self._line_collection_cached_parameters["line_collection"] = line_collection
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
 
         return line_collection
 

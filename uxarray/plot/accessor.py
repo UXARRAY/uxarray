@@ -182,7 +182,7 @@ class GridPlotAccessor:
             Specifies whether to include or exclude periodic elements in the grid.
             Options are:
             - "exclude": Exclude periodic elements,
-            - "include": Include periodic elements.
+            - "ignore": Include periodic elements without any corrections
             - "split": Split periodic elements.
         backend : str or None, optional
             The plotting backend to use. Defaults to None, which uses the default backend.
@@ -274,6 +274,7 @@ class UxDataArrayPlotAccessor:
             Options are:
             - "exclude": Exclude periodic elements,
             - "include": Include periodic elements.
+            - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
             The plotting backend to use. Defaults to None, which uses the default backend.
         *args : tuple
