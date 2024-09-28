@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
 import numpy as np
-
+from uxarray.constants import INT_FILL_VALUE
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
@@ -15,10 +15,10 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_deg
 
 
 def _bilinear(
-        source_uxda: UxDataArray,
-        destination_grid: Grid,
-        remap_to: str = "face centers",
-        coord_type: str = "spherical",
+    source_uxda: UxDataArray,
+    destination_grid: Grid,
+    remap_to: str = "face centers",
+    coord_type: str = "spherical",
 ) -> np.ndarray:
     """Bilinear Remapping between two grids, mapping data that resides on the
     corner nodes, edge centers, or face centers on the source grid to the
@@ -175,10 +175,10 @@ def _bilinear(
 
 
 def _bilinear_uxda(
-        source_uxda: UxDataArray,
-        destination_grid: Grid,
-        remap_to: str = "face centers",
-        coord_type: str = "spherical",
+    source_uxda: UxDataArray,
+    destination_grid: Grid,
+    remap_to: str = "face centers",
+    coord_type: str = "spherical",
 ):
     """Bilinear Remapping implementation for ``UxDataArray``.
 
@@ -221,10 +221,10 @@ def _bilinear_uxda(
 
 
 def _bilinear_uxds(
-        source_uxds: UxDataset,
-        destination_grid: Grid,
-        remap_to: str = "face centers",
-        coord_type: str = "spherical",
+    source_uxds: UxDataset,
+    destination_grid: Grid,
+    remap_to: str = "face centers",
+    coord_type: str = "spherical",
 ):
     """Bilinear Remapping implementation for ``UxDataset``.
 
@@ -321,7 +321,8 @@ def find_polygons_subset(dual, point):
 
 
 def polygon_triangle_split(polygon, point):
-    """For a given polygon, split into triangles and find the one containing the point"""
+    """For a given polygon, split into triangles and find the one containing
+    the point."""
     triangles = polygon.n_nodes - 2
     x = polygon.node_x.values
     y = polygon.node_y.values
@@ -336,3 +337,128 @@ def polygon_triangle_split(polygon, point):
         # TODO: Create point_inside_polygon() function
         # if point_inside_triangle([node1, node2, node3], point):
         #     return [node1, node2, node3], [values[0], values[j + 1], values[j + 2]]
+
+
+def point_in_triangle(point, triangle):
+    weights = calculate_bilinear_weights(polygon=triangle, point=point)
+
+    return (weights[0] >= 0 and weights[1] >= 0 and weights[2] >= 0), weights
+
+
+def find_polygon_containing_point(point, mesh):
+    """Finds the polygon that contains a point."""
+
+    # Get ball_tree
+    tree = mesh.uxgrid.get_ball_tree(coordinates="face centers")
+
+    # Create arrays to hold the lat/lon of first face
+    lat = np.array([INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)])
+    lon = np.array([INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)])
+
+    # If the mesh is not partial
+    if mesh.uxgrid.hole_edge_indices.size == 0:
+        # First check the nearest face
+        ind = [tree.query(point, k=1, return_distance=False)]
+
+        for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
+            if node != INT_FILL_VALUE:
+                lat[j] = mesh.uxgrid.node_lat[node]
+                lon[j] = mesh.uxgrid.node_lon[node]
+        point_found, weights = point_in_triangle(point, [lat, lon])
+
+        if point_found:
+            return weights
+
+        # If the nearest face doesn't contain the point, continue to check nearest faces
+        for i in range(2, mesh.uxgrid.n_face):
+            # Create arrays to hold the lat/lon of the face
+            lat = np.array(
+                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)]
+            )
+            lon = np.array(
+                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)]
+            )
+
+            # Query the tree for increasingly more neighbors if the polygon isn't found
+            ind = tree.query(point, k=i, return_distance=False, sort_results=True)
+
+            # Get the lat/lon for the face
+            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
+                if node != INT_FILL_VALUE:
+                    lat[j] = mesh.uxgrid.node_lat[node]
+                    lon[j] = mesh.uxgrid.node_lon[node]
+
+            # Check if the point is inside the polygon
+            point_found, weights = point_in_triangle(point, [lat, lon])
+
+            if point_found:
+                return weights
+
+    # If the mesh is partial, limit the search when the face is in the `hole_edge_indices` list
+    else:
+        # First check the nearest face
+        ind = [tree.query(point, k=1, return_distance=False)]
+
+        for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
+            if node != INT_FILL_VALUE:
+                lat[j] = mesh.uxgrid.node_lat[node]
+                lon[j] = mesh.uxgrid.node_lon[node]
+
+        point_found, weights = point_in_triangle(point, [lat, lon])
+
+        if point_found:
+            return weights
+
+        # Create a dictionary of faces that are near the empty space
+        hole_edges = set(mesh.uxgrid.hole_edge_indices)
+        faces_bordering_hole = []
+
+        for face_index, face_edges in enumerate(mesh.uxgrid.face_edge_connectivity):
+            face_edge_set = set(face_edges)
+
+            if face_edge_set.intersection(hole_edges):
+                faces_bordering_hole.append(face_index)
+
+        # If the face is near a hole, only search `n_max_face_nodes`
+        if ind[0] in faces_bordering_hole:
+            for i in range(2, mesh.uxgrid.n_max_face_nodes):
+                lat = np.array(
+                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
+                )
+                lon = np.array(
+                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
+                )
+
+                ind = tree.query(point, k=i, return_distance=False, sort_results=True)
+
+                for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
+                    if node != INT_FILL_VALUE:
+                        lat[j] = mesh.uxgrid.node_lat[node]
+                        lon[j] = mesh.uxgrid.node_lon[node]
+
+                point_found, weights = point_in_triangle(point, [lat, lon])
+
+                if point_found:
+                    return weights
+            return INT_FILL_VALUE, INT_FILL_VALUE
+
+        else:
+            for i in range(2, mesh.uxgrid.n_face):
+                lat = np.array(
+                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
+                )
+                lon = np.array(
+                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
+                )
+
+                ind = tree.query(point, k=i, return_distance=False, sort_results=True)
+
+                for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
+                    if node != INT_FILL_VALUE:
+                        lat[j] = mesh.uxgrid.node_lat[node]
+                        lon[j] = mesh.uxgrid.node_lon[node]
+
+                point_found, weights = point_in_triangle(point, [lat, lon])
+
+                if point_found:
+                    return weights
