@@ -66,7 +66,13 @@ def _inverse_distance_weighted_remap(
     source_data = np.asarray(source_data)
 
     _, distances, nearest_neighbor_indices = source_tree_query(
-        source_data, source_grid, destination_grid, coord_type, remap_to, k=k
+        source_data,
+        source_grid,
+        destination_grid,
+        coord_type,
+        remap_to,
+        k=k,
+        query=True,
     )
 
     weights = 1 / (distances**power + 1e-6)

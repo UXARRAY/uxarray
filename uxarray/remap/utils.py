@@ -1,8 +1,9 @@
 import numpy as np
 
 
+# TODO: Better name for function
 def source_tree_query(
-    source_data, source_grid, destination_grid, coord_type, remap_to, k
+    source_data, source_grid, destination_grid, coord_type, remap_to, k, query
 ):
     n_elements = source_data.shape[-1]
 
@@ -47,7 +48,8 @@ def source_tree_query(
 
         dest_coords = np.vstack([lon, lat]).T
 
-        distances, nearest_neighbor_indices = _source_tree.query(dest_coords, k=k)
+        if query:
+            distances, nearest_neighbor_indices = _source_tree.query(dest_coords, k=k)
 
     elif coord_type == "cartesian":
         if remap_to == "nodes":
@@ -83,7 +85,8 @@ def source_tree_query(
 
         dest_coords = np.vstack([x, y, z]).T
 
-        distances, nearest_neighbor_indices = _source_tree.query(dest_coords, k=k)
+        if query:
+            distances, nearest_neighbor_indices = _source_tree.query(dest_coords, k=k)
 
     else:
         raise ValueError(
@@ -93,4 +96,7 @@ def source_tree_query(
     if nearest_neighbor_indices.ndim > 1:
         nearest_neighbor_indices = nearest_neighbor_indices.squeeze()
 
-    return dest_coords, distances, nearest_neighbor_indices
+    if query:
+        return dest_coords, distances, nearest_neighbor_indices
+    else:
+        return dest_coords

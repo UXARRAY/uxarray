@@ -48,7 +48,13 @@ def _nearest_neighbor(
     source_data = np.asarray(source_data)
 
     _, _, nearest_neighbor_indices = source_tree_query(
-        source_data, source_grid, destination_grid, coord_type, remap_to, k=1
+        source_data,
+        source_grid,
+        destination_grid,
+        coord_type,
+        remap_to,
+        k=1,
+        query=True,
     )
 
     # support arbitrary dimension data using Ellipsis "..."
