@@ -41,7 +41,9 @@ def source_tree_query(
                 f"but received: {remap_to}"
             )
 
-        _source_tree = source_grid.get_ball_tree(coordinates=source_data_mapping, reconstruct=True)
+        _source_tree = source_grid.get_ball_tree(
+            coordinates=source_data_mapping, reconstruct=True
+        )
 
         dest_coords = np.vstack([lon, lat]).T
 
@@ -76,7 +78,7 @@ def source_tree_query(
             coordinates=source_data_mapping,
             coordinate_system="cartesian",
             distance_metric="minkowski",
-            reconstruct=True
+            reconstruct=True,
         )
 
         dest_coords = np.vstack([x, y, z]).T
