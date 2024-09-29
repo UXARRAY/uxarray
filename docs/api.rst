@@ -2,9 +2,9 @@
 
 .. _api:
 
-#############
+
 API reference
-#############
+=============
 
 This page provides an auto-generated summary of UXarray's API. For more details
 and examples, refer to the relevant chapters in the main part of the
@@ -13,8 +13,9 @@ documentation.
 TODO:
 See also: :ref:`public api`
 
-High-Level Functions
-===================
+
+Top Level Functions
+-----------------------
 
 .. autosummary::
    :toctree: generated/
@@ -25,11 +26,10 @@ High-Level Functions
 
 
 Grid
-====
-
+-----------------------
 
 Constructor
------------
+~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -37,7 +37,7 @@ Constructor
    Grid
 
 I/O & Conversion
-----------------
+~~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -52,14 +52,14 @@ I/O & Conversion
    Grid.encode_as
 
 Indexing
---------
+~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
    Grid.isel
 
 Dimensions
-----------
+~~~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
@@ -77,7 +77,7 @@ Dimensions
    Grid.n_nodes_per_face
 
 Spherical Coordinates
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -90,7 +90,7 @@ Spherical Coordinates
    Grid.face_lat
 
 Cartesian Coordinates
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -106,7 +106,7 @@ Cartesian Coordinates
    Grid.face_z
 
 Connectivity
-------------
+~~~~~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
@@ -122,7 +122,7 @@ Connectivity
    Grid.node_face_connectivity
 
 Descriptors
------------
+~~~~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
@@ -136,14 +136,14 @@ Descriptors
    Grid.face_jacobian
 
 Attributes
-----------
+~~~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
    Grid.attrs
 
 Methods
--------
+~~~~~~~
 .. autosummary::
    :toctree: generated/
 
@@ -154,15 +154,69 @@ Methods
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
 
+Inheritance of Xarray Functionality
+-----------------------------------
+
+The primary data structures in UXarray, ``uxarray.UxDataArray`` and ``uxarray.UxDataset`` inherit from ``xarray.DataArray`` and
+``xr.Dataset`` respectively. This means that they contain the same methods and attributes that are present in Xarray, with
+new additions and some overloaded as discussed in the next sections. For a detailed list of Xarray specific behavior
+and functionality, please refer to Xarray's (documentation)[https://docs.xarray.dev/en/stable/]
 
 
+UxDataArray
+-----------
+
+Constructor
+~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray
+
+Grid Accessor
+~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.uxgrid
+
+I/O & Conversion
+~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.to_geodataframe
+   UxDataArray.to_polycollection
+   UxDataArray.to_dataset
+
+UxDataset
+-----------
+
+Constructor
+~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset
+
+Grid Accessor
+~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.uxgrid
 
 
 Plotting
-========
+--------
 
 Grid
-----
+~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -171,7 +225,7 @@ Grid
    Grid.plot
 
 UxDataArray
------------
+~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -180,7 +234,7 @@ UxDataArray
    UxDataArray.plot
 
 UxDataset
----------
+~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -192,10 +246,10 @@ UxDataset
 
 
 Subsetting
-==========
+----------
 
 Grid
-----
+~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -208,7 +262,7 @@ Grid
 
 
 UxDataArray
------------
+~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -221,10 +275,10 @@ UxDataArray
 
 
 Remapping
-=========
+---------
 
 UxDataArray
------------
+~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -235,7 +289,7 @@ UxDataArray
    UxDataArray.remap.inverse_distance_weighted
 
 UxDataset
----------
+~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -246,21 +300,50 @@ UxDataset
    UxDataset.remap.inverse_distance_weighted
 
 
-Calculus Operators
-==================
+Mathematical Operators
+----------------------
 
 .. autosummary::
    :toctree: generated/
 
    UxDataArray.integrate
    UxDataArray.gradient
+   UxDataArray.difference
+
+Aggregations
+------------
+
+Topological
+~~~~~~~~~~~
+
+Topological aggregations apply an aggregation (i.e. averaging) on a per-element basis. For example, instead of computing
+the average across all values, we can compute the average of all the nodes that surround each face and store the result
+on each face.
+
+See also: :doc:`user_guide/topological-agg`
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.topological_mean
+   UxDataArray.topological_min
+   UxDataArray.topological_max
+   UxDataArray.topological_median
+   UxDataArray.topological_std
+   UxDataArray.topological_var
+   UxDataArray.topological_sum
+   UxDataArray.topological_prod
+   UxDataArray.topological_all
+   UxDataArray.topological_any
+
+
 
 
 Spherical Geometry
-==================
+------------------
 
 Intersections
--------------
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -269,7 +352,7 @@ Intersections
    grid.intersections.gca_constLat_intersection
 
 Arcs
-----
+~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -280,7 +363,7 @@ Arcs
 
 
 Accurate Computing
-==================
+------------------
 
 .. autosummary::
    :toctree: generated/
