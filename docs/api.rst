@@ -10,10 +10,6 @@ This page provides an auto-generated summary of UXarray's API. For more details
 and examples, refer to the relevant chapters in the main part of the
 documentation.
 
-TODO:
-See also: :ref:`public api`
-
-
 Top Level Functions
 -----------------------
 
@@ -26,7 +22,7 @@ Top Level Functions
 
 
 Grid
------------------------
+----
 
 Constructor
 ~~~~~~~~~~~
@@ -158,10 +154,9 @@ Inheritance of Xarray Functionality
 -----------------------------------
 
 The primary data structures in UXarray, ``uxarray.UxDataArray`` and ``uxarray.UxDataset`` inherit from ``xarray.DataArray`` and
-``xr.Dataset`` respectively. This means that they contain the same methods and attributes that are present in Xarray, with
+``xarray.Dataset`` respectively. This means that they contain the same methods and attributes that are present in Xarray, with
 new additions and some overloaded as discussed in the next sections. For a detailed list of Xarray specific behavior
-and functionality, please refer to Xarray's (documentation)[https://docs.xarray.dev/en/stable/]
-
+and functionality, please refer to Xarray's `documentation <https://docs.xarray.dev/en/stable/>`_.
 
 UxDataArray
 -----------
@@ -214,6 +209,8 @@ Grid Accessor
 
 Plotting
 --------
+
+UXarray's plotting API is written using ``hvPlot``.
 
 Grid
 ~~~~
@@ -320,7 +317,10 @@ Topological aggregations apply an aggregation (i.e. averaging) on a per-element 
 the average across all values, we can compute the average of all the nodes that surround each face and store the result
 on each face.
 
-See also: :doc:`user_guide/topological-agg`
+.. seealso::
+
+    `Topological Aggregations User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/topological-aggregations.html>`_
+
 
 .. autosummary::
    :toctree: generated/
