@@ -76,6 +76,8 @@ from uxarray.grid.validation import (
     _check_normalization,
 )
 
+from uxarray.grid.partition import _build_partitioned_face_node_connectivity
+
 from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
@@ -157,6 +159,9 @@ class Grid:
 
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
+
+        # TODO:
+        self._ds_partitioned = xr.Dataset()
 
         # initialize attributes
         self._antimeridian_face_indices = None
@@ -1150,6 +1155,16 @@ class Grid:
                 self.edge_face_connectivity.values
             )
         return self._ds["hole_edge_indices"]
+
+    # TODO: ===================
+    @property
+    def partitioned_face_node_connectivity(self):
+        if not hasattr(self, "_partitioned_face_node_connectivity"):
+            self._partitioned_face_node_connectivity = (
+                _build_partitioned_face_node_connectivity(self)
+            )
+
+        return self._partitioned_face_node_connectivity
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
