@@ -45,6 +45,7 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
 ## Features
 
 * ``Grid`` class for storing grid information and providing grid-specific functionality
+  * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, and EXODUS grid formats
 * Extension of xarray's ``DataArray`` and ``Dataset`` classe to support unstructured grid operations
   * ``uxarray.UxDataArray`` inherits ``xarray.DataArray`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
   * ``uxarray.UxDataset`` inherits ``xarray.Dataset`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
@@ -52,6 +53,11 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
 * Plotting
   * Native visualization of unstructured grids written using the ``hvPlot`` package
   * Support for grid topology visualization (i.e. exploring the geometry of a grid) and data visualization (i.e. data mapped to each face)
+* Subsetting
+  * Ability to select arbitrary regions of a grid using different selection methods (nearest neighbor, bounding circle, bounding box)
+* Remapping
+  * Support for nearest neighbor and inverse distance weighted unstructured to unstructured remapping
+* Topological Aggregations
 
 
 ## Intended Features
