@@ -18,7 +18,7 @@ Top Level Functions
 
    open_grid
    open_dataset
-   open_dataset
+   open_mfdataset
 
 
 Grid
