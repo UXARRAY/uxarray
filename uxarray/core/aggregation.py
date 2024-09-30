@@ -144,7 +144,7 @@ def _apply_node_to_edge_aggregation_(
 ):
     """TODO:"""
 
-    data_flat = uxda.data[..., uxda.uxgrid.edge_node_connectivity.flatten()]
+    data_flat = uxda.data[..., uxda.uxgrid.edge_node_connectivity.data.flatten()]
     data_reshaped = data_flat.reshape((uxda.data.shape[:-1]) + (uxda.uxgrid.n_edge, 2))
     result = getattr(data_reshaped, aggregation_func)(
         axis=-1, **aggregation_func_kwargs
