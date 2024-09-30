@@ -1,8 +1,9 @@
 import numpy as np
-import dask.array as da
+import xarray as xr
 
 
 def get_face_partitions(n_nodes_per_face):
+    """TODO:"""
     # sort number of nodes per face in ascending order
     n_nodes_per_face_sorted_indices = np.argsort(n_nodes_per_face)
 
@@ -22,7 +23,7 @@ def get_face_partitions(n_nodes_per_face):
 
 
 def initialize_face_partition_variables(uxgrid):
-    # number of nodes and edges for a face are equal
+    """TODO:"""
 
     (
         face_geometry_inflections,
@@ -37,21 +38,34 @@ def initialize_face_partition_variables(uxgrid):
     uxgrid._face_geometries_counts = face_geometries_counts
 
 
-def _build_partitioned_face_node_connectivity(uxgrid):
+def _build_partitioned_face_connectivity(uxgrid, connectivity_name):
+    """TODO:"""
     if not hasattr(uxgrid, "_face_geometry_inflections"):
         # TODO:
         initialize_face_partition_variables(uxgrid)
 
-    face_node_connectivity = uxgrid.face_node_connectivity.values
+    if connectivity_name == "face_node_connectivity":
+        conn = uxgrid.face_node_connectivity.values
+    elif connectivity_name == "face_edge_connectivity":
+        conn = uxgrid.face_edge_connectivity.values
+    else:
+        raise ValueError("TODO: ")
+
     face_geometry_inflections = uxgrid._face_geometry_inflections
     n_nodes_per_face_sorted_indices = uxgrid._n_nodes_per_face_sorted_indices
     face_geometries = uxgrid._face_geometries
     face_geometries_counts = uxgrid._face_geometries
 
-    # TODO:
-    partitioned_face_node_connectivity = PartitionedFaceNodeConnectivity(
+    if connectivity_name == "face_node_connectivity":
+        partition_obj = PartitionedFaceNodeConnectivity
+    elif connectivity_name == "face_edge_connectivity":
+        partition_obj = PartitionedFaceEdgeConnectivity
+    else:
+        raise ValueError()
+
+    partitioned_connectivity = partition_obj(
         face_geometries,
-        connectivity_name="face_node_connectivity",
+        connectivity_name=connectivity_name,
         indices_name="original_face_indices",
     )
 
@@ -62,21 +76,20 @@ def _build_partitioned_face_node_connectivity(uxgrid):
         face_geometry_inflections[1:],
     ):
         original_face_indices = n_nodes_per_face_sorted_indices[start:end]
-        face_nodes_par = face_node_connectivity[original_face_indices, 0:e]
+        conn_par = conn[original_face_indices, 0:e]
 
-        # TODO
-        setattr(
-            partitioned_face_node_connectivity,
-            f"face_node_connectivity_{e}",
-            face_nodes_par,
-        )
-        setattr(
-            partitioned_face_node_connectivity,
-            f"original_face_indices_{e}",
-            original_face_indices,
+        # Store partitioned face node connectivity
+        partitioned_connectivity._ds[f"{connectivity_name}_{e}"] = xr.DataArray(
+            data=conn_par, dims=[f"n_face_{str(e)}", str(e)]
         )
 
-    return partitioned_face_node_connectivity
+        if f"original_face_indices_{e}" not in partitioned_connectivity._ds:
+            # Store original face indices (avoid duplicates)
+            partitioned_connectivity._ds[f"original_face_indices_{e}"] = xr.DataArray(
+                data=original_face_indices, dims=[f"n_face_{str(e)}"]
+            )
+
+    return partitioned_connectivity
 
 
 class BasePartitionedConnectivity:
@@ -85,11 +98,12 @@ class BasePartitionedConnectivity:
         self._geometries = set(geometries)
         self._connectivity_name = connectivity_name
         self._indices_name = indices_name
+        self._ds = xr.Dataset()
 
     def __getitem__(self, geometry):
         return (
-            getattr(self, f"{self._connectivity_name}_{geometry}"),
-            getattr(self, f"{self._indices_name}_{geometry}"),
+            self._ds[f"{self._connectivity_name}_{geometry}"].data,
+            self._ds[f"{self._indices_name}_{geometry}"].data,
         )
 
     def __iter__(self):
@@ -103,36 +117,26 @@ class BasePartitionedConnectivity:
 
     @property
     def partitions(self):
-        return [self[geom] for geom in self.geometries]
+        return [self[geom][0].data for geom in self.geometries]
 
     @property
     def original_face_indices(self):
-        return getattr(f"original_face_indices_{geom}" for geom in self.geometries)
-
-    def chunk(self, chunks=-1):
-        for geom in self.geometries:
-            partition = da.from_array(
-                getattr(self, f"{self._connectivity_name}_{geom}"), chunks=chunks
-            )
-            face_indices = da.from_array(
-                getattr(self, f"{self._indices_name}_{geom}"), chunks=chunks
-            )
-
-            setattr(self, f"{self._connectivity_name}_{geom}", partition)
-            setattr(self, f"{self._indices_name}_{geom}", face_indices)
-
-    def persist(self):
-        for geom in self.geometries:
-            partition = getattr(self, f"{self._connectivity_name}_{geom}").persist()
-            face_indices = getattr(self, f"{self._indices_name}_{geom}").persist()
-
-            setattr(self, f"{self._connectivity_name}_{geom}", partition)
-            setattr(self, f"{self._indices_name}_{geom}", face_indices)
+        return [self[geom][1].data for geom in self.geometries]
 
 
 class PartitionedFaceNodeConnectivity(BasePartitionedConnectivity):
     def __repr__(self):
         repr_str = "Partitioned Face Node Connectivity\n"
+        repr_str += "----------------------------------\n"
+        for geom in self.geometries:
+            repr_str += f" - {geom}: {self[geom][0].shape}\n"
+
+        return repr_str
+
+
+class PartitionedFaceEdgeConnectivity(BasePartitionedConnectivity):
+    def __repr__(self):
+        repr_str = "Partitioned Face Edge Connectivity\n"
         repr_str += "----------------------------------\n"
         for geom in self.geometries:
             repr_str += f" - {geom}: {self[geom][0].shape}\n"

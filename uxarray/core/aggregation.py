@@ -6,6 +6,9 @@ import dask.array as da
 import uxarray.core.dataarray
 
 
+from uxarray.core.numba_aggregation import NUMBA_NODE_FACE_AGGS, NUMBA_NODE_EDGE_AGGS
+
+
 def result_array(arr):
     if isinstance(arr, np.ndarray):
         return np.empty
@@ -90,6 +93,27 @@ def _apply_node_to_face_aggregation(
 ):
     """TODO:"""
 
+    if isinstance(uxda.data, np.ndarray):
+        _numba_agg_func = NUMBA_NODE_FACE_AGGS[aggregation_func]
+        result = _numba_agg_func(
+            uxda.data,
+            uxda.uxgrid.face_node_connectivity.values,
+            uxda.uxgrid.n_nodes_per_face.values,
+            uxda.uxgrid.n_face,
+        )
+    elif isinstance(uxda.data, dask.array.core.Array):
+        result = _node_to_face_aggregation_dask(
+            uxda,
+            aggregation_func,
+            aggregation_func_kwargs,
+        )
+    else:
+        raise ValueError("TODO")
+
+    return result
+
+
+def _node_to_face_aggregation_dask(uxda, aggregation_func, aggregation_func_kwargs):
     # shape [..., n_face] since data is being aggregated onto the faces
     result = result_array(uxda.data)(
         shape=(uxda.data.shape[:-1]) + (uxda.uxgrid.n_face,)
@@ -142,6 +166,32 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
 def _apply_node_to_edge_aggregation_(
     uxda, aggregation_func, aggregation_func_kwargs, result_array_kwargs=None
 ):
+    """TODO:"""
+    if isinstance(uxda.data, np.ndarray):
+        _numba_agg_func = NUMBA_NODE_EDGE_AGGS[aggregation_func]
+        result = _numba_agg_func(
+            uxda.data, uxda.uxgrid.edge_node_connectivity.values, uxda.uxgrid.n_face
+        )
+    elif isinstance(uxda.data, dask.array.core.Array):
+        result = _node_to_edge_aggregation_dask(
+            uxda,
+            aggregation_func,
+            aggregation_func_kwargs,
+        )
+    else:
+        raise ValueError("TODO")
+
+    return result
+
+    data_flat = uxda.data[..., uxda.uxgrid.edge_node_connectivity.data.flatten()]
+    data_reshaped = data_flat.reshape((uxda.data.shape[:-1]) + (uxda.uxgrid.n_edge, 2))
+    result = getattr(data_reshaped, aggregation_func)(
+        axis=-1, **aggregation_func_kwargs
+    )
+    return result
+
+
+def _node_to_edge_aggregation_dask(uxda, aggregation_func, aggregation_func_kwargs):
     """TODO:"""
 
     data_flat = uxda.data[..., uxda.uxgrid.edge_node_connectivity.data.flatten()]

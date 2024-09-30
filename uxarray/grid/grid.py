@@ -76,7 +76,7 @@ from uxarray.grid.validation import (
     _check_normalization,
 )
 
-from uxarray.grid.partition import _build_partitioned_face_node_connectivity
+from uxarray.grid.partition import _build_partitioned_face_connectivity
 
 from xarray.core.utils import UncachedAccessor
 
@@ -1159,12 +1159,31 @@ class Grid:
     # TODO: ===================
     @property
     def partitioned_face_node_connectivity(self):
+        """TODO:"""
         if not hasattr(self, "_partitioned_face_node_connectivity"):
             self._partitioned_face_node_connectivity = (
-                _build_partitioned_face_node_connectivity(self)
+                _build_partitioned_face_connectivity(self, "face_node_connectivity")
             )
 
         return self._partitioned_face_node_connectivity
+
+    @partitioned_face_node_connectivity.setter
+    def partitioned_face_node_connectivity(self, value):
+        self._partitioned_face_node_connectivity = value
+
+    @property
+    def partitioned_face_edge_connectivity(self):
+        """TODO:"""
+        if not hasattr(self, "_partitioned_face_edge_connectivity"):
+            self._partitioned_face_edge_connectivity = (
+                _build_partitioned_face_connectivity(self, "face_edge_connectivity")
+            )
+
+        return self._partitioned_face_edge_connectivity
+
+    @partitioned_face_edge_connectivity.setter
+    def partitioned_face_edge_connectivity(self, value):
+        self._partitioned_face_edge_connectivity = value
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
