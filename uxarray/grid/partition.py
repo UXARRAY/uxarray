@@ -1,4 +1,5 @@
 import numpy as np
+import dask.array as da
 
 
 def get_face_partitions(n_nodes_per_face):
@@ -108,8 +109,25 @@ class BasePartitionedConnectivity:
     def original_face_indices(self):
         return getattr(f"original_face_indices_{geom}" for geom in self.geometries)
 
-    def chunk(self, chunk_size):
-        pass
+    def chunk(self, chunks=-1):
+        for geom in self.geometries:
+            partition = da.from_array(
+                getattr(self, f"{self._connectivity_name}_{geom}"), chunks=chunks
+            )
+            face_indices = da.from_array(
+                getattr(self, f"{self._indices_name}_{geom}"), chunks=chunks
+            )
+
+            setattr(self, f"{self._connectivity_name}_{geom}", partition)
+            setattr(self, f"{self._indices_name}_{geom}", face_indices)
+
+    def persist(self):
+        for geom in self.geometries:
+            partition = getattr(self, f"{self._connectivity_name}_{geom}").persist()
+            face_indices = getattr(self, f"{self._indices_name}_{geom}").persist()
+
+            setattr(self, f"{self._connectivity_name}_{geom}", partition)
+            setattr(self, f"{self._indices_name}_{geom}", face_indices)
 
 
 class PartitionedFaceNodeConnectivity(BasePartitionedConnectivity):
