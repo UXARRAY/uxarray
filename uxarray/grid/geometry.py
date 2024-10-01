@@ -1,26 +1,25 @@
+import antimeridian
+import cartopy.crs as ccrs
+import geopandas
+from matplotlib.collections import LineCollection, PolyCollection
+from numba import njit
 import numpy as np
-from uxarray.constants import INT_DTYPE, ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.intersections import gca_gca_intersection
+import pandas as pd
+import shapely
+from shapely import Polygon
+from shapely import polygons as Polygons
+import spatialpandas
+from spatialpandas.geometry import MultiPolygonArray, PolygonArray
+import xarray as xr
+
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_lonlat_rad_face_edge_nodes,
 )
 from uxarray.utils.computing import allclose, isclose
-import pandas as pd
-import xarray as xr
-
-
-import cartopy.crs as ccrs
-
-from spatialpandas.geometry import PolygonArray
-import shapely
-
-import spatialpandas
-import geopandas
-
-
-from numba import njit
 
 POLE_POINTS = {"North": np.array([0.0, 0.0, 1.0]), "South": np.array([0.0, 0.0, -1.0])}
 
@@ -118,16 +117,18 @@ def _build_polygon_shells(
     n_max_face_nodes,
     n_nodes_per_face,
     projection=None,
+    central_longitude=0.0,
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
+
     closed_face_nodes = _pad_closed_face_nodes(
         face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
     )
 
-    if projection is not None:
+    if projection:
         lonlat_proj = projection.transform_points(
-            ccrs.PlateCarree(), node_lon, node_lat
+            ccrs.PlateCarree(central_longitude=central_longitude), node_lon, node_lat
         )
 
         node_lon = lonlat_proj[:, 0]
@@ -144,29 +145,58 @@ def _build_polygon_shells(
     return polygon_shells
 
 
+def _correct_central_longitude(node_lon, node_lat, projection):
+    """TODO:"""
+    if projection:
+        central_longitude = projection.proj4_params["lon_0"]
+        if central_longitude != 0.0:
+            _source_projection = ccrs.PlateCarree(central_longitude=0.0)
+            _destination_projection = ccrs.PlateCarree(
+                central_longitude=projection.proj4_params["lon_0"]
+            )
+
+            lonlat_proj = _destination_projection.transform_points(
+                _source_projection, node_lon, node_lat
+            )
+
+            node_lon = lonlat_proj[:, 0]
+    else:
+        central_longitude = 0.0
+
+    return node_lon, node_lat, central_longitude
+
+
 def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     with a geometry column of polygons."""
 
+    # TODO:
+    node_lon, node_lat, central_longitude = _correct_central_longitude(
+        grid.node_lon.values, grid.node_lat.values, projection
+    )
+    # TODO: SHELLS WITHOUT PROJECTION
     polygon_shells = _build_polygon_shells(
-        grid.node_lon.values,
-        grid.node_lat.values,
+        node_lon,
+        node_lat,
         grid.face_node_connectivity.values,
         grid.n_face,
         grid.n_max_face_nodes,
         grid.n_nodes_per_face.values,
+        projection=None,
+        central_longitude=central_longitude,
     )
 
     if projection is not None:
-        # build projected polygon shells
+        # TODO: SHELLS WITH PROJECTION
         projected_polygon_shells = _build_polygon_shells(
-            grid.node_lon.values,
-            grid.node_lat.values,
+            node_lon,
+            node_lat,
             grid.face_node_connectivity.values,
             grid.n_face,
             grid.n_max_face_nodes,
             grid.n_nodes_per_face.values,
             projection=projection,
+            central_longitude=central_longitude,
         )
     else:
         projected_polygon_shells = None
@@ -174,6 +204,18 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
     antimeridian_face_indices = _build_antimeridian_face_indices(
         polygon_shells[:, :, 0]
     )
+
+    non_nan_polygon_indices = None
+    if projection is not None:
+        shells_d = np.delete(
+            projected_polygon_shells, antimeridian_face_indices, axis=0
+        )
+
+        # Check for NaN in each sub-array and invert the condition
+        does_not_contain_nan = ~np.isnan(shells_d).any(axis=1)
+
+        # Get the indices where NaN is NOT present
+        non_nan_polygon_indices = np.where(does_not_contain_nan)[0]
 
     if periodic_elements == "split":
         gdf = _build_geodataframe_with_antimeridian(
@@ -207,19 +249,6 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
             antimeridian_face_indices,
             engine=engine,
         )
-
-    non_nan_polygon_indices = None
-    if projection is not None:
-        shells_d = np.delete(
-            projected_polygon_shells, antimeridian_face_indices, axis=0
-        )
-
-        # Check for NaN in each sub-array and invert the condition
-        does_not_contain_nan = ~np.isnan(shells_d).any(axis=1)
-
-        # Get the indices where NaN is NOT present
-        non_nan_polygon_indices = np.where(does_not_contain_nan)[0]
-
     return gdf, non_nan_polygon_indices
 
 
@@ -264,9 +293,6 @@ def _build_geodataframe_with_antimeridian(
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` including any faces that cross
     the antimeridian."""
-    # import optional dependencies
-    from spatialpandas.geometry import MultiPolygonArray
-
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
     )
@@ -282,11 +308,12 @@ def _build_geodataframe_with_antimeridian(
 
 
 def _build_corrected_shapely_polygons(
-    polygon_shells, projected_polygon_shells, antimeridian_face_indices
+    polygon_shells,
+    projected_polygon_shells,
+    antimeridian_face_indices,
+    source_projection,
+    destination_projection,
 ):
-    import antimeridian
-    from shapely import polygons as Polygons
-
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells = projected_polygon_shells
@@ -302,6 +329,18 @@ def _build_corrected_shapely_polygons(
     # correct each antimeridian polygon
     corrected_polygons = [antimeridian.fix_polygon(P) for P in antimeridian_polygons]
 
+    if projected_polygon_shells is not None:
+        # project corrected polygons
+        from shapely.ops import transform
+        from pyproj import Transformer
+
+        transformer = Transformer.from_proj(
+            source_projection, destination_projection, always_xy=True
+        )
+        corrected_polygons = [
+            transform(transformer.transform, P) for P in corrected_polygons
+        ]
+
     # insert correct polygon back into original array
     for i in reversed(antimeridian_face_indices):
         polygons[i] = corrected_polygons.pop()
@@ -309,7 +348,7 @@ def _build_corrected_shapely_polygons(
     return polygons
 
 
-def _build_antimeridian_face_indices(shells_x):
+def _build_antimeridian_face_indices(shells_x, projection=None):
     """Identifies any face that has an edge that crosses the antimeridian."""
 
     x_mag = np.abs(np.diff(shells_x))
@@ -365,7 +404,6 @@ def _build_corrected_polygon_shells(polygon_shells):
 
     # import optional dependencies
     import antimeridian
-    from shapely import Polygon
 
     # list of shapely Polygons representing each Face in our grid
     polygons = [Polygon(shell) for shell in polygon_shells]
@@ -401,23 +439,22 @@ def _build_corrected_polygon_shells(polygon_shells):
             )
             _corrected_shells_to_original_faces.append(i)
 
-    # original_to_corrected = np.array(
-    #     _corrected_shells_to_original_faces, dtype=INT_DTYPE
-    # )
-
     return corrected_polygon_shells, _corrected_shells_to_original_faces
 
 
-def _grid_to_matplotlib_polycollection(grid, periodic_elements, projection=None):
+def _grid_to_matplotlib_polycollection(
+    grid, periodic_elements, projection=None, **kwargs
+):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
-
-    # import optional dependencies
-    from matplotlib.collections import PolyCollection
 
     if periodic_elements == "split" and projection is not None:
         raise ValueError(
             "Projections are not supported when splitting periodic elements.'"
         )
+
+    if projection:
+        # TODO:
+        kwargs["transform"] = projection
 
     polygon_shells = _build_polygon_shells(
         grid.node_lon.values,
@@ -439,7 +476,9 @@ def _grid_to_matplotlib_polycollection(grid, periodic_elements, projection=None)
             np.arange(grid.n_face), antimeridian_face_indices, axis=0
         )
 
-        return PolyCollection(shells_without_antimeridian), corrected_to_original_faces
+        return PolyCollection(
+            shells_without_antimeridian, **kwargs
+        ), corrected_to_original_faces
 
     elif periodic_elements == "split":
         # create polygon shells without projection
@@ -459,10 +498,12 @@ def _grid_to_matplotlib_polycollection(grid, periodic_elements, projection=None)
             corrected_to_original_faces,
         ) = _build_corrected_polygon_shells(polygon_shells)
 
-        return PolyCollection(corrected_polygon_shells), corrected_to_original_faces
+        return PolyCollection(
+            corrected_polygon_shells, **kwargs
+        ), corrected_to_original_faces
 
     else:
-        return PolyCollection(polygon_shells), []
+        return PolyCollection(polygon_shells, **kwargs), []
 
 
 def _grid_to_matplotlib_linecollection(
@@ -470,35 +511,61 @@ def _grid_to_matplotlib_linecollection(
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
 
-    # import optional dependencies
-    from matplotlib.collections import LineCollection
-    from shapely import polygons as Polygons
-
+    # TODO:
+    node_lon, node_lat, central_longitude = _correct_central_longitude(
+        grid.node_lon.values, grid.node_lat.values, projection
+    )
+    # TODO: SHELLS WITHOUT PROJECTION
     polygon_shells = _build_polygon_shells(
-        grid.node_lon.values,
-        grid.node_lat.values,
+        node_lon,
+        node_lat,
         grid.face_node_connectivity.values,
         grid.n_face,
         grid.n_max_face_nodes,
         grid.n_nodes_per_face.values,
+        projection=None,
+        central_longitude=central_longitude,
+    )
+
+    if projection is not None:
+        # TODO: SHELLS WITH PROJECTION
+        projected_polygon_shells = _build_polygon_shells(
+            node_lon,
+            node_lat,
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_nodes,
+            grid.n_nodes_per_face.values,
+            projection=projection,
+            central_longitude=central_longitude,
+        )
+    else:
+        projected_polygon_shells = None
+
+    antimeridian_face_indices = _build_antimeridian_face_indices(
+        polygon_shells[:, :, 0]
     )
 
     if periodic_elements == "exclude":
-        antimeridian_face_indices = grid.antimeridian_face_indices
-        shells_without_antimeridian = np.delete(
-            polygon_shells, antimeridian_face_indices, axis=0
-        )
-
-        polygons = Polygons(shells_without_antimeridian)
-
+        if projected_polygon_shells is not None:
+            # use projected shells if a projection is applied
+            _shells = np.delete(
+                projected_polygon_shells, antimeridian_face_indices, axis=0
+            )
+        else:
+            _shells = np.delete(polygon_shells, antimeridian_face_indices, axis=0)
+        polygons = Polygons(_shells)
+    elif periodic_elements == "ignore":
+        _shells = polygon_shells
+        polygons = Polygons(_shells)
     elif periodic_elements == "split":
-        # obtain corrected shapely polygons
-
         polygons = _build_corrected_shapely_polygons(
-            polygon_shells, None, grid.antimeridian_face_indices
+            polygon_shells,
+            projected_polygon_shells,
+            antimeridian_face_indices,
+            source_projection=ccrs.PlateCarree(central_longitude=central_longitude),
+            destination_projection=projection,
         )
-    else:
-        polygons = Polygons(polygon_shells)
 
     # Convert polygons into lines
     lines = []
@@ -514,10 +581,7 @@ def _grid_to_matplotlib_linecollection(
         # TODO:
         kwargs["transform"] = ccrs.PlateCarree()
 
-    if projection:
-        return LineCollection(lines, **kwargs)
-    else:
-        return LineCollection(lines, **kwargs)
+    return LineCollection(lines, **kwargs)
 
 
 def _pole_point_inside_polygon(pole, face_edge_cart):

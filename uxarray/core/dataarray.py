@@ -246,6 +246,7 @@ class UxDataArray(xr.DataArray):
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        **kwargs,
     ):
         """Converts a ``UxDataArray`` to a
         ``matplotlib.collections.PolyCollection``, representing each face as a
@@ -282,6 +283,7 @@ class UxDataArray(xr.DataArray):
                     periodic_elements=periodic_elements,
                     return_indices=True,
                     projection=projection,
+                    **kwargs,
                 )
             )
 

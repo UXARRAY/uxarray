@@ -1576,25 +1576,25 @@ class Grid:
 
         return out_ds
 
-    def set_central_longitude(self, central_longitude=0.0):
-        """Sets the central longitude of a grid to a desired value.
-
-        Used for visualization of projections with different central
-        longitude values.
-        """
-
-        source_projection = ccrs.PlateCarree(central_longitude=self.central_longitude)
-        destination_projection = ccrs.PlateCarree(central_longitude=central_longitude)
-
-        self.central_longitude = central_longitude
-
-        lonlat_proj = destination_projection.transform_points(
-            source_projection, self.node_lon.values, self.node_lat.values
-        )
-
-        self._ds["node_lon"].data = lonlat_proj[:, 0]
-
-        self._clear_visualization_structures_and_flags()
+    # def set_central_longitude(self, central_longitude=0.0):
+    #     """Sets the central longitude of a grid to a desired value.
+    #
+    #     Used for visualization of projections with different central
+    #     longitude values.
+    #     """
+    #
+    #     source_projection = ccrs.PlateCarree(central_longitude=self.central_longitude)
+    #     destination_projection = ccrs.PlateCarree(central_longitude=central_longitude)
+    #
+    #     self.central_longitude = central_longitude
+    #
+    #     lonlat_proj = destination_projection.transform_points(
+    #         source_projection, self.node_lon.values, self.node_lat.values
+    #     )
+    #
+    #     self._ds["node_lon"].data = lonlat_proj[:, 0]
+    #
+    #     self._clear_visualization_structures_and_flags()
 
     def to_geodataframe(
         self,
@@ -1659,16 +1659,6 @@ class Grid:
                     "Setting ``periodic_elements='split'`` is not supported when a "
                     "projection is provided."
                 )
-
-            if "lon_0" in projection._proj4_params:
-                central_longitude = projection._proj4_params["lon_0"]
-
-                if central_longitude != 0:
-                    raise ValueError(
-                        "Projections with shifted central longitudes not supported. Please "
-                        "use ``Grid.set_central_longitude(central_longitude)`` to set a "
-                        "central longitude."
-                    )
 
         if exclude_antimeridian is not None:
             warn(
@@ -1736,6 +1726,7 @@ class Grid:
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        **kwargs,
     ):
         """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
         representing each face as a polygon.
@@ -1755,6 +1746,8 @@ class Grid:
             Flag to indicate whether to cache the computed PolyCollection
         override: bool
             Flag to indicate whether to override a cached PolyCollection, if it exists
+        **kwargs: dict
+            TODO
         """
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
@@ -1790,7 +1783,9 @@ class Grid:
         (
             poly_collection,
             corrected_to_original_faces,
-        ) = _grid_to_matplotlib_polycollection(self, periodic_elements, projection)
+        ) = _grid_to_matplotlib_polycollection(
+            self, periodic_elements, projection, **kwargs
+        )
 
         if cache:
             # cache PolyCollection, indices, and state
@@ -1837,8 +1832,15 @@ class Grid:
         """
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
-                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+                f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
+
+        if projection is not None:
+            if periodic_elements == "split":
+                raise ValueError(
+                    "Setting ``periodic_elements='split'`` is not supported when a "
+                    "projection is provided."
+                )
 
         if self._line_collection_cached_parameters["line_collection"] is not None:
             if (
