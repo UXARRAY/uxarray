@@ -94,7 +94,7 @@
         "setuptools_scm": [""],
         "xarray": [""],
         "netcdf4": [""],
-        "pip+git+https://github.com/philipc2/pyfma.git": [""]
+        "pip+pyfma": [""]
     },
 
 
