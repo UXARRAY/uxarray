@@ -1,25 +1,20 @@
 from __future__ import annotations
 
+import functools
+import warnings
 from typing import TYPE_CHECKING, Any, Optional
 
-import functools
-
-
-if TYPE_CHECKING:
-    from uxarray.core.dataset import UxDataset
-    from uxarray.core.dataarray import UxDataArray
-    from uxarray.grid import Grid
+import cartopy.crs as ccrs
+import hvplot.pandas
+import pandas as pd
 
 import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
 
-import warnings
-
-import cartopy.crs as ccrs
-
-import pandas as pd
-
-import hvplot.pandas
+if TYPE_CHECKING:
+    from uxarray.core.dataarray import UxDataArray
+    from uxarray.core.dataset import UxDataset
+    from uxarray.grid import Grid
 
 
 class GridPlotAccessor:

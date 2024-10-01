@@ -291,13 +291,34 @@ class UxDataArray(xr.DataArray):
                 )
             )
 
-            # map data with antimeridian polygons
-            if len(corrected_to_original_faces) > 0:
-                data = self.values[corrected_to_original_faces]
+            if periodic_elements == "exclude":
+                # index data to ignore data mapped to periodic elements
+                _data = np.delete(
+                    self.values,
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "antimeridian_face_indices"
+                    ],
+                    axis=0,
+                )
+            elif periodic_elements == "split":
+                _data = self.values[corrected_to_original_faces]
             else:
-                data = self.values
+                _data = self.values
 
-            poly_collection.set_array(data)
+            if (
+                self.uxgrid._poly_collection_cached_parameters[
+                    "non_nan_polygon_indices"
+                ]
+                is not None
+            ):
+                # index data to ignore NaN polygons
+                _data = _data[
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "non_nan_polygon_indices"
+                    ]
+                ]
+
+            poly_collection.set_array(_data)
 
             if return_indices:
                 return poly_collection, corrected_to_original_faces

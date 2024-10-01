@@ -181,6 +181,8 @@ class Grid:
             "periodic_elements": None,
             "projection": None,
             "corrected_to_original_faces": None,
+            "non_nan_polygon_indices": None,
+            "antimeridian_face_indices": None,
         }
 
         # cached parameters for LineCollection conversions
@@ -1716,6 +1718,7 @@ class Grid:
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
         """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
@@ -1844,7 +1847,10 @@ class Grid:
                 return self._line_collection_cached_parameters["line_collection"]
 
         line_collection = _grid_to_matplotlib_linecollection(
-            self, periodic_elements, projection, **kwargs
+            grid=self,
+            periodic_elements=periodic_elements,
+            projection=projection,
+            **kwargs,
         )
 
         if cache:
