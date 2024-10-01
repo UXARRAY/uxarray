@@ -1,10 +1,40 @@
 import numpy as np
 
 
-# TODO: Better name for function
-def source_tree_query(
+def remap_grid_parse(
     source_data, source_grid, destination_grid, coord_type, remap_to, k, query
 ):
+    """Gets the destination coordinates from the destination grid for
+    remapping, as well as retrieving the nearest neighbor indices and
+    distances.
+
+    Parameters:
+    -----------
+    source_data : np.ndarray
+        Data variable to remap.
+    source_grid : Grid
+        Source grid that data is mapped from.
+    destination_grid : Grid
+        Destination grid to remap data to.
+    coord_type: str
+        Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian".
+    remap_to : str
+        Location of where to map data, either "nodes", "edge centers", or "face centers".
+    k : int
+        Number of nearest neighbors to consider in the weighted calculation.
+    query : bool
+        Whether to construct and query the tree based on the source grid.
+
+    Returns:
+    --------
+    dest_coords : np.ndarray
+        Returns the proper destination coordinates based on `remap_to`
+    distances : np.ndarray
+        Returns the distances of the query of `k` nearest neighbors.
+    nearest_neighbor_indices : np.ndarray
+        Returns the nearest neighbor indices of number `k`.
+    """
+
     n_elements = source_data.shape[-1]
 
     if n_elements == source_grid.n_node:

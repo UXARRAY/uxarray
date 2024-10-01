@@ -12,18 +12,18 @@ import uxarray.core.dataset
 from uxarray.grid import Grid
 import warnings
 
-from uxarray.remap.utils import source_tree_query
+from uxarray.remap.utils import remap_grid_parse
 
 
 def _inverse_distance_weighted_remap(
-    source_grid,
-    destination_grid,
-    source_data,
-    remap_to="face centers",
-    coord_type="spherical",
+    source_grid: Grid,
+    destination_grid: Grid,
+    source_data: np.ndarray,
+    remap_to: str = "face centers",
+    coord_type: str = "spherical",
     power=2,
     k=8,
-):
+) -> np.ndarray:
     """Inverse Distance Weighted Remapping between two grids.
 
     Parameters:
@@ -65,7 +65,7 @@ def _inverse_distance_weighted_remap(
     # ensure array is a np.ndarray
     source_data = np.asarray(source_data)
 
-    _, distances, nearest_neighbor_indices = source_tree_query(
+    _, distances, nearest_neighbor_indices = remap_grid_parse(
         source_data,
         source_grid,
         destination_grid,
