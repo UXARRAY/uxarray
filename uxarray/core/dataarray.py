@@ -142,6 +142,7 @@ class UxDataArray(xr.DataArray):
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
+        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -195,6 +196,7 @@ class UxDataArray(xr.DataArray):
             gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
                 periodic_elements=periodic_elements,
                 projection=projection,
+                project=project,
                 cache=cache,
                 override=override,
                 exclude_antimeridian=exclude_antimeridian,
@@ -208,7 +210,9 @@ class UxDataArray(xr.DataArray):
             if periodic_elements == "exclude":
                 # index data to ignore data mapped to periodic elements
                 _data = np.delete(
-                    self.values, self.uxgrid.antimeridian_face_indices, axis=0
+                    self.values,
+                    self.uxgrid._gdf_cached_parameters["antimeridian_face_indices"],
+                    axis=0,
                 )
             else:
                 _data = self.values

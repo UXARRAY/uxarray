@@ -80,8 +80,6 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
     return unique_points
 
 
-# General Helpers for Polygon Viz
-# ----------------------------------------------------------------------------------------------------------------------
 @njit
 def _pad_closed_face_nodes(
     face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
@@ -96,12 +94,6 @@ def _pad_closed_face_nodes(
 
     # set final value to the original
     closed[:, :-1] = face_node_connectivity.copy()
-
-    # if face_node_connectivity.shape[0] == 1:
-    #     closed[0, int(n_nodes_per_face):] = closed[0, 0]
-    # else:
-    #     for i, final_node_idx in enumerate(n_nodes_per_face):
-    #         closed[i, final_node_idx:] = closed[i, 0]
 
     for i, final_node_idx in enumerate(n_nodes_per_face):
         closed[i, final_node_idx:] = closed[i, 0]
@@ -166,7 +158,7 @@ def _correct_central_longitude(node_lon, node_lat, projection):
     return node_lon, node_lat, central_longitude
 
 
-def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
+def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     with a geometry column of polygons."""
 
@@ -186,7 +178,7 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
         central_longitude=central_longitude,
     )
 
-    if projection is not None:
+    if projection is not None and project:
         # TODO: SHELLS WITH PROJECTION
         projected_polygon_shells = _build_polygon_shells(
             node_lon,
@@ -205,8 +197,11 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
         polygon_shells[:, :, 0]
     )
 
+    # TODO:
+    grid._gdf_cached_parameters["antimeridian_face_indices"] = antimeridian_face_indices
+
     non_nan_polygon_indices = None
-    if projection is not None:
+    if projection is not None and project:
         shells_d = np.delete(
             projected_polygon_shells, antimeridian_face_indices, axis=0
         )
@@ -252,8 +247,6 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, engine):
     return gdf, non_nan_polygon_indices
 
 
-# Helpers (NO ANTIMERIDIAN)
-# ----------------------------------------------------------------------------------------------------------------------
 def _build_geodataframe_without_antimeridian(
     polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
 ):
@@ -282,8 +275,6 @@ def _build_geodataframe_without_antimeridian(
     return gdf
 
 
-# Helpers (ANTIMERIDIAN)
-# ----------------------------------------------------------------------------------------------------------------------
 def _build_geodataframe_with_antimeridian(
     polygon_shells,
     projected_polygon_shells,
@@ -311,8 +302,6 @@ def _build_corrected_shapely_polygons(
     polygon_shells,
     projected_polygon_shells,
     antimeridian_face_indices,
-    source_projection,
-    destination_projection,
 ):
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
@@ -328,18 +317,6 @@ def _build_corrected_shapely_polygons(
 
     # correct each antimeridian polygon
     corrected_polygons = [antimeridian.fix_polygon(P) for P in antimeridian_polygons]
-
-    if projected_polygon_shells is not None:
-        # project corrected polygons
-        from shapely.ops import transform
-        from pyproj import Transformer
-
-        transformer = Transformer.from_proj(
-            source_projection, destination_projection, always_xy=True
-        )
-        corrected_polygons = [
-            transform(transformer.transform, P) for P in corrected_polygons
-        ]
 
     # insert correct polygon back into original array
     for i in reversed(antimeridian_face_indices):
@@ -563,8 +540,6 @@ def _grid_to_matplotlib_linecollection(
             polygon_shells,
             projected_polygon_shells,
             antimeridian_face_indices,
-            source_projection=ccrs.PlateCarree(central_longitude=central_longitude),
-            destination_projection=projection,
         )
 
     # Convert polygons into lines

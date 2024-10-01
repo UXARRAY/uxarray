@@ -172,6 +172,7 @@ class Grid:
             "non_nan_polygon_indices": None,
             "engine": None,
             "exclude_am": None,
+            "antimeridian_face_indices": None,
         }
 
         # cached parameters for PolyCollection conversions
@@ -209,18 +210,6 @@ class Grid:
 
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
-
-    def _clear_visualization_structures_and_flags(self):
-        """Internal helper for clearing the state of visualization structures
-        and flags."""
-        self._antimeridian_face_indices = None
-
-        for key in self._gdf_cached_parameters.keys():
-            self._gdf_cached_parameters[key] = None
-        for key in self._poly_collection_cached_parameters.keys():
-            self._poly_collection_cached_parameters[key] = None
-        for key in self._line_collection_cached_parameters.keys():
-            self._line_collection_cached_parameters[key] = None
 
     @classmethod
     def from_dataset(
@@ -1600,6 +1589,7 @@ class Grid:
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
+        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -1653,7 +1643,7 @@ class Grid:
                 f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
             )
 
-        if projection is not None:
+        if projection and project:
             if periodic_elements == "split":
                 raise ValueError(
                     "Setting ``periodic_elements='split'`` is not supported when a "
@@ -1698,7 +1688,7 @@ class Grid:
 
         # construct a GeoDataFrame with the faces stored as polygons as the geometry
         gdf, non_nan_polygon_indices = _grid_to_polygon_geodataframe(
-            self, periodic_elements, projection, engine
+            self, periodic_elements, projection, project, engine
         )
 
         if exclude_nan_polygons and non_nan_polygon_indices is not None:

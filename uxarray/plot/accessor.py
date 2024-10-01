@@ -209,11 +209,15 @@ class GridPlotAccessor:
         if "clabel" not in kwargs:
             kwargs["clabel"] = "edges"
         if "crs" not in kwargs:
-            kwargs["crs"] = ccrs.PlateCarree()
+            if "projection" in kwargs:
+                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+            else:
+                central_longitude = 0.0
+            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
-        gdf = self._uxgrid.to_geodataframe(periodic_elements=periodic_elements)[
-            ["geometry"]
-        ]
+        gdf = self._uxgrid.to_geodataframe(
+            periodic_elements=periodic_elements, projection=kwargs.get("projection")
+        )[["geometry"]]
 
         return gdf.hvplot.paths(geo=True, **kwargs)
 
@@ -299,9 +303,15 @@ class UxDataArrayPlotAccessor:
         if "clabel" not in kwargs and self._uxda.name is not None:
             kwargs["clabel"] = self._uxda.name
         if "crs" not in kwargs:
-            kwargs["crs"] = ccrs.PlateCarree()
+            if "projection" in kwargs:
+                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+            else:
+                central_longitude = 0.0
+            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
-        gdf = self._uxda.to_geodataframe(periodic_elements=periodic_elements)
+        gdf = self._uxda.to_geodataframe(
+            periodic_elements=periodic_elements, projection=kwargs.get("projection")
+        )
 
         return gdf.hvplot.polygons(
             c=self._uxda.name if self._uxda.name is not None else "var",
