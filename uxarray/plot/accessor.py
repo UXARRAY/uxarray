@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.grid import Grid
 
-import uxarray.plot.grid_plot as grid_plot
 import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
 
