@@ -160,9 +160,6 @@ class Grid:
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
 
-        # TODO:
-        self._ds_partitioned = xr.Dataset()
-
         # initialize attributes
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
@@ -1156,10 +1153,9 @@ class Grid:
             )
         return self._ds["hole_edge_indices"]
 
-    # TODO: ===================
     @property
     def partitioned_face_node_connectivity(self):
-        """TODO:"""
+        """TODO."""
         if not hasattr(self, "_partitioned_face_node_connectivity"):
             self._partitioned_face_node_connectivity = (
                 _build_partitioned_face_connectivity(self, "face_node_connectivity")
