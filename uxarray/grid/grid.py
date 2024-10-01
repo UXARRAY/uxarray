@@ -1155,7 +1155,18 @@ class Grid:
 
     @property
     def partitioned_face_node_connectivity(self):
-        """TODO."""
+        """Partitioned representation of face_node_connectivity.
+
+        This property constructs the partitioned form of the face_node_connectivity using
+        the number of nodes per face. The partitioned structure enables efficient operations on
+        each block of partitions based on unique face geometries.
+
+        Returns
+        -------
+        PartitionedFaceNodeConnectivity
+            An object representing the partitioned face_node_connectivity for the grid, containing
+            partitioned data and original face indices for each unique geometry.
+        """
         if not hasattr(self, "_partitioned_face_node_connectivity"):
             self._partitioned_face_node_connectivity = (
                 _build_partitioned_face_connectivity(self, "face_node_connectivity")
@@ -1169,7 +1180,18 @@ class Grid:
 
     @property
     def partitioned_face_edge_connectivity(self):
-        """TODO:"""
+        """Partitioned representation of face_edge_connectivity.
+
+        This property constructs the partitioned form of the face_edge_connectivity using
+        the number of nodes per face. The partitioned structure enables efficient operations on
+        each block of partitions based on unique face geometries.
+
+        Returns
+        -------
+        PartitionedFaceEdgeConnectivity
+            An object representing the partitioned face_node_connectivity for the grid, containing
+            partitioned data and original face indices for each unique geometry.
+        """
         if not hasattr(self, "_partitioned_face_edge_connectivity"):
             self._partitioned_face_edge_connectivity = (
                 _build_partitioned_face_connectivity(self, "face_edge_connectivity")
