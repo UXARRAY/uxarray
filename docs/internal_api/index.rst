@@ -237,6 +237,7 @@ Remapping
    remap.inverse_distance_weighted._inverse_distance_weighted_remap
    remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxda
    remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxds
+   remap.utils._remap_grid_parse
 
 
 Grid Parsing and Encoding

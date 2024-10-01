@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def remap_grid_parse(
+def _remap_grid_parse(
     source_data, source_grid, destination_grid, coord_type, remap_to, k, query
 ):
     """Gets the destination coordinates from the destination grid for

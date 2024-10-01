@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from uxarray.remap.utils import remap_grid_parse
+from uxarray.remap.utils import _remap_grid_parse
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -47,7 +47,7 @@ def _nearest_neighbor(
     # ensure array is a np.ndarray
     source_data = np.asarray(source_data)
 
-    _, _, nearest_neighbor_indices = remap_grid_parse(
+    _, _, nearest_neighbor_indices = _remap_grid_parse(
         source_data,
         source_grid,
         destination_grid,

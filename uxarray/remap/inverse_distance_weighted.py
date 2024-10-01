@@ -12,7 +12,7 @@ import uxarray.core.dataset
 from uxarray.grid import Grid
 import warnings
 
-from uxarray.remap.utils import remap_grid_parse
+from uxarray.remap.utils import _remap_grid_parse
 
 
 def _inverse_distance_weighted_remap(
@@ -65,7 +65,7 @@ def _inverse_distance_weighted_remap(
     # ensure array is a np.ndarray
     source_data = np.asarray(source_data)
 
-    _, distances, nearest_neighbor_indices = remap_grid_parse(
+    _, distances, nearest_neighbor_indices = _remap_grid_parse(
         source_data,
         source_grid,
         destination_grid,
