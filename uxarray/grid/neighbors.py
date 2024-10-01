@@ -912,3 +912,32 @@ def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
     )
 
     return edge_face_distances
+
+
+def _populate_face_edge_signs(grid):
+    face_edge_signs = _construct_face_edge_signs(
+        grid.face_edge_connectivity.values,
+        grid.edge_face_connectivity.valuies,
+    )
+
+    return face_edge_signs
+
+
+@njit
+def _construct_face_edge_signs(
+    face_edge_connectivity, edge_face_connectivity, n_face, n_edge, n_max_face_edges
+):
+    # construct empty array to store face edge signs
+    face_edge_signs = np.zeros_like(face_edge_connectivity)
+
+    for edge_idx in range(n_edge):
+        edges_0 = face_edge_connectivity[edge_face_connectivity[edge_idx, 0]]
+        edges_1 = face_edge_connectivity[edge_face_connectivity[edge_idx, 1]]
+
+        index_j0 = np.where(edges_0 == edge_idx)[0][0]
+        index_j1 = np.where(edges_1 == edge_idx)[0][0]
+
+        face_edge_signs[edge_face_connectivity[edge_idx, index_j0]] = 1
+        face_edge_signs[edge_face_connectivity[edge_idx, index_j1]] = 1
+
+    pass
