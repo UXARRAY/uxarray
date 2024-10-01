@@ -450,7 +450,7 @@ def _grid_to_matplotlib_polycollection(grid, periodic_elements, projection=None)
             grid.n_face,
             grid.n_max_face_nodes,
             grid.n_nodes_per_face.values,
-            projection=None,
+            projection=projection,
         )
 
         # correct polygon shells without projection
@@ -465,7 +465,9 @@ def _grid_to_matplotlib_polycollection(grid, periodic_elements, projection=None)
         return PolyCollection(polygon_shells), []
 
 
-def _grid_to_matplotlib_linecollection(grid, periodic_elements):
+def _grid_to_matplotlib_linecollection(
+    grid, periodic_elements, projection=None, **kwargs
+):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
 
     # import optional dependencies
@@ -491,8 +493,9 @@ def _grid_to_matplotlib_linecollection(grid, periodic_elements):
 
     elif periodic_elements == "split":
         # obtain corrected shapely polygons
+
         polygons = _build_corrected_shapely_polygons(
-            polygon_shells, grid.antimeridian_face_indices
+            polygon_shells, None, grid.antimeridian_face_indices
         )
     else:
         polygons = Polygons(polygon_shells)
@@ -507,8 +510,14 @@ def _grid_to_matplotlib_linecollection(grid, periodic_elements):
         else:
             lines.append(np.array(boundary.coords))
 
-    # need transform? consider adding it later if needed
-    return LineCollection(lines)
+    if "transform" not in kwargs:
+        # TODO:
+        kwargs["transform"] = ccrs.PlateCarree()
+
+    if projection:
+        return LineCollection(lines, **kwargs)
+    else:
+        return LineCollection(lines, **kwargs)
 
 
 def _pole_point_inside_polygon(pole, face_edge_cart):

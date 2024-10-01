@@ -1814,6 +1814,7 @@ class Grid:
         projection: Optional[ccrs.Projection] = None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        **kwargs,
     ):
         """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
         representing each edge as a line.
@@ -1831,6 +1832,8 @@ class Grid:
             Flag to indicate whether to cache the computed PolyCollection
         override: bool
             Flag to indicate whether to override a cached PolyCollection, if it exists
+        **kwargs: dict
+            Key word arguments to pass into the ``LineCollection``
         """
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
@@ -1848,7 +1851,9 @@ class Grid:
             if not override:
                 return self._line_collection_cached_parameters["line_collection"]
 
-        line_collection = _grid_to_matplotlib_linecollection(self, periodic_elements)
+        line_collection = _grid_to_matplotlib_linecollection(
+            self, periodic_elements, projection, **kwargs
+        )
 
         if cache:
             self._line_collection_cached_parameters["line_collection"] = line_collection
