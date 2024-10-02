@@ -303,10 +303,10 @@ class UxDataArray(xr.DataArray):
 
         Examples
         --------
+        Open a Uxarray dataset and compute the integral
+        
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-
-        # Compute the integral
         >>> integral = uxds['psi'].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:

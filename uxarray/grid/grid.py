@@ -259,8 +259,9 @@ class Grid:
 
         Usage
         -----
-        >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp")
+        .. code-block:: python
+            >>> import uxarray as ux
+            >>> grid = ux.Grid.from_file("path/to/file.shp")
 
         Note
         ----
@@ -303,7 +304,7 @@ class Grid:
 
         Note
         ----
-        To construct a UGRID-complient grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
+        To construct a UGRID-compliant grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
 
         Parameters
         ----------
@@ -323,9 +324,10 @@ class Grid:
 
         Usage
         -----
-        >>> import uxarray as ux
-        >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
-        >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
+        .. code-block:: python
+            >>> import uxarray as ux
+            >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
+            >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
         """
 
         if dims_dict is None:
