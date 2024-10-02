@@ -204,8 +204,6 @@ class Grid:
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self._ds)
 
-        self.central_longitude = 0.0
-
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
 
@@ -1565,26 +1563,6 @@ class Grid:
             )
 
         return out_ds
-
-    # def set_central_longitude(self, central_longitude=0.0):
-    #     """Sets the central longitude of a grid to a desired value.
-    #
-    #     Used for visualization of projections with different central
-    #     longitude values.
-    #     """
-    #
-    #     source_projection = ccrs.PlateCarree(central_longitude=self.central_longitude)
-    #     destination_projection = ccrs.PlateCarree(central_longitude=central_longitude)
-    #
-    #     self.central_longitude = central_longitude
-    #
-    #     lonlat_proj = destination_projection.transform_points(
-    #         source_projection, self.node_lon.values, self.node_lat.values
-    #     )
-    #
-    #     self._ds["node_lon"].data = lonlat_proj[:, 0]
-    #
-    #     self._clear_visualization_structures_and_flags()
 
     def to_geodataframe(
         self,
