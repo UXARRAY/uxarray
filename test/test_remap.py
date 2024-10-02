@@ -156,7 +156,7 @@ class TestNearestNeighborRemap(TestCase):
 
         # Open source and destination datasets to remap to
         source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-        destination_grid = ux.open_dataset(gridfile_geoflow)
+        destination_grid = ux.open_grid(gridfile_geoflow)
 
         # Remap from `face_centers`
         face_centers = source_uxds['latCell'].remap.nearest_neighbor(
