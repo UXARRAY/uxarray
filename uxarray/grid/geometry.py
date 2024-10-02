@@ -435,6 +435,12 @@ def _grid_to_matplotlib_polycollection(
         grid.node_lon.values, grid.node_lat.values, projection
     )
 
+    if "transform" not in kwargs:
+        if projection is None:
+            kwargs["transform"] = ccrs.PlateCarree(central_longitude=central_longitude)
+        else:
+            kwargs["transform"] = projection
+
     polygon_shells = _build_polygon_shells(
         node_lon,
         node_lat,
@@ -442,7 +448,7 @@ def _grid_to_matplotlib_polycollection(
         grid.n_face,
         grid.n_max_face_nodes,
         grid.n_nodes_per_face.values,
-        projection=None,  # First, build shells without projection
+        projection=None,
         central_longitude=central_longitude,
     )
 
