@@ -49,7 +49,7 @@ class GridPlotAccessor:
             - "faces" or "face centers" or "face_latlon" for grid face centers,
             - "edges" or "edge centers" or "edge_latlon" for grid edges.
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -94,7 +94,7 @@ class GridPlotAccessor:
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -123,7 +123,7 @@ class GridPlotAccessor:
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -146,7 +146,7 @@ class GridPlotAccessor:
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -181,7 +181,7 @@ class GridPlotAccessor:
             - "ignore": Include periodic elements without any corrections
             - "split": Split periodic elements.
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.paths`. These can include:
             - "rasterize" (bool): Whether to rasterize the plot (default: False),
@@ -277,7 +277,7 @@ class UxDataArrayPlotAccessor:
             - "split": Split periodic elements.
             - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         *args : tuple
             Additional positional arguments to be passed to `hvplot.polygons`.
         **kwargs : dict
@@ -331,7 +331,7 @@ class UxDataArrayPlotAccessor:
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -400,7 +400,7 @@ class UxDataArrayPlotAccessor:
         method: str
             Selects what type of element to rasterize (point, trimesh, polygon).
         backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         projection: ccrs
              Custom projection to transform (lon, lat) coordinates for rendering
         pixel_ratio: float
