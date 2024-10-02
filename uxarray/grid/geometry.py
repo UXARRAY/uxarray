@@ -138,7 +138,9 @@ def _build_polygon_shells(
 
 
 def _correct_central_longitude(node_lon, node_lat, projection):
-    """TODO:"""
+    """Shifts the central longitude of an unstructured grid, which moves the
+    antimeridian when visualizing, which is used when projections have a
+    central longitude other than 0.0."""
     if projection:
         central_longitude = projection.proj4_params["lon_0"]
         if central_longitude != 0.0:
@@ -162,11 +164,9 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     with a geometry column of polygons."""
 
-    # TODO:
     node_lon, node_lat, central_longitude = _correct_central_longitude(
         grid.node_lon.values, grid.node_lat.values, projection
     )
-    # TODO: SHELLS WITHOUT PROJECTION
     polygon_shells = _build_polygon_shells(
         node_lon,
         node_lat,
@@ -179,7 +179,6 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
     )
 
     if projection is not None and project:
-        # TODO: SHELLS WITH PROJECTION
         projected_polygon_shells = _build_polygon_shells(
             node_lon,
             node_lat,
@@ -197,9 +196,6 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
         polygon_shells[:, :, 0]
     )
 
-    # TODO:
-    grid._gdf_cached_parameters["antimeridian_face_indices"] = antimeridian_face_indices
-
     non_nan_polygon_indices = None
     if projection is not None and project:
         shells_d = np.delete(
@@ -211,6 +207,8 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
 
         # Get the indices where NaN is NOT present
         non_nan_polygon_indices = np.where(does_not_contain_nan)[0]
+
+    grid._gdf_cached_parameters["antimeridian_face_indices"] = antimeridian_face_indices
 
     if periodic_elements == "split":
         gdf = _build_geodataframe_with_antimeridian(
@@ -472,11 +470,6 @@ def _grid_to_matplotlib_polycollection(
         polygon_shells[:, :, 0]
     )
 
-    # TODO: Cache
-    grid._poly_collection_cached_parameters["antimeridian_face_indices"] = (
-        antimeridian_face_indices
-    )
-
     # Filter out NaN-containing polygons if projection is applied
     non_nan_polygon_indices = None
     if projected_polygon_shells is not None:
@@ -489,9 +482,11 @@ def _grid_to_matplotlib_polycollection(
         does_not_contain_nan = ~np.isnan(shells_d).any(axis=(1, 2))
         non_nan_polygon_indices = np.where(does_not_contain_nan)[0]
 
-    # TODO: Cache
     grid._poly_collection_cached_parameters["non_nan_polygon_indices"] = (
         non_nan_polygon_indices
+    )
+    grid._poly_collection_cached_parameters["antimeridian_face_indices"] = (
+        antimeridian_face_indices
     )
 
     # Select which shells to use: projected or original

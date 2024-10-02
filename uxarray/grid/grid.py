@@ -192,7 +192,6 @@ class Grid:
             "projection": None,
         }
 
-        # TODO:
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
@@ -1740,7 +1739,7 @@ class Grid:
         override: bool
             Flag to indicate whether to override a cached PolyCollection, if it exists
         **kwargs: dict
-            TODO
+            Key word arguments to pass into the construction of a PolyCollection
         """
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
@@ -1821,7 +1820,7 @@ class Grid:
         override: bool
             Flag to indicate whether to override a cached PolyCollection, if it exists
         **kwargs: dict
-            Key word arguments to pass into the ``LineCollection``
+            Key word arguments to pass into the construction of a PolyCollection
         """
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
