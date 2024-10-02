@@ -225,6 +225,15 @@ Grid
    :template: autosummary/accessor_method.rst
 
    Grid.plot
+   Grid.plot.mesh
+   Grid.plot.edges
+   Grid.plot.node_coords
+   Grid.plot.nodes
+   Grid.plot.face_coords
+   Grid.plot.face_centers
+   Grid.plot.edge_coords
+   Grid.plot.edge_centers
+
 
 UxDataArray
 ~~~~~~~~~~~
@@ -234,6 +243,8 @@ UxDataArray
    :template: autosummary/accessor_method.rst
 
    UxDataArray.plot
+   UxDataArray.plot.polygons
+   UxDataArray.plot.points
 
 UxDataset
 ~~~~~~~~~

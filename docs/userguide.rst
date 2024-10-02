@@ -32,7 +32,7 @@ These user guides provide detailed explanations of the core functionality in UXa
  Core data structures for working with unstructured grid and data files
 
 `Plotting API <user-guide/plotting.ipynb>`_
- Visualize unstructured grid datasets using UXarray's plotting api
+ Visualize unstructured grid datasets using UXarray's plotting API
 
 `Plotting with Matplotlib <user-guide/mpl.ipynb>`_
  Use Matplotlib for plotting with PolyCollection and LineCollection
