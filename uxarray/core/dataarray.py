@@ -384,7 +384,7 @@ class UxDataArray(xr.DataArray):
         Examples
         --------
         Open a Uxarray dataset and compute the integral
-        
+
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
         >>> integral = uxds['psi'].integrate()
