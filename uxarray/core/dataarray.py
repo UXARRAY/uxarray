@@ -204,6 +204,12 @@ class UxDataArray(xr.DataArray):
                 engine=engine,
             )
 
+            if exclude_antimeridian is not None:
+                if exclude_antimeridian:
+                    periodic_elements = "exclude"
+                else:
+                    periodic_elements = "split"
+
             # set a default variable name if the data array is not named
             var_name = self.name if self.name is not None else "var"
 
