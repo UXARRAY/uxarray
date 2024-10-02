@@ -490,8 +490,8 @@ class Grid:
         """Implementation of getitem operator for indexing a grid to obtain
         variables.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> uxgrid['face_node_connectivity']
         """
         return getattr(self, item)
