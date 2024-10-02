@@ -91,8 +91,6 @@ class TestPlot(TestCase):
 
         raster_with_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel='Foo')
 
-
-
 class TestXarrayMethods(TestCase):
 
     def test_dataset(self):
