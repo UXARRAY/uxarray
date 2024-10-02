@@ -400,11 +400,14 @@ Accurate Computing
 Private API
 -----------
 
+The following is taken from `SciPy's API reference <https://docs.scipy.org/doc/scipy/reference/#importing-from-scipy>`_
+
+
 In Python, the distinction between what is the public API of a library and what
 are private implementation details is not always clear.  Unlike in other
 languages like Java, it is possible in Python to access "private" functions or
 objects.  Occasionally this may be convenient, but be aware that if you do so
-your code may break without warning in future releases.  Some widely understood
+your code may break without warning in future releases. Some widely understood
 rules for what is and isn't public in Python are:
 
 - Methods / functions / classes and module attributes whose names begin with a
