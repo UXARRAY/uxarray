@@ -277,11 +277,10 @@ class Grid:
         backend : str, default='geopandas'
             Backend to use to read the file, xarray or geopandas.
 
-        Usage
-        -----
-        .. code-block:: python
-            >>> import uxarray as ux
-            >>> grid = ux.Grid.from_file("path/to/file.shp")
+        Examples
+        --------
+        >>> import uxarray as ux
+        >>> grid = ux.Grid.from_file("path/to/file.shp")
 
         Note
         ----
@@ -342,12 +341,11 @@ class Grid:
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
         **kwargs :
 
-        Usage
-        -----
-        .. code-block:: python
-            >>> import uxarray as ux
-            >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
-            >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
+        Examples
+        --------
+        >>> import uxarray as ux
+        >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
+        >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
         """
 
         if dims_dict is None:
