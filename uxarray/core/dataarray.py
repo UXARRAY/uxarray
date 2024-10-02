@@ -123,14 +123,9 @@ class UxDataArray(xr.DataArray):
 
     @property
     def uxgrid(self):
-        """``uxarray.Grid`` property for ``uxarray.UxDataArray`` to make it
-        unstructured grid-aware.
+        """Linked ``uxarray.Grid`` corresponding to the unstructured grid the
+        data resides on."""
 
-        Examples
-        --------
-        uxds = ux.open_dataset(grid_path, data_path)
-        uxds.<variable_name>.uxgrid
-        """
         return self._uxgrid
 
     # a setter function
