@@ -326,8 +326,6 @@ Visualization
 .. autosummary::
    :toctree: generated/
 
-   plot.grid_plot._plot_coords_as_points
-   plot.dataarray_plot._plot_data_as_points
    plot.dataarray_plot._polygon_raster
    plot.dataarray_plot._point_raster
    plot.utils.HoloviewsBackend
