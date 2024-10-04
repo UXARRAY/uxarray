@@ -132,6 +132,18 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
+    @property
+    def data_mapping(self):
+        """Returns which unstructured grid a data variable is mapped to."""
+        if self._face_centered():
+            return "faces"
+        elif self._edge_centered():
+            return "edges"
+        elif self._node_centered():
+            return "nodes"
+        else:
+            return None
+
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",

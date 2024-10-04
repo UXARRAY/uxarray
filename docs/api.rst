@@ -372,7 +372,7 @@ Intersections
    :toctree: generated/
 
    grid.intersections.gca_gca_intersection
-   grid.intersections.gca_constLat_intersection
+   grid.intersections.gca_const_lat_intersection
 
 Arcs
 ~~~~
