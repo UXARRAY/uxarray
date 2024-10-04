@@ -17,6 +17,8 @@ datafile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_
 
 grid_files = [gridfile_geoflow, gridfile_mpas]
 
+grid_plot_routines = ['points', 'nodes', 'node_coords', '']
+
 
 class TestPlot(TestCase):
 
@@ -25,19 +27,16 @@ class TestPlot(TestCase):
         uxgrid = ux.open_grid(gridfile_mpas)
 
         for backend in ['matplotlib', 'bokeh']:
-
             uxgrid.plot(backend=backend)
-
             uxgrid.plot.mesh(backend=backend)
-
             uxgrid.plot.edges(backend=backend)
-
             uxgrid.plot.nodes(backend=backend)
-
+            uxgrid.plot.node_coords(backend=backend)
+            uxgrid.plot.corner_nodes(backend=backend)
             uxgrid.plot.face_centers(backend=backend)
-
-            if uxgrid.edge_lon is not None:
-                uxgrid.plot.edge_centers(backend=backend)
+            uxgrid.plot.face_coords(backend=backend)
+            uxgrid.plot.edge_centers(backend=backend)
+            uxgrid.plot.edge_coords(backend=backend)
 
     def test_face_centered_data(self):
         """Tests execution of plotting methods on face-centered data."""
@@ -80,7 +79,7 @@ class TestPlot(TestCase):
 
             uxds['v1'][0][0].plot.points(backend=backend)
 
-            uxds['v1'][0][0].nodal_average().plot.polygons(backend=backend)
+            uxds['v1'][0][0].topological_mean(destination='face').plot.polygons(backend=backend)
 
 
     def test_clabel(self):
@@ -92,8 +91,6 @@ class TestPlot(TestCase):
 
         raster_with_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel='Foo')
 
-
-
 class TestXarrayMethods(TestCase):
 
     def test_dataset(self):
@@ -103,7 +100,6 @@ class TestXarrayMethods(TestCase):
 
         # plot.hist() is an xarray method
         assert hasattr(uxds['v1'].plot, 'hist')
-
 
     def test_dataarray(self):
         """Tests whether a Xarray Dataset method can be called through the

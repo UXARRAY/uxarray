@@ -1,8 +1,5 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/UXARRAY/uxarray/e252a7669acc6a733bca14ac244bbf02e665dbb0/docs/_static/images/logos/uxarray_logo_h_light.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/UXARRAY/uxarray/e252a7669acc6a733bca14ac244bbf02e665dbb0/docs/_static/images/logos/uxarray_logo_h_dark.svg">
-  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://user-images.githubusercontent.com/25423296/163456779-a8556205-d0a5-45e2-ac17-42d089e3c3f8.png" width="450">
-</picture>
+<img src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" width="450"/><br>
+
 
 -----------------
 

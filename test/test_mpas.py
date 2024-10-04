@@ -132,8 +132,11 @@ class TestMPAS(TestCase):
         for mpas_attr in expected_attrs:
             assert mpas_attr in uxgrid._ds.attrs
 
-    def test_face_mask(self):
-        primal_uxgrid = ux.open_grid(self.mpas_ocean_mesh, use_dual=False)
-        dual_uxgrid = ux.open_grid(self.mpas_ocean_mesh, use_dual=True)
+    def test_face_area(self):
+        """Tests the parsing of face areas for MPAS grids."""
 
-        pass
+        uxgrid_primal = ux.open_grid(self.mpas_grid_path, use_dual=False)
+        uxgrid_dual = ux.open_grid(self.mpas_grid_path, use_dual=True)
+
+        assert "face_areas" in uxgrid_primal._ds
+        assert "face_areas" in uxgrid_dual._ds
