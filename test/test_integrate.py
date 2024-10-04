@@ -6,12 +6,11 @@ import numpy as np
 import pandas as pd
 
 import numpy.testing as nt
-
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg, _xyz_to_lonlat_rad
 from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat,_get_faces_constLat_intersection_info
-
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -40,6 +39,7 @@ class TestIntegrate(TestCase):
 
         nt.assert_almost_equal(integral, 4 * np.pi)
 
+
     def test_multi_dim(self):
         """Integral with 3D data mapped to each face."""
         uxgrid = ux.open_grid(self.gridfile_ne30)
@@ -61,9 +61,40 @@ class TestIntegrate(TestCase):
         nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)
 
 
+
 class TestFaceWeights(TestCase):
     gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+    def test_get_faces_constLat_intersection_0(self):
+        face_edges_cart = np.array(
+                            [
+                                [
+                                    [0.4173058582581286, 0.6425946703262667, -0.6425946703262667],
+                                    [0.3779644730092273, 0.6546536707079771, -0.6546536707079772]
+                                ],
+                                [
+                                    [0.3779644730092273, 0.6546536707079771, -0.6546536707079772],
+                                    [0.3942945976454632, 0.6829382762718699, -0.6149203859609872]
+                                ],
+                                [
+                                    [0.3942945976454632, 0.6829382762718699, -0.6149203859609872],
+                                    [0.4346360511835707, 0.6692808272283023, -0.6026231636073673]
+                                ],
+                                [
+                                    [0.4346360511835707, 0.6692808272283023, -0.6026231636073673],
+                                    [0.4173058582581286, 0.6425946703262667, -0.6425946703262667]
+                                ]
+                            ])
+
+
+        latitude_cart = -0.6293203910498374
+        is_directed=False
+        is_latlonface=False
+        is_GCA_list=None
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        # The expected unique_intersections length is 1
+        self.assertEqual(len(unique_intersections), 2)
+
 
     def test_get_faces_constLat_intersection_info_one_intersection(self):
         face_edges_cart = np.array([

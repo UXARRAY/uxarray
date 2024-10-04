@@ -3,6 +3,12 @@ from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
 import uxarray.utils.computing as ac_utils
 
+from numba import njit
+
+from uxarray.constants import ENABLE_FMA
+
+from uxarray.utils.computing import cross, dot
+
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     """Replaces all instances of the current fill value (``original_fill``) in
@@ -68,6 +74,20 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     return grid_var
 
 
+@njit
+def _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
+    jacobian = np.array(
+        [
+            [(y0 * z1 - z0 * y1), (x0 * z1 - z0 * x1)],
+            [2 * x_i_old, 2 * y_i_old],
+        ]
+    )
+
+    inverse_jacobian = np.linalg.inv(jacobian)
+
+    return inverse_jacobian
+
+
 def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     """Calculate the inverse Jacobian matrix for a given set of parameters.
 
@@ -112,10 +132,16 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
     # The Jacobian Matrix
-    jacobian = [
-        [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
-        [2 * x_i_old, 2 * y_i_old],
-    ]
+    if ENABLE_FMA:
+        # use fma
+        jacobian = [
+            [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
+            [2 * x_i_old, 2 * y_i_old],
+        ]
+        jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
+    else:
+        # use fma
+        jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
 
     # First check if the Jacobian matrix is singular
     if np.linalg.matrix_rank(jacobian) < 2:
@@ -164,8 +190,8 @@ def _newton_raphson_solver_for_gca_constLat(
     while error > tolerance and _iter < max_iter:
         f_vector = np.array(
             [
-                np.dot(
-                    np.cross(w0_cart, w1_cart),
+                dot(
+                    cross(w0_cart, w1_cart),
                     np.array([y_guess[0], y_guess[1], constZ]),
                 ),
                 y_guess[0] * y_guess[0]
@@ -176,6 +202,7 @@ def _newton_raphson_solver_for_gca_constLat(
         )
 
         try:
+            # TODO:
             j_inv = _inv_jacobian(
                 w0_cart[0],
                 w1_cart[0],

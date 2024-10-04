@@ -11,7 +11,6 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import extreme_gca_latitude
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds
 
 from spatialpandas.geometry import MultiPolygon
