@@ -1622,7 +1622,7 @@ class Grid:
                 f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
             )
 
-        # TODO:
+        # if project is false, projection is only used for determining central coordinates
         project = kwargs.get("project", True)
 
         if projection and project:

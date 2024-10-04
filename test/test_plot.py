@@ -91,6 +91,13 @@ class TestPlot(TestCase):
 
         raster_with_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel='Foo')
 
+    def test_engine(self):
+        uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+        _plot_sp = uxds['bottomDepth'].plot.polygons(rasterize=True, engine='spatialpandas')
+        _plot_gp = uxds['bottomDepth'].plot.polygons(rasterize=True, engine='geopandas')
+
+
+
 class TestXarrayMethods(TestCase):
 
     def test_dataset(self):
