@@ -1007,20 +1007,6 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-        pass
-
-    @property
-    def data_mapping(self):
-        """TODO:"""
-        if self._face_centered():
-            return "faces"
-        elif self._edge_centered():
-            return "edges"
-        elif self._node_centered():
-            return "nodes"
-        else:
-            return None
-
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the
         "n_face" dimension)"""
