@@ -1121,3 +1121,8 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             attrs=self.attrs,
         )
+
+    def constant_latitude_cross_section(self, lat: float):
+        faces = self.uxgrid.get_faces_at_constant_latitude(lat)
+
+        return self.isel(n_face=faces)

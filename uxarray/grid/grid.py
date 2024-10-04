@@ -67,7 +67,6 @@ from uxarray.grid.neighbors import (
 
 from uxarray.grid.intersections import (
     constant_lat_intersections,
-    constant_lon_intersections,
 )
 
 from spatialpandas import GeoDataFrame
@@ -90,6 +89,8 @@ from warnings import warn
 import cartopy.crs as ccrs
 
 import copy
+
+from uxarray.constants import INT_FILL_VALUE
 
 
 class Grid:
@@ -1884,9 +1885,19 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
+    def constant_latitude_cross_section(self, lat: float, return_face_indices=False):
+        faces = self.get_faces_at_constant_latitude(lat)
+
+        grid_at_constant_lat = self.isel(n_face=faces)
+
+        if return_face_indices:
+            return grid_at_constant_lat, faces
+        else:
+            return grid_at_constant_lat
+
     def get_edges_at_constant_latitude(self, lat):
         """TODO:"""
-        lat = np.deg2rad(lat)
+
         edge_node_connectivity = self.edge_node_connectivity.values
         edge_node_x = self.node_x.values[edge_node_connectivity]
         edge_node_y = self.node_y.values[edge_node_connectivity]
@@ -1895,31 +1906,31 @@ class Grid:
         edges, _ = constant_lat_intersections(
             lat, edge_node_x, edge_node_y, edge_node_z, self.n_edge
         )
-
         return edges
 
-    def get_edges_at_constant_longitude(self, lon):
-        """TODO:"""
-        lon = np.deg2rad(lon)
-        edge_node_connectivity = self.edge_node_connectivity.values
-        edge_node_x = self.node_x.values[edge_node_connectivity]
-        edge_node_y = self.node_y.values[edge_node_connectivity]
-        edge_node_z = self.node_z.values[edge_node_connectivity]
-
-        edges, _ = constant_lon_intersections(
-            lon, edge_node_x, edge_node_y, edge_node_z, self.n_edge
-        )
-
-        return edges
+    # def get_edges_at_constant_longitude(self, lon):
+    #     """TODO:"""
+    #     lon = np.deg2rad(lon)
+    #     edge_node_connectivity = self.edge_node_connectivity.values
+    #     edge_node_x = self.node_x.values[edge_node_connectivity]
+    #     edge_node_y = self.node_y.values[edge_node_connectivity]
+    #     edge_node_z = self.node_z.values[edge_node_connectivity]
+    #
+    #     edges, _ = constant_lon_intersections(
+    #         lon, edge_node_x, edge_node_y, edge_node_z, self.n_edge
+    #     )
+    #
+    #     return edges
 
     def get_faces_at_constant_latitude(self, lat):
         """TODO:"""
-        lat = np.deg2rad(lat)
         edges = self.get_edges_at_constant_latitude(lat)
-        return self.edge_face_connectivity[edges].data.ravel()
+        faces = self.edge_face_connectivity[edges].data.ravel()
 
-    def get_faces_at_constant_longitude(self, lon):
-        """TODO:"""
-        lon = np.deg2rad(lon)
-        edges = self.get_edges_at_constant_longitude(lon)
-        return self.edge_face_connectivity[edges].data.ravel()
+        return faces[faces != INT_FILL_VALUE]
+
+    # def get_faces_at_constant_longitude(self, lon):
+    #     """TODO:"""
+    #     lon = np.deg2rad(lon)
+    #     edges = self.get_edges_at_constant_longitude(lon)
+    #     return self.edge_face_connectivity[edges].data.ravel()
