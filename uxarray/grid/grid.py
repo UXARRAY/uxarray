@@ -65,6 +65,11 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 
+from uxarray.grid.intersections import (
+    constant_lat_intersections,
+    constant_lon_intersections,
+)
+
 from spatialpandas import GeoDataFrame
 
 from uxarray.plot.accessor import GridPlotAccessor
@@ -1878,3 +1883,43 @@ class Grid:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
+
+    def get_edges_at_constant_latitude(self, lat):
+        """TODO:"""
+        lat = np.deg2rad(lat)
+        edge_node_connectivity = self.edge_node_connectivity.values
+        edge_node_x = self.node_x.values[edge_node_connectivity]
+        edge_node_y = self.node_y.values[edge_node_connectivity]
+        edge_node_z = self.node_z.values[edge_node_connectivity]
+
+        edges, _ = constant_lat_intersections(
+            lat, edge_node_x, edge_node_y, edge_node_z, self.n_edge
+        )
+
+        return edges
+
+    def get_edges_at_constant_longitude(self, lon):
+        """TODO:"""
+        lon = np.deg2rad(lon)
+        edge_node_connectivity = self.edge_node_connectivity.values
+        edge_node_x = self.node_x.values[edge_node_connectivity]
+        edge_node_y = self.node_y.values[edge_node_connectivity]
+        edge_node_z = self.node_z.values[edge_node_connectivity]
+
+        edges, _ = constant_lon_intersections(
+            lon, edge_node_x, edge_node_y, edge_node_z, self.n_edge
+        )
+
+        return edges
+
+    def get_faces_at_constant_latitude(self, lat):
+        """TODO:"""
+        lat = np.deg2rad(lat)
+        edges = self.get_edges_at_constant_latitude(lat)
+        return self.edge_face_connectivity[edges].data.ravel()
+
+    def get_faces_at_constant_longitude(self, lon):
+        """TODO:"""
+        lon = np.deg2rad(lon)
+        edges = self.get_edges_at_constant_longitude(lon)
+        return self.edge_face_connectivity[edges].data.ravel()

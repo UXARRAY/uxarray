@@ -1,10 +1,113 @@
 import numpy as np
-from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE
+from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
 import warnings
 from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
+
+
+from numba import njit
+
+
+@njit
+def constant_lat_intersections(lat, edge_node_x, edge_node_y, edge_node_z, n_edge):
+    """Determine which edges intersect a constant line of latitude on a sphere.
+
+    Parameters
+    ----------
+    lat:
+        Constant latitude value in radians.
+    edge_node_x:
+        Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
+    edge_node_y:
+        Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
+    edge_node_z:
+        Array of shape (n_edge, 2) containing z-coordinates of the edge nodes.
+    n_edge:
+        Total number of edges to check.
+
+    Returns
+    -------
+    intersecting_edges:
+        List of indices of edges that intersect the constant latitude.
+    intersection_points:
+        Array of shape (n_intersections, 3) containing intersection points in Cartesian coordinates.
+    """
+    intersecting_edges = []
+    intersection_points = []
+
+    # Calculate the constant z-value for the given latitude
+    z_constant = np.sin(lat)
+
+    # Iterate through each edge and check for intersections
+    for i in range(n_edge):
+        # Get the z-coordinates of the edge's nodes
+        z0 = edge_node_z[i, 0]
+        z1 = edge_node_z[i, 1]
+
+        # Check if the edge crosses the constant latitude plane
+        if (z0 - z_constant) * (z1 - z_constant) < 0:
+            # Calculate the intersection point using linear interpolation
+            t = (z_constant - z0) / (z1 - z0)
+            x_intersect = edge_node_x[i, 0] + t * (
+                edge_node_x[i, 1] - edge_node_x[i, 0]
+            )
+            y_intersect = edge_node_y[i, 0] + t * (
+                edge_node_y[i, 1] - edge_node_y[i, 0]
+            )
+            z_intersect = z_constant
+
+            # Append the intersecting edge index and intersection point
+            intersecting_edges.append(i)
+            intersection_points.append((x_intersect, y_intersect, z_intersect))
+
+    return np.array(intersecting_edges, dtype=INT_DTYPE), np.array(intersection_points)
+
+
+@njit
+def constant_lon_intersections(lon, edge_node_x, edge_node_y, edge_node_z, n_edge):
+    """TODO: Not quite ready, some weird behavior around poles."""
+    intersecting_edges = []
+    intersection_points = []
+
+    # Iterate through each edge and check for intersections
+    for i in range(n_edge):
+        # Get the Cartesian coordinates of the edge's nodes
+        x0, x1 = edge_node_x[i, 0], edge_node_x[i, 1]
+        y0, y1 = edge_node_y[i, 0], edge_node_y[i, 1]
+        z0, z1 = edge_node_z[i, 0], edge_node_z[i, 1]
+
+        # Convert Cartesian coordinates to spherical coordinates (latitude and longitude)
+        lat0 = np.arcsin(z0)
+        lat1 = np.arcsin(z1)
+        lon0 = np.arctan2(y0, x0)
+        lon1 = np.arctan2(y1, x1)
+
+        # Check if the edge spans the desired longitude
+        if (lon0 <= lon and lon1 >= lon) or (lon0 >= lon and lon1 <= lon):
+            # Calculate the intersection latitude using spherical trigonometry
+            d_lon = lon1 - lon0
+            d_lat = lat1 - lat0
+            if d_lon == 0:
+                continue
+
+            # Calculate the intersection latitude using linear interpolation in the spherical space
+            t = (lon - lon0) / d_lon
+            lat_intersect = lat0 + t * d_lat
+
+            # Convert intersection point back to Cartesian coordinates
+            x_intersect = np.cos(lat_intersect) * np.cos(lon)
+            y_intersect = np.cos(lat_intersect) * np.sin(lon)
+            z_intersect = np.sin(lat_intersect)
+
+            # Check if the intersection latitude is within the bounds of the edge's latitudes
+            if min(lat0, lat1) <= lat_intersect <= max(lat0, lat1):
+                # Append the intersecting edge index and intersection point
+                intersecting_edges.append(i)
+                intersection_points.append((x_intersect, y_intersect, z_intersect))
+
+    return np.array(intersecting_edges, dtype=INT_DTYPE), np.array(intersection_points)
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
