@@ -7,7 +7,7 @@ visualization-examples:
     path: examples/visualization/mpas_topology.ipynb
     thumbnail: _static/thumbnails/mpas_topology.png
 
-  - title: Plotting E3SMv2 Output with UXarray
+  - title: E3SMv2 Model Output Visualizations 
     path: examples/visualization/e3sm-load-viz.ipynb
     thumbnail: _static/thumbnails/ts_e3sm_load.png
 
