@@ -154,10 +154,9 @@ class UxDataArray(xr.DataArray):
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
     ):
-        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
-        column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid paired with a slice
-        of data mapped to the polygons.
+        """Constructs a ``GeoDataFrame`` consisting of polygons representing
+        the faces of the current ``Grid`` with a face-centered data variable
+        mapped to them.
 
         Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
         parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
@@ -264,9 +263,9 @@ class UxDataArray(xr.DataArray):
         override: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``UxDataArray`` to a
-        ``matplotlib.collections.PolyCollection``, representing each face as a
-        polygon shaded with a face-centered data variable.
+        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
+        of polygons representing the faces of the current ``UxDataArray`` with
+        a face-centered data variable mapped to them.
 
         Parameters
         ----------
