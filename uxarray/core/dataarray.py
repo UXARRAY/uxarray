@@ -38,9 +38,8 @@ import cartopy.crs as ccrs
 
 
 class UxDataArray(xr.DataArray):
-    """N-dimensional ``xarray.DataArray``-like array. Inherits from
-    ``xarray.DataArray`` and has its own unstructured grid-aware array
-    operators and attributes through the ``uxgrid`` accessor.
+    """Grid informed ``xarray.DataArray`` with an attached ``Grid`` accessor
+    and grid-specific functionality.
 
     Parameters
     ----------
@@ -123,8 +122,8 @@ class UxDataArray(xr.DataArray):
 
     @property
     def uxgrid(self):
-        """Linked ``uxarray.Grid`` corresponding to the unstructured grid the
-        data resides on."""
+        """Linked ``Grid`` representing to the unstructured grid the data
+        resides on."""
 
         return self._uxgrid
 

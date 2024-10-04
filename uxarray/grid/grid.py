@@ -398,11 +398,9 @@ class Grid:
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
     def validate(self):
-        """Validate a grid object check for common errors, such as:
+        """Validates the current ``Grid``, checking for Duplicate Nodes,
+        Present Connectivity, and Non-Zero Face Areas.
 
-            - Duplicate nodes
-            - Connectivity
-            - Face areas (non zero)
         Raises
         ------
         RuntimeError

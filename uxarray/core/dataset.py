@@ -26,9 +26,8 @@ from warnings import warn
 
 
 class UxDataset(xr.Dataset):
-    """A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
-    Inherits from ``xarray.Dataset`` and has its own unstructured grid-aware
-    dataset operators and attributes through the ``uxgrid`` accessor.
+    """Grid informed ``xarray.Dataset`` with an attached ``Grid`` accessor and
+    grid-specific functionality.
 
     Parameters
     ----------
@@ -134,8 +133,8 @@ class UxDataset(xr.Dataset):
 
     @property
     def uxgrid(self):
-        """Linked ``uxarray.Grid`` corresponding to the unstructured grid the
-        data resides on."""
+        """Linked ``Grid`` representing to the unstructured grid the data
+        resides on."""
         return self._uxgrid
 
     # a setter function

@@ -128,7 +128,6 @@ Descriptors
    Grid.edge_face_distances
    Grid.antimeridian_face_indices
    Grid.hole_edge_indices
-   Grid.face_jacobian
 
 Attributes
 ~~~~~~~~~~
