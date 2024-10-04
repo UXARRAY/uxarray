@@ -45,7 +45,6 @@ I/O & Conversion
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_linecollection
-   Grid.encode_as
 
 Indexing
 ~~~~~~~~

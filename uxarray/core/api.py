@@ -21,7 +21,7 @@ def open_grid(
     use_dual: Optional[bool] = False,
     **kwargs: Dict[str, Any],
 ) -> Grid:
-    """Constructs and returns a ``uxarray.Grid`` from a grid file.
+    """Constructs and returns a ``Grid`` from a grid file.
 
     Parameters
     ----------
@@ -101,8 +101,8 @@ def open_dataset(
     grid_kwargs: Optional[Dict[str, Any]] = {},
     **kwargs: Dict[str, Any],
 ) -> UxDataset:
-    """Wraps ``xarray.open_dataset()`` to support read in a grid and data file
-    together.
+    """Wraps ``xarray.open_dataset()`` to support reading in a grid and data
+    file together.
 
     Parameters
     ----------
@@ -191,8 +191,8 @@ def open_mfdataset(
     grid_kwargs: Optional[Dict[str, Any]] = {},
     **kwargs: Dict[str, Any],
 ) -> UxDataset:
-    """Wraps ``xarray.open_dataset()`` to support read in a grid and multiple
-    data files together.
+    """Wraps ``xarray.open_dataset()`` to support reading in a grid and
+    multiple data files together.
 
     Parameters
     ----------

@@ -1528,8 +1528,8 @@ class Grid:
             self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
-        """Returns a xarray Dataset representation in a specific grid format
-        from the Grid object.
+        """Returns an ``xarray.Dataset`` with the variables stored under the
+        ``Grid`` encoded in a specific grid format.
 
         Parameters
         ----------
@@ -1576,9 +1576,8 @@ class Grid:
         return_non_nan_polygon_indices: Optional[bool] = False,
         exclude_nan_polygons: Optional[bool] = True,
     ):
-        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
-        column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid.
+        """Constructs a ``GeoDataFrame`` consisting of polygons representing
+        the faces of the current ``Grid``
 
         Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
         parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
@@ -1698,8 +1697,8 @@ class Grid:
         return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
-        representing each face as a polygon.
+        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
+        of polygons representing the faces of the current ``Grid``
 
         Parameters
         ----------
@@ -1781,8 +1780,8 @@ class Grid:
         override: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
-        representing each edge as a line.
+        """Constructs a ``matplotlib.collections.LineCollection``` consisting
+        of lines representing the edges of the current ``Grid``
 
         Parameters
         ----------

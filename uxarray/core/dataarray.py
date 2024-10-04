@@ -335,7 +335,7 @@ class UxDataArray(xr.DataArray):
         name: Hashable = None,
         promote_attrs: bool = False,
     ) -> UxDataset:
-        """Convert a UxDataArray to a UxDataset.
+        """Convert a ``UxDataArray`` to a ``UxDataset``.
 
         Parameters
         ----------
@@ -361,8 +361,7 @@ class UxDataArray(xr.DataArray):
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> UxDataArray:
-        """Computes the integral of a data variable residing on an unstructured
-        grid.
+        """Computes the integral of a data variable.
 
         Parameters
         ----------
@@ -859,8 +858,7 @@ class UxDataArray(xr.DataArray):
     def gradient(
         self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
     ):
-        """Computes the horizontal gradient of a data variable residing on an
-        unstructured grid.
+        """Computes the horizontal gradient of a data variable.
 
         Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
         on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
@@ -922,7 +920,7 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def difference(self, destination: Optional[str] = "edge"):
-        """Computes the absolute difference between a data variable.
+        """Computes the absolute difference of a data variable.
 
         The difference for a face-centered data variable can be computed on each edge using the ``edge_face_connectivity``,
         specified by ``destination='edge'``.
