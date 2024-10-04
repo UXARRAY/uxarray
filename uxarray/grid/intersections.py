@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
+from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
 import platform
@@ -7,11 +7,11 @@ import warnings
 from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
 
 
-from numba import njit
+from numba import njit, prange
 
 
-@njit
-def constant_lat_intersections(lat, edge_node_x, edge_node_y, edge_node_z, n_edge):
+@njit(parallel=True, nogil=True)
+def constant_lat_intersections(lat, edge_node_z, n_edge):
     """Determine which edges intersect a constant line of latitude on a sphere.
 
     Parameters
@@ -36,35 +36,29 @@ def constant_lat_intersections(lat, edge_node_x, edge_node_y, edge_node_z, n_edg
     """
     lat = np.deg2rad(lat)
 
-    intersecting_edges = []
-    intersection_points = []
+    # intersecting_edges = []
+    intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
 
     # Calculate the constant z-value for the given latitude
     z_constant = np.sin(lat)
 
     # Iterate through each edge and check for intersections
-    for i in range(n_edge):
+    for i in prange(n_edge):
         # Get the z-coordinates of the edge's nodes
         z0 = edge_node_z[i, 0]
         z1 = edge_node_z[i, 1]
 
         # Check if the edge crosses the constant latitude plane
-        if (z0 - z_constant) * (z1 - z_constant) < 0:
-            # Calculate the intersection point using linear interpolation
-            t = (z_constant - z0) / (z1 - z0)
-            x_intersect = edge_node_x[i, 0] + t * (
-                edge_node_x[i, 1] - edge_node_x[i, 0]
-            )
-            y_intersect = edge_node_y[i, 0] + t * (
-                edge_node_y[i, 1] - edge_node_y[i, 0]
-            )
-            z_intersect = z_constant
+        # if (z0 - z_constant) * (z1 - z_constant) < 0:
+        #     intersecting_edges.append(i)
+        if (z0 - z_constant) * (z1 - z_constant) < 0.0:
+            intersecting_edges_mask[i] = 1
 
-            # Append the intersecting edge index and intersection point
-            intersecting_edges.append(i)
-            intersection_points.append((x_intersect, y_intersect, z_intersect))
+    intersecting_edges = np.argwhere(intersecting_edges_mask)
 
-    return np.array(intersecting_edges, dtype=INT_DTYPE), np.array(intersection_points)
+    return intersecting_edges
+
+    # return np.array(intersecting_edges, dtype=INT_DTYPE)
 
 
 # @njit

@@ -950,7 +950,7 @@ class Grid:
     def edge_node_connectivity(self) -> xr.DataArray:
         """Indices of the two nodes that make up each edge.
 
-        Dimensions: ``(n_edge, n_max_edge_nodes)``
+        Dimensions: ``(n_edge, two)``
 
         Nodes are in arbitrary order.
         """
@@ -964,6 +964,23 @@ class Grid:
         """Setter for ``edge_node_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["edge_node_connectivity"] = value
+
+    @property
+    def edge_node_z(self) -> xr.DataArray:
+        """Cartesian z location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_z" not in self._ds:
+            _edge_node_z = self.node_z.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_z"] = xr.DataArray(
+                data=_edge_node_z,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_z"]
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
@@ -1898,29 +1915,8 @@ class Grid:
     def get_edges_at_constant_latitude(self, lat):
         """TODO:"""
 
-        edge_node_connectivity = self.edge_node_connectivity.values
-        edge_node_x = self.node_x.values[edge_node_connectivity]
-        edge_node_y = self.node_y.values[edge_node_connectivity]
-        edge_node_z = self.node_z.values[edge_node_connectivity]
-
-        edges, _ = constant_lat_intersections(
-            lat, edge_node_x, edge_node_y, edge_node_z, self.n_edge
-        )
-        return edges
-
-    # def get_edges_at_constant_longitude(self, lon):
-    #     """TODO:"""
-    #     lon = np.deg2rad(lon)
-    #     edge_node_connectivity = self.edge_node_connectivity.values
-    #     edge_node_x = self.node_x.values[edge_node_connectivity]
-    #     edge_node_y = self.node_y.values[edge_node_connectivity]
-    #     edge_node_z = self.node_z.values[edge_node_connectivity]
-    #
-    #     edges, _ = constant_lon_intersections(
-    #         lon, edge_node_x, edge_node_y, edge_node_z, self.n_edge
-    #     )
-    #
-    #     return edges
+        edges = constant_lat_intersections(lat, self.edge_node_z.values, self.n_edge)
+        return edges.squeeze()
 
     def get_faces_at_constant_latitude(self, lat):
         """TODO:"""
@@ -1928,9 +1924,3 @@ class Grid:
         faces = self.edge_face_connectivity[edges].data.ravel()
 
         return faces[faces != INT_FILL_VALUE]
-
-    # def get_faces_at_constant_longitude(self, lon):
-    #     """TODO:"""
-    #     lon = np.deg2rad(lon)
-    #     edges = self.get_edges_at_constant_longitude(lon)
-    #     return self.edge_face_connectivity[edges].data.ravel()
