@@ -81,8 +81,6 @@ class GeoDataFrame(DatasetBenchmark):
     def time_to_geodataframe(self, resolution, exclude_antimeridian):
         self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
 
-    def peakmem_to_geodataframe(self, resolution, exclude_antimeridian):
-        gdf = self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
 
 
 class ConnectivityConstruction(DatasetBenchmark):

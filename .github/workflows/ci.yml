@@ -40,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: ci/environment.yml
-          miniforge-variant: Mambaforge
+          miniforge-variant: Miniforge3
           miniforge-version: latest
 
       - name: conda_setup (ARM64)
@@ -52,7 +52,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: ci/environment.yml
-          installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Mambaforge-23.11.0-0-MacOSX-arm64.sh
+          installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Miniforge3-23.11.0-0-MacOSX-arm64.sh
 
       - name: Install uxarray
         run: |
