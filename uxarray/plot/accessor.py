@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class GridPlotAccessor:
-    """Plotting Accessor for Grid.
+    """Plotting accessor for ``Grid``.
 
     Accessed through `Grid.plot()` or `Grid.plot.specific_routine()`
     """
@@ -118,7 +118,7 @@ class GridPlotAccessor:
     corner_nodes.__doc__ = nodes.__doc__
 
     def edge_coords(self, backend=None, **kwargs):
-        """Wrapper for `Grid.plot.points(element='edge centers')`
+        """Wrapper for ``Grid.plot.points(element='edge centers')``
 
         Parameters
         ----------
@@ -141,7 +141,7 @@ class GridPlotAccessor:
     edge_centers.__doc__ = edge_coords.__doc__
 
     def face_coords(self, backend=None, **kwargs):
-        """Wrapper for `Grid.plot.points(element='face centers')`
+        """Wrapper for ``Grid.plot.points(element='face centers')``
 
         Parameters
         ----------
@@ -224,7 +224,7 @@ class GridPlotAccessor:
 
 
 class UxDataArrayPlotAccessor:
-    """Plotting Accessor for UxDataArray.
+    """Plotting Accessor for ``UxDataArray``.
 
     Accessed through `UxDataArray.plot()` or
     `UxDataArray.plot.specific_routine()`
@@ -447,8 +447,7 @@ class UxDataArrayPlotAccessor:
 
 
 class UxDatasetPlotAccessor:
-    """Plotting Accessor for UxDataset, accessed through ``UxDataset.plot()``
-    or ``UxDataset.plot.specific_routine()``"""
+    """Plotting accessor for ``UxDataset``."""
 
     _uxds: UxDataset
     __slots__ = ("_uxds",)
