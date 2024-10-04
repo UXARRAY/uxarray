@@ -142,11 +142,11 @@ class UxDataArray(xr.DataArray):
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
+        **kwargs,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -196,7 +196,7 @@ class UxDataArray(xr.DataArray):
             gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
                 periodic_elements=periodic_elements,
                 projection=projection,
-                project=project,
+                project=kwargs.get("project", True),
                 cache=cache,
                 override=override,
                 exclude_antimeridian=exclude_antimeridian,

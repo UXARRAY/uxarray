@@ -1568,13 +1568,13 @@ class Grid:
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
         return_non_nan_polygon_indices: Optional[bool] = False,
         exclude_nan_polygons: Optional[bool] = True,
+        **kwargs,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
@@ -1621,6 +1621,9 @@ class Grid:
             raise ValueError(
                 f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
             )
+
+        # TODO:
+        project = kwargs.get("project", True)
 
         if projection and project:
             if periodic_elements == "split":

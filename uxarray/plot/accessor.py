@@ -161,7 +161,13 @@ class GridPlotAccessor:
 
     face_centers.__doc__ = face_coords.__doc__
 
-    def edges(self, periodic_elements="exclude", backend=None, **kwargs):
+    def edges(
+        self,
+        periodic_elements="exclude",
+        backend=None,
+        engine="spatialpandas",
+        **kwargs,
+    ):
         """Plots the edges of a grid as a path plot.
 
         This function plots the edges of the grid as geographical paths using `hvplot`.
@@ -180,6 +186,8 @@ class GridPlotAccessor:
             - "split": Split periodic elements.
         backend : str or None, optional
             The plotting backend to use. Defaults to None, which uses the default backend.
+        engine: str, optional
+            Engine to use for GeoDataFrame construction. One of ['spatialpandas', 'geopandas']
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.paths`. These can include:
             - "rasterize" (bool): Whether to rasterize the plot (default: False),
@@ -210,7 +218,9 @@ class GridPlotAccessor:
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         gdf = self._uxgrid.to_geodataframe(
-            periodic_elements=periodic_elements, projection=kwargs.get("projection")
+            periodic_elements=periodic_elements,
+            projection=kwargs.get("projection"),
+            engine=engine,
         )[["geometry"]]
 
         return gdf.hvplot.paths(geo=True, **kwargs)
@@ -255,7 +265,14 @@ class UxDataArrayPlotAccessor:
         else:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
-    def polygons(self, periodic_elements="exclude", backend=None, *args, **kwargs):
+    def polygons(
+        self,
+        periodic_elements="exclude",
+        backend=None,
+        engine="spatialpandas",
+        *args,
+        **kwargs,
+    ):
         """Generated a shaded polygon plot.
 
         This function plots the faces of an unstructured grid shaded with a face-centered data variable using `hvplot.
@@ -273,6 +290,8 @@ class UxDataArrayPlotAccessor:
             - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
             The plotting backend to use. Defaults to None, which uses the default backend.
+        engine: str, optional
+            Engine to use for GeoDataFrame construction. One of ['spatialpandas', 'geopandas']
         *args : tuple
             Additional positional arguments to be passed to `hvplot.polygons`.
         **kwargs : dict
@@ -304,7 +323,10 @@ class UxDataArrayPlotAccessor:
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         gdf = self._uxda.to_geodataframe(
-            periodic_elements=periodic_elements, projection=kwargs.get("projection")
+            periodic_elements=periodic_elements,
+            projection=kwargs.get("projection"),
+            engine=engine,
+            project=False,
         )
 
         return gdf.hvplot.polygons(

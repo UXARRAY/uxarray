@@ -216,7 +216,7 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
             projected_polygon_shells,
             projection,
             antimeridian_face_indices,
-            engine=geopandas,
+            engine=engine,
         )
     elif periodic_elements == "ignore":
         if engine == "geopandas":
