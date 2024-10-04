@@ -41,7 +41,7 @@ class TestAntimeridian(TestCase):
 
         uxgrid = ux.open_grid(verts, latlon=True)
 
-        gdf = uxgrid.to_geodataframe()
+        gdf = uxgrid.to_geodataframe(periodic_elements='ignore')
 
         assert len(uxgrid.antimeridian_face_indices) == 1
 
@@ -1434,6 +1434,17 @@ class TestLatlonBoundsFiles:
 
 
 class TestGeoDataFrame(TestCase):
+
+
+    def test_engine(self):
+        uxgrid = ux.open_grid(gridfile_geoflow)
+        for engine in ['geopandas', 'spatialpandas']:
+            gdf = uxgrid.to_geodataframe(engine=engine)
+
+    def test_periodic_elements(self):
+        uxgrid = ux.open_grid(gridfile_geoflow)
+        for periodic_elements in ['ignore', 'exclude', 'split']:
+            gdf = uxgrid.to_geodataframe(periodic_elements=periodic_elements)
 
     def test_to_gdf(self):
         uxgrid = ux.open_grid(gridfile_geoflow)

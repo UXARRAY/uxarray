@@ -246,6 +246,7 @@ Remapping
    remap.inverse_distance_weighted._inverse_distance_weighted_remap
    remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxda
    remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxds
+   remap.utils._remap_grid_parse
 
 
 Grid Parsing and Encoding
@@ -334,8 +335,6 @@ Visualization
 .. autosummary::
    :toctree: generated/
 
-   plot.grid_plot._plot_coords_as_points
-   plot.dataarray_plot._plot_data_as_points
    plot.dataarray_plot._polygon_raster
    plot.dataarray_plot._point_raster
    plot.utils.HoloviewsBackend
