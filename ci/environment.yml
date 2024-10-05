@@ -8,9 +8,11 @@ dependencies:
   - dask
   - datashader
   - gmpy2
+  - geoviews
   - h5netcdf
   - hdf5
   - holoviews
+  - hvplot
   - matplotlib-base
   - matplotlib-inline
   - netcdf4
@@ -28,6 +30,7 @@ dependencies:
   - scipy
   - shapely
   - spatialpandas
+  - geopandas
   - xarray
   - asv
   - pip:

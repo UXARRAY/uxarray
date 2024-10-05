@@ -12,10 +12,10 @@ from typing import (
     Union,
 )
 
-
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
+from uxarray.io._geopandas import _read_geodataframe
 from uxarray.io._ugrid import (
     _read_ugrid,
     _encode_ugrid,
@@ -38,6 +38,7 @@ from uxarray.grid.coordinates import (
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
+    _normalize_xyz,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -64,6 +65,8 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 
+from spatialpandas import GeoDataFrame
+
 from uxarray.plot.accessor import GridPlotAccessor
 
 from uxarray.subset import GridSubsetAccessor
@@ -72,6 +75,7 @@ from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
     _check_area,
+    _check_normalization,
 )
 
 from xarray.core.utils import UncachedAccessor
@@ -158,22 +162,44 @@ class Grid:
 
         # initialize attributes
         self._antimeridian_face_indices = None
+        self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
 
-        # initialize cached data structures and flags (visualization)
-        self._gdf = None
-        self._gdf_exclude_am = None
-        self._poly_collection = None
-        self._poly_collection_periodic_state = None
-        self._poly_collection_projection_state = None
-        self._corrected_to_original_faces = None
-        self._line_collection = None
-        self._line_collection_periodic_state = None
-        self._line_collection_projection_state = None
+        # cached parameters for GeoDataFrame conversions
+        self._gdf_cached_parameters = {
+            "gdf": None,
+            "periodic_elements": None,
+            "projection": None,
+            "non_nan_polygon_indices": None,
+            "engine": None,
+            "exclude_am": None,
+            "antimeridian_face_indices": None,
+        }
+
+        # cached parameters for PolyCollection conversions
+        self._poly_collection_cached_parameters = {
+            "poly_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+            "corrected_to_original_faces": None,
+            "non_nan_polygon_indices": None,
+            "antimeridian_face_indices": None,
+        }
+
+        # cached parameters for LineCollection conversions
+        self._line_collection_cached_parameters = {
+            "line_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+        }
+
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
+
+        # flag to track if coordinates are normalized
+        self._normalized = None
 
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self._ds)
@@ -221,7 +247,9 @@ class Grid:
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
             elif source_grid_spec == "Shapefile":
-                raise ValueError("Shapefiles not yet supported")
+                raise ValueError(
+                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                )
             else:
                 raise ValueError("Unsupported Grid Format")
         else:
@@ -229,6 +257,53 @@ class Grid:
             source_grid_spec = kwargs.get("source_grid_spec", None)
             grid_ds = dataset
             source_dims_dict = {}
+
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_file(
+        cls,
+        filename: str,
+        backend: Optional[str] = "geopandas",
+        **kwargs,
+    ):
+        """Constructs a ``Grid`` object from a using the read_file method with
+        a specified backend.
+
+        Parameters
+        ----------
+        filename : str
+            Path to grid file
+        backend : str, default='geopandas'
+            Backend to use to read the file, xarray or geopandas.
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> grid = ux.Grid.from_file("path/to/file.shp")
+
+        Note
+        ----
+        All formats supported by `geopandas.read_file` can be used.
+        See more at: https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas-read-file
+        """
+
+        # determine grid/mesh specification
+        if backend == "geopandas":
+            if str(filename).endswith(".shp"):
+                source_grid_spec = "Shapefile"
+            elif str(filename).endswith(".geojson"):
+                source_grid_spec = "GeoJSON"
+            else:
+                source_grid_spec = "OtherGeoFormat"
+
+            grid_ds, source_dims_dict = _read_geodataframe(filename)
+
+        elif backend == "xarray":
+            grid_ds, source_dims_dict = cls.from_dataset(filename)
+
+        else:
+            raise ValueError("Backend not supported")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
@@ -1420,6 +1495,38 @@ class Grid:
 
         return self._face_areas, self._face_jacobian
 
+    def normalize_cartesian_coordinates(self):
+        """Normalizes Cartesian coordinates."""
+
+        if _check_normalization(self):
+            # check if coordinates are already normalized
+            return
+
+        if "node_x" in self._ds:
+            # normalize node coordinates
+            node_x, node_y, node_z = _normalize_xyz(
+                self.node_x.values, self.node_y.values, self.node_z.values
+            )
+            self.node_x.data = node_x
+            self.node_y.data = node_y
+            self.node_z.data = node_z
+        if "edge_x" in self._ds:
+            # normalize edge coordinates
+            edge_x, edge_y, edge_z = _normalize_xyz(
+                self.edge_x.values, self.edge_y.values, self.edge_z.values
+            )
+            self.edge_x.data = edge_x
+            self.edge_y.data = edge_y
+            self.edge_z.data = edge_z
+        if "face_x" in self._ds:
+            # normalize face coordinates
+            face_x, face_y, face_z = _normalize_xyz(
+                self.face_x.values, self.face_y.values, self.face_z.values
+            )
+            self.face_x.data = face_x
+            self.face_y.data = face_y
+            self.face_z.data = face_z
+
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns a xarray Dataset representation in a specific grid format
         from the Grid object.
@@ -1459,49 +1566,125 @@ class Grid:
 
     def to_geodataframe(
         self,
-        override: Optional[bool] = False,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        project: Optional[bool] = False,
         cache: Optional[bool] = True,
-        exclude_antimeridian: Optional[bool] = False,
+        override: Optional[bool] = False,
+        engine: Optional[str] = "spatialpandas",
+        exclude_antimeridian: Optional[bool] = None,
+        return_non_nan_polygon_indices: Optional[bool] = False,
+        exclude_nan_polygons: Optional[bool] = True,
     ):
         """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
         column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid. Additionally, any
-        polygon that crosses the antimeridian is split into MultiPolygons.
+        representing the geometry of the unstructured grid.
+
+        Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
+        parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
+        Setting ``periodic_elements='exclude'`` will exclude any periodic polygon from the computed GeoDataFrame.
+        Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
+        is best used for grids that do not initially include any periodic polygons.
+
 
         Parameters
         ----------
-        override : bool
-            Flag to recompute the ``GeoDataFrame`` if one is already cached
-        cache : bool
-            Flag to indicate if the computed ``GeoDataFrame`` should be cached
-        exclude_antimeridian: bool
-            Selects whether to exclude any face that contains an edge that crosses the antimeridian
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection, optional
+            Geographic projection used to transform polygons
+        cache: bool, optional
+            Flag used to select whether to cache the computed GeoDataFrame
+        override: bool, optional
+            Flag used to select whether to ignore any cached GeoDataFrame
+        engine: str, optional
+            Selects what library to use for creating a GeoDataFrame. One of ['spatialpandas', 'geopandas']. Defaults
+            to spatialpandas
+        exclude_antimeridian: bool, optional
+            Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
+        return_non_nan_polygon_indices: bool, optional
+            Flag used to select whether to return the indices of any non-nan polygons
+        exclude_nan_polygons: bool, optional
+            Flag to select whether to exclude any nan polygons
+
 
         Returns
         -------
         gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" collumn
+            The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
 
-        if self._gdf is not None:
-            # determine if we need to recompute a cached GeoDataFrame based on antimeridian
-            if self._gdf_exclude_am != exclude_antimeridian:
-                # cached gdf should match the exclude_antimeridian_flag
+        if engine not in ["spatialpandas", "geopandas"]:
+            raise ValueError(
+                f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
+            )
+
+        if projection and project:
+            if periodic_elements == "split":
+                raise ValueError(
+                    "Setting ``periodic_elements='split'`` is not supported when a "
+                    "projection is provided."
+                )
+
+        if exclude_antimeridian is not None:
+            warn(
+                DeprecationWarning(
+                    "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
+                    "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
+                ),
+                stacklevel=2,
+            )
+            if exclude_antimeridian:
+                periodic_elements = "exclude"
+            else:
+                periodic_elements = "split"
+
+        if periodic_elements not in ["ignore", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['exclude', 'split', 'ignore'] but received: {periodic_elements}"
+            )
+
+        if self._gdf_cached_parameters["gdf"] is not None:
+            if (
+                self._gdf_cached_parameters["periodic_elements"] != periodic_elements
+                or self._gdf_cached_parameters["projection"] != projection
+                or self._gdf_cached_parameters["engine"] != engine
+            ):
+                # cached GeoDataFrame has a different projection or periodic element handling method
                 override = True
 
-        # use cached geodataframe
-        if self._gdf is not None and not override:
-            return self._gdf
+        if self._gdf_cached_parameters["gdf"] is not None and not override:
+            # use cached PolyCollection
+            if return_non_nan_polygon_indices:
+                return self._gdf_cached_parameters["gdf"], self._gdf_cached_parameters[
+                    "non_nan_polygon_indices"
+                ]
+            else:
+                return self._gdf_cached_parameters["gdf"]
 
-        # construct a geodataframe with the faces stored as polygons as the geometry
-        gdf = _grid_to_polygon_geodataframe(
-            self, exclude_antimeridian=exclude_antimeridian
+        # construct a GeoDataFrame with the faces stored as polygons as the geometry
+        gdf, non_nan_polygon_indices = _grid_to_polygon_geodataframe(
+            self, periodic_elements, projection, project, engine
         )
 
-        # cache computed geodataframe
+        if exclude_nan_polygons and non_nan_polygon_indices is not None:
+            # exclude any polygons that contain NaN values
+            gdf = GeoDataFrame({"geometry": gdf["geometry"][non_nan_polygon_indices]})
+
         if cache:
-            self._gdf = gdf
-            self._gdf_exclude_am = exclude_antimeridian
+            self._gdf_cached_parameters["gdf"] = gdf
+            self._gdf_cached_parameters["non_nan_polygon_indices"] = (
+                non_nan_polygon_indices
+            )
+            self._gdf_cached_parameters["periodic_elements"] = periodic_elements
+            self._gdf_cached_parameters["projection"] = projection
+            self._gdf_cached_parameters["engine"] = engine
+
+        if return_non_nan_polygon_indices:
+            return gdf, non_nan_polygon_indices
 
         return gdf
 
@@ -1512,14 +1695,19 @@ class Grid:
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        return_non_nan_polygon_indices: Optional[bool] = False,
+        **kwargs,
     ):
         """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
         representing each face as a polygon.
 
         Parameters
         ----------
-        periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection
             Cartopy geographic projection to use
         return_indices: bool
@@ -1528,41 +1716,57 @@ class Grid:
             Flag to indicate whether to cache the computed PolyCollection
         override: bool
             Flag to indicate whether to override a cached PolyCollection, if it exists
+        **kwargs: dict
+            Key word arguments to pass into the construction of a PolyCollection
         """
 
-        if periodic_elements not in ["include", "exclude", "split"]:
+        if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if self._poly_collection is not None:
+        if self._poly_collection_cached_parameters["poly_collection"] is not None:
             if (
-                self._poly_collection_periodic_state != periodic_elements
-                or self._poly_collection_projection_state != projection
+                self._poly_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._poly_collection_cached_parameters["projection"] != projection
             ):
                 # cached PolyCollection has a different projection or periodic element handling method
                 override = True
 
-        if self._poly_collection is not None and not override:
+        if (
+            self._poly_collection_cached_parameters["poly_collection"] is not None
+            and not override
+        ):
             # use cached PolyCollection
             if return_indices:
                 return copy.deepcopy(
-                    self._poly_collection
-                ), self._corrected_to_original_faces
+                    self._poly_collection_cached_parameters["poly_collection"]
+                ), self._poly_collection_cached_parameters[
+                    "corrected_to_original_faces"
+                ]
             else:
-                return copy.deepcopy(self._poly_collection)
+                return copy.deepcopy(
+                    self._poly_collection_cached_parameters["poly_collection"]
+                )
 
         (
             poly_collection,
             corrected_to_original_faces,
-        ) = _grid_to_matplotlib_polycollection(self, periodic_elements, projection)
+        ) = _grid_to_matplotlib_polycollection(
+            self, periodic_elements, projection, **kwargs
+        )
 
         if cache:
             # cache PolyCollection, indices, and state
-            self._poly_collection = poly_collection
-            self._corrected_to_original_faces = corrected_to_original_faces
-            self._poly_collection_periodic_state = periodic_elements
-            self._poly_collection_projection_state = projection
+            self._poly_collection_cached_parameters["poly_collection"] = poly_collection
+            self._poly_collection_cached_parameters["corrected_to_original_faces"] = (
+                corrected_to_original_faces
+            )
+            self._poly_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._poly_collection_cached_parameters["projection"] = projection
 
         if return_indices:
             return copy.deepcopy(poly_collection), corrected_to_original_faces
@@ -1575,42 +1779,65 @@ class Grid:
         projection: Optional[ccrs.Projection] = None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        **kwargs,
     ):
         """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
         representing each edge as a line.
 
         Parameters
         ----------
-        periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection
             Cartopy geographic projection to use
         cache: bool
             Flag to indicate whether to cache the computed PolyCollection
         override: bool
             Flag to indicate whether to override a cached PolyCollection, if it exists
+        **kwargs: dict
+            Key word arguments to pass into the construction of a PolyCollection
         """
-        if periodic_elements not in ["include", "exclude", "split"]:
+        if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
-                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+                f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if self._line_collection is not None:
+        if projection is not None:
+            if periodic_elements == "split":
+                raise ValueError(
+                    "Setting ``periodic_elements='split'`` is not supported when a "
+                    "projection is provided."
+                )
+
+        if self._line_collection_cached_parameters["line_collection"] is not None:
             if (
-                self._line_collection_periodic_state != periodic_elements
-                or self._line_collection_projection_state != projection
+                self._line_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._line_collection_cached_parameters["projection"] != projection
             ):
                 override = True
 
             if not override:
-                return self._line_collection
+                return self._line_collection_cached_parameters["line_collection"]
 
-        line_collection = _grid_to_matplotlib_linecollection(self, periodic_elements)
+        line_collection = _grid_to_matplotlib_linecollection(
+            grid=self,
+            periodic_elements=periodic_elements,
+            projection=projection,
+            **kwargs,
+        )
 
         if cache:
-            self._line_collection = line_collection
-            self._line_collection_periodic_state = periodic_elements
-            self._line_collection_projection_state = periodic_elements
+            self._line_collection_cached_parameters["line_collection"] = line_collection
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
 
         return line_collection
 

@@ -31,11 +31,11 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
 
-`Loading Data with Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
+`Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
  Read data with chunking and/or in parallel
 
 `Plotting <user-guide/plotting.ipynb>`_
- Visualize unstructured grid datasets
+ Visualize unstructured grid datasets using UXarray's plotting API
 
 `Plotting with Matplotlib <user-guide/mpl.ipynb>`_
  Use Matplotlib for plotting with PolyCollection and LineCollection
