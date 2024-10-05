@@ -20,7 +20,6 @@ workflow-examples:
     path: examples/e3sm-calc-workflow.ipynb
     thumbnail: _static/thumbnails/default.svg
 
-
 external-examples:
   - title: Unstructured Grid Visualization Cookbook
     path: https://projectpythia.org/unstructured-grid-viz-cookbook/README.html
