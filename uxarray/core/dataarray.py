@@ -1122,7 +1122,35 @@ class UxDataArray(xr.DataArray):
             attrs=self.attrs,
         )
 
-    def constant_latitude_cross_section(self, lat: float):
-        faces = self.uxgrid.get_faces_at_constant_latitude(lat)
+    def constant_latitude_cross_section(self, lat: float, method="fast"):
+        """Extracts a cross-section of the data array at a specified constant
+        latitude.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to extract the cross-section, in degrees.
+        method : str, optional
+            The internal method to use when identifying faces at the constant latitude.
+            Options are:
+            - 'fast': Uses a faster but potentially less accurate method for face identification.
+            - 'accurate': Uses a slower but more accurate method.
+            Default is 'fast'.
+
+        Raises
+        ------
+        ValueError
+            If no intersections are found at the specified latitude, a ValueError is raised.
+
+        Examples
+        --------
+        >>> uxda.constant_latitude_cross_section(lat=-15.5)
+
+        Notes
+        -----
+        The accuracy and performance of the function can be controlled using the `method` parameter.
+        For higher precision requreiments, consider using method='acurate'.
+        """
+        faces = self.uxgrid.get_faces_at_constant_latitude(lat, method)
 
         return self.isel(n_face=faces)
