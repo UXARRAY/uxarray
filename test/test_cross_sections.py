@@ -45,6 +45,11 @@ class TestQuadHex:
 
         assert grid_all_four.n_face == 4
 
+        with pytest.raises(ValueError):
+            # no intersections found at this line
+            uxgrid.constant_latitude_cross_section(lat=10.0)
+
+
     def test_constant_lat_cross_section_uxds(self):
         uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
 
@@ -59,3 +64,7 @@ class TestQuadHex:
         da_all_four = uxds['t2m'].constant_latitude_cross_section(lat=0.0)
 
         nt.assert_array_equal(da_all_four.data , uxds['t2m'].data)
+
+        with pytest.raises(ValueError):
+            # no intersections found at this line
+            uxds['t2m'].constant_latitude_cross_section(lat=10.0)
