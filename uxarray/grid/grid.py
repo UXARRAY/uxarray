@@ -1902,8 +1902,13 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def constant_latitude_cross_section(self, lat: float, return_face_indices=False):
-        faces = self.get_faces_at_constant_latitude(lat)
+    def constant_latitude_cross_section(
+        self, lat: float, return_face_indices=False, method="fast"
+    ):
+        faces = self.get_faces_at_constant_latitude(lat, method)
+
+        if len(faces) == 0:
+            raise ValueError(f"No intersections found at lat={lat}.")
 
         grid_at_constant_lat = self.isel(n_face=faces)
 
@@ -1912,15 +1917,15 @@ class Grid:
         else:
             return grid_at_constant_lat
 
-    def get_edges_at_constant_latitude(self, lat):
+    def get_edges_at_constant_latitude(self, lat, method="fast"):
         """TODO:"""
 
         edges = constant_lat_intersections(lat, self.edge_node_z.values, self.n_edge)
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat):
+    def get_faces_at_constant_latitude(self, lat, method="fast"):
         """TODO:"""
         edges = self.get_edges_at_constant_latitude(lat)
-        faces = self.edge_face_connectivity[edges].data.ravel()
+        faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
         return faces[faces != INT_FILL_VALUE]

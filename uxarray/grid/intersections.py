@@ -10,7 +10,7 @@ from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
 from numba import njit, prange
 
 
-@njit(parallel=True, nogil=True)
+@njit(parallel=True, nogil=True, cache=True)
 def constant_lat_intersections(lat, edge_node_z, n_edge):
     """Determine which edges intersect a constant line of latitude on a sphere.
 
@@ -31,12 +31,9 @@ def constant_lat_intersections(lat, edge_node_z, n_edge):
     -------
     intersecting_edges:
         List of indices of edges that intersect the constant latitude.
-    intersection_points:
-        Array of shape (n_intersections, 3) containing intersection points in Cartesian coordinates.
     """
     lat = np.deg2rad(lat)
 
-    # intersecting_edges = []
     intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
 
     # Calculate the constant z-value for the given latitude
@@ -48,17 +45,24 @@ def constant_lat_intersections(lat, edge_node_z, n_edge):
         z0 = edge_node_z[i, 0]
         z1 = edge_node_z[i, 1]
 
-        # Check if the edge crosses the constant latitude plane
-        # if (z0 - z_constant) * (z1 - z_constant) < 0:
-        #     intersecting_edges.append(i)
         if (z0 - z_constant) * (z1 - z_constant) < 0.0:
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
 
-    return intersecting_edges
+    return np.unique(intersecting_edges)
 
-    # return np.array(intersecting_edges, dtype=INT_DTYPE)
+
+# @njit(parallel=True, nogil=True)
+# def constant_lon_intersections(lon, edge_node_z, n_edge):
+#     lon = np.deg2rad(lon)
+#
+#     intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
+#
+#     for i in range(n_edge):
+#         pass
+#
+#     pass
 
 
 # @njit
