@@ -3,6 +3,33 @@ from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
 import uxarray.utils.computing as ac_utils
 
+from numba import njit
+
+
+@njit
+def _angle_of_2_vectors(u, v):
+    """Calculate the angle between two 3D vectors u and v in radians. Can be
+    used to calcualte the span of a GCR.
+
+    Parameters
+    ----------
+    u : numpy.ndarray (float)
+        The first 3D vector.
+    v : numpy.ndarray (float)
+        The second 3D vector.
+
+    Returns
+    -------
+    float
+        The angle between u and v in radians.
+    """
+    v_norm_times_u = np.linalg.norm(v) * u
+    u_norm_times_v = np.linalg.norm(u) * v
+    vec_minus = v_norm_times_u - u_norm_times_v
+    vec_sum = v_norm_times_u + u_norm_times_v
+    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
+    return angle_u_v_rad
+
 
 def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     """Calculate the inverse Jacobian matrix for a given set of parameters.

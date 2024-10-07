@@ -4,11 +4,12 @@ import math
 import warnings
 
 from uxarray.conventions import ugrid
-from uxarray.grid.arcs import _angle_of_2_vectors
 
 from numba import njit
 from uxarray.constants import ERROR_TOLERANCE
 from typing import Union
+
+from uxarray.grid.utils import _angle_of_2_vectors
 
 
 @njit(cache=True)
@@ -361,64 +362,72 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
-def _populate_face_centerpoints(grid, repopulate=False):
-    """Calculates the face centerpoints using Welzl's algorithm. It is a
-    randomized algorithm for finding the center and radius of the smallest
-    circle that encloses a set of points. It is here adapted to work on a unit
-    sphere. Also, this algorithm cannot be guaranteed to work on concave
-    polygons.
+def _welzl_recursive(points, boundary, R):
+    """Recursive helper function for Welzl's algorithm to find the smallest
+    enclosing circle.
 
     Parameters
     ----------
-    grid : Grid
-        The grid containing the nodes and faces.
-    repopulate : bool, optional
-        Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False.
+    points : numpy.ndarray
+        The set of points to consider.
+    boundary : numpy.ndarray
+        The current boundary points of the minimal enclosing circle.
+    R : tuple
+        The current minimal enclosing circle.
 
     Returns
     -------
-    None, populates the grid with the face centerpoints: face_lon, face_lat
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
     """
-    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+    # Base case: no points or boundary has 3 points
+    if len(points) == 0 or len(boundary) == 3:
+        # Construct the minimal circle based on the number of boundary points
+        if len(boundary) == 0:
+            # Return a default circle if no boundary points are available
+            return ((0.0, 0.0), 0.0)
+        elif len(boundary) == 1:
+            return _circle_from_two_points(boundary[0], boundary[0])
+        elif len(boundary) == 2:
+            return _circle_from_two_points(boundary[0], boundary[1])
+        elif len(boundary) == 3:
+            return _circle_from_three_points(boundary[0], boundary[1], boundary[2])
 
-    node_lon = grid.node_lon.values
-    node_lat = grid.node_lat.values
+    p = points[-1]
+    temp_points = points[:-1]
+    circle = _welzl_recursive(temp_points, boundary, R)
 
-    centerpoint_lat = []
-    centerpoint_lon = []
-
-    face_nodes = grid.face_node_connectivity.values
-    n_nodes_per_face = grid.n_nodes_per_face.values
-
-    # Check if the centerpoints are already populated
-    if "face_lon" not in grid._ds or repopulate:
-        centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
-            node_lon, node_lat, face_nodes, n_nodes_per_face
+    # Check if the chosen point is inside the current circle
+    if circle and _is_inside_circle(circle, p):
+        return circle
+    # If not, the point must be on the boundary of the minimal enclosing circle
+    else:
+        new_boundary = np.empty(
+            (boundary.shape[0] + 1, boundary.shape[1]), dtype=boundary.dtype
         )
-    # get the cartesian coordinates of the centerpoints
-    ctrpt_x, ctrpt_y, ctrpt_z = _lonlat_rad_to_xyz(centerpoint_lon, centerpoint_lat)
+        new_boundary[:-1] = boundary
+        new_boundary[-1] = p
+        return _welzl_recursive(temp_points, new_boundary, R)
 
-    # set the grid variables for centerpoints
-    if "face_lon" not in grid._ds or repopulate:
-        grid._ds["face_lon"] = xr.DataArray(
-            centerpoint_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
-        )
-        grid._ds["face_lat"] = xr.DataArray(
-            centerpoint_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
-        )
 
-    if "face_x" not in grid._ds or repopulate:
-        grid._ds["face_x"] = xr.DataArray(
-            ctrpt_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
-        )
+def _smallest_enclosing_circle(points):
+    """Find the smallest circle that encloses all given points on a unit sphere
+    using Welzl's algorithm.
 
-        grid._ds["face_y"] = xr.DataArray(
-            ctrpt_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
-        )
+    Parameters
+    ----------
+    points : numpy.ndarray
+        An array of points as tuples of (lon, lat).
 
-        grid._ds["face_z"] = xr.DataArray(
-            ctrpt_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
-        )
+    Returns
+    -------
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
+    """
+    np.random.shuffle(
+        points
+    )  # Randomize the input to increase the chance of an optimal solution
+    return _welzl_recursive(points, np.empty((0, 2)), None)
 
 
 @njit
@@ -513,73 +522,64 @@ def _is_inside_circle(circle, point):
     return distance <= radius
 
 
-@njit
-def _welzl_recursive(points, boundary, R):
-    """Recursive helper function for Welzl's algorithm to find the smallest
-    enclosing circle.
+def _populate_face_centerpoints(grid, repopulate=False):
+    """Calculates the face centerpoints using Welzl's algorithm. It is a
+    randomized algorithm for finding the center and radius of the smallest
+    circle that encloses a set of points. It is here adapted to work on a unit
+    sphere. Also, this algorithm cannot be guaranteed to work on concave
+    polygons.
 
     Parameters
     ----------
-    points : numpy.ndarray
-        The set of points to consider.
-    boundary : numpy.ndarray
-        The current boundary points of the minimal enclosing circle.
-    R : tuple
-        The current minimal enclosing circle.
+    grid : Grid
+        The grid containing the nodes and faces.
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False.
 
     Returns
     -------
-    tuple
-        The smallest enclosing circle as a tuple of center and radius.
+    None, populates the grid with the face centerpoints: face_lon, face_lat
     """
-    # Base case: no points or boundary has 3 points
-    if len(points) == 0 or len(boundary) == 3:
-        # Construct the minimal circle based on the number of boundary points
-        if len(boundary) == 0:
-            # Return a default circle if no boundary points are available
-            return ((0.0, 0.0), 0.0)
-        elif len(boundary) == 1:
-            return _circle_from_two_points(boundary[0], boundary[0])
-        elif len(boundary) == 2:
-            return _circle_from_two_points(boundary[0], boundary[1])
-        elif len(boundary) == 3:
-            return _circle_from_three_points(boundary[0], boundary[1], boundary[2])
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
-    p = points[-1]
-    temp_points = points[:-1]
-    circle = _welzl_recursive(temp_points, boundary, R)
+    node_lon = grid.node_lon.values
+    node_lat = grid.node_lat.values
 
-    # Check if the chosen point is inside the current circle
-    if circle and _is_inside_circle(circle, p):
-        return circle
-    # If not, the point must be on the boundary of the minimal enclosing circle
-    else:
-        new_boundary = np.empty(
-            (boundary.shape[0] + 1, boundary.shape[1]), dtype=boundary.dtype
+    centerpoint_lat = []
+    centerpoint_lon = []
+
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+
+    # Check if the centerpoints are already populated
+    if "face_lon" not in grid._ds or repopulate:
+        centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
+            node_lon, node_lat, face_nodes, n_nodes_per_face
         )
-        new_boundary[:-1] = boundary
-        new_boundary[-1] = p
-        return _welzl_recursive(temp_points, new_boundary, R)
+    # get the cartesian coordinates of the centerpoints
+    ctrpt_x, ctrpt_y, ctrpt_z = _lonlat_rad_to_xyz(centerpoint_lon, centerpoint_lat)
 
+    # set the grid variables for centerpoints
+    if "face_lon" not in grid._ds or repopulate:
+        grid._ds["face_lon"] = xr.DataArray(
+            centerpoint_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
+        )
+        grid._ds["face_lat"] = xr.DataArray(
+            centerpoint_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
+        )
 
-def _smallest_enclosing_circle(points):
-    """Find the smallest circle that encloses all given points on a unit sphere
-    using Welzl's algorithm.
+    if "face_x" not in grid._ds or repopulate:
+        grid._ds["face_x"] = xr.DataArray(
+            ctrpt_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
+        )
 
-    Parameters
-    ----------
-    points : numpy.ndarray
-        An array of points as tuples of (lon, lat).
+        grid._ds["face_y"] = xr.DataArray(
+            ctrpt_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
+        )
 
-    Returns
-    -------
-    tuple
-        The smallest enclosing circle as a tuple of center and radius.
-    """
-    np.random.shuffle(
-        points
-    )  # Randomize the input to increase the chance of an optimal solution
-    return _welzl_recursive(points, np.empty((0, 2)), None)
+        grid._ds["face_z"] = xr.DataArray(
+            ctrpt_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
+        )
 
 
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
