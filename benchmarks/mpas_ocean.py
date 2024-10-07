@@ -137,6 +137,13 @@ class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
+class ConstructFaceLatLon(GridBenchmark):
+    def time_welzl(self, resolution):
+        self.uxgrid.construct_face_centers(method='welzl')
+
+    def time_cartesian_averaging(self, resolution):
+        self.uxgrid.construct_face_centers(method='cartesian average')
+
 class CheckNorm:
     param_names = ['resolution']
     params = ['480km', '120km']
