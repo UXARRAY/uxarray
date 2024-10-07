@@ -35,6 +35,7 @@ from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
+    _populate_face_centerpoints,
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
@@ -428,6 +429,39 @@ class Grid:
             return True
         else:
             raise RuntimeError("Mesh validation failed.")
+
+    def construct_face_centers(self, method="cartesian average"):
+        """Constructs face centers, this method provides users direct control
+        of the method for constructing the face centers, the default method is
+        "cartesian average", but a more accurate method is "welzl" that is
+        based on the recursive Welzl algorithm. It must be noted that this
+        method can override the parsed/recompute the original parsed face
+        centers.
+
+        Parameters
+        ----------
+        method : str, default="cartesian average"
+            Supported methods are "cartesian average" and "welzl"
+
+        Returns
+        -------
+        None
+            This method constructs the face_lon and face_lat attributes for the grid object.
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("GRID_FILE_NAME")
+        >>> face_lat = uxgrid.construct_face_center(method="welzl")
+        """
+        if method == "cartesian average":
+            _populate_face_centroids(self, repopulate=True)
+        elif method == "welzl":
+            _populate_face_centerpoints(self, repopulate=True)
+        else:
+            raise ValueError(
+                f"Unknown method for face center calculation. Expected one of ['cartesian average', 'welzl'] but received {method}"
+            )
 
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
