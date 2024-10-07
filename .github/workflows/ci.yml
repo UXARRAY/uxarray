@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload code coverage to Codecov
         if: github.repository == 'UXARRAY/uxarray'
-        uses: codecov/codecov-action@v4.5.0
+        uses: codecov/codecov-action@v4.6.0
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
