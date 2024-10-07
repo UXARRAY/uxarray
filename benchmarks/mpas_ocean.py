@@ -6,7 +6,7 @@ import uxarray as ux
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-data_var = 'bottomDepth'
+data_var = "bottomDepth"
 
 grid_filename_480 = "oQU480.grid.nc"
 data_filename_480 = "oQU480.data.nc"
@@ -23,28 +23,42 @@ for filename in filenames:
         _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
 
 
-file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
-                  "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
-
+file_path_dict = {
+    "480km": [current_path / grid_filename_480, current_path / data_filename_480],
+    "120km": [current_path / grid_filename_120, current_path / data_filename_120],
+}
 
 
 class DatasetBenchmark:
     """Class used as a template for benchmarks requiring a ``UxDataset`` in
     this module across both resolutions."""
-    param_names = ['resolution',]
-    params = [['480km', '120km'],]
+
+    param_names = [
+        "resolution",
+    ]
+    params = [
+        ["480km", "120km"],
+    ]
 
     def setup(self, resolution, *args, **kwargs):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds = ux.open_dataset(
+            file_path_dict[resolution][0], file_path_dict[resolution][1]
+        )
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxds
 
+
 class GridBenchmark:
     """Class used as a template for benchmarks requiring a ``Grid`` in this
     module across both resolutions."""
-    param_names = ['resolution', ]
-    params = [['480km', '120km'], ]
+
+    param_names = [
+        "resolution",
+    ]
+    params = [
+        ["480km", "120km"],
+    ]
 
     def setup(self, resolution, *args, **kwargs):
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
@@ -60,6 +74,7 @@ class Gradient(DatasetBenchmark):
     def peakmem_gradient(self, resolution):
         grad = self.uxds[data_var].gradient()
 
+
 class Integrate(DatasetBenchmark):
     def time_integrate(self, resolution):
         self.uxds[data_var].integrate()
@@ -69,13 +84,11 @@ class Integrate(DatasetBenchmark):
 
 
 class GeoDataFrame(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
+    param_names = DatasetBenchmark.param_names + ["exclude_antimeridian"]
     params = DatasetBenchmark.params + [[True, False]]
-
 
     def time_to_geodataframe(self, resolution, exclude_antimeridian):
         self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
-
 
 
 class ConnectivityConstruction(DatasetBenchmark):
@@ -87,8 +100,8 @@ class ConnectivityConstruction(DatasetBenchmark):
 
 
 class MatplotlibConversion(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['periodic_elements']
-    params = DatasetBenchmark.params + [['include', 'exclude', 'split']]
+    param_names = DatasetBenchmark.param_names + ["periodic_elements"]
+    params = DatasetBenchmark.params + [["include", "exclude", "split"]]
 
     def time_dataarray_to_polycollection(self, resolution, periodic_elements):
         self.uxds[data_var].to_polycollection()
@@ -103,10 +116,13 @@ class ConstructTreeStructures(DatasetBenchmark):
 
 
 class RemapDownsample:
-
     def setup(self):
-        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
-        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
+        self.uxds_120 = ux.open_dataset(
+            file_path_dict["120km"][0], file_path_dict["120km"][1]
+        )
+        self.uxds_480 = ux.open_dataset(
+            file_path_dict["480km"][0], file_path_dict["480km"][1]
+        )
 
     def teardown(self):
         del self.uxds_120, self.uxds_480
@@ -115,14 +131,19 @@ class RemapDownsample:
         self.uxds_120["bottomDepth"].remap.nearest_neighbor(self.uxds_480.uxgrid)
 
     def time_inverse_distance_weighted_remapping(self):
-        self.uxds_120["bottomDepth"].remap.inverse_distance_weighted(self.uxds_480.uxgrid)
+        self.uxds_120["bottomDepth"].remap.inverse_distance_weighted(
+            self.uxds_480.uxgrid
+        )
 
 
 class RemapUpsample:
-
     def setup(self):
-        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
-        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
+        self.uxds_120 = ux.open_dataset(
+            file_path_dict["120km"][0], file_path_dict["120km"][1]
+        )
+        self.uxds_480 = ux.open_dataset(
+            file_path_dict["480km"][0], file_path_dict["480km"][1]
+        )
 
     def teardown(self):
         del self.uxds_120, self.uxds_480
@@ -131,15 +152,21 @@ class RemapUpsample:
         self.uxds_480["bottomDepth"].remap.nearest_neighbor(self.uxds_120.uxgrid)
 
     def time_inverse_distance_weighted_remapping(self):
-        self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
+        self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(
+            self.uxds_120.uxgrid
+        )
+
 
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
-        ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+        ux.grid.geometry._construct_hole_edge_indices(
+            self.uxds.uxgrid.edge_face_connectivity
+        )
+
 
 class CheckNorm:
-    param_names = ['resolution']
-    params = ['480km', '120km']
+    param_names = ["resolution"]
+    params = ["480km", "120km"]
 
     def setup(self, resolution):
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
@@ -149,4 +176,5 @@ class CheckNorm:
 
     def time_check_norm(self, resolution):
         from uxarray.grid.validation import _check_normalization
+
         _check_normalization(self.uxgrid)

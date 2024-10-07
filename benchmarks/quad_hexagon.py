@@ -22,7 +22,6 @@ class QuadHexagon:
         """Peak memory usage of a `Grid`"""
         uxgrid = ux.open_grid(grid_path)
 
-
     def time_open_dataset(self):
         """Time to open a `UxDataset`"""
         ux.open_dataset(grid_path, data_path)
