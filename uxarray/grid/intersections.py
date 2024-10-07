@@ -17,7 +17,7 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     Parameters
     ----------
     lat:
-        Constant latitude value in radians.
+        Constant latitude value in degrees.
     edge_node_z:
         Array of shape (n_edge, 2) containing z-coordinates of the edge nodes.
     n_edge:
