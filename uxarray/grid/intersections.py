@@ -18,10 +18,6 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     ----------
     lat:
         Constant latitude value in radians.
-    edge_node_x:
-        Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
-    edge_node_y:
-        Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
     edge_node_z:
         Array of shape (n_edge, 2) containing z-coordinates of the edge nodes.
     n_edge:
@@ -30,7 +26,7 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     Returns
     -------
     intersecting_edges:
-        List of indices of edges that intersect the constant latitude.
+        array of indices of edges that intersect the constant latitude.
     """
     lat = np.deg2rad(lat)
 
