@@ -162,6 +162,12 @@ Coordinates
    grid.coordinates._welzl_recursive
    grid.coordinates._smallest_enclosing_circle
    grid.coordinates._construct_face_centerpoints
+   grid.coordinates._lonlat_rad_to_xyz
+   grid.coordinates._xyz_to_lonlat_rad
+   grid.coordinates._xyz_to_lonlat_rad_no_norm
+   grid.coordinates._xyz_to_lonlat_deg
+   grid.coordinates._normalize_xyz
+   grid.coordinates._normalize_xyz_scalar
 
 
 Arcs
@@ -180,15 +186,10 @@ Utils
 
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+   grid.utils._angle_of_two_vectors
    grid.utils._swap_first_fill_value_with_last
    grid.utils._get_cartesiain_face_edge_nodes
    grid.utils._get_lonlat_rad_face_edge_nodes
-   grid.utils._lonlat_rad_to_xyz
-   grid.utils._xyz_to_lonlat_rad
-   grid.utils._xyz_to_lonlat_rad_no_norm
-   grid.utils._xyz_to_lonlat_deg
-   grid.utils._normalize_xyz
-   grid.utils._normalize_xyz_scalar
 
 
 Validation
