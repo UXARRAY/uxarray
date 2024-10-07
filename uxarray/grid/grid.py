@@ -1905,6 +1905,52 @@ class Grid:
     def constant_latitude_cross_section(
         self, lat: float, return_face_indices=False, method="fast"
     ):
+        """Extracts a cross-section of the grid at a specified constant
+        latitude.
+
+        This method identifies and returns all faces (or grid elements) that intersect
+        with a given latitude. The returned cross-section can include either just the grid
+        or both the grid elements and the corresponding face indices, depending
+        on the `return_face_indices` parameter.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to extract the cross-section, in degrees.
+        return_face_indices : bool, optional
+            If True, returns both the grid at the specified latitude and the indices
+            of the intersecting faces. If False, only the grid is returned.
+            Default is False.
+        method : str, optional
+            The internal method to use when identifying faces at the constant latitude.
+            Options are:
+            - 'fast': Uses a faster but potentially less accurate method for face identification.
+            - 'accurate': Uses a slower but more accurate method.
+            Default is 'fast'.
+
+        Returns
+        -------
+        grid_at_constant_lat : Grid
+            The grid with faces that interesected at a given lattitude
+        faces : array, optional
+            The indices of the faces that intersect with the specified latitude. This is only
+            returned if `return_face_indices` is set to True.
+
+        Raises
+        ------
+        ValueError
+            If no intersections are found at the specified latitude, a ValueError is raised.
+
+        Examples
+        --------
+        >>> grid, indices = grid.constant_latitude_cross_section(lat=30.0, return_face_indices=True)
+        >>> grid = grid.constant_latitude_cross_section(lat=-15.5)
+
+        Notes
+        -----
+        The accuracy and performance of the function can be controlled using the `method` parameter.
+        For higher precision requreiments, consider using method='acurate'.
+        """
         faces = self.get_faces_at_constant_latitude(lat, method)
 
         if len(faces) == 0:
@@ -1918,14 +1964,66 @@ class Grid:
             return grid_at_constant_lat
 
     def get_edges_at_constant_latitude(self, lat, method="fast"):
-        """TODO:"""
+        """Identifies the edges of the grid that intersect with a specified
+        constant latitude.
 
-        edges = constant_lat_intersections(lat, self.edge_node_z.values, self.n_edge)
+        This method computes the intersection of grid edges with a given latitude and
+        returns a collection of edges that cross or are aligned with that latitude.
+        The method used for identifying these edges can be controlled by the `method`
+        parameter.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to identify intersecting edges, in degrees.
+        method : str, optional
+            The computational method used to determine edge intersections. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
+
+        Returns
+        -------
+        edges : array
+            A squeezed array of edges that intersect the specified constant latitude.
+        """
+        if method == "fast":
+            edges = constant_lat_intersections(
+                lat, self.edge_node_z.values, self.n_edge
+            )
+        elif method == "accurate":
+            raise NotImplementedError("TODO: ")
+        else:
+            raise ValueError("TODO:")
         return edges.squeeze()
 
     def get_faces_at_constant_latitude(self, lat, method="fast"):
-        """TODO:"""
-        edges = self.get_edges_at_constant_latitude(lat)
+        """Identifies the faces of the grid that intersect with a specified
+        constant latitude.
+
+        This method finds the faces (or cells) of the grid that intersect a given latitude
+        by first identifying the intersecting edges and then determining the faces connected
+        to these edges. The method used for identifying edges can be adjusted with the `method`
+        parameter.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to identify intersecting faces, in degrees.
+        method : str, optional
+            The computational method used to determine intersecting edges. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
+
+        Returns
+        -------
+        faces : array
+            An array of unique face indices that intersect the specified latitude.
+            Faces that are invalid or missing (e.g., with a fill value) are excluded
+            from the result.
+        """
+        edges = self.get_edges_at_constant_latitude(lat, method)
         faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
         return faces[faces != INT_FILL_VALUE]
