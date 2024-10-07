@@ -10,6 +10,8 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'grid.nc'
 quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
 
+cube_sphere_grid = current_path / "meshfiles" / "geos-cs" / "c12" / "test-c12.native.nc4"
+
 
 
 class TestQuadHex:
@@ -68,3 +70,25 @@ class TestQuadHex:
         with pytest.raises(ValueError):
             # no intersections found at this line
             uxds['t2m'].constant_latitude_cross_section(lat=10.0)
+
+
+class TestGeosCubeSphere:
+    def test_north_pole(self):
+        uxgrid = ux.open_grid(cube_sphere_grid)
+
+        lats = [89.85, 89.9, 89.95, 89.99]
+
+        for lat in lats:
+            cross_grid = uxgrid.constant_latitude_cross_section(lat=lat)
+            # Cube sphere grid should have 4 faces centered around the pole
+            assert cross_grid.n_face == 4
+
+    def test_south_pole(self):
+        uxgrid = ux.open_grid(cube_sphere_grid)
+
+        lats = [-89.85, -89.9, -89.95, -89.99]
+
+        for lat in lats:
+            cross_grid = uxgrid.constant_latitude_cross_section(lat=lat)
+            # Cube sphere grid should have 4 faces centered around the pole
+            assert cross_grid.n_face == 4
