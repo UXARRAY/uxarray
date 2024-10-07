@@ -139,19 +139,10 @@ class HoleEdgeIndices(DatasetBenchmark):
 
 class ConstructFaceLatLon(GridBenchmark):
     def time_welzl(self, resolution):
-        from uxarray.grid.coordinates import _construct_face_centerpoint
-        _construct_face_centerpoints(self.uxgrid.node_lon.values,
-                                     self.uxgrid.node_lat.values,
-                                     self.uxgrid.face_node_connectivity.values,
-                                     self.uxgrid.n_nodes_per_face.values)
+        self.uxgrid.construct_face_centers(method='welzl')
 
     def time_cartesian_averaging(self, resolution):
-        from uxarray.grid.coordinates import _construct_face_centroids
-        _construct_face_centroids(self.uxgrid.node_x.values,
-                                  self.uxgrid.node_y.values,
-                                  self.uxgrid.node_z.values,
-                                  self.uxgrid.face_node_connectivity.values,
-                                  self.uxgrid.n_nodes_per_face.values)
+        self.uxgrid.construct_face_centers(method='cartesian average')
 
 class CheckNorm:
     param_names = ['resolution']
