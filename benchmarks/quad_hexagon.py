@@ -34,39 +34,3 @@ class QuadHexagon:
     def peakmem_open_dataset(self):
         """Peak memory usage of a `UxDataset`"""
         uxds = ux.open_dataset(grid_path, data_path)
-
-
-# from uxarray.grid.coordinates import _construct_face_centerpoints, _construct_face_centroids
-
-class ConstructFaceLatLon:
-
-
-    def time_welzl(self):
-        uxgrid = ux.open_grid("/Users/mbook/cp_uxarray/benchmarks/oQU480.grid.nc")
-
-        ux.grid.coordinates._construct_face_centerpoints(uxgrid.node_lon.values,
-                                     uxgrid.node_lat.values,
-                                     uxgrid.face_node_connectivity.values,
-                                     uxgrid.n_nodes_per_face.values)
-
-
-
-
-
-class QuadHexagon2:
-    def time_open_grid(self):
-        """Time to open a `Grid`"""
-        ux.open_grid(grid_path)
-
-    # def mem_open_grid(self):
-    #     """Memory Occupied by a `Grid`"""
-    #     return ux.open_grid(grid_path)
-
-    def peakmem_open_grid2(self):
-        """Peak memory usage of a `Grid`"""
-        uxgrid = ux.open_grid(grid_path)
-
-
-    def time_open_dataset(self):
-        """Time to open a `UxDataset`"""
-        ux.open_dataset(grid_path, data_path)
