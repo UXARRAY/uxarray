@@ -891,9 +891,7 @@ class UxDataArray(xr.DataArray):
 
         Example
         -------
-        Face-centered variable
         >>> uxds['var'].gradient()
-        Node-centered variable
         >>> uxds['var'].topological_mean(destination="face").gradient()
         """
 
