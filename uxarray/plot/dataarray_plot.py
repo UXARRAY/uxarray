@@ -7,92 +7,24 @@ from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
-# consider making these required depndencies
 from cartopy import crs as ccrs
 import dask.dataframe as dd
 import holoviews as hv
+import geoviews as gv
 from holoviews.operation.datashader import rasterize as hds_rasterize
 
-import numpy as np
 
 import pandas as pd
 
 import uxarray.plot.utils
 
 
-def plot(uxda, **kwargs):
-    """Default plotting method for a ``UxDataArray``."""
-
-    if uxda._face_centered():
-        return rasterize(uxda, method="polygon", **kwargs)
-
-    elif uxda._edge_centered() or uxda._node_centered():
-        return rasterize(uxda, method="point", **kwargs)
-
-    else:
-        raise ValueError(
-            "Plotting variables on unstructured grids requires the data variable to be mapped to either the nodes, edges, or faces."
-        )
-
-
-def datashade(
-    uxda: UxDataArray,
-    *args,
-    method: Optional[str] = "polygon",
-    plot_height: Optional[int] = 300,
-    plot_width: Optional[int] = 600,
-    x_range: Optional[tuple] = (-180, 180),
-    y_range: Optional[tuple] = (-90, 90),
-    cmap: Optional[str] = "Blues",
-    agg: Optional[str] = "mean",
-    **kwargs,
-):
-    """Visualizes an unstructured grid data variable using data shading
-    (rasterization + shading).
-
-    Parameters
-    ----------
-    method: str, optional
-        Selects which method to use for data shading
-    plot_width, plot_height : int, optional
-       Width and height of the output aggregate in pixels.
-    x_range, y_range : tuple, optional
-       A tuple representing the bounds inclusive space ``[min, max]`` along
-       the axis.
-    cmap: str, optional
-        Colormap used for shading
-    agg : str, optional
-        Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
-    """
-    import datashader as ds
-    import datashader.transfer_functions as tf
-
-    cvs = ds.Canvas(plot_width, plot_height, x_range, y_range)
-    gdf = uxda.to_geodataframe()
-
-    if agg == "mean":
-        _agg = ds.mean
-    elif agg == "sum":
-        _agg = ds.sum
-    else:
-        raise ValueError("Invalid agg")
-
-    aggregated = cvs.polygons(gdf, geometry="geometry", agg=_agg(uxda.name))
-
-    # support mpl colormaps
-    try:
-        _cmap = matplotlib.colormaps[cmap]
-    except KeyError:
-        _cmap = cmap
-
-    return tf.shade(aggregated, cmap=_cmap, **kwargs)
-
-
 def rasterize(
     uxda: UxDataArray,
     method: Optional[str] = "point",
     backend: Optional[str] = "bokeh",
-    exclude_antimeridian: Optional[bool] = True,
+    periodic_elements: Optional[str] = "exclude",
+    exclude_antimeridian: Optional[bool] = None,
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -162,6 +94,7 @@ def rasterize(
         raster = _polygon_raster(
             uxda=uxda,
             backend=backend,
+            periodic_elements=periodic_elements,
             exclude_antimeridian=exclude_antimeridian,
             dynamic=dynamic,
             precompute=precompute,
@@ -174,6 +107,7 @@ def rasterize(
             pixel_ratio=pixel_ratio,
             cache=cache,
             override=override,
+            projection=projection,
             **kwargs,
         )
     else:
@@ -226,19 +160,20 @@ def _point_raster(
         # apply projection to coordinates
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
 
-    uxarray.plot.utils.backend.assign(backend=backend)
+    uxarray.plot.utils.backend.assign(backend)
+    current_backend = hv.Store.current_backend
 
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
     point_df = pd.DataFrame.from_dict(point_dict)
     point_ddf = dd.from_pandas(point_df, npartitions=npartitions)
 
     # construct a holoviews points object
-    if backend == "matplotlib":
+    if current_backend == "matplotlib":
         points = hv.Points(point_ddf, ["lon", "lat"]).opts(s=size)
     else:
         points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
-    if backend == "matplotlib":
+    if current_backend == "matplotlib":
         # use holoviews matplotlib backend
         raster = hds_rasterize(
             points,
@@ -254,7 +189,7 @@ def _point_raster(
             ylabel=ylabel,
             **kwargs,
         )
-    elif backend == "bokeh":
+    elif current_backend == "bokeh":
         # use holoviews bokeh backend
         raster = hds_rasterize(
             points,
@@ -285,6 +220,7 @@ def _polygon_raster(
     uxda: UxDataArray,
     backend: Optional[str] = "bokeh",
     exclude_antimeridian: Optional[bool] = True,
+    periodic_elements: Optional[str] = "exclude",
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
@@ -298,6 +234,7 @@ def _polygon_raster(
     ylabel: Optional[str] = "Latitude",
     cache: Optional[bool] = True,
     override: Optional[bool] = False,
+    projection: Optional[ccrs] = None,
     **kwargs,
 ):
     """Implementation of Polygon Rasterization."""
@@ -307,19 +244,31 @@ def _polygon_raster(
         kwargs["clabel"] = uxda.name
 
     gdf = uxda.to_geodataframe(
-        exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
+        projection=projection,
+        periodic_elements=periodic_elements,
+        exclude_antimeridian=exclude_antimeridian,
+        cache=cache,
+        override=override,
     )
 
-    hv_polygons = hv.Polygons(
-        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
-    )
+    uxarray.plot.utils.backend.assign(backend)
+    current_backend = hv.Store.current_backend
 
-    uxarray.plot.utils.backend.assign(backend=backend)
+    if current_backend == "matplotlib":
+        _polygons = gv.Polygons(
+            gdf,
+            vdims=[uxda.name if uxda.name is not None else "var"],
+        )
+    else:
+        # GeoViews Issue with Projections:
+        _polygons = hv.Polygons(
+            gdf, vdims=[uxda.name if uxda.name is not None else "var"]
+        )
 
-    if backend == "matplotlib":
+    if current_backend == "matplotlib":
         # use holoviews matplotlib backend
         raster = hds_rasterize(
-            hv_polygons,
+            _polygons,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
             precompute=precompute,
@@ -332,10 +281,10 @@ def _polygon_raster(
             ylabel=ylabel,
             **kwargs,
         )
-    elif backend == "bokeh":
+    elif current_backend == "bokeh":
         # use holoviews bokeh backend
         raster = hds_rasterize(
-            hv_polygons,
+            _polygons,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
             precompute=precompute,
@@ -357,188 +306,3 @@ def _polygon_raster(
         )
 
     return raster
-
-
-def polygons(
-    uxda: UxDataArray,
-    backend: Optional[str] = "bokeh",
-    exclude_antimeridian: Optional[bool] = True,
-    projection: Optional = None,
-    width: Optional[int] = 1000,
-    height: Optional[int] = 500,
-    colorbar: Optional[bool] = True,
-    cmap: Optional[str] = "Blues",
-    xlabel: Optional[str] = "Longitude",
-    ylabel: Optional[str] = "Latitude",
-    cache: Optional[bool] = True,
-    override: Optional[bool] = False,
-    **kwargs,
-):
-    """Vector Polygon Plot of a Data Variable Residing on an Unstructured Grid.
-
-    Parameters
-    ----------
-    backend: str
-        Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-    exclude_antimeridian: bool,
-        Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
-    height: int
-        Plot Height for Bokeh Backend
-    width: int
-        Plot Width for Bokeh Backend
-    """
-    if "clabel" not in kwargs and uxda.name is not None:
-        # set default label for color bar
-        kwargs["clabel"] = uxda.name
-
-    gdf = uxda.to_geodataframe(
-        exclude_antimeridian=exclude_antimeridian, cache=cache, override=override
-    )
-
-    hv_polygons = hv.Polygons(
-        gdf, vdims=[uxda.name if uxda.name is not None else "var"]
-    )
-
-    uxarray.plot.utils.backend.assign(backend=backend)
-    if backend == "matplotlib":
-        # use holoviews matplotlib backend
-
-        return hv_polygons.opts(
-            colorbar=colorbar, xlabel=xlabel, ylabel=ylabel, cmap=cmap, **kwargs
-        )
-
-    elif backend == "bokeh":
-        # use holoviews bokeh backend
-        return hv_polygons.opts(
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            xlabel=xlabel,
-            ylabel=ylabel,
-            **kwargs,
-        )
-
-
-def points(
-    uxda: UxDataArray,
-    backend: Optional[str] = "bokeh",
-    width: Optional[int] = 1000,
-    height: Optional[int] = 500,
-    colorbar: Optional[bool] = True,
-    cmap: Optional[str] = "Blues",
-    projection=None,
-    **kwargs,
-):
-    """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
-    Face Coordinates."""
-
-    if uxda.values.ndim > 1:
-        raise ValueError(
-            f"Data Variable must be 1-dimensional, with shape {uxda.uxgrid.n_node}, {uxda.uxgrid.n_edge}, {uxda.uxgrid.n_face} "
-            f"for node-centered, edge-centered, or face-centered data respectively."
-        )
-
-    if uxda._node_centered():
-        return _plot_data_as_points(
-            element="node",
-            uxda=uxda,
-            backend=backend,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            projection=projection,
-            **kwargs,
-        )
-    elif uxda._face_centered():
-        return _plot_data_as_points(
-            element="face",
-            uxda=uxda,
-            backend=backend,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            projection=projection,
-            **kwargs,
-        )
-    elif uxda._edge_centered():
-        return _plot_data_as_points(
-            element="edge",
-            uxda=uxda,
-            backend=backend,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            projection=projection,
-            **kwargs,
-        )
-    else:
-        raise ValueError("Data Variable is not mapped to nodes, edges, or faces.")
-
-
-def _plot_data_as_points(
-    element,
-    uxda: UxDataArray,
-    backend: Optional[str] = "bokeh",
-    width: Optional[int] = 1000,
-    height: Optional[int] = 500,
-    colorbar: Optional[bool] = True,
-    cmap: Optional[str] = "Blues",
-    xlabel: Optional[str] = "Longitude",
-    ylabel: Optional[str] = "Latitude",
-    projection=None,
-    **kwargs,
-):
-    """Helper function for plotting data variables as Points, either on the
-    Nodes, Face Centers, or Edge Centers."""
-
-    from holoviews import Points
-
-    if "clabel" not in kwargs and uxda.name is not None:
-        # set default label for color bar
-        kwargs["clabel"] = uxda.name
-
-    uxgrid = uxda.uxgrid
-    if element == "node":
-        lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
-    elif element == "face":
-        lon, lat = uxgrid.face_lon.values, uxgrid.face_lat.values
-    elif element == "edge":
-        lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
-    else:
-        raise ValueError("Invalid element selected.")
-
-    if projection is not None:
-        lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
-
-    verts = np.column_stack([lon, lat, uxda.values])
-    hv_points = Points(verts, vdims=["z"])
-
-    uxarray.plot.utils.backend.assign(backend=backend)
-
-    if backend == "matplotlib":
-        # use holoviews matplotlib backend
-        return hv_points.opts(
-            color="z",
-            colorbar=colorbar,
-            cmap=cmap,
-            xlabel=xlabel,
-            ylabel=ylabel,
-            **kwargs,
-        )
-
-    elif backend == "bokeh":
-        # use holoviews bokeh backend
-        return hv_points.opts(
-            color="z",
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            xlabel=xlabel,
-            ylabel=ylabel,
-            **kwargs,
-        )

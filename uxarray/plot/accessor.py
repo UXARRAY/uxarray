@@ -1,19 +1,20 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Optional
 
 import functools
+import warnings
+from typing import TYPE_CHECKING, Any, Optional
 
+import cartopy.crs as ccrs
+import hvplot.pandas
+import pandas as pd
 
-if TYPE_CHECKING:
-    from uxarray.core.dataset import UxDataset
-    from uxarray.core.dataarray import UxDataArray
-    from uxarray.grid import Grid
-
-import uxarray.plot.grid_plot as grid_plot
 import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
 
-import cartopy.crs as ccrs
+if TYPE_CHECKING:
+    from uxarray.core.dataarray import UxDataArray
+    from uxarray.core.dataset import UxDataset
+    from uxarray.grid import Grid
 
 
 class GridPlotAccessor:
@@ -27,232 +28,197 @@ class GridPlotAccessor:
         self._uxgrid = uxgrid
 
     def __call__(self, **kwargs) -> Any:
-        return grid_plot.plot(self._uxgrid, **kwargs)
+        return self.edges(**kwargs)
 
-    @functools.wraps(grid_plot.mesh)
-    def mesh(
-        self,
-        backend: Optional[str] = "bokeh",
-        exclude_antimeridian: Optional[bool] = False,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Line Plot of the edges that make up each face.
+    def points(self, element="nodes", backend=None, **kwargs):
+        """Generate a point plot based on the specified grid element type
+        (nodes, faces, or edges).
+
+        This function retrieves longitude and latitude values for the specified element type
+        from the grid (e.g., node, face, or edge locations), converts them into a pandas
+        DataFrame, and creates a point plot using `hvplot`. The backend for plotting can
+        also be specified, and additional plotting options are accepted through `kwargs`.
 
         Parameters
         ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-        return grid_plot.mesh(
-            self._uxgrid,
-            backend=backend,
-            exclude_antimeridian=exclude_antimeridian,
-            width=width,
-            height=height,
-            **kwargs,
-        )
+        element : str, optional, default="nodes"
+            The type of grid element for which to retrieve points. Options include:
+            - "nodes" or "corner nodes" or "node_latlon" for grid nodes,
+            - "faces" or "face centers" or "face_latlon" for grid face centers,
+            - "edges" or "edge centers" or "edge_latlon" for grid edges.
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
 
-    @functools.wraps(grid_plot.mesh)
-    def edges(
-        self,
-        backend: Optional[str] = "bokeh",
-        exclude_antimeridian: Optional[bool] = False,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Line Plot of the edges that make up each face. Equivalent to
-        ``Grid.plot.mesh()``
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the selected coordinate
+
+        Raises
+        ------
+        ValueError
+            If the provided `element` is not one of the accepted options.
+        """
+
+        uxarray.plot.utils.backend.assign(backend)
+
+        if element in ["nodes", "corner nodes", "node_latlon"]:
+            lon, lat = self._uxgrid.node_lon.values, self._uxgrid.node_lat.values
+        elif element in ["faces", "face centers", "face_latlon"]:
+            lon, lat = self._uxgrid.face_lon.values, self._uxgrid.face_lat.values
+        elif element in ["edges", "edge centers", "edge_latlon"]:
+            lon, lat = self._uxgrid.edge_lon.values, self._uxgrid.edge_lat.values
+        else:
+            raise ValueError("TODO: ")
+
+        verts = {"lon": lon, "lat": lat}
+
+        points_df = pd.DataFrame.from_dict(verts)
+
+        return points_df.hvplot.points("lon", "lat", **kwargs)
+
+    def nodes(self, backend=None, **kwargs):
+        """Generate a point plot for the grid corner nodes.
+
+        This function is a convenience wrapper around the `points` method, specifically
+        for plotting the grid nodes. It retrieves the longitude and latitude values
+        corresponding to the grid nodes and generates a point plot using `hvplot`. The
+        backend for plotting can also be specified, and additional plotting options
+        are accepted through `kwargs`.
 
         Parameters
         ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-        return grid_plot.mesh(
-            self._uxgrid,
-            backend=backend,
-            exclude_antimeridian=exclude_antimeridian,
-            width=width,
-            height=height,
-            **kwargs,
-        )
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
 
-    @functools.wraps(grid_plot.node_coords)
-    def node_coords(
-        self,
-        backend: Optional[str] = "bokeh",
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Point Plot of Nodes (latitude & longitude of the nodes that
-        define the corners of each face)
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the corner node coordinates
+        """
+
+        return self.points(element="nodes", backend=backend, **kwargs)
+
+    def node_coords(self, backend=None, **kwargs):
+        return self.points(element="nodes", backend=backend, **kwargs)
+
+    node_coords.__doc__ = nodes.__doc__
+
+    def corner_nodes(self, backend=None, **kwargs):
+        return self.points(element="nodes", backend=backend, **kwargs)
+
+    corner_nodes.__doc__ = nodes.__doc__
+
+    def edge_coords(self, backend=None, **kwargs):
+        """Wrapper for ``Grid.plot.points(element='edge centers')
 
         Parameters
         ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the edge center coordinates
         """
+        return self.points(element="edges", backend=backend, **kwargs)
 
-        return grid_plot.node_coords(
-            self._uxgrid, backend=backend, width=width, height=height, **kwargs
-        )
+    def edge_centers(self, backend=None, **kwargs):
+        return self.points(element="edges", backend=backend, **kwargs)
 
-    @functools.wraps(grid_plot.node_coords)
-    def nodes(
-        self,
-        backend: Optional[str] = "bokeh",
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Point Plot of Nodes (latitude & longitude of the nodes that
-        define the corners of each face). Alias of ``plot.node_coords``
+    edge_centers.__doc__ = edge_coords.__doc__
+
+    def face_coords(self, backend=None, **kwargs):
+        """Wrapper for ``Grid.plot.points(element='face centers')
 
         Parameters
         ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A point plot of the face center coordinates
         """
+        return self.points(element="faces", backend=backend, **kwargs)
 
-        return grid_plot.node_coords(
-            self._uxgrid, backend=backend, width=width, height=height, **kwargs
-        )
+    def face_centers(self, backend=None, **kwargs):
+        return self.points(element="faces", backend=backend, **kwargs)
 
-    @functools.wraps(grid_plot.face_coords)
-    def face_coords(
-        self,
-        backend: Optional[str] = "bokeh",
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Point Plot of Face Coordinates (latitude & longitude of the
-        centroid of each face)
+    face_centers.__doc__ = face_coords.__doc__
+
+    def edges(self, periodic_elements="exclude", backend=None, **kwargs):
+        """Plots the edges of a grid as a path plot.
+
+        This function plots the edges of the grid as geographical paths using `hvplot`.
+        The plot can ignore, exclude, or split periodic elements based on the provided option.
+        It automatically sets default values for rasterization, projection, and labeling,
+        which can be overridden by passing additional keyword arguments. The backend for
+        plotting can also be specified.
 
         Parameters
         ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
+        periodic_elements : str, optional, default="exclude"
+            Specifies whether to include or exclude periodic elements in the grid.
+            Options are:
+            - "exclude": Exclude periodic elements,
+            - "ignore": Include periodic elements without any corrections
+            - "split": Split periodic elements.
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.paths`. These can include:
+            - "rasterize" (bool): Whether to rasterize the plot (default: False),
+            - "projection" (ccrs.Projection): The map projection to use (default: `ccrs.PlateCarree()`),
+            - "clabel" (str): Label for the edges (default: "edges"),
+            - "crs" (ccrs.Projection): Coordinate reference system for the plot (default: `ccrs.PlateCarree()`).
+            A full list can be found at https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.paths : hvplot.paths
+            A paths plot of the edges of the unstructured grid
         """
 
-        return grid_plot.face_coords(
-            self._uxgrid, backend=backend, width=width, height=height, **kwargs
-        )
+        uxarray.plot.utils.backend.assign(backend)
 
-    @functools.wraps(grid_plot.face_coords)
-    def face_centers(
-        self,
-        backend: Optional[str] = "bokeh",
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Point Plot of Face Coordinates (latitude & longitude of the
-        centroid of each face). Alias of ``plot.face_coords``
+        if "rasterize" not in kwargs:
+            kwargs["rasterize"] = False
+        if "projection" not in kwargs:
+            kwargs["projection"] = ccrs.PlateCarree()
+        if "clabel" not in kwargs:
+            kwargs["clabel"] = "edges"
+        if "crs" not in kwargs:
+            if "projection" in kwargs:
+                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+            else:
+                central_longitude = 0.0
+            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
-        Parameters
-        ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
+        gdf = self._uxgrid.to_geodataframe(
+            periodic_elements=periodic_elements, projection=kwargs.get("projection")
+        )[["geometry"]]
 
-        return grid_plot.face_coords(
-            self._uxgrid, backend=backend, width=width, height=height, **kwargs
-        )
+        return gdf.hvplot.paths(geo=True, **kwargs)
 
-    @functools.wraps(grid_plot.edge_coords)
-    def edge_coords(
-        self,
-        backend: Optional[str] = "bokeh",
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Point Plot of Edge Coordinates (latitude & longitude of the
-        centroid of each edge)
+    def mesh(self, periodic_elements="exclude", backend=None, **kwargs):
+        return self.edges(periodic_elements, backend, **kwargs)
 
-        Parameters
-        ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-
-        return grid_plot.edge_coords(
-            self._uxgrid, backend=backend, width=width, height=height, **kwargs
-        )
-
-    @functools.wraps(grid_plot.edge_coords)
-    def edge_centers(
-        self,
-        backend: Optional[str] = "bokeh",
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        **kwargs,
-    ):
-        """Vector Point Plot of Edge Coordinates (latitude & longitude of the
-        centroid of each edge). Alias of ``plot.edge_coords``
-
-        Parameters
-        ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-
-        return grid_plot.edge_coords(
-            self._uxgrid, backend=backend, width=width, height=height, **kwargs
-        )
+    mesh.__doc__ = edges.__doc__
 
 
 class UxDataArrayPlotAccessor:
@@ -265,9 +231,13 @@ class UxDataArrayPlotAccessor:
     def __init__(self, uxda: UxDataArray) -> None:
         self._uxda = uxda
 
-    @functools.wraps(dataarray_plot.plot)
     def __call__(self, **kwargs) -> Any:
-        return dataarray_plot.plot(self._uxda, **kwargs)
+        if self._uxda._face_centered():
+            # polygons for face-centered data
+            return self.polygons(**kwargs)
+        else:
+            # points for node and edge centered data
+            return self.points(**kwargs)
 
     def __getattr__(self, name: str) -> Any:
         """When a function that isn't part of the class is invoked (i.e.
@@ -285,55 +255,122 @@ class UxDataArrayPlotAccessor:
         else:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
-    @functools.wraps(dataarray_plot.datashade)
-    def datashade(
-        self,
-        *args,
-        method: Optional[str] = "polygon",
-        plot_height: Optional[int] = 300,
-        plot_width: Optional[int] = 600,
-        x_range: Optional[tuple] = (-180, 180),
-        y_range: Optional[tuple] = (-90, 90),
-        cmap: Optional[str] = "Blues",
-        agg: Optional[str] = "mean",
-        **kwargs,
-    ):
-        """Visualizes an unstructured grid data variable using data shading
-        (rasterization + shading)
+    def polygons(self, periodic_elements="exclude", backend=None, *args, **kwargs):
+        """Generated a shaded polygon plot.
+
+        This function plots the faces of an unstructured grid shaded with a face-centered data variable using `hvplot.
+        It allows for rasterization, projection settings, and labeling of the data variable to be
+        customized through keyword arguments. The backend for plotting can also be specified.
+        If a data array (`_uxda`) has a name, its name is used for color label.
 
         Parameters
         ----------
-        method: str, optional
-            Selects which method to use for data shading
-        plot_width, plot_height : int, optional
-           Width and height of the output aggregate in pixels.
-        x_range, y_range : tuple, optional
-           A tuple representing the bounds inclusive space ``[min, max]`` along
-           the axis.
-        cmap: str, optional
-            Colormap used for shading
-        agg : str, optional
-            Reduction to compute. Default is "mean", but can be one of "mean" or "sum"
+        periodic_elements : str, optional, default="exclude"
+            Specifies whether to include or exclude periodic elements in the grid.
+            Options are:
+            - "exclude": Exclude periodic elements,
+             - "split": Split periodic elements.
+            - "ignore": Include periodic elements without any corrections
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        *args : tuple
+            Additional positional arguments to be passed to `hvplot.polygons`.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.polygons`. These can include:
+            - "rasterize" (bool): Whether to rasterize the plot (default: True),
+            - "projection" (ccrs.Projection): The map projection to use (default: `ccrs.PlateCarree()`),
+            - "clabel" (str): Label for the colorbar, defaulting to the name of the data array (`_uxda.name`),
+            - "crs" (ccrs.Projection): Coordinate reference system for the plot (default: `ccrs.PlateCarree()`).
+            For additional customization, please refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.polygons : hvplot.polygons
+            A shaded polygon plot
         """
-        return dataarray_plot.datashade(
-            self._uxda,
+        uxarray.plot.utils.backend.assign(backend)
+
+        if "rasterize" not in kwargs:
+            kwargs["rasterize"] = True
+        if "projection" not in kwargs:
+            kwargs["projection"] = ccrs.PlateCarree()
+        if "clabel" not in kwargs and self._uxda.name is not None:
+            kwargs["clabel"] = self._uxda.name
+        if "crs" not in kwargs:
+            if "projection" in kwargs:
+                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+            else:
+                central_longitude = 0.0
+            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
+
+        gdf = self._uxda.to_geodataframe(
+            periodic_elements=periodic_elements, projection=kwargs.get("projection")
+        )
+
+        return gdf.hvplot.polygons(
+            c=self._uxda.name if self._uxda.name is not None else "var",
+            geo=True,
             *args,
-            method=method,
-            plot_height=plot_height,
-            plot_width=plot_width,
-            x_range=x_range,
-            y_range=y_range,
-            cmap=cmap,
-            agg=agg,
             **kwargs,
         )
+
+    def points(self, backend=None, *args, **kwargs):
+        """Generate a point plot based on the specified grid element type
+        (nodes, faces, or edges) shaded with the data mapped to those elements.
+
+        This function retrieves longitude and latitude values for the specified element type
+        from the grid (e.g., node, face, or edge locations), converts them into a pandas
+        DataFrame, and creates a point plot using `hvplot`. The points are shaded with the data that is mapped
+        to the selected element.
+
+        Parameters
+        ----------
+        backend : str or None, optional
+            The plotting backend to use. Defaults to None, which uses the default backend.
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
+            refer to https://hvplot.holoviz.org/user_guide/Customization.html
+
+        Returns
+        -------
+        gdf.hvplot.points : hvplot.points
+            A shaded point plot
+
+        Raises
+        ------
+        ValueError
+            If the data is not mapped to the nodes, edges, or faces.
+        """
+
+        uxarray.plot.utils.backend.assign(backend)
+
+        uxgrid = self._uxda.uxgrid
+        data_mapping = self._uxda.data_mapping
+
+        if data_mapping == "nodes":
+            lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
+        elif data_mapping == "faces":
+            lon, lat = uxgrid.face_lon.values, uxgrid.face_lat.values
+        elif data_mapping == "edges":
+            lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
+        else:
+            raise ValueError(
+                "Data is not mapped to the nodes, edges, or faces of the grid."
+            )
+
+        verts = {"lon": lon, "lat": lat, "z": self._uxda.values}
+
+        points_df = pd.DataFrame.from_dict(verts)
+
+        return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
 
     @functools.wraps(dataarray_plot.rasterize)
     def rasterize(
         self,
-        method: Optional[str] = "polygon",
+        method: Optional[str] = "point",
         backend: Optional[str] = "bokeh",
-        exclude_antimeridian: Optional[bool] = False,
+        periodic_elements: Optional[str] = "exclude",
+        exclude_antimeridian: Optional[bool] = None,
         pixel_ratio: Optional[float] = 1.0,
         dynamic: Optional[bool] = False,
         precompute: Optional[bool] = True,
@@ -373,10 +410,18 @@ class UxDataArrayPlotAccessor:
         or run holoviews.help(holoviews.operation.datashader.rasterize).
         """
 
+        warnings.warn(
+            "``UxDataArray.plot.rasterize()`` will be deprecated in a future release. Please use "
+            "``UxDataArray.plot.polygons(rasterize=True)`` or ``UxDataArray.plot.points(rasterize=True)``",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         return dataarray_plot.rasterize(
             self._uxda,
             method=method,
             backend=backend,
+            periodic_elements=periodic_elements,
             exclude_antimeridian=exclude_antimeridian,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
@@ -392,83 +437,6 @@ class UxDataArrayPlotAccessor:
             cache=cache,
             override=override,
             size=size,
-            **kwargs,
-        )
-
-    @functools.wraps(dataarray_plot.polygons)
-    def polygons(
-        self,
-        backend: Optional[str] = "bokeh",
-        exclude_antimeridian: Optional[bool] = False,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        colorbar: Optional[bool] = True,
-        cmap: Optional[str] = "Blues",
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        **kwargs,
-    ):
-        """Vector polygon plot shaded using a face-centered data variable.
-
-        Parameters
-        ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-        exclude_antimeridian: bool,
-            Whether to exclude faces that cross the antimeridian (Polygon Raster Only)
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-
-        return dataarray_plot.polygons(
-            self._uxda,
-            backend=backend,
-            exclude_antimeridian=exclude_antimeridian,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            cache=cache,
-            override=override,
-            **kwargs,
-        )
-
-    @functools.wraps(dataarray_plot.points)
-    def points(
-        self,
-        backend: Optional[str] = "bokeh",
-        projection: Optional = None,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        colorbar: Optional[bool] = True,
-        cmap: Optional[str] = "Blues",
-        **kwargs,
-    ):
-        """Vector Point Plot of a Data Variable Mapped to either Node, Edge, or
-        Face Coordinates.
-
-        Parameters
-        ----------
-        backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
-         exclude_antimeridian: bool,
-            Whether to exclude edges that cross the antimeridian
-        height: int
-            Plot Height for Bokeh Backend
-        width: int
-            Plot Width for Bokeh Backend
-        """
-
-        return dataarray_plot.points(
-            self._uxda,
-            backend=backend,
-            projection=projection,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
             **kwargs,
         )
 
