@@ -1992,9 +1992,9 @@ class Grid:
                 lat, self.edge_node_z.values, self.n_edge
             )
         elif method == "accurate":
-            raise NotImplementedError("TODO: ")
+            raise NotImplementedError("Accurate method not yet implemented.")
         else:
-            raise ValueError("TODO:")
+            raise ValueError(f"Invalid method: {method}.")
         return edges.squeeze()
 
     def get_faces_at_constant_latitude(self, lat, method="fast"):
