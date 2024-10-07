@@ -158,6 +158,5 @@ class CrossSections(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['n_lat']
     params = DatasetBenchmark.params + [[1, 2, 4, 8]]
     def time_constant_lat_fast(self, resolution, n_lat):
-
         for lat in np.linspace(-89, 89, n_lat):
-            self.uxds.uxgrid.constant_lazitude_cross_section(lat)
+            self.uxds.uxgrid.constant_lazitude_cross_section(lat, method='fast')
