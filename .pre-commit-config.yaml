@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/myint/docformatter    # To format the doc strings to conform PEP257
-    rev: v1.4
+    rev: v1.7.5
     hooks:
     - id: docformatter
       args: [--in-place]
