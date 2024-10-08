@@ -1842,12 +1842,12 @@ class Grid:
                 f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if projection is not None:
-            if periodic_elements == "split":
-                raise ValueError(
-                    "Setting ``periodic_elements='split'`` is not supported when a "
-                    "projection is provided."
-                )
+        # if projection is not None:
+        #     if periodic_elements == "split":
+        #         raise ValueError(
+        #             "Setting ``periodic_elements='split'`` is not supported when a "
+        #             "projection is provided."
+        #         )
 
         if self._line_collection_cached_parameters["line_collection"] is not None:
             if (
