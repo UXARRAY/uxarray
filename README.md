@@ -6,7 +6,7 @@
 # Xarray extension for unstructured climate and global weather data
 |    |    |
 | --- | --- |
-| **Build Status**             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![CI Upstream](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml/badge.svg)](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/UXARRAY/uxarray/main.svg)](https://results.pre-commit.ci/latest/github/UXARRAY/uxarray/main) | 
+| **Build Status**             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![CI Upstream](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml/badge.svg)](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/UXARRAY/uxarray/main.svg)](https://results.pre-commit.ci/latest/github/UXARRAY/uxarray/main) |
 | **Code Coverage**             |  [![Code Coverage Status][codecov-badge]][codecov-link] |
 | **Docs**       |                                   [![Documentation Status][rtd-badge]][rtd-link]                                    |
 | **Benchmarks** |                                       [![ASV Repostory][asv-badge]][asv-link]                                       |
