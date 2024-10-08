@@ -89,15 +89,9 @@ class TestGrid(TestCase):
         Also, test kwargs for grid initialization
 
         The input cartesian coordinates represents 8 vertices on a cube
-             7---------6
-            /|        /|
-           / |       / |
-          3---------2  |
-          |  |      |  |
-          |  4------|--5
-          | /       | /
-          |/        |/
-          0---------1
+        7---------6     /|        /|    / |       / |   3---------2  | |
+        |      |  |   |  4------|--5   | /       | /   |/        |/ 0
+        ---------1
         """
         cart_x = [
             0.577340924821405, 0.577340924821405, 0.577340924821405,
@@ -514,7 +508,7 @@ class TestConnectivity(TestCase):
             self, edge_nodes_connectivity: np.ndarray,
             face_edges_connectivity: np.ndarray,
             original_face_nodes_connectivity: np.ndarray):
-        """utilize the edge_nodes_connectivity and face_edges_connectivity to
+        """Utilize the edge_nodes_connectivity and face_edges_connectivity to
         generate the res_face_nodes_connectivity in the counter-clockwise
         order. The counter-clockwise order will be enforced by the passed in
         original_face_edges_connectivity. We will only use the first two nodes

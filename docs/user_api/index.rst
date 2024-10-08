@@ -238,6 +238,7 @@ Methods
    Grid.get_kd_tree
    Grid.copy
    Grid.isel
+   Grid.construct_face_centers
    Grid.chunk
 
 
