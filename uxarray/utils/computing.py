@@ -186,8 +186,8 @@ def dot_fma(v1, v2):
 
 
 def _two_prod_fma(a, b):
-    """
-    Error-free transformation of the product of two floating-point numbers using FMA, such that a * b = x + y exactly.
+    """Error-free transformation of the product of two floating-point numbers
+    using FMA, such that a * b = x + y exactly.
 
     Parameters
     ----------
@@ -217,9 +217,9 @@ def _two_prod_fma(a, b):
 
 
 def _err_fmac(a, b, c):
-    """
-    Error-free transformation for the FMA operation. such that x = FMA(a,b,c) and a * b + c = x + y + z exactly.
-    Thhis function is only available in round to the nearest mode and takes approximately 17 flops
+    """Error-free transformation for the FMA operation. such that x =
+    FMA(a,b,c) and a * b + c = x + y + z exactly. Thhis function is only
+    available in round to the nearest mode and takes approximately 17 flops.
 
     Parameters
     ----------
@@ -257,8 +257,8 @@ def _err_fmac(a, b, c):
 
 
 def _two_sum(a, b):
-    """
-    Error-free transformation of the sum of two floating-point numbers such that a + b = x + y exactly
+    """Error-free transformation of the sum of two floating-point numbers such
+    that a + b = x + y exactly.
 
     Parameters
     ----------
@@ -286,8 +286,8 @@ def _two_sum(a, b):
 
 
 def _fast_two_mult(a, b):
-    """
-    Error-free transformation of the product of two floating-point numbers such that a * b = x + y exactly.
+    """Error-free transformation of the product of two floating-point numbers
+    such that a * b = x + y exactly.
 
     This function is faster than the _two_prod_fma function.
 
@@ -306,7 +306,6 @@ def _fast_two_mult(a, b):
     Vincent Lefèvre, Nicolas Louvet, Jean-Michel Muller, Joris Picot, and Laurence Rideau. 2023.
     Accurate Calculation of Euclidean Norms Using Double-word Arithmetic.
     ACM Trans. Math. Softw. 49, 1, Article 1 (March 2023), 34 pages. https://doi.org/10.1145/3568672
-
     """
     import pyfma
 
