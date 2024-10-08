@@ -87,4 +87,3 @@ class TestUxDataset(TestCase):
     #
     #     ds_small_480km = ux.open_dataset(small_file_480km, small_file_480km)
     #     assert isinstance(ds_small_480km, ux.core.dataset.UxDataset)
-
