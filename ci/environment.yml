@@ -20,7 +20,7 @@ dependencies:
   - numpy
   - pandas
   - pathlib
-  - pre-commit<4.0.0
+  - pre-commit
   - pyarrow
   - pytest
   - pip
