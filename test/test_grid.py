@@ -89,9 +89,9 @@ class TestGrid(TestCase):
         Also, test kwargs for grid initialization
 
         The input cartesian coordinates represents 8 vertices on a cube
-        7---------6     /|        /|    / |       / |   3---------2  |
-        |  |      |  |   |  4------|--5   | /       | /   |/        |/
-        0---------1
+        7---------6     /|        /|    / |       / |   3---------2  | |
+        |      |  |   |  4------|--5   | /       | /   |/        |/ 0
+        ---------1
         """
         cart_x = [
             0.577340924821405, 0.577340924821405, 0.577340924821405,
