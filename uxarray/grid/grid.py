@@ -281,7 +281,7 @@ class Grid:
         Examples
         --------
         >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp")
+        >>> grid = ux.Grid.from_file("path/to/file.shp", backend='geopandas')
 
         Note
         ----
