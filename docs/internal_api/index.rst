@@ -148,10 +148,6 @@ Coordinates
 .. autosummary::
    :toctree: generated/
 
-   grid.coordinates._lonlat_rad_to_xyz
-   grid.coordinates._xyz_to_lonlat_rad
-   grid.coordinates._xyz_to_lonlat_deg
-   grid.coordinates._normalize_xyz
    grid.coordinates._populate_node_latlon
    grid.coordinates._populate_node_xyz
    grid.coordinates._populate_face_centroids
@@ -159,6 +155,19 @@ Coordinates
    grid.coordinates._construct_face_centroids
    grid.coordinates._construct_edge_centroids
    grid.coordinates._set_desired_longitude_range
+   grid.coordinates._populate_face_centerpoints
+   grid.coordinates._circle_from_two_points
+   grid.coordinates._circle_from_three_points
+   grid.coordinates._is_inside_circle
+   grid.coordinates._welzl_recursive
+   grid.coordinates._smallest_enclosing_circle
+   grid.coordinates._construct_face_centerpoints
+   grid.coordinates._lonlat_rad_to_xyz
+   grid.coordinates._xyz_to_lonlat_rad
+   grid.coordinates._xyz_to_lonlat_rad_no_norm
+   grid.coordinates._xyz_to_lonlat_deg
+   grid.coordinates._normalize_xyz
+   grid.coordinates._normalize_xyz_scalar
 
 
 Arcs
@@ -177,10 +186,10 @@ Utils
 
    grid.utils._newton_raphson_solver_for_gca_constLat
    grid.utils._inv_jacobian
+   grid.utils._angle_of_two_vectors
    grid.utils._swap_first_fill_value_with_last
    grid.utils._get_cartesiain_face_edge_nodes
    grid.utils._get_lonlat_rad_face_edge_nodes
-
 
 
 Validation
@@ -240,6 +249,7 @@ Remapping
    remap.inverse_distance_weighted._inverse_distance_weighted_remap
    remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxda
    remap.inverse_distance_weighted._inverse_distance_weighted_remap_uxds
+   remap.utils._remap_grid_parse
 
 
 Grid Parsing and Encoding
@@ -328,8 +338,6 @@ Visualization
 .. autosummary::
    :toctree: generated/
 
-   plot.grid_plot._plot_coords_as_points
-   plot.dataarray_plot._plot_data_as_points
    plot.dataarray_plot._polygon_raster
    plot.dataarray_plot._point_raster
    plot.utils.HoloviewsBackend

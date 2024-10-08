@@ -241,6 +241,7 @@ Methods
    Grid.copy
    Grid.isel
    Grid.get_dual
+   Grid.construct_face_centers
    Grid.chunk
 
 

@@ -357,6 +357,7 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     where the locations of non fill-value entries are stored using COO
     (coordinate list) standard. It is represented by three arrays: row indices,
     column indices, and non-filled element flags.
+
     Parameters
     ----------
     dense_matrix : np.ndarray
