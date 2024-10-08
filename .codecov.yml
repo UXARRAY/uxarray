@@ -1,0 +1,20 @@
+codecov:
+  max_report_age: false
+  require_ci_to_pass: false
+comment: false
+coverage:
+  precision: 2
+  round: down
+  status:
+    changes:
+      default:
+        enabled: false
+        if_not_found: success
+    patch:
+      default:
+        enabled: false
+        if_not_found: success
+    project:
+      default:
+        if_not_found: success
+        threshold: 0.2
