@@ -78,6 +78,17 @@ class UxDataArray(xr.DataArray):
 
         super().__init__(*args, **kwargs)
 
+    # TODO:
+    def __array_wrap__(self, obj, context=None):
+        return UxDataArray(obj, uxgrid=self.uxgrid)
+
+    # TODO:
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        results = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
+        if isinstance(results, xr.DataArray):
+            return UxDataArray(results, uxgrid=self.uxgrid)
+        return results
+
     # declare various accessors
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
@@ -109,17 +120,23 @@ class UxDataArray(xr.DataArray):
 
         return copied
 
+    # def _replace(self, *args, **kwargs):
+    #     """Override to make the result a complete instance of
+    #     ``uxarray.UxDataArray``."""
+    #     da = super()._replace(*args, **kwargs)
+    #
+    #     if isinstance(da, UxDataArray):
+    #         da.uxgrid = self.uxgrid
+    #     else:
+    #         da = UxDataArray(da, uxgrid=self.uxgrid)
+    #
+    #     return da
+
     def _replace(self, *args, **kwargs):
         """Override to make the result a complete instance of
         ``uxarray.UxDataArray``."""
-        da = super()._replace(*args, **kwargs)
-
-        if isinstance(da, UxDataArray):
-            da.uxgrid = self.uxgrid
-        else:
-            da = UxDataArray(da, uxgrid=self.uxgrid)
-
-        return da
+        result = super()._replace(*args, **kwargs)
+        return UxDataArray(result, uxgrid=self.uxgrid)
 
     @property
     def uxgrid(self):
@@ -137,6 +154,11 @@ class UxDataArray(xr.DataArray):
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
+
+    # TODO:
+    def copy(self, *args, **kwargs):
+        result = super().copy(*args, **kwargs)
+        return UxDataArray(result, uxgrid=self.uxgrid)
 
     def to_geodataframe(
         self,
@@ -1121,3 +1143,5 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             attrs=self.attrs,
         )
+
+    # def where(self):
