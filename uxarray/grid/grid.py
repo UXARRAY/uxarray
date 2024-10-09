@@ -76,6 +76,8 @@ from uxarray.plot.accessor import GridPlotAccessor
 
 from uxarray.subset import GridSubsetAccessor
 
+from uxarray.cross_sections import GridCrossSectionAccessor
+
 from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
@@ -216,6 +218,9 @@ class Grid:
 
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
+
+    # declare cross section accessor
+    cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
     def from_dataset(
@@ -1935,67 +1940,6 @@ class Grid:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
-
-    def constant_latitude_cross_section(
-        self, lat: float, return_face_indices=False, method="fast"
-    ):
-        """Extracts a cross-section of the grid at a specified constant
-        latitude.
-
-        This method identifies and returns all faces (or grid elements) that intersect
-        with a given latitude. The returned cross-section can include either just the grid
-        or both the grid elements and the corresponding face indices, depending
-        on the `return_face_indices` parameter.
-
-        Parameters
-        ----------
-        lat : float
-            The latitude at which to extract the cross-section, in degrees.
-        return_face_indices : bool, optional
-            If True, returns both the grid at the specified latitude and the indices
-            of the intersecting faces. If False, only the grid is returned.
-            Default is False.
-        method : str, optional
-            The internal method to use when identifying faces at the constant latitude.
-            Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
-
-        Returns
-        -------
-        grid_at_constant_lat : Grid
-            The grid with faces that interesected at a given lattitude
-        faces : array, optional
-            The indices of the faces that intersect with the specified latitude. This is only
-            returned if `return_face_indices` is set to True.
-
-        Raises
-        ------
-        ValueError
-            If no intersections are found at the specified latitude, a ValueError is raised.
-
-        Examples
-        --------
-        >>> grid, indices = grid.constant_latitude_cross_section(lat=30.0, return_face_indices=True)
-        >>> grid = grid.constant_latitude_cross_section(lat=-15.5)
-
-        Notes
-        -----
-        The accuracy and performance of the function can be controlled using the `method` parameter.
-        For higher precision requreiments, consider using method='acurate'.
-        """
-        faces = self.get_faces_at_constant_latitude(lat, method)
-
-        if len(faces) == 0:
-            raise ValueError(f"No intersections found at lat={lat}.")
-
-        grid_at_constant_lat = self.isel(n_face=faces)
-
-        if return_face_indices:
-            return grid_at_constant_lat, faces
-        else:
-            return grid_at_constant_lat
 
     def get_edges_at_constant_latitude(self, lat, method="fast"):
         """Identifies the edges of the grid that intersect with a specified

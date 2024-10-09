@@ -35,41 +35,41 @@ class TestQuadHex:
     def test_constant_lat_cross_section_grid(self):
         uxgrid = ux.open_grid(quad_hex_grid_path)
 
-        grid_top_two = uxgrid.constant_latitude_cross_section(lat=0.1)
+        grid_top_two = uxgrid.cross_section.constant_latitude(lat=0.1)
 
         assert grid_top_two.n_face == 2
 
-        grid_bottom_two = uxgrid.constant_latitude_cross_section(lat=-0.1)
+        grid_bottom_two = uxgrid.cross_section.constant_latitude(lat=-0.1)
 
         assert grid_bottom_two.n_face == 2
 
-        grid_all_four = uxgrid.constant_latitude_cross_section(lat=0.0)
+        grid_all_four = uxgrid.cross_section.constant_latitude(lat=0.0)
 
         assert grid_all_four.n_face == 4
 
         with pytest.raises(ValueError):
             # no intersections found at this line
-            uxgrid.constant_latitude_cross_section(lat=10.0)
+            uxgrid.cross_section.constant_latitude(lat=10.0)
 
 
     def test_constant_lat_cross_section_uxds(self):
         uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
 
-        da_top_two = uxds['t2m'].constant_latitude_cross_section(lat=0.1)
+        da_top_two = uxds['t2m'].cross_section.constant_latitude(lat=0.1)
 
         nt.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
 
-        da_bottom_two = uxds['t2m'].constant_latitude_cross_section(lat=-0.1)
+        da_bottom_two = uxds['t2m'].cross_section.constant_latitude(lat=-0.1)
 
         nt.assert_array_equal(da_bottom_two.data, uxds['t2m'].isel(n_face=[0, 3]).data)
 
-        da_all_four = uxds['t2m'].constant_latitude_cross_section(lat=0.0)
+        da_all_four = uxds['t2m'].cross_section.constant_latitude(lat=0.0)
 
         nt.assert_array_equal(da_all_four.data , uxds['t2m'].data)
 
         with pytest.raises(ValueError):
             # no intersections found at this line
-            uxds['t2m'].constant_latitude_cross_section(lat=10.0)
+            uxds['t2m'].cross_section.constant_latitude(lat=10.0)
 
 
 class TestGeosCubeSphere:
@@ -79,7 +79,7 @@ class TestGeosCubeSphere:
         lats = [89.85, 89.9, 89.95, 89.99]
 
         for lat in lats:
-            cross_grid = uxgrid.constant_latitude_cross_section(lat=lat)
+            cross_grid = uxgrid.cross_section.constant_latitude(lat=lat)
             # Cube sphere grid should have 4 faces centered around the pole
             assert cross_grid.n_face == 4
 
@@ -89,6 +89,6 @@ class TestGeosCubeSphere:
         lats = [-89.85, -89.9, -89.95, -89.99]
 
         for lat in lats:
-            cross_grid = uxgrid.constant_latitude_cross_section(lat=lat)
+            cross_grid = uxgrid.cross_section.constant_latitude(lat=lat)
             # Cube sphere grid should have 4 faces centered around the pole
             assert cross_grid.n_face == 4
