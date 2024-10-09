@@ -94,16 +94,7 @@ class MatplotlibConversion(DatasetBenchmark):
         self.uxds[data_var].to_polycollection()
 
 
-class ConstructTreeStructures:
-
-    param_names = ['resolution']
-    params = ['480km', '120km']
-
-    def setup(self, resolution):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
-
-    def teardown(self, resolution):
-        del self.uxds
+class ConstructTreeStructures(DatasetBenchmark):
 
     def time_kd_tree(self, resolution):
         self.uxds.uxgrid.get_kd_tree()

@@ -351,9 +351,7 @@ class UxDataset(xr.Dataset):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise RuntimeError(
-                "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
-            )
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
         if self.uxgrid.hole_edge_indices.size != 0:
             warn(

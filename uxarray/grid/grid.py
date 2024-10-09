@@ -1921,7 +1921,10 @@ class Grid:
             )
 
     def get_dual(self):
-        """Compute the dual mesh for a grid, returns a new grid object.
+        """Compute the dual for a grid, which constructs a new grid centered
+        around the nodes, where the nodes of the primal become the face centers
+        of the dual, and the face centers of the primal become the nodes of the
+        dual. Returns a new `Grid` object.
 
         Returns
         --------
@@ -1930,9 +1933,7 @@ class Grid:
         """
 
         if _check_duplicate_nodes_indices(self):
-            raise RuntimeError(
-                "Duplicate nodes found, consider using `Grid.merge_duplicate_node_indices()`"
-            )
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)
