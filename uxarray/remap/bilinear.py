@@ -1,12 +1,14 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from numba import njit
+
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
 
 import numpy as np
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
@@ -66,6 +68,8 @@ def _bilinear(
     if source_data_mapping != "face centers":
         source_uxda = source_uxda.topological_mean(destination="face")
 
+    # Reload the data array after topological mean
+    source_data = np.asarray(source_uxda.data)
     # Construct dual for searching
     dual = source_uxda.get_dual()
 
@@ -150,10 +154,10 @@ def _bilinear(
                 point = _xyz_to_lonlat_deg(cart_x[i], cart_y[i], cart_z[i])
 
                 # Find a subset of polygons that contain the point
-                polygons_subset = find_polygons_subset(dual, point)
+                weights, data = find_polygon_containing_point(point, dual, source_data)
 
-                weights = calculate_bilinear_weights(polygons_subset, point)
-                values[i] = np.sum(weights * polygons_subset.values, axis=-1)
+                values[i] = np.sum(weights * data, axis=-1)
+
                 # Search the subset to find which one contains the point
                 # for polygon in polygons_subset:
                 #     if point_in_polygon(polygon, point):
@@ -250,7 +254,7 @@ def _bilinear_uxds(
     return destination_uxds
 
 
-def calculate_bilinear_weights(polygon, point):
+def calculate_bilinear_weights(point, triangle):
     """Calculates the bilinear weights for a point inside a triangle.
 
     Returns an array with 3 weights for each node of the triangle
@@ -259,57 +263,47 @@ def calculate_bilinear_weights(polygon, point):
     # Find the area of the whole triangle
     x = np.array(
         [
-            polygon.uxgrid.node_lon.values[0],
-            polygon.uxgrid.node_lon.values[1],
-            polygon.uxgrid.node_lon.values[2],
-        ]
+            triangle[1][0],
+            triangle[1][1],
+            triangle[1][2],
+        ],
+        dtype=np.float64,
     )
     y = np.array(
         [
-            polygon.uxgrid.node_lat.values[0],
-            polygon.uxgrid.node_lat.values[1],
-            polygon.uxgrid.node_lat.values[2],
-        ]
+            triangle[0][0],
+            triangle[0][1],
+            triangle[0][2],
+        ],
+        dtype=np.float64,
     )
 
     z = x * 0
     area = calculate_face_area(x, y, z)
 
     # Find the area of sub triangle: point, vertex b, vertex c
-    x_pbc = np.array(
-        [point[0], polygon.uxgrid.node_lon.values[1], polygon.uxgrid.node_lon.values[2]]
-    )
-    y_pbc = np.array(
-        [point[1], polygon.uxgrid.node_lat.values[1], polygon.uxgrid.node_lat.values[2]]
-    )
+    x_pbc = np.array([point[0], triangle[1][1], triangle[1][2]], dtype=np.float64)
+    y_pbc = np.array([point[1], triangle[0][1], triangle[0][2]], dtype=np.float64)
 
     area_pbc = calculate_face_area(x_pbc, y_pbc, z)
 
     # Find the area of sub triangle: vertex a, point, vertex c
-    x_apc = np.array(
-        [polygon.uxgrid.node_lon.values[0], point[0], polygon.uxgrid.node_lon.values[2]]
-    )
-    y_apc = np.array(
-        [polygon.uxgrid.node_lat.values[0], point[1], polygon.uxgrid.node_lat.values[2]]
-    )
+    x_apc = np.array([triangle[1][0], point[0], triangle[1][2]], dtype=np.float64)
+    y_apc = np.array([triangle[0][0], point[1], triangle[0][2]], dtype=np.float64)
 
     area_apc = calculate_face_area(x_apc, y_apc, z)
 
     # Find the area of sub triangle: vertex a, vertex b, point
-    x_abp = np.array(
-        [polygon.uxgrid.node_lon.values[0], polygon.uxgrid.node_lon.values[1], point[0]]
-    )
-    y_abp = np.array(
-        [polygon.uxgrid.node_lat.values[0], polygon.uxgrid.node_lat.values[1], point[1]]
-    )
+    x_abp = np.array([triangle[1][0], triangle[1][1], point[0]], dtype=np.float64)
+    y_abp = np.array([triangle[0][0], triangle[0][1], point[1]], dtype=np.float64)
 
     area_abp = calculate_face_area(x_abp, y_abp, z)
 
     weight_a = area_pbc[0] / area[0]
     weight_b = area_apc[0] / area[0]
     weight_c = area_abp[0] / area[0]
-    # print(weight_a + weight_b + weight_c)
-    return np.array([weight_a, weight_b, weight_c])
+
+    return np.array([weight_a, weight_b, weight_c], dtype=np.float64)
 
 
 def find_polygons_subset(dual, point):
@@ -339,62 +333,81 @@ def polygon_triangle_split(polygon, point):
         #     return [node1, node2, node3], [values[0], values[j + 1], values[j + 2]]
 
 
-def point_in_triangle(point, triangle):
-    weights = calculate_bilinear_weights(polygon=triangle, point=point)
+def point_in_triangle(point, triangle, tolerance=1e-2):
+    weights = calculate_bilinear_weights(point=point, triangle=triangle)
 
-    return (weights[0] >= 0 and weights[1] >= 0 and weights[2] >= 0), weights
+    # Check if weights are greater than or equal to -tolerance (i.e., close to zero)
+    is_inside = (
+        weights[0] >= -tolerance
+        and weights[1] >= -tolerance
+        and weights[2] >= -tolerance
+    )
+
+    return is_inside, weights
 
 
-def find_polygon_containing_point(point, mesh):
+def find_polygon_containing_point(point, mesh, source_data):
     """Finds the polygon that contains a point."""
 
     # Get ball_tree
     tree = mesh.uxgrid.get_ball_tree(coordinates="face centers")
 
     # Create arrays to hold the lat/lon of first face
-    lat = np.array([INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)])
-    lon = np.array([INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)])
+    lat = np.array(
+        [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)], dtype=np.float64
+    )
+    lon = np.array(
+        [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)], dtype=np.float64
+    )
 
     # If the mesh is not partial
     if mesh.uxgrid.hole_edge_indices.size == 0:
         # First check the nearest face
         ind = [tree.query(point, k=1, return_distance=False)]
-
+        data = []
         for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
             if node != INT_FILL_VALUE:
-                lat[j] = mesh.uxgrid.node_lat[node]
-                lon[j] = mesh.uxgrid.node_lon[node]
-        point_found, weights = point_in_triangle(point, [lat, lon])
+                lat[j] = mesh.uxgrid.node_lat[node.values].values
+                lon[j] = mesh.uxgrid.node_lon[node.values].values
 
+                data.append(source_data[node])
+
+        triangle = np.array((lat, lon), dtype=np.float64)
+        point_found, weights = point_in_triangle(point, triangle=triangle)
+
+        # If found in first face, return weights
         if point_found:
-            return weights
+            return weights, data
 
         # If the nearest face doesn't contain the point, continue to check nearest faces
         for i in range(2, mesh.uxgrid.n_face):
             # Create arrays to hold the lat/lon of the face
             lat = np.array(
-                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)]
+                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)],
+                dtype=INT_DTYPE,
             )
             lon = np.array(
-                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)]
+                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_edges)],
+                dtype=INT_DTYPE,
             )
 
             # Query the tree for increasingly more neighbors if the polygon isn't found
             ind = tree.query(point, k=i, return_distance=False, sort_results=True)
-
+            data = []
             # Get the lat/lon for the face
             for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
                 if node != INT_FILL_VALUE:
                     lat[j] = mesh.uxgrid.node_lat[node]
                     lon[j] = mesh.uxgrid.node_lon[node]
+                    data.append(source_data[node])
 
             # Check if the point is inside the polygon
             point_found, weights = point_in_triangle(point, [lat, lon])
 
             if point_found:
-                return weights
+                return weights, data
 
-    # If the mesh is partial, limit the search when the face is in the `hole_edge_indices` list
+    # If the mesh is partial, limit the search to the distance of the largest face radius of the mesh
     else:
         # First check the nearest face
         ind = [tree.query(point, k=1, return_distance=False)]
@@ -406,59 +419,98 @@ def find_polygon_containing_point(point, mesh):
 
         point_found, weights = point_in_triangle(point, [lat, lon])
 
+        # If found in the first face, return weights
         if point_found:
             return weights
 
-        # Create a dictionary of faces that are near the empty space
-        hole_edges = set(mesh.uxgrid.hole_edge_indices)
-        faces_bordering_hole = []
+        # Find the largest face radius
+        max_distance = get_max_face_radius(mesh)
 
-        for face_index, face_edges in enumerate(mesh.uxgrid.face_edge_connectivity):
-            face_edge_set = set(face_edges)
+        for i in range(2, mesh.uxgrid.n_face):
+            # Query the tree for increasingly more neighbors
+            d, ind = tree.query(point, k=i, return_distance=True, sort_results=True)
 
-            if face_edge_set.intersection(hole_edges):
-                faces_bordering_hole.append(face_index)
+            # If the distance is outside the max distance the point could be in, the point is outside the partial grid
+            if d > max_distance:
+                return INT_FILL_VALUE, INT_FILL_VALUE
 
-        # If the face is near a hole, only search `n_max_face_nodes`
-        if ind[0] in faces_bordering_hole:
-            for i in range(2, mesh.uxgrid.n_max_face_nodes):
-                lat = np.array(
-                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
-                )
-                lon = np.array(
-                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
-                )
+            lat = np.array(
+                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)],
+                dtype=INT_DTYPE,
+            )
+            lon = np.array(
+                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)],
+                dtype=INT_DTYPE,
+            )
 
-                ind = tree.query(point, k=i, return_distance=False, sort_results=True)
+            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
+                if node != INT_FILL_VALUE:
+                    lat[j] = mesh.uxgrid.node_lat[node]
+                    lon[j] = mesh.uxgrid.node_lon[node]
 
-                for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
-                    if node != INT_FILL_VALUE:
-                        lat[j] = mesh.uxgrid.node_lat[node]
-                        lon[j] = mesh.uxgrid.node_lon[node]
+            point_found, weights = point_in_triangle(point, [lat, lon])
 
-                point_found, weights = point_in_triangle(point, [lat, lon])
+            if point_found:
+                return weights
 
-                if point_found:
-                    return weights
-            return INT_FILL_VALUE, INT_FILL_VALUE
 
-        else:
-            for i in range(2, mesh.uxgrid.n_face):
-                lat = np.array(
-                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
-                )
-                lon = np.array(
-                    [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)]
-                )
+def get_max_face_radius(mesh):
+    # Parse all variables needed for `njit` functions
+    face_node_connectivity = mesh.uxgrid.face_node_connectivity.values
+    node_lats_rad = np.radians(mesh.uxgrid.node_lat.values)
+    node_lons_rad = np.radians(mesh.uxgrid.node_lon.values)
+    face_lats_rad = np.radians(mesh.uxgrid.face_lat.values)
+    face_lons_rad = np.radians(mesh.uxgrid.face_lon.values)
 
-                ind = tree.query(point, k=i, return_distance=False, sort_results=True)
+    # Get the max distance
+    max_distance = calculate_max_face_radius(
+        face_node_connectivity,
+        node_lats_rad,
+        node_lons_rad,
+        face_lats_rad,
+        face_lons_rad,
+    )
 
-                for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
-                    if node != INT_FILL_VALUE:
-                        lat[j] = mesh.uxgrid.node_lat[node]
-                        lon[j] = mesh.uxgrid.node_lon[node]
+    return max_distance
 
-                point_found, weights = point_in_triangle(point, [lat, lon])
 
-                if point_found:
-                    return weights
+@njit(cache=True)
+def calculate_max_face_radius(
+    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
+):
+    """Finds the max face radius in the mesh."""
+
+    # Array to store all distance of each face to it's furthest node.
+    end_distances = np.zeros(len(face_node_connectivity))
+
+    # Loop over each face and its nodes
+    for ind, face in enumerate(face_node_connectivity):
+        # Get the face lat/lon of this face
+        face_lat = face_lats_rad[ind]
+        face_lon = face_lons_rad[ind]
+
+        # Get the node lat/lon of this face
+        node_lat_rads = node_lats_rad[face]
+        node_lon_rads = node_lons_rad[face]
+
+        # Calculate Haversine distances for all nodes in this face
+        distances = haversine_distance(node_lat_rads, node_lon_rads, face_lat, face_lon)
+
+        # Store the max distance for this face
+        end_distances[ind] = np.max(distances)
+
+    # Return the maximum distance found across all faces
+    return np.max(end_distances)
+
+
+@njit(cache=True)
+def haversine_distance(node_lats, node_lons, face_lat, face_lon):
+    """Calculates the haversine distance."""
+    dlat = node_lats - face_lat
+    dlon = node_lons - face_lon
+    a = (
+        np.sin(dlat / 2) ** 2
+        + np.cos(face_lat) * np.cos(node_lats) * np.sin(dlon / 2) ** 2
+    )
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    return c
