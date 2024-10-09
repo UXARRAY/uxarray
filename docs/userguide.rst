@@ -79,8 +79,9 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/mpl.ipynb
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
+   user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
+   user-guide/calculus.ipynb
+   user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
    user-guide/holoviz.ipynb
-   user-guide/remapping.ipynb
-   user-guide/tree_structures.ipynb

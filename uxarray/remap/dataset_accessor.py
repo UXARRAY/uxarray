@@ -13,6 +13,8 @@ from uxarray.grid import Grid
 
 
 class UxDatasetRemapAccessor:
+    """Remapping accessor for ``UxDataset``"""
+
     def __init__(self, uxds: UxDataset):
         self.uxds = uxds
 
@@ -33,8 +35,8 @@ class UxDatasetRemapAccessor:
         remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
-        """Nearest Neighbor Remapping between a source (``UxDataset``) and
-        destination.`.
+        """Nearest Neighbor Remapping between a source ``UxDataset`` and
+        destination ``Grid``
 
         Parameters
         ---------
@@ -56,8 +58,8 @@ class UxDatasetRemapAccessor:
         power=2,
         k=8,
     ):
-        """Inverse Distance Weighted Remapping between a source (``UxDataset``)
-        and destination.`.
+        """Inverse Distance Weighted Remapping between a source ``UxDataset``
+        and destination ``Grid``
 
         Parameters
         ---------

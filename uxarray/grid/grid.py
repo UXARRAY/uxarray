@@ -278,10 +278,10 @@ class Grid:
         backend : str, default='geopandas'
             Backend to use to read the file, xarray or geopandas.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp")
+        >>> grid = ux.Grid.from_file("path/to/file.shp", backend='geopandas')
 
         Note
         ----
@@ -324,7 +324,7 @@ class Grid:
 
         Note
         ----
-        To construct a UGRID-complient grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
+        To construct a UGRID-compliant grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
 
         Parameters
         ----------
@@ -342,8 +342,8 @@ class Grid:
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
         **kwargs :
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
         >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
         >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
@@ -399,11 +399,9 @@ class Grid:
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
     def validate(self):
-        """Validate a grid object check for common errors, such as:
+        """Validates the current ``Grid``, checking for Duplicate Nodes,
+        Present Connectivity, and Non-Zero Face Areas.
 
-            - Duplicate nodes
-            - Connectivity
-            - Face areas (non zero)
         Raises
         ------
         RuntimeError
@@ -524,8 +522,8 @@ class Grid:
         """Implementation of getitem operator for indexing a grid to obtain
         variables.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> uxgrid['face_node_connectivity']
         """
         return getattr(self, item)
@@ -1113,7 +1111,7 @@ class Grid:
 
     @property
     def edge_node_distances(self):
-        """Distances between the two nodes that surround each edge.
+        """Distances between the two nodes that surround each edge in degrees.
 
         Dimensions ``(n_edge, )``
         """
@@ -1129,7 +1127,8 @@ class Grid:
 
     @property
     def edge_face_distances(self):
-        """Distances between the centers of the faces that saddle each edge.
+        """Distances between the centers of the faces that saddle each edge in
+        degrees.
 
         Dimensions ``(n_edge, )``
         """
@@ -1562,8 +1561,8 @@ class Grid:
             self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
-        """Returns a xarray Dataset representation in a specific grid format
-        from the Grid object.
+        """Returns an ``xarray.Dataset`` with the variables stored under the
+        ``Grid`` encoded in a specific grid format.
 
         Parameters
         ----------
@@ -1610,9 +1609,8 @@ class Grid:
         return_non_nan_polygon_indices: Optional[bool] = False,
         exclude_nan_polygons: Optional[bool] = True,
     ):
-        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
-        column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid.
+        """Constructs a ``GeoDataFrame`` consisting of polygons representing
+        the faces of the current ``Grid``
 
         Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
         parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
@@ -1732,8 +1730,8 @@ class Grid:
         return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
-        representing each face as a polygon.
+        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
+        of polygons representing the faces of the current ``Grid``
 
         Parameters
         ----------
@@ -1815,8 +1813,8 @@ class Grid:
         override: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
-        representing each edge as a line.
+        """Constructs a ``matplotlib.collections.LineCollection``` consisting
+        of lines representing the edges of the current ``Grid``
 
         Parameters
         ----------
