@@ -95,6 +95,7 @@ class MatplotlibConversion(DatasetBenchmark):
 
 
 class ConstructTreeStructures(DatasetBenchmark):
+
     def time_kd_tree(self, resolution):
         self.uxds.uxgrid.get_kd_tree()
 
@@ -137,12 +138,18 @@ class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
+
+class DualMesh(DatasetBenchmark):
+    def time_dual_mesh_construction(self, resolution):
+        self.uxds.uxgrid.get_dual()
+
 class ConstructFaceLatLon(GridBenchmark):
     def time_welzl(self, resolution):
         self.uxgrid.construct_face_centers(method='welzl')
 
     def time_cartesian_averaging(self, resolution):
         self.uxgrid.construct_face_centers(method='cartesian average')
+
 
 class CheckNorm:
     param_names = ['resolution']

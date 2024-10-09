@@ -6,6 +6,7 @@ import numpy as np
 
 from typing import TYPE_CHECKING, Optional, Hashable, Literal
 
+import uxarray
 from uxarray.formatting_html import array_repr
 
 from html import escape
@@ -14,6 +15,8 @@ from xarray.core.options import OPTIONS
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -33,6 +36,7 @@ from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
+from warnings import warn
 
 import cartopy.crs as ccrs
 
@@ -1108,3 +1112,46 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             attrs=self.attrs,
         )
+
+    def get_dual(self):
+        """Compute the dual mesh for a data array, returns a new data array
+        object.
+
+        Returns
+        --------
+        dual : uxda
+            Dual Mesh `uxda` constructed
+        """
+
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        if self.uxgrid.hole_edge_indices.size != 0:
+            warn(
+                "This mesh is partial, which could cause inconsistent results and data will be lost",
+                Warning,
+            )
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self.uxgrid)
+
+        # Construct dual mesh
+        dual = self.uxgrid.from_topology(
+            self.uxgrid.face_lon.values,
+            self.uxgrid.face_lat.values,
+            dual_node_face_conn,
+        )
+
+        # Dictionary to swap dimensions
+        dim_map = {"n_face": "n_node", "n_node": "n_face"}
+
+        # Get correct dimensions for the dual
+        dims = [dim_map.get(dim, dim) for dim in self.dims]
+
+        # Get the values from the data array
+        data = np.array(self.values)
+
+        # Construct the new data array
+        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
+
+        return uxda
