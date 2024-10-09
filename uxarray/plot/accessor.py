@@ -18,8 +18,10 @@ if TYPE_CHECKING:
 
 
 class GridPlotAccessor:
-    """Plotting Accessor for Grid, accessed through ``Grid.plot()`` or
-    ``Grid.plot.specific_routine()``"""
+    """Plotting accessor for ``Grid``.
+
+    Accessed through `Grid.plot()` or `Grid.plot.specific_routine()`
+    """
 
     _uxgrid: Grid
     __slots__ = ("_uxgrid",)
@@ -47,7 +49,7 @@ class GridPlotAccessor:
             - "faces" or "face centers" or "face_latlon" for grid face centers,
             - "edges" or "edge centers" or "edge_latlon" for grid edges.
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -72,7 +74,7 @@ class GridPlotAccessor:
         elif element in ["edges", "edge centers", "edge_latlon"]:
             lon, lat = self._uxgrid.edge_lon.values, self._uxgrid.edge_lat.values
         else:
-            raise ValueError("TODO: ")
+            raise ValueError(f"Unsupported element {element}")
 
         verts = {"lon": lon, "lat": lat}
 
@@ -92,7 +94,7 @@ class GridPlotAccessor:
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -116,12 +118,12 @@ class GridPlotAccessor:
     corner_nodes.__doc__ = nodes.__doc__
 
     def edge_coords(self, backend=None, **kwargs):
-        """Wrapper for ``Grid.plot.points(element='edge centers')
+        """Wrapper for ``Grid.plot.points(element='edge centers')``
 
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -139,12 +141,12 @@ class GridPlotAccessor:
     edge_centers.__doc__ = edge_coords.__doc__
 
     def face_coords(self, backend=None, **kwargs):
-        """Wrapper for ``Grid.plot.points(element='face centers')
+        """Wrapper for ``Grid.plot.points(element='face centers')``
 
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -162,7 +164,7 @@ class GridPlotAccessor:
     face_centers.__doc__ = face_coords.__doc__
 
     def edges(self, periodic_elements="exclude", backend=None, **kwargs):
-        """Plots the edges of a grid as a path plot.
+        """Plots the edges of a Grid.
 
         This function plots the edges of the grid as geographical paths using `hvplot`.
         The plot can ignore, exclude, or split periodic elements based on the provided option.
@@ -179,7 +181,7 @@ class GridPlotAccessor:
             - "ignore": Include periodic elements without any corrections
             - "split": Split periodic elements.
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.paths`. These can include:
             - "rasterize" (bool): Whether to rasterize the plot (default: False),
@@ -222,8 +224,11 @@ class GridPlotAccessor:
 
 
 class UxDataArrayPlotAccessor:
-    """Plotting Accessor for UxDataArray, accessed through
-    ``UxDataArray.plot()`` or ``UxDataArray.plot.specific_routine()``"""
+    """Plotting Accessor for ``UxDataArray``.
+
+    Accessed through `UxDataArray.plot()` or
+    `UxDataArray.plot.specific_routine()`
+    """
 
     _uxda: UxDataArray
     __slots__ = ("_uxda",)
@@ -256,12 +261,12 @@ class UxDataArrayPlotAccessor:
             raise AttributeError(f"Unsupported Plotting Method: '{name}'")
 
     def polygons(self, periodic_elements="exclude", backend=None, *args, **kwargs):
-        """Generated a shaded polygon plot.
+        """Generate a shaded polygon plot of a face-centered data variable.
 
-        This function plots the faces of an unstructured grid shaded with a face-centered data variable using `hvplot.
+        This function plots the faces of an unstructured grid shaded with a face-centered data variable using hvplot.
         It allows for rasterization, projection settings, and labeling of the data variable to be
         customized through keyword arguments. The backend for plotting can also be specified.
-        If a data array (`_uxda`) has a name, its name is used for color label.
+        If a data array has a name, its name is used for color label.
 
         Parameters
         ----------
@@ -269,10 +274,10 @@ class UxDataArrayPlotAccessor:
             Specifies whether to include or exclude periodic elements in the grid.
             Options are:
             - "exclude": Exclude periodic elements,
-             - "split": Split periodic elements.
+            - "split": Split periodic elements.
             - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         *args : tuple
             Additional positional arguments to be passed to `hvplot.polygons`.
         **kwargs : dict
@@ -326,7 +331,7 @@ class UxDataArrayPlotAccessor:
         Parameters
         ----------
         backend : str or None, optional
-            The plotting backend to use. Defaults to None, which uses the default backend.
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
             Additional keyword arguments passed to `hvplot.points`. For a full list of supported arguments, please
             refer to https://hvplot.holoviz.org/user_guide/Customization.html
@@ -395,7 +400,7 @@ class UxDataArrayPlotAccessor:
         method: str
             Selects what type of element to rasterize (point, trimesh, polygon).
         backend: str
-            Selects whether to use Holoview's "matplotlib" or "bokeh" backend for rendering plots
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         projection: ccrs
              Custom projection to transform (lon, lat) coordinates for rendering
         pixel_ratio: float
@@ -442,8 +447,7 @@ class UxDataArrayPlotAccessor:
 
 
 class UxDatasetPlotAccessor:
-    """Plotting Accessor for UxDataset, accessed through ``UxDataset.plot()``
-    or ``UxDataset.plot.specific_routine()``"""
+    """Plotting accessor for ``UxDataset``."""
 
     _uxds: UxDataset
     __slots__ = ("_uxds",)
