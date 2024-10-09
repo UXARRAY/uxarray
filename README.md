@@ -78,8 +78,6 @@ is receptive to additional functionality requests.
 * Support for finite volume and finite element outputs.
 * Triangular decompositions.
 * Calculation of supermeshes (consisting of grid lines from two input grids).
-* Application of calculus operations, including divergence, curl, Laplacian
-  and gradient.
 * Snapshots and composites following particular features.
 
 ## Documentation
