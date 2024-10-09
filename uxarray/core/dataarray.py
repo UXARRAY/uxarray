@@ -42,9 +42,8 @@ import cartopy.crs as ccrs
 
 
 class UxDataArray(xr.DataArray):
-    """N-dimensional ``xarray.DataArray``-like array. Inherits from
-    ``xarray.DataArray`` and has its own unstructured grid-aware array
-    operators and attributes through the ``uxgrid`` accessor.
+    """Grid informed ``xarray.DataArray`` with an attached ``Grid`` accessor
+    and grid-specific functionality.
 
     Parameters
     ----------
@@ -127,20 +126,27 @@ class UxDataArray(xr.DataArray):
 
     @property
     def uxgrid(self):
-        """``uxarray.Grid`` property for ``uxarray.UxDataArray`` to make it
-        unstructured grid-aware.
+        """Linked ``Grid`` representing to the unstructured grid the data
+        resides on."""
 
-        Examples
-        --------
-        uxds = ux.open_dataset(grid_path, data_path)
-        uxds.<variable_name>.uxgrid
-        """
         return self._uxgrid
 
     # a setter function
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
+
+    @property
+    def data_mapping(self):
+        """Returns which unstructured grid a data variable is mapped to."""
+        if self._face_centered():
+            return "faces"
+        elif self._edge_centered():
+            return "edges"
+        elif self._node_centered():
+            return "nodes"
+        else:
+            return None
 
     def to_geodataframe(
         self,
@@ -152,10 +158,9 @@ class UxDataArray(xr.DataArray):
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
     ):
-        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
-        column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid paired with a slice
-        of data mapped to the polygons.
+        """Constructs a ``GeoDataFrame`` consisting of polygons representing
+        the faces of the current ``Grid`` with a face-centered data variable
+        mapped to them.
 
         Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
         parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
@@ -262,9 +267,9 @@ class UxDataArray(xr.DataArray):
         override: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``UxDataArray`` to a
-        ``matplotlib.collections.PolyCollection``, representing each face as a
-        polygon shaded with a face-centered data variable.
+        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
+        of polygons representing the faces of the current ``UxDataArray`` with
+        a face-centered data variable mapped to them.
 
         Parameters
         ----------
@@ -344,7 +349,7 @@ class UxDataArray(xr.DataArray):
         name: Hashable = None,
         promote_attrs: bool = False,
     ) -> UxDataset:
-        """Convert a UxDataArray to a UxDataset.
+        """Convert a ``UxDataArray`` to a ``UxDataset``.
 
         Parameters
         ----------
@@ -370,8 +375,7 @@ class UxDataArray(xr.DataArray):
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> UxDataArray:
-        """Computes the integral of a data variable residing on an unstructured
-        grid.
+        """Computes the integral of a data variable.
 
         Parameters
         ----------
@@ -387,10 +391,10 @@ class UxDataArray(xr.DataArray):
 
         Examples
         --------
+        Open a Uxarray dataset and compute the integral
+
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-
-        # Compute the integral
         >>> integral = uxds['psi'].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
@@ -868,8 +872,7 @@ class UxDataArray(xr.DataArray):
     def gradient(
         self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
     ):
-        """Computes the horizontal gradient of a data variable residing on an
-        unstructured grid.
+        """Computes the horizontal gradient of a data variable.
 
         Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
         on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
@@ -892,9 +895,7 @@ class UxDataArray(xr.DataArray):
 
         Example
         -------
-        Face-centered variable
         >>> uxds['var'].gradient()
-        Node-centered variable
         >>> uxds['var'].topological_mean(destination="face").gradient()
         """
 
@@ -931,7 +932,7 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def difference(self, destination: Optional[str] = "edge"):
-        """Computes the absolute difference between a data variable.
+        """Computes the absolute difference of a data variable.
 
         The difference for a face-centered data variable can be computed on each edge using the ``edge_face_connectivity``,
         specified by ``destination='edge'``.
@@ -1015,20 +1016,6 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
-
-        pass
-
-    @property
-    def data_mapping(self):
-        """TODO:"""
-        if self._face_centered():
-            return "faces"
-        elif self._edge_centered():
-            return "edges"
-        elif self._node_centered():
-            return "nodes"
-        else:
-            return None
 
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the

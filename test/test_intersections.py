@@ -6,7 +6,7 @@ from uxarray.constants import ERROR_TOLERANCE
 # from uxarray.grid.coordinates import node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
 
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
-from uxarray.grid.intersections import gca_gca_intersection, gca_constLat_intersection
+from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection
 
 
 class TestGCAGCAIntersection(TestCase):
@@ -108,7 +108,7 @@ class TestGCAconstLatIntersection(TestCase):
                               np.deg2rad(10.0))
         ])
 
-        res = gca_constLat_intersection(GCR1_cart, np.sin(np.deg2rad(60.0)), verbose=True)
+        res = gca_const_lat_intersection(GCR1_cart, np.sin(np.deg2rad(60.0)), verbose=True)
         res_lonlat_rad = _xyz_to_lonlat_rad(*(res[0].tolist()))
         self.assertTrue(
             np.allclose(res_lonlat_rad,
@@ -123,7 +123,7 @@ class TestGCAconstLatIntersection(TestCase):
                                     np.deg2rad(10.0))
         ])
 
-        res = gca_constLat_intersection(GCR1_cart, np.sin(np.deg2rad(-10.0)), verbose=False)
+        res = gca_const_lat_intersection(GCR1_cart, np.sin(np.deg2rad(-10.0)), verbose=False)
         self.assertTrue(res.size == 0)
 
     def test_GCA_constLat_intersections_two_pts(self):
@@ -137,7 +137,7 @@ class TestGCAconstLatIntersection(TestCase):
 
         query_lat = (np.deg2rad(10.0) + max_lat) / 2.0
 
-        res = gca_constLat_intersection(GCR1_cart, np.sin(query_lat), verbose=False)
+        res = gca_const_lat_intersection(GCR1_cart, np.sin(query_lat), verbose=False)
         self.assertTrue(res.shape[0] == 2)
 
 
@@ -149,5 +149,5 @@ class TestGCAconstLatIntersection(TestCase):
         constZ = -0.5150380749100542
 
         with self.assertWarns(UserWarning):
-            res = gca_constLat_intersection(GCR1_cart, constZ, verbose=False)
+            res = gca_const_lat_intersection(GCR1_cart, constZ, verbose=False)
             self.assertTrue(res.shape[0] == 1)
