@@ -102,3 +102,21 @@ def test_grid_bounding_box_subset():
 
             grid_subset_antimeridian = grid.subset.bounding_box(
                 bbox_antimeridian[0], bbox_antimeridian[1], element=element)
+
+
+
+
+def test_uxda_isel():
+    uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
+
+    sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
+
+    assert len(sub) == 3
+
+def test_uxda_isel_with_coords():
+    uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
+    uxds = uxds.assign_coords({"lon_face": uxds.uxgrid.face_lon})
+    sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
+
+    # check if coordinates are preserved
+    assert "lon_face" in sub.coords
