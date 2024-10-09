@@ -331,6 +331,16 @@ Mathematical Operators
    UxDataArray.gradient
    UxDataArray.difference
 
+
+Dual Mesh Construction
+----------------------
+.. autosummary::
+   :toctree: generated/
+
+   Grid.get_dual
+   UxDataArray.get_dual
+   UxDataset.get_dual
+
 Aggregations
 ------------
 
@@ -361,6 +371,15 @@ on each face.
    UxDataArray.topological_any
 
 
+
+Intersections
+~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   grid.intersections.gca_gca_intersection
+   grid.intersections.gca_const_lat_intersection
 
 
 Spherical Geometry

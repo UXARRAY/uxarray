@@ -75,9 +75,14 @@ from uxarray.subset import GridSubsetAccessor
 from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
+    _check_duplicate_nodes_indices,
     _check_area,
     _check_normalization,
 )
+
+
+from uxarray.conventions import ugrid
+
 
 from xarray.core.utils import UncachedAccessor
 
@@ -86,6 +91,8 @@ from warnings import warn
 import cartopy.crs as ccrs
 
 import copy
+
+from uxarray.grid.dual import construct_dual
 
 
 class Grid:
@@ -458,7 +465,7 @@ class Grid:
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
-        from uxarray.conventions import ugrid, descriptors
+        from uxarray.conventions import descriptors
 
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
@@ -1910,3 +1917,28 @@ class Grid:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
+
+    def get_dual(self):
+        """Compute the dual for a grid, which constructs a new grid centered
+        around the nodes, where the nodes of the primal become the face centers
+        of the dual, and the face centers of the primal become the nodes of the
+        dual. Returns a new `Grid` object.
+
+        Returns
+        --------
+        dual : Grid
+            Dual Mesh Grid constructed
+        """
+
+        if _check_duplicate_nodes_indices(self):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self)
+
+        # Construct dual mesh
+        dual = self.from_topology(
+            self.face_lon.values, self.face_lat.values, dual_node_face_conn
+        )
+
+        return dual

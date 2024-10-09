@@ -61,6 +61,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
 
+`Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
+ Construct the Dual Mesh of an unstructured grid
+
 Supplementary Guides
 --------------------
 
@@ -88,4 +91,5 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/calculus.ipynb
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
+   user-guide/dual-mesh.ipynb
    user-guide/holoviz.ipynb
