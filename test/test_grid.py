@@ -6,6 +6,7 @@ import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
+import uxarray
 import uxarray as ux
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
@@ -16,6 +17,8 @@ from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.arcs import extreme_gca_latitude
+
+from uxarray.grid.validation import _find_duplicate_nodes
 
 try:
     import constants
@@ -31,6 +34,9 @@ gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne3
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
+gridfile_geos = current_path / 'meshfiles' / "geos-cs" / "c12" / 'test-c12.native.nc4'
+gridfile_mpas_holes = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 dsfile_var2_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
@@ -47,6 +53,14 @@ class TestGrid(TestCase):
         """Test to check the validate function."""
         grid_mpas = ux.open_grid(gridfile_mpas)
         assert (grid_mpas.validate())
+
+    def test_grid_with_holes(self):
+        """Test _holes_in_mesh function."""
+        grid_without_holes = ux.open_grid(gridfile_mpas)
+        grid_with_holes = ux.open_grid(gridfile_mpas_holes)
+
+        self.assertTrue(grid_with_holes.hole_edge_indices.size != 0)
+        self.assertTrue(grid_without_holes.hole_edge_indices.size == 0)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
@@ -80,15 +94,9 @@ class TestGrid(TestCase):
         Also, test kwargs for grid initialization
 
         The input cartesian coordinates represents 8 vertices on a cube
-             7---------6
-            /|        /|
-           / |       / |
-          3---------2  |
-          |  |      |  |
-          |  4------|--5
-          | /       | /
-          |/        |/
-          0---------1
+        7---------6     /|        /|    / |       / |   3---------2  | |
+        |      |  |   |  4------|--5   | /       | /   |/        |/ 0
+        ---------1
         """
         cart_x = [
             0.577340924821405, 0.577340924821405, 0.577340924821405,
@@ -272,7 +280,6 @@ class TestGrid(TestCase):
 
         # Test read from scrip and from ugrid for grid class
         grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
-        pass
 
 
 class TestOperators(TestCase):
@@ -506,7 +513,7 @@ class TestConnectivity(TestCase):
             self, edge_nodes_connectivity: np.ndarray,
             face_edges_connectivity: np.ndarray,
             original_face_nodes_connectivity: np.ndarray):
-        """utilize the edge_nodes_connectivity and face_edges_connectivity to
+        """Utilize the edge_nodes_connectivity and face_edges_connectivity to
         generate the res_face_nodes_connectivity in the counter-clockwise
         order. The counter-clockwise order will be enforced by the passed in
         original_face_edges_connectivity. We will only use the first two nodes
@@ -658,8 +665,8 @@ class TestConnectivity(TestCase):
 
         # construct edge nodes
         edge_nodes_output, _, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
-                                                          mpas_grid_ux.n_face,
-                                                          mpas_grid_ux.n_max_face_nodes)
+                                                                mpas_grid_ux.n_face,
+                                                                mpas_grid_ux.n_max_face_nodes)
 
         # _populate_face_edge_connectivity(mpas_grid_ux)
         # edge_nodes_output = mpas_grid_ux._ds['edge_node_connectivity'].values
@@ -917,7 +924,6 @@ class TestClassMethods(TestCase):
         xrds = xr.open_dataset(self.gridfile_scrip)
         uxgrid = ux.Grid.from_dataset(xrds)
 
-        pass
 
     def test_from_face_vertices(self):
         single_face_latlon = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
@@ -932,6 +938,7 @@ class TestClassMethods(TestCase):
 
 class TestLatlonBounds(TestCase):
     gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+
     def test_populate_bounds_GCA_mix(self):
         face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
@@ -941,18 +948,71 @@ class TestLatlonBounds(TestCase):
         faces = [face_1, face_2, face_3, face_4]
 
         # Hand calculated bounds for the above faces in radians
-        expected_bounds = [[[0.17453293, 1.07370494],[0.17453293, 0.87266463]],
-                           [[0.17453293, 1.10714872],[6.10865238, 0.87266463]],
-                           [[1.04719755, 1.57079633],[3.66519143, 0.52359878]],
-                           [[1.04719755,1.57079633],[0.,         6.28318531]]]
-
+        expected_bounds = [[[0.17453293, 1.07370494], [0.17453293, 0.87266463]],
+                           [[0.17453293, 1.10714872], [6.10865238, 0.87266463]],
+                           [[1.04719755, 1.57079633], [3.66519143, 0.52359878]],
+                           [[1.04719755, 1.57079633], [0., 6.28318531]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
         bounds_xarray = grid.bounds
         face_bounds = bounds_xarray.values
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
 
-    def test_opti_bounds(self):
-        import uxarray
-        uxgrid = ux.open_grid(gridfile_CSne8)
-        bounds = uxgrid.bounds
+    def test_populate_bounds_MPAS(self):
+            uxgrid = ux.open_grid(self.gridfile_mpas)
+            bounds_xarray = uxgrid.bounds
+
+
+class TestDualMesh(TestCase):
+    """Test Dual Mesh Construction."""
+
+    def test_dual_mesh_mpas(self):
+        # Open a grid with and without dual
+        grid = ux.open_grid(gridfile_mpas, use_dual=False)
+        mpas_dual = ux.open_grid(gridfile_mpas, use_dual=True)
+
+        # Construct Dual
+        dual = grid.get_dual()
+
+        # Assert the dimensions are the same
+        assert dual.n_face == mpas_dual.n_face
+        assert dual.n_node == mpas_dual.n_node
+        assert dual.n_max_face_nodes == mpas_dual.n_max_face_nodes
+
+        # Assert the faces are the same
+        nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
+
+    def test_dual_duplicate(self):
+        # Test that dual mesh throws an exception if duplicate nodes exist
+        dataset = ux.open_dataset(gridfile_geoflow, gridfile_geoflow)
+
+        nt.assert_raises(RuntimeError, dataset.get_dual)
+
+
+class TestNormalizeExistingCoordinates(TestCase):
+    gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+    gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+
+    def test_non_norm_initial(self):
+        """Check the normalization of coordinates that were initially parsed as
+        non-normalized."""
+        from uxarray.grid.validation import _check_normalization
+        uxgrid = ux.open_grid(self.gridfile_mpas)
+
+        # Make the coordinates not normalized
+        uxgrid.node_x.data = 5 * uxgrid.node_x.data
+        uxgrid.node_y.data = 5 * uxgrid.node_y.data
+        uxgrid.node_z.data = 5 * uxgrid.node_z.data
+        assert not _check_normalization(uxgrid)
+
+        uxgrid.normalize_cartesian_coordinates()
+
+        assert _check_normalization(uxgrid)
+
+    def test_norm_initial(self):
+        """Coordinates should be normalized for grids that we construct
+        them."""
+        from uxarray.grid.validation import _check_normalization
+        uxgrid = ux.open_grid(self.gridfile_CSne30)
+
+        assert _check_normalization(uxgrid)

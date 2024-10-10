@@ -15,7 +15,7 @@
 
 
 .. .. image:: _static/images/nsf.png
-..    :scale: 100%
+..   :scale: 100%
 ..   :align: right
 
 .. |
@@ -24,8 +24,9 @@
 UXarray Documentation
 =====================
 
-UXarray provides Xarray-styled functionality for working with unstructured grids build around the
-`UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conventions.
+Xarray extension for unstructured climate and global weather data analysis and visualization written
+around the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conventions.
+
 
 
 
@@ -111,11 +112,6 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
     GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
     UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
-
---------------------
-
-Supported By
-============
 
 .. raw:: html
 

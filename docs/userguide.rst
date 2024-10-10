@@ -32,7 +32,7 @@ These user guides provide detailed explanations of the core functionality in UXa
  Core data structures for working with unstructured grid and data files
 
 `Plotting API <user-guide/plotting.ipynb>`_
- Visualize unstructured grid datasets using UXarray's plotting api
+ Visualize unstructured grid datasets using UXarray's plotting API
 
 `Plotting with Matplotlib <user-guide/mpl.ipynb>`_
  Use Matplotlib for plotting with PolyCollection and LineCollection
@@ -42,6 +42,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
+
+`Cross-Sections <user-guide/cross-sections.ipynb>`_
+ Select cross-sections of a grid
 
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
@@ -60,6 +63,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
+
+`Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
+ Construct the Dual Mesh of an unstructured grid
 
 Supplementary Guides
 --------------------
@@ -82,8 +88,11 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/mpl.ipynb
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
-   user-guide/topological-aggregations.ipynb
-   user-guide/area_calc.ipynb
-   user-guide/holoviz.ipynb
+   user-guide/cross-sections.ipynb
    user-guide/remapping.ipynb
+   user-guide/topological-aggregations.ipynb
+   user-guide/calculus.ipynb
    user-guide/tree_structures.ipynb
+   user-guide/area_calc.ipynb
+   user-guide/dual-mesh.ipynb
+   user-guide/holoviz.ipynb

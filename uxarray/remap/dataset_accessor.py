@@ -1,6 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
-from warnings import warn
+from typing import TYPE_CHECKING
 
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxds
 from uxarray.remap.inverse_distance_weighted import (
@@ -9,12 +8,13 @@ from uxarray.remap.inverse_distance_weighted import (
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
-    from uxarray.core.dataarray import UxDataArray
 
 from uxarray.grid import Grid
 
 
 class UxDatasetRemapAccessor:
+    """Remapping accessor for ``UxDataset``"""
+
     def __init__(self, uxds: UxDataset):
         self.uxds = uxds
 
@@ -31,65 +31,40 @@ class UxDatasetRemapAccessor:
 
     def nearest_neighbor(
         self,
-        destination_grid: Optional[Grid] = None,
-        destination_obj: Optional[Grid, UxDataArray, UxDataset] = None,
+        destination_grid: Grid,
         remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
-        """Nearest Neighbor Remapping between a source (``UxDataset``) and
-        destination.`.
+        """Nearest Neighbor Remapping between a source ``UxDataset`` and
+        destination ``Grid``
 
         Parameters
         ---------
         destination_grid : Grid
             Destination Grid for remapping
-        destination_obj : Grid, UxDataArray, UxDataset
-            Optional destination for remapping, deprecating
         remap_to : str, default="nodes"
             Location of where to map data, either "nodes", "edge centers", or "face centers"
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
 
-        if destination_grid is not None and destination_obj is not None:
-            raise ValueError(
-                "Only one destination allowed, "
-                "please remove either `destination_grid` or `destination_obj`."
-            )
-        elif destination_grid is None and destination_obj is None:
-            raise ValueError("Destination needed for remap.")
-
-        if destination_grid is not None:
-            return _nearest_neighbor_uxds(
-                self.uxds, destination_grid, remap_to, coord_type
-            )
-        elif destination_obj is not None:
-            warn(
-                "destination_obj will be deprecated in a future release. Please use destination_grid instead.",
-                DeprecationWarning,
-            )
-            return _nearest_neighbor_uxds(
-                self.uxds, destination_obj, remap_to, coord_type
-            )
+        return _nearest_neighbor_uxds(self.uxds, destination_grid, remap_to, coord_type)
 
     def inverse_distance_weighted(
         self,
-        destination_grid: Optional[Grid] = None,
-        destination_obj: Optional[Grid, UxDataArray, UxDataset] = None,
+        destination_grid: Grid,
         remap_to: str = "face centers",
         coord_type: str = "spherical",
         power=2,
         k=8,
     ):
-        """Inverse Distance Weighted Remapping between a source (``UxDataset``)
-        and destination.`.
+        """Inverse Distance Weighted Remapping between a source ``UxDataset``
+        and destination ``Grid``
 
         Parameters
         ---------
         destination_grid : Grid
             Destination Grid for remapping
-        destination_obj : Grid, UxDataArray, UxDataset
-            Optional destination for remapping, deprecating
         remap_to : str, default="nodes"
             Location of where to map data, either "nodes", "edge centers", or "face centers"
         coord_type : str, default="spherical"
@@ -101,23 +76,6 @@ class UxDatasetRemapAccessor:
             Number of nearest neighbors to consider in the weighted calculation.
         """
 
-        if destination_grid is not None and destination_obj is not None:
-            raise ValueError(
-                "Only one destination allowed, "
-                "please remove either `destination_grid` or `destination_obj`."
-            )
-        elif destination_grid is None and destination_obj is None:
-            raise ValueError("Destination needed for remap.")
-
-        if destination_grid is not None:
-            return _inverse_distance_weighted_remap_uxds(
-                self.uxds, destination_grid, remap_to, coord_type, power, k
-            )
-        elif destination_obj is not None:
-            warn(
-                "destination_obj will be deprecated in a future release. Please use destination_grid instead.",
-                DeprecationWarning,
-            )
-            return _inverse_distance_weighted_remap_uxds(
-                self.uxds, destination_obj, remap_to, coord_type, power, k
-            )
+        return _inverse_distance_weighted_remap_uxds(
+            self.uxds, destination_grid, remap_to, coord_type, power, k
+        )

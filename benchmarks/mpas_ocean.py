@@ -98,7 +98,7 @@ class ConnectivityConstruction:
 
     def time_n_nodes_per_face(self, resolution):
         self.uxds.uxgrid.n_nodes_per_face
-        
+
     def time_face_face_connectivity(self, resolution):
         ux.grid.connectivity._populate_face_face_connectivity(self.uxds.uxgrid)
 

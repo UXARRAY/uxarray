@@ -89,7 +89,7 @@ def _encode_ugrid(ds):
 
     grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
 
-    if "n_edge" in ds:
+    if "n_edge" in ds.dims:
         grid_topology["edge_dimension"] = "n_edge"
 
     if "face_lon" in ds:

@@ -27,7 +27,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: Set up environment
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: ci/environment.yml
           create-args: >-

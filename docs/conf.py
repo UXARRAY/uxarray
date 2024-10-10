@@ -56,6 +56,7 @@ extensions = [
     "nbsphinx",
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
+    "sphinx_remove_toctrees",
 ]
 
 mathjax_config = {
@@ -95,6 +96,8 @@ intersphinx_mapping = {
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
 }
+
+remove_from_toctrees = ["generated/*"]
 
 napoleon_use_admonition_for_examples = True
 napoleon_include_special_with_doc = True
@@ -180,18 +183,26 @@ html_theme_options = dict(
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "_static/images/logos/uxarray_temp_logo.png"
+html_logo = "_static/images/logos/uxarray_logo_h_dark.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = "_static/images/logos/uxarray_temp_logo.png"
+html_favicon = "_static/images/logos/uxarray_logo_h_dark.svg"
+
+# Assuming your `conf.py` has a sibling folder called `_static` with these files
+html_theme_options = {
+    "logo": {
+        "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",
+        "image_dark": "_static/images/logos/uxarray_logo_h_light.svg",
+    }
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ["style.css"]
+# html_css_files = ["style.css"]
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = "uxarraydoc"

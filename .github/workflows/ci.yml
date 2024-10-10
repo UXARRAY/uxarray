@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]
-        python-version: [ "3.9", "3.10", "3.11"]
+        python-version: [ "3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.12.1
@@ -40,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: ci/environment.yml
-          miniforge-variant: Mambaforge
+          miniforge-variant: Miniforge3
           miniforge-version: latest
 
       - name: conda_setup (ARM64)
@@ -52,7 +52,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
           environment-file: ci/environment.yml
-          installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Mambaforge-23.11.0-0-MacOSX-arm64.sh
+          installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Miniforge3-23.11.0-0-MacOSX-arm64.sh
 
       - name: Install uxarray
         run: |
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload code coverage to Codecov
         if: github.repository == 'UXARRAY/uxarray'
-        uses: codecov/codecov-action@v4.5.0
+        uses: codecov/codecov-action@v4.6.0
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:

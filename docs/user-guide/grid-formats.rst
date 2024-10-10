@@ -18,6 +18,7 @@ NetCDF file format. As of the most recent release, the following grid formats ar
 * EXODUS
 * ESMF
 * GEOS CS
+* ICON
 
 While each of these formats can be encoded in the UGRID conventions, the amount of information that is parsed from them
 varies. The following sections describes how each format is converted into the UGRID conventions and what variables
@@ -123,6 +124,24 @@ References
 ----------
 * https://gmao.gsfc.nasa.gov/gmaoftp/ops/GEOSIT_sample/doc/CS_Description_c180_v1.pdf
 
+
+ICON
+====
+The climate model ICON is the central research tool at the Max Planck Institute for Meteorology (MPI-M). CON, which
+obtains its name from the usage of spherical grids derived from the icosahedron (ICO) and the non-hydrostatic (N)
+dynamics, originated as a joint project of the MPI-M and the German Weather Service (Deutscher Wetterdienst, DWD)
+and has expanded to involve more development partners at the German Climate Computing Center (DKRZ),
+the Swiss Federal Institute of Technology (ETH) in Zurich and the Karlsruhe Institute of Technology (KIT).
+It includes component models for the atmosphere, the ocean and the land, as well as chemical and biogeochemical cycles,
+all implemented on the basis of common data structures and sharing the same efficient technical infrastructure.
+It is integrated and maintained by a group of experts for model development and application in the
+institute’s Scientific Computing Laboratory.
+
+References
+----------
+* https://mpimet.mpg.de/en/research/modeling
+* https://scivis2017.dkrz.de/hd-cp-2/en-icon_grid.pdf
+
 Parsed Variables
 ================
 
@@ -170,6 +189,7 @@ Coordinates
        <th>EXODUS</th>
        <th>ESMF</th>
        <th>GEOS-CS</th>
+       <th>ICON</th>
      </tr>
      <tr>
        <td>node_latlon</td>
@@ -177,6 +197,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
      </tr>
@@ -188,6 +209,7 @@ Coordinates
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
 
      </tr>
      <tr>
@@ -196,6 +218,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
      </tr>
@@ -207,6 +230,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
      <tr>
        <td>edge_xyz</td>
@@ -216,6 +240,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
      <tr>
        <td>face_xyz</td>
@@ -225,6 +250,7 @@ Coordinates
        <td class="yes-cell">Yes</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
    </table>
 
@@ -263,9 +289,11 @@ Connectivity
        <th>EXODUS</th>
        <th>ESMF</th>
        <th>GEOS-CS</th>
+       <th>ICON</th>
      </tr>
      <tr>
        <td>face_node</td>
+       <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
@@ -281,6 +309,7 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
      <tr>
        <td>face_face</td>
@@ -290,6 +319,7 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
      <tr>
        <td>edge_node</td>
@@ -299,9 +329,11 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
      <tr>
        <td>edge_edge</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
@@ -317,10 +349,12 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="yes-cell">Yes</td>
      </tr>
      <tr>
        <td>node_node</td>
        <td class="yes-cell">Yes</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
@@ -335,11 +369,13 @@ Connectivity
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
+       <td class="no-cell">No</td>
      </tr>
      <tr>
        <td>node_face</td>
        <td class="yes-cell">Yes</td>
        <td class="yes-cell">Yes</td>
+       <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
        <td class="no-cell">No</td>
