@@ -203,15 +203,12 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
-
         uxarray.plot.utils.backend.assign(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = False
         if "projection" not in kwargs:
             kwargs["projection"] = ccrs.PlateCarree()
-        if "clabel" not in kwargs:
-            kwargs["clabel"] = "edges"
         if "crs" not in kwargs:
             if "projection" in kwargs:
                 central_longitude = kwargs["projection"].proj4_params["lon_0"]
@@ -219,11 +216,12 @@ class GridPlotAccessor:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
-        gdf = self._uxgrid.to_geodataframe(
+        gdf = self._uxda.to_geodataframe(
             periodic_elements=periodic_elements,
             projection=kwargs.get("projection"),
             engine=engine,
-        )[["geometry"]]
+            project=False,
+        )
 
         return gdf.hvplot.paths(geo=True, **kwargs)
 
