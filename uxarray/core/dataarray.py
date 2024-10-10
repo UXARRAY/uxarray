@@ -154,11 +154,11 @@ class UxDataArray(xr.DataArray):
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
+        **kwargs,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
         the faces of the current ``Grid`` with a face-centered data variable
@@ -178,7 +178,8 @@ class UxDataArray(xr.DataArray):
             - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
             - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection, optional
-            Geographic projection used to transform polygons
+            Geographic projection used to transform polygons. Only supported when periodic_elements is set to
+            'ignore' or 'exclude'
         cache: bool, optional
             Flag used to select whether to cache the computed GeoDataFrame
         override: bool, optional
@@ -191,7 +192,7 @@ class UxDataArray(xr.DataArray):
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
+        gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons and a data column with the
             same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """
@@ -207,7 +208,7 @@ class UxDataArray(xr.DataArray):
             gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
                 periodic_elements=periodic_elements,
                 projection=projection,
-                project=project,
+                project=kwargs.get("project", True),
                 cache=cache,
                 override=override,
                 exclude_antimeridian=exclude_antimeridian,
