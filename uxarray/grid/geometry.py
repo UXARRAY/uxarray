@@ -162,7 +162,7 @@ def _correct_central_longitude(node_lon, node_lat, projection):
 
 def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
-    with a geometry column of polygons."""
+    or ``geopandas.GeoDataFrame`` with a geometry column of polygons."""
 
     node_lon, node_lat, central_longitude = _correct_central_longitude(
         grid.node_lon.values, grid.node_lat.values, projection
@@ -248,8 +248,9 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
 def _build_geodataframe_without_antimeridian(
     polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
 ):
-    """Builds a ``spatialpandas.GeoDataFrame`` excluding any faces that cross
-    the antimeridian."""
+    """Builds a ``spatialpandas.GeoDataFrame`` or
+    ``geopandas.GeoDataFrame``excluding any faces that cross the
+    antimeridian."""
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells_without_antimeridian = np.delete(
@@ -280,8 +281,8 @@ def _build_geodataframe_with_antimeridian(
     antimeridian_face_indices,
     engine,
 ):
-    """Builds a ``spatialpandas.GeoDataFrame`` including any faces that cross
-    the antimeridian."""
+    """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
+    including any faces that cross the antimeridian."""
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
     )

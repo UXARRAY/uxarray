@@ -218,7 +218,7 @@ class GridPlotAccessor:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
-        gdf = self._uxda.to_geodataframe(
+        gdf = self._uxgrid.to_geodataframe(
             periodic_elements=periodic_elements,
             projection=kwargs.get("projection"),
             engine=engine,
