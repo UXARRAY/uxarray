@@ -66,11 +66,17 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 
+from uxarray.grid.intersections import (
+    fast_constant_lat_intersections,
+)
+
 from spatialpandas import GeoDataFrame
 
 from uxarray.plot.accessor import GridPlotAccessor
 
 from uxarray.subset import GridSubsetAccessor
+
+from uxarray.cross_sections import GridCrossSectionAccessor
 
 from uxarray.grid.validation import (
     _check_connectivity,
@@ -83,7 +89,6 @@ from uxarray.grid.validation import (
 
 from uxarray.conventions import ugrid
 
-
 from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
@@ -92,6 +97,8 @@ import cartopy.crs as ccrs
 
 import copy
 
+
+from uxarray.constants import INT_FILL_VALUE
 from uxarray.grid.dual import construct_dual
 
 
@@ -217,6 +224,9 @@ class Grid:
 
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
+
+    # declare cross section accessor
+    cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
     def from_dataset(
@@ -983,7 +993,7 @@ class Grid:
     def edge_node_connectivity(self) -> xr.DataArray:
         """Indices of the two nodes that make up each edge.
 
-        Dimensions: ``(n_edge, n_max_edge_nodes)``
+        Dimensions: ``(n_edge, two)``
 
         Nodes are in arbitrary order.
         """
@@ -997,6 +1007,23 @@ class Grid:
         """Setter for ``edge_node_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["edge_node_connectivity"] = value
+
+    @property
+    def edge_node_z(self) -> xr.DataArray:
+        """Cartesian z location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_z" not in self._ds:
+            _edge_node_z = self.node_z.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_z"] = xr.DataArray(
+                data=_edge_node_z,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_z"]
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
@@ -1880,6 +1907,31 @@ class Grid:
 
         return line_collection
 
+    def get_dual(self):
+        """Compute the dual for a grid, which constructs a new grid centered
+        around the nodes, where the nodes of the primal become the face centers
+        of the dual, and the face centers of the primal become the nodes of the
+        dual. Returns a new `Grid` object.
+
+        Returns
+        --------
+        dual : Grid
+            Dual Mesh Grid constructed
+        """
+
+        if _check_duplicate_nodes_indices(self):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self)
+
+        # Construct dual mesh
+        dual = self.from_topology(
+            self.face_lon.values, self.face_lat.values, dual_node_face_conn
+        )
+
+        return dual
+
     def isel(self, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
@@ -1918,27 +1970,67 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_dual(self):
-        """Compute the dual for a grid, which constructs a new grid centered
-        around the nodes, where the nodes of the primal become the face centers
-        of the dual, and the face centers of the primal become the nodes of the
-        dual. Returns a new `Grid` object.
+    def get_edges_at_constant_latitude(self, lat, method="fast"):
+        """Identifies the edges of the grid that intersect with a specified
+        constant latitude.
+
+        This method computes the intersection of grid edges with a given latitude and
+        returns a collection of edges that cross or are aligned with that latitude.
+        The method used for identifying these edges can be controlled by the `method`
+        parameter.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to identify intersecting edges, in degrees.
+        method : str, optional
+            The computational method used to determine edge intersections. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
 
         Returns
-        --------
-        dual : Grid
-            Dual Mesh Grid constructed
+        -------
+        edges : array
+            A squeezed array of edges that intersect the specified constant latitude.
         """
+        if method == "fast":
+            edges = fast_constant_lat_intersections(
+                lat, self.edge_node_z.values, self.n_edge
+            )
+        elif method == "accurate":
+            raise NotImplementedError("Accurate method not yet implemented.")
+        else:
+            raise ValueError(f"Invalid method: {method}.")
+        return edges.squeeze()
 
-        if _check_duplicate_nodes_indices(self):
-            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+    def get_faces_at_constant_latitude(self, lat, method="fast"):
+        """Identifies the faces of the grid that intersect with a specified
+        constant latitude.
 
-        # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self)
+        This method finds the faces (or cells) of the grid that intersect a given latitude
+        by first identifying the intersecting edges and then determining the faces connected
+        to these edges. The method used for identifying edges can be adjusted with the `method`
+        parameter.
 
-        # Construct dual mesh
-        dual = self.from_topology(
-            self.face_lon.values, self.face_lat.values, dual_node_face_conn
-        )
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to identify intersecting faces, in degrees.
+        method : str, optional
+            The computational method used to determine intersecting edges. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
 
-        return dual
+        Returns
+        -------
+        faces : array
+            An array of unique face indices that intersect the specified latitude.
+            Faces that are invalid or missing (e.g., with a fill value) are excluded
+            from the result.
+        """
+        edges = self.get_edges_at_constant_latitude(lat, method)
+        faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+
+        return faces[faces != INT_FILL_VALUE]
