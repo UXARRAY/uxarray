@@ -29,7 +29,7 @@ def test_quad_hex_face_centered():
     expected_weighted_mean = 297.55
 
     # compute the weighted mean
-    result = uxds['t2m'].mean(weighted=True)
+    result = uxds['t2m'].weighted_mean()
 
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(result.values, expected_weighted_mean, decimal=3)
@@ -45,7 +45,7 @@ def test_quad_hex_edge_centered():
     expected_weighted_mean = (uxds['random_data_edge'].values * uxds.uxgrid.edge_node_distances).sum() / uxds.uxgrid.edge_node_distances.sum()
 
     # compute the weighted mean
-    result = uxds['random_data_edge'].mean(weighted=True)
+    result = uxds['random_data_edge'].weighted_mean()
 
     nt.assert_equal(result, expected_weighted_mean)
 
@@ -60,8 +60,8 @@ def test_csne30_equal_area():
     uxds.uxgrid._ds['face_areas'].data = np.ones(uxds.uxgrid.n_face)
 
 
-    weighted_mean = uxds['psi'].mean(weighted=True)
-    unweighted_mean = uxds['psi'].mean(weighted=False)
+    weighted_mean = uxds['psi'].weighted_mean()
+    unweighted_mean = uxds['psi'].mean()
 
     # with equal area, both should be equal
     nt.assert_equal(weighted_mean, unweighted_mean)

@@ -429,6 +429,54 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def weighted_mean(self, weights=None, **kwargs):
+        """Compute the weighted mean of the data variable.
+
+        This function calculates the weighted mean of a variable,
+        using the specified `weights`. If no weights are provided, it will automatically select
+        appropriate weights based on whether the variable is face-centered or edge-centered. If
+        the variable is neither face nor edge-centered.
+
+        Parameters
+        ----------
+        weights : np.ndarray or None, optional
+            The weights to use for the weighted mean calculation. If `None`, the function will
+            determine weights based on the variable's association:
+                - For face-centered variables: uses `self.uxgrid.face_areas.data`
+                - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+            If the variable is neither face-centered nor edge-centered, a warning is raised, and
+            an unweighted mean is computed instead. User-defined weights should match the shape
+            of the data variable's last dimension.
+
+        **kwargs : dict, optional
+            Additional keyword arguments passed to the function (currently not used). TODO
+
+        Returns
+        -------
+        UxDataArray
+            A new `UxDataArray` object representing the weighted mean of the input variable. The
+            result is attached to the same `uxgrid` attribute as the original variable.
+
+        Raises
+        ------
+        AssertionError
+            If user-defined `weights` are provided and the shape of `weights` does not match
+            the shape of the data variable's last dimension.
+
+        Warnings
+        --------
+        UserWarning
+            Raised when attempting to compute a weighted mean on a variable without associated
+            weights. An unweighted mean will be computed in this case.
+
+        Notes
+        -----
+        - The weighted mean is computed along the last dimension of the data variable, which is
+          assumed to be the geometry dimension (e.g., faces, edges, or nodes).
+        - The computed weighted mean uses the formula:
+
+          .. math::
+              \text{{weighted mean}} = \frac{\sum (\text{{variable}} \times \text{{weights}})}{\sum \text{{weights}}}
+        """
         if weights is None:
             if self._face_centered():
                 weights = self.uxgrid.face_areas.data
