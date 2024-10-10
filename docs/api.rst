@@ -291,6 +291,30 @@ UxDataArray
    UxDataArray.subset.bounding_circle
 
 
+Cross Sections
+--------------
+
+
+Grid
+~~~~
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
+
+   Grid.cross_section
+   Grid.cross_section.constant_latitude
+
+UxDataArray
+~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
+
+   UxDataArray.cross_section
+   UxDataArray.cross_section.constant_latitude
+
 Remapping
 ---------
 

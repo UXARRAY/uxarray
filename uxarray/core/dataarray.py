@@ -33,6 +33,7 @@ from uxarray.core.gradient import (
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
+from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
@@ -85,6 +86,7 @@ class UxDataArray(xr.DataArray):
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
     remap = UncachedAccessor(UxDataArrayRemapAccessor)
+    cross_section = UncachedAccessor(UxDataArrayCrossSectionAccessor)
 
     def _repr_html_(self) -> str:
         if OPTIONS["display_style"] == "text":
