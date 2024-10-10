@@ -157,7 +157,7 @@ def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     return np.array(res)
 
 
-def gca_constLat_intersection(
+def gca_const_lat_intersection(
     gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
