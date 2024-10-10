@@ -1,12 +1,12 @@
 import numpy as np
-from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
+from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON, ENABLE_JIT_CACHE
 import warnings
 import uxarray.utils.computing as ac_utils
 
 from numba import njit
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def _angle_of_2_vectors(u, v):
     """Calculate the angle between two 3D vectors u and v in radians. Can be
     used to calcualte the span of a GCR.
