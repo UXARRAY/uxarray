@@ -1661,7 +1661,8 @@ class Grid:
             - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
             - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection, optional
-            Geographic projection used to transform polygons
+            Geographic projection used to transform polygons. Only supported when periodic_elements is set to
+            'ignore' or 'exclude'
         cache: bool, optional
             Flag used to select whether to cache the computed GeoDataFrame
         override: bool, optional
