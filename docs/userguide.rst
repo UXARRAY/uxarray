@@ -43,6 +43,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
 
+`Cross-Sections <user-guide/cross-sections.ipynb>`_
+ Select cross-sections of a grid
+
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
 
@@ -82,6 +85,7 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/mpl.ipynb
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
+   user-guide/cross-sections.ipynb
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/calculus.ipynb
