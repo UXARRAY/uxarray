@@ -294,9 +294,6 @@ UxDataArray
 Cross Sections
 --------------
 
-.. seealso::
-
-    `Cross Sections User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/remapping.html>`_
 
 Grid
 ~~~~
@@ -316,7 +313,7 @@ UxDataArray
    :template: autosummary/accessor_method.rst
 
    UxDataArray.cross_section
-   UxDataArray.coss_section.constant_latitude
+   UxDataArray.cross_section.constant_latitude
 
 Remapping
 ---------
