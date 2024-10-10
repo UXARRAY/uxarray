@@ -116,9 +116,8 @@ class WeightedMean:
     def teardown(self, resolution):
         del self.uxds
 
-
     def time_weighted_mean_face_centered(self, resolution):
-        self.uxds['bottomDepth'].mean(weighted=True)
+        self.uxds['bottomDepth'].weighted_mean()
 
 class MatplotlibConversion:
     param_names = ['resolution', 'periodic_elements']

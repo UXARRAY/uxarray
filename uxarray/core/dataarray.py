@@ -428,32 +428,27 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def weighted_mean(
-        self, dim=None, *, skipna=None, keep_attrs=None, weighted=False, **kwargs
-    ):
-        if self._face_centered():
-            grid_dim = "n_face"
-            # use face areas as weight
-            # weights = da.from_array(self.uxgrid.face_areas.values)
-            weights = None
-        elif self._edge_centered():
-            grid_dim = "n_edge"
-            # use edge magnitude as weight
-            # weights = da.from_array(self.uxgrid.edge_node_distances.values)
-            weights = None
+    def weighted_mean(self, weights=None, **kwargs):
+        if weights is None:
+            if self._face_centered():
+                weights = self.uxgrid.face_areas.data
+            elif self._edge_centered():
+                weights = self.uxgrid.edge_node_distances.data
+            else:
+                warnings.warn(
+                    "Attempting to perform a weighted mean calculation on a variable that does not have"
+                    "associated weights. Weighted mean is only supported for face or edge centered "
+                    "variables. Performing an unweighted mean."
+                )
         else:
-            # apply regular Xarray mean
-            warnings.warn(
-                "Attempting to perform a weighted mean calculation on a variable that does not have"
-                "associated weights. Weighted mean is only supported for face or edge centered "
-                "variables. Performing an unweighted mean."
-            )
+            # user-defined weights
+            assert weights.shape[-1] == self.shape[-1]
 
         # compute the total weight
         total_weight = weights.sum()
 
         # compute weighted mean #assumption on index of dimension (last one is geometry)
-        weighted_mean = (self * weights).sum(dim=grid_dim) / total_weight
+        weighted_mean = (self * weights).sum(axis=-1) / total_weight
 
         # create a UxDataArray and return it
         return UxDataArray(weighted_mean, uxgrid=self.uxgrid)

@@ -1970,6 +1970,9 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
+    def get_weights(self):
+        pass
+
     def get_edges_at_constant_latitude(self, lat, method="fast"):
         """Identifies the edges of the grid that intersect with a specified
         constant latitude.
