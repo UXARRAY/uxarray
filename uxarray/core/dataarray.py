@@ -35,6 +35,7 @@ from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
+from uxarray.core.zonal import _compute_zonal_mean
 
 import warnings
 from warnings import warn
@@ -424,6 +425,38 @@ class UxDataArray(xr.DataArray):
         # construct a uxda with integrated quantity
         uxda = UxDataArray(
             integral, uxgrid=self.uxgrid, dims=self.dims[:-1], name=self.name
+        )
+
+        return uxda
+
+    def zonal_mean(self, lat=(-90, 90, 5), method="fast"):
+        if not self._face_centered() and not self._edge_centered():
+            raise NotImplementedError(
+                "Zonal mean computations are currently only supported for face-centered or edge-centered data variables."
+            )
+
+        if isinstance(lat, tuple):
+            # zonal mean over a range of latitudes
+            latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
+
+        elif isinstance(lat, (float, int)):
+            # zonal mean over a single latitude
+            latitudes = [lat]
+
+        # Compute Zonal Mean
+        res = _compute_zonal_mean(
+            uxda=self, data_mapping=self.dims[-1], latitudes=latitudes, method=method
+        )
+
+        dims = list(self.dims[:-1]) + ["latitudes"]
+
+        # Result is stored and returned as a UxDataArray
+        uxda = UxDataArray(
+            res,
+            uxgrid=self.uxgrid,
+            dims=dims,
+            coords={"latitudes": latitudes},
+            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
         )
 
         return uxda
