@@ -322,33 +322,6 @@ def _build_corrected_shapely_polygons(
     return polygons
 
 
-# def _build_corrected_shapely_polygons(
-#     polygon_shells,
-#     projected_polygon_shells,
-#     antimeridian_face_indices,
-# ):
-#     if projected_polygon_shells is not None:
-#         # use projected shells if a projection is applied
-#         shells = projected_polygon_shells
-#     else:
-#         shells = polygon_shells
-#
-#     # list of shapely Polygons representing each face in our grid
-#     polygons = Polygons(shells)
-#
-#     # construct antimeridian polygons
-#     antimeridian_polygons = Polygons(polygon_shells[antimeridian_face_indices])
-#
-#     # correct each antimeridian polygon
-#     corrected_polygons = [antimeridian.fix_polygon(P) for P in antimeridian_polygons]
-#
-#     # insert correct polygon back into original array
-#     for i in reversed(antimeridian_face_indices):
-#         polygons[i] = corrected_polygons.pop()
-#
-#     return polygons
-
-
 def _build_antimeridian_face_indices(shells_x, projection=None):
     """Identifies any face that has an edge that crosses the antimeridian."""
 
