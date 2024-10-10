@@ -4,6 +4,8 @@ from pathlib import Path
 
 import uxarray as ux
 
+import numpy as np
+
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 data_var = 'bottomDepth'
@@ -164,3 +166,11 @@ class CheckNorm:
     def time_check_norm(self, resolution):
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
+
+
+class CrossSections(DatasetBenchmark):
+    param_names = DatasetBenchmark.param_names + ['n_lat']
+    params = DatasetBenchmark.params + [[1, 2, 4, 8]]
+    def time_constant_lat_fast(self, resolution, n_lat):
+        for lat in np.linspace(-89, 89, n_lat):
+            self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')

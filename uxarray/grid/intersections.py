@@ -7,6 +7,48 @@ import warnings
 from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
 
 
+from numba import njit, prange
+
+
+@njit(parallel=True, nogil=True, cache=True)
+def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
+    """Determine which edges intersect a constant line of latitude on a sphere.
+
+    Parameters
+    ----------
+    lat:
+        Constant latitude value in degrees.
+    edge_node_z:
+        Array of shape (n_edge, 2) containing z-coordinates of the edge nodes.
+    n_edge:
+        Total number of edges to check.
+
+    Returns
+    -------
+    intersecting_edges:
+        array of indices of edges that intersect the constant latitude.
+    """
+    lat = np.deg2rad(lat)
+
+    intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
+
+    # Calculate the constant z-value for the given latitude
+    z_constant = np.sin(lat)
+
+    # Iterate through each edge and check for intersections
+    for i in prange(n_edge):
+        # Get the z-coordinates of the edge's nodes
+        z0 = edge_node_z[i, 0]
+        z1 = edge_node_z[i, 1]
+
+        if (z0 - z_constant) * (z1 - z_constant) < 0.0:
+            intersecting_edges_mask[i] = 1
+
+    intersecting_edges = np.argwhere(intersecting_edges_mask)
+
+    return np.unique(intersecting_edges)
+
+
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
