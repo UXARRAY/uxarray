@@ -191,7 +191,7 @@ class UxDataArray(xr.DataArray):
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
+        gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons and a data column with the
             same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """

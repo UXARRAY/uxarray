@@ -1679,7 +1679,7 @@ class Grid:
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
+        gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
 
