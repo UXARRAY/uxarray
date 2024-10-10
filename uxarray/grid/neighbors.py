@@ -10,7 +10,7 @@ from sklearn.neighbors import KDTree as SKKDTree
 
 from typing import Optional, Union
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ENABLE_JIT_CACHE
 
 
 class KDTree:
@@ -855,7 +855,7 @@ def _populate_edge_node_distances(grid):
     )
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
     """Helper for computing the arc-distance between nodes compose each
     edge."""
@@ -890,7 +890,7 @@ def _populate_edge_face_distances(grid):
     )
 
 
-@njit
+@njit(cache=ENABLE_JIT_CACHE)
 def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
     """Helper for computing the arc-distance between faces that saddle a given
     edge."""

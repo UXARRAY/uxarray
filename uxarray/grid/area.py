@@ -2,10 +2,8 @@ import numpy as np
 
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
-from numba import njit, config
-from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT
-
-config.DISABLE_JIT = not ENABLE_JIT
+from numba import njit
+from uxarray.constants import ENABLE_JIT_CACHE
 
 
 @njit(cache=ENABLE_JIT_CACHE)
