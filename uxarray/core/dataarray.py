@@ -1105,12 +1105,11 @@ class UxDataArray(xr.DataArray):
             raise ValueError(
                 "Data variable must be either node, edge, or face centered."
             )
-
         return UxDataArray(
             uxgrid=sliced_grid,
             data=d_var,
             name=self.name,
-            coords=self.coords,
+            coords=d_var.coords,
             dims=self.dims,
             attrs=self.attrs,
         )
