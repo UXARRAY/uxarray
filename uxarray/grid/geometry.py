@@ -277,7 +277,6 @@ def _build_geodataframe_without_antimeridian(
 def _build_geodataframe_with_antimeridian(
     polygon_shells,
     projected_polygon_shells,
-    projection,
     antimeridian_face_indices,
     engine,
 ):
