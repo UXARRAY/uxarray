@@ -209,6 +209,8 @@ class GridPlotAccessor:
             kwargs["rasterize"] = False
         if "projection" not in kwargs:
             kwargs["projection"] = ccrs.PlateCarree()
+        if "clabel" not in kwargs:
+            kwargs["clabel"] = "edges"
         if "crs" not in kwargs:
             if "projection" in kwargs:
                 central_longitude = kwargs["projection"].proj4_params["lon_0"]
