@@ -333,7 +333,7 @@ def polygon_triangle_split(polygon, point):
         #     return [node1, node2, node3], [values[0], values[j + 1], values[j + 2]]
 
 
-def point_in_triangle(point, triangle, tolerance=1e-2):
+def point_in_triangle(point, triangle, tolerance=1e-8):
     weights = calculate_bilinear_weights(point=point, triangle=triangle)
 
     # Check if weights are greater than or equal to -tolerance (i.e., close to zero)
