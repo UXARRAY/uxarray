@@ -9,7 +9,7 @@ visualization-examples:
 
   - title: Plotting E3SMv2 Output with UXarray
     path: examples/visualization/e3sm-load-viz.ipynb
-    thumbnail: _static/thumbnails/ts_e3sm_load.png
+    thumbnail: _static/thumbnails/qflx_e3sm.png
 
 workflow-examples:
   - title: Working with MPAS Grids
@@ -18,7 +18,7 @@ workflow-examples:
 
   - title:  Radiative Feedback Analysis on E3SMv2 Model Output
     path: examples/e3sm-calc-workflow.ipynb
-    thumbnail: _static/thumbnails/default.svg
+    thumbnail: _static/thumbnails/swcre_e3sm.png
 
 external-examples:
   - title: Unstructured Grid Visualization Cookbook
