@@ -1144,6 +1144,11 @@ class Grid:
         self._ds["node_face_connectivity"] = value
 
     @property
+    def edge_magnitudes(self):
+        """TODO."""
+        return self.edge_node_distances
+
+    @property
     def edge_node_distances(self):
         """Distances between the two nodes that surround each edge in degrees.
 
@@ -2001,7 +2006,7 @@ class Grid:
             raise ValueError(f"Invalid method: {method}.")
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, method="fast"):
+    def get_faces_at_constant_latitude(self, lat, return_edges=False, method="fast"):
         """Identifies the faces of the grid that intersect with a specified
         constant latitude.
 
@@ -2029,5 +2034,7 @@ class Grid:
         """
         edges = self.get_edges_at_constant_latitude(lat, method)
         faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
-
-        return faces[faces != INT_FILL_VALUE]
+        if return_edges:
+            return faces[faces != INT_FILL_VALUE], edges
+        else:
+            return faces[faces != INT_FILL_VALUE]
