@@ -7,8 +7,6 @@ from uxarray.conventions import ugrid
 
 from numba import njit
 
-from uxarray.constants import ENABLE_JIT_CACHE
-
 
 def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
     """Closes (``face_node_connectivity``) by inserting the first node index
@@ -144,7 +142,7 @@ def _populate_n_nodes_per_face(grid):
     )
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@njit(cache=True)
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
@@ -253,7 +251,7 @@ def _populate_edge_face_connectivity(grid):
     )
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@njit(cache=True)
 def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
     """Helper for (``edge_face_connectivity``) construction."""
     edge_faces = np.ones(shape=(n_edge, 2), dtype=face_edges.dtype) * INT_FILL_VALUE

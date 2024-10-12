@@ -2,7 +2,6 @@ import numpy as np
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 from numba import njit
-from uxarray.constants import ENABLE_JIT_CACHE
 
 
 def construct_dual(grid):
@@ -53,7 +52,7 @@ def construct_dual(grid):
     return new_node_face_connectivity
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@njit(cache=True)
 def construct_faces(
     n_node,
     n_edges,
@@ -146,7 +145,7 @@ def construct_faces(
     return construct_node_face_connectivity
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@njit(cache=True)
 def _order_nodes(
     temp_face,
     node_0,

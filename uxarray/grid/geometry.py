@@ -16,7 +16,6 @@ from uxarray.constants import (
     ERROR_TOLERANCE,
     INT_DTYPE,
     INT_FILL_VALUE,
-    ENABLE_JIT_CACHE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 from uxarray.grid.intersections import gca_gca_intersection
@@ -85,7 +84,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
     return unique_points
 
 
-@njit(cache=ENABLE_JIT_CACHE)
+@njit(cache=True)
 def _pad_closed_face_nodes(
     face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
