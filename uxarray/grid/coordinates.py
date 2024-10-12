@@ -26,7 +26,7 @@ def _lonlat_rad_to_xyz(
     return x, y, z
 
 
-@njit
+@njit(cache=True)
 def _xyz_to_lonlat_rad_no_norm(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
@@ -67,7 +67,7 @@ def _xyz_to_lonlat_rad_no_norm(
     return lon, lat
 
 
-@njit
+@njit(cache=True)
 def _xyz_to_lonlat_rad_scalar(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
@@ -217,7 +217,7 @@ def _normalize_xyz(
     return x_norm, y_norm, z_norm
 
 
-@njit
+@njit(cache=True)
 def _normalize_xyz_scalar(x: float, y: float, z: float):
     denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
     x_norm = x / denom
@@ -430,7 +430,7 @@ def _smallest_enclosing_circle(points):
     return _welzl_recursive(points, np.empty((0, 2)), None)
 
 
-@njit
+@njit(cache=True)
 def _circle_from_two_points(p1, p2):
     """Calculate the smallest circle that encloses two points on a unit sphere.
 
@@ -459,7 +459,7 @@ def _circle_from_two_points(p1, p2):
     return center, radius
 
 
-@njit
+@njit(cache=True)
 def _circle_from_three_points(p1, p2, p3):
     """Calculate the smallest circle that encloses three points on a unit
     sphere. This is a placeholder implementation.
@@ -499,7 +499,7 @@ def _circle_from_three_points(p1, p2, p3):
     return center, radius
 
 
-@njit
+@njit(cache=True)
 def _is_inside_circle(circle, point):
     """Check if a point is inside a given circle on a unit sphere.
 
@@ -763,7 +763,7 @@ def _xyz_to_lonlat_rad(
     return lon, lat
 
 
-@njit
+@njit(cache=True)
 def _xyz_to_lonlat_rad_no_norm(
     x: Union[np.ndarray, float],
     y: Union[np.ndarray, float],
@@ -870,7 +870,7 @@ def _xyz_to_lonlat_deg(
     return lon, lat
 
 
-@njit
+@njit(cache=True)
 def _normalize_xyz_scalar(x: float, y: float, z: float):
     denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
     x_norm = x / denom

@@ -4,7 +4,7 @@ import sys
 from numba import njit
 
 
-@njit
+@njit(cache=True)
 def all(a):
     """Numba decorated implementation of ``np.all()``
 
@@ -16,7 +16,7 @@ def all(a):
     return np.all(a)
 
 
-@njit
+@njit(cache=True)
 def isclose(a, b, rtol=1e-05, atol=1e-08):
     """Numba decorated implementation of ``np.isclose()``
 
@@ -28,7 +28,7 @@ def isclose(a, b, rtol=1e-05, atol=1e-08):
     return np.isclose(a, b, rtol=rtol, atol=atol)
 
 
-@njit
+@njit(cache=True)
 def allclose(a, b, rtol=1e-05, atol=1e-08):
     """Numba decorated implementation of ``np.allclose()``
 
@@ -39,7 +39,7 @@ def allclose(a, b, rtol=1e-05, atol=1e-08):
     return np.allclose(a, b, rtol=rtol, atol=atol)
 
 
-@njit
+@njit(cache=True)
 def cross(a, b):
     """Numba decorated implementation of ``np.cross()``
 
@@ -50,7 +50,7 @@ def cross(a, b):
     return np.cross(a, b)
 
 
-@njit
+@njit(cache=True)
 def dot(a, b):
     """Numba decorated implementation of ``np.dot()``
 
@@ -61,7 +61,7 @@ def dot(a, b):
     return np.dot(a, b)
 
 
-@njit
+@njit(cache=True)
 def norm(x):
     """Numba decorated implementation of ``np.linalg.norm()``
 

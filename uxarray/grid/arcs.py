@@ -27,7 +27,7 @@ def _to_list(obj):
     return obj
 
 
-@njit
+@njit(cache=True)
 def _point_within_gca_body(
     angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
 ):
@@ -244,7 +244,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     return out
 
 
-@njit
+@njit(cache=True)
 def in_between(p, q, r) -> bool:
     """Determines whether the number q is between p and r.
 
@@ -266,7 +266,7 @@ def in_between(p, q, r) -> bool:
     return p <= q <= r or r <= q <= p
 
 
-@njit
+@njit(cache=True)
 def _decide_pole_latitude(lat1, lat2):
     """Determine the pole latitude based on the latitudes of two points on a
     Great Circle Arc (GCA).
