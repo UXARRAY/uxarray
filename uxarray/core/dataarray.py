@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import xarray as xr
 import numpy as np
 
@@ -431,12 +432,7 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def zonal_mean(self, lat=(-90, 90, 5), conservative=True, method="fast"):
-        """Compute the zonal mean for face-centered or edge-centered data
-        variables.
-
-        This function calculates the zonal mean of a data variable over a specified range of latitudes or for a single latitude value.
-        The zonal mean can be computed using different methods, which can be specified through the `method` parameter.
-        This function supports both face-centered and edge-centered data.
+        """Compute the average along one or more lines of constant latitude.
 
         Parameters
         ----------
@@ -446,8 +442,8 @@ class UxDataArray(xr.DataArray):
             each latitude in the inclusive range [start, end] at intervals of `step`. If a single float is provided,
             the zonal mean is computed for that specific latitude.
         conservative : bool, default=True
-            If True, the computation will use a conservative zonal averaging method, ensuring accurate averaging for
-            If False, the computation will apply an equal weight to each element
+            If True, TODO
+            If False, TODO
         method : {"fast", "accurate"}, default="fast"
             Method to use for the zonal mean computation:
             - "fast": Provides a quicker computation at the cost of some accuracy.
@@ -461,7 +457,7 @@ class UxDataArray(xr.DataArray):
 
         Raises
         ------
-        NotImplementedError
+        ValueError
             If the input data is not face-centered or edge-centered, or if the specified latitude range includes
             values close to the poles, such as (89, 90) or (-90, -89).
 
@@ -477,7 +473,7 @@ class UxDataArray(xr.DataArray):
         >>> uxds['var'].zonal_mean(lat=(-60, 60, 10))
         """
         if not self._face_centered() and not self._edge_centered():
-            raise NotImplementedError(
+            raise ValueError(
                 "Zonal mean computations are currently only supported for face-centered or edge-centered data variables."
             )
 
@@ -488,10 +484,15 @@ class UxDataArray(xr.DataArray):
         elif isinstance(lat, (float, int)):
             # zonal mean over a single latitude
             latitudes = [lat]
+        else:
+            raise ValueError("Invalid value for 'lat' provided. TODO: ")
 
-        # Compute Zonal Mean
         res = _compute_zonal_mean(
-            uxda=self, data_mapping=self.dims[-1], latitudes=latitudes, method=method
+            uxda=self,
+            data_mapping=self.dims[-1],
+            latitudes=latitudes,
+            method=method,
+            conservative=conservative,
         )
 
         dims = list(self.dims[:-1]) + ["latitudes"]
@@ -501,7 +502,9 @@ class UxDataArray(xr.DataArray):
             res,
             uxgrid=self.uxgrid,
             dims=dims,
-            coords={"latitudes": latitudes},
+            coords={
+                "latitudes": latitudes
+            },  # TODO: need to preserve non-spatial coordinates
             name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
         )
 

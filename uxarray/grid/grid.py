@@ -70,6 +70,8 @@ from uxarray.grid.intersections import (
     fast_constant_lat_intersections,
 )
 
+from uxarray.grid.weights import _face_weights_from_edge_magnitudes
+
 from spatialpandas import GeoDataFrame
 
 from uxarray.plot.accessor import GridPlotAccessor
@@ -1972,6 +1974,47 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
+    def get_weights(
+        self,
+        weights="face_areas",
+        apply_to="faces",
+        face_indices=None,
+        edge_indices=None,
+    ):
+        """TODO:"""
+
+        # 1. Faces Areas
+        if weights == "face_areas":
+            if apply_to != "faces":
+                raise ValueError("TODO: ")
+            if face_indices is None:
+                return self.face_areas
+            else:
+                return self.face_areas[face_indices]
+
+        # 2. Edge Magnitudes
+        elif weights == "edge_magnitudes":
+            if apply_to == "edges":
+                if edge_indices is None:
+                    return self.edge_magnitudes
+                else:
+                    return self.edge_magnitudes[edge_indices]
+            elif apply_to == "faces":
+                if face_indices is None:
+                    # apply to all faces
+                    pass
+                else:
+                    return _face_weights_from_edge_magnitudes(
+                        self.edge_magnitudes.values,
+                        self.edge_face_connectivity.values,
+                        face_indices=face_indices,
+                        edge_indices=edge_indices,
+                    )
+            else:
+                raise ValueError("TODO: ")
+        else:
+            raise ValueError("TODO: ")
+
     def get_edges_at_constant_latitude(self, lat, method="fast"):
         """Identifies the edges of the grid that intersect with a specified
         constant latitude.
@@ -2006,7 +2049,12 @@ class Grid:
             raise ValueError(f"Invalid method: {method}.")
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, return_edges=False, method="fast"):
+    def get_faces_at_constant_latitude(
+        self,
+        lat,
+        method="fast",
+        return_edge_indices=False,
+    ):
         """Identifies the faces of the grid that intersect with a specified
         constant latitude.
 
@@ -2034,7 +2082,7 @@ class Grid:
         """
         edges = self.get_edges_at_constant_latitude(lat, method)
         faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
-        if return_edges:
+        if return_edge_indices:
             return faces[faces != INT_FILL_VALUE], edges
         else:
             return faces[faces != INT_FILL_VALUE]
