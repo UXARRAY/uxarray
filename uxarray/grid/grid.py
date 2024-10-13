@@ -1245,6 +1245,18 @@ class Grid:
             )
         return self._ds["hole_edge_indices"]
 
+    @property
+    def north_pole_face_indices(self):
+        """Indices of faces that contain the North Pole point (90 degrees
+        latitude)."""
+        pass
+
+    @property
+    def south_pole_face_indices(self):
+        """Indices of faces that contain the South Pole point (-90 degrees
+        latitude)."""
+        pass
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
