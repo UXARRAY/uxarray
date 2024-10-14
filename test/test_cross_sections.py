@@ -33,43 +33,47 @@ class TestQuadHex:
     """
 
     def test_constant_lat_cross_section_grid(self):
-        uxgrid = ux.open_grid(quad_hex_grid_path)
 
-        grid_top_two = uxgrid.cross_section.constant_latitude(lat=0.1)
+        for method in ["bounding_box_intersection", "edge_intersection"]:
 
-        assert grid_top_two.n_face == 2
+            uxgrid = ux.open_grid(quad_hex_grid_path)
 
-        grid_bottom_two = uxgrid.cross_section.constant_latitude(lat=-0.1)
+            grid_top_two = uxgrid.cross_section.constant_latitude(lat=0.1, method=method)
 
-        assert grid_bottom_two.n_face == 2
+            assert grid_top_two.n_face == 2
 
-        grid_all_four = uxgrid.cross_section.constant_latitude(lat=0.0)
+            grid_bottom_two = uxgrid.cross_section.constant_latitude(lat=-0.1, method=method)
 
-        assert grid_all_four.n_face == 4
+            assert grid_bottom_two.n_face == 2
 
-        with pytest.raises(ValueError):
-            # no intersections found at this line
-            uxgrid.cross_section.constant_latitude(lat=10.0)
+            grid_all_four = uxgrid.cross_section.constant_latitude(lat=0.0, method=method)
+
+            assert grid_all_four.n_face == 4
+
+            with pytest.raises(ValueError):
+                # no intersections found at this line
+                uxgrid.cross_section.constant_latitude(lat=10.0, method=method)
 
 
     def test_constant_lat_cross_section_uxds(self):
-        uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+        for method in ["bounding_box_intersection", "edge_intersection"]:
+            uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
 
-        da_top_two = uxds['t2m'].cross_section.constant_latitude(lat=0.1)
+            da_top_two = uxds['t2m'].cross_section.constant_latitude(lat=0.1, method=method)
 
-        nt.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
+            nt.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
 
-        da_bottom_two = uxds['t2m'].cross_section.constant_latitude(lat=-0.1)
+            da_bottom_two = uxds['t2m'].cross_section.constant_latitude(lat=-0.1, method=method)
 
-        nt.assert_array_equal(da_bottom_two.data, uxds['t2m'].isel(n_face=[0, 3]).data)
+            nt.assert_array_equal(da_bottom_two.data, uxds['t2m'].isel(n_face=[0, 3]).data)
 
-        da_all_four = uxds['t2m'].cross_section.constant_latitude(lat=0.0)
+            da_all_four = uxds['t2m'].cross_section.constant_latitude(lat=0.0, method=method)
 
-        nt.assert_array_equal(da_all_four.data , uxds['t2m'].data)
+            nt.assert_array_equal(da_all_four.data , uxds['t2m'].data)
 
-        with pytest.raises(ValueError):
-            # no intersections found at this line
-            uxds['t2m'].cross_section.constant_latitude(lat=10.0)
+            with pytest.raises(ValueError):
+                # no intersections found at this line
+                uxds['t2m'].cross_section.constant_latitude(lat=10.0, method=method)
 
 
 class TestGeosCubeSphere:
