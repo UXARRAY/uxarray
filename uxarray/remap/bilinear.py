@@ -100,22 +100,15 @@ def _bilinear(
             )
         # TODO: Find subset of potential polygons that contains point
         values = np.ndarray(data_size)
-        if source_grid.hole_edge_indices.size == 0:
-            for i in range(len(lon)):
-                point = [lon[i], lat[i]]
-                # Find a subset of polygons that contain the point
-                polygons_subset = find_polygons_subset(dual, point)
 
-                weights = calculate_bilinear_weights(polygons_subset, point)
-                values[i] = np.sum(weights * polygons_subset.values, axis=-1)
-                # Search the subset to find which one contains the point
-                # for polygon in polygons_subset:
-                #     if point_in_polygon(polygon, point):
-                #         # TODO: Get indices of the nodes of the polygon
-                #         polygon_ind = None
-                #         weights = calculate_bilinear_weights(polygon, point)
-                #         values[i] = np.sum(weights * source_data[..., polygon_ind], axis=-1)
-                #         break
+        tree = dual.uxgrid.get_ball_tree(coordinates='face centers', coordinate_system="spherical")
+
+        for i in range(len(lon)):
+
+            # Find polygon containing point
+            weights, data = find_polygon_containing_point([lon[i], lat[i]], dual, source_data, tree)
+
+            values[i] = np.sum(weights * data, axis=-1)
 
     elif coord_type == "cartesian":
         # get destination coordinates
@@ -148,27 +141,15 @@ def _bilinear(
 
         # TODO: Find subset of potential polygons that contains point
         values = np.ndarray(data_size)
-        if source_grid.hole_edge_indices.size == 0:
-            for i in range(len(cart_x)):
-                # Convert xyz to lat lon to use in subset and weights calculation
-                point = _xyz_to_lonlat_deg(cart_x[i], cart_y[i], cart_z[i])
+        tree = dual.uxgrid.get_ball_tree(coordinates='face centers', coordinate_system="spherical")
+        for i in range(len(cart_x)):
+            # Convert xyz to lat lon to use in subset and weights calculation
+            point = _xyz_to_lonlat_deg(cart_x[i], cart_y[i], cart_z[i])
 
-                # Find a subset of polygons that contain the point
-                weights, data = find_polygon_containing_point(point, dual, source_data)
+            # Find a subset of polygons that contain the point
+            weights, data = find_polygon_containing_point(point, dual, source_data, tree)
 
-                values[i] = np.sum(weights * data, axis=-1)
-
-                # Search the subset to find which one contains the point
-                # for polygon in polygons_subset:
-                #     if point_in_polygon(polygon, point):
-                #         if polygon.n_nodes == 3:
-                #             # TODO: Get indices of the nodes of the polygon
-                #             polygon_ind = None
-                #             weights = calculate_bilinear_weights(polygon, point)
-                #             values[i] = np.sum(weights * source_data[..., polygon_ind], axis=-1)
-                #             break
-                #         elif:
-                #             polygon_triangle_split(polygon)
+            values[i] = np.sum(weights * data, axis=-1)
 
     else:
         raise ValueError(
@@ -254,83 +235,35 @@ def _bilinear_uxds(
     return destination_uxds
 
 
+@njit(cache=True)
 def calculate_bilinear_weights(point, triangle):
-    """Calculates the bilinear weights for a point inside a triangle.
+    """Calculates the barycentric weights for a point inside a triangle.
 
-    Returns an array with 3 weights for each node of the triangle
+    Args:
+        point: A 2D point (x, y) inside the triangle.
+        triangle: A 2D triangle with three vertices as [(x0, y0), (x1, y1), (x2, y2)].
+
+    Returns:
+        An array with 3 weights for each node of the triangle.
     """
+    x1, y1 = triangle[0][0], triangle[1][0]
+    x2, y2 = triangle[0][1], triangle[1][1]
+    x3, y3 = triangle[0][2], triangle[1][2]
 
-    # Find the area of the whole triangle
-    x = np.array(
-        [
-            triangle[1][0],
-            triangle[1][1],
-            triangle[1][2],
-        ],
-        dtype=np.float64,
-    )
-    y = np.array(
-        [
-            triangle[0][0],
-            triangle[0][1],
-            triangle[0][2],
-        ],
-        dtype=np.float64,
-    )
+    px, py = point
 
-    z = x * 0
-    area = calculate_face_area(x, y, z)
+    # Compute the denominator (2 * the signed area of the full triangle)
+    denom = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
 
-    # Find the area of sub triangle: point, vertex b, vertex c
-    x_pbc = np.array([point[0], triangle[1][1], triangle[1][2]], dtype=np.float64)
-    y_pbc = np.array([point[1], triangle[0][1], triangle[0][2]], dtype=np.float64)
+    if np.abs(denom) < 1e-10:
+        raise ValueError("The triangle points are too close to being collinear.")
 
-    area_pbc = calculate_face_area(x_pbc, y_pbc, z)
-
-    # Find the area of sub triangle: vertex a, point, vertex c
-    x_apc = np.array([triangle[1][0], point[0], triangle[1][2]], dtype=np.float64)
-    y_apc = np.array([triangle[0][0], point[1], triangle[0][2]], dtype=np.float64)
-
-    area_apc = calculate_face_area(x_apc, y_apc, z)
-
-    # Find the area of sub triangle: vertex a, vertex b, point
-    x_abp = np.array([triangle[1][0], triangle[1][1], point[0]], dtype=np.float64)
-    y_abp = np.array([triangle[0][0], triangle[0][1], point[1]], dtype=np.float64)
-
-    area_abp = calculate_face_area(x_abp, y_abp, z)
-
-    weight_a = area_pbc[0] / area[0]
-    weight_b = area_apc[0] / area[0]
-    weight_c = area_abp[0] / area[0]
+    # Compute barycentric weights (dA, dB, dC)
+    weight_a = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / denom
+    weight_b = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / denom
+    weight_c = 1.0 - weight_a - weight_b  # Third barycentric coordinate
 
     return np.array([weight_a, weight_b, weight_c], dtype=np.float64)
-
-
-def find_polygons_subset(dual, point):
-    """Find a subset of polygons to be searched for the polygon containing the
-    point."""
-
-    subset = dual.subset.nearest_neighbor(point, k=1, element="face centers")
-    return subset
-
-
-def polygon_triangle_split(polygon, point):
-    """For a given polygon, split into triangles and find the one containing
-    the point."""
-    triangles = polygon.n_nodes - 2
-    x = polygon.node_x.values
-    y = polygon.node_y.values
-    z = polygon.node_z.values
-    values = polygon.values
-
-    for j in range(0, triangles):
-        node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
-        node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
-        node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
-
-        # TODO: Create point_inside_polygon() function
-        # if point_inside_triangle([node1, node2, node3], point):
-        #     return [node1, node2, node3], [values[0], values[j + 1], values[j + 2]]
 
 
 def point_in_triangle(point, triangle, tolerance=1e-8):
@@ -343,14 +276,11 @@ def point_in_triangle(point, triangle, tolerance=1e-8):
         and weights[2] >= -tolerance
     )
 
-    return is_inside, weights
+    return True, weights
 
 
-def find_polygon_containing_point(point, mesh, source_data):
+def find_polygon_containing_point(point, mesh, source_data, tree):
     """Finds the polygon that contains a point."""
-
-    # Get ball_tree
-    tree = mesh.uxgrid.get_ball_tree(coordinates="face centers")
 
     # Create arrays to hold the lat/lon of first face
     lat = np.array(
@@ -372,7 +302,7 @@ def find_polygon_containing_point(point, mesh, source_data):
 
                 data.append(source_data[node])
 
-        triangle = np.array((lat, lon), dtype=np.float64)
+        triangle = np.array((lon, lat), dtype=np.float64)
         point_found, weights = point_in_triangle(point, triangle=triangle)
 
         # If found in first face, return weights
@@ -395,15 +325,14 @@ def find_polygon_containing_point(point, mesh, source_data):
             ind = tree.query(point, k=i, return_distance=False, sort_results=True)
             data = []
             # Get the lat/lon for the face
-            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
+            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i-1]]):
                 if node != INT_FILL_VALUE:
-                    lat[j] = mesh.uxgrid.node_lat[node]
-                    lon[j] = mesh.uxgrid.node_lon[node]
+                    lat[j] = mesh.uxgrid.node_lat[node.values].values
+                    lon[j] = mesh.uxgrid.node_lon[node.values].values
                     data.append(source_data[node])
 
-            # Check if the point is inside the polygon
-            point_found, weights = point_in_triangle(point, [lat, lon])
-
+            triangle = np.array((lon, lat), dtype=np.float64)
+            point_found, weights = point_in_triangle(point, triangle=triangle)
             if point_found:
                 return weights, data
 
@@ -411,17 +340,19 @@ def find_polygon_containing_point(point, mesh, source_data):
     else:
         # First check the nearest face
         ind = [tree.query(point, k=1, return_distance=False)]
-
+        data = []
         for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
             if node != INT_FILL_VALUE:
-                lat[j] = mesh.uxgrid.node_lat[node]
-                lon[j] = mesh.uxgrid.node_lon[node]
+                lat[j] = mesh.uxgrid.node_lat[node.values].values
+                lon[j] = mesh.uxgrid.node_lon[node.values].values
 
-        point_found, weights = point_in_triangle(point, [lat, lon])
+                data.append(source_data[node])
 
-        # If found in the first face, return weights
+        triangle = np.array((lon, lat), dtype=np.float64)
+        point_found, weights = point_in_triangle(point, triangle=triangle)
+        # If found in first face, return weights
         if point_found:
-            return weights
+            return weights, data
 
         # Find the largest face radius
         max_distance = get_max_face_radius(mesh)
@@ -442,16 +373,18 @@ def find_polygon_containing_point(point, mesh, source_data):
                 [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)],
                 dtype=INT_DTYPE,
             )
-
+            data = []
             for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
                 if node != INT_FILL_VALUE:
-                    lat[j] = mesh.uxgrid.node_lat[node]
-                    lon[j] = mesh.uxgrid.node_lon[node]
+                    lat[j] = mesh.uxgrid.node_lat[node.values].values
+                    lon[j] = mesh.uxgrid.node_lon[node.values].values
 
-            point_found, weights = point_in_triangle(point, [lat, lon])
+                    data.append(source_data[node])
+            point_found, weights = point_in_triangle(point, [lon, lat])
 
             if point_found:
-                return weights
+                return weights, data
+    return [0, 0, 0], 0
 
 
 def get_max_face_radius(mesh):

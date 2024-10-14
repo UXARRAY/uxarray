@@ -325,8 +325,10 @@ class TestBilinearRemapping(TestCase):
     def test_uxda_remap(self):
         source = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc"
         destination = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/oQU480.231010.nc"
-        source_uxds = ux.open_dataset(source, source)
+        source_uxds = ux.open_dataset(destination, destination)
         destination = ux.open_dataset(destination, destination)
 
         bilinear_remap = source_uxds['latVertex'].remap.bilinear(destination.uxgrid, remap_to='face centers',
                                                                coord_type='cartesian')
+        print(bilinear_remap)
+
