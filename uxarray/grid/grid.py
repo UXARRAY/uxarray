@@ -67,8 +67,8 @@ from uxarray.grid.neighbors import (
 )
 
 from uxarray.grid.intersections import (
-    constant_lat_intersection_edges,
-    constant_lat_intersection_face_bounds,
+    constant_lat_intersections_edges,
+    constant_lat_intersections_face_bounds,
 )
 
 from spatialpandas import GeoDataFrame
@@ -1992,7 +1992,7 @@ class Grid:
             )
 
         if method == "edge_intersection":
-            edges = constant_lat_intersection_edges(
+            edges = constant_lat_intersections_edges(
                 lat, self.edge_node_z.values, self.n_edge
             )
         else:
@@ -2029,7 +2029,7 @@ class Grid:
             )
 
         if method == "bounding_box_intersection":
-            faces = constant_lat_intersection_face_bounds(
+            faces = constant_lat_intersections_face_bounds(
                 lat=lat,
                 face_min_lat_rad=self.bounds.values[:, 0, 0],
                 face_max_lat_rad=self.bounds.values[:, 0, 1],

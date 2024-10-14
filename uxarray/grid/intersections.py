@@ -50,7 +50,7 @@ def constant_lat_intersections_edges(lat, edge_node_z, n_edge):
 
 
 @njit
-def constant_lat_intersection_face_bounds(lat, face_min_lat_rad, face_max_lat_rad):
+def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_rad):
     """Identifies the candidate faces on a grid that intersect with a given
     constant latitude.
 
