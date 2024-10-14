@@ -57,6 +57,8 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
     _construct_hole_edge_indices,
+    _populate_north_pole_face_indices,
+    _populate_south_pole_face_indices,
 )
 
 from uxarray.grid.neighbors import (
@@ -68,6 +70,7 @@ from uxarray.grid.neighbors import (
 
 from uxarray.grid.intersections import (
     fast_constant_lat_intersections,
+    fast_constant_lon_intersections,
 )
 
 from uxarray.grid.weights import _face_weights_from_edge_magnitudes
@@ -87,6 +90,8 @@ from uxarray.grid.validation import (
     _check_area,
     _check_normalization,
 )
+
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 
 from uxarray.conventions import ugrid
@@ -1011,6 +1016,40 @@ class Grid:
         self._ds["edge_node_connectivity"] = value
 
     @property
+    def edge_node_x(self) -> xr.DataArray:
+        """Cartesian x location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_x" not in self._ds:
+            _edge_node_x = self.node_x.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_x"] = xr.DataArray(
+                data=_edge_node_x,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_x"]
+
+    @property
+    def edge_node_y(self) -> xr.DataArray:
+        """Cartesian y location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_y" not in self._ds:
+            _edge_node_y = self.node_y.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_y"] = xr.DataArray(
+                data=_edge_node_y,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_y"]
+
+    @property
     def edge_node_z(self) -> xr.DataArray:
         """Cartesian z location for the two nodes that make up every edge.
 
@@ -1058,6 +1097,25 @@ class Grid:
         """Setter for ``face_edge_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["face_edge_connectivity"] = value
+
+    @property
+    def _face_edge_nodes_xyz(self):
+        """TODO:"""
+
+        if "_face_edge_nodes_xyz" not in self._ds:
+            res = _get_cartesian_face_edge_nodes(
+                self.face_node_connectivity.values,
+                self.n_face,
+                self.n_max_face_edges,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
+            self._ds["_face_edge_nodes_xyz"] = xr.DataArray(
+                data=res, dims=["n_face", "n_max_face_edges", "two", "three"]
+            )
+
+        return self._ds["_face_edge_nodes_xyz"]
 
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
@@ -1247,15 +1305,18 @@ class Grid:
 
     @property
     def north_pole_face_indices(self):
-        """Indices of faces that contain the North Pole point (90 degrees
-        latitude)."""
-        pass
+        """Indices of faces that contain the North Pole point."""
+        if "north_pole_face_indices" not in self._ds:
+            _populate_north_pole_face_indices(self)
+        return self._ds["north_pole_face_indices"]
 
     @property
     def south_pole_face_indices(self):
         """Indices of faces that contain the South Pole point (-90 degrees
         latitude)."""
-        pass
+        if "south_pole_face_indices" not in self._ds:
+            _populate_south_pole_face_indices(self)
+        return self._ds["south_pole_face_indices"]
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
@@ -2098,3 +2159,14 @@ class Grid:
             return faces[faces != INT_FILL_VALUE], edges
         else:
             return faces[faces != INT_FILL_VALUE]
+
+    def edges_at_constant_longitude(self, lon, method="fast"):
+        if method == "fast":
+            edges = fast_constant_lon_intersections(
+                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+            )
+        elif method == "accurate":
+            raise NotImplementedError("Accurate method not yet implemented.")
+        else:
+            raise ValueError(f"Invalid method: {method}.")
+        return edges.squeeze()
