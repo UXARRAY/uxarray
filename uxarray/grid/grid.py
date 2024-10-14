@@ -27,6 +27,7 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._fesom2 import _read_fesom2_asci
 
 from uxarray.formatting_html import grid_repr
 
@@ -237,10 +238,8 @@ class Grid:
         # support both ascii and netcdf variants
 
         # FESOM2 grid represented in the UGRID conventions
-        grid_ds = None
+        grid_ds, source_dims_dict = _read_fesom2_asci(grid_path)
 
-        # maps FESOM2 dimensions to UGRID
-        source_dims_dict = {}
         source_grid_spec = "FESOM2"
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
