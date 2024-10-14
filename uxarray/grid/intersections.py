@@ -36,9 +36,6 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     # Calculate the constant z-value for the given latitude
     z_constant = np.sin(lat)
 
-    # Tolerance for detecting edges that lie exactly on the latitude
-    tolerance = 1e-10
-
     # Iterate through each edge and check for intersections
     for i in prange(n_edge):
         # Get the z-coordinates of the edge's nodes
@@ -47,7 +44,8 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
 
         # Check if the edge crosses the constant latitude or lies exactly on it
         if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
-            abs(z0 - z_constant) < tolerance and abs(z1 - z_constant) < tolerance
+            abs(z0 - z_constant) < ERROR_TOLERANCE
+            and abs(z1 - z_constant) < ERROR_TOLERANCE
         ):
             intersecting_edges_mask[i] = 1
 
@@ -86,9 +84,6 @@ def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
     cos_lon = np.cos(lon)
     sin_lon = np.sin(lon)
 
-    # tolerance for detecting edges that lie exactly on the longitude
-    tolerance = 1e-10
-
     for i in prange(n_edge):
         # get the x and y coordinates of the edge's nodes
         x0, x1 = edge_node_x[i, 0], edge_node_x[i, 1]
@@ -103,7 +98,9 @@ def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
             continue
 
         # check if the edge crosses the constant longitude or lies exactly on it
-        if dot0 * dot1 < 0.0 or (abs(dot0) < tolerance and abs(dot1) < tolerance):
+        if dot0 * dot1 < 0.0 or (
+            abs(dot0) < ERROR_TOLERANCE and abs(dot1) < ERROR_TOLERANCE
+        ):
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
