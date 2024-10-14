@@ -1018,14 +1018,14 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat_deg=(-90, 90, 5)):
+    def zonal_mean(self, lat: int | tuple[int, int, int] = (-90, 90, 10)):
         """Computes the Zonal Mean for face-centered data. The zonal average
         can be computed over a range of latitudes with a specified step size,
         or for a single latitude.
 
         Parameters
         ----------
-        lat_deg : tuple or float, default=(-90, 90, 5)
+        lat_deg : tuple or integer, default=(-90, 90, 5)
             Latitude values in degrees for which to compute the zonal average.
             If a tuple, it should contain the start, end, and step size of the latitude range
             to compute the zonal average. The range of latitudes is [start_lat_deg, end_lat_deg] inclusive.
