@@ -331,4 +331,3 @@ class TestBilinearRemapping(TestCase):
         bilinear_remap = source_uxds['latVertex'].remap.bilinear(destination.uxgrid, remap_to='face centers',
                                                                coord_type='cartesian')
         print(bilinear_remap)
-

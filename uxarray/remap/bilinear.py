@@ -12,7 +12,6 @@ from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
-from uxarray.grid.area import calculate_face_area
 from uxarray.grid.coordinates import _xyz_to_lonlat_deg
 
 
@@ -101,12 +100,15 @@ def _bilinear(
         # TODO: Find subset of potential polygons that contains point
         values = np.ndarray(data_size)
 
-        tree = dual.uxgrid.get_ball_tree(coordinates='face centers', coordinate_system="spherical")
+        tree = dual.uxgrid.get_ball_tree(
+            coordinates="face centers", coordinate_system="spherical"
+        )
 
         for i in range(len(lon)):
-
             # Find polygon containing point
-            weights, data = find_polygon_containing_point([lon[i], lat[i]], dual, source_data, tree)
+            weights, data = find_polygon_containing_point(
+                [lon[i], lat[i]], dual, source_data, tree
+            )
 
             values[i] = np.sum(weights * data, axis=-1)
 
@@ -141,13 +143,17 @@ def _bilinear(
 
         # TODO: Find subset of potential polygons that contains point
         values = np.ndarray(data_size)
-        tree = dual.uxgrid.get_ball_tree(coordinates='face centers', coordinate_system="spherical")
+        tree = dual.uxgrid.get_ball_tree(
+            coordinates="face centers", coordinate_system="spherical"
+        )
         for i in range(len(cart_x)):
             # Convert xyz to lat lon to use in subset and weights calculation
             point = _xyz_to_lonlat_deg(cart_x[i], cart_y[i], cart_z[i])
 
             # Find a subset of polygons that contain the point
-            weights, data = find_polygon_containing_point(point, dual, source_data, tree)
+            weights, data = find_polygon_containing_point(
+                point, dual, source_data, tree
+            )
 
             values[i] = np.sum(weights * data, axis=-1)
 
@@ -325,7 +331,7 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
             ind = tree.query(point, k=i, return_distance=False, sort_results=True)
             data = []
             # Get the lat/lon for the face
-            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i-1]]):
+            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i - 1]]):
                 if node != INT_FILL_VALUE:
                     lat[j] = mesh.uxgrid.node_lat[node.values].values
                     lon[j] = mesh.uxgrid.node_lon[node.values].values
