@@ -21,7 +21,7 @@ class UxDataArrayCrossSectionAccessor:
 
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, method="fast"):
+    def constant_latitude(self, lat: float, method="edge_intersection"):
         """Extracts a cross-section of the data array at a specified constant
         latitude.
 
@@ -32,9 +32,11 @@ class UxDataArrayCrossSectionAccessor:
         method : str, optional
             The internal method to use when identifying faces at the constant latitude.
             Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
+            - 'edge_intersection': The intersection of each edge with a line of constant latitude is calculated, with
+            faces that contain that edges included in the result.
+            - 'bounding_box_intersection': The minimum and maximum latitude of each face is used to determine if
+            the line of constant latitude intersects it.
+            Default is 'edge_intersection'.
 
         Raises
         ------
@@ -44,11 +46,6 @@ class UxDataArrayCrossSectionAccessor:
         Examples
         --------
         >>> uxda.constant_latitude_cross_section(lat=-15.5)
-
-        Notes
-        -----
-        The accuracy and performance of the function can be controlled using the `method` parameter.
-        For higher precision requreiments, consider using method='acurate'.
         """
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat, method)
 

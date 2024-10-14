@@ -67,7 +67,8 @@ from uxarray.grid.neighbors import (
 )
 
 from uxarray.grid.intersections import (
-    fast_constant_lat_intersections,
+    constant_lat_intersection_edges,
+    constant_lat_intersection_face_bounds,
 )
 
 from spatialpandas import GeoDataFrame
@@ -1967,58 +1968,52 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_edges_at_constant_latitude(self, lat, method="fast"):
+    def get_edges_at_constant_latitude(self, lat, method="edge_intersection"):
         """Identifies the edges of the grid that intersect with a specified
         constant latitude.
-
-        This method computes the intersection of grid edges with a given latitude and
-        returns a collection of edges that cross or are aligned with that latitude.
-        The method used for identifying these edges can be controlled by the `method`
-        parameter.
 
         Parameters
         ----------
         lat : float
             The latitude at which to identify intersecting edges, in degrees.
         method : str, optional
-            The computational method used to determine edge intersections. Options are:
-            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
-            - 'accurate': Uses a slower but more precise method.
-            Default is 'fast'.
+            Method used to determine edge intersections. Options are:
+            - 'edge_intersection': The intersection of each edge is explicit computed
 
         Returns
         -------
         edges : array
             A squeezed array of edges that intersect the specified constant latitude.
         """
-        if method == "fast":
-            edges = fast_constant_lat_intersections(
+
+        if lat > 90.0 or lat < -90.0:
+            raise ValueError(
+                f"Latitude must be between -90 and 90 degrees. Received {lat}"
+            )
+
+        if method == "edge_intersection":
+            edges = constant_lat_intersection_edges(
                 lat, self.edge_node_z.values, self.n_edge
             )
-        elif method == "accurate":
-            raise NotImplementedError("Accurate method not yet implemented.")
         else:
             raise ValueError(f"Invalid method: {method}.")
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, method="fast"):
+    def get_faces_at_constant_latitude(self, lat, method="edge_intersection"):
         """Identifies the faces of the grid that intersect with a specified
         constant latitude.
-
-        This method finds the faces (or cells) of the grid that intersect a given latitude
-        by first identifying the intersecting edges and then determining the faces connected
-        to these edges. The method used for identifying edges can be adjusted with the `method`
-        parameter.
 
         Parameters
         ----------
         lat : float
             The latitude at which to identify intersecting faces, in degrees.
         method : str, optional
-            The computational method used to determine intersecting edges. Options are:
-            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
-            - 'accurate': Uses a slower but more precise method.
-            Default is 'fast'.
+            The computational method used to determine intersecting faces. Options are:
+            - 'edge_intersection': The intersection of each edge with a line of constant latitude is calculated, with
+            faces that contain that edges included in the result.
+            - 'bounding_box_intersection': The minimum and maximum latitude of each face is used to determine if
+            the line of constant latitude intersects it.
+            Default is 'edge_intersection'
 
         Returns
         -------
@@ -2027,7 +2022,21 @@ class Grid:
             Faces that are invalid or missing (e.g., with a fill value) are excluded
             from the result.
         """
-        edges = self.get_edges_at_constant_latitude(lat, method)
-        faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
-        return faces[faces != INT_FILL_VALUE]
+        if lat > 90.0 or lat < -90.0:
+            raise ValueError(
+                f"Latitude must be between -90 and 90 degrees. Received {lat}"
+            )
+
+        if method == "bounding_box_intersection":
+            faces = constant_lat_intersection_face_bounds(
+                lat=lat,
+                face_min_lat_rad=self.bounds.values[:, 0, 0],
+                face_max_lat_rad=self.bounds.values[:, 0, 1],
+            )
+            return faces
+        elif method == "edge_intersection":
+            edges = self.get_edges_at_constant_latitude(lat, method)
+            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+
+            return faces[faces != INT_FILL_VALUE]
