@@ -54,8 +54,10 @@ class UxDataArrayCrossSectionAccessor:
 
         return self.uxda.isel(n_face=faces)
 
-    def constant_longitude(self, *args, **kwargs):
-        raise NotImplementedError
+    def constant_longitude(self, lon: float, method="fast"):
+        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(lon, method)
+
+        return self.uxda.isel(n_face=faces)
 
     def gca(self, *args, **kwargs):
         raise NotImplementedError

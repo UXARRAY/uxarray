@@ -68,6 +68,7 @@ from uxarray.grid.neighbors import (
 
 from uxarray.grid.intersections import (
     fast_constant_lat_intersections,
+    fast_constant_lon_intersections,
 )
 
 from spatialpandas import GeoDataFrame
@@ -1007,6 +1008,40 @@ class Grid:
         """Setter for ``edge_node_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["edge_node_connectivity"] = value
+
+    @property
+    def edge_node_x(self) -> xr.DataArray:
+        """Cartesian x location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_x" not in self._ds:
+            _edge_node_x = self.node_x.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_x"] = xr.DataArray(
+                data=_edge_node_x,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_x"]
+
+    @property
+    def edge_node_y(self) -> xr.DataArray:
+        """Cartesian y location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_y" not in self._ds:
+            _edge_node_y = self.node_y.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_y"] = xr.DataArray(
+                data=_edge_node_y,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_y"]
 
     @property
     def edge_node_z(self) -> xr.DataArray:
@@ -2028,6 +2063,71 @@ class Grid:
             from the result.
         """
         edges = self.get_edges_at_constant_latitude(lat, method)
+        faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+
+        return faces[faces != INT_FILL_VALUE]
+
+    def get_edges_at_constant_longitude(self, lon, method="fast"):
+        """Identifies the edges of the grid that intersect with a specified
+        constant longitude.
+
+        This method computes the intersection of grid edges with a given longitude and
+        returns a collection of edges that cross or are aligned with that longitude.
+        The method used for identifying these edges can be controlled by the `method`
+        parameter.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude at which to identify intersecting edges, in degrees.
+        method : str, optional
+            The computational method used to determine edge intersections. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
+
+        Returns
+        -------
+        edges : array
+            A squeezed array of edges that intersect the specified constant longitude.
+        """
+        if method == "fast":
+            edges = fast_constant_lon_intersections(
+                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+            )
+        elif method == "accurate":
+            raise NotImplementedError("Accurate method not yet implemented.")
+        else:
+            raise ValueError(f"Invalid method: {method}.")
+        return edges.squeeze()
+
+    def get_faces_at_constant_longitude(self, lon, method="fast"):
+        """Identifies the faces of the grid that intersect with a specified
+        constant longitude.
+
+        This method finds the faces (or cells) of the grid that intersect a given longitude
+        by first identifying the intersecting edges and then determining the faces connected
+        to these edges. The method used for identifying edges can be adjusted with the `method`
+        parameter.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude at which to identify intersecting faces, in degrees.
+        method : str, optional
+            The computational method used to determine intersecting edges. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
+
+        Returns
+        -------
+        faces : array
+            An array of unique face indices that intersect the specified longitude.
+            Faces that are invalid or missing (e.g., with a fill value) are excluded
+            from the result.
+        """
+        edges = self.get_edges_at_constant_longitude(lon, method)
         faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
         return faces[faces != INT_FILL_VALUE]

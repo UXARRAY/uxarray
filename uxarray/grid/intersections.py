@@ -49,6 +49,38 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     return np.unique(intersecting_edges)
 
 
+@njit(parallel=True, nogil=True, cache=True)
+def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
+    """Determine which edges intersect a constant line of longitude on a
+    sphere."""
+
+    lon = np.deg2rad(lon)
+
+    intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
+
+    # Calculate the cos and sin of the constant longitude
+    cos_lon = np.cos(lon)
+    sin_lon = np.sin(lon)
+
+    # Iterate through each edge and check for intersections
+    for i in prange(n_edge):
+        # Get the x and y coordinates of the edge's nodes
+        x0, x1 = edge_node_x[i, 0], edge_node_x[i, 1]
+        y0, y1 = edge_node_y[i, 0], edge_node_y[i, 1]
+
+        # Calculate the dot products to determine on which side of the constant longitude the points lie
+        dot0 = x0 * sin_lon - y0 * cos_lon
+        dot1 = x1 * sin_lon - y1 * cos_lon
+
+        # Check if the edge crosses the constant longitude
+        if dot0 * dot1 < 0.0:
+            intersecting_edges_mask[i] = 1
+
+    intersecting_edges = np.argwhere(intersecting_edges_mask)
+
+    return np.unique(intersecting_edges)
+
+
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.
