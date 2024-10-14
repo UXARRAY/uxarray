@@ -59,7 +59,7 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
 @njit(parallel=True, nogil=True, cache=True)
 def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
     """Determine which edges intersect a constant line of longitude on a
-    sphere, including edges that lie exactly along the longitude.
+    sphere, without wrapping to the opposite longitude.
 
     Parameters
     ----------
@@ -82,24 +82,27 @@ def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
 
     intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
 
-    # Calculate the cos and sin of the constant longitude
+    # calculate the cos and sin of the constant longitude
     cos_lon = np.cos(lon)
     sin_lon = np.sin(lon)
 
-    # Tolerance for detecting edges that lie exactly on the longitude
+    # tolerance for detecting edges that lie exactly on the longitude
     tolerance = 1e-10
 
-    # Iterate through each edge and check for intersections
     for i in prange(n_edge):
-        # Get the x and y coordinates of the edge's nodes
+        # get the x and y coordinates of the edge's nodes
         x0, x1 = edge_node_x[i, 0], edge_node_x[i, 1]
         y0, y1 = edge_node_y[i, 0], edge_node_y[i, 1]
 
-        # Calculate the dot products to determine on which side of the constant longitude the points lie
+        # calculate the dot products to determine on which side of the constant longitude the points lie
         dot0 = x0 * sin_lon - y0 * cos_lon
         dot1 = x1 * sin_lon - y1 * cos_lon
 
-        # Check if the edge crosses the constant longitude or lies exactly on it
+        # ensure that both points are not on the opposite longitude (180 degrees away)
+        if (x0 * cos_lon + y0 * sin_lon) < 0.0 or (x1 * cos_lon + y1 * sin_lon) < 0.0:
+            continue
+
+        # check if the edge crosses the constant longitude or lies exactly on it
         if dot0 * dot1 < 0.0 or (abs(dot0) < tolerance and abs(dot1) < tolerance):
             intersecting_edges_mask[i] = 1
 
