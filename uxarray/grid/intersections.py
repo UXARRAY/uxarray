@@ -12,7 +12,8 @@ from numba import njit, prange
 
 @njit(parallel=True, nogil=True, cache=True)
 def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
-    """Determine which edges intersect a constant line of latitude on a sphere.
+    """Determine which edges intersect a constant line of latitude on a sphere,
+    including edges that lie exactly along the latitude.
 
     Parameters
     ----------
@@ -35,13 +36,19 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     # Calculate the constant z-value for the given latitude
     z_constant = np.sin(lat)
 
+    # Tolerance for detecting edges that lie exactly on the latitude
+    tolerance = 1e-10
+
     # Iterate through each edge and check for intersections
     for i in prange(n_edge):
         # Get the z-coordinates of the edge's nodes
         z0 = edge_node_z[i, 0]
         z1 = edge_node_z[i, 1]
 
-        if (z0 - z_constant) * (z1 - z_constant) < 0.0:
+        # Check if the edge crosses the constant latitude or lies exactly on it
+        if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
+            abs(z0 - z_constant) < tolerance and abs(z1 - z_constant) < tolerance
+        ):
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
@@ -52,7 +59,7 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
 @njit(parallel=True, nogil=True, cache=True)
 def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
     """Determine which edges intersect a constant line of longitude on a
-    sphere."""
+    sphere, including edges that lie exactly along the longitude."""
 
     lon = np.deg2rad(lon)
 
@@ -61,6 +68,9 @@ def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
     # Calculate the cos and sin of the constant longitude
     cos_lon = np.cos(lon)
     sin_lon = np.sin(lon)
+
+    # Tolerance for detecting edges that lie exactly on the longitude
+    tolerance = 1e-10
 
     # Iterate through each edge and check for intersections
     for i in prange(n_edge):
@@ -72,8 +82,8 @@ def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
         dot0 = x0 * sin_lon - y0 * cos_lon
         dot1 = x1 * sin_lon - y1 * cos_lon
 
-        # Check if the edge crosses the constant longitude
-        if dot0 * dot1 < 0.0:
+        # Check if the edge crosses the constant longitude or lies exactly on it
+        if dot0 * dot1 < 0.0 or (abs(dot0) < tolerance and abs(dot1) < tolerance):
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
