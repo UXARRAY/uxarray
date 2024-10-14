@@ -20,14 +20,11 @@ class GridCrossSectionAccessor:
         methods_heading += "  * constant_latitude(lat, )\n"
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, return_face_indices=False, method="fast"):
+    def constant_latitude(
+        self, lat: float, return_face_indices=False, method="edge_intersection"
+    ):
         """Extracts a cross-section of the grid at a specified constant
         latitude.
-
-        This method identifies and returns all faces (or grid elements) that intersect
-        with a given latitude. The returned cross-section can include either just the grid
-        or both the grid elements and the corresponding face indices, depending
-        on the `return_face_indices` parameter.
 
         Parameters
         ----------
@@ -40,9 +37,11 @@ class GridCrossSectionAccessor:
         method : str, optional
             The internal method to use when identifying faces at the constant latitude.
             Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
+            - 'edge_intersection': The intersection of each edge with a line of constant latitude is calculated, with
+            faces that contain that edges included in the result.
+            - 'bounding_box_intersection': The minimum and maximum latitude of each face is used to determine if
+            the line of constant latitude intersects it.
+            Default is 'edge_intersection'.
 
         Returns
         -------
