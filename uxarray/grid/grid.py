@@ -229,6 +229,22 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
+    def from_fesom2(cls, grid_path):
+        # grid_path will contain the model output
+
+        # validate that at least "nod2d.out" and "elem2d.out" are present
+
+        # support both ascii and netcdf variants
+
+        # FESOM2 grid represented in the UGRID conventions
+        grid_ds = None
+
+        # maps FESOM2 dimensions to UGRID
+        source_dims_dict = {}
+        source_grid_spec = "FESOM2"
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
     def from_dataset(
         cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
     ):
