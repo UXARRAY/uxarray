@@ -59,7 +59,24 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
 @njit(parallel=True, nogil=True, cache=True)
 def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
     """Determine which edges intersect a constant line of longitude on a
-    sphere, including edges that lie exactly along the longitude."""
+    sphere, including edges that lie exactly along the longitude.
+
+    Parameters
+    ----------
+    lon:
+        Constant longitude value in degrees.
+    edge_node_x:
+        Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
+    edge_node_y:
+        Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
+    n_edge:
+        Total number of edges to check.
+
+    Returns
+    -------
+    intersecting_edges:
+        array of indices of edges that intersect the constant longitude.
+    """
 
     lon = np.deg2rad(lon)
 
