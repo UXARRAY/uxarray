@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import xarray as xr
 
@@ -5,16 +7,30 @@ import sys
 
 from typing import Optional, IO
 
-from uxarray.core.dataarray import UxDataArray
+import uxarray
 from uxarray.grid import Grid
+from uxarray.core.dataarray import UxDataArray
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
+
+from uxarray.plot.accessor import UxDatasetPlotAccessor
+
+from xarray.core.utils import UncachedAccessor
+
+from uxarray.formatting_html import dataset_repr
+
+from html import escape
+
+from xarray.core.options import OPTIONS
+
+from uxarray.remap import UxDatasetRemapAccessor
 
 from warnings import warn
 
 
 class UxDataset(xr.Dataset):
-    """A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
-    Inherits from ``xarray.Dataset`` and has its own unstructured grid-aware
-    dataset operators and attributes through the ``uxgrid`` accessor.
+    """Grid informed ``xarray.Dataset`` with an attached ``Grid`` accessor and
+    grid-specific functionality.
 
     Parameters
     ----------
@@ -39,16 +55,17 @@ class UxDataset(xr.Dataset):
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = (
-        '_uxgrid',
-        '_source_datasets',
+        "_uxgrid",
+        "_source_datasets",
     )
 
-    def __init__(self,
-                 *args,
-                 uxgrid: Grid = None,
-                 source_datasets: Optional[str] = None,
-                 **kwargs):
-
+    def __init__(
+        self,
+        *args,
+        uxgrid: Grid = None,
+        source_datasets: Optional[str] = None,
+        **kwargs,
+    ):
         self._uxgrid = None
         self._source_datasets = source_datasets
         # setattr(self, 'source_datasets', source_datasets)
@@ -56,11 +73,21 @@ class UxDataset(xr.Dataset):
         if uxgrid is not None and not isinstance(uxgrid, Grid):
             raise RuntimeError(
                 "uxarray.UxDataset.__init__: uxgrid can be either None or "
-                "an instance of the `uxarray.Grid` class")
+                "an instance of the `uxarray.Grid` class"
+            )
         else:
             self.uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
+
+    # declare plotting accessor
+    plot = UncachedAccessor(UxDatasetPlotAccessor)
+    remap = UncachedAccessor(UxDatasetRemapAccessor)
+
+    def _repr_html_(self) -> str:
+        if OPTIONS["display_style"] == "text":
+            return f"<pre>{escape(repr(self))}</pre>"
+        return dataset_repr(self)
 
     def __getitem__(self, key):
         """Override to make sure the result is an instance of
@@ -71,9 +98,9 @@ class UxDataset(xr.Dataset):
         if isinstance(value, xr.DataArray):
             value = UxDataArray(value, uxgrid=self.uxgrid)
         elif isinstance(value, xr.Dataset):
-            value = UxDataset(value,
-                              uxgrid=self.uxgrid,
-                              source_datasets=self.source_datasets)
+            value = UxDataset(
+                value, uxgrid=self.uxgrid, source_datasets=self.source_datasets
+            )
 
         return value
 
@@ -109,14 +136,8 @@ class UxDataset(xr.Dataset):
 
     @property
     def uxgrid(self):
-        """``uxarray.Grid`` property for ``uxarray.UxDataset`` to make it
-        unstructured grid-aware.
-
-        Examples
-        --------
-        uxds = ux.open_dataset(grid_path, data_path)
-        uxds.uxgrid
-        """
+        """Linked ``Grid`` representing to the unstructured grid the data
+        resides on."""
         return self._uxgrid
 
     # a setter function
@@ -133,9 +154,7 @@ class UxDataset(xr.Dataset):
             ds.uxgrid = self.uxgrid
             ds.source_datasets = self.source_datasets
         else:
-            ds = UxDataset(ds,
-                           uxgrid=self.uxgrid,
-                           source_datasets=self.source_datasets)
+            ds = UxDataset(ds, uxgrid=self.uxgrid, source_datasets=self.source_datasets)
 
         return ds
 
@@ -156,9 +175,9 @@ class UxDataset(xr.Dataset):
         ``uxarray.UxDataset``."""
         copied = super()._copy(**kwargs)
 
-        deep = kwargs.get('deep', None)
+        deep = kwargs.get("deep", None)
 
-        if deep == True:
+        if deep:
             # Reinitialize the uxgrid assessor
             copied.uxgrid = self.uxgrid.copy()  # deep copy
         else:
@@ -176,9 +195,7 @@ class UxDataset(xr.Dataset):
             ds.uxgrid = self.uxgrid
             ds.source_datasets = self.source_datasets
         else:
-            ds = UxDataset(ds,
-                           uxgrid=self.uxgrid,
-                           source_datasets=self.source_datasets)
+            ds = UxDataset(ds, uxgrid=self.uxgrid, source_datasets=self.source_datasets)
 
         return ds
 
@@ -187,19 +204,19 @@ class UxDataset(xr.Dataset):
         """Override to make the result a ``uxarray.UxDataset`` class."""
 
         return cls(
-            {
-                col: ('index', dataframe[col].values)
-                for col in dataframe.columns
-            },
-            coords={'index': dataframe.index})
+            {col: ("index", dataframe[col].values) for col in dataframe.columns},
+            coords={"index": dataframe.index},
+        )
 
     @classmethod
     def from_dict(cls, data, **kwargs):
         """Override to make the result a ``uxarray.UxDataset`` class."""
 
-        return cls({key: ('index', val) for key, val in data.items()},
-                   coords={'index': range(len(next(iter(data.values()))))},
-                   **kwargs)
+        return cls(
+            {key: ("index", val) for key, val in data.items()},
+            coords={"index": range(len(next(iter(data.values()))))},
+            **kwargs,
+        )
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
@@ -224,7 +241,7 @@ class UxDataset(xr.Dataset):
         lines.append("uxarray.Dataset {")
 
         lines.append("grid topology dimensions:")
-        for name, size in self.uxgrid._ds.dims.items():
+        for name, size in self.uxgrid._ds.sizes.items():
             lines.append(f"\t{name} = {size}")
 
         lines.append("\ngrid topology variables:")
@@ -236,7 +253,7 @@ class UxDataset(xr.Dataset):
                     lines.append(f"\t\t{name}:{k} = {v}")
 
         lines.append("\ndata dimensions:")
-        for name, size in self.dims.items():
+        for name, size in self.sizes.items():
             lines.append(f"\t{name} = {size}")
 
         lines.append("\ndata variables:")
@@ -256,7 +273,7 @@ class UxDataset(xr.Dataset):
         buf.write("\n".join(lines))
 
     def integrate(self, quadrature_rule="triangular", order=4):
-        """Integrates over all the faces of the given mesh.
+        """Integrates over all the faces of the givfen mesh.
 
         Parameters
         ----------
@@ -285,12 +302,15 @@ class UxDataset(xr.Dataset):
             "This method currently only works when there is a single DataArray in this Dataset. For integration of a "
             "single data variable, use the UxDataArray.integrate() method instead. This function will be deprecated and "
             "replaced with one that can perform a Dataset-wide integration in a future release.",
-            DeprecationWarning)
+            DeprecationWarning,
+        )
 
         integral = 0.0
 
         # call function to get area of all the faces as a np array
-        face_areas = self.uxgrid.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.uxgrid.compute_face_areas(
+            quadrature_rule, order
+        )
 
         # TODO: Should we fix this requirement? Shouldn't it be applicable to
         # TODO: all variables of dataset or a dataarray instead?
@@ -313,3 +333,53 @@ class UxDataset(xr.Dataset):
 
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def get_dual(self):
+        """Compute the dual mesh for a dataset, returns a new dataset object.
+
+        Returns
+        --------
+        dual : uxds
+            Dual Mesh `uxds` constructed
+        """
+
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        if self.uxgrid.hole_edge_indices.size != 0:
+            warn(
+                "This mesh is partial, which could cause inconsistent results and data will be lost",
+                Warning,
+            )
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self.uxgrid)
+
+        # Construct dual mesh
+        dual = self.uxgrid.from_topology(
+            self.uxgrid.face_lon.values,
+            self.uxgrid.face_lat.values,
+            dual_node_face_conn,
+        )
+
+        # Initialize new dataset
+        dataset = uxarray.UxDataset(uxgrid=dual)
+
+        # Dictionary to swap dimensions
+        dim_map = {"n_face": "n_node", "n_node": "n_face"}
+
+        # For each data array in the dataset, reconstruct the data array with the dual mesh
+        for var in self.data_vars:
+            # Get correct dimensions for the dual
+            dims = [dim_map.get(dim, dim) for dim in self[var].dims]
+
+            # Get the values from the data array
+            data = np.array(self[var].values)
+
+            # Construct the new data array
+            uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=var)
+
+            # Add data array to dataset
+            dataset[var] = uxda
+
+        return dataset

@@ -1,0 +1,35 @@
+name: asv
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - cartopy
+  - dask
+  - datashader
+  - gmpy2
+  - geoviews
+  - holoviews
+  - matplotlib-base
+  - matplotlib-inline
+  - netcdf4
+  - numba
+  - numpy
+  - pandas
+  - pathlib
+  - pre_commit
+  - pyarrow
+  - pytest
+  - pytest-cov
+  - requests
+  - scikit-learn
+  - scipy
+  - shapely
+  - spatialpandas
+  - geopandas
+  - xarray
+  - asv
+  - hvplot
+  - pip:
+    - antimeridian
+    - git+https://github.com/philipc2/pyfma.git # fix until https://github.com/nschloe/pyfma/pull/17 is merged
+    - -e ../

@@ -3,11 +3,13 @@ import os
 from unittest import TestCase
 from pathlib import Path
 
+import numpy as np
+
 import uxarray as ux
 
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 
-from uxarray.core.dataset import UxDataset
+from uxarray.core.dataset import UxDataset, UxDataArray
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -31,6 +33,14 @@ class TestDataArray(TestCase):
         assert isinstance(uxds_converted, UxDataset)
         assert uxds_converted.uxgrid == uxds.uxgrid
 
+    def test_get_dual(self):
+        """Tests the creation of the dual mesh on a data array."""
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        dual = uxds['psi'].get_dual()
+
+        assert isinstance(dual, UxDataArray)
+        self.assertTrue(dual._node_centered())
+
 
 class TestGeometryConversions(TestCase):
 
@@ -44,17 +54,17 @@ class TestGeometryConversions(TestCase):
             uxds_geoflow['v1'].to_geodataframe()
 
         # grid conversion
-        gdf_geoflow_grid = uxds_geoflow.uxgrid.to_geodataframe()
+        gdf_geoflow_grid = uxds_geoflow.uxgrid.to_geodataframe(periodic_elements='split')
 
         # number of elements
-        assert gdf_geoflow_grid.shape == (uxds_geoflow.uxgrid.nMesh2_face, 1)
+        assert gdf_geoflow_grid.shape == (uxds_geoflow.uxgrid.n_face, 1)
 
         ### n30
         uxds_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
-        gdf_geoflow_data = uxds_ne30['psi'].to_geodataframe()
+        gdf_geoflow_data = uxds_ne30['psi'].to_geodataframe(periodic_elements='split')
 
-        assert gdf_geoflow_data.shape == (uxds_ne30.uxgrid.nMesh2_face, 2)
+        assert gdf_geoflow_data.shape == (uxds_ne30.uxgrid.n_face, 2)
 
     def test_to_polycollection(self):
         """Tests the conversion to ``PolyCollection``"""
@@ -66,15 +76,14 @@ class TestGeometryConversions(TestCase):
             uxds_geoflow['v1'].to_polycollection()
 
         # grid conversion
-        pc_geoflow_grid, _ = uxds_geoflow.uxgrid.to_polycollection()
+        pc_geoflow_grid = uxds_geoflow.uxgrid.to_polycollection(periodic_elements='split')
 
         polygon_shells = _build_polygon_shells(
-            uxds_geoflow.uxgrid.Mesh2_node_x.values,
-            uxds_geoflow.uxgrid.Mesh2_node_y.values,
-            uxds_geoflow.uxgrid.Mesh2_face_nodes.values,
-            uxds_geoflow.uxgrid.nMesh2_face,
-            uxds_geoflow.uxgrid.nMaxMesh2_face_nodes,
-            uxds_geoflow.uxgrid.nNodes_per_face.values)
+            uxds_geoflow.uxgrid.node_lon.values,
+            uxds_geoflow.uxgrid.node_lat.values,
+            uxds_geoflow.uxgrid.face_node_connectivity.values,
+            uxds_geoflow.uxgrid.n_face, uxds_geoflow.uxgrid.n_max_face_nodes,
+            uxds_geoflow.uxgrid.n_nodes_per_face.values)
 
         corrected_polygon_shells, _ = _build_corrected_polygon_shells(
             polygon_shells)
@@ -86,16 +95,15 @@ class TestGeometryConversions(TestCase):
         uxds_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
         polygon_shells = _build_polygon_shells(
-            uxds_ne30.uxgrid.Mesh2_node_x.values,
-            uxds_ne30.uxgrid.Mesh2_node_y.values,
-            uxds_ne30.uxgrid.Mesh2_face_nodes.values,
-            uxds_ne30.uxgrid.nMesh2_face, uxds_ne30.uxgrid.nMaxMesh2_face_nodes,
-            uxds_ne30.uxgrid.nNodes_per_face.values)
+            uxds_ne30.uxgrid.node_lon.values, uxds_ne30.uxgrid.node_lat.values,
+            uxds_ne30.uxgrid.face_node_connectivity.values,
+            uxds_ne30.uxgrid.n_face, uxds_ne30.uxgrid.n_max_face_nodes,
+            uxds_ne30.uxgrid.n_nodes_per_face.values)
 
         corrected_polygon_shells, _ = _build_corrected_polygon_shells(
             polygon_shells)
 
-        pc_geoflow_data, _ = uxds_ne30['psi'].to_polycollection()
+        pc_geoflow_data = uxds_ne30['psi'].to_polycollection(periodic_elements='split')
 
         assert len(pc_geoflow_data._paths) == len(corrected_polygon_shells)
 

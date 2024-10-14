@@ -1,237 +1,879 @@
 import xarray as xr
 import numpy as np
 import math
+import warnings
 
-from numba import njit, config
+from uxarray.conventions import ugrid
 
-from uxarray.constants import ENABLE_JIT_CACHE, ENABLE_JIT, ERROR_TOLERANCE
+from numba import njit
+from uxarray.constants import ERROR_TOLERANCE
+from typing import Union
 
-config.DISABLE_JIT = not ENABLE_JIT
-
-
-@njit(cache=ENABLE_JIT_CACHE)
-def node_lonlat_rad_to_xyz(node_coord):
-    """Helper function to Convert the node coordinate from 2D
-    longitude/latitude to normalized 3D xyz.
-
-    Parameters
-    ----------
-    node: float list
-        2D coordinates[longitude, latitude] in radiance
-
-    Returns
-    ----------
-    float list
-        the result array of the unit 3D coordinates [x, y, z] vector where :math:`x^2 + y^2 + z^2 = 1`
-
-    Raises
-    ----------
-    RuntimeError
-        The input array doesn't have the size of 3.
-    """
-    if len(node_coord) != 2:
-        raise RuntimeError(
-            "Input array should have a length of 2: [longitude, latitude]")
-    lon = node_coord[0]
-    lat = node_coord[1]
-    return [np.cos(lon) * np.cos(lat), np.sin(lon) * np.cos(lat), np.sin(lat)]
+from uxarray.grid.utils import _angle_of_2_vectors
 
 
-@njit(cache=ENABLE_JIT_CACHE)
-def node_xyz_to_lonlat_rad(node_coord):
-    """Calculate the latitude and longitude in radiance for a node represented
-    in the [x, y, z] 3D Cartesian coordinates.
+@njit(cache=True)
+def _lonlat_rad_to_xyz(
+    lon: Union[np.ndarray, float],
+    lat: Union[np.ndarray, float],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Spherical latitude and longitude coordinates into Cartesian x,
+    y, z coordinates."""
+    x = np.cos(lon) * np.cos(lat)
+    y = np.sin(lon) * np.cos(lat)
+    z = np.sin(lat)
+
+    return x, y, z
+
+
+@njit(cache=True)
+def _xyz_to_lonlat_rad_no_norm(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+):
+    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
+    longitude without normalization, decorated with Numba.
 
     Parameters
     ----------
-    node_coord: float list
-        3D Cartesian Coordinates [x, y, z] of the node
+    x : float
+        Cartesian x coordinate
+    y: float
+        Cartesiain y coordinate
+    z: float
+        Cartesian z coordinate
+
 
     Returns
-    ----------
-    float list
-        the result array of longitude and latitude in radian [longitude_rad, latitude_rad]
-
-    Raises
-    ----------
-    RuntimeError
-        The input array doesn't have the size of 3.
+    -------
+    lon : float
+        Longitude in radians
+    lat: float
+        Latitude in radians
     """
-    if len(node_coord) != 3:
-        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
 
-    [dx, dy, dz] = normalize_in_place(node_coord)
-    dx /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dy /= np.absolute(dx * dx + dy * dy + dz * dz)
-    dz /= np.absolute(dx * dx + dy * dy + dz * dz)
+    lon = math.atan2(y, x)
+    lat = math.asin(z)
 
-    if np.absolute(dz) < (1.0 - ERROR_TOLERANCE):
-        d_lon_rad = math.atan2(dy, dx)
-        d_lat_rad = np.arcsin(dz)
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
 
-        if d_lon_rad < 0.0:
-            d_lon_rad += 2.0 * np.pi
-    elif dz > 0.0:
-        d_lon_rad = 0.0
-        d_lat_rad = 0.5 * np.pi
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
+
+
+@njit(cache=True)
+def _xyz_to_lonlat_rad_scalar(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    normalize: bool = True,
+):
+    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
+    longitude without normalization, decorated with Numba.
+
+    Parameters
+    ----------
+    x : float
+        Cartesian x coordinate
+    y: float
+        Cartesiain y coordinate
+    z: float
+        Cartesian z coordinate
+
+
+    Returns
+    -------
+    lon : float
+        Longitude in radians
+    lat: float
+        Latitude in radians
+    """
+
+    if normalize:
+        x, y, z = _normalize_xyz_scalar(x, y, z)
+        denom = np.abs(x * x + y * y + z * z)
+        x /= denom
+        y /= denom
+        z /= denom
+
+    lon = math.atan2(y, x)
+    lat = math.asin(z)
+
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
+
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
+
+
+def _xyz_to_lonlat_rad(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    normalize: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Cartesian x, y, z coordinates in Spherical latitude and
+    longitude coordinates in degrees.
+
+    Parameters
+    ----------
+    x : Union[np.ndarray, float]
+        Cartesian x coordinates
+    y: Union[np.ndarray, float]
+        Cartesiain y coordinates
+    z: Union[np.ndarray, float]
+        Cartesian z coordinates
+    normalize: bool
+        Flag to select whether to normalize the coordinates
+
+    Returns
+    -------
+    lon : Union[np.ndarray, float]
+        Longitude in radians
+    lat: Union[np.ndarray, float]
+        Latitude in radians
+    """
+
+    if normalize:
+        x, y, z = _normalize_xyz(x, y, z)
+        denom = np.abs(x * x + y * y + z * z)
+        x /= denom
+        y /= denom
+        z /= denom
+
+    lon = np.arctan2(y, x)
+    lat = np.arcsin(z)
+
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
+
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
+
+
+def _xyz_to_lonlat_deg(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    normalize: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Cartesian x, y, z coordinates in Spherical latitude and
+    longitude coordinates in degrees.
+
+    Parameters
+    ----------
+    x : Union[np.ndarray, float]
+        Cartesian x coordinates
+    y: Union[np.ndarray, float]
+        Cartesiain y coordinates
+    z: Union[np.ndarray, float]
+        Cartesian z coordinates
+    normalize: bool
+        Flag to select whether to normalize the coordinates
+
+    Returns
+    -------
+    lon : Union[np.ndarray, float]
+        Longitude in degrees
+    lat: Union[np.ndarray, float]
+        Latitude in degrees
+    """
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
+
+    lon = np.rad2deg(lon_rad)
+    lat = np.rad2deg(lat_rad)
+
+    lon = (lon + 180) % 360 - 180
+    return lon, lat
+
+
+def _normalize_xyz(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Normalizes a set of Cartesiain coordinates."""
+    denom = np.linalg.norm(
+        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
+    )
+
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm
+
+
+@njit(cache=True)
+def _normalize_xyz_scalar(x: float, y: float, z: float):
+    denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm
+
+
+def _populate_node_latlon(grid) -> None:
+    """Populates the lon and lat coordinates of a Grid (`node_lon`,
+    `node_lat`)"""
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(
+        grid.node_x.values, grid.node_y.values, grid.node_z.values
+    )
+
+    lon = np.rad2deg(lon_rad)
+    lat = np.rad2deg(lat_rad)
+
+    grid._ds["node_lon"] = xr.DataArray(
+        data=lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
+    )
+    grid._ds["node_lat"] = xr.DataArray(
+        data=lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
+    )
+
+
+def _populate_node_xyz(grid) -> None:
+    """Populates the Cartesiain node coordinates of a Grid (`node_x`, `node_y`
+    and `node_z`)"""
+
+    node_lon_rad = np.deg2rad(grid.node_lon.values)
+    node_lat_rad = np.deg2rad(grid.node_lat.values)
+    x, y, z = _lonlat_rad_to_xyz(node_lon_rad, node_lat_rad)
+
+    grid._ds["node_x"] = xr.DataArray(
+        data=x, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_X_ATTRS
+    )
+    grid._ds["node_y"] = xr.DataArray(
+        data=y, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
+    )
+    grid._ds["node_z"] = xr.DataArray(
+        data=z, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
+    )
+
+
+def _populate_face_centroids(grid, repopulate=False):
+    """Finds the centroids of faces using cartesian averaging based off the
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized. This cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centroids
+    """
+    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+
+    if "face_lon" not in grid._ds or repopulate:
+        # Construct the centroids if there are none stored
+        if "face_x" not in grid._ds:
+            centroid_x, centroid_y, centroid_z = _construct_face_centroids(
+                node_x, node_y, node_z, face_nodes, n_nodes_per_face
+            )
+
+        else:
+            # If there are cartesian centroids already use those instead
+            centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
+
+        # Convert from xyz to latlon TODO
+        centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
+            centroid_x, centroid_y, centroid_z, normalize=False
+        )
     else:
-        d_lon_rad = 0.0
-        d_lat_rad = -0.5 * np.pi
+        # Convert to xyz if there are latlon centroids already stored
+        centroid_lon, centroid_lat = grid.face_lon.values, grid.face_lat.values
+        centroid_x, centroid_y, centroid_z = _lonlat_rad_to_xyz(
+            centroid_lon, centroid_lat
+        )
 
-    return [d_lon_rad, d_lat_rad]
+    # Populate the centroids
+    if "face_lon" not in grid._ds or repopulate:
+        grid._ds["face_lon"] = xr.DataArray(
+            centroid_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
+        )
+        grid._ds["face_lat"] = xr.DataArray(
+            centroid_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
+        )
+
+    if "face_x" not in grid._ds or repopulate:
+        grid._ds["face_x"] = xr.DataArray(
+            centroid_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
+        )
+
+        grid._ds["face_y"] = xr.DataArray(
+            centroid_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
+        )
+
+        grid._ds["face_z"] = xr.DataArray(
+            centroid_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
+        )
 
 
-@njit(cache=ENABLE_JIT_CACHE)
-def normalize_in_place(node):
-    """Helper function to project an arbitrary node in 3D coordinates [x, y, z]
-    on the unit sphere. It uses the `np.linalg.norm` internally to calculate
-    the magnitude.
+def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
+    """Constructs the xyz centroid coordinate for each face using Cartesian
+    Averaging.
 
     Parameters
     ----------
-    node: float list
-        3D Cartesian Coordinates [x, y, z]
+    node_x : numpy.ndarray
+        X coordinates of the nodes.
+    node_y : numpy.ndarray
+        Y coordinates of the nodes.
+    node_z : numpy.ndarray
+        Z coordinates of the nodes.
+    face_nodes : numpy.ndarray
+        Indices of nodes per face.
+    n_nodes_per_face : numpy.ndarray
+        Number of nodes per face.
 
     Returns
+    -------
+    tuple
+        The x, y, and z coordinates of the centroids.
+    """
+    centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+
+    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+        # Compute Cartesian Average
+        centroid_x[face_idx] = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_y[face_idx] = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+
+    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
+
+
+def _welzl_recursive(points, boundary, R):
+    """Recursive helper function for Welzl's algorithm to find the smallest
+    enclosing circle.
+
+    Parameters
     ----------
-    float list
-        the result unit vector [x, y, z] where :math:`x^2 + y^2 + z^2 = 1`
+    points : numpy.ndarray
+        The set of points to consider.
+    boundary : numpy.ndarray
+        The current boundary points of the minimal enclosing circle.
+    R : tuple
+        The current minimal enclosing circle.
 
-    Raises
+    Returns
+    -------
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
+    """
+    # Base case: no points or boundary has 3 points
+    if len(points) == 0 or len(boundary) == 3:
+        # Construct the minimal circle based on the number of boundary points
+        if len(boundary) == 0:
+            # Return a default circle if no boundary points are available
+            return ((0.0, 0.0), 0.0)
+        elif len(boundary) == 1:
+            return _circle_from_two_points(boundary[0], boundary[0])
+        elif len(boundary) == 2:
+            return _circle_from_two_points(boundary[0], boundary[1])
+        elif len(boundary) == 3:
+            return _circle_from_three_points(boundary[0], boundary[1], boundary[2])
+
+    p = points[-1]
+    temp_points = points[:-1]
+    circle = _welzl_recursive(temp_points, boundary, R)
+
+    # Check if the chosen point is inside the current circle
+    if circle and _is_inside_circle(circle, p):
+        return circle
+    # If not, the point must be on the boundary of the minimal enclosing circle
+    else:
+        new_boundary = np.empty(
+            (boundary.shape[0] + 1, boundary.shape[1]), dtype=boundary.dtype
+        )
+        new_boundary[:-1] = boundary
+        new_boundary[-1] = p
+        return _welzl_recursive(temp_points, new_boundary, R)
+
+
+def _smallest_enclosing_circle(points):
+    """Find the smallest circle that encloses all given points on a unit sphere
+    using Welzl's algorithm.
+
+    Parameters
     ----------
-    RuntimeError
-        The input array doesn't have the size of 3.
+    points : numpy.ndarray
+        An array of points as tuples of (lon, lat).
+
+    Returns
+    -------
+    tuple
+        The smallest enclosing circle as a tuple of center and radius.
     """
-    if len(node) != 3:
-        raise RuntimeError("Input array should have a length of 3: [x, y, z]")
-    return list(np.array(node) / np.linalg.norm(np.array(node), ord=2))
+    np.random.shuffle(
+        points
+    )  # Randomize the input to increase the chance of an optimal solution
+    return _welzl_recursive(points, np.empty((0, 2)), None)
 
 
-def _get_xyz_from_lonlat(node_lon, node_lat):
+@njit(cache=True)
+def _circle_from_two_points(p1, p2):
+    """Calculate the smallest circle that encloses two points on a unit sphere.
 
-    # check for units and create Mesh2_node_cart_x/y/z set to grid._ds
-    nodes_lon_rad = np.deg2rad(node_lon)
-    nodes_lat_rad = np.deg2rad(node_lat)
-    nodes_rad = np.stack((nodes_lon_rad, nodes_lat_rad), axis=1)
-    nodes_cart = np.asarray(list(map(node_lonlat_rad_to_xyz, list(nodes_rad))))
+    Parameters
+    ----------
+    p1 : tuple
+        The first point as a tuple of (latitude, longitude).
+    p2 : tuple
+        The second point as a tuple of (latitude, longitude).
 
-    return nodes_cart[:, 0], nodes_cart[:, 1], nodes_cart[:, 2]
+    Returns
+    -------
+    tuple
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
+    """
+    center_lon = (p1[0] + p2[0]) / 2
+    center_lat = (p1[1] + p2[1]) / 2
+    center = (center_lon, center_lat)
+
+    v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
+    v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
+
+    distance = _angle_of_2_vectors(v1, v2)
+    radius = distance / 2
+
+    return center, radius
 
 
-def _populate_cartesian_xyz_coord(grid):
-    """A helper function that populates the xyz attribute in UXarray.Grid._ds.
-    This function is called when we need to use the cartesian coordinates for
-    each node to do the calculation but the input data only has the
-    "Mesh2_node_x" and "Mesh2_node_y" in degree.
+@njit(cache=True)
+def _circle_from_three_points(p1, p2, p3):
+    """Calculate the smallest circle that encloses three points on a unit
+    sphere. This is a placeholder implementation.
 
-    Note
-    ----
-    In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
-    corresponding units as stated below:
+    Parameters
+    ----------
+    p1 : tuple
+        The first point.
+    p2 : tuple
+        The second point.
+    p3 : tuple
+        The third point.
 
-    Mesh2_node_x
-     unit:  "degree_east" for longitude
-    Mesh2_node_y
-     unit:  "degrees_north" for latitude
-    Mesh2_node_z
-     unit:  "m"
-    Mesh2_node_cart_x
-     unit:  "m"
-    Mesh2_node_cart_y
-     unit:  "m"
-    Mesh2_node_cart_z
-     unit:  "m"
+    Returns
+    -------
+    tuple
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
+    """
+    # Placeholder implementation for three-point circle calculation
+    center_lon = (p1[0] + p2[0] + p3[0]) / 3
+    center_lat = (p1[1] + p2[1] + p3[1]) / 3
+    center = (center_lon, center_lat)
+
+    v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
+    v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
+    v3 = np.array(_lonlat_rad_to_xyz(np.radians(p3[0]), np.radians(p3[1])))
+
+    radius = (
+        max(
+            _angle_of_2_vectors(v1, v2),
+            _angle_of_2_vectors(v1, v3),
+            _angle_of_2_vectors(v2, v3),
+        )
+        / 2
+    )
+
+    return center, radius
+
+
+@njit(cache=True)
+def _is_inside_circle(circle, point):
+    """Check if a point is inside a given circle on a unit sphere.
+
+    Parameters
+    ----------
+    circle : tuple
+        A tuple containing the center (as a tuple of lon and lat) and the radius of the circle.
+    point : tuple
+        The point to check, as a tuple of (lon, lat).
+
+    Returns
+    -------
+    bool
+        True if the point is inside the circle, False otherwise.
+    """
+    center, radius = circle
+    v1 = np.array(_lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1])))
+    v2 = np.array(_lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1])))
+    distance = _angle_of_2_vectors(v1, v2)
+    return distance <= radius
+
+
+def _populate_face_centerpoints(grid, repopulate=False):
+    """Calculates the face centerpoints using Welzl's algorithm. It is a
+    randomized algorithm for finding the center and radius of the smallest
+    circle that encloses a set of points. It is here adapted to work on a unit
+    sphere. Also, this algorithm cannot be guaranteed to work on concave
+    polygons.
+
+    Parameters
+    ----------
+    grid : Grid
+        The grid containing the nodes and faces.
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the face coordinates of the centerpoints, default is False.
+
+    Returns
+    -------
+    None, populates the grid with the face centerpoints: face_lon, face_lat
+    """
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+
+    node_lon = grid.node_lon.values
+    node_lat = grid.node_lat.values
+
+    centerpoint_lat = []
+    centerpoint_lon = []
+
+    face_nodes = grid.face_node_connectivity.values
+    n_nodes_per_face = grid.n_nodes_per_face.values
+
+    # Check if the centerpoints are already populated
+    if "face_lon" not in grid._ds or repopulate:
+        centerpoint_lon, centerpoint_lat = _construct_face_centerpoints(
+            node_lon, node_lat, face_nodes, n_nodes_per_face
+        )
+    # get the cartesian coordinates of the centerpoints
+    ctrpt_x, ctrpt_y, ctrpt_z = _lonlat_rad_to_xyz(centerpoint_lon, centerpoint_lat)
+
+    # set the grid variables for centerpoints
+    if "face_lon" not in grid._ds or repopulate:
+        grid._ds["face_lon"] = xr.DataArray(
+            centerpoint_lon, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LON_ATTRS
+        )
+        grid._ds["face_lat"] = xr.DataArray(
+            centerpoint_lat, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_LAT_ATTRS
+        )
+
+    if "face_x" not in grid._ds or repopulate:
+        grid._ds["face_x"] = xr.DataArray(
+            ctrpt_x, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_X_ATTRS
+        )
+
+        grid._ds["face_y"] = xr.DataArray(
+            ctrpt_y, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Y_ATTRS
+        )
+
+        grid._ds["face_z"] = xr.DataArray(
+            ctrpt_z, dims=[ugrid.FACE_DIM], attrs=ugrid.FACE_Z_ATTRS
+        )
+
+
+def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
+    """Constructs the face centerpoint using Welzl's algorithm.
+
+    Parameters
+    ----------
+    node_lon : array_like
+        Longitudes of the nodes.
+    node_lat : array_like
+        Latitudes of the nodes.
+    face_nodes : array_like
+        Indices of nodes per face.
+    n_nodes_per_face : array_like
+        Number of nodes per face.
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        Two arrays containing the longitudes and latitudes of the centerpoints.
+    """
+    num_faces = face_nodes.shape[0]
+    ctrpt_lon = np.zeros(num_faces, dtype=np.float64)
+    ctrpt_lat = np.zeros(num_faces, dtype=np.float64)
+
+    # Pre-compute all points arrays
+    points_arrays = [
+        np.column_stack(
+            (
+                node_lon[face_nodes[face_idx, :n_max_nodes]],
+                node_lat[face_nodes[face_idx, :n_max_nodes]],
+            )
+        )
+        for face_idx, n_max_nodes in enumerate(n_nodes_per_face)
+    ]
+
+    # Compute circles for all faces
+    circles = [_smallest_enclosing_circle(points) for points in points_arrays]
+
+    # Extract centerpoints
+    ctrpt_lon, ctrpt_lat = zip(*[circle[0] for circle in circles])
+
+    return np.array(ctrpt_lon), np.array(ctrpt_lat)
+
+
+def _populate_edge_centroids(grid, repopulate=False):
+    """Finds the centroids using cartesian averaging of the edges based off the
+    vertices. The centroid is defined as the average of the x, y, z
+    coordinates, normalized.
+
+    Parameters
+    ----------
+    repopulate : bool, optional
+        Bool used to turn on/off repopulating the edge coordinates of the centroids
     """
 
-    # Check if the cartesian coordinates are already populated
-    if "Mesh2_node_cart_x" in grid._ds.keys():
-        return
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
+    edge_nodes_con = grid.edge_node_connectivity.values
 
-    # get Cartesian (x, y, z) coordinates from lon/lat
-    x, y, z = _get_xyz_from_lonlat(grid.Mesh2_node_x.values,
-                                   grid.Mesh2_node_y.values)
+    if "edge_lon" not in grid._ds or repopulate:
+        # Construct the centroids if there are none stored
+        if "edge_x" not in grid._ds:
+            centroid_x, centroid_y, centroid_z = _construct_edge_centroids(
+                node_x, node_y, node_z, edge_nodes_con
+            )
 
-    grid._ds["Mesh2_node_cart_x"] = xr.DataArray(
-        data=x,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "cartesian x",
-            "units": "m",
-        })
-    grid._ds["Mesh2_node_cart_y"] = xr.DataArray(
-        data=y,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "cartesian y",
-            "units": "m",
-        })
-    grid._ds["Mesh2_node_cart_z"] = xr.DataArray(
-        data=z,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "cartesian z",
-            "units": "m",
-        })
+        else:
+            # If there are cartesian centroids already use those instead
+            centroid_x, centroid_y, centroid_z = grid.edge_x, grid.edge_y, grid.edge_z
+
+        # Convert from xyz to latlon
+        centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
+            centroid_x, centroid_y, centroid_z, normalize=False
+        )
+    else:
+        # Convert to xyz if there are latlon centroids already stored
+        centroid_lon, centroid_lat = grid.edge_lon.values, grid.edge_lat.values
+        centroid_x, centroid_y, centroid_z = _lonlat_rad_to_xyz(
+            centroid_lon, centroid_lat
+        )
+
+    # Populate the centroids
+    if "edge_lon" not in grid._ds or repopulate:
+        grid._ds["edge_lon"] = xr.DataArray(
+            centroid_lon, dims=[ugrid.EDGE_DIM], attrs=ugrid.EDGE_LON_ATTRS
+        )
+        grid._ds["edge_lat"] = xr.DataArray(
+            centroid_lat,
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_LAT_ATTRS,
+        )
+
+    if "edge_x" not in grid._ds or repopulate:
+        grid._ds["edge_x"] = xr.DataArray(
+            centroid_x,
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_X_ATTRS,
+        )
+
+        grid._ds["edge_y"] = xr.DataArray(
+            centroid_y,
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_Y_ATTRS,
+        )
+
+        grid._ds["edge_z"] = xr.DataArray(
+            centroid_z,
+            dims=[ugrid.EDGE_DIM],
+            attrs=ugrid.EDGE_Z_ATTRS,
+        )
 
 
-def _get_lonlat_from_xyz(x, y, z):
-    nodes_cart = np.stack((x, y, z), axis=1).tolist()
-    nodes_rad = list(map(node_xyz_to_lonlat_rad, nodes_cart))
-    nodes_degree = np.rad2deg(nodes_rad)
+def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
+    """Constructs the xyz centroid coordinate for each edge using Cartesian
+    Averaging."""
 
-    return nodes_degree[:, 0], nodes_degree[:, 1]
+    centroid_x = np.mean(node_x[edge_node_conn], axis=1)
+    centroid_y = np.mean(node_y[edge_node_conn], axis=1)
+    centroid_z = np.mean(node_z[edge_node_conn], axis=1)
+
+    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
-def _populate_lonlat_coord(grid):
-    """Helper function that populates the longitude and latitude and store it
-    into the Mesh2_node_x and Mesh2_node_y. This is called when the input data
-    has "Mesh2_node_x", "Mesh2_node_y", "Mesh2_node_z" in meters. Since we want
-    "Mesh2_node_x" and "Mesh2_node_y" always have the "degree" units. For more
-    details, please read the following.
+def _set_desired_longitude_range(ds):
+    """Sets the longitude range to [-180, 180] for all longitude variables."""
 
-    Raises
-    ------
-        RuntimeError
-            Mesh2_node_x/y/z are not represented in the cartesian format with the unit 'm'/'meters' when calling this function"
+    for lon_name in ["node_lon", "edge_lon", "face_lon"]:
+        if lon_name in ds:
+            if ds[lon_name].max() > 180:
+                ds[lon_name].data = (ds[lon_name].data + 180) % 360 - 180
 
-    Note
-    ----
-    In the UXarray, we abide the UGRID convention and make sure the following attributes will always have its
-    corresponding units as stated below:
 
-    Mesh2_node_x
-     unit:  "degree_east" for longitude
-    Mesh2_node_y
-     unit:  "degrees_north" for latitude
-    Mesh2_node_z
-     unit:  "m"
-    Mesh2_node_cart_x
-     unit:  "m"
-    Mesh2_node_cart_y
-     unit:  "m"
-    Mesh2_node_cart_z
-     unit:  "m"
+def _xyz_to_lonlat_rad(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    normalize: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Cartesian x, y, z coordinates in Spherical latitude and
+    longitude coordinates in degrees.
+
+    Parameters
+    ----------
+    x : Union[np.ndarray, float]
+        Cartesian x coordinates
+    y: Union[np.ndarray, float]
+        Cartesiain y coordinates
+    z: Union[np.ndarray, float]
+        Cartesian z coordinates
+    normalize: bool
+        Flag to select whether to normalize the coordinates
+
+    Returns
+    -------
+    lon : Union[np.ndarray, float]
+        Longitude in radians
+    lat: Union[np.ndarray, float]
+        Latitude in radians
     """
 
-    # get lon/lat coordinates from Cartesian (x, y, z)
-    lon, lat = _get_lonlat_from_xyz(grid.Mesh2_node_cart_x.values,
-                                    grid.Mesh2_node_cart_y.values,
-                                    grid.Mesh2_node_cart_z.values)
+    if normalize:
+        x, y, z = _normalize_xyz(x, y, z)
+        denom = np.abs(x * x + y * y + z * z)
+        x /= denom
+        y /= denom
+        z /= denom
 
-    # populate dataset
-    grid._ds["Mesh2_node_x"] = xr.DataArray(
-        data=lon,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "longitude",
-            "long_name": "longitude of mesh nodes",
-            "units": "degrees_east",
-        })
-    grid._ds["Mesh2_node_y"] = xr.DataArray(
-        data=lat,
-        dims=["nMesh2_node"],
-        attrs={
-            "standard_name": "latitude",
-            "long_name": "latitude of mesh nodes",
-            "units": "degrees_north",
-        })
+    lon = np.arctan2(y, x, dtype=np.float64)
+    lat = np.arcsin(z, dtype=np.float64)
+
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
+
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
+
+
+@njit(cache=True)
+def _xyz_to_lonlat_rad_no_norm(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+):
+    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
+    longitude without normalization, decorated with Numba.
+
+    Parameters
+    ----------
+    x : float
+        Cartesian x coordinate
+    y: float
+        Cartesiain y coordinate
+    z: float
+        Cartesian z coordinate
+
+
+    Returns
+    -------
+    lon : float
+        Longitude in radians
+    lat: float
+        Latitude in radians
+    """
+
+    lon = math.atan2(y, x)
+    lat = math.asin(z)
+
+    # set longitude range to [0, pi]
+    lon = np.mod(lon, 2 * np.pi)
+
+    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+
+    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+    lon = np.where(z_mask, 0.0, lon)
+
+    return lon, lat
+
+
+def _normalize_xyz(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Normalizes a set of Cartesiain coordinates."""
+    denom = np.linalg.norm(
+        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
+    )
+
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm
+
+
+@njit(cache=True)
+def _lonlat_rad_to_xyz(
+    lon: Union[np.ndarray, float],
+    lat: Union[np.ndarray, float],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Spherical lon and lat coordinates into Cartesian x, y, z
+    coordinates."""
+    x = np.cos(lon) * np.cos(lat)
+    y = np.sin(lon) * np.cos(lat)
+    z = np.sin(lat)
+
+    return x, y, z
+
+
+def _xyz_to_lonlat_deg(
+    x: Union[np.ndarray, float],
+    y: Union[np.ndarray, float],
+    z: Union[np.ndarray, float],
+    normalize: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Converts Cartesian x, y, z coordinates in Spherical latitude and
+    longitude coordinates in degrees.
+
+    Parameters
+    ----------
+    x : Union[np.ndarray, float]
+        Cartesian x coordinates
+    y: Union[np.ndarray, float]
+        Cartesiain y coordinates
+    z: Union[np.ndarray, float]
+        Cartesian z coordinates
+    normalize: bool
+        Flag to select whether to normalize the coordinates
+
+    Returns
+    -------
+    lon : Union[np.ndarray, float]
+        Longitude in degrees
+    lat: Union[np.ndarray, float]
+        Latitude in degrees
+    """
+    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
+
+    lon = np.rad2deg(lon_rad)
+    lat = np.rad2deg(lat_rad)
+
+    lon = (lon + 180) % 360 - 180
+    return lon, lat
+
+
+@njit(cache=True)
+def _normalize_xyz_scalar(x: float, y: float, z: float):
+    denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+    return x_norm, y_norm, z_norm

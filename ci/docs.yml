@@ -1,13 +1,12 @@
 name: uxarray-docs
 channels:
     - conda-forge
-    - pyviz
 dependencies:
     - python
     - dask
     - netcdf4
     - numba
-    - numpy<=1.24
+    - numpy
     - pathlib
     - pre_commit
     - pytest
@@ -20,17 +19,22 @@ dependencies:
     - jupyter_client
     - scikit-learn
     - sphinx-book-theme
+    - sphinx-autosummary-accessors
+    - sphinx-remove-toctrees
     - myst-nb
     - sphinx-design
     - nbsphinx
     - matplotlib-base
-    - spatialpandas
+    - matplotlib-inline
     - shapely
     - hvplot
     - holoviews
     - geoviews
     - cartopy
-    - pandas<2.1.0
+    - pandas
+    - geocat-datafiles
+    - spatialpandas
+    - geopandas
     - pip:
       - antimeridian
-      - pyfma
+      - git+https://github.com/philipc2/pyfma.git # fix until https://github.com/nschloe/pyfma/pull/17 is merged

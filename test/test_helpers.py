@@ -12,8 +12,10 @@ import uxarray as ux
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
-from uxarray.grid.coordinates import node_lonlat_rad_to_xyz
-from uxarray.grid.lines import point_within_gca, _angle_of_2_vectors, in_between
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
+from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
+from uxarray.grid.geometry import _pole_point_inside_polygon
 
 try:
     import constants
@@ -25,6 +27,8 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
 gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
+gridfile_geoflowsmall_grid = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'grid.nc'
+gridfile_geoflowsmall_var = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'v1.nc'
 
 err_tolerance = 1.0e-12
 
@@ -41,7 +45,7 @@ class TestIntegrate(TestCase):
         face_nodes = np.array([[0, 1, 2]]).astype(INT_DTYPE)
         face_dimension = np.array([3], dtype=INT_DTYPE)
 
-        area = ux.grid.area.get_all_face_area_from_coords(
+        area, jacobian = ux.grid.area.get_all_face_area_from_coords(
             x, y, z, face_nodes, face_dimension, 3, coords_type="cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=1)
@@ -54,8 +58,8 @@ class TestIntegrate(TestCase):
         y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
         z = np.array([-0.57735027, -0.57735027, -0.57735027])
 
-        area = ux.grid.area.calculate_face_area(x, y, z, "gaussian", 5,
-                                                "cartesian")
+        area, jacobian = ux.grid.area.calculate_face_area(
+            x, y, z, "gaussian", 5, "cartesian")
 
         nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
 
@@ -101,23 +105,22 @@ class TestGridCenter(TestCase):
 class TestCoordinatesConversion(TestCase):
 
     def test_normalize_in_place(self):
-        [x, y, z] = ux.grid.coordinates.normalize_in_place(
-            [random.random(), random.random(),
-             random.random()])
+        x, y, z = _normalize_xyz(
+            random.random(), random.random(),
+             random.random())
 
         self.assertLessEqual(np.absolute(np.sqrt(x * x + y * y + z * z) - 1),
                              err_tolerance)
 
     def test_node_xyz_to_lonlat_rad(self):
-        [x, y, z] = ux.grid.coordinates.normalize_in_place([
+        x, y, z = _normalize_xyz(*[
             random.uniform(-1, 1),
             random.uniform(-1, 1),
             random.uniform(-1, 1)
         ])
 
-        [lon, lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
-        [new_x, new_y,
-         new_z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
+        lon, lat = _xyz_to_lonlat_rad(x, y, z)
+        new_x, new_y, new_z =_lonlat_rad_to_xyz(lon, lat)
 
         self.assertLessEqual(np.absolute(new_x - x), err_tolerance)
         self.assertLessEqual(np.absolute(new_y - y), err_tolerance)
@@ -129,10 +132,9 @@ class TestCoordinatesConversion(TestCase):
             random.uniform(-0.5 * np.pi, 0.5 * np.pi)
         ]
 
-        [x, y, z] = ux.grid.coordinates.node_lonlat_rad_to_xyz([lon, lat])
+        x, y, z = _lonlat_rad_to_xyz(lon, lat)
 
-        [new_lon,
-         new_lat] = ux.grid.coordinates.node_xyz_to_lonlat_rad([x, y, z])
+        new_lon, new_lat = _xyz_to_lonlat_rad(x, y, z)
 
         self.assertLessEqual(np.absolute(new_lon - lon), err_tolerance)
         self.assertLessEqual(np.absolute(new_lat - lat), err_tolerance)
@@ -184,7 +186,7 @@ class TestConstants(TestCase):
         """Tests _replace_fill_values() helper function attempting to use a
         fill value that is not representable by the current dtype."""
 
-        face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=np.uint32)
+        face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=np.int32)
         # invalid fill value with dtype should raise a valueError
         with self.assertRaises(ValueError):
             # INT_FILL_VALUE (max(uint32) not representable by int16)
@@ -216,95 +218,6 @@ class TestSparseMatrix(TestCase):
         nt.assert_array_equal(nodes_indices, expected_nodes_indices)
 
 
-class TestIntersectionPoint(TestCase):
-
-    def test_pt_within_gcr(self):
-
-        # The GCR that's eexactly 180 degrees will have Value Error raised
-        gcr_180degree_cart = [
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0]),
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([np.pi, 0.0])
-        ]
-        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
-        with self.assertRaises(ValueError):
-            point_within_gca(pt_same_lon_in, gcr_180degree_cart)
-
-        gcr_180degree_cart = [
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, np.pi / 2.0]),
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, -np.pi / 2.0])
-        ]
-
-        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
-        with self.assertRaises(ValueError):
-            point_within_gca(pt_same_lon_in, gcr_180degree_cart)
-
-        # Test when the point and the GCR all have the same longitude
-        gcr_same_lon_cart = [
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 1.5]),
-            ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, -1.5])
-        ]
-        pt_same_lon_in = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.0, 0.0])
-        self.assertTrue(point_within_gca(pt_same_lon_in, gcr_same_lon_cart))
-
-        pt_same_lon_out = ux.grid.coordinates.node_lonlat_rad_to_xyz(
-            [0.0, 1.500000000000001])
-        res = point_within_gca(pt_same_lon_out, gcr_same_lon_cart)
-        self.assertFalse(res)
-
-        # And if we increase the digital place by one, it should be true again
-        pt_same_lon_out_add_one_place = ux.grid.coordinates.node_lonlat_rad_to_xyz(
-            [0.0, 1.5000000000000001])
-        res = point_within_gca(pt_same_lon_out_add_one_place, gcr_same_lon_cart)
-        self.assertTrue(res)
-
-        # Normal case
-        # GCR vertex0 in radian : [1.3003315590159483, -0.007004587172323237],
-        # GCR vertex1 in radian : [3.5997458123873827, -1.4893379576608758]
-        # Point in radian : [1.3005410084914981, -0.010444274637648326]
-        gcr_cart_2 = np.array([[0.267, 0.963, -0.007], [-0.073, -0.036,
-                                                        -0.997]])
-        pt_cart_within = np.array(
-            [0.25616109352676675, 0.9246590335292105, -0.010021496695000144])
-        self.assertTrue(point_within_gca(pt_cart_within, gcr_cart_2))
-
-        # Test other more complicate cases : The anti-meridian case
-
-        # GCR vertex0 in radian : [5.163808182822441, 0.6351384888657234],
-        # GCR vertex1 in radian : [0.8280410325693055, 0.42237025187091526]
-        # Point in radian : [0.12574759138415173, 0.770098701904903]
-        gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
-        pt_cart = np.array(
-            [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
-        self.assertTrue(point_within_gca(pt_cart, gcr_cart))
-        # If we swap the gcr, it should throw a value error since it's larger than 180 degree
-        gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
-                                                          0.593]])
-        with self.assertRaises(ValueError):
-            point_within_gca(pt_cart, gcr_cart_flip)
-
-        # 2nd anti-meridian case
-        # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
-        # GCR vertex1 in radian : [2.4269979227622533, -0.007003212877856825]
-        # Point in radian : [0.43400375562899113, -0.49554509841586936]
-        gcr_cart_1 = np.array([[-0.491, -0.706, 0.510], [-0.755, 0.655,
-                                                         -0.007]])
-        pt_cart_within = np.array(
-            [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
-        self.assertFalse(point_within_gca(pt_cart_within, gcr_cart_1))
-
-        # The first case should not work and the second should work
-        v1_rad = [0.1, 0.0]
-        v2_rad = [2 * np.pi - 0.1, 0.0]
-        v1_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v1_rad)
-        v2_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz(v2_rad)
-        gcr_cart = np.array([v1_cart, v2_cart])
-        pt_cart = ux.grid.coordinates.node_lonlat_rad_to_xyz([0.01, 0.0])
-        with self.assertRaises(ValueError):
-            point_within_gca(pt_cart, gcr_cart)
-        gcr_car_flipped = np.array([v2_cart, v1_cart])
-        self.assertTrue(point_within_gca(pt_cart, gcr_car_flipped))
-
-
 class TestOperators(TestCase):
 
     def test_in_between(self):
@@ -324,3 +237,307 @@ class TestVectorsAngel(TestCase):
         v1 = np.array([1.0, 0.0, 0.0])
         v2 = np.array([1.0, 0.0, 0.0])
         self.assertAlmostEqual(_angle_of_2_vectors(v1, v2), 0.0)
+
+
+class TestFaceEdgeConnectivityHelper(TestCase):
+
+    def test_get_cartesian_face_edge_nodes_pipeline(self):
+        # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
+
+        # Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+
+        n_max_face_edges = max(n_nodes_per_face)
+        node_x = grid.node_x.values
+        node_y = grid.node_y.values
+        node_z = grid.node_z.values
+
+        # Call the function to test
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
+        )
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', face_edges_connectivity_cartesian[0]
+        )
+
+        # Assert that the result is True
+        self.assertTrue(result)
+
+    def test_get_cartesian_face_edge_nodes_filled_value(self):
+        # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
+
+        # Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+        vertices.append([INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE])
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+        n_max_face_edges = max(n_nodes_per_face)
+        node_x = grid.node_x.values
+        node_y = grid.node_y.values
+        node_z = grid.node_z.values
+
+        # Call the function to test
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
+        )
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', face_edges_connectivity_cartesian[0]
+        )
+
+        # Assert that the result is True
+        self.assertTrue(result)
+
+    def test_get_cartesian_face_edge_nodes_filled_value2(self):
+        # The face vertices order in counter-clockwise
+        # face_conn = [[0,1,2],[1,3,4,2]]
+
+        #Each vertex is a 2D vector represent the longitude and latitude in degree. Call the node_lonlat_to_xyz to convert it to 3D vector
+        v0_deg = [10,10]
+        v1_deg = [15,15]
+        v2_deg = [5,15]
+        v3_deg = [15,45]
+        v4_deg = [5,45]
+
+        # First convert them into radians
+        v0_rad = np.deg2rad(v0_deg)
+        v1_rad = np.deg2rad(v1_deg)
+        v2_rad = np.deg2rad(v2_deg)
+        v3_rad = np.deg2rad(v3_deg)
+        v4_rad = np.deg2rad(v4_deg)
+
+        # It should look like following when passing in the _get_cartesian_face_edge_nodes
+        # [[v0_cart,v1_cart,v2_cart, [Fill_Value,Fill_Value,Fill_Value]],[v1_cart,v3_cart,v4_cart,v2_cart]]
+        v0_cart = _lonlat_rad_to_xyz(v0_rad[0],v0_rad[1])
+        v1_cart = _lonlat_rad_to_xyz(v1_rad[0],v1_rad[1])
+        v2_cart = _lonlat_rad_to_xyz(v2_rad[0],v2_rad[1])
+        v3_cart = _lonlat_rad_to_xyz(v3_rad[0],v3_rad[1])
+        v4_cart = _lonlat_rad_to_xyz(v4_rad[0],v4_rad[1])
+
+        face_node_conn = np.array([[0, 1, 2, INT_FILL_VALUE],[1, 3, 4, 2]])
+        n_face = 2
+        n_max_face_edges = 4
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        node_x = np.array([v0_cart[0],v1_cart[0],v2_cart[0],v3_cart[0],v4_cart[0]])
+        node_y = np.array([v0_cart[1],v1_cart[1],v2_cart[1],v3_cart[1],v4_cart[1]])
+        node_z = np.array([v0_cart[2],v1_cart[2],v2_cart[2],v3_cart[2],v4_cart[2]])
+
+        # call the function to test
+        face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
+        )
+
+        # Define correct result
+        correct_result = np.array([
+            [
+                [
+                    [v0_cart[0], v0_cart[1], v0_cart[2]],
+                    [v1_cart[0], v1_cart[1], v1_cart[2]]
+                ],
+                [
+                    [v1_cart[0], v1_cart[1], v1_cart[2]],
+                    [v2_cart[0], v2_cart[1], v2_cart[2]]
+                ],
+                [
+                    [v2_cart[0], v2_cart[1], v2_cart[2]],
+                    [v0_cart[0], v0_cart[1], v0_cart[2]]
+                ],
+                [
+                    [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE],
+                    [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
+                ]
+            ],
+            [
+                [
+                    [v1_cart[0], v1_cart[1], v1_cart[2]],
+                    [v3_cart[0], v3_cart[1], v3_cart[2]]
+                ],
+                [
+                    [v3_cart[0], v3_cart[1], v3_cart[2]],
+                    [v4_cart[0], v4_cart[1], v4_cart[2]]
+                ],
+                [
+                    [v4_cart[0], v4_cart[1], v4_cart[2]],
+                    [v2_cart[0], v2_cart[1], v2_cart[2]]
+                ],
+                [
+                    [v2_cart[0], v2_cart[1], v2_cart[2]],
+                    [v1_cart[0], v1_cart[1], v1_cart[2]]
+                ]
+            ]
+        ])
+
+
+        # Assert that the result is correct
+        self.assertEqual(face_edges_connectivity_cartesian.shape, correct_result.shape)
+
+
+    def test_get_lonlat_face_edge_nodes_pipeline(self):
+        # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
+
+        # Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+        n_max_face_edges = max(n_nodes_per_face)
+        node_lon = grid.node_lon.values
+        node_lat = grid.node_lat.values
+
+        # Call the function to test
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
+        )
+
+        # Convert the first face's edges to Cartesian coordinates
+        face_edges_connectivity_lonlat = face_edges_connectivity_lonlat[0]
+        face_edges_connectivity_cartesian = []
+        for edge in face_edges_connectivity_lonlat:
+            edge_cart = [_lonlat_rad_to_xyz(*node) for node in edge]
+            face_edges_connectivity_cartesian.append(edge_cart)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', np.array(face_edges_connectivity_cartesian)
+        )
+
+        # Assert that the result is True
+        self.assertTrue(result)
+
+    def test_get_lonlat_face_edge_nodes_filled_value(self):
+        # Create the vertices for the grid, based around the North Pole
+        vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
+
+        # Normalize the vertices
+        vertices = [x / np.linalg.norm(x) for x in vertices]
+        vertices.append([INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE])
+
+        # Construct the grid from the vertices
+        grid = ux.Grid.from_face_vertices(vertices, latlon=False)
+
+        # Extract the necessary grid data
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        n_face = len(face_node_conn)
+        n_max_face_edges = max(n_nodes_per_face)
+        node_lon = grid.node_lon.values
+        node_lat = grid.node_lat.values
+
+        # Call the function to test
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
+        )
+
+        # Convert the first face's edges to Cartesian coordinates
+        face_edges_connectivity_lonlat = face_edges_connectivity_lonlat[0]
+        face_edges_connectivity_cartesian = []
+        for edge in face_edges_connectivity_lonlat:
+            edge_cart = [_lonlat_rad_to_xyz(*node) for node in edge]
+            face_edges_connectivity_cartesian.append(edge_cart)
+
+        # Check that the face_edges_connectivity_cartesian works as an input to _pole_point_inside_polygon
+        result = ux.grid.geometry._pole_point_inside_polygon(
+            'North', np.array(face_edges_connectivity_cartesian)
+        )
+
+        # Assert that the result is True
+        self.assertTrue(result)
+
+
+    def test_get_lonlat_face_edge_nodes_filled_value2(self):
+        # The face vertices order in counter-clockwise
+        # face_conn = [[0,1,2],[1,3,4,2]]
+
+        #Each vertex is a 2D vector represent the longitude and latitude in degree. Call the node_lonlat_to_xyz to convert it to 3D vector
+        v0_deg = [10,10]
+        v1_deg = [15,15]
+        v2_deg = [5,15]
+        v3_deg = [15,45]
+        v4_deg = [5,45]
+
+        # First convert them into radians
+        v0_rad = np.deg2rad(v0_deg)
+        v1_rad = np.deg2rad(v1_deg)
+        v2_rad = np.deg2rad(v2_deg)
+        v3_rad = np.deg2rad(v3_deg)
+        v4_rad = np.deg2rad(v4_deg)
+
+        face_node_conn = np.array([[0, 1, 2, INT_FILL_VALUE],[1, 3, 4, 2]])
+        n_face = 2
+        n_max_face_edges = 4
+        n_nodes_per_face = np.array([len(face) for face in face_node_conn])
+        node_lon = np.array([v0_rad[0],v1_rad[0],v2_rad[0],v3_rad[0],v4_rad[0]])
+        node_lat = np.array([v0_rad[1],v1_rad[1],v2_rad[1],v3_rad[1],v4_rad[1]])
+
+        # call the function to test
+        face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+            face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
+        )
+
+        # Define correct result
+        correct_result = np.array([
+            [
+                [
+                    [v0_rad[0], v0_rad[1]],
+                    [v1_rad[0], v1_rad[1]]
+                ],
+                [
+                    [v1_rad[0], v1_rad[1]],
+                    [v2_rad[0], v2_rad[1]]
+                ],
+                [
+                    [v2_rad[0], v2_rad[1]],
+                    [v0_rad[0], v0_rad[1]]
+                ],
+                [
+                    [INT_FILL_VALUE, INT_FILL_VALUE],
+                    [INT_FILL_VALUE, INT_FILL_VALUE]
+                ]
+            ],
+            [
+                [
+                    [v1_rad[0], v1_rad[1]],
+                    [v3_rad[0], v3_rad[1]]
+                ],
+                [
+                    [v3_rad[0], v3_rad[1]],
+                    [v4_rad[0], v4_rad[1]]
+                ],
+                [
+                    [v4_rad[0], v4_rad[1]],
+                    [v2_rad[0], v2_rad[1]]
+                ],
+                [
+                    [v2_rad[0], v2_rad[1]],
+                    [v1_rad[0], v1_rad[1]]
+                ]
+            ]
+        ])
+
+        # Assert that the result is correct
+        self.assertEqual(face_edges_connectivity_lonlat.shape, correct_result.shape)

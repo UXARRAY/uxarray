@@ -9,13 +9,13 @@
    :description: Uxarray Python module
    :keywords: weather research and forecasting,
               model, weather, numerical weather prediction, model,
-              matplotlib, cartopy, ncar, ucar, cisl, UC Davis, SEATs, ugrid,
-              national center for atmospheric research,
-              university corporation for atmospheric research
+              matplotlib, cartopy, nsf ncar, ucar, cisl, UC Davis, SEATS, ugrid,
+              nsf national center for atmospheric research, university
+              corporation for atmospheric research
 
 
 .. .. image:: _static/images/nsf.png
-..    :scale: 100%
+..   :scale: 100%
 ..   :align: right
 
 .. |
@@ -24,8 +24,9 @@
 UXarray Documentation
 =====================
 
-UXarray provides Xarray-styled functionality for working with unstructured grids build around the
-`UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conventions.
+Xarray extension for unstructured climate and global weather data analysis and visualization written
+around the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conventions.
+
 
 
 
@@ -39,34 +40,56 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
         :link: quickstart
         :link-type: doc
 
-        A good place to start for new users
+        New to UXarray? Check out the getting started guides, which provide an introduction to UXarray's main
+        motivation and functionality.
 
-    .. grid-item-card::  Examples
+    .. grid-item-card:: User Guide
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/guide.svg
+        :link: userguide
+        :link-type: doc
+
+        The user guide provides in-depth information on the key concepts of UXarray with usefully definitions,
+        background information and explanations.
+
+    .. grid-item-card::  Gallery
         :class-title: custom-title
         :class-body: custom-body
         :img-top: _static/images/icons/science.svg
-        :link: examples
+        :link: gallery
         :link-type: doc
 
-        A gallery of examples using uxarray
+        Collection of visualization and workflow examples showcasing UXarray in action.
 
-    .. grid-item-card::  Installation
-        :class-title: custom-title
-        :class-body: custom-body
-        :img-top: _static/images/icons/download.svg
-        :link: installation
-        :link-type: doc
-
-        Installation instructions for uxarray
-
-    .. grid-item-card::  API
+    .. grid-item-card::  API Reference
         :class-title: custom-title
         :class-body: custom-body
         :img-top: _static/images/icons/code.svg
         :link: api
         :link-type: doc
 
-        See the complete uxarray API
+        The reference guide contains a detailed description of the UXarray API. The reference describes how the methods
+        work and which parameters can be used.
+
+    .. grid-item-card::  Installation
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/download.svg
+        :link: getting-started/installation
+        :link-type: doc
+
+        The installation guide provides step-by-step instructions for installing UXarray.
+
+    .. grid-item-card::  Contributor's Guide
+        :class-title: custom-title
+        :class-body: custom-body
+        :img-top: _static/images/icons/contrib.svg
+        :link: contributing
+        :link-type: doc
+
+        Interested in contributing to UXarray? The contributors guide outlines the process of making contributions.
+
 
 
 .. toctree::
@@ -74,20 +97,12 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
     :hidden:
     :caption: For users
 
-    ANNOUNCEMENT! <announcement>
-    Installation <installation>
     Getting Started <quickstart>
-    Usage Examples <examples>
+    User Guide <userguide>
+    Gallery <gallery>
     API Reference <api>
-    Tutorials <tutorials>
+    Tutorials and Videos <tutorials>
     Cite Uxarray <citation>
-
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-    :caption: For developers
-
-    Contributor's Guide <contributing>
 
 .. toctree::
     :maxdepth: 1
@@ -96,13 +111,7 @@ UXarray provides Xarray-styled functionality for working with unstructured grids
 
     GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
     GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
-    Ugrid Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
-
-
---------------------
-
-Supported By
-============
+    UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
 
 .. raw:: html
 

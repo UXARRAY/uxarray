@@ -65,15 +65,16 @@ Some important UXarray resources are as follows:
 * `UXarray GitHub repository <https://github.com/UXARRAY/uxarray>`_ houses
   the open-source code base along with some significant documentation such
   as the `README <https://github.com/UXARRAY/uxarray/blob/main/README.md>`_ and
-  `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_.
+  `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_.
 
 * `UXarray documentation <https://uxarray.readthedocs.io/>`_
   houses significant documentation such as :ref:`quickstart`, :ref:`installation`,
   :ref:`contributing` (i.e. this document), :ref:`examples`, :ref:`tutorials`,
   and :ref:`api`.
 
-* `UXarray draft API <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-  tentatively shows the eventual list of UXarray functionalities. It is
+* `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
+  `UXarray Roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ shows
+  UXarray's future function development milestones and roadmap. It is
   open to community feedback and inputs!
 
   - Please create a
@@ -188,8 +189,8 @@ select an issue to work on:
 <https://github.com/UXARRAY/uxarray/issues>`_. These issues might have been
 created from either the:
 
-* `UXarray draft API
-  <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_ entries,
+* `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_
+  and `UXarray Roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_,
 * An entry in a `UXarray Discussion <https://github.com/UXARRAY/uxarray/discussions>`_
 * A feature request, bug report, or any finding of the developers or users
   as a work to-do.
@@ -309,7 +310,7 @@ development purposes. Use the following commands for this::
     $ conda env create --file ci/environment.yml
     $ conda activate uxarray_build
 
-THe above commands will use the ``environment.yml`` conda environment definition
+The above commands will use the ``environment.yml`` conda environment definition
 file that is hosted under the ``ci`` folder and create a conda environment with
 the name ``uxarray_build``. Once you activate that environment with the help of the
 second command, you will be able to develop UXarray codes in your local configuration.
@@ -613,12 +614,6 @@ respectively, to be automatically generated.
 That being said, the code changes, which might be a new function implementation or some
 modifications to existing ones, must be added to the appropriate ``index.rst``
 file so that its documentation page is automatically generated.
-
-.. caution::
-    Please also ensure that you are changing the `UXarray draft API
-    <https://github.com/UXARRAY/uxarray/blob/main/docs/user_api/uxarray_api.md>`_
-    accordingly if you are proposing changes to the API (e.g. new functions/attributes,
-    modification(s) to existing functions, etc.)
 
 3.7.3.4. Usage examples
 ~~~~~~~~~~~~~~~~~~~~~~~

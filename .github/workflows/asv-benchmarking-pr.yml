@@ -1,0 +1,110 @@
+name: ASV Benchmarking (PR)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+  workflow_dispatch:
+
+env:
+  PR_HEAD_LABEL: ${{ github.event.pull_request.head.label }}
+
+jobs:
+  benchmark:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'run-benchmark') && github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    name: Linux
+    runs-on: ubuntu-latest
+    env:
+      ASV_DIR: "./benchmarks"
+      CONDA_ENV_FILE: ci/environment.yml
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      - name: Set up Conda environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: ${{env.CONDA_ENV_FILE}}
+          cache-environment: true
+          environment-name: uxarray_build
+          cache-environment-key: "${{runner.os}}-${{runner.arch}}-py${{env.PYTHON_VERSION}}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}-benchmark"
+          create-args: >-
+            asv
+            python-build
+            mamba
+
+      - name: Run Benchmarks
+        shell: bash -l {0}
+        id: benchmark
+        run: |
+          set -x
+          # ID this runner
+          asv machine --yes
+          echo "Baseline:  ${{ github.event.pull_request.base.sha }} (${{ github.event.pull_request.base.label }})"
+          echo "Contender: ${GITHUB_SHA} ($PR_HEAD_LABEL)"
+          # Run benchmarks for current commit against base
+          ASV_OPTIONS="--split --show-stderr"
+          asv continuous $ASV_OPTIONS ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA}
+          # Save compare results
+          asv compare --split ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA} > asv_compare_results.txt
+        working-directory: ${{ env.ASV_DIR }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: asv-benchmark-results-${{ runner.os }}
+          path: |
+            ${{ env.ASV_DIR }}/results
+            ${{ env.ASV_DIR }}/asv_compare_results.txt
+
+      - name: Post or update result comment
+        id: comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const compareResults = fs.readFileSync('${{ env.ASV_DIR }}/asv_compare_results.txt', 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            // Customize the comment content with your action results
+            const newComment = `
+            ## ASV Benchmarking
+
+            <details>
+              <summary>Benchmark Comparison Results</summary>
+
+              ${compareResults}
+            </details>
+            `;
+
+            // Fetch existing comments on the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+            });
+
+            // Find if there is an existing comment by this action
+            const botComment = comments.find(comment => comment.user.login === 'github-actions[bot]');
+
+            if (botComment) {
+              // Update the existing comment
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: botComment.id,
+                body: newComment,
+              });
+            } else {
+              // Create a new comment
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: newComment,
+              });
+            }
