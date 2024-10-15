@@ -51,6 +51,21 @@ class TestQuadHex:
             # no intersections found at this line
             uxgrid.cross_section.constant_latitude(lat=10.0)
 
+    def test_constant_lon_cross_section_grid(self):
+        uxgrid = ux.open_grid(quad_hex_grid_path)
+
+        grid_left_two = uxgrid.cross_section.constant_longitude(lon=-0.1)
+
+        assert grid_left_two.n_face == 2
+
+        grid_right_two = uxgrid.cross_section.constant_longitude(lon=0.2)
+
+        assert grid_right_two.n_face == 2
+
+        with pytest.raises(ValueError):
+            # no intersections found at this line
+            uxgrid.cross_section.constant_longitude(lon=10.0)
+
 
     def test_constant_lat_cross_section_uxds(self):
         uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
@@ -70,6 +85,21 @@ class TestQuadHex:
         with pytest.raises(ValueError):
             # no intersections found at this line
             uxds['t2m'].cross_section.constant_latitude(lat=10.0)
+
+    def test_constant_lon_cross_section_uxds(self):
+        uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+        da_left_two = uxds['t2m'].cross_section.constant_longitude(lon=-0.1)
+
+        nt.assert_array_equal(da_left_two.data, uxds['t2m'].isel(n_face=[0, 2]).data)
+
+        da_right_two = uxds['t2m'].cross_section.constant_longitude(lon=0.2)
+
+        nt.assert_array_equal(da_right_two.data, uxds['t2m'].isel(n_face=[1, 3]).data)
+
+        with pytest.raises(ValueError):
+            # no intersections found at this line
+            uxds['t2m'].cross_section.constant_longitude(lon=10.0)
 
 
 class TestGeosCubeSphere:

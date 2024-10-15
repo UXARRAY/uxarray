@@ -12,7 +12,8 @@ from numba import njit, prange
 
 @njit(parallel=True, nogil=True, cache=True)
 def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
-    """Determine which edges intersect a constant line of latitude on a sphere.
+    """Determine which edges intersect a constant line of latitude on a sphere,
+    including edges that lie exactly along the latitude.
 
     Parameters
     ----------
@@ -41,7 +42,65 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
         z0 = edge_node_z[i, 0]
         z1 = edge_node_z[i, 1]
 
-        if (z0 - z_constant) * (z1 - z_constant) < 0.0:
+        # Check if the edge crosses the constant latitude or lies exactly on it
+        if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
+            abs(z0 - z_constant) < ERROR_TOLERANCE
+            and abs(z1 - z_constant) < ERROR_TOLERANCE
+        ):
+            intersecting_edges_mask[i] = 1
+
+    intersecting_edges = np.argwhere(intersecting_edges_mask)
+
+    return np.unique(intersecting_edges)
+
+
+@njit(parallel=True, nogil=True, cache=True)
+def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
+    """Determine which edges intersect a constant line of longitude on a
+    sphere, without wrapping to the opposite longitude.
+
+    Parameters
+    ----------
+    lon:
+        Constant longitude value in degrees.
+    edge_node_x:
+        Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
+    edge_node_y:
+        Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
+    n_edge:
+        Total number of edges to check.
+
+    Returns
+    -------
+    intersecting_edges:
+        array of indices of edges that intersect the constant longitude.
+    """
+
+    lon = np.deg2rad(lon)
+
+    intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
+
+    # calculate the cos and sin of the constant longitude
+    cos_lon = np.cos(lon)
+    sin_lon = np.sin(lon)
+
+    for i in prange(n_edge):
+        # get the x and y coordinates of the edge's nodes
+        x0, x1 = edge_node_x[i, 0], edge_node_x[i, 1]
+        y0, y1 = edge_node_y[i, 0], edge_node_y[i, 1]
+
+        # calculate the dot products to determine on which side of the constant longitude the points lie
+        dot0 = x0 * sin_lon - y0 * cos_lon
+        dot1 = x1 * sin_lon - y1 * cos_lon
+
+        # ensure that both points are not on the opposite longitude (180 degrees away)
+        if (x0 * cos_lon + y0 * sin_lon) < 0.0 or (x1 * cos_lon + y1 * sin_lon) < 0.0:
+            continue
+
+        # check if the edge crosses the constant longitude or lies exactly on it
+        if dot0 * dot1 < 0.0 or (
+            abs(dot0) < ERROR_TOLERANCE and abs(dot1) < ERROR_TOLERANCE
+        ):
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
