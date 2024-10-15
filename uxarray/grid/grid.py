@@ -57,6 +57,8 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
     _construct_hole_edge_indices,
+    _populate_north_pole_face_indices,
+    _populate_south_pole_face_indices,
 )
 
 from uxarray.grid.neighbors import (
@@ -68,7 +70,10 @@ from uxarray.grid.neighbors import (
 
 from uxarray.grid.intersections import (
     fast_constant_lat_intersections,
+    fast_constant_lon_intersections,
 )
+
+from uxarray.grid.weights import _face_weights_from_edge_magnitudes
 
 from spatialpandas import GeoDataFrame
 
@@ -85,6 +90,8 @@ from uxarray.grid.validation import (
     _check_area,
     _check_normalization,
 )
+
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 
 from uxarray.conventions import ugrid
@@ -1009,6 +1016,40 @@ class Grid:
         self._ds["edge_node_connectivity"] = value
 
     @property
+    def edge_node_x(self) -> xr.DataArray:
+        """Cartesian x location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_x" not in self._ds:
+            _edge_node_x = self.node_x.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_x"] = xr.DataArray(
+                data=_edge_node_x,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_x"]
+
+    @property
+    def edge_node_y(self) -> xr.DataArray:
+        """Cartesian y location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_y" not in self._ds:
+            _edge_node_y = self.node_y.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_y"] = xr.DataArray(
+                data=_edge_node_y,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_y"]
+
+    @property
     def edge_node_z(self) -> xr.DataArray:
         """Cartesian z location for the two nodes that make up every edge.
 
@@ -1056,6 +1097,25 @@ class Grid:
         """Setter for ``face_edge_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["face_edge_connectivity"] = value
+
+    @property
+    def _face_edge_nodes_xyz(self):
+        """TODO:"""
+
+        if "_face_edge_nodes_xyz" not in self._ds:
+            res = _get_cartesian_face_edge_nodes(
+                self.face_node_connectivity.values,
+                self.n_face,
+                self.n_max_face_edges,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
+            self._ds["_face_edge_nodes_xyz"] = xr.DataArray(
+                data=res, dims=["n_face", "n_max_face_edges", "two", "three"]
+            )
+
+        return self._ds["_face_edge_nodes_xyz"]
 
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
@@ -1142,6 +1202,11 @@ class Grid:
         """Setter for ``node_face_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["node_face_connectivity"] = value
+
+    @property
+    def edge_magnitudes(self):
+        """TODO."""
+        return self.edge_node_distances
 
     @property
     def edge_node_distances(self):
@@ -1237,6 +1302,21 @@ class Grid:
                 self.edge_face_connectivity.values
             )
         return self._ds["hole_edge_indices"]
+
+    @property
+    def north_pole_face_indices(self):
+        """Indices of faces that contain the North Pole point."""
+        if "north_pole_face_indices" not in self._ds:
+            _populate_north_pole_face_indices(self)
+        return self._ds["north_pole_face_indices"]
+
+    @property
+    def south_pole_face_indices(self):
+        """Indices of faces that contain the South Pole point (-90 degrees
+        latitude)."""
+        if "south_pole_face_indices" not in self._ds:
+            _populate_south_pole_face_indices(self)
+        return self._ds["south_pole_face_indices"]
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
@@ -1967,6 +2047,47 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
+    def get_weights(
+        self,
+        weights="face_areas",
+        apply_to="faces",
+        face_indices=None,
+        edge_indices=None,
+    ):
+        """TODO:"""
+
+        # 1. Faces Areas
+        if weights == "face_areas":
+            if apply_to != "faces":
+                raise ValueError("TODO: ")
+            if face_indices is None:
+                return self.face_areas
+            else:
+                return self.face_areas[face_indices]
+
+        # 2. Edge Magnitudes
+        elif weights == "edge_magnitudes":
+            if apply_to == "edges":
+                if edge_indices is None:
+                    return self.edge_magnitudes
+                else:
+                    return self.edge_magnitudes[edge_indices]
+            elif apply_to == "faces":
+                if face_indices is None:
+                    # apply to all faces
+                    pass
+                else:
+                    return _face_weights_from_edge_magnitudes(
+                        self.edge_magnitudes.values,
+                        self.edge_face_connectivity.values,
+                        face_indices=face_indices,
+                        edge_indices=edge_indices,
+                    )
+            else:
+                raise ValueError("TODO: ")
+        else:
+            raise ValueError("TODO: ")
+
     def get_edges_at_constant_latitude(self, lat, method="fast"):
         """Identifies the edges of the grid that intersect with a specified
         constant latitude.
@@ -2001,7 +2122,12 @@ class Grid:
             raise ValueError(f"Invalid method: {method}.")
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, method="fast"):
+    def get_faces_at_constant_latitude(
+        self,
+        lat,
+        method="fast",
+        return_edge_indices=False,
+    ):
         """Identifies the faces of the grid that intersect with a specified
         constant latitude.
 
@@ -2029,5 +2155,18 @@ class Grid:
         """
         edges = self.get_edges_at_constant_latitude(lat, method)
         faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+        if return_edge_indices:
+            return faces[faces != INT_FILL_VALUE], edges
+        else:
+            return faces[faces != INT_FILL_VALUE]
 
-        return faces[faces != INT_FILL_VALUE]
+    def edges_at_constant_longitude(self, lon, method="fast"):
+        if method == "fast":
+            edges = fast_constant_lon_intersections(
+                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+            )
+        elif method == "accurate":
+            raise NotImplementedError("Accurate method not yet implemented.")
+        else:
+            raise ValueError(f"Invalid method: {method}.")
+        return edges.squeeze()
