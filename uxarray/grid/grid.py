@@ -327,9 +327,12 @@ class Grid:
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
-    def from_points(cls, points, method="spherical_voronoi"):
+    def from_points(cls, points, method="spherical_voronoi", normalize=True):
+        """TODO:"""
         if len(points) == 2:
-            x, y, z = _lonlat_rad_to_xyz(points[0], points[1])
+            x, y, z = _lonlat_rad_to_xyz(np.deg2rad(points[0]), np.deg2rad(points[1]))
+            if normalize:
+                x, y, z = _normalize_xyz(x, y, z)
             _points = np.vstack([x, y, z]).T
         elif len(points) == 3:
             _points = np.vstack(points).T
@@ -340,7 +343,7 @@ class Grid:
             ds = _points_to_spherical_voronoi(_points)
             source_grid_spec = method
         else:
-            raise ValueError("TODO: ")
+            raise ValueError(f"Unsupported method '{method}'. Expected one of ... ")
 
         return cls.from_dataset(dataset=ds, source_grid_spec=source_grid_spec)
 

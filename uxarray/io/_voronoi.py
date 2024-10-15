@@ -41,7 +41,6 @@ def _points_to_spherical_voronoi(points):
     # Determine the maximum number of nodes per face
     max_num_nodes = max(len(face) for face in voronoi_regions)
 
-    # Initialize the dense face-node connectivity array, with a fill value (e.g., -1)
     face_node_connectivity = np.full(
         (len(voronoi_regions), max_num_nodes), INT_FILL_VALUE
     )
