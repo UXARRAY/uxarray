@@ -27,6 +27,7 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._voronoi import _points_to_spherical_voronoi
 
 from uxarray.formatting_html import grid_repr
 
@@ -40,6 +41,7 @@ from uxarray.grid.coordinates import (
     _populate_node_latlon,
     _populate_node_xyz,
     _normalize_xyz,
+    _lonlat_rad_to_xyz,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -248,7 +250,6 @@ class Grid:
 
         if "source_grid_spec" not in kwargs:
             # parse to detect source grid spec
-
             source_grid_spec = _parse_grid_type(dataset)
             if source_grid_spec == "Exodus":
                 grid_ds, source_dims_dict = _read_exodus(dataset)
@@ -324,6 +325,24 @@ class Grid:
             raise ValueError("Backend not supported")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_points(cls, points, method="spherical_voronoi"):
+        if len(points) == 2:
+            x, y, z = _lonlat_rad_to_xyz(points[0], points[1])
+            _points = np.vstack([x, y, z]).T
+        elif len(points) == 3:
+            _points = np.vstack(points).T
+        else:
+            raise ValueError("TODO: ")
+
+        if method == "spherical_voronoi":
+            ds = _points_to_spherical_voronoi(_points)
+            source_grid_spec = method
+        else:
+            raise ValueError("TODO: ")
+
+        return cls.from_dataset(dataset=ds, source_grid_spec=source_grid_spec)
 
     @classmethod
     def from_topology(
