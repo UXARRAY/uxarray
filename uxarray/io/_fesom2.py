@@ -8,7 +8,7 @@ from uxarray.constants import INT_FILL_VALUE
 
 def _read_fesom2_asci(grid_path):
     """Reads a FESOM2 ASCII grid file from the specified path and encodes it in
-    a UGRID-compliant xr.Dataset.
+    the UGRID conventions.
 
     Parameters:
     -----------
@@ -150,7 +150,6 @@ def _parse_edge_tri(grid_path):
     """
     file_path = os.path.join(grid_path, "edge_tri.out")
     if not os.path.isfile(file_path):
-        # optional file,
         return None
     file_content = pd.read_csv(
         file_path,
@@ -182,7 +181,6 @@ def _parse_edges(grid_path):
     """
     file_path = os.path.join(grid_path, "edges.out")
     if not os.path.isfile(file_path):
-        # optional file,
         return None
     file_content = pd.read_csv(
         file_path,
@@ -195,5 +193,47 @@ def _parse_edges(grid_path):
     return edge_node_connectivity
 
 
-def _read_fesom2_netcdf():
-    pass
+def _read_fesom2_netcdf(in_ds):
+    """Reads a FESOM2 NetCDF grid dataset and encodes it in tbe UGRID
+    conventions.
+
+    Parameters:
+    -----------
+    in_ds : xr.Dataset
+        Dataset containing FESOM2 grid variables
+
+    Returns:
+    --------
+    ugrid_ds : xr.Dataset
+        An xarray Dataset containing the FESOM2 grid information encoded in the UGRID conventions
+    source_dims_dict : dict
+        A dictionary mapping FESM2 dimensions to UGRID dimensions
+
+    Raises:
+    -------
+    FileNotFoundError
+        If required files are not found in the provided path. At least "nod2d.out" and "elem2d.out" are required to
+        construct a UGRID-compliant grid.
+    """
+    source_dims_dict = {"ncells": "n_face"}
+    ugrid_ds = xr.Dataset()
+
+    node_lon = in_ds["lon"].data
+    node_lat = in_ds["lon"].data
+
+    ugrid_ds["node_lon"] = xr.DataArray(
+        data=node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
+    )
+    ugrid_ds["node_lat"] = xr.DataArray(
+        data=node_lat, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LAT_ATTRS
+    )
+
+    face_node_connectivity = in_ds["triag_nodes"].data - 1
+
+    ugrid_ds["face_node_connectivity"] = xr.DataArray(
+        data=face_node_connectivity,
+        dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
+    )
+
+    return ugrid_ds, source_dims_dict
