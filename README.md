@@ -45,7 +45,7 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
 ## Features
 
 * ``Grid`` class for storing grid information and providing grid-specific functionality
-  * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, and EXODUS grid formats
+  * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, FESOM2, and EXODUS grid formats
 * Extension of xarray's ``DataArray`` and ``Dataset`` classe to support unstructured grid operations
   * ``uxarray.UxDataArray`` inherits ``xarray.DataArray`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
   * ``uxarray.UxDataset`` inherits ``xarray.Dataset`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor

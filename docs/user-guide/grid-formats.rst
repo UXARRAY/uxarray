@@ -143,6 +143,18 @@ References
 * https://mpimet.mpg.de/en/research/modeling
 * https://scivis2017.dkrz.de/hd-cp-2/en-icon_grid.pdf
 
+FESOM2
+======
+The Finite volumE Sea Ice-Ocean Model (FESOM2) is a Multi-resolution ocean general circulation
+model that solves the equations of motion describing the ocean and sea ice using finite-volume methods
+on unstructured computational grids. The model is developed and supported by researchers at the
+Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), in Bremerhaven, Germany.
+
+References
+----------
+* https://fesom2.readthedocs.io/en/latest/index.html#
+
+
 Parsed Variables
 ================
 
