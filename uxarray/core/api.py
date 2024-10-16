@@ -67,6 +67,21 @@ def open_grid(
             stacklevel=2,
         )
 
+    # If the input is a directory and look for FESOM2 ASCII files
+    if isinstance(grid_filename_or_obj, (str, os.PathLike)) and os.path.isdir(
+        grid_filename_or_obj
+    ):
+        nod2d_path = os.path.join(grid_filename_or_obj, "nod2d.out")
+        elem2d_path = os.path.join(grid_filename_or_obj, "elem2d.out")
+
+        if os.path.isfile(nod2d_path) and os.path.isfile(elem2d_path):
+            return Grid.from_fesom2_ascii(grid_filename_or_obj)
+
+        else:
+            raise FileNotFoundError(
+                f"The directory '{grid_filename_or_obj}' must contain both 'nod2d.out' and 'elem2d.out'."
+            )
+
     if isinstance(grid_filename_or_obj, xr.Dataset):
         # construct a grid from a dataset file
         uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)

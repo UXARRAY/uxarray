@@ -41,6 +41,7 @@ I/O & Conversion
    Grid.from_dataset
    Grid.from_file
    Grid.from_topology
+   Grid.from_fesom2_ascii
    Grid.to_xarray
    Grid.to_geodataframe
    Grid.to_polycollection
