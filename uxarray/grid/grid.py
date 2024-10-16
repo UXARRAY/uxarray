@@ -1253,6 +1253,11 @@ class Grid:
             )
         return self._ds["hole_edge_indices"]
 
+    @property
+    def triangular(self):
+        """TODO:"""
+        return self.n_max_face_nodes == 3
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.

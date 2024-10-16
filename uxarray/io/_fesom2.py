@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import xarray as xr
 
 from uxarray.conventions import ugrid
@@ -17,7 +16,7 @@ def _read_fesom2_asci(grid_path):
     )
 
     x2 = nodes.x.values
-    x2 = np.where(x2 > 180, x2 - 360, x2)
+    # x2 = np.where(x2 > 180, x2 - 360, x2)
     y2 = nodes.y.values
 
     ugrid_ds["node_lon"] = xr.DataArray(
