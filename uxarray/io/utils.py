@@ -42,6 +42,8 @@ def _parse_grid_type(dataset):
         mesh_type = "GEOS-CS"
     elif "vertex_of_cell" in dataset:
         mesh_type = "ICON"
+    elif "triag_nodes" in dataset:
+        mesh_type = "FESOM2"
     else:
         raise RuntimeError("Could not recognize dataset format.")
     return mesh_type
