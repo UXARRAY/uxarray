@@ -56,6 +56,7 @@ extensions = [
     "nbsphinx",
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
+    "sphinx_remove_toctrees",
 ]
 
 mathjax_config = {
@@ -95,6 +96,8 @@ intersphinx_mapping = {
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
 }
+
+remove_from_toctrees = ["generated/*"]
 
 napoleon_use_admonition_for_examples = True
 napoleon_include_special_with_doc = True

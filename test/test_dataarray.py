@@ -9,7 +9,7 @@ import uxarray as ux
 
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 
-from uxarray.core.dataset import UxDataset
+from uxarray.core.dataset import UxDataset, UxDataArray
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -32,6 +32,14 @@ class TestDataArray(TestCase):
 
         assert isinstance(uxds_converted, UxDataset)
         assert uxds_converted.uxgrid == uxds.uxgrid
+
+    def test_get_dual(self):
+        """Tests the creation of the dual mesh on a data array."""
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        dual = uxds['psi'].get_dual()
+
+        assert isinstance(dual, UxDataArray)
+        self.assertTrue(dual._node_centered())
 
 
 class TestGeometryConversions(TestCase):

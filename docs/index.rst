@@ -24,8 +24,9 @@
 UXarray Documentation
 =====================
 
-UXarray provides Xarray-styled functionality for working with unstructured grids build around the
-`UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conventions.
+Xarray extension for unstructured climate and global weather data analysis and visualization written
+around the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conventions.
+
 
 
 

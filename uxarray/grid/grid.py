@@ -66,18 +66,28 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 
+from uxarray.grid.intersections import (
+    fast_constant_lat_intersections,
+)
+
 from spatialpandas import GeoDataFrame
 
 from uxarray.plot.accessor import GridPlotAccessor
 
 from uxarray.subset import GridSubsetAccessor
 
+from uxarray.cross_sections import GridCrossSectionAccessor
+
 from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
+    _check_duplicate_nodes_indices,
     _check_area,
     _check_normalization,
 )
+
+
+from uxarray.conventions import ugrid
 
 from xarray.core.utils import UncachedAccessor
 
@@ -86,6 +96,10 @@ from warnings import warn
 import cartopy.crs as ccrs
 
 import copy
+
+
+from uxarray.constants import INT_FILL_VALUE
+from uxarray.grid.dual import construct_dual
 
 
 class Grid:
@@ -211,6 +225,9 @@ class Grid:
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
 
+    # declare cross section accessor
+    cross_section = UncachedAccessor(GridCrossSectionAccessor)
+
     @classmethod
     def from_dataset(
         cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
@@ -278,10 +295,10 @@ class Grid:
         backend : str, default='geopandas'
             Backend to use to read the file, xarray or geopandas.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp")
+        >>> grid = ux.Grid.from_file("path/to/file.shp", backend='geopandas')
 
         Note
         ----
@@ -324,7 +341,7 @@ class Grid:
 
         Note
         ----
-        To construct a UGRID-complient grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
+        To construct a UGRID-compliant grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
 
         Parameters
         ----------
@@ -342,8 +359,8 @@ class Grid:
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
         **kwargs :
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
         >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
         >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
@@ -399,11 +416,9 @@ class Grid:
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
     def validate(self):
-        """Validate a grid object check for common errors, such as:
+        """Validates the current ``Grid``, checking for Duplicate Nodes,
+        Present Connectivity, and Non-Zero Face Areas.
 
-            - Duplicate nodes
-            - Connectivity
-            - Face areas (non zero)
         Raises
         ------
         RuntimeError
@@ -460,7 +475,7 @@ class Grid:
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
-        from uxarray.conventions import ugrid, descriptors
+        from uxarray.conventions import descriptors
 
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
@@ -524,8 +539,8 @@ class Grid:
         """Implementation of getitem operator for indexing a grid to obtain
         variables.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> uxgrid['face_node_connectivity']
         """
         return getattr(self, item)
@@ -978,7 +993,7 @@ class Grid:
     def edge_node_connectivity(self) -> xr.DataArray:
         """Indices of the two nodes that make up each edge.
 
-        Dimensions: ``(n_edge, n_max_edge_nodes)``
+        Dimensions: ``(n_edge, two)``
 
         Nodes are in arbitrary order.
         """
@@ -992,6 +1007,23 @@ class Grid:
         """Setter for ``edge_node_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["edge_node_connectivity"] = value
+
+    @property
+    def edge_node_z(self) -> xr.DataArray:
+        """Cartesian z location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_z" not in self._ds:
+            _edge_node_z = self.node_z.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_z"] = xr.DataArray(
+                data=_edge_node_z,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_z"]
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
@@ -1113,7 +1145,7 @@ class Grid:
 
     @property
     def edge_node_distances(self):
-        """Distances between the two nodes that surround each edge.
+        """Distances between the two nodes that surround each edge in degrees.
 
         Dimensions ``(n_edge, )``
         """
@@ -1129,7 +1161,8 @@ class Grid:
 
     @property
     def edge_face_distances(self):
-        """Distances between the centers of the faces that saddle each edge.
+        """Distances between the centers of the faces that saddle each edge in
+        degrees.
 
         Dimensions ``(n_edge, )``
         """
@@ -1562,8 +1595,8 @@ class Grid:
             self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
-        """Returns a xarray Dataset representation in a specific grid format
-        from the Grid object.
+        """Returns an ``xarray.Dataset`` with the variables stored under the
+        ``Grid`` encoded in a specific grid format.
 
         Parameters
         ----------
@@ -1602,17 +1635,16 @@ class Grid:
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
         return_non_nan_polygon_indices: Optional[bool] = False,
         exclude_nan_polygons: Optional[bool] = True,
+        **kwargs,
     ):
-        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
-        column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid.
+        """Constructs a ``GeoDataFrame`` consisting of polygons representing
+        the faces of the current ``Grid``
 
         Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
         parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
@@ -1629,7 +1661,8 @@ class Grid:
             - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
             - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection, optional
-            Geographic projection used to transform polygons
+            Geographic projection used to transform polygons. Only supported when periodic_elements is set to
+            'ignore' or 'exclude'
         cache: bool, optional
             Flag used to select whether to cache the computed GeoDataFrame
         override: bool, optional
@@ -1647,7 +1680,7 @@ class Grid:
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
+        gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
 
@@ -1655,6 +1688,9 @@ class Grid:
             raise ValueError(
                 f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
             )
+
+        # if project is false, projection is only used for determining central coordinates
+        project = kwargs.get("project", True)
 
         if projection and project:
             if periodic_elements == "split":
@@ -1732,8 +1768,8 @@ class Grid:
         return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
-        representing each face as a polygon.
+        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
+        of polygons representing the faces of the current ``Grid``
 
         Parameters
         ----------
@@ -1815,8 +1851,8 @@ class Grid:
         override: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
-        representing each edge as a line.
+        """Constructs a ``matplotlib.collections.LineCollection``` consisting
+        of lines representing the edges of the current ``Grid``
 
         Parameters
         ----------
@@ -1838,13 +1874,6 @@ class Grid:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
-
-        if projection is not None:
-            if periodic_elements == "split":
-                raise ValueError(
-                    "Setting ``periodic_elements='split'`` is not supported when a "
-                    "projection is provided."
-                )
 
         if self._line_collection_cached_parameters["line_collection"] is not None:
             if (
@@ -1874,6 +1903,31 @@ class Grid:
             )
 
         return line_collection
+
+    def get_dual(self):
+        """Compute the dual for a grid, which constructs a new grid centered
+        around the nodes, where the nodes of the primal become the face centers
+        of the dual, and the face centers of the primal become the nodes of the
+        dual. Returns a new `Grid` object.
+
+        Returns
+        --------
+        dual : Grid
+            Dual Mesh Grid constructed
+        """
+
+        if _check_duplicate_nodes_indices(self):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self)
+
+        # Construct dual mesh
+        dual = self.from_topology(
+            self.face_lon.values, self.face_lat.values, dual_node_face_conn
+        )
+
+        return dual
 
     def isel(self, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
@@ -1912,3 +1966,68 @@ class Grid:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
+
+    def get_edges_at_constant_latitude(self, lat, method="fast"):
+        """Identifies the edges of the grid that intersect with a specified
+        constant latitude.
+
+        This method computes the intersection of grid edges with a given latitude and
+        returns a collection of edges that cross or are aligned with that latitude.
+        The method used for identifying these edges can be controlled by the `method`
+        parameter.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to identify intersecting edges, in degrees.
+        method : str, optional
+            The computational method used to determine edge intersections. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
+
+        Returns
+        -------
+        edges : array
+            A squeezed array of edges that intersect the specified constant latitude.
+        """
+        if method == "fast":
+            edges = fast_constant_lat_intersections(
+                lat, self.edge_node_z.values, self.n_edge
+            )
+        elif method == "accurate":
+            raise NotImplementedError("Accurate method not yet implemented.")
+        else:
+            raise ValueError(f"Invalid method: {method}.")
+        return edges.squeeze()
+
+    def get_faces_at_constant_latitude(self, lat, method="fast"):
+        """Identifies the faces of the grid that intersect with a specified
+        constant latitude.
+
+        This method finds the faces (or cells) of the grid that intersect a given latitude
+        by first identifying the intersecting edges and then determining the faces connected
+        to these edges. The method used for identifying edges can be adjusted with the `method`
+        parameter.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to identify intersecting faces, in degrees.
+        method : str, optional
+            The computational method used to determine intersecting edges. Options are:
+            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
+            - 'accurate': Uses a slower but more precise method.
+            Default is 'fast'.
+
+        Returns
+        -------
+        faces : array
+            An array of unique face indices that intersect the specified latitude.
+            Faces that are invalid or missing (e.g., with a fill value) are excluded
+            from the result.
+        """
+        edges = self.get_edges_at_constant_latitude(lat, method)
+        faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+
+        return faces[faces != INT_FILL_VALUE]

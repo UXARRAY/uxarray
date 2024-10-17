@@ -7,8 +7,11 @@ import sys
 
 from typing import Optional, IO
 
+import uxarray
 from uxarray.grid import Grid
 from uxarray.core.dataarray import UxDataArray
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
 
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 
@@ -26,9 +29,8 @@ from warnings import warn
 
 
 class UxDataset(xr.Dataset):
-    """A ``xarray.Dataset``-like, multi-dimensional, in memory, array database.
-    Inherits from ``xarray.Dataset`` and has its own unstructured grid-aware
-    dataset operators and attributes through the ``uxgrid`` accessor.
+    """Grid informed ``xarray.Dataset`` with an attached ``Grid`` accessor and
+    grid-specific functionality.
 
     Parameters
     ----------
@@ -134,14 +136,8 @@ class UxDataset(xr.Dataset):
 
     @property
     def uxgrid(self):
-        """``uxarray.Grid`` property for ``uxarray.UxDataset`` to make it
-        unstructured grid-aware.
-
-        Examples
-        --------
-        uxds = ux.open_dataset(grid_path, data_path)
-        uxds.uxgrid
-        """
+        """Linked ``Grid`` representing to the unstructured grid the data
+        resides on."""
         return self._uxgrid
 
     # a setter function
@@ -337,3 +333,53 @@ class UxDataset(xr.Dataset):
 
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
+
+    def get_dual(self):
+        """Compute the dual mesh for a dataset, returns a new dataset object.
+
+        Returns
+        --------
+        dual : uxds
+            Dual Mesh `uxds` constructed
+        """
+
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        if self.uxgrid.hole_edge_indices.size != 0:
+            warn(
+                "This mesh is partial, which could cause inconsistent results and data will be lost",
+                Warning,
+            )
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self.uxgrid)
+
+        # Construct dual mesh
+        dual = self.uxgrid.from_topology(
+            self.uxgrid.face_lon.values,
+            self.uxgrid.face_lat.values,
+            dual_node_face_conn,
+        )
+
+        # Initialize new dataset
+        dataset = uxarray.UxDataset(uxgrid=dual)
+
+        # Dictionary to swap dimensions
+        dim_map = {"n_face": "n_node", "n_node": "n_face"}
+
+        # For each data array in the dataset, reconstruct the data array with the dual mesh
+        for var in self.data_vars:
+            # Get correct dimensions for the dual
+            dims = [dim_map.get(dim, dim) for dim in self[var].dims]
+
+            # Get the values from the data array
+            data = np.array(self[var].values)
+
+            # Construct the new data array
+            uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=var)
+
+            # Add data array to dataset
+            dataset[var] = uxda
+
+        return dataset
