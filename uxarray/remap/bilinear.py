@@ -299,8 +299,8 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
             [point[1], point[0]],
             triangle=triangle,
             projection_center=[
-                mesh.uxgrid.face_lat[ind[0]],
-                mesh.uxgrid.face_lon[ind[0]],
+                mesh.uxgrid.face_lat[ind[0]].values,
+                mesh.uxgrid.face_lon[ind[0]].values,
             ],
         )
         # Find the largest face radius
@@ -343,8 +343,8 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
                 [point[1], point[0]],
                 triangle=triangle,
                 projection_center=[
-                    mesh.uxgrid.face_lat[ind[0]],
-                    mesh.uxgrid.face_lon[ind[0]],
+                    mesh.uxgrid.face_lat[ind[0]].values,
+                    mesh.uxgrid.face_lon[ind[0]].values,
                 ],
             )
 
@@ -369,8 +369,8 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
             [point[1], point[0]],
             triangle=triangle,
             projection_center=[
-                mesh.uxgrid.face_lat[ind[0]],
-                mesh.uxgrid.face_lon[ind[0]],
+                mesh.uxgrid.face_lat[ind[0]].values,
+                mesh.uxgrid.face_lon[ind[0]].values,
             ],
         )
         # If found in first face, return weights
@@ -385,7 +385,7 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
             d, ind = tree.query(point, k=i, return_distance=True, sort_results=True)
 
             # If the distance is outside the max distance the point could be in, the point is outside the partial grid
-            if d > max_distance:
+            if d[i - 1] > max_distance:
                 return INT_FILL_VALUE, INT_FILL_VALUE
 
             lat = np.array(
@@ -407,8 +407,8 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
                 [point[1], point[0]],
                 triangle=triangle,
                 projection_center=[
-                    mesh.uxgrid.face_lat[ind[0]],
-                    mesh.uxgrid.face_lon[ind[0]],
+                    mesh.uxgrid.face_lat[ind[0]].values,
+                    mesh.uxgrid.face_lon[ind[0]].values,
                 ],
             )
 
@@ -479,13 +479,15 @@ def haversine_distance(node_lats, node_lons, face_lat, face_lon):
     return c
 
 
-# @njit(cache=True)
+# Gnomonic projection function
+@njit(cache=True)
 def gnomonic_projection(lat, lon, lat0, lon0):
     """Project a point (lat, lon) onto a 2D plane using gnomonic projection
     from (lat0, lon0)."""
+
     # Convert degrees to radians
     lat, lon = np.radians(lat), np.radians(lon)
-    lat0, lon0 = np.radians(lat0), np.radians(lon0)
+    lat0, lon0 = np.radians(lat0), np.radians(lat0)
 
     # Precompute cosines and sines
     cos_lat = np.cos(lat)
@@ -497,25 +499,48 @@ def gnomonic_projection(lat, lon, lat0, lon0):
 
     # Gnomonic projection equations
     denom = cos_lat0 * cos_lat * np.cos(delta_lon) + sin_lat0 * sin_lat
-
     x = cos_lat * np.sin(delta_lon) / denom
     y = (cos_lat0 * sin_lat - sin_lat0 * cos_lat * np.cos(delta_lon)) / denom
 
     return x, y
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def project_triangle_to_plane(triangle, projection_center):
     """Project a triangle's vertices to a 2D plane using gnomonic
     projection."""
-    projected_triangle = [
-        gnomonic_projection(lat, lon, projection_center[0], projection_center[1])
-        for lat, lon in triangle
-    ]
+    projected_triangle = np.empty((3, 2), dtype=np.float64)
+
+    for i in range(3):
+        lat, lon = triangle[i]
+        projected_triangle[i] = gnomonic_projection(
+            lat, lon, projection_center[0], projection_center[1]
+        )
+
     return projected_triangle
 
 
-# @njit(cache=True)
+# Ray-casting function for 2D point-in-triangle test
+@njit(cache=True)
+def point_in_triangle_ray_casting(point, triangle):
+    px, py = point
+    intersection_count = 0
+
+    # Triangle edges
+    for i in range(3):
+        x1, y1 = triangle[i]
+        x2, y2 = triangle[(i + 1) % 3]
+
+        # Check if the ray crosses the edge
+        if (y1 > py) != (y2 > py):
+            x_intersection = x1 + (py - y1) * (x2 - x1) / (y2 - y1)
+            if x_intersection > px:
+                intersection_count += 1
+
+    return intersection_count % 2 == 1
+
+
+@njit(cache=True)
 def point_in_triangle_projected(point, triangle, projection_center):
     """Check if a point is inside a triangle on the sphere by projecting to a
     plane."""
@@ -527,22 +552,3 @@ def point_in_triangle_projected(point, triangle, projection_center):
 
     # Apply the 2D ray-casting algorithm
     return point_in_triangle_ray_casting(projected_point, projected_triangle)
-
-
-# @njit(cache=True)
-# Reusing our 2D ray-casting method
-def point_in_triangle_ray_casting(point, triangle):
-    px, py = point
-    intersection_count = 0
-
-    # Triangle edges
-    for i in range(3):
-        x1, y1 = triangle[i]
-        x2, y2 = triangle[(i + 1) % 3]
-
-        if (y1 > py) != (y2 > py):
-            x_intersection = x1 + (py - y1) * (x2 - x1) / (y2 - y1)
-            if x_intersection > px:
-                intersection_count += 1
-
-    return intersection_count % 2 == 1
