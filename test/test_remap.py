@@ -22,6 +22,7 @@ dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1
 dsfile_v2_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v2.nc"
 dsfile_v3_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v3.nc"
 mpasfile_QU = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+mpasfile_QU_2 = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
 
 
 class TestNearestNeighborRemap(TestCase):
@@ -424,10 +425,8 @@ class TestInverseDistanceWeightedRemapping(TestCase):
 class TestBilinearRemapping(TestCase):
 
     def test_uxda_remap(self):
-        source = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc"
-        destination = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/oQU480.231010.nc"
-        source_uxds = ux.open_dataset(source, source)
-        destination = ux.open_dataset(destination, destination)
+        source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+        destination = ux.open_dataset(mpasfile_QU_2, mpasfile_QU_2)
 
         bilinear_remap = source_uxds['latVertex'].remap.bilinear(destination.uxgrid, remap_to='face centers',
                                                                coord_type='cartesian')
