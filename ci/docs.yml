@@ -20,6 +20,7 @@ dependencies:
     - scikit-learn
     - sphinx-book-theme
     - sphinx-autosummary-accessors
+    - sphinx-remove-toctrees
     - myst-nb
     - sphinx-design
     - nbsphinx
@@ -33,6 +34,7 @@ dependencies:
     - pandas
     - geocat-datafiles
     - spatialpandas
+    - geopandas
     - pip:
       - antimeridian
       - git+https://github.com/philipc2/pyfma.git # fix until https://github.com/nschloe/pyfma/pull/17 is merged

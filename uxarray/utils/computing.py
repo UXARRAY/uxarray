@@ -4,7 +4,7 @@ import sys
 from numba import njit
 
 
-@njit
+@njit(cache=True)
 def all(a):
     """Numba decorated implementation of ``np.all()``
 
@@ -16,7 +16,7 @@ def all(a):
     return np.all(a)
 
 
-@njit
+@njit(cache=True)
 def isclose(a, b, rtol=1e-05, atol=1e-08):
     """Numba decorated implementation of ``np.isclose()``
 
@@ -28,7 +28,7 @@ def isclose(a, b, rtol=1e-05, atol=1e-08):
     return np.isclose(a, b, rtol=rtol, atol=atol)
 
 
-@njit
+@njit(cache=True)
 def allclose(a, b, rtol=1e-05, atol=1e-08):
     """Numba decorated implementation of ``np.allclose()``
 
@@ -39,7 +39,7 @@ def allclose(a, b, rtol=1e-05, atol=1e-08):
     return np.allclose(a, b, rtol=rtol, atol=atol)
 
 
-@njit
+@njit(cache=True)
 def cross(a, b):
     """Numba decorated implementation of ``np.cross()``
 
@@ -50,7 +50,7 @@ def cross(a, b):
     return np.cross(a, b)
 
 
-@njit
+@njit(cache=True)
 def dot(a, b):
     """Numba decorated implementation of ``np.dot()``
 
@@ -59,6 +59,17 @@ def dot(a, b):
     numpy.dot
     """
     return np.dot(a, b)
+
+
+@njit(cache=True)
+def norm(x):
+    """Numba decorated implementation of ``np.linalg.norm()``
+
+    See Also
+    --------
+    numpy.linalg.norm
+    """
+    return np.linalg.norm(x)
 
 
 def _fmms(a, b, c, d):
@@ -175,8 +186,8 @@ def dot_fma(v1, v2):
 
 
 def _two_prod_fma(a, b):
-    """
-    Error-free transformation of the product of two floating-point numbers using FMA, such that a * b = x + y exactly.
+    """Error-free transformation of the product of two floating-point numbers
+    using FMA, such that a * b = x + y exactly.
 
     Parameters
     ----------
@@ -206,9 +217,9 @@ def _two_prod_fma(a, b):
 
 
 def _err_fmac(a, b, c):
-    """
-    Error-free transformation for the FMA operation. such that x = FMA(a,b,c) and a * b + c = x + y + z exactly.
-    Thhis function is only available in round to the nearest mode and takes approximately 17 flops
+    """Error-free transformation for the FMA operation. such that x =
+    FMA(a,b,c) and a * b + c = x + y + z exactly. Thhis function is only
+    available in round to the nearest mode and takes approximately 17 flops.
 
     Parameters
     ----------
@@ -246,8 +257,8 @@ def _err_fmac(a, b, c):
 
 
 def _two_sum(a, b):
-    """
-    Error-free transformation of the sum of two floating-point numbers such that a + b = x + y exactly
+    """Error-free transformation of the sum of two floating-point numbers such
+    that a + b = x + y exactly.
 
     Parameters
     ----------
@@ -275,8 +286,8 @@ def _two_sum(a, b):
 
 
 def _fast_two_mult(a, b):
-    """
-    Error-free transformation of the product of two floating-point numbers such that a * b = x + y exactly.
+    """Error-free transformation of the product of two floating-point numbers
+    such that a * b = x + y exactly.
 
     This function is faster than the _two_prod_fma function.
 
@@ -295,7 +306,6 @@ def _fast_two_mult(a, b):
     Vincent Lefèvre, Nicolas Louvet, Jean-Michel Muller, Joris Picot, and Laurence Rideau. 2023.
     Accurate Calculation of Euclidean Norms Using Double-word Arithmetic.
     ACM Trans. Math. Softw. 49, 1, Article 1 (March 2023), 34 pages. https://doi.org/10.1145/3568672
-
     """
     import pyfma
 

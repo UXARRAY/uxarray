@@ -59,6 +59,9 @@ def _primal_to_ugrid(in_ds, out_ds):
     if "cellsOnCell" in in_ds:
         _parse_face_faces(in_ds, out_ds)
 
+    if "areaCell" in in_ds:
+        _parse_face_areas(in_ds, out_ds, mesh_type="primal")
+
     # set global attributes
     _parse_global_attrs(in_ds, out_ds)
 
@@ -120,6 +123,9 @@ def _dual_to_ugrid(in_ds, out_ds):
 
     if "dcEdge" in in_ds:
         _parse_edge_face_distances(in_ds, out_ds)
+
+    if "areaTriangle" in in_ds:
+        _parse_face_areas(in_ds, out_ds, mesh_type="dual")
 
     # set global attributes
     _parse_global_attrs(in_ds, out_ds)
@@ -486,6 +492,21 @@ def _parse_face_faces(in_ds, out_ds):
         data=face_face_connectivity,
         dims=ugrid.FACE_FACE_CONNECTIVITY_DIMS,
         attrs=ugrid.FACE_FACE_CONNECTIVITY_ATTRS,
+    )
+
+
+def _parse_face_areas(in_ds, out_ds, mesh_type):
+    """Parses the face area for either a primal or dual grid."""
+
+    if mesh_type == "primal":
+        face_area = in_ds["areaCell"].data
+    else:
+        face_area = in_ds["areaTriangle"].data
+
+    out_ds["face_areas"] = xr.DataArray(
+        data=face_area,
+        dims=descriptors.FACE_AREAS_DIMS,
+        attrs=descriptors.FACE_AREAS_ATTRS,
     )
 
 

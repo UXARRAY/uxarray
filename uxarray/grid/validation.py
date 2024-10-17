@@ -1,6 +1,7 @@
 import numpy as np
 from warnings import warn
 
+
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 
 
@@ -103,3 +104,47 @@ def _find_duplicate_nodes(grid):
                 duplicate_dict[duplicate_idx] = source_idx
 
     return duplicate_dict
+
+
+def _check_normalization(grid):
+    """Checks whether all the cartesiain coordinates are normalized."""
+
+    if grid._normalized is True:
+        # grid is already normalized, no need to run extra checks
+        return grid._normalized
+
+    if "node_x" in grid._ds:
+        if not (
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
+        ).all():
+            grid._normalized = False
+            return False
+    if "edge_x" in grid._ds:
+        if not (
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
+        ).all():
+            grid._normalized = False
+            return False
+    if "face_x" in grid._ds:
+        if not (
+            np.isclose(
+                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
+                1.0,
+                atol=ERROR_TOLERANCE,
+            )
+        ).all():
+            grid._normalized = False
+            return False
+
+    # set the grid as normalized
+    grid._normalized = True
+
+    return True

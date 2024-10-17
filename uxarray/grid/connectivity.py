@@ -142,7 +142,7 @@ def _populate_n_nodes_per_face(grid):
     )
 
 
-@njit()
+@njit(cache=True)
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
@@ -251,7 +251,7 @@ def _populate_edge_face_connectivity(grid):
     )
 
 
-@njit
+@njit(cache=True)
 def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
     """Helper for (``edge_face_connectivity``) construction."""
     edge_faces = np.ones(shape=(n_edge, 2), dtype=face_edges.dtype) * INT_FILL_VALUE
@@ -357,6 +357,7 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     where the locations of non fill-value entries are stored using COO
     (coordinate list) standard. It is represented by three arrays: row indices,
     column indices, and non-filled element flags.
+
     Parameters
     ----------
     dense_matrix : np.ndarray

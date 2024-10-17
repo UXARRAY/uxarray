@@ -1,6 +1,7 @@
 import numpy as np
-from numba import njit
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
+
+from numba import njit
 
 
 def construct_dual(grid):
