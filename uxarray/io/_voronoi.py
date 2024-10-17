@@ -6,7 +6,8 @@ import numpy as np
 from scipy.spatial import SphericalVoronoi
 
 
-def _points_to_spherical_voronoi(points):
+def _spherical_voronoi_from_points(points):
+    """TODO: Docstring"""
     out_ds = xr.Dataset()
 
     # Create the Spherical Voronoi object
@@ -17,6 +18,8 @@ def _points_to_spherical_voronoi(points):
 
     # Retrieve the vertices (Cartesian coordinates)
     vertices = sv.vertices
+
+    # TODO: Preserve cartesian vertices
 
     # Convert vertices to spherical coordinates (lon, lat)
     node_lon = np.arctan2(vertices[:, 1], vertices[:, 0])
