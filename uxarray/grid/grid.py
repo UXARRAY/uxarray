@@ -27,6 +27,8 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._voronoi import _spherical_voronoi_from_points
+from uxarray.io._delaunay import _spherical_delaunay_from_points
 
 from uxarray.formatting_html import grid_repr
 
@@ -40,6 +42,7 @@ from uxarray.grid.coordinates import (
     _populate_node_latlon,
     _populate_node_xyz,
     _normalize_xyz,
+    _lonlat_rad_to_xyz,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -248,7 +251,6 @@ class Grid:
 
         if "source_grid_spec" not in kwargs:
             # parse to detect source grid spec
-
             source_grid_spec = _parse_grid_type(dataset)
             if source_grid_spec == "Exodus":
                 grid_ds, source_dims_dict = _read_exodus(dataset)
@@ -324,6 +326,62 @@ class Grid:
             raise ValueError("Backend not supported")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_points(cls, points, method="spherical_voronoi", normalize=True):
+        """
+        TODO:
+
+        Parameters
+        ----------
+        points : sequence of array-like
+            If `len(points) == 2`, `points` should be [longitude, latitude] in degrees,
+            each being array-like of shape (N,).
+            If `len(points) == 3`, `points` should be [x, y, z] coordinates,
+            each being array-like of shape (N,).
+        method : str, optional
+            Method to generate connectivity information. Supported methods: 'spherical_voronoi'.
+        normalize : bool, optional
+            If True, normalize the x, y, z coordinates.
+
+        Returns
+        -------
+        TODO:
+            TODO:
+
+        Raises
+        ------
+        ValueError
+            If the length of `points` is not 2 or 3.
+            If the `method` is not supported.
+        """
+        if len(points) == 2:
+            lon_deg, lat_deg = points[0], points[1]
+            lon_rad = np.deg2rad(lon_deg)
+            lat_rad = np.deg2rad(lat_deg)
+            x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+            if normalize:
+                x, y, z = _normalize_xyz(x, y, z)
+        elif len(points) == 3:
+            x, y, z = points[0], points[1], points[2]
+            if normalize:
+                x, y, z = _normalize_xyz(x, y, z)
+        else:
+            raise ValueError(
+                "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
+            )
+
+        _points = np.vstack([x, y, z]).T
+        if method == "spherical_voronoi":
+            ds = _spherical_voronoi_from_points(_points)
+        elif method == "spherical_delaunay":
+            ds = _spherical_delaunay_from_points(_points)
+        else:
+            raise ValueError(
+                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi']."
+            )
+
+        return cls.from_dataset(dataset=ds, source_grid_spec=method)
 
     @classmethod
     def from_topology(
