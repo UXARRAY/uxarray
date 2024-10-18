@@ -143,7 +143,6 @@ def _standardize_connectivity(ds, conn_name):
         original_fv = ds[conn_name]._FillValue
     elif np.isnan(ds[conn_name].values).any():
         original_fv = np.nan
-        print(f"Encountered Nan for {conn_name}")
     else:
         original_fv = None
 
