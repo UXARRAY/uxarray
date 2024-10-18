@@ -11,11 +11,9 @@ def _read_ugrid(ds):
     """Parses an unstructured grid dataset and encodes it in the UGRID
     conventions."""
 
-    # Grid Topology
+    # Extract grid topology attributes
     grid_topology_name = list(ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
     ds = ds.rename({grid_topology_name: "grid_topology"})
-
-    # Coordinates
 
     # get the names of node_lon and node_lat
     node_lon_name, node_lat_name = ds["grid_topology"].node_coordinates.split()
@@ -37,7 +35,6 @@ def _read_ugrid(ds):
         coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
 
     ds = ds.rename(coord_dict)
-    # Connectivity
 
     conn_dict = {}
     for conn_name in ugrid.CONNECTIVITY_NAMES:
@@ -56,24 +53,37 @@ def _read_ugrid(ds):
     dim_dict = {}
 
     # Rename Core Dims (node, edge, face)
-    if "node_dimension" in ds["grid_topology"]:
+    if "node_dimension" in ds["grid_topology"].attrs:
         dim_dict[ds["grid_topology"].node_dimension] = ugrid.NODE_DIM
     else:
         dim_dict[ds["node_lon"].dims[0]] = ugrid.NODE_DIM
 
-    if "face_dimension" in ds["grid_topology"]:
+    if "face_dimension" in ds["grid_topology"].attrs:
         dim_dict[ds["grid_topology"].face_dimension] = ugrid.FACE_DIM
     else:
         dim_dict[ds["face_node_connectivity"].dims[0]] = ugrid.FACE_DIM
 
-    if "edge_dimension" in ds["grid_topology"]:
+    if "edge_dimension" in ds["grid_topology"].attrs:
         # edge dimension is not always provided
         dim_dict[ds["grid_topology"].edge_dimension] = ugrid.EDGE_DIM
     else:
         if "edge_lon" in ds:
             dim_dict[ds["edge_lon"].dims[0]] = ugrid.EDGE_DIM
 
+    for conn_name in conn_dict.values():
+        # Ensure grid dimension (i.e. 'n_face') is always the first dimension
+        da = ds[conn_name]
+        dims = da.dims
+
+        for grid_dim in dim_dict.keys():
+            if dims[1] == grid_dim:
+                ds[conn_name] = da.T
+
     dim_dict[ds["face_node_connectivity"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
+
+    for dim in ds.dims:
+        if ds.sizes[dim] == 2:
+            dim_dict[dim] = "two"
 
     ds = ds.swap_dims(dim_dict)
 
@@ -133,6 +143,7 @@ def _standardize_connectivity(ds, conn_name):
         original_fv = ds[conn_name]._FillValue
     elif np.isnan(ds[conn_name].values).any():
         original_fv = np.nan
+        print(f"Encountered Nan for {conn_name}")
     else:
         original_fv = None
 
@@ -149,7 +160,9 @@ def _standardize_connectivity(ds, conn_name):
         if "start_index" in ds[conn_name].attrs:
             new_conn[new_conn != INT_FILL_VALUE] -= INT_DTYPE(ds[conn_name].start_index)
         else:
-            new_conn[new_conn != INT_FILL_VALUE] -= INT_DTYPE(new_conn.min())
+            fill_value_indices = new_conn != INT_FILL_VALUE
+            start_index = new_conn[fill_value_indices].min()
+            new_conn[fill_value_indices] -= INT_DTYPE(start_index)
 
         # reassign data to use updated connectivity
         ds[conn_name].data = new_conn
