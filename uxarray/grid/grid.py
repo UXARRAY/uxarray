@@ -326,7 +326,14 @@ class Grid:
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
-    def from_points(cls, points, method="spherical_delaunay", normalize=True):
+    def from_points(
+        cls,
+        points,
+        method="spherical_delaunay",
+        boundary_points=None,
+        normalize=True,
+        **kwargs,
+    ):
         """
         TODO:
 
@@ -357,9 +364,9 @@ class Grid:
         _points = prepare_points(points, normalize)
 
         if method == "spherical_voronoi":
-            ds = _spherical_voronoi_from_points(_points)
+            ds = _spherical_voronoi_from_points(_points, boundary_points, **kwargs)
         elif method == "spherical_delaunay":
-            ds = _spherical_delaunay_from_points(_points)
+            ds = _spherical_delaunay_from_points(_points, boundary_points)
         else:
             raise ValueError(
                 f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."
@@ -1281,8 +1288,42 @@ class Grid:
         return self._ds["hole_edge_indices"]
 
     @property
+    def boundary_node_indices(self):
+        if "boundary_node_indices" not in self._ds:
+            raise ValueError
+
+        return self._ds["boundary_node_indices"]
+
+        pass
+
+    @property
+    def boundary_face_indices(self):
+        # TODO:
+        if "boundary_face_indices" not in self._ds:
+            boundaries = np.unique(
+                self.node_face_connectivity[
+                    self.boundary_node_indices.values
+                ].data.ravel()
+            )
+            boundaries = boundaries[boundaries != INT_FILL_VALUE]
+            self._ds["boundary_face_indices"] = xr.DataArray(data=boundaries)
+
+        return self._ds["boundary_face_indices"]
+
+    @property
     def triangular(self):
+        """TODO:"""
         return self.n_max_face_nodes == 3
+
+    @property
+    def partial_sphere_coverage(self):
+        """TODO:"""
+        return self.hole_edge_indices.size != 0
+
+    @property
+    def global_sphere_coverage(self):
+        """TODO:"""
+        return not self.partial_sphere_coverage
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid

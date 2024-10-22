@@ -886,8 +886,7 @@ def prepare_points(points, normalize):
         lon_rad = np.deg2rad(lon_deg)
         lat_rad = np.deg2rad(lat_deg)
         x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
-        if normalize:
-            x, y, z = _normalize_xyz(x, y, z)
+        x, y, z = _normalize_xyz(x, y, z)
     elif len(points) == 3:
         x, y, z = points[0], points[1], points[2]
         if normalize:
