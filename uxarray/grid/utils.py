@@ -6,7 +6,7 @@ import uxarray.utils.computing as ac_utils
 from numba import njit
 
 
-@njit
+@njit(cache=True)
 def _angle_of_2_vectors(u, v):
     """Calculate the angle between two 3D vectors u and v in radians. Can be
     used to calcualte the span of a GCR.

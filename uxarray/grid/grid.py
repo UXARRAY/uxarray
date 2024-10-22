@@ -1635,13 +1635,13 @@ class Grid:
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
         return_non_nan_polygon_indices: Optional[bool] = False,
         exclude_nan_polygons: Optional[bool] = True,
+        **kwargs,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
         the faces of the current ``Grid``
@@ -1661,7 +1661,8 @@ class Grid:
             - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
             - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection, optional
-            Geographic projection used to transform polygons
+            Geographic projection used to transform polygons. Only supported when periodic_elements is set to
+            'ignore' or 'exclude'
         cache: bool, optional
             Flag used to select whether to cache the computed GeoDataFrame
         override: bool, optional
@@ -1679,7 +1680,7 @@ class Grid:
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
+        gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
 
@@ -1687,6 +1688,9 @@ class Grid:
             raise ValueError(
                 f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
             )
+
+        # if project is false, projection is only used for determining central coordinates
+        project = kwargs.get("project", True)
 
         if projection and project:
             if periodic_elements == "split":
@@ -1870,13 +1874,6 @@ class Grid:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
-
-        if projection is not None:
-            if periodic_elements == "split":
-                raise ValueError(
-                    "Setting ``periodic_elements='split'`` is not supported when a "
-                    "projection is provided."
-                )
 
         if self._line_collection_cached_parameters["line_collection"] is not None:
             if (
