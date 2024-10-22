@@ -1,5 +1,3 @@
-"""uxarray.core.grid module."""
-
 import xarray as xr
 import numpy as np
 
@@ -42,7 +40,7 @@ from uxarray.grid.coordinates import (
     _populate_node_latlon,
     _populate_node_xyz,
     _normalize_xyz,
-    _lonlat_rad_to_xyz,
+    prepare_points,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -328,7 +326,7 @@ class Grid:
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
-    def from_points(cls, points, method="spherical_voronoi", normalize=True):
+    def from_points(cls, points, method="spherical_delaunay", normalize=True):
         """
         TODO:
 
@@ -355,30 +353,16 @@ class Grid:
             If the length of `points` is not 2 or 3.
             If the `method` is not supported.
         """
-        if len(points) == 2:
-            lon_deg, lat_deg = points[0], points[1]
-            lon_rad = np.deg2rad(lon_deg)
-            lat_rad = np.deg2rad(lat_deg)
-            x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
-            if normalize:
-                x, y, z = _normalize_xyz(x, y, z)
-        elif len(points) == 3:
-            x, y, z = points[0], points[1], points[2]
-            if normalize:
-                x, y, z = _normalize_xyz(x, y, z)
-        else:
-            raise ValueError(
-                "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
-            )
 
-        _points = np.vstack([x, y, z]).T
+        _points = prepare_points(points, normalize)
+
         if method == "spherical_voronoi":
             ds = _spherical_voronoi_from_points(_points)
         elif method == "spherical_delaunay":
             ds = _spherical_delaunay_from_points(_points)
         else:
             raise ValueError(
-                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi']."
+                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."
             )
 
         return cls.from_dataset(dataset=ds, source_grid_spec=method)
@@ -1295,6 +1279,10 @@ class Grid:
                 self.edge_face_connectivity.values
             )
         return self._ds["hole_edge_indices"]
+
+    @property
+    def triangular(self):
+        return self.n_max_face_nodes == 3
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
