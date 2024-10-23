@@ -12,6 +12,8 @@ from typing import (
     Union,
 )
 
+from scipy.spatial import SphericalVoronoi, Delaunay
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -416,6 +418,38 @@ class Grid:
             )
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
+
+    @classmethod
+    def from_xyz_vertices(cls,
+                          node_x: Union[list, np.ndarray],
+                          node_y: Union[list, np.ndarray],
+                          node_z: Union[list, np.ndarray],
+                          method="delaunay"):
+        """Constructs a ``Grid`` from a set of unstructured Cartesian [x,y,z]
+        coordinates."""
+        if method == "delaunay":
+            pass
+        elif method == "voronoi":
+            pass
+        else:
+            raise ValueError(
+                f"Invalid method. Expected one of [delaunay, voronoi], but received {method}"
+            )
+
+    @classmethod
+    def from_latlon_vertices(cls,
+                             node_lon: Union[list, np.ndarray],
+                             nodeL_lat: Union[list, np.ndarray],
+                             method="delaunay"):
+        """Constructs a ``Grid`` from a pair of unstructured LatLon [lon, lat]
+        coordinates."""
+        if method == "delaunay":
+            pass
+        elif method == "voronoi":
+            pass
+        else:
+            raise ValueError(
+                f"Invalid method. Expected one of [delaunay, voronoi], but received {method}"
 
     def validate(self):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
@@ -2031,7 +2065,107 @@ class Grid:
             Faces that are invalid or missing (e.g., with a fill value) are excluded
             from the result.
         """
+
         edges = self.get_edges_at_constant_latitude(lat, method)
         faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
         return faces[faces != INT_FILL_VALUE]
+              
+
+    def from_vertices(self, method="spherical_voronoi"):
+        """Create a grid and related information from just vertices, using
+        either Spherical Voronoi or Delaunay Triangulation.
+
+        Parameters
+        ----------
+        method : string, optional
+            Method used to construct a grid from only vertices
+        """
+
+        # Assign values for the construction
+        x = self._ds["Mesh2_node_x"]
+        y = self._ds["Mesh2_node_y"]
+        z = self._ds["Mesh2_node_z"]
+
+        # Assign units for x, y, x
+        x_units = "degrees_east"
+        y_units = "degrees_north"
+        z_units = "elevation"
+
+        verts = np.column_stack((x, y, z))
+
+        if verts.size == 0:
+            raise ValueError("No vertices provided")
+
+        if method == "spherical_voronoi":
+            if verts.shape[0] < 4:
+                raise ValueError(
+                    "At least 4 vertices needed for Spherical Voronoi")
+
+            # Calculate the maximum distance from the origin to any generator point
+            radius = np.max(np.linalg.norm(verts, axis=1))
+
+            # Perform Spherical Voronoi Construction
+            grid = SphericalVoronoi(verts, radius)
+            # Assign the nodes
+            node_x = grid.vertices[:, 0]
+            node_y = grid.vertices[:, 1]
+            node_z = grid.vertices[:, 2]
+
+            # Assign the face centers
+            face_x = verts[:, 0]
+            face_y = verts[:, 1]
+            face_z = verts[:, 2]
+
+            # TODO: Currently errors out due to nMesh2_node already having a certain size /
+            #  however when the Refactor is merged and we move this so you can call it when /
+            #  open_grid is called, it won't have a nMesh2_node value at all, so this won't /
+            #  occur
+
+            # Assign the connectivity information
+            self._ds["Mesh2_face_nodes"] = ([
+                "nMesh2_face", "nMaxMesh2_face_nodes"
+            ], grid.regions)
+            self._ds["Mesh2_node_x"] = xr.DataArray(data=node_x,
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": x_units})
+            self._ds["Mesh2_node_y"] = xr.DataArray(data=node_y,
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": y_units})
+            self._ds["Mesh2_node_z"] = xr.DataArray(data=node_z,
+                                                    dims=["nMesh2_node"],
+                                                    attrs={"units": z_units})
+
+            # TODO: Handle special cases near the antimeridian and poles if necessary
+            #  (e.g., split Voronoi cells that cross the antimeridian)
+
+        elif method == "delaunay_triangulation":
+            if verts.shape[0] < 3:
+                raise ValueError(
+                    "At least 3 vertices needed for Delaunay Triangulation")
+
+            # Perform Stereographic Projection and filter out points with NaN values (The South Pole)
+            projected_points = []
+            for point in verts:
+                x, y, z = point
+                x_on_plane = x / (1 - z)
+                y_on_plane = y / (1 - z)
+                if not np.isnan(x_on_plane) and not np.isnan(y_on_plane):
+                    projected_points.append([x_on_plane, y_on_plane])
+
+            # Perform Delaunay Triangulation on the projected points
+            tri = Delaunay(projected_points)
+
+            # TODO: Fix the hole created at one of the poles
+            # Assign the connectivity information
+            face_nodes = []
+            for simplex in tri.simplices:
+                face_nodes.append(simplex)
+            self._ds["Mesh2_face_nodes"] = ([
+                "nMesh2_face", "nMaxMesh2_face_nodes"
+            ], face_nodes)
+            # TODO: Assign all Mesh2 Values. Once this is moved to its proper place it will need /
+            #       to assign the x, y, z coordinates
+
+        else:
+            raise ValueError("Invalid method")
