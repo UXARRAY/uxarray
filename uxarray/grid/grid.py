@@ -27,6 +27,7 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
 
 from uxarray.formatting_html import grid_repr
 
@@ -229,6 +230,19 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
+    def from_fesom2_ascii(cls, grid_path):
+        """Construct a ``Grid`` object from a FESM2 ASCII Grid.
+
+        Parameters
+        ----------
+        grid_path : str
+            Path to the FESOM2 ASCII grid directory.
+        """
+        grid_ds, source_dims_dict = _read_fesom2_asci(grid_path)
+        source_grid_spec = "FESOM2"
+        return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
     def from_dataset(
         cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
     ):
@@ -245,10 +259,8 @@ class Grid:
             raise ValueError("Input must be an xarray.Dataset")
 
         # determine grid/mesh specification
-
         if "source_grid_spec" not in kwargs:
             # parse to detect source grid spec
-
             source_grid_spec = _parse_grid_type(dataset)
             if source_grid_spec == "Exodus":
                 grid_ds, source_dims_dict = _read_exodus(dataset)
@@ -264,6 +276,8 @@ class Grid:
                 grid_ds, source_dims_dict = _read_geos_cs(dataset)
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+            elif source_grid_spec == "FESOM2":
+                grid_ds, source_dims_dict = _read_fesom2_netcdf(dataset)
             elif source_grid_spec == "Shapefile":
                 raise ValueError(
                     "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
@@ -1237,6 +1251,11 @@ class Grid:
                 self.edge_face_connectivity.values
             )
         return self._ds["hole_edge_indices"]
+
+    @property
+    def triangular(self):
+        """TODO:"""
+        return self.n_max_face_nodes == 3
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
