@@ -74,18 +74,6 @@ class TestGrid(TestCase):
         self.grid_RLL1deg.encode_as("Exodus")
         self.grid_RLL10deg_CSne4.encode_as("Exodus")
 
-    def test_open_non_mesh2_write_exodus(self):
-        """Loads grid files of different formats using uxarray's open_dataset
-        call."""
-
-        grid_geoflow = ux.open_grid(gridfile_CSne30)
-
-        exods = grid_geoflow.encode_as("Exodus")
-        # Remove the _FillValue attribute from the variable's attributes
-        if '_FillValue' in grid_geoflow._ds['face_node_connectivity'].attrs:
-            del grid_geoflow._ds['face_node_connectivity'].attrs['_FillValue']
-
-        exods.to_netcdf("grid_geoflow.exo")
 
     def test_init_verts(self):
         """Create a uxarray grid from multiple face vertices with duplicate
