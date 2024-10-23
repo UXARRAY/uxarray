@@ -298,7 +298,7 @@ class Grid:
         Examples
         --------
         >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp", backend='geopandas')
+        >>> grid = ux.Grid.from_file("path/to/file.shp", backend="geopandas")
 
         Note
         ----
@@ -425,7 +425,9 @@ class Grid:
         --------
         >>> import uxarray as ux
         >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
-        >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
+        >>> uxgrid = ux.Grid.from_ugrid(
+        ...     node_lon, node_lat, face_node_connectivity, fill_value
+        ... )
         """
 
         if dims_dict is None:
@@ -603,7 +605,7 @@ class Grid:
 
         Examples
         --------
-        >>> uxgrid['face_node_connectivity']
+        >>> uxgrid["face_node_connectivity"]
         """
         return getattr(self, item)
 
@@ -1627,7 +1629,9 @@ class Grid:
         --------
         Open a uxarray grid file
 
-        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
+        >>> grid = ux.open_dataset(
+        ...     "/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug"
+        ... )
 
 
         >>> grid.face_areas
