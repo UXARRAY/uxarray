@@ -670,6 +670,15 @@ def _convert_shells_to_polygons(shells):
 
     return polygons
 
+def _point_inside_polygon():
+    """Determines if a point is inside a polygon.
+
+    Returns
+    -------
+    bool
+        True if point is inside polygon, False otherwise.
+    """
+    pass
 
 def _pole_point_inside_polygon(pole, face_edge_cart):
     """Determines if a pole point is inside a polygon.
