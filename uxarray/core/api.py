@@ -239,7 +239,9 @@ def open_mfdataset(
 
     1. Open from an explicit list of dataset files
 
-    >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc")
+    >>> ux_ds = ux.open_mfdataset(
+    ...     "grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc"
+    ... )
 
     2. Open from a string glob
 

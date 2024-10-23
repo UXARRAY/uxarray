@@ -375,11 +375,12 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
             index.
     Example
     -------
-    >>> face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE],
-    ...                             [3, 0, 2, 5],
-    ...                             [3, 4, 1, 0],
-    ...                             [0, 1, 2, -999]])
-    >>> face_indices, nodes_indices, non_filled_flag = _face_nodes_to_sparse_matrix(face_nodes_conn)
+    >>> face_nodes_conn = np.array(
+    ...     [[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5], [3, 4, 1, 0], [0, 1, 2, -999]]
+    ... )
+    >>> face_indices, nodes_indices, non_filled_flag = _face_nodes_to_sparse_matrix(
+    ...     face_nodes_conn
+    ... )
     >>> face_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
     >>> nodes_indices = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
     >>> non_filled_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])

@@ -895,7 +895,9 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     Examples
     --------
-    >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
+    >>> _insert_pt_in_latlonbox(
+    ...     np.array([[1.0, 2.0], [3.0, 4.0]]), np.array([1.5, 3.5])
+    ... )
     array([[1.0, 2.0], [3.0, 4.0]])
     """
     if np.all(new_pt == INT_FILL_VALUE):
