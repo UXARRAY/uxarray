@@ -1,16 +1,16 @@
 .. currentmodule:: uxarray
 
 
-======================
-Supported Grid Formats
-======================
+===============================
+Supported Models & Grid Formats
+===============================
 
 Overview
 ========
 
-UXarray is written around the UGRID conventions, which is a standard for storing unstructured grid model data in the
-NetCDF file format. As of the most recent release, the following grid formats are supported:
-
+UXarray is written primarily around the UGRID conventions, which is a standard for storing unstructured grid model
+output in the NetCDF file format. While some models produce output in the UGRID conventions (e.g. FESOM2), many
+models have their own grid format (e.g. MPAS, ICON). Below is a list of support grid formats and models.
 
 * UGRID
 * MPAS
@@ -19,11 +19,7 @@ NetCDF file format. As of the most recent release, the following grid formats ar
 * ESMF
 * GEOS CS
 * ICON
-
-While each of these formats can be encoded in the UGRID conventions, the amount of information that is parsed from them
-varies. The following sections describes how each format is converted into the UGRID conventions and what variables
-are directly parsed.
-
+* FESOM2
 
 UGRID
 =====
@@ -141,6 +137,19 @@ References
 ----------
 * https://mpimet.mpg.de/en/research/modeling
 * https://scivis2017.dkrz.de/hd-cp-2/en-icon_grid.pdf
+
+FESOM2
+======
+The F**inite volumE Sea Ice-Ocean Model (FESOM2) is a Multi-resolution ocean general circulation
+model that solves the equations of motion describing the ocean and sea ice using finite-volume methods
+on unstructured computational grids. The model is developed and supported by researchers at the
+Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), in Bremerhaven, Germany. UXarray
+currently supports reading the ``fesom.mesh.diag.nc`` file that is generated and encoded in the UGRID conventions.
+
+
+References
+----------
+* https://fesom2.readthedocs.io/en/latest/index.html#
 
 Parsed Variables
 ================

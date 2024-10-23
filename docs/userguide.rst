@@ -20,8 +20,8 @@ These user guides provide the necessary background information for understanding
 `Conventions <user-guide/representation.rst>`_
  Overview of the UGRID conventions and how they are used within UXarray
 
-`Supported Grid Formats <user-guide/grid-formats.rst>`_
- List of supported grid formats and their descriptions
+`Supported Models & Grid Formats <user-guide/grid-formats.rst>`_
+ Overview of supported models and grid formats
 
 Core Guides
 ------------
