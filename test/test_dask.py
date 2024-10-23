@@ -47,5 +47,3 @@ def test_individual_var_chunking():
 
 def test_uxds_chunking():
     uxds = ux.open_dataset(csne30_grid, csne30_data, chunks={"n_face": 4})
-
-    pass

@@ -23,9 +23,8 @@ except Exception:
     # Placeholder version incase an error occurs, such as the library isn't installed
     __version__ = "999"
 
+
 # Flag for enabling FMA instructions across the package
-
-
 def enable_fma():
     """Enables Fused-Multiply-Add (FMA) instructions using the ``pyfma``
     package."""
