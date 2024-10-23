@@ -9,6 +9,7 @@ import numpy as np
 
 import uxarray.core.dataarray
 import uxarray.core.dataset
+from uxarray.core.utils import _preserve_coordinates
 from uxarray.grid import Grid
 import warnings
 
@@ -144,12 +145,16 @@ def _inverse_distance_weighted_remap_uxda(
         power,
         k,
     )
+
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
         data=destination_data,
         name=source_uxda.name,
         dims=destination_dims,
         uxgrid=destination_grid,
+        coords=_preserve_coordinates(
+            source_uxda.coords, dims_to_drop=[destination_dim]
+        ),
     )
 
     # return UxDataArray with remapped variable
