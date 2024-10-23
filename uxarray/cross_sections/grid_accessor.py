@@ -58,7 +58,9 @@ class GridCrossSectionAccessor:
 
         Examples
         --------
-        >>> grid, indices = grid.cross_section.constant_latitude(lat=30.0, return_face_indices=True)
+        >>> grid, indices = grid.cross_section.constant_latitude(
+        ...     lat=30.0, return_face_indices=True
+        ... )
         >>> grid = grid.cross_section.constant_latitude(lat=-15.5)
 
         Notes

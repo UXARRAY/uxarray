@@ -256,13 +256,21 @@ def _get_cartesian_face_edge_nodes(
 
     Examples
     --------
-    >>> face_node_conn = np.array([[0, 1, 2, 3, 4], [0, 1, 3, 4, INT_FILL_VALUE], [0, 1, 3, INT_FILL_VALUE, INT_FILL_VALUE]])
+    >>> face_node_conn = np.array(
+    ...     [
+    ...         [0, 1, 2, 3, 4],
+    ...         [0, 1, 3, 4, INT_FILL_VALUE],
+    ...         [0, 1, 3, INT_FILL_VALUE, INT_FILL_VALUE],
+    ...     ]
+    ... )
     >>> n_face = 3
     >>> n_max_face_edges = 5
     >>> node_x = np.array([0, 1, 1, 0, 1, 0])
     >>> node_y = np.array([0, 0, 1, 1, 2, 2])
     >>> node_z = np.array([0, 0, 0, 0, 1, 1])
-    >>> _get_cartesian_face_edge_nodes(face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z)
+    >>> _get_cartesian_face_edge_nodes(
+    ...     face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
+    ... )
     array([[[[    0,     0,     0],
          [    1,     0,     0]],
 
