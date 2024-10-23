@@ -2,6 +2,8 @@ import uxarray as ux
 import pytest
 from pathlib import Path
 import os
+import numpy as np
+import uxarray as ux
 
 import numpy.testing as nt
 
@@ -73,6 +75,19 @@ class TestQuadHex:
 
 
 class TestGeosCubeSphere:
+    def test_mutliple_cross_sections_uxda(self):
+        uxgrid = ux.open_grid(cube_sphere_grid)
+        da = ux.UxDataArray(data=np.zeros(uxgrid.n_face),
+                            dims=['n_face'],
+                            uxgrid=uxgrid)
+        lats = np.arange(-45, 45, 10)
+        cross_sections = [da.cross_section.constant_latitude(lat) for lat in lats]
+
+    def test_mutliple_cross_sections_grid(self):
+        uxgrid = ux.open_grid(cube_sphere_grid)
+        lats = np.arange(-45, 45, 10)
+        cross_sections = [uxgrid.cross_section.constant_latitude(lat) for lat in lats]
+
     def test_north_pole(self):
         uxgrid = ux.open_grid(cube_sphere_grid)
 
