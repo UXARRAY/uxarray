@@ -56,7 +56,7 @@ def open_grid(
 
     Open dataset with a grid topology file
 
-    >>> Import uxarray as ux
+    >>> import uxarray as ux
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
