@@ -880,7 +880,7 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
 
 
 def prepare_points(points, normalize):
-    """TODO:"""
+    """Prepares points for use with ``Grid.from_points()``"""
     if len(points) == 2:
         lon_deg, lat_deg = points[0], points[1]
         lon_rad = np.deg2rad(lon_deg)
