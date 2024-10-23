@@ -57,7 +57,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
-    _construct_hole_edge_indices,
+    _construct_boundary_edge_indices,
 )
 
 from uxarray.grid.neighbors import (
@@ -331,40 +331,53 @@ class Grid:
         points,
         method="spherical_delaunay",
         boundary_points=None,
-        normalize=True,
         **kwargs,
     ):
-        """
-        TODO:
+        """Create a grid from unstructured points.
+
+        This class method generates connectivity information based on the provided points.
+        Depending on the chosen `method`, it constructs either a spherical Voronoi diagram
+        or a spherical Delaunay triangulation. When using the Delaunay method, `boundary_points`
+        can be specified to exclude triangles that span over defined holes in the data.
 
         Parameters
         ----------
         points : sequence of array-like
-            If `len(points) == 2`, `points` should be [longitude, latitude] in degrees,
-            each being array-like of shape (N,).
-            If `len(points) == 3`, `points` should be [x, y, z] coordinates,
-            each being array-like of shape (N,).
+            The input points to generate connectivity from.
+
+            - If `len(points) == 2`, `points` should be `[longitude, latitude]` in degrees,
+              where each is an array-like of shape `(N,)`.
+            - If `len(points) == 3`, `points` should be `[x, y, z]` coordinates,
+              where each is an array-like of shape `(N,)`.
+
         method : str, optional
-            Method to generate connectivity information. Supported methods: 'spherical_voronoi'.
-        normalize : bool, optional
-            If True, normalize the x, y, z coordinates.
+            The method to generate connectivity information. Supported methods are:
+
+            - `'spherical_voronoi'`: Constructs a spherical Voronoi diagram.
+            - `'spherical_delaunay'`: Constructs a spherical Delaunay triangulation.
+
+            Default is `'spherical_delaunay'`.
+
+        boundary_points : array-like of int, optional
+            Indices of points that lie on a defined boundary. These are used to exclude
+            Delaunay triangles that span over holes in the data. This parameter is only
+            applicable when `method` is `'spherical_delaunay'`.
+
+            Default is `None`.
+
+        **kwargs
+            Additional keyword arguments to pass to the underlying connectivity generation
+            functions (`_spherical_voronoi_from_points` or `_spherical_delaunay_from_points`).
 
         Returns
         -------
-        TODO:
-            TODO:
-
-        Raises
-        ------
-        ValueError
-            If the length of `points` is not 2 or 3.
-            If the `method` is not supported.
+        Grid
+            An instance of a Grid created from the points
         """
-
-        _points = prepare_points(points, normalize)
+        _points = prepare_points(points, normalize=True)
 
         if method == "spherical_voronoi":
-            ds = _spherical_voronoi_from_points(_points, boundary_points, **kwargs)
+            ds = _spherical_voronoi_from_points(_points, **kwargs)
         elif method == "spherical_delaunay":
             ds = _spherical_delaunay_from_points(_points, boundary_points)
         else:
@@ -1278,27 +1291,40 @@ class Grid:
         return self._face_jacobian
 
     @property
-    def hole_edge_indices(self):
-        """Indices of edges that border a region of the grid not covered by any
-        geometry, know as a hole, in a partial grid."""
-        if "hole_edge_indices" not in self._ds:
-            self._ds["hole_edge_indices"] = _construct_hole_edge_indices(
+    def boundary_edge_indices(self):
+        """Indices of edges that border regions not covered by any geometry
+        (holes) in a partial grid."""
+        if "boundary_edge_indices" not in self._ds:
+            self._ds["boundary_edge_indices"] = _construct_boundary_edge_indices(
                 self.edge_face_connectivity.values
             )
-        return self._ds["hole_edge_indices"]
+        return self._ds["boundary_edge_indices"]
+
+    @boundary_edge_indices.setter
+    def boundary_edge_indices(self, value):
+        """Setter for ``boundary_edge_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_edge_indices"] = value
 
     @property
     def boundary_node_indices(self):
+        """Indices of nodes that border regions not covered by any geometry
+        (holes) in a partial grid."""
         if "boundary_node_indices" not in self._ds:
             raise ValueError
 
         return self._ds["boundary_node_indices"]
 
-        pass
+    @boundary_node_indices.setter
+    def boundary_node_indices(self, value):
+        """Setter for ``boundary_node_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_node_indices"] = value
 
     @property
     def boundary_face_indices(self):
-        # TODO:
+        """Indices of faces that border regions not covered by any geometry
+        (holes) in a partial grid."""
         if "boundary_face_indices" not in self._ds:
             boundaries = np.unique(
                 self.node_face_connectivity[
@@ -1310,19 +1336,28 @@ class Grid:
 
         return self._ds["boundary_face_indices"]
 
+    @boundary_face_indices.setter
+    def boundary_face_indices(self, value):
+        """Setter for ``boundary_face_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_face_indices"] = value
+
     @property
     def triangular(self):
-        """TODO:"""
+        """Boolean indicated whether the Grid is strictly composed of
+        triangular faces."""
         return self.n_max_face_nodes == 3
 
     @property
     def partial_sphere_coverage(self):
-        """TODO:"""
-        return self.hole_edge_indices.size != 0
+        """Boolean indicated whether the Grid partial covers the unit sphere
+        (i.e. contains holes)"""
+        return self.boundary_edge_indices.size != 0
 
     @property
     def global_sphere_coverage(self):
-        """TODO:"""
+        """Boolean indicated whether the Grid completely covers the unit sphere
+        (i.e. contains no holes)"""
         return not self.partial_sphere_coverage
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
@@ -1390,6 +1425,8 @@ class Grid:
                 setattr(self, var_name, grid_var.chunk(chunks={"n_edge": n_edge}))
             elif "n_face" in grid_var.dims:
                 setattr(self, var_name, grid_var.chunk(chunks={"n_face": n_face}))
+            else:
+                setattr(self, var_name, grid_var.chunk())
 
     def get_ball_tree(
         self,

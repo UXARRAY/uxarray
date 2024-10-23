@@ -3,6 +3,9 @@ DESCRIPTOR_NAMES = [
     "n_nodes_per_face",
     "edge_face_distances",
     "edge_node_distances",
+    "boundary_edge_indices",
+    "boundary_face_indices",
+    "boundary_node_indices",
 ]
 
 
