@@ -398,7 +398,7 @@ class UxDataArray(xr.DataArray):
 
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-        >>> integral = uxds['psi'].integrate()
+        >>> integral = uxds["psi"].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
             face_areas, face_jacobian = self.uxgrid.compute_face_areas(
@@ -898,8 +898,8 @@ class UxDataArray(xr.DataArray):
 
         Example
         -------
-        >>> uxds['var'].gradient()
-        >>> uxds['var'].topological_mean(destination="face").gradient()
+        >>> uxds["var"].gradient()
+        >>> uxds["var"].topological_mean(destination="face").gradient()
         """
 
         if not self._face_centered():
