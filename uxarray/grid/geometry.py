@@ -671,6 +671,32 @@ def _convert_shells_to_polygons(shells):
     return polygons
 
 
+def _populate_north_pole_face_indices(grid):
+    face_edge_nodes_xyz = grid._face_edge_nodes_xyz.values
+    north_pole_face_indices = []
+    for i, face_edge_cart in enumerate(face_edge_nodes_xyz):
+        if _pole_point_inside_polygon("North", face_edge_cart):
+            north_pole_face_indices.append(i)
+
+    grid._ds["north_pole_face_indices"] = xr.DataArray(
+        data=np.array(north_pole_face_indices, dtype=INT_DTYPE),
+        dims="n_face_north_pole",
+    )
+
+
+def _populate_south_pole_face_indices(grid):
+    face_edge_nodes_xyz = grid._face_edge_nodes_xyz.values
+    south_pole_face_indices = []
+    for i, face_edge_cart in enumerate(face_edge_nodes_xyz):
+        if _pole_point_inside_polygon("South", face_edge_cart):
+            south_pole_face_indices.append(i)
+
+    grid._ds["south_pole_face_indices"] = xr.DataArray(
+        data=np.array(south_pole_face_indices, dtype=INT_DTYPE),
+        dims="n_face_south_pole",
+    )
+
+
 def _pole_point_inside_polygon(pole, face_edge_cart):
     """Determines if a pole point is inside a polygon.
 
