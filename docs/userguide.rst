@@ -31,6 +31,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
 
+`Structured Grids <user-guide/structured.ipynb>`_
+ Loading structured (latitude-longitude) grids
+
 `Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
  Read data with chunking and/or in parallel
 
@@ -42,6 +45,7 @@ These user guides provide detailed explanations of the core functionality in UXa
 
 `Advanced Plotting Techniques <user-guide/advanced-plotting.ipynb>`_
  Deeper dive into getting the most out of UXarray's plotting functionality
+
 
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
