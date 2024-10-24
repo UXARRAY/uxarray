@@ -27,6 +27,7 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._structured import _read_structured_grid
 
 from uxarray.formatting_html import grid_repr
 
@@ -216,8 +217,8 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
-        # set desired longitude range to [-180, 180]
-        _set_desired_longitude_range(self._ds)
+        # # set desired longitude range to [-180, 180]
+        # _set_desired_longitude_range(self._ds)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -381,6 +382,13 @@ class Grid:
         )
         grid_spec = "User Defined Topology"
         return cls(grid_ds, grid_spec, dims_dict)
+
+    @classmethod
+    def from_structured(cls, lon, lat, tol=1e-10):
+        grid_ds, source_dims_dict = _read_structured_grid(lon, lat, tol)
+        return cls.from_dataset(
+            grid_ds, source_dims_dict, source_grid_spec="structured"
+        )
 
     @classmethod
     def from_face_vertices(

@@ -705,12 +705,23 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
+# def _set_desired_longitude_range(ds):
+#     """Sets the longitude range to [-180, 180] for all longitude variables."""
+#
+#     for lon_name in ["node_lon", "edge_lon", "face_lon"]:
+#         if lon_name in ds:
+#             if ds[lon_name].max() > 180:
+#                 ds[lon_name].data = (ds[lon_name].data + 180) % 360 - 180
+#                 print("Modification")
+
+
 def _set_desired_longitude_range(ds):
     """Sets the longitude range to [-180, 180] for all longitude variables."""
-
     for lon_name in ["node_lon", "edge_lon", "face_lon"]:
         if lon_name in ds:
-            if ds[lon_name].max() > 180:
+            # Normalize only if necessary
+            if ds[lon_name].max() > 180 or ds[lon_name].min() < -180:
+                # Apply normalization
                 ds[lon_name].data = (ds[lon_name].data + 180) % 360 - 180
 
 
