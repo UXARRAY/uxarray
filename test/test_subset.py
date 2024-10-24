@@ -119,3 +119,4 @@ def test_uxda_isel_with_coords():
     sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
 
     assert "lon_face" in sub.coords
+    assert len(sub.coords['lon_face']) == 3
