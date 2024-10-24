@@ -118,5 +118,4 @@ def test_uxda_isel_with_coords():
     uxds = uxds.assign_coords({"lon_face": uxds.uxgrid.face_lon})
     sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
 
-    # check if coordinates are preserved
     assert "lon_face" in sub.coords

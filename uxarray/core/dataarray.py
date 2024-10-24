@@ -35,7 +35,6 @@ from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
-from uxarray.core.utils import _preserve_coordinates
 
 import warnings
 from warnings import warn
@@ -1086,39 +1085,27 @@ class UxDataArray(xr.DataArray):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
 
-        from uxarray.core.dataarray import UxDataArray
-
         if self._face_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
             )
-            dims_to_isel = {"n_face": sliced_grid._ds["subgrid_face_indices"]}
 
         elif self._edge_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
             )
-            dims_to_isel = {"n_edge": sliced_grid._ds["subgrid_edge_indices"]}
 
         elif self._node_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
             )
-            dims_to_isel = {"n_node": sliced_grid._ds["subgrid_node_indices"]}
 
         else:
             raise ValueError(
                 "Data variable must be either node, edge, or face centered."
             )
 
-        return UxDataArray(
-            uxgrid=sliced_grid,
-            data=d_var,
-            name=self.name,
-            coords=_preserve_coordinates(self.coords, dims_to_isel=dims_to_isel),
-            dims=self.dims,
-            attrs=self.attrs,
-        )
+        return da_sliced
 
     def get_dual(self):
         """Compute the dual mesh for a data array, returns a new data array
