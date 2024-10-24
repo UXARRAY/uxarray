@@ -214,6 +214,16 @@ class TestNearestNeighborRemap(TestCase):
                 remap_to="nodes"
             )
 
+    def test_preserve_coordinates(self):
+        # Dataset with 'time' coordinates
+        source_uxds = ux.open_dataset(gridfile_geoflow, dsfile_v1_geoflow)
+        destination_grid = ux.open_grid(mpasfile_QU)
+
+        res = source_uxds.remap.nearest_neighbor(destination_grid=destination_grid)
+
+        assert "time" in res.coords
+
+
 
 class TestInverseDistanceWeightedRemapping(TestCase):
     """Testing for inverse distance weighted remapping."""

@@ -12,6 +12,8 @@ import uxarray.core.dataset
 from uxarray.grid import Grid
 import warnings
 
+from copy import deepcopy
+
 from uxarray.remap.utils import _remap_grid_parse
 
 
@@ -144,13 +146,21 @@ def _inverse_distance_weighted_remap_uxda(
         power,
         k,
     )
+
+    # preserve only non-spatial coordinates
+    destination_coords = deepcopy(source_uxda.coords)
+    for coord_name, coord in destination_coords.items():
+        for dim in ["n_node", "n_face", "n_edge"]:
+            if dim in coord.dims:
+                del destination_coords[coord_name]
+
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
         data=destination_data,
         name=source_uxda.name,
-        coords=source_uxda.coords,
         dims=destination_dims,
         uxgrid=destination_grid,
+        coords=destination_coords,
     )
 
     # return UxDataArray with remapped variable
