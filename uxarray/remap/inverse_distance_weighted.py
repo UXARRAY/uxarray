@@ -149,10 +149,8 @@ def _inverse_distance_weighted_remap_uxda(
 
     # preserve only non-spatial coordinates
     destination_coords = deepcopy(source_uxda.coords)
-    for coord_name, coord in destination_coords.items():
-        for dim in ["n_node", "n_face", "n_edge"]:
-            if dim in coord.dims:
-                del destination_coords[coord_name]
+    if destination_dim in destination_coords:
+        del destination_coords[destination_dim]
 
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
