@@ -1,5 +1,3 @@
-"""uxarray.core.grid module."""
-
 import xarray as xr
 import numpy as np
 
@@ -231,7 +229,7 @@ class Grid:
     @classmethod
     def from_dataset(
         cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
-    ):
+    ) -> "Grid":
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
         Parameters
@@ -284,7 +282,7 @@ class Grid:
         filename: str,
         backend: Optional[str] = "geopandas",
         **kwargs,
-    ):
+    ) -> "Grid":
         """Constructs a ``Grid`` object from a using the read_file method with
         a specified backend.
 
@@ -335,7 +333,7 @@ class Grid:
         start_index: Optional[int] = 0,
         dims_dict: Optional[dict] = None,
         **kwargs,
-    ):
+    ) -> "Grid":
         """Constructs a ``Grid`` object from user-defined topology variables
         provided in the UGRID conventions.
 
@@ -387,7 +385,7 @@ class Grid:
         cls,
         face_vertices: Union[list, tuple, np.ndarray],
         latlon: Optional[bool] = True,
-    ):
+    ) -> "Grid":
         """Constructs a ``Grid`` object from user-defined face vertices.
 
         Parameters
@@ -1485,7 +1483,7 @@ class Grid:
         quadrature_rule: Optional[str] = "triangular",
         order: Optional[int] = 4,
         latlon: Optional[bool] = True,
-    ):
+    ) -> None:
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -1566,7 +1564,7 @@ class Grid:
 
         return self._face_areas, self._face_jacobian
 
-    def normalize_cartesian_coordinates(self):
+    def normalize_cartesian_coordinates(self) -> None:
         """Normalizes Cartesian coordinates."""
 
         if _check_normalization(self):
@@ -1908,7 +1906,7 @@ class Grid:
 
         return line_collection
 
-    def get_dual(self):
+    def get_dual(self) -> "Grid":
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
@@ -1933,7 +1931,7 @@ class Grid:
 
         return dual
 
-    def isel(self, **dim_kwargs):
+    def isel(self, **dim_kwargs) -> "Grid":
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
