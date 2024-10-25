@@ -1105,7 +1105,7 @@ class UxDataArray(xr.DataArray):
                 "Data variable must be either node, edge, or face centered."
             )
 
-        return da_sliced
+        return UxDataArray(da_sliced, uxgrid=sliced_grid)
 
     def get_dual(self):
         """Compute the dual mesh for a data array, returns a new data array
