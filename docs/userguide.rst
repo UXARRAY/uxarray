@@ -65,16 +65,16 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
 
+`Structured Grids <user-guide/structured.ipynb>`_
+ Loading structured (latitude-longitude) grids
+
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
  Construct the Dual Mesh of an unstructured grid
 
 Supplementary Guides
 --------------------
 
-These user guides provide additional detail about specific features in UXarray.
-
-`Structured Grids <user-guide/structured.ipynb>`_
- Loading structured (latitude-longitude) grids
+These user guides provide additional detail asbout specific features in UXarray.
 
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
