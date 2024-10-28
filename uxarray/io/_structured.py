@@ -9,6 +9,37 @@ from uxarray.constants import INT_DTYPE
 
 
 def _read_structured_grid(lon, lat, tol=1e-10):
+    """
+    Constructs an unstructured grid dataset from structured longitude and latitude coordinates.
+
+    This function takes 1D arrays of longitude and latitude values, computes the grid edges,
+    identifies unique grid nodes within a specified tolerance, and establishes connectivity
+    between nodes to form grid faces. The resulting unstructured grid is returned as an
+    `xarray.Dataset`, along with a dictionary of source dimensions.
+
+    Parameters
+    ----------
+    lon : array_like
+        1D array of longitude coordinates in degrees.
+    lat : array_like
+        1D array of latitude coordinates in degrees.
+    tol : float, optional
+        Tolerance for considering nodes as identical (default is `1e-10`).
+
+    Returns
+    -------
+    out_ds : xr.Dataset
+        An `xarray.Dataset` representing the structured grid encoded in the UGRID conventions
+
+    source_dims_dict : dict
+        TODO:
+
+    Notes
+    -----
+    - The function first sorts the longitude values and computes the edges for both longitude
+      and latitude to create a meshgrid of node coordinates.
+    - A KDTree is used to identify and merge nodes that are within the specified tolerance.
+    """
     out_ds = xr.Dataset()
 
     sorted_indices = np.argsort(lon)
@@ -48,18 +79,15 @@ def _read_structured_grid(lon, lat, tol=1e-10):
     # Stack longitude and latitude for processing
     nodes = np.column_stack((node_lon, node_lat))
 
-    # Define tolerance
-    tol = 1e-10  # Adjust this value as needed
-
-    # Build a KDTree for efficient spatial queries
+    # Build KDTree
     tree = KDTree(nodes)
 
     # Find all pairs of nodes within the tolerance
     pairs = tree.query_pairs(r=tol)
 
-    # Build adjacency matrix
     n_nodes = len(nodes)
     if pairs:
+        # Build adjacency matrix
         pairs_array = np.array(list(pairs))
         rows = pairs_array[:, 0]
         cols = pairs_array[:, 1]
@@ -97,7 +125,7 @@ def _read_structured_grid(lon, lat, tol=1e-10):
     # Create a meshgrid of cell indices
     i, j = np.meshgrid(ii, ji)
 
-    # Flatten the meshgrid
+    # Flatten meshgrid
     i = i.ravel()
     j = j.ravel()
 
@@ -107,7 +135,7 @@ def _read_structured_grid(lon, lat, tol=1e-10):
     n3 = node_indices_unique[j + 1, i + 1]
     n4 = node_indices_unique[j + 1, i]
 
-    # Stack the node indices to form face_node_conn
+    # Stack the node indices to form face_node_connectivity
     face_node_conn = np.vstack((n1, n2, n3, n4), dtype=INT_DTYPE).T
 
     out_ds["node_lon"] = xr.DataArray(
@@ -123,5 +151,4 @@ def _read_structured_grid(lon, lat, tol=1e-10):
         attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
 
-    source_dims_dict = {}
-    return out_ds, source_dims_dict
+    return out_ds

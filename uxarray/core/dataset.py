@@ -12,6 +12,7 @@ from uxarray.grid import Grid
 from uxarray.core.dataarray import UxDataArray
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.core.utils import _map_dims_to_ugrid
 
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 
@@ -76,7 +77,7 @@ class UxDataset(xr.Dataset):
                 "an instance of the `uxarray.Grid` class"
             )
         else:
-            self.uxgrid = uxgrid
+            self._uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
 
@@ -217,6 +218,23 @@ class UxDataset(xr.Dataset):
             coords={"index": range(len(next(iter(data.values()))))},
             **kwargs,
         )
+
+    @classmethod
+    def from_structured(cls, ds: xr.Dataset):
+        """TODO:"""
+        from uxarray import Grid
+
+        uxgrid = Grid.from_dataset(ds)
+
+        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
+
+        # TODO:
+        coords_to_drop = [
+            coord for coord, da_coord in ds.coords.items() if "n_face" in da_coord.dims
+        ]
+        ds = ds.drop_vars(coords_to_drop)
+
+        return cls(ds, uxgrid=uxgrid)
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid

@@ -217,8 +217,8 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
-        # # set desired longitude range to [-180, 180]
-        # _set_desired_longitude_range(self._ds)
+        # set desired longitude range to [-180, 180]
+        _set_desired_longitude_range(self._ds)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -249,8 +249,7 @@ class Grid:
 
         if "source_grid_spec" not in kwargs:
             # parse to detect source grid spec
-
-            source_grid_spec = _parse_grid_type(dataset)
+            source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
             if source_grid_spec == "Exodus":
                 grid_ds, source_dims_dict = _read_exodus(dataset)
             elif source_grid_spec == "Scrip":
@@ -265,6 +264,9 @@ class Grid:
                 grid_ds, source_dims_dict = _read_geos_cs(dataset)
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+            elif source_grid_spec == "Structured":
+                grid_ds = _read_structured_grid(dataset[lon_name], dataset[lat_name])
+                source_dims_dict = {"n_face": (lon_name, lat_name)}
             elif source_grid_spec == "Shapefile":
                 raise ValueError(
                     "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
@@ -384,11 +386,20 @@ class Grid:
         return cls(grid_ds, grid_spec, dims_dict)
 
     @classmethod
-    def from_structured(cls, lon, lat, tol=1e-10):
-        grid_ds, source_dims_dict = _read_structured_grid(lon, lat, tol)
-        return cls.from_dataset(
-            grid_ds, source_dims_dict, source_grid_spec="structured"
-        )
+    def from_structured(
+        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
+    ):
+        if ds is not None:
+            return cls.from_dataset(ds)
+        if lon is not None and lat is not None:
+            grid_ds = _read_structured_grid(lon, lat, tol)
+            return cls.from_dataset(
+                grid_ds, source_dims_dict=None, source_grid_spec="structured"
+            )
+        else:
+            raise ValueError(
+                "No input dataset or latitude and longitude values specified."
+            )
 
     @classmethod
     def from_face_vertices(
@@ -425,7 +436,7 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
-    def validate(self):
+    def validate(self, check_duplicates=True):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.
 
@@ -439,7 +450,7 @@ class Grid:
         print("Validating the mesh...")
 
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
-        checkDN = _check_duplicate_nodes(self)
+        checkDN = _check_duplicate_nodes(self) if check_duplicates else True
         check_C = _check_connectivity(self)
         check_A = _check_area(self)
 
