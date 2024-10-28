@@ -389,6 +389,36 @@ class Grid:
     def from_structured(
         cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
     ):
+        """
+        Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
+
+        This class method provides flexibility in converting structured grid data into an unstructured `uxarray.UxDataset`.
+        Users can either supply an existing structured `xarray.Dataset` or provide longitude and latitude coordinates
+        directly.
+
+        Parameters
+        ----------
+        ds : xr.Dataset, optional
+            The structured `xarray.Dataset` to convert. If provided, the dataset must adhere to the
+            Climate and Forecast (CF) Metadata Conventions
+
+        lon : array-like, optional
+            Longitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        lat : array-like, optional
+            Latitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        tol : float, optional
+            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
+            Default is `1e-10`.
+
+        Returns
+        -------
+        Grid
+            An instance of ``uxarray.Grid``
+        """
         if ds is not None:
             return cls.from_dataset(ds)
         if lon is not None and lat is not None:

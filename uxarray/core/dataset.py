@@ -220,8 +220,24 @@ class UxDataset(xr.Dataset):
         )
 
     @classmethod
-    def from_structured(cls, ds: xr.Dataset):
-        """TODO:"""
+    def from_structured(cls, ds: xr.Dataset, tol: Optional[float] = 1e-10):
+        """Converts a structured ``xarray.Dataset`` into an unstructured ``uxarray.UxDataset``
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            The structured `xarray.Dataset` to convert. Must contain longitude and latitude variables consistent
+            with the CF-conventions
+
+        tol : float, optional
+            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
+            Default is `1e-10`.
+
+        Returns
+        -------
+        UxDataset
+            An instance of `uxarray.UxDataset`
+        """
         from uxarray import Grid
 
         uxgrid = Grid.from_dataset(ds)
