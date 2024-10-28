@@ -212,7 +212,7 @@ I/O & Conversion
 .. autosummary::
    :toctree: generated/
 
-   UxDataset.from_dataset
+   UxDataset.from_structured
 
 Plotting
 --------
