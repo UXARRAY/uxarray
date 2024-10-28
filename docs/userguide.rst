@@ -31,9 +31,6 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
 
-`Structured Grids <user-guide/structured.ipynb>`_
- Loading structured (latitude-longitude) grids
-
 `Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
  Read data with chunking and/or in parallel
 
@@ -76,6 +73,9 @@ Supplementary Guides
 
 These user guides provide additional detail about specific features in UXarray.
 
+`Structured Grids <user-guide/structured.ipynb>`_
+ Loading structured (latitude-longitude) grids
+
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
 
@@ -100,4 +100,5 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
    user-guide/dual-mesh.ipynb
+   user-guide/structured.ipynb
    user-guide/holoviz.ipynb
