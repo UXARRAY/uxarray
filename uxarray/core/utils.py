@@ -8,7 +8,7 @@ def _map_dims_to_ugrid(
     "nCell": "n_face")"""
 
     if grid.source_grid_spec == "Structured":
-        # TODO:
+        # Case for structured grids, flatten bottom two sptial dimensions
 
         lon_name, lat_name = _source_dims_dict["n_face"]
 
