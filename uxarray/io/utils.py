@@ -53,7 +53,7 @@ def _parse_grid_type(dataset):
     else:
         raise RuntimeError("Could not recognize dataset format.")
 
-    return mesh_type
+    return mesh_type, None, None
 
 
 def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
@@ -86,7 +86,7 @@ def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
     has_longitude = "longitude" in standard_names
 
     if not (has_latitude and has_longitude):
-        return False
+        return False, None, None
 
     # Identify the names of latitude and longitude coordinates
     lat_name = None
@@ -105,7 +105,7 @@ def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
     # Ensure that latitude and longitude are one-dimensional
     if lat.ndim != 1 or lon.ndim != 1:
         print("Latitude and/or longitude coordinates are not one-dimensional.")
-        return False
+        return False, None, None
 
     # Calculate the differences between consecutive latitude and longitude values
     lat_diffs = np.diff(lat)
