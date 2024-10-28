@@ -46,6 +46,7 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
 
 * ``Grid`` class for storing grid information and providing grid-specific functionality
   * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, and EXODUS grid formats
+  * Support for unstructured (i.e. latitude longitude) grids
 * Extension of xarray's ``DataArray`` and ``Dataset`` classe to support unstructured grid operations
   * ``uxarray.UxDataArray`` inherits ``xarray.DataArray`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
   * ``uxarray.UxDataset`` inherits ``xarray.Dataset`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
@@ -71,10 +72,6 @@ Raijin, and on several community platforms such as [Xarray GitHub
 Repository](https://github.com/pydata/xarray/issues/4222). The UXarray team
 is receptive to additional functionality requests.
 
-
-* Support for arbitrary structured and unstructured grids on the sphere,
-  including latitude-longitude grids, grids with only partial coverage of
-  the sphere, and grids with concave faces.
 * Support for finite volume and finite element outputs.
 * Triangular decompositions.
 * Calculation of supermeshes (consisting of grid lines from two input grids).
