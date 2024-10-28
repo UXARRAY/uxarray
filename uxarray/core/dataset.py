@@ -244,7 +244,7 @@ class UxDataset(xr.Dataset):
 
         ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
-        # TODO:
+        # Drop spatial coordinates
         coords_to_drop = [
             coord for coord, da_coord in ds.coords.items() if "n_face" in da_coord.dims
         ]
