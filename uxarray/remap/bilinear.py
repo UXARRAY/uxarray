@@ -252,9 +252,9 @@ def calculate_bilinear_weights(point, triangle):
     Returns:
         An array with 3 weights for each node of the triangle.
     """
-    x1, y1 = triangle[0][0], triangle[1][0]
-    x2, y2 = triangle[0][1], triangle[1][1]
-    x3, y3 = triangle[0][2], triangle[1][2]
+    x1, y1 = triangle[0][1], triangle[0][0]
+    x2, y2 = triangle[1][1], triangle[1][0]
+    x3, y3 = triangle[2][1], triangle[2][0]
 
     px, py = point
 
@@ -291,24 +291,32 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
                 lat = mesh.uxgrid.node_lat[node.values].values  # Latitude for the node
                 lon = mesh.uxgrid.node_lon[node.values].values  # Longitude for the node
 
+                tolerance = 1e-0
+                if abs(lat - point[1]) <= tolerance and abs(lon - point[0]) <= tolerance:
+                    return 1, source_data[node]
+
                 triangle[j] = [lat, lon]  # Store the (lat, lon) pair in the triangle
                 data.append(source_data[node])
+
+        projection_center = [mesh.uxgrid.face_lat[ind[0]].values, mesh.uxgrid.face_lon[ind[0]].values]
+
 
         # Now, triangle contains 3 vertices with (lat, lon) pairs
         point_found = point_in_triangle_projected(
             [point[1], point[0]],
             triangle=triangle,
-            projection_center=[
-                mesh.uxgrid.face_lat[ind[0]].values,
-                mesh.uxgrid.face_lon[ind[0]].values,
-            ],
+            projection_center=projection_center,
         )
-        # Find the largest face radius
-        max_distance = get_max_face_radius(mesh)
-
+        #print(triangle)
         # If found in first face, return weights
         if point_found:
             return calculate_bilinear_weights(point=point, triangle=triangle), data
+        else:
+            print(triangle, projection_center, [point[1], point[0]])
+            return INT_FILL_VALUE, 0
+
+        # Find the largest face radius
+        max_distance = get_max_face_radius(mesh)
 
         # If the nearest face doesn't contain the point, continue to check nearest faces
         for i in range(2, mesh.uxgrid.n_face):
@@ -322,7 +330,7 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
 
             # If the distance is outside the max distance the point could be in, the point is outside the partial grid
             if d[i - 1] > max_distance:
-                return INT_FILL_VALUE, INT_FILL_VALUE
+                return INT_FILL_VALUE, 0
             # Get the lat/lon for the face
             for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
                 if node != INT_FILL_VALUE:
@@ -376,6 +384,13 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
         # If found in first face, return weights
         if point_found:
             return calculate_bilinear_weights(point=point, triangle=triangle), data
+        else:
+            print(triangle,
+                  [
+                mesh.uxgrid.face_lat[ind[0]].values,
+                mesh.uxgrid.face_lon[ind[0]].values,
+                ])
+            return INT_FILL_VALUE, 0
 
         # Find the largest face radius
         max_distance = get_max_face_radius(mesh)
@@ -386,7 +401,7 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
 
             # If the distance is outside the max distance the point could be in, the point is outside the partial grid
             if d[i - 1] > max_distance:
-                return INT_FILL_VALUE, INT_FILL_VALUE
+                return INT_FILL_VALUE, 0
 
             lat = np.array(
                 [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)],
@@ -487,7 +502,7 @@ def gnomonic_projection(lat, lon, lat0, lon0):
 
     # Convert degrees to radians
     lat, lon = np.radians(lat), np.radians(lon)
-    lat0, lon0 = np.radians(lat0), np.radians(lat0)
+    lat0, lon0 = np.radians(lat0), np.radians(lon0)
 
     # Precompute cosines and sines
     cos_lat = np.cos(lat)
