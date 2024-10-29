@@ -15,6 +15,8 @@ from xarray.core.options import OPTIONS
 
 from uxarray.grid import Grid
 import uxarray.core.dataset
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -31,17 +33,18 @@ from uxarray.core.gradient import (
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
+from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
 
 import warnings
+from warnings import warn
 
 import cartopy.crs as ccrs
 
 
 class UxDataArray(xr.DataArray):
-    """N-dimensional ``xarray.DataArray``-like array. Inherits from
-    ``xarray.DataArray`` and has its own unstructured grid-aware array
-    operators and attributes through the ``uxgrid`` accessor.
+    """Grid informed ``xarray.DataArray`` with an attached ``Grid`` accessor
+    and grid-specific functionality.
 
     Parameters
     ----------
@@ -83,6 +86,7 @@ class UxDataArray(xr.DataArray):
     plot = UncachedAccessor(UxDataArrayPlotAccessor)
     subset = UncachedAccessor(DataArraySubsetAccessor)
     remap = UncachedAccessor(UxDataArrayRemapAccessor)
+    cross_section = UncachedAccessor(UxDataArrayCrossSectionAccessor)
 
     def _repr_html_(self) -> str:
         if OPTIONS["display_style"] == "text":
@@ -124,14 +128,9 @@ class UxDataArray(xr.DataArray):
 
     @property
     def uxgrid(self):
-        """``uxarray.Grid`` property for ``uxarray.UxDataArray`` to make it
-        unstructured grid-aware.
+        """Linked ``Grid`` representing to the unstructured grid the data
+        resides on."""
 
-        Examples
-        --------
-        uxds = ux.open_dataset(grid_path, data_path)
-        uxds.<variable_name>.uxgrid
-        """
         return self._uxgrid
 
     # a setter function
@@ -139,24 +138,63 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj):
         self._uxgrid = ugrid_obj
 
-    def to_geodataframe(self, override=False, cache=True, exclude_antimeridian=False):
-        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
-        column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid, and a data column
-        representing a 1D slice of data mapped to each Polygon.
+    @property
+    def data_mapping(self):
+        """Returns which unstructured grid a data variable is mapped to."""
+        if self._face_centered():
+            return "faces"
+        elif self._edge_centered():
+            return "edges"
+        elif self._node_centered():
+            return "nodes"
+        else:
+            return None
+
+    def to_geodataframe(
+        self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
+        engine: Optional[str] = "spatialpandas",
+        exclude_antimeridian: Optional[bool] = None,
+        **kwargs,
+    ):
+        """Constructs a ``GeoDataFrame`` consisting of polygons representing
+        the faces of the current ``Grid`` with a face-centered data variable
+        mapped to them.
+
+        Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
+        parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
+        Setting ``periodic_elements='exclude'`` will exclude any periodic polygon from the computed GeoDataFrame.
+        Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
+        is best used for grids that do not initially include any periodic polygons.
 
         Parameters
-        override: bool
-            Flag to recompute the ``GeoDataFrame`` stored under the ``uxgrid`` if one is already cached
-        cache: bool
-            Flag to indicate if the computed ``GeoDataFrame`` stored under the ``uxgrid`` accessor should be cached
-        exclude_antimeridian: bool, Optional
-            Selects whether to exclude any face that contains an edge that crosses the antimeridian
+        ----------
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection, optional
+            Geographic projection used to transform polygons. Only supported when periodic_elements is set to
+            'ignore' or 'exclude'
+        cache: bool, optional
+            Flag used to select whether to cache the computed GeoDataFrame
+        override: bool, optional
+            Flag used to select whether to ignore any cached GeoDataFrame
+        engine: str, optional
+            Selects what library to use for creating a GeoDataFrame. One of ['spatialpandas', 'geopandas']. Defaults
+            to spatialpandas
+        exclude_antimeridian: bool, optional
+            Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
-            The output `GeoDataFrame` with a filled out "geometry" and 1D data column representing the geometry of the unstructured grid
+        gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
+            The output ``GeoDataFrame`` with a filled out "geometry" column of polygons and a data column with the
+            same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """
 
         if self.values.ndim > 1:
@@ -167,34 +205,61 @@ class UxDataArray(xr.DataArray):
             )
 
         if self.values.size == self.uxgrid.n_face:
-            gdf = self.uxgrid.to_geodataframe(
-                override=override,
+            gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
+                periodic_elements=periodic_elements,
+                projection=projection,
+                project=kwargs.get("project", True),
                 cache=cache,
+                override=override,
                 exclude_antimeridian=exclude_antimeridian,
+                return_non_nan_polygon_indices=True,
+                engine=engine,
             )
 
+            if exclude_antimeridian is not None:
+                if exclude_antimeridian:
+                    periodic_elements = "exclude"
+                else:
+                    periodic_elements = "split"
+
+            # set a default variable name if the data array is not named
             var_name = self.name if self.name is not None else "var"
 
-            if exclude_antimeridian:
-                gdf[var_name] = np.delete(
-                    self.values, self.uxgrid.antimeridian_face_indices, axis=0
+            if periodic_elements == "exclude":
+                # index data to ignore data mapped to periodic elements
+                _data = np.delete(
+                    self.values,
+                    self.uxgrid._gdf_cached_parameters["antimeridian_face_indices"],
+                    axis=0,
                 )
             else:
-                gdf[var_name] = self.values
-            return gdf
+                _data = self.values
+
+            if non_nan_polygon_indices is not None:
+                # index data to ignore NaN polygons
+                _data = _data[non_nan_polygon_indices]
+
+            gdf[var_name] = _data
 
         elif self.values.size == self.uxgrid.n_node:
             raise ValueError(
                 f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}. Current size matches the number of nodes."
+                f"({self.uxgrid.n_face}. Current size matches the number of nodes. Consider running "
+                f"``UxDataArray.topological_mean(destination='face') to aggregate the data onto the faces."
             )
-
-        # data not mapped to faces or nodes
+        elif self.values.size == self.uxgrid.n_edge:
+            raise ValueError(
+                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"({self.uxgrid.n_face}. Current size matches the number of edges."
+            )
         else:
+            # data is not mapped to
             raise ValueError(
                 f"Data Variable with size {self.values.size} does not match the number of faces "
                 f"({self.uxgrid.n_face}."
             )
+
+        return gdf
 
     def to_polycollection(
         self,
@@ -203,15 +268,19 @@ class UxDataArray(xr.DataArray):
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
+        **kwargs,
     ):
-        """Converts a ``UxDataArray`` to a
-        ``matplotlib.collections.PolyCollection``, representing each face as a
-        polygon shaded with a face-centered data variable.
+        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
+        of polygons representing the faces of the current ``UxDataArray`` with
+        a face-centered data variable mapped to them.
 
         Parameters
         ----------
-        periodic_elements: str
-            Method for handling elements that cross the antimeridian. One of ['include', 'exclude', 'split']
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection
             Cartopy geographic projection to use
         return_indices: bool
@@ -236,16 +305,38 @@ class UxDataArray(xr.DataArray):
                     periodic_elements=periodic_elements,
                     return_indices=True,
                     projection=projection,
+                    **kwargs,
                 )
             )
 
-            # map data with antimeridian polygons
-            if len(corrected_to_original_faces) > 0:
-                data = self.values[corrected_to_original_faces]
+            if periodic_elements == "exclude":
+                # index data to ignore data mapped to periodic elements
+                _data = np.delete(
+                    self.values,
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "antimeridian_face_indices"
+                    ],
+                    axis=0,
+                )
+            elif periodic_elements == "split":
+                _data = self.values[corrected_to_original_faces]
             else:
-                data = self.values
+                _data = self.values
 
-            poly_collection.set_array(data)
+            if (
+                self.uxgrid._poly_collection_cached_parameters[
+                    "non_nan_polygon_indices"
+                ]
+                is not None
+            ):
+                # index data to ignore NaN polygons
+                _data = _data[
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "non_nan_polygon_indices"
+                    ]
+                ]
+
+            poly_collection.set_array(_data)
 
             if return_indices:
                 return poly_collection, corrected_to_original_faces
@@ -261,7 +352,7 @@ class UxDataArray(xr.DataArray):
         name: Hashable = None,
         promote_attrs: bool = False,
     ) -> UxDataset:
-        """Convert a UxDataArray to a UxDataset.
+        """Convert a ``UxDataArray`` to a ``UxDataset``.
 
         Parameters
         ----------
@@ -287,8 +378,7 @@ class UxDataArray(xr.DataArray):
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> UxDataArray:
-        """Computes the integral of a data variable residing on an unstructured
-        grid.
+        """Computes the integral of a data variable.
 
         Parameters
         ----------
@@ -304,11 +394,11 @@ class UxDataArray(xr.DataArray):
 
         Examples
         --------
+        Open a Uxarray dataset and compute the integral
+
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-
-        # Compute the integral
-        >>> integral = uxds['psi'].integrate()
+        >>> integral = uxds["psi"].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
             face_areas, face_jacobian = self.uxgrid.compute_face_areas(
@@ -785,8 +875,7 @@ class UxDataArray(xr.DataArray):
     def gradient(
         self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
     ):
-        """Computes the horizontal gradient of a data variable residing on an
-        unstructured grid.
+        """Computes the horizontal gradient of a data variable.
 
         Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
         on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
@@ -809,10 +898,8 @@ class UxDataArray(xr.DataArray):
 
         Example
         -------
-        Face-centered variable
-        >>> uxds['var'].gradient()
-        Node-centered variable
-        >>> uxds['var'].topological_mean(destination="face").gradient()
+        >>> uxds["var"].gradient()
+        >>> uxds["var"].topological_mean(destination="face").gradient()
         """
 
         if not self._face_centered():
@@ -848,7 +935,7 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def difference(self, destination: Optional[str] = "edge"):
-        """Computes the absolute difference between a data variable.
+        """Computes the absolute difference of a data variable.
 
         The difference for a face-centered data variable can be computed on each edge using the ``edge_face_connectivity``,
         specified by ``destination='edge'``.
@@ -933,8 +1020,6 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-        pass
-
     def _face_centered(self) -> bool:
         """Returns whether the data stored is Face Centered (i.e. contains the
         "n_face" dimension)"""
@@ -998,20 +1083,18 @@ class UxDataArray(xr.DataArray):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
 
-        from uxarray.core.dataarray import UxDataArray
-
         if self._face_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
             )
 
         elif self._edge_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
             )
 
         elif self._node_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
             )
 
@@ -1020,14 +1103,50 @@ class UxDataArray(xr.DataArray):
                 "Data variable must be either node, edge, or face centered."
             )
 
-        return UxDataArray(
-            uxgrid=sliced_grid,
-            data=d_var,
-            name=self.name,
-            coords=self.coords,
-            dims=self.dims,
-            attrs=self.attrs,
+        return UxDataArray(da_sliced, uxgrid=sliced_grid)
+
+    def get_dual(self):
+        """Compute the dual mesh for a data array, returns a new data array
+        object.
+
+        Returns
+        --------
+        dual : uxda
+            Dual Mesh `uxda` constructed
+        """
+
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        if self.uxgrid.hole_edge_indices.size != 0:
+            warn(
+                "This mesh is partial, which could cause inconsistent results and data will be lost",
+                Warning,
+            )
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self.uxgrid)
+
+        # Construct dual mesh
+        dual = self.uxgrid.from_topology(
+            self.uxgrid.face_lon.values,
+            self.uxgrid.face_lat.values,
+            dual_node_face_conn,
         )
+
+        # Dictionary to swap dimensions
+        dim_map = {"n_face": "n_node", "n_node": "n_face"}
+
+        # Get correct dimensions for the dual
+        dims = [dim_map.get(dim, dim) for dim in self.dims]
+
+        # Get the values from the data array
+        data = np.array(self.values)
+
+        # Construct the new data array
+        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
+
+        return uxda
 
     def neighborhood_filter(
         self,

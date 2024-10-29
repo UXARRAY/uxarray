@@ -1,7 +1,6 @@
 import numpy as np
 import xarray as xr
 
-from scipy import sparse
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
@@ -59,8 +58,8 @@ def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
-    """Replaces all instances of the the current fill value (``original_fill``)
-    in (``grid_var``) with (``new_fill``) and converts to the dtype defined by
+    """Replaces all instances of the current fill value (``original_fill``) in
+    (``grid_var``) with (``new_fill``) and converts to the dtype defined by
     (``new_dtype``)
 
     Parameters
@@ -83,6 +82,7 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     # locations of fill values
     if original_fill is not None and np.isnan(original_fill):
         fill_val_idx = np.isnan(grid_var)
+        grid_var[fill_val_idx] = 0.0  # todo?
     else:
         fill_val_idx = grid_var == original_fill
 
@@ -143,7 +143,7 @@ def _populate_n_nodes_per_face(grid):
     )
 
 
-@njit()
+@njit(cache=True)
 def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
@@ -252,7 +252,7 @@ def _populate_edge_face_connectivity(grid):
     )
 
 
-@njit
+@njit(cache=True)
 def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
     """Helper for (``edge_face_connectivity``) construction."""
     edge_faces = np.ones(shape=(n_edge, 2), dtype=face_edges.dtype) * INT_FILL_VALUE
@@ -330,48 +330,27 @@ def _build_node_faces_connectivity(face_nodes, n_node):
     RuntimeError
         If the Mesh object does not contain a 'face_node_connectivity' variable.
     """
-    # First we need to build a matrix such that: the row indices are face indexes and the column indices are node
-    # indexes (similar to an adjacency matrix)
-    face_indices, node_indices, non_filled_element_flags = _face_nodes_to_sparse_matrix(
-        face_nodes
+
+    node_face_conn = {node_i: [] for node_i in range(n_node)}
+    for face_i, face_nodes in enumerate(face_nodes):
+        for node_i in face_nodes:
+            if node_i != INT_FILL_VALUE:
+                node_face_conn[node_i].append(face_i)
+
+    n_max_node_faces = -1
+    for face_indicies in node_face_conn.values():
+        if len(face_indicies) > n_max_node_faces:
+            n_max_node_faces = len(face_indicies)
+
+    node_face_connectivity = np.full(
+        (n_node, n_max_node_faces), INT_FILL_VALUE, dtype=INT_DTYPE
     )
-    coo_matrix = sparse.coo_matrix(
-        (non_filled_element_flags, (node_indices, face_indices))
-    )
-    csr_matrix = coo_matrix.tocsr()
-    # get the row and column indices of the non-zero elements
-    rows, cols = csr_matrix.nonzero()
-    # Find the frequency of each face to determine the maximum number of faces per node
-    freq = np.bincount(rows)
-    nMaxNumFacesPerNode = freq.max()
 
-    node_face_connectivity = [[]] * n_node
+    for node_idx, face_indices in enumerate(node_face_conn.values()):
+        n_faces = len(face_indices)
+        node_face_connectivity[node_idx, 0:n_faces] = face_indices
 
-    # find the indices where the array changes value
-    change_indices = np.where(np.diff(rows) != 0)[0] + 1
-
-    # split the array at the change indices to get subarrays of consecutive same elements
-    subarrays = np.split(rows, change_indices)
-
-    # get the start and end indices for each subarray
-    start_indices = np.cumsum([0] + [len(subarray) for subarray in subarrays[:-1]])
-    end_indices = np.cumsum([len(subarray) for subarray in subarrays]) - 1
-
-    for node_index in range(n_node):
-        node_face_connectivity[node_index] = cols[
-            start_indices[node_index] : end_indices[node_index] + 1
-        ]
-        if len(node_face_connectivity[node_index]) < nMaxNumFacesPerNode:
-            node_face_connectivity[node_index] = np.append(
-                node_face_connectivity[node_index],
-                np.full(
-                    nMaxNumFacesPerNode - len(node_face_connectivity[node_index]),
-                    INT_FILL_VALUE,
-                    dtype=INT_DTYPE,
-                ),
-            )
-
-    return node_face_connectivity, nMaxNumFacesPerNode
+    return node_face_connectivity, n_max_node_faces
 
 
 def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
@@ -379,6 +358,7 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     where the locations of non fill-value entries are stored using COO
     (coordinate list) standard. It is represented by three arrays: row indices,
     column indices, and non-filled element flags.
+
     Parameters
     ----------
     dense_matrix : np.ndarray
@@ -396,11 +376,12 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
             index.
     Example
     -------
-    >>> face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE],
-    ...                             [3, 0, 2, 5],
-    ...                             [3, 4, 1, 0],
-    ...                             [0, 1, 2, -999]])
-    >>> face_indices, nodes_indices, non_filled_flag = _face_nodes_to_sparse_matrix(face_nodes_conn)
+    >>> face_nodes_conn = np.array(
+    ...     [[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5], [3, 4, 1, 0], [0, 1, 2, -999]]
+    ... )
+    >>> face_indices, nodes_indices, non_filled_flag = _face_nodes_to_sparse_matrix(
+    ...     face_nodes_conn
+    ... )
     >>> face_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
     >>> nodes_indices = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
     >>> non_filled_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])

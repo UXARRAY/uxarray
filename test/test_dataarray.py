@@ -9,7 +9,7 @@ import uxarray as ux
 
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 
-from uxarray.core.dataset import UxDataset
+from uxarray.core.dataset import UxDataset, UxDataArray
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -33,6 +33,14 @@ class TestDataArray(TestCase):
         assert isinstance(uxds_converted, UxDataset)
         assert uxds_converted.uxgrid == uxds.uxgrid
 
+    def test_get_dual(self):
+        """Tests the creation of the dual mesh on a data array."""
+        uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+        dual = uxds['psi'].get_dual()
+
+        assert isinstance(dual, UxDataArray)
+        self.assertTrue(dual._node_centered())
+
 
 class TestGeometryConversions(TestCase):
 
@@ -46,7 +54,7 @@ class TestGeometryConversions(TestCase):
             uxds_geoflow['v1'].to_geodataframe()
 
         # grid conversion
-        gdf_geoflow_grid = uxds_geoflow.uxgrid.to_geodataframe()
+        gdf_geoflow_grid = uxds_geoflow.uxgrid.to_geodataframe(periodic_elements='split')
 
         # number of elements
         assert gdf_geoflow_grid.shape == (uxds_geoflow.uxgrid.n_face, 1)
@@ -54,7 +62,7 @@ class TestGeometryConversions(TestCase):
         ### n30
         uxds_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
-        gdf_geoflow_data = uxds_ne30['psi'].to_geodataframe()
+        gdf_geoflow_data = uxds_ne30['psi'].to_geodataframe(periodic_elements='split')
 
         assert gdf_geoflow_data.shape == (uxds_ne30.uxgrid.n_face, 2)
 
