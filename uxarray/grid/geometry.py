@@ -18,6 +18,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.coordinates import _normalize_xyz
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -1337,3 +1338,69 @@ def _construct_hole_edge_indices(edge_face_connectivity):
     # If an edge only has one face saddling it than the mesh has holes in it
     edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
     return edge_with_holes
+
+
+def _rotation_to_north_pole(point_cart):
+    """Finds the rotation of a point to the North Pole"""
+
+    # Axis of rotation is the cross product of point_cart and north_pole
+    axis = np.cross(point_cart, POLE_POINTS["North"])
+    axis_norm = np.linalg.norm(axis)
+
+    # If the axis is very small, point is already at the North Pole
+    if axis_norm < 1e-10:
+        return np.eye(3)  # Return identity matrix
+
+    axis = axis / axis_norm
+    angle = np.arccos(np.dot(point_cart, POLE_POINTS["North"]))
+
+    # Rotation matrix using Rodrigues' rotation formula
+    K = np.array([
+        [0, -axis[2], axis[1]],
+        [axis[2], 0, -axis[0]],
+        [-axis[1], axis[0], 0]
+    ])
+    I = np.eye(3)
+    R = I + np.sin(angle) * K + (1 - np.cos(angle)) * np.dot(K, K)
+
+    return R
+
+
+def point_in_polygon(polygon, point):
+    """Returns `True` if point is inside polygon, `False` otherwise.
+
+     Parameters
+    ----------
+    polygon: np.ndarray
+        Array of cartesian coordinates of the nodes making up the polygon
+    point: np.ndarray
+        Point of which to check if it is inside the polygon
+    face_edge_cart: np.ndarray
+
+    Returns
+    --------
+    bool
+        True if point is inside polygon, False otherwise.
+    """
+
+    # Get the rotation to apply to the polygon
+    rotation = _rotation_to_north_pole(point)
+
+    # Apply the rotation to position the polygon over the North Pole
+    rotated_polygon = np.dot(rotation, polygon.T).T
+
+    # Create the `face_edge_cart`
+    face_edge_cart = np.zeros([len(polygon), 2, 3])
+
+    # Assign all but the last edge in `face_edge_cart`
+    for ind in range(len(rotated_polygon) - 1):
+        face_edge_cart[ind][0] = rotated_polygon[ind]
+        face_edge_cart[ind][1] = rotated_polygon[ind + 1]
+
+    # Assign the last edge in `face_edge_cart`
+    face_edge_cart[-1][0] = rotated_polygon[0]
+    face_edge_cart[-1][1] = rotated_polygon[-1]
+
+    # Return whether the point is inside the polygon or not
+    return _pole_point_inside_polygon('North', face_edge_cart)
+

@@ -12,7 +12,7 @@ import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import extreme_gca_latitude
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
-from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, point_in_polygon
 
 from spatialpandas.geometry import MultiPolygon
 
@@ -27,13 +27,14 @@ datafile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.
 grid_files = [gridfile_CSne8, gridfile_geoflow]
 data_files = [datafile_CSne30, datafile_geoflow]
 
-grid_quad_hex = current_path/ "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
-grid_geoflow = current_path/ "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-grid_mpas = current_path/ "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
-
+grid_quad_hex = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
+grid_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+grid_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+grid_mpas_2 = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
 
 # List of grid files to test
 grid_files_latlonBound = [grid_quad_hex, grid_geoflow, gridfile_CSne8, grid_mpas]
+
 
 class TestAntimeridian(TestCase):
 
@@ -63,8 +64,6 @@ class TestLineCollection(TestCase):
         lines = uxgrid.to_linecollection()
 
 
-
-
 class TestPredicate(TestCase):
 
     def test_pole_point_inside_polygon_from_vertice_north(self):
@@ -83,7 +82,7 @@ class TestPredicate(TestCase):
                                    [vertices[1], vertices[2]],
                                    [vertices[2], vertices[3]],
                                    [vertices[3], vertices[0]]])
-
+        print(face_edge_cart)
         # Check if the North pole is inside the polygon
         result = ux.grid.geometry._pole_point_inside_polygon(
             'North', face_edge_cart)
@@ -463,7 +462,7 @@ class TestLatlonBoundUtils(TestCase):
 class TestLatlonBoundsGCA(TestCase):
 
     def _get_cartesian_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -522,7 +521,7 @@ class TestLatlonBoundsGCA(TestCase):
         return cartesian_coordinates
 
     def _get_lonlat_rad_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -691,7 +690,7 @@ class TestLatlonBoundsGCA(TestCase):
             [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
         bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
-        expected_bounds = np.array([[-1.20427718, -1.14935491], [0,0.13568803]])
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [0, 0.13568803]])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_near_pole2(self):
@@ -703,13 +702,12 @@ class TestLatlonBoundsGCA(TestCase):
             [[4.06271283e-01, -4.78221112e-02, -9.12500241e-01], [3.57939780e-01, -4.88684203e-02, -9.32465008e-01]]
         ])
 
-
         # Apply the inverse transformation to get the lat lon coordinates
         face_edges_lonlat = np.array(
             [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
         bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
-        expected_bounds = np.array([[-1.20427718, -1.14935491], [6.147497,4.960524e-16]])
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [6.147497, 4.960524e-16]])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_long_face(self):
@@ -735,10 +733,7 @@ class TestLatlonBoundsGCA(TestCase):
         bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
 
         # The expected bounds should not contains the south pole [0,-0.5*np.pi]
-        self.assertTrue(bounds[1][0] !=  0.0)
-
-
-
+        self.assertTrue(bounds[1][0] != 0.0)
 
     def test_populate_bounds_node_on_pole(self):
         # Generate a normal face that is crossing the antimeridian
@@ -828,7 +823,7 @@ class TestLatlonBoundsGCA(TestCase):
 class TestLatlonBoundsLatLonFace(TestCase):
 
     def _get_cartesian_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -887,7 +882,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
         return cartesian_coordinates
 
     def _get_lonlat_rad_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -1088,7 +1083,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
 
 class TestLatlonBoundsGCAList(TestCase):
     def _get_cartesian_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -1147,7 +1142,7 @@ class TestLatlonBoundsGCAList(TestCase):
         return cartesian_coordinates
 
     def _get_lonlat_rad_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -1234,8 +1229,6 @@ class TestLatlonBoundsGCAList(TestCase):
         bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                              is_GCA_list=[True, False, True, False])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
-
-
 
     def test_populate_bounds_antimeridian(self):
         # Generate a normal face that is crossing the antimeridian
@@ -1436,7 +1429,6 @@ class TestLatlonBoundsFiles:
 
 class TestGeoDataFrame(TestCase):
 
-
     def test_engine(self):
         uxgrid = ux.open_grid(gridfile_geoflow)
         for engine in ['geopandas', 'spatialpandas']:
@@ -1483,3 +1475,80 @@ class TestGeoDataFrame(TestCase):
         gdf_f = uxgrid.to_geodataframe(exclude_antimeridian=True)
 
         assert gdf_f is not gdf_e
+
+
+class TestPointInPolygon(TestCase):
+    def test_point_inside(self):
+        """Test the function `point_in_polygon`, where point is inside the polygon"""
+
+        # Open grid
+        grid = ux.open_grid(grid_mpas_2)
+
+        # Create the polygon
+        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        for ind, face in enumerate(grid.face_node_connectivity[100].values):
+            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+
+        # Set the point as the face center of the polygon
+        point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
+
+        # Assert that the point is in the polygon
+        self.assertTrue(point_in_polygon(polygon, point))
+
+    def test_point_outside(self):
+        """Test the function `point_in_polygon`, where point is outside the polygon"""
+
+        # Open grid
+        grid = ux.open_grid(grid_mpas_2)
+
+        # Create the polygon
+        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        for ind, face in enumerate(grid.face_node_connectivity[100].values):
+            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+
+        # Set the point as the face center of a far away polygon
+        point = np.array([grid.face_x[0].values, grid.face_y[0].values, grid.face_z[0].values])
+
+        # Assert that the point is not in the polygon
+        self.assertFalse(point_in_polygon(polygon, point))
+
+    def test_point_inside_close(self):
+        """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
+
+        # Open grid
+        grid = ux.open_grid(grid_mpas_2)
+
+        # Create the polygon
+        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        for ind, face in enumerate(grid.face_node_connectivity[100].values):
+            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+
+        # Set the point as right next to one of the nodes
+
+        lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]])
+        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] + 0.01)
+
+        point = _lonlat_rad_to_xyz(lon.values, lat.values)
+
+        # Assert that the point is in the polygon
+        self.assertTrue(point_in_polygon(polygon, point))
+
+    def test_point_outside_close(self):
+        """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
+
+        # Open grid
+        grid = ux.open_grid(grid_mpas_2)
+
+        # Create the polygon
+        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        for ind, face in enumerate(grid.face_node_connectivity[100].values):
+            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+
+        # Set the point as right next to one of the nodes
+        lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]])
+        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] - 0.01)
+
+        point = _lonlat_rad_to_xyz(lon.values, lat.values)
+
+        # Assert that the point is in the polygon
+        self.assertFalse(point_in_polygon(polygon, point))
