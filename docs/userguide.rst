@@ -74,7 +74,7 @@ These user guides provide detailed explanations of the core functionality in UXa
 Supplementary Guides
 --------------------
 
-These user guides provide additional detail asbout specific features in UXarray.
+These user guides provide additional details about specific features in UXarray.
 
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools

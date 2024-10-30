@@ -31,8 +31,6 @@ def _read_structured_grid(lon, lat, tol=1e-10):
     out_ds : xr.Dataset
         An `xarray.Dataset` representing the structured grid encoded in the UGRID conventions
 
-    source_dims_dict : dict
-        TODO:
 
     Notes
     -----
