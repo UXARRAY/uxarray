@@ -18,6 +18,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.coordinates import _normalize_xyz
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -1337,3 +1338,25 @@ def _construct_hole_edge_indices(edge_face_connectivity):
     # If an edge only has one face saddling it than the mesh has holes in it
     edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
     return edge_with_holes
+
+
+@njit(cache=True)
+def _point_to_plane(x, y, z):
+    """Projects a point on the surface of the sphere to a plane using stereographic projection"""
+    x_plane = x / (1 - z)
+    y_plane = y / (1 - z)
+
+    return x_plane, y_plane
+
+
+@njit(cache=True)
+def _point_to_sphere(x_plane, y_plane):
+    """Projects a point on a plane to the surface of the sphere using stereographic projection"""
+
+    x = (2 * x_plane) / (1 + x_plane**2 + y_plane**2)
+    y = (2 * y_plane) / (1 + x_plane**2 + y_plane**2)
+    z = (-1 + x_plane**2 + y_plane**2) / (1 + x_plane**2 + y_plane**2)
+
+    x_norm, y_norm, z_norm = _normalize_xyz(x, y, z)
+
+    return x_norm, y_norm, z_norm
