@@ -7,7 +7,21 @@ def _map_dims_to_ugrid(
     remaps the original dimension name to match the UGRID conventions (i.e.
     "nCell": "n_face")"""
 
-    if grid.source_grid_spec == "GEOS-CS":
+    if grid.source_grid_spec == "Structured":
+        # Case for structured grids, flatten bottom two sptial dimensions
+
+        lon_name, lat_name = _source_dims_dict["n_face"]
+
+        for var_name in ds.data_vars:
+            if lon_name in ds[var_name].dims and lat_name in ds[var_name].dims:
+                if ds[var_name].dims[-1] == lon_name:
+                    dim_ordered = [lat_name, lon_name]
+                else:
+                    dim_ordered = [lon_name, lat_name]
+
+        ds = ds.stack(n_face=dim_ordered)
+
+    elif grid.source_grid_spec == "GEOS-CS":
         # stack dimensions to flatten them to map to nodes or faces
         for var_name in list(ds.coords) + list(ds.data_vars):
             if all(key in ds[var_name].sizes for key in ["nf", "Ydim", "Xdim"]):

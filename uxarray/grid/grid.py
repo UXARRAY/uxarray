@@ -27,6 +27,7 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._structured import _read_structured_grid
 
 from uxarray.formatting_html import grid_repr
 
@@ -247,8 +248,7 @@ class Grid:
 
         if "source_grid_spec" not in kwargs:
             # parse to detect source grid spec
-
-            source_grid_spec = _parse_grid_type(dataset)
+            source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
             if source_grid_spec == "Exodus":
                 grid_ds, source_dims_dict = _read_exodus(dataset)
             elif source_grid_spec == "Scrip":
@@ -263,6 +263,9 @@ class Grid:
                 grid_ds, source_dims_dict = _read_geos_cs(dataset)
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+            elif source_grid_spec == "Structured":
+                grid_ds = _read_structured_grid(dataset[lon_name], dataset[lat_name])
+                source_dims_dict = {"n_face": (lon_name, lat_name)}
             elif source_grid_spec == "Shapefile":
                 raise ValueError(
                     "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
@@ -382,6 +385,52 @@ class Grid:
         return cls(grid_ds, grid_spec, dims_dict)
 
     @classmethod
+    def from_structured(
+        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
+    ):
+        """
+        Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
+
+        This class method provides flexibility in converting structured grid data into an unstructured `uxarray.UxDataset`.
+        Users can either supply an existing structured `xarray.Dataset` or provide longitude and latitude coordinates
+        directly.
+
+        Parameters
+        ----------
+        ds : xr.Dataset, optional
+            The structured `xarray.Dataset` to convert. If provided, the dataset must adhere to the
+            Climate and Forecast (CF) Metadata Conventions
+
+        lon : array-like, optional
+            Longitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        lat : array-like, optional
+            Latitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        tol : float, optional
+            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
+            Default is `1e-10`.
+
+        Returns
+        -------
+        Grid
+            An instance of ``uxarray.Grid``
+        """
+        if ds is not None:
+            return cls.from_dataset(ds)
+        if lon is not None and lat is not None:
+            grid_ds = _read_structured_grid(lon, lat, tol)
+            return cls.from_dataset(
+                grid_ds, source_dims_dict=None, source_grid_spec="structured"
+            )
+        else:
+            raise ValueError(
+                "No input dataset or latitude and longitude values specified."
+            )
+
+    @classmethod
     def from_face_vertices(
         cls,
         face_vertices: Union[list, tuple, np.ndarray],
@@ -416,7 +465,7 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
-    def validate(self):
+    def validate(self, check_duplicates=True):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.
 
@@ -430,7 +479,7 @@ class Grid:
         print("Validating the mesh...")
 
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
-        checkDN = _check_duplicate_nodes(self)
+        checkDN = _check_duplicate_nodes(self) if check_duplicates else True
         check_C = _check_connectivity(self)
         check_A = _check_area(self)
 
