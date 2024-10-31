@@ -30,6 +30,7 @@ dependencies:
   - scipy
   - shapely
   - spatialpandas
+  - pooch
   - geopandas
   - xarray
   - asv
