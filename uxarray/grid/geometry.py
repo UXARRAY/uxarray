@@ -2,7 +2,7 @@ import antimeridian
 import cartopy.crs as ccrs
 import geopandas
 from matplotlib.collections import LineCollection, PolyCollection
-from numba import njit
+from numba import njit, prange
 import numpy as np
 import pandas as pd
 import shapely
@@ -33,9 +33,147 @@ GDF_POLYGON_THRESHOLD = 100000
 REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
+def _populate_pole_face_indices(grid):
+    north_pole_face_indices, south_pole_face_indices = compute_pole_face_indices(
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+        grid.face_node_connectivity.values,
+        grid.n_nodes_per_face.values,
+        grid.n_face,
+    )
+
+    north_pole_face_indices = np.argwhere(np.asarray(north_pole_face_indices)).flatten()
+    south_pole_face_indices = np.argwhere(np.asarray(south_pole_face_indices)).flatten()
+
+    grid._ds["north_pole_face_indices"] = xr.DataArray(
+        data=np.array(north_pole_face_indices, dtype=INT_DTYPE),
+        dims="n_face_north_pole",
+    )
+
+    grid._ds["south_pole_face_indices"] = xr.DataArray(
+        data=np.array(south_pole_face_indices, dtype=INT_DTYPE),
+        dims="n_face_south_pole",
+    )
+
+
+@njit(parallel=True)
+def compute_pole_face_indices(
+    node_x, node_y, node_z, face_node_connectivity, n_nodes_per_face, n_face
+):
+    north_pole_face_indices = np.zeros(n_face)
+    south_pole_face_indices = np.zeros(n_face)
+
+    for i in prange(n_face):
+        face_nodes = face_node_connectivity[i, 0 : n_nodes_per_face[i]]
+        face_node_x = node_x[face_nodes]
+        face_node_y = node_y[face_nodes]
+        face_node_z = node_z[face_nodes]
+
+        north_pole_winding_num = spherical_winding_number(
+            face_node_x, face_node_y, face_node_z, pole="north"
+        )
+        south_pole_winding_num = spherical_winding_number(
+            face_node_x, face_node_y, face_node_z, pole="south"
+        )
+
+        if north_pole_winding_num:
+            north_pole_face_indices[i] = 1
+        if south_pole_winding_num:
+            south_pole_face_indices[i] = 1
+
+    return north_pole_face_indices, south_pole_face_indices
+
+
+@njit
+def spherical_winding_number(x, y, z, pole):
+    n = len(x)
+    total_angle = 0.0
+
+    # tolerance
+    epsilon = 1e-12
+
+    # Unit vector for the pole
+    if pole == "north":
+        p_x, p_y, p_z = 0.0, 0.0, 1.0
+    elif pole == "south":
+        p_x, p_y, p_z = 0.0, 0.0, -1.0
+    else:
+        return False
+
+    # Check if any vertex coincides with the pole
+    for i in range(n):
+        dx = x[i] - p_x
+        dy = y[i] - p_y
+        dz = z[i] - p_z
+        dist_squared = dx * dx + dy * dy + dz * dz
+        if dist_squared < epsilon * epsilon:
+            # Vertex is at the pole
+            return True
+
+    # Iterate over each edge of the polygon
+    for i in range(n):
+        # Current and next vertex
+        v1_x, v1_y, v1_z = x[i], y[i], z[i]
+        v2_x, v2_y, v2_z = x[(i + 1) % n], y[(i + 1) % n], z[(i + 1) % n]
+
+        # Compute vectors from the pole to the vertices
+        a1_x = v1_x - p_x
+        a1_y = v1_y - p_y
+        a1_z = v1_z - p_z
+        a2_x = v2_x - p_x
+        a2_y = v2_y - p_y
+        a2_z = v2_z - p_z
+
+        # Normalize vectors
+        norm_a1 = np.sqrt(a1_x * a1_x + a1_y * a1_y + a1_z * a1_z)
+        norm_a2 = np.sqrt(a2_x * a2_x + a2_y * a2_y + a2_z * a2_z)
+        if norm_a1 < epsilon or norm_a2 < epsilon:
+            # Skip if norm is too small to avoid division by zero
+            continue
+        a1_x /= norm_a1
+        a1_y /= norm_a1
+        a1_z /= norm_a1
+        a2_x /= norm_a2
+        a2_y /= norm_a2
+        a2_z /= norm_a2
+
+        # Cross product A1 x A2
+        c_x = a1_y * a2_z - a1_z * a2_y
+        c_y = a1_z * a2_x - a1_x * a2_z
+        c_z = a1_x * a2_y - a1_y * a2_x
+
+        # Compute the norm of the cross product
+        norm_c = np.sqrt(c_x * c_x + c_y * c_y + c_z * c_z)
+
+        # Compute the dot product A1 • A2
+        dot_a1a2 = a1_x * a2_x + a1_y * a2_y + a1_z * a2_z
+
+        # Compute the angle using atan2
+        angle = np.arctan2(norm_c, dot_a1a2)
+
+        # Determine the sign based on the orientation
+        # Since we are dealing with a sphere, the sign can be determined from the direction of C and P
+        orientation = c_x * p_x + c_y * p_y + c_z * p_z
+        if orientation > 0:
+            total_angle += angle
+        else:
+            total_angle -= angle
+
+    # Determine if the total winding angle is approximately ±2π
+    two_pi = 2 * np.pi
+    winding_number = total_angle / two_pi
+
+    if np.abs(winding_number) > 0.5:
+        inside = True
+    else:
+        inside = False
+
+    return inside
+
+
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
-    """Identify unique intersection points from a list of points, considering
-    floating point precision errors.
+    """Identify unique intersection points from a list of points, considering floating point precision errors.
 
     Parameters
     ----------

@@ -58,8 +58,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
     _construct_hole_edge_indices,
-    _populate_north_pole_face_indices,
-    _populate_south_pole_face_indices,
+    _populate_pole_face_indices,
 )
 
 from uxarray.grid.neighbors import (
@@ -71,7 +70,6 @@ from uxarray.grid.neighbors import (
 
 from uxarray.grid.intersections import (
     fast_constant_lat_intersections,
-    fast_constant_lon_intersections,
 )
 
 from uxarray.grid.weights import _face_weights_from_edge_magnitudes
@@ -1358,7 +1356,7 @@ class Grid:
     def north_pole_face_indices(self):
         """Indices of faces that contain the North Pole point."""
         if "north_pole_face_indices" not in self._ds:
-            _populate_north_pole_face_indices(self)
+            _populate_pole_face_indices(self)
         return self._ds["north_pole_face_indices"]
 
     @property
@@ -1366,7 +1364,7 @@ class Grid:
         """Indices of faces that contain the South Pole point (-90 degrees
         latitude)."""
         if "south_pole_face_indices" not in self._ds:
-            _populate_south_pole_face_indices(self)
+            _populate_pole_face_indices(self)
         return self._ds["south_pole_face_indices"]
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
@@ -2213,13 +2211,13 @@ class Grid:
         else:
             return faces[faces != INT_FILL_VALUE]
 
-    def edges_at_constant_longitude(self, lon, method="fast"):
-        if method == "fast":
-            edges = fast_constant_lon_intersections(
-                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
-            )
-        elif method == "accurate":
-            raise NotImplementedError("Accurate method not yet implemented.")
-        else:
-            raise ValueError(f"Invalid method: {method}.")
-        return edges.squeeze()
+    # def edges_at_constant_longitude(self, lon, method="fast"):
+    #     if method == "fast":
+    #         edges = fast_constant_lon_intersections(
+    #             lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+    #         )
+    #     elif method == "accurate":
+    #         raise NotImplementedError("Accurate method not yet implemented.")
+    #     else:
+    #         raise ValueError(f"Invalid method: {method}.")
+    #     return edges.squeeze()

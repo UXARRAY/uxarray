@@ -24,6 +24,13 @@ def _compute_zonal_mean(
 
 def _face_centered_zonal_mean(uxda, result, latitudes, conservative, method):
     """TODO:"""
+
+    # north_pole_face_indices = uxda.uxgrid.north_pole_face_indicies.values
+    # south_pole_face_indices = uxda.uxgrid.south_pole_face_indicies.values
+    #
+    # north_pole_min_lat = ...
+    # south_pole_max_lat = ...
+
     for i, lat in enumerate(latitudes):
         if conservative:
             face_indices = uxda.uxgrid.get_faces_at_constant_latitude(lat, method)
