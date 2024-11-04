@@ -41,6 +41,7 @@ I/O & Conversion
    Grid.from_dataset
    Grid.from_file
    Grid.from_topology
+   Grid.from_structured
    Grid.from_points
    Grid.to_xarray
    Grid.to_geodataframe
@@ -211,6 +212,13 @@ Grid Accessor
 
    UxDataset.uxgrid
 
+I/O & Conversion
+~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.from_structured
 
 Plotting
 --------
