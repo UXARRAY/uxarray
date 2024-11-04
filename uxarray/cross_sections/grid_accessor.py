@@ -120,7 +120,9 @@ class GridCrossSectionAccessor:
 
         Examples
         --------
-        >>> grid, indices = grid.cross_section.constant_longitude(lat=0.0, return_face_indices=True)
+        >>> grid, indices = grid.cross_section.constant_longitude(
+        ...     lat=0.0, return_face_indices=True
+        ... )
         >>> grid = grid.cross_section.constant_longitude(lat=20.0)
 
         Notes
