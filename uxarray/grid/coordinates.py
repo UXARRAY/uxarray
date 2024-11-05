@@ -877,3 +877,23 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
     y_norm = y / denom
     z_norm = z / denom
     return x_norm, y_norm, z_norm
+
+
+def prepare_points(points, normalize):
+    """Prepares points for use with ``Grid.from_points()``"""
+    if len(points) == 2:
+        lon_deg, lat_deg = points[0], points[1]
+        lon_rad = np.deg2rad(lon_deg)
+        lat_rad = np.deg2rad(lat_deg)
+        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+        x, y, z = _normalize_xyz(x, y, z)
+    elif len(points) == 3:
+        x, y, z = points[0], points[1], points[2]
+        if normalize:
+            x, y, z = _normalize_xyz(x, y, z)
+    else:
+        raise ValueError(
+            "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
+        )
+
+    return np.vstack([x, y, z]).T

@@ -380,7 +380,7 @@ class UxDataset(xr.Dataset):
         if _check_duplicate_nodes_indices(self.uxgrid):
             raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
-        if self.uxgrid.hole_edge_indices.size != 0:
+        if self.uxgrid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
