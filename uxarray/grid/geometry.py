@@ -18,7 +18,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
-from uxarray.grid.coordinates import _normalize_xyz
+from uxarray.grid.coordinates import _normalize_xyz, _lonlat_rad_to_xyz
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -1338,41 +1338,37 @@ def _construct_hole_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-def _rotation_to_north_pole(point_cart):
-    """Finds the rotation of a point to the North Pole"""
+@njit(cache=True)
+def _point_to_plane(x, y, z):
+    """Projects a point on the surface of the sphere to a plane using stereographic projection"""
+    x_plane = x / (1 - z)
+    y_plane = y / (1 - z)
 
-    # Axis of rotation is the cross product of point_cart and north_pole
-    axis = np.cross(point_cart, POLE_POINTS["North"])
-    axis_norm = np.linalg.norm(axis)
-
-    # If the axis is very small, point is already at the North Pole
-    if axis_norm < 1e-10:
-        return np.eye(3)  # Return identity matrix
-
-    axis = axis / axis_norm
-    angle = np.arccos(np.dot(point_cart, POLE_POINTS["North"]))
-
-    # Rotation matrix using Rodrigues' rotation formula
-    K = np.array([
-        [0, -axis[2], axis[1]],
-        [axis[2], 0, -axis[0]],
-        [-axis[1], axis[0], 0]
-    ])
-    I = np.eye(3)
-    R = I + np.sin(angle) * K + (1 - np.cos(angle)) * np.dot(K, K)
-
-    return R
+    return x_plane, y_plane
 
 
-def point_in_polygon(polygon, point):
+@njit(cache=True)
+def _point_to_sphere(x_plane, y_plane):
+    """Projects a point on a plane to the surface of the sphere using stereographic projection"""
+
+    x = (2 * x_plane) / (1 + x_plane**2 + y_plane**2)
+    y = (2 * y_plane) / (1 + x_plane**2 + y_plane**2)
+    z = (-1 + x_plane**2 + y_plane**2) / (1 + x_plane**2 + y_plane**2)
+
+    x_norm, y_norm, z_norm = _normalize_xyz(x, y, z)
+
+    return x_norm, y_norm, z_norm
+
+
+def point_in_polygon(polygon, point, inclusive=False):
     """Returns `True` if point is inside polygon, `False` otherwise.
 
      Parameters
     ----------
     polygon: np.ndarray
-        Array of cartesian coordinates of the nodes making up the polygon
+        Array of cartesian or spherical coordinates of the nodes making up the polygon
     point: np.ndarray
-        Point of which to check if it is inside the polygon
+        A point either `lon, lat` or `x, y, z` of which to check if it resides inside the polygon
     face_edge_cart: np.ndarray
 
     Returns
@@ -1381,24 +1377,115 @@ def point_in_polygon(polygon, point):
         True if point is inside polygon, False otherwise.
     """
 
-    # Get the rotation to apply to the polygon
-    rotation = _rotation_to_north_pole(point)
+    # Point is in cartesian coordinates
+    if len(point) == 3:
+        # Project point to plane
+        point_on_plane = _point_to_plane(point[0], point[1], point[2])
+    # Point is in spherical coordinates
+    elif len(point) == 2:
+        # Convert point to radians
+        lon_rad = np.deg2rad(point[0])
+        lat_rad = np.deg2rad(point[1])
 
-    # Apply the rotation to position the polygon over the North Pole
-    rotated_polygon = np.dot(rotation, polygon.T).T
+        # Convert lon/lat to xyz
+        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
 
-    # Create the `face_edge_cart`
-    face_edge_cart = np.zeros([len(polygon), 2, 3])
+        # Project point to plane
+        point_on_plane = _point_to_plane(x, y, z)
+    # Point is incorrect
+    else:
+        raise ValueError("Point is incorrect, should be either lonlat or xyz")
 
-    # Assign all but the last edge in `face_edge_cart`
-    for ind in range(len(rotated_polygon) - 1):
-        face_edge_cart[ind][0] = rotated_polygon[ind]
-        face_edge_cart[ind][1] = rotated_polygon[ind + 1]
+    # Polygon in cartesian coordinates
+    if len(polygon) == 3:
+        # Assign xyz
+        x = polygon[0]
+        y = polygon[1]
+        z = polygon[2]
 
-    # Assign the last edge in `face_edge_cart`
-    face_edge_cart[-1][0] = rotated_polygon[0]
-    face_edge_cart[-1][1] = rotated_polygon[-1]
+        # Project polygon to plane
+        polygon_on_plane = _point_to_plane(x, y, z)
+    # Point is in spherical coordinates
+    elif len(polygon) == 3:
+        # Assign lon/lat
+        lon = polygon[0]
+        lat = polygon[1]
+
+        # Convert lon/lat to radians
+        lon_rad = np.deg2rad(point[0])
+        lat_rad = np.deg2rad(point[1])
+
+        # Convert lon/lat to xyz
+        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+
+        # Project point to plane
+        polygon_on_plane = _point_to_plane(x, y, z)
+    # Point is incorrect
+    else:
+        raise ValueError("Polygon is incorrect, should be either lonlat or xyz")
+
+    stacked_polygon = list(zip(*polygon_on_plane))
+    point_inside = ray_casting_plane(stacked_polygon, point_on_plane, inclusive=inclusive)
 
     # Return whether the point is inside the polygon or not
-    return _pole_point_inside_polygon('North', face_edge_cart)
+    return point_inside
+
+
+@njit(cache=True)
+def ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
+    """Tests a point to see if it lies inside a polygon on a plane.
+
+    Parameters:
+    polygon : list of tuples
+        List of (x, y) coordinates representing the vertices of the polygon.
+    point : tuple
+        (x, y) coordinates of the point to test.
+    inclusive : bool, optional
+        If True, the function will consider points on the boundary (or within the tolerance) as inside.
+    tolerance : float, optional
+        The margin within which a point is considered on the edge or vertex.
+
+    Returns:
+    bool
+        True if the point is inside the polygon, False otherwise.
+    """
+    num_vertices = len(polygon)
+    x, y = point[0], point[1]
+    intersections = 0
+
+    # Check if the point lies exactly on any of the vertices
+    if inclusive:
+        for vertex in polygon:
+            if abs(x - vertex[0]) <= tolerance and abs(y - vertex[1]) <= tolerance:
+                return True  # Point is on a vertex
+
+    # Iterate through the edges to check if the point is on the boundary or inside
+    for i in range(num_vertices):
+        x1, y1 = polygon[i][0], polygon[i][1]
+        x2, y2 = polygon[(i + 1) % num_vertices][0], polygon[(i + 1) % num_vertices][1]
+
+        # Check if the point lies on the edge using tolerance (inclusive check)
+        if inclusive:
+            # Calculate the cross-product to check collinearity
+            cross_product = (y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)
+            if abs(cross_product) <= tolerance:
+                # Check if the point is within the bounds of the edge
+                if min(x1, x2) - tolerance <= x <= max(x1, x2) + tolerance and min(y1, y2) - tolerance <= y <= max(y1,
+                                                                                                                   y2) + tolerance:
+                    return True  # Point is on the edge
+
+        # Standard ray-casting check for intersections
+        # Correct vertex intersection check:
+        if (y1 > y) != (y2 > y):  # The point's y should be between y1 and y2
+            # Check if the intersection is exactly at a vertex and adjust
+            if y == y1 and (y2 > y) != (y1 > y):  # If intersecting at a vertex, ensure proper counting
+                continue  # Skip counting this vertex intersection to avoid double-counting
+
+            intersect_x = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+            if intersect_x > x:
+                intersections += 1
+
+    # Return True if the number of intersections is odd
+    return intersections % 2 == 1
+
 
