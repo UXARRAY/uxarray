@@ -18,7 +18,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
-from uxarray.grid.coordinates import _normalize_xyz
+from uxarray.grid.coordinates import _normalize_xyz, _lonlat_rad_to_xyz
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -1340,9 +1340,18 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-@njit(cache=True)
-def _point_to_plane(x, y, z):
+# @njit(cache=True)
+def _point_to_plane(points):
     """Projects a point on the surface of the sphere to a plane using stereographic projection"""
+    if len(points) == 3:
+        x, y, z = points[0], points[1], points[2]
+    elif len(points) == 2:
+        lon_rad = np.deg2rad(points[0])
+        lat_rad = np.deg2rad(points[1])
+        x, y, z = _lonlat_rad_to_xyz(lon=lon_rad, lat=lat_rad)
+    else:
+        raise ValueError("Point must be either in spherical or cartesian coordinates")
+
     x_plane = x / (1 - z)
     y_plane = y / (1 - z)
 

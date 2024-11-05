@@ -91,10 +91,10 @@ def _regional_delaunay_from_points(points, boundary_points=None):
     node_lon = np.degrees(node_lon_rad)
     node_lat = np.degrees(node_lat_rad)
 
-    x_plane, y_plane = _point_to_plane(node_x, node_y, node_z)
+    x_plane, y_plane = _point_to_plane([node_x, node_y, node_z])
 
     points = np.column_stack((x_plane, y_plane))
-    print(np.max(points))
+
     delaunay = Delaunay(points)
 
     # Obtain delaunay triangles
