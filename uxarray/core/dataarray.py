@@ -398,7 +398,7 @@ class UxDataArray(xr.DataArray):
 
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-        >>> integral = uxds['psi'].integrate()
+        >>> integral = uxds["psi"].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
             face_areas, face_jacobian = self.uxgrid.compute_face_areas(
@@ -898,8 +898,8 @@ class UxDataArray(xr.DataArray):
 
         Example
         -------
-        >>> uxds['var'].gradient()
-        >>> uxds['var'].topological_mean(destination="face").gradient()
+        >>> uxds["var"].gradient()
+        >>> uxds["var"].topological_mean(destination="face").gradient()
         """
 
         if not self._face_centered():
@@ -1085,20 +1085,18 @@ class UxDataArray(xr.DataArray):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
 
-        from uxarray.core.dataarray import UxDataArray
-
         if self._face_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
             )
 
         elif self._edge_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
             )
 
         elif self._node_centered():
-            d_var = self.isel(
+            da_sliced = self.isel(
                 n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
             )
 
@@ -1107,14 +1105,7 @@ class UxDataArray(xr.DataArray):
                 "Data variable must be either node, edge, or face centered."
             )
 
-        return UxDataArray(
-            uxgrid=sliced_grid,
-            data=d_var,
-            name=self.name,
-            coords=self.coords,
-            dims=self.dims,
-            attrs=self.attrs,
-        )
+        return UxDataArray(da_sliced, uxgrid=sliced_grid)
 
     def get_dual(self):
         """Compute the dual mesh for a data array, returns a new data array
@@ -1129,7 +1120,7 @@ class UxDataArray(xr.DataArray):
         if _check_duplicate_nodes_indices(self.uxgrid):
             raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
-        if self.uxgrid.hole_edge_indices.size != 0:
+        if self.uxgrid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
