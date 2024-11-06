@@ -1367,11 +1367,14 @@ def point_in_polygon(polygon, point, inclusive=False):
 
      Parameters
     ----------
-    polygon: np.ndarray
-        Array of cartesian or spherical coordinates of the nodes making up the polygon
+    polygon: np.ndarray (3, n_nodes)
+        Array of cartesian or spherical coordinates of the nodes making up the polygon. Shape:
+        [[x coordinates of nodes], [y coordinates of nodes], [z coordinates of nodes]]
     point: np.ndarray
         A point either `lon, lat` or `x, y, z` of which to check if it resides inside the polygon
-    face_edge_cart: np.ndarray
+    inclusive: bool, optional
+        Flag for determining if points on the nodes or edges of the polygon  should be considered inside or out. False
+        means they will not be included.
 
     Returns
     --------
@@ -1408,7 +1411,7 @@ def point_in_polygon(polygon, point, inclusive=False):
         # Project polygon to plane
         polygon_on_plane = _point_to_plane(x, y, z)
     # Point is in spherical coordinates
-    elif len(polygon) == 3:
+    elif len(polygon) == 2:
         # Assign lon/lat
         lon = polygon[0]
         lat = polygon[1]
