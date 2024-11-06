@@ -1414,8 +1414,8 @@ def point_in_polygon(polygon, point, inclusive=False):
         lat = polygon[1]
 
         # Convert lon/lat to radians
-        lon_rad = np.deg2rad(point[0])
-        lat_rad = np.deg2rad(point[1])
+        lon_rad = np.deg2rad(lon)
+        lat_rad = np.deg2rad(lat)
 
         # Convert lon/lat to xyz
         x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
@@ -1427,7 +1427,9 @@ def point_in_polygon(polygon, point, inclusive=False):
         raise ValueError("Polygon is incorrect, should be either lonlat or xyz")
 
     stacked_polygon = list(zip(*polygon_on_plane))
-    point_inside = ray_casting_plane(stacked_polygon, point_on_plane, inclusive=inclusive)
+    point_inside = ray_casting_plane(
+        stacked_polygon, point_on_plane, inclusive=inclusive
+    )
 
     # Return whether the point is inside the polygon or not
     return point_inside
@@ -1472,15 +1474,19 @@ def ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
             cross_product = (y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)
             if abs(cross_product) <= tolerance:
                 # Check if the point is within the bounds of the edge
-                if min(x1, x2) - tolerance <= x <= max(x1, x2) + tolerance and min(y1, y2) - tolerance <= y <= max(y1,
-                                                                                                                   y2) + tolerance:
+                if (
+                    min(x1, x2) - tolerance <= x <= max(x1, x2) + tolerance
+                    and min(y1, y2) - tolerance <= y <= max(y1, y2) + tolerance
+                ):
                     return True  # Point is on the edge
 
         # Standard ray-casting check for intersections
         # Correct vertex intersection check:
         if (y1 > y) != (y2 > y):  # The point's y should be between y1 and y2
             # Check if the intersection is exactly at a vertex and adjust
-            if y == y1 and (y2 > y) != (y1 > y):  # If intersecting at a vertex, ensure proper counting
+            if y == y1 and (y2 > y) != (
+                y1 > y
+            ):  # If intersecting at a vertex, ensure proper counting
                 continue  # Skip counting this vertex intersection to avoid double-counting
 
             intersect_x = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
@@ -1489,5 +1495,3 @@ def ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
 
     # Return True if the number of intersections is odd
     return intersections % 2 == 1
-
-

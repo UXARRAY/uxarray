@@ -1485,9 +1485,11 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon[0][ind] = grid.node_x[face].values
+            polygon[1][ind] = grid.node_y[face].values
+            polygon[2][ind] = grid.node_z[face].values
 
         # Set the point as the face center of the polygon
         point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
@@ -1502,9 +1504,11 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon[0][ind] = grid.node_x[face].values
+            polygon[1][ind] = grid.node_y[face].values
+            polygon[2][ind] = grid.node_z[face].values
 
         # Set the point as the face center of a far away polygon
         point = np.array([grid.face_x[0].values, grid.face_y[0].values, grid.face_z[0].values])
@@ -1519,9 +1523,11 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon[0][ind] = grid.node_x[face].values
+            polygon[1][ind] = grid.node_y[face].values
+            polygon[2][ind] = grid.node_z[face].values
 
         # Set the point as right next to one of the nodes
 
@@ -1540,9 +1546,11 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon[0][ind] = grid.node_x[face].values
+            polygon[1][ind] = grid.node_y[face].values
+            polygon[2][ind] = grid.node_z[face].values
 
         # Set the point as right next to one of the nodes
         lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]])
