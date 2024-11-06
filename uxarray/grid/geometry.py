@@ -1340,7 +1340,6 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-@njit(cache=True)
 def _point_to_plane(x, y, z):
     """Projects a point on the surface of the sphere to a plane using stereographic projection"""
     x_plane = x / (1 - z)
@@ -1349,7 +1348,6 @@ def _point_to_plane(x, y, z):
     return x_plane, y_plane
 
 
-@njit(cache=True)
 def _point_to_sphere(x_plane, y_plane):
     """Projects a point on a plane to the surface of the sphere using stereographic projection"""
 
@@ -1438,7 +1436,6 @@ def point_in_polygon(polygon, point, inclusive=False):
     return point_inside
 
 
-@njit(cache=True)
 def ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
     """Tests a point to see if it lies inside a polygon on a plane.
 

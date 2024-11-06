@@ -1599,3 +1599,11 @@ class TestPointInPolygon(TestCase):
 
         # Assert that the point is not in the polygon
         self.assertFalse(point_in_polygon(polygon, point))
+
+    def test_value_errors(self):
+        """Test the function `point_in_polygon`, ensuring value errors are raised properly"""
+        # Incorrect polygon
+        self.assertRaises(ValueError, point_in_polygon, [[0, 0]], [0, 0])
+
+        # Incorrect point
+        self.assertRaises(ValueError, point_in_polygon, [[0], [0], [0]], [0])
