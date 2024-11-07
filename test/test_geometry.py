@@ -12,7 +12,7 @@ import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import extreme_gca_latitude
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
-from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, point_in_polygon
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _point_in_polygon
 
 from spatialpandas.geometry import MultiPolygon
 
@@ -1495,7 +1495,7 @@ class TestPointInPolygon(TestCase):
         point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
 
         # Assert that the point is in the polygon
-        self.assertTrue(point_in_polygon(polygon, point))
+        self.assertTrue(_point_in_polygon(polygon, point))
 
     def test_point_outside(self):
         """Test the function `point_in_polygon`, where point is outside the polygon"""
@@ -1514,7 +1514,7 @@ class TestPointInPolygon(TestCase):
         point = np.array([grid.face_x[0].values, grid.face_y[0].values, grid.face_z[0].values])
 
         # Assert that the point is not in the polygon
-        self.assertFalse(point_in_polygon(polygon, point))
+        self.assertFalse(_point_in_polygon(polygon, point))
 
     def test_point_inside_close(self):
         """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
@@ -1537,7 +1537,7 @@ class TestPointInPolygon(TestCase):
         point = _lonlat_rad_to_xyz(lon.values, lat.values)
 
         # Assert that the point is in the polygon
-        self.assertTrue(point_in_polygon(polygon, point))
+        self.assertTrue(_point_in_polygon(polygon, point))
 
     def test_point_outside_close(self):
         """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
@@ -1559,7 +1559,7 @@ class TestPointInPolygon(TestCase):
         point = _lonlat_rad_to_xyz(lon.values, lat.values)
 
         # Assert that the point is in the polygon
-        self.assertFalse(point_in_polygon(polygon, point))
+        self.assertFalse(_point_in_polygon(polygon, point))
 
     def test_inclusive(self):
         """Test the function `point_in_polygon`, where point is on one of the nodes/edges of polygon"""
@@ -1575,10 +1575,10 @@ class TestPointInPolygon(TestCase):
         point_on_edge = [-10, 0]
 
         # Assert that the point is in the polygon when inclusive is True
-        self.assertTrue(point_in_polygon(polygon, point_on_node, inclusive=True))
+        self.assertTrue(_point_in_polygon(polygon, point_on_node, inclusive=True))
 
         # Assert that the point is in the polygon when inclusive is True
-        self.assertTrue(point_in_polygon(polygon, point_on_edge, inclusive=True))
+        self.assertTrue(_point_in_polygon(polygon, point_on_edge, inclusive=True))
 
     def test_spherical(self):
         """Test the function `point_in_polygon`,  using spherical coordinates where point is outside the polygon"""
@@ -1596,12 +1596,12 @@ class TestPointInPolygon(TestCase):
         point = np.array([grid.face_lon[0].values, grid.face_lat[0].values])
 
         # Assert that the point is not in the polygon
-        self.assertFalse(point_in_polygon(polygon, point))
+        self.assertFalse(_point_in_polygon(polygon, point))
 
     def test_value_errors(self):
         """Test the function `point_in_polygon`, ensuring value errors are raised properly"""
         # Incorrect polygon
-        self.assertRaises(ValueError, point_in_polygon, [[0, 0]], [0, 0])
+        self.assertRaises(ValueError, _point_in_polygon, [[0, 0]], [0, 0])
 
         # Incorrect point
-        self.assertRaises(ValueError, point_in_polygon, [[0], [0], [0]], [0])
+        self.assertRaises(ValueError, _point_in_polygon, [[0], [0], [0]], [0])

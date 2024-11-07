@@ -1360,7 +1360,7 @@ def _point_to_sphere(x_plane, y_plane):
     return x_norm, y_norm, z_norm
 
 
-def point_in_polygon(polygon, point, inclusive=False):
+def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-9):
     """Returns `True` if point is inside polygon, `False` otherwise.
 
      Parameters
@@ -1373,6 +1373,8 @@ def point_in_polygon(polygon, point, inclusive=False):
     inclusive: bool, optional
         Flag for determining if points on the nodes or edges of the polygon  should be considered inside or out. False
         means they will not be included.
+    tolerance : float, optional
+        The margin within which a point is considered on the edge or vertex.
 
     Returns
     --------
@@ -1428,15 +1430,15 @@ def point_in_polygon(polygon, point, inclusive=False):
         raise ValueError("Polygon is incorrect, should be either lonlat or xyz")
 
     stacked_polygon = list(zip(*polygon_on_plane))
-    point_inside = ray_casting_plane(
-        stacked_polygon, point_on_plane, inclusive=inclusive
+    point_inside = _ray_casting_plane(
+        stacked_polygon, point_on_plane, inclusive=inclusive, tolerance=tolerance
     )
 
     # Return whether the point is inside the polygon or not
     return point_inside
 
 
-def ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
+def _ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
     """Tests a point to see if it lies inside a polygon on a plane.
 
     Parameters:
