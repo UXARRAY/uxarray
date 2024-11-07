@@ -41,6 +41,8 @@ I/O & Conversion
    Grid.from_dataset
    Grid.from_file
    Grid.from_topology
+   Grid.from_structured
+   Grid.from_points
    Grid.to_xarray
    Grid.to_geodataframe
    Grid.to_polycollection
@@ -127,7 +129,12 @@ Descriptors
    Grid.edge_node_distances
    Grid.edge_face_distances
    Grid.antimeridian_face_indices
-   Grid.hole_edge_indices
+   Grid.boundary_node_indices
+   Grid.boundary_edge_indices
+   Grid.boundary_face_indices
+   Grid.partial_sphere_coverage
+   Grid.global_sphere_coverage
+   Grid.triangular
 
 Attributes
 ~~~~~~~~~~
@@ -205,6 +212,13 @@ Grid Accessor
 
    UxDataset.uxgrid
 
+I/O & Conversion
+~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.from_structured
 
 Plotting
 --------
@@ -232,6 +246,8 @@ Grid
    Grid.plot.face_centers
    Grid.plot.edge_coords
    Grid.plot.edge_centers
+   Grid.face_degree_distribution
+   Grid.face_area_distribution
 
 
 UxDataArray
