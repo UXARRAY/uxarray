@@ -62,6 +62,9 @@ def _primal_to_ugrid(in_ds, out_ds):
     if "areaCell" in in_ds:
         _parse_face_areas(in_ds, out_ds, mesh_type="primal")
 
+    if "boundaryVertex" in in_ds:
+        _parse_boundary_node_indices(in_ds, out_ds, mesh_type="primal")
+
     # set global attributes
     _parse_global_attrs(in_ds, out_ds)
 
@@ -507,6 +510,20 @@ def _parse_face_areas(in_ds, out_ds, mesh_type):
         data=face_area,
         dims=descriptors.FACE_AREAS_DIMS,
         attrs=descriptors.FACE_AREAS_ATTRS,
+    )
+
+
+def _parse_boundary_node_indices(in_ds, out_ds, mesh_type):
+    """Parses the face area for either a primal or dual grid."""
+
+    boundary_node_mask = in_ds["boundaryVertex"].values
+    boundary_node_indices = np.argwhere(boundary_node_mask).flatten().astype(INT_DTYPE)
+
+    out_ds["boundary_node_indices"] = xr.DataArray(
+        data=boundary_node_indices,
+        dims=[
+            "n_boundary_nodes",
+        ],
     )
 
 
