@@ -21,7 +21,7 @@ class GridCrossSectionAccessor:
         return prefix + methods_heading
 
     def constant_latitude(
-        self, lat: float, return_face_indices=False, method="edge_intersection"
+        self, lat: float, return_face_indices=False, use_spherical_bounding_box=False
     ):
         """Extracts a cross-section of the grid at a specified constant
         latitude.
@@ -68,7 +68,9 @@ class GridCrossSectionAccessor:
         The accuracy and performance of the function can be controlled using the `method` parameter.
         For higher precision requreiments, consider using method='acurate'.
         """
-        faces = self.uxgrid.get_faces_at_constant_latitude(lat, method)
+        faces = self.uxgrid.get_faces_at_constant_latitude(
+            lat, use_spherical_bounding_box
+        )
 
         if len(faces) == 0:
             raise ValueError(f"No intersections found at lat={lat}.")
@@ -80,7 +82,9 @@ class GridCrossSectionAccessor:
         else:
             return grid_at_constant_lat
 
-    def constant_longitude(self, lon: float, return_face_indices=False, method="fast"):
+    def constant_longitude(
+        self, lon: float, use_spherical_bounding_box=False, return_face_indices=False
+    ):
         """Extracts a cross-section of the grid at a specified constant
         longitude.
 
@@ -129,10 +133,12 @@ class GridCrossSectionAccessor:
         The accuracy and performance of the function can be controlled using the `method` parameter.
         For higher precision requreiments, consider using method='acurate'.
         """
-        faces = self.uxgrid.get_faces_at_constant_longitude(lon, method)
+        faces = self.uxgrid.get_faces_at_constant_longitude(
+            lon, use_spherical_bounding_box
+        )
 
         if len(faces) == 0:
-            raise ValueError(f"No intersections found at lon={lon}.")
+            raise ValueError(f"No intersections found at lon={lon}")
 
         grid_at_constant_lon = self.uxgrid.isel(n_face=faces)
 

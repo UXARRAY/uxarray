@@ -70,6 +70,7 @@ from uxarray.grid.neighbors import (
 
 from uxarray.grid.intersections import (
     constant_lat_intersections_no_extreme,
+    constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
     constant_lon_intersections_face_bounds,
 )
@@ -2282,10 +2283,10 @@ class Grid:
                 "is not yet supported."
             )
         else:
-            edges = constant_lat_intersections_no_extreme(
+            edges = constant_lon_intersections_no_extreme(
                 lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
             )
-        return edges.squeeze()
+            return edges.squeeze()
 
     def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
         """

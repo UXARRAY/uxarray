@@ -33,6 +33,9 @@ def disable_fma():
     uxarray.constants.ENABLE_FMA = False
 
 
+disable_fma()
+
+
 __all__ = (
     "open_grid",
     "open_dataset",

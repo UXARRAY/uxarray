@@ -21,7 +21,7 @@ class UxDataArrayCrossSectionAccessor:
 
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, method="edge_intersection"):
+    def constant_latitude(self, lat: float, use_spherical_bounding_box=False):
         """Extracts a cross-section of the data array at a specified constant
         latitude.
 
@@ -47,11 +47,13 @@ class UxDataArrayCrossSectionAccessor:
         --------
         >>> uxda.constant_latitude_cross_section(lat=-15.5)
         """
-        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat, method)
+        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(
+            lat, use_spherical_bounding_box
+        )
 
         return self.uxda.isel(n_face=faces)
 
-    def constant_longitude(self, lon: float, method="fast"):
+    def constant_longitude(self, lon: float, use_spherical_bounding_box=False):
         """Extracts a cross-section of the data array at a specified constant
         longitude.
 
@@ -80,7 +82,9 @@ class UxDataArrayCrossSectionAccessor:
         The accuracy and performance of the function can be controlled using the `method` parameter.
         For higher precision requreiments, consider using method='acurate'.
         """
-        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(lon, method)
+        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
+            lon, use_spherical_bounding_box
+        )
 
         return self.uxda.isel(n_face=faces)
 

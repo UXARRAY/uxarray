@@ -35,36 +35,38 @@ class TestQuadHex:
     All four faces intersect a constant latitude of 0.0
     """
 
-    def test_constant_lat_cross_section_grid(self):
+    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    def test_constant_lat_cross_section_grid(self, use_spherical_bounding_box):
 
-        for method in ["bounding_box_intersection", "edge_intersection"]:
 
-            uxgrid = ux.open_grid(quad_hex_grid_path)
 
-            grid_top_two = uxgrid.cross_section.constant_latitude(lat=0.1, method=method)
-
-            assert grid_top_two.n_face == 2
-
-            grid_bottom_two = uxgrid.cross_section.constant_latitude(lat=-0.1, method=method)
-
-            assert grid_bottom_two.n_face == 2
-
-            grid_all_four = uxgrid.cross_section.constant_latitude(lat=0.0, method=method)
-
-            assert grid_all_four.n_face == 4
-
-            with pytest.raises(ValueError):
-                # no intersections found at this line
-                uxgrid.cross_section.constant_latitude(lat=10.0, method=method)
-
-    def test_constant_lon_cross_section_grid(self):
         uxgrid = ux.open_grid(quad_hex_grid_path)
 
-        grid_left_two = uxgrid.cross_section.constant_longitude(lon=-0.1)
+        grid_top_two = uxgrid.cross_section.constant_latitude(lat=0.1, use_spherical_bounding_box=use_spherical_bounding_box)
+
+        assert grid_top_two.n_face == 2
+
+        grid_bottom_two = uxgrid.cross_section.constant_latitude(lat=-0.1, use_spherical_bounding_box=use_spherical_bounding_box)
+
+        assert grid_bottom_two.n_face == 2
+
+        grid_all_four = uxgrid.cross_section.constant_latitude(lat=0.0, use_spherical_bounding_box=use_spherical_bounding_box)
+
+        assert grid_all_four.n_face == 4
+
+        with pytest.raises(ValueError):
+            # no intersections found at this line
+            uxgrid.cross_section.constant_latitude(lat=10.0, use_spherical_bounding_box=use_spherical_bounding_box)
+
+    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    def test_constant_lon_cross_section_grid(self, use_spherical_bounding_box):
+        uxgrid = ux.open_grid(quad_hex_grid_path)
+
+        grid_left_two = uxgrid.cross_section.constant_longitude(lon=-0.1, use_spherical_bounding_box=use_spherical_bounding_box)
 
         assert grid_left_two.n_face == 2
 
-        grid_right_two = uxgrid.cross_section.constant_longitude(lon=0.2)
+        grid_right_two = uxgrid.cross_section.constant_longitude(lon=0.2, use_spherical_bounding_box=use_spherical_bounding_box)
 
         assert grid_right_two.n_face == 2
 
@@ -73,60 +75,64 @@ class TestQuadHex:
             uxgrid.cross_section.constant_longitude(lon=10.0)
 
 
-    def test_constant_lat_cross_section_uxds(self):
-        for method in ["bounding_box_intersection", "edge_intersection"]:
-            uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-
-            da_top_two = uxds['t2m'].cross_section.constant_latitude(lat=0.1, method=method)
-
-            nt.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
-
-            da_bottom_two = uxds['t2m'].cross_section.constant_latitude(lat=-0.1, method=method)
-
-            nt.assert_array_equal(da_bottom_two.data, uxds['t2m'].isel(n_face=[0, 3]).data)
-
-            da_all_four = uxds['t2m'].cross_section.constant_latitude(lat=0.0, method=method)
-
-            nt.assert_array_equal(da_all_four.data , uxds['t2m'].data)
-
-            with pytest.raises(ValueError):
-                # no intersections found at this line
-                uxds['t2m'].cross_section.constant_latitude(lat=10.0, method=method)
-
-    def test_constant_lon_cross_section_uxds(self):
+    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    def test_constant_lat_cross_section_uxds(self, use_spherical_bounding_box):
         uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+        uxds.uxgrid.normalize_cartesian_coordinates()
 
-        da_left_two = uxds['t2m'].cross_section.constant_longitude(lon=-0.1)
+        da_top_two = uxds['t2m'].cross_section.constant_latitude(lat=0.1, use_spherical_bounding_box=use_spherical_bounding_box)
+
+        nt.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
+
+        da_bottom_two = uxds['t2m'].cross_section.constant_latitude(lat=-0.1, use_spherical_bounding_box=use_spherical_bounding_box)
+
+        nt.assert_array_equal(da_bottom_two.data, uxds['t2m'].isel(n_face=[0, 3]).data)
+
+        da_all_four = uxds['t2m'].cross_section.constant_latitude(lat=0.0, use_spherical_bounding_box=use_spherical_bounding_box)
+
+        nt.assert_array_equal(da_all_four.data , uxds['t2m'].data)
+
+        with pytest.raises(ValueError):
+            # no intersections found at this line
+            uxds['t2m'].cross_section.constant_latitude(lat=10.0, use_spherical_bounding_box=use_spherical_bounding_box)
+
+    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    def test_constant_lon_cross_section_uxds(self, use_spherical_bounding_box):
+        uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+        uxds.uxgrid.normalize_cartesian_coordinates()
+
+        da_left_two = uxds['t2m'].cross_section.constant_longitude(lon=-0.1, use_spherical_bounding_box=use_spherical_bounding_box)
 
         nt.assert_array_equal(da_left_two.data, uxds['t2m'].isel(n_face=[0, 2]).data)
 
-        da_right_two = uxds['t2m'].cross_section.constant_longitude(lon=0.2)
+        da_right_two = uxds['t2m'].cross_section.constant_longitude(lon=0.2, use_spherical_bounding_box=use_spherical_bounding_box)
 
         nt.assert_array_equal(da_right_two.data, uxds['t2m'].isel(n_face=[1, 3]).data)
 
         with pytest.raises(ValueError):
             # no intersections found at this line
-            uxds['t2m'].cross_section.constant_longitude(lon=10.0)
+            uxds['t2m'].cross_section.constant_longitude(lon=10.0, use_spherical_bounding_box=use_spherical_bounding_box)
 
 
 class TestGeosCubeSphere:
-    def test_north_pole(self):
+    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    def test_north_pole(self, use_spherical_bounding_box):
         uxgrid = ux.open_grid(cube_sphere_grid)
 
         lats = [89.85, 89.9, 89.95, 89.99]
 
         for lat in lats:
-            cross_grid = uxgrid.cross_section.constant_latitude(lat=lat)
+            cross_grid = uxgrid.cross_section.constant_latitude(lat=lat, use_spherical_bounding_box=use_spherical_bounding_box)
             # Cube sphere grid should have 4 faces centered around the pole
             assert cross_grid.n_face == 4
-
-    def test_south_pole(self):
+    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    def test_south_pole(self, use_spherical_bounding_box):
         uxgrid = ux.open_grid(cube_sphere_grid)
 
         lats = [-89.85, -89.9, -89.95, -89.99]
 
         for lat in lats:
-            cross_grid = uxgrid.cross_section.constant_latitude(lat=lat)
+            cross_grid = uxgrid.cross_section.constant_latitude(lat=lat, use_spherical_bounding_box=use_spherical_bounding_box)
             # Cube sphere grid should have 4 faces centered around the pole
             assert cross_grid.n_face == 4
 
@@ -160,17 +166,19 @@ class TestCandidateFacesUsingBounds:
     def test_constant_lat_out_of_bounds(self):
 
         bounds = np.array([
-            [[-45, 45], [-180, 180]],
-            [[-90, -45], [-180, 180]],
-            [[45, 90], [-180, 1890]],
+            [[-45, 45], [0, 360]],
+            [[-90, -45], [0, 360]],
+            [[45, 90], [0, 360]],
         ])
+
+        bounds_rad = np.deg2rad(bounds)
 
         const_lat = 100
 
         candidate_faces = constant_lat_intersections_face_bounds(
             lat=const_lat,
-            face_min_lat_rad=bounds[:, 0, 0],
-            face_max_lat_rad=bounds[:, 0, 1],
+            face_min_lat_rad=bounds_rad[:, 0, 0],
+            face_max_lat_rad=bounds_rad[:, 0, 1],
         )
 
         assert len(candidate_faces) == 0
