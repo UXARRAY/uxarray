@@ -11,24 +11,8 @@ from numba import njit, prange
 
 
 @njit(parallel=True, nogil=True, cache=True)
-def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
-    """Determine which edges intersect a constant line of latitude on a sphere,
-    including edges that lie exactly along the latitude.
-
-    Parameters
-    ----------
-    lat:
-        Constant latitude value in degrees.
-    edge_node_z:
-        Array of shape (n_edge, 2) containing z-coordinates of the edge nodes.
-    n_edge:
-        Total number of edges to check.
-
-    Returns
-    -------
-    intersecting_edges:
-        array of indices of edges that intersect the constant latitude.
-    """
+def constant_lat_intersections_no_extreme(lat, edge_node_z, n_edge):
+    """TODO:"""
     lat = np.deg2rad(lat)
 
     intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
@@ -38,15 +22,8 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
 
     # Iterate through each edge and check for intersections
     for i in prange(n_edge):
-        # Get the z-coordinates of the edge's nodes
-        z0 = edge_node_z[i, 0]
-        z1 = edge_node_z[i, 1]
-
         # Check if the edge crosses the constant latitude or lies exactly on it
-        if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
-            abs(z0 - z_constant) < ERROR_TOLERANCE
-            and abs(z1 - z_constant) < ERROR_TOLERANCE
-        ):
+        if edge_intersects_constant_lat_no_extreme(edge_node_z[i], z_constant):
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
@@ -54,8 +31,25 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     return np.unique(intersecting_edges)
 
 
+@njit(cache=True, nogil=True)
+def edge_intersects_constant_lat_no_extreme(edge_node_z, z_constant):
+    """TODO:"""
+
+    # z coordinate of edge nodes
+    z0 = edge_node_z[0]
+    z1 = edge_node_z[1]
+
+    if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
+        abs(z0 - z_constant) < ERROR_TOLERANCE
+        and abs(z1 - z_constant) < ERROR_TOLERANCE
+    ):
+        return True
+    else:
+        return False
+
+
 @njit(parallel=True, nogil=True, cache=True)
-def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
+def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge):
     """Determine which edges intersect a constant line of longitude on a
     sphere, without wrapping to the opposite longitude.
 
@@ -85,27 +79,38 @@ def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
     sin_lon = np.sin(lon)
 
     for i in prange(n_edge):
-        # get the x and y coordinates of the edge's nodes
-        x0, x1 = edge_node_x[i, 0], edge_node_x[i, 1]
-        y0, y1 = edge_node_y[i, 0], edge_node_y[i, 1]
-
-        # calculate the dot products to determine on which side of the constant longitude the points lie
-        dot0 = x0 * sin_lon - y0 * cos_lon
-        dot1 = x1 * sin_lon - y1 * cos_lon
-
-        # ensure that both points are not on the opposite longitude (180 degrees away)
-        if (x0 * cos_lon + y0 * sin_lon) < 0.0 or (x1 * cos_lon + y1 * sin_lon) < 0.0:
-            continue
-
         # check if the edge crosses the constant longitude or lies exactly on it
-        if dot0 * dot1 < 0.0 or (
-            abs(dot0) < ERROR_TOLERANCE and abs(dot1) < ERROR_TOLERANCE
+        if edge_intersects_constant_lon_no_extreme(
+            edge_node_x[i], edge_node_y[i], sin_lon, cos_lon
         ):
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
 
     return np.unique(intersecting_edges)
+
+
+@njit(parallel=True, nogil=True, cache=True)
+def edge_intersects_constant_lon_no_extreme(edge_node_x, edge_node_y, cos_lon, sin_lon):
+    # get the x and y coordinates of the edge's nodes
+    x0, x1 = edge_node_x[0], edge_node_x[1]
+    y0, y1 = edge_node_y[0], edge_node_y[1]
+
+    # calculate the dot products to determine on which side of the constant longitude the points lie
+    dot0 = x0 * sin_lon - y0 * cos_lon
+    dot1 = x1 * sin_lon - y1 * cos_lon
+
+    # ensure that both points are not on the opposite longitude (180 degrees away)
+    if (x0 * cos_lon + y0 * sin_lon) < 0.0 or (x1 * cos_lon + y1 * sin_lon) < 0.0:
+        return False
+
+    # check if the edge crosses the constant longitude or lies exactly on it
+    if dot0 * dot1 < 0.0 or (
+        abs(dot0) < ERROR_TOLERANCE and abs(dot1) < ERROR_TOLERANCE
+    ):
+        return True
+
+    return False
 
 
 @njit
@@ -138,6 +143,37 @@ def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_r
     return candidate_faces
 
 
+@njit(cache=True)
+def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_rad):
+    """Identifies the candidate faces on a grid that intersect with a given
+    constant latitude.
+
+    This function checks whether the specified latitude, `lat`, in degrees lies within
+    the latitude bounds of grid faces, defined by `face_min_lat_rad` and `face_max_lat_rad`,
+    which are given in radians. The function returns the indices of the faces where the
+    latitude is within these bounds.
+
+    Parameters
+    ----------
+    lat : float
+        The latitude in degrees for which to find intersecting faces.
+    face_min_lat_rad : numpy.ndarray
+        A 1D array containing the minimum latitude bounds (in radians) of each face.
+    face_max_lat_rad : numpy.ndarray
+        A 1D array containing the maximum latitude bounds (in radians) of each face.
+
+    Returns
+    -------
+    candidate_faces : numpy.ndarray
+        A 1D array containing the indices of the faces that intersect with the given latitude.
+    """
+    lat = np.deg2rad(lon)
+    within_bounds = (face_min_lon_rad <= lat) & (face_max_lon_rad >= lat)
+    candidate_faces = np.where(within_bounds)[0]
+    return candidate_faces
+
+
+@njit(cache=True)
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
     """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
     Cartesian coordinate system.

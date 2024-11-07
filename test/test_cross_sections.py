@@ -1,5 +1,6 @@
 import uxarray as ux
 import pytest
+import numpy as np
 from pathlib import Path
 import os
 
@@ -11,6 +12,8 @@ quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'gr
 quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
 
 cube_sphere_grid = current_path / "meshfiles" / "geos-cs" / "c12" / "test-c12.native.nc4"
+
+from uxarray.grid.intersections import constant_lat_intersections_face_bounds
 
 
 
@@ -126,3 +129,48 @@ class TestGeosCubeSphere:
             cross_grid = uxgrid.cross_section.constant_latitude(lat=lat)
             # Cube sphere grid should have 4 faces centered around the pole
             assert cross_grid.n_face == 4
+
+
+
+class TestCandidateFacesUsingBounds:
+
+    def test_constant_lat(self):
+        bounds = np.array([
+            [[-45, 45], [0, 360]],
+            [[-90, -45], [0, 360]],
+            [[45, 90], [0, 360]],
+        ])
+
+        bounds_rad = np.deg2rad(bounds)
+
+        const_lat = 0
+
+        candidate_faces = constant_lat_intersections_face_bounds(
+            lat=const_lat,
+            face_min_lat_rad=bounds_rad[:, 0, 0],
+            face_max_lat_rad=bounds_rad[:, 0, 1],
+        )
+
+        # Expected output
+        expected_faces = np.array([0])
+
+        # Test the function output
+        nt.assert_array_equal(candidate_faces, expected_faces)
+
+    def test_constant_lat_out_of_bounds(self):
+
+        bounds = np.array([
+            [[-45, 45], [-180, 180]],
+            [[-90, -45], [-180, 180]],
+            [[45, 90], [-180, 1890]],
+        ])
+
+        const_lat = 100
+
+        candidate_faces = constant_lat_intersections_face_bounds(
+            lat=const_lat,
+            face_min_lat_rad=bounds[:, 0, 0],
+            face_max_lat_rad=bounds[:, 0, 1],
+        )
+
+        assert len(candidate_faces) == 0

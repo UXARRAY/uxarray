@@ -69,9 +69,9 @@ from uxarray.grid.neighbors import (
 )
 
 from uxarray.grid.intersections import (
-    constant_lat_intersections_edges,
+    constant_lat_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
-    fast_constant_lon_intersections,
+    constant_lon_intersections_face_bounds,
 )
 
 from spatialpandas import GeoDataFrame
@@ -1360,7 +1360,8 @@ class Grid:
         """
         if "bounds" not in self._ds:
             warn(
-                "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time."
+                "Computing 'Grid.bounds' for the first time. This may take some time...",
+                UserWarning,
             )
             _populate_bounds(self)
 
@@ -2182,22 +2183,18 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_edges_at_constant_latitude(self, lat, method="edge_intersection"):
-        """Identifies the edges of the grid that intersect with a specified
-        constant latitude.
+    def get_edges_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+        """Identifies the indices of edges that intersect with a line of constant latitude.
 
         Parameters
         ----------
-        lat : float
+        lon : float
             The latitude at which to identify intersecting edges, in degrees.
-        method : str, optional
-            Method used to determine edge intersections. Options are:
-            - 'edge_intersection': The intersection of each edge is explicit computed
 
         Returns
         -------
-        edges : array
-            A squeezed array of edges that intersect the specified constant latitude.
+        faces : numpy.ndarray
+            An array of edge indices that intersect with the specified latitude.
         """
 
         if lat > 90.0 or lat < -90.0:
@@ -2205,117 +2202,126 @@ class Grid:
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if method == "edge_intersection":
-            edges = constant_lat_intersections_edges(
-                lat, self.edge_node_z.values, self.n_edge
+        if use_spherical_bounding_box:
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box"
+                "is not yet supported."
             )
         else:
-            raise ValueError(f"Invalid method: {method}.")
+            edges = constant_lat_intersections_no_extreme(
+                lat, self.edge_node_z.values, self.n_edge
+            )
+
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, method="edge_intersection"):
-        """Identifies the faces of the grid that intersect with a specified
-        constant latitude.
+    def get_faces_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+        """
+        Identifies the indices of faces that intersect with a line of constant latitude.
+
+        When `use_spherical_bounding_box` is set to `True`,
+        the bounding box for each face is computed by representing each edge as a great circle arc.
+        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
         lat : float
             The latitude at which to identify intersecting faces, in degrees.
-        method : str, optional
-            The computational method used to determine intersecting faces. Options are:
-            - 'edge_intersection': The intersection of each edge with a line of constant latitude is calculated, with
-            faces that contain that edges included in the result.
-            - 'bounding_box_intersection': The minimum and maximum latitude of each face is used to determine if
-            the line of constant latitude intersects it.
-            Default is 'edge_intersection'
+        use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
 
         Returns
         -------
-        faces : array
-            An array of unique face indices that intersect the specified latitude.
-            Faces that are invalid or missing (e.g., with a fill value) are excluded
-            from the result.
+        faces : numpy.ndarray
+            An array of face indices that intersect with the specified latitude.
         """
+
         if lat > 90.0 or lat < -90.0:
             raise ValueError(
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if method == "bounding_box_intersection":
+        if use_spherical_bounding_box:
             faces = constant_lat_intersections_face_bounds(
                 lat=lat,
                 face_min_lat_rad=self.bounds.values[:, 0, 0],
                 face_max_lat_rad=self.bounds.values[:, 0, 1],
             )
             return faces
-        elif method == "edge_intersection":
-            edges = self.get_edges_at_constant_latitude(lat, method)
+        else:
+            edges = self.get_edges_at_constant_latitude(lat, use_spherical_bounding_box)
             faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
             return faces[faces != INT_FILL_VALUE]
-        return faces[faces != INT_FILL_VALUE]
 
-    def get_edges_at_constant_longitude(self, lon, method="fast"):
-        """Identifies the edges of the grid that intersect with a specified
-        constant longitude.
-
-        This method computes the intersection of grid edges with a given longitude and
-        returns a collection of edges that cross or are aligned with that longitude.
-        The method used for identifying these edges can be controlled by the `method`
-        parameter.
+    def get_edges_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+        """
+        Identifies the indices of edges that intersect with a line of constant longitude.
 
         Parameters
         ----------
         lon : float
             The longitude at which to identify intersecting edges, in degrees.
-        method : str, optional
-            The computational method used to determine edge intersections. Options are:
-            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
-            - 'accurate': Uses a slower but more precise method.
-            Default is 'fast'.
 
         Returns
         -------
-        edges : array
-            A squeezed array of edges that intersect the specified constant longitude.
+        faces : numpy.ndarray
+            An array of edge indices that intersect with the specified longitude.
         """
-        if method == "fast":
-            edges = fast_constant_lon_intersections(
+
+        if lon > 180.0 or lon < -180.0:
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees. Received {lon}"
+            )
+
+        if use_spherical_bounding_box:
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box"
+                "is not yet supported."
+            )
+        else:
+            edges = constant_lat_intersections_no_extreme(
                 lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
             )
-        elif method == "accurate":
-            raise NotImplementedError("Accurate method not yet implemented.")
-        else:
-            raise ValueError(f"Invalid method: {method}.")
         return edges.squeeze()
 
-    def get_faces_at_constant_longitude(self, lon, method="fast"):
-        """Identifies the faces of the grid that intersect with a specified
-        constant longitude.
+    def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+        """
+        Identifies the indices of faces that intersect with a line of constant longitude.
 
-        This method finds the faces (or cells) of the grid that intersect a given longitude
-        by first identifying the intersecting edges and then determining the faces connected
-        to these edges. The method used for identifying edges can be adjusted with the `method`
-        parameter.
+        When `use_spherical_bounding_box` is set to `True`,
+        the bounding box for each face is computed by representing each edge as a great circle arc.
+        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
         lon : float
             The longitude at which to identify intersecting faces, in degrees.
-        method : str, optional
-            The computational method used to determine intersecting edges. Options are:
-            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
-            - 'accurate': Uses a slower but more precise method.
-            Default is 'fast'.
+        use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
 
         Returns
         -------
-        faces : array
-            An array of unique face indices that intersect the specified longitude.
-            Faces that are invalid or missing (e.g., with a fill value) are excluded
-            from the result.
+        faces : numpy.ndarray
+            An array of face indices that intersect with the specified longitude.
         """
-        edges = self.get_edges_at_constant_longitude(lon, method)
-        faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
-        return faces[faces != INT_FILL_VALUE]
+        if use_spherical_bounding_box:
+            faces = constant_lon_intersections_face_bounds(
+                lon=lon,
+                face_min_lon_rad=self.bounds.values[:, 1, 0],
+                face_max_lon_rad=self.bounds.values[:, 1, 1],
+            )
+            return faces
+        else:
+            edges = self.get_edges_at_constant_longitude(
+                lon, use_spherical_bounding_box
+            )
+            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+
+            return faces[faces != INT_FILL_VALUE]
