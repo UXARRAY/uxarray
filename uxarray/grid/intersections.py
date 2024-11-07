@@ -12,7 +12,26 @@ from numba import njit, prange
 
 @njit(parallel=True, nogil=True, cache=True)
 def constant_lat_intersections_no_extreme(lat, edge_node_z, n_edge):
-    """TODO:"""
+    """Determine which edges intersect a constant line of latitude on a
+    sphere, without wrapping to the opposite longitude, with extremes
+    along each great circle arc not considered.
+
+    Parameters
+    ----------
+    lat:
+        Constant latitude value in degrees.
+    edge_node_x:
+        Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
+    edge_node_y:
+        Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
+    n_edge:
+        Total number of edges to check.
+
+    Returns
+    -------
+    intersecting_edges:
+        array of indices of edges that intersect the constant latitude.
+    """
     lat = np.deg2rad(lat)
 
     intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
@@ -33,7 +52,7 @@ def constant_lat_intersections_no_extreme(lat, edge_node_z, n_edge):
 
 @njit(cache=True, nogil=True)
 def edge_intersects_constant_lat_no_extreme(edge_node_z, z_constant):
-    """TODO:"""
+    """Helper to compute whether an edge intersects a line of constant latitude."""
 
     # z coordinate of edge nodes
     z0 = edge_node_z[0]
@@ -51,7 +70,8 @@ def edge_intersects_constant_lat_no_extreme(edge_node_z, z_constant):
 @njit(parallel=True, nogil=True, cache=True)
 def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge):
     """Determine which edges intersect a constant line of longitude on a
-    sphere, without wrapping to the opposite longitude.
+    sphere, without wrapping to the opposite longitude, with extremes
+    along each great circle arc not considered.
 
     Parameters
     ----------
