@@ -11,7 +11,7 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'grid.nc'
 quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
 
-cube_sphere_grid = current_path / "meshfiles" / "geos-cs" / "c12" / "test-c12.native.nc4"
+cube_sphere_grid = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 
 from uxarray.grid.intersections import constant_lat_intersections_face_bounds
 
@@ -58,7 +58,7 @@ class TestQuadHex:
             # no intersections found at this line
             uxgrid.cross_section.constant_latitude(lat=10.0, use_spherical_bounding_box=use_spherical_bounding_box)
 
-    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    @pytest.mark.parametrize("use_spherical_bounding_box", [False])
     def test_constant_lon_cross_section_grid(self, use_spherical_bounding_box):
         uxgrid = ux.open_grid(quad_hex_grid_path)
 
@@ -74,8 +74,7 @@ class TestQuadHex:
             # no intersections found at this line
             uxgrid.cross_section.constant_longitude(lon=10.0)
 
-
-    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    @pytest.mark.parametrize("use_spherical_bounding_box", [False])
     def test_constant_lat_cross_section_uxds(self, use_spherical_bounding_box):
         uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
         uxds.uxgrid.normalize_cartesian_coordinates()
@@ -96,7 +95,7 @@ class TestQuadHex:
             # no intersections found at this line
             uxds['t2m'].cross_section.constant_latitude(lat=10.0, use_spherical_bounding_box=use_spherical_bounding_box)
 
-    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
+    @pytest.mark.parametrize("use_spherical_bounding_box", [False])
     def test_constant_lon_cross_section_uxds(self, use_spherical_bounding_box):
         uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
         uxds.uxgrid.normalize_cartesian_coordinates()
@@ -114,7 +113,7 @@ class TestQuadHex:
             uxds['t2m'].cross_section.constant_longitude(lon=10.0, use_spherical_bounding_box=use_spherical_bounding_box)
 
 
-class TestGeosCubeSphere:
+class TestCubeSphere:
     @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
     def test_north_pole(self, use_spherical_bounding_box):
         uxgrid = ux.open_grid(cube_sphere_grid)

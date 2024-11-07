@@ -156,11 +156,14 @@ def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_r
     candidate_faces : numpy.ndarray
         A 1D array containing the indices of the faces that intersect with the given longitude.
     """
-    lon = np.deg2rad(lon)
-    # TODO: bounds are in [0, 360] while our data is in [-180, 180]
-    within_bounds = (face_min_lon_rad <= lon) & (face_max_lon_rad >= lon)
-    candidate_faces = np.where(within_bounds)[0]
-    return candidate_faces
+
+    # lon = np.deg2rad(lon)
+    # lon = (lon + 2 * np.pi) % (2 * np.pi)
+    # within_bounds = (face_min_lon_rad <= lon) & (face_max_lon_rad >= lon)
+    # candidate_faces = np.where(within_bounds)[0]
+    # return candidate_faces
+
+    raise NotImplementedError
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):

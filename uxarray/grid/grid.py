@@ -72,7 +72,6 @@ from uxarray.grid.intersections import (
     constant_lat_intersections_no_extreme,
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
-    constant_lon_intersections_face_bounds,
 )
 
 from spatialpandas import GeoDataFrame
@@ -2313,12 +2312,16 @@ class Grid:
         """
 
         if use_spherical_bounding_box:
-            faces = constant_lon_intersections_face_bounds(
-                lon=lon,
-                face_min_lon_rad=self.bounds.values[:, 1, 0],
-                face_max_lon_rad=self.bounds.values[:, 1, 1],
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box is not"
+                "yet supported."
             )
-            return faces
+            # faces = constant_lon_intersections_face_bounds(
+            #     lon=lon,
+            #     face_min_lon_rad=self.bounds.values[:, 1, 0],
+            #     face_max_lon_rad=self.bounds.values[:, 1, 1],
+            # )
+            # return faces
         else:
             edges = self.get_edges_at_constant_longitude(
                 lon, use_spherical_bounding_box
