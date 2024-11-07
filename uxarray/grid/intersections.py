@@ -11,7 +11,6 @@ from numba import njit, prange
 
 
 @njit(parallel=True, nogil=True, cache=True)
-
 def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     """Determine which edges intersect a constant line of latitude on a sphere,
     including edges that lie exactly along the latitude.

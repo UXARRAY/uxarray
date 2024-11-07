@@ -71,7 +71,6 @@ from uxarray.grid.neighbors import (
 from uxarray.grid.intersections import (
     constant_lat_intersections_edges,
     constant_lat_intersections_face_bounds,
-    fast_constant_lat_intersections,
     fast_constant_lon_intersections,
 )
 
