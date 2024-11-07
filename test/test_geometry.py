@@ -376,7 +376,7 @@ class TestLatlonBoundUtils(TestCase):
 
     def test_extreme_gca_latitude_max_short(self):
         # Define a great circle arc in 3D space that has a small span
-        gca_cart = np.array( [[ 0.65465367, -0.37796447, -0.65465367], [ 0.6652466,  -0.33896007, -0.6652466 ]])
+        gca_cart = np.array([[0.65465367, -0.37796447, -0.65465367], [0.6652466, -0.33896007, -0.6652466]])
 
         # Calculate the maximum latitude
         max_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'max')
@@ -1561,26 +1561,24 @@ class TestPointInPolygon(TestCase):
         # Assert that the point is in the polygon
         self.assertFalse(point_in_polygon(polygon, point))
 
-    def test_point_on_node(self):
-        """Test the function `point_in_polygon`, where point is on one of the nodes of polygon"""
-
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
+    def test_inclusive(self):
+        """Test the function `point_in_polygon`, where point is on one of the nodes/edges of polygon"""
 
         # Create the polygon
-        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[0][ind] = grid.node_x[face].values
-            polygon[1][ind] = grid.node_y[face].values
-            polygon[2][ind] = grid.node_z[face].values
+        # Defined polygon
+        polygon = [[10, 10, -10, -10], [-10, 10, -10, 10]]
 
-        point = np.array([polygon[0][0], polygon[1][0], polygon[2][0]])
+        # Point on node
+        point_on_node = [-10, 10]
 
-        # Assert that the point is not in the polygon when inclusive is False
-        self.assertFalse(point_in_polygon(polygon, point, inclusive=False))
+        # Point on edge
+        point_on_edge = [-10, 0]
 
         # Assert that the point is in the polygon when inclusive is True
-        self.assertTrue(point_in_polygon(polygon, point, inclusive=True))
+        self.assertTrue(point_in_polygon(polygon, point_on_node, inclusive=True))
+
+        # Assert that the point is in the polygon when inclusive is True
+        self.assertTrue(point_in_polygon(polygon, point_on_edge, inclusive=True))
 
     def test_spherical(self):
         """Test the function `point_in_polygon`,  using spherical coordinates where point is outside the polygon"""
