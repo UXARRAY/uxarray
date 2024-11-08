@@ -34,8 +34,7 @@ REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
-    """Identify unique intersection points from a list of points, considering
-    floating point precision errors.
+    """Identify unique intersection points from a list of points, considering floating point precision errors.
 
     Parameters
     ----------
