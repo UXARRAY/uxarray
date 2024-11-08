@@ -74,6 +74,8 @@ from uxarray.grid.intersections import (
     constant_lat_intersections_face_bounds,
 )
 
+from uxarray.grid.weights import _face_weights_from_edge_magnitudes
+
 
 from spatialpandas import GeoDataFrame
 
@@ -2210,6 +2212,47 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
+    def get_weights(
+        self,
+        weights="face_areas",
+        apply_to="faces",
+        face_indices=None,
+        edge_indices=None,
+    ):
+        """TODO:"""
+
+        # 1. Faces Areas
+        if weights == "face_areas":
+            if apply_to != "faces":
+                raise ValueError("TODO: ")
+            if face_indices is None:
+                return self.face_areas
+            else:
+                return self.face_areas[face_indices]
+
+        # 2. Edge Magnitudes
+        elif weights == "edge_magnitudes":
+            if apply_to == "edges":
+                if edge_indices is None:
+                    return self.edge_magnitudes
+                else:
+                    return self.edge_magnitudes[edge_indices]
+            elif apply_to == "faces":
+                if face_indices is None:
+                    # apply to all faces
+                    pass
+                else:
+                    return _face_weights_from_edge_magnitudes(
+                        self.edge_magnitudes.values,
+                        self.edge_face_connectivity.values,
+                        face_indices=face_indices,
+                        edge_indices=edge_indices,
+                    )
+            else:
+                raise ValueError("TODO: ")
+        else:
+            raise ValueError("TODO: ")
+
     def get_edges_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
         """Identifies the indices of edges that intersect with a line of constant latitude.
 
@@ -2246,7 +2289,9 @@ class Grid:
 
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+    def get_faces_at_constant_latitude(
+        self, lat, use_spherical_bounding_box=False, return_edge_indices=False
+    ):
         """
         Identifies the indices of faces that intersect with a line of constant latitude.
 
@@ -2286,7 +2331,15 @@ class Grid:
             edges = self.get_edges_at_constant_latitude(lat, use_spherical_bounding_box)
             faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
-            return faces[faces != INT_FILL_VALUE]
+            faces = faces[faces != INT_FILL_VALUE]
+
+        if return_edge_indices and use_spherical_bounding_box:
+            raise ValueError("TODO")
+
+        if return_edge_indices:
+            return faces, edges
+        else:
+            return faces
 
     def get_edges_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
         """

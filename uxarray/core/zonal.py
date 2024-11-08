@@ -3,7 +3,10 @@ import dask.array as da
 
 
 def _compute_zonal_mean(
-    uxda, data_mapping, latitudes, conservative=True, method="fast"
+    uxda,
+    latitudes,
+    conservative,
+    use_spherical_bounding_box,
 ):
     """TODO:"""
     shape = uxda.shape[:-1] + (len(latitudes),)
@@ -14,32 +17,33 @@ def _compute_zonal_mean(
         # Create a NumPy array for storing results
         result = np.empty(shape, dtype=uxda.dtype)
 
-    if data_mapping == "n_face":
-        _face_centered_zonal_mean(uxda, result, latitudes, conservative, method)
-    else:
-        _edge_centered_zonal_mean(uxda, result, latitudes, method)
+    _face_centered_zonal_mean(
+        uxda, result, latitudes, conservative, use_spherical_bounding_box
+    )
 
     return result
 
 
-def _face_centered_zonal_mean(uxda, result, latitudes, conservative, method):
+def _face_centered_zonal_mean(
+    uxda, result, latitudes, conservative, use_spherical_bounding_box
+):
     """TODO:"""
 
-    # north_pole_face_indices = uxda.uxgrid.north_pole_face_indicies.values
-    # south_pole_face_indices = uxda.uxgrid.south_pole_face_indicies.values
-    #
-    # north_pole_min_lat = ...
-    # south_pole_max_lat = ...
+    # TODO: if use_spherical_bounding_box is false, doing a query exactly at the poles will not work
 
     for i, lat in enumerate(latitudes):
         if conservative:
-            face_indices = uxda.uxgrid.get_faces_at_constant_latitude(lat, method)
+            face_indices = uxda.uxgrid.get_faces_at_constant_latitude(
+                lat, use_spherical_bounding_box
+            )
             weights = uxda.uxgrid.get_weights(
                 weights="face_areas", apply_to="faces", face_indices=face_indices
             )
         else:
             face_indices, edge_indices = uxda.uxgrid.get_faces_at_constant_latitude(
-                lat, method, return_edge_indices=True
+                lat,
+                use_spherical_bounding_box=use_spherical_bounding_box,
+                return_edge_indices=True,
             )
             weights = uxda.uxgrid.get_weights(
                 weights="edge_magnitudes",
@@ -51,16 +55,3 @@ def _face_centered_zonal_mean(uxda, result, latitudes, conservative, method):
         result[..., i] = ((uxda.data[..., face_indices] * weights) / total_weight).sum(
             axis=-1
         )
-
-
-def _edge_centered_zonal_mean(uxda, result, latitudes, method):
-    """TODO:"""
-    weights = uxda.uxgrid.edge_magnitudes
-
-    for i, lat in enumerate(latitudes):
-        edge_indices = uxda.uxgrid.get_edges_at_constant_latitude(lat, method)
-        cur_weights = weights[edge_indices]
-        cur_total_weight = cur_weights.sum()
-        result[..., i] = (
-            (uxda.data[..., edge_indices] * cur_weights) / cur_total_weight
-        ).sum(axis=-1)

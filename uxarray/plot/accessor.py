@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import cartopy.crs as ccrs
 import hvplot.pandas
+import hvplot.xarray
 import pandas as pd
 
 import uxarray.plot.dataarray_plot as dataarray_plot
@@ -539,6 +540,15 @@ class UxDataArrayPlotAccessor:
             size=size,
             **kwargs,
         )
+
+    def line(self, backend=None, *args, **kwargs):
+        """TODO:"""
+        uxarray.plot.utils.backend.assign(backend)
+        xrda = self._uxda.to_xarray()
+        return xrda.hvplot.line(*args, **kwargs)
+
+    def _zonal_average_line(self, *args, **kwargs):
+        pass
 
 
 class UxDatasetPlotAccessor:

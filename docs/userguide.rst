@@ -49,6 +49,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Cross-Sections <user-guide/cross-sections.ipynb>`_
  Select cross-sections of a grid
 
+`Zonal Means <user-guide/zonal-average.ipynb>`_
+ Compute the zonal averages across lines of constant latitude
+
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
 
@@ -97,6 +100,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
    user-guide/cross-sections.ipynb
+   user-guide/zonal-average.ipynb
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/calculus.ipynb

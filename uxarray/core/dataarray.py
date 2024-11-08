@@ -377,6 +377,9 @@ class UxDataArray(xr.DataArray):
 
         return uxds
 
+    def to_xarray(self):
+        return xr.DataArray(self)
+
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> UxDataArray:
@@ -431,7 +434,9 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 5), conservative=True, method="fast"):
+    def zonal_mean(
+        self, lat=(-80, 80, 10), conservative=True, use_spherical_bounding_box=False
+    ):
         """Compute the average along one or more lines of constant latitude.
 
         Parameters
@@ -444,10 +449,8 @@ class UxDataArray(xr.DataArray):
         conservative : bool, default=True
             If True, TODO
             If False, TODO
-        method : {"fast", "accurate"}, default="fast"
-            Method to use for the zonal mean computation:
-            - "fast": Provides a quicker computation at the cost of some accuracy.
-            - "accurate": Provides more accurate results but may take longer to compute.
+        use_spherical_bounding_box: bool, default=False
+            TODO:
 
         Returns
         -------
@@ -472,9 +475,9 @@ class UxDataArray(xr.DataArray):
         Compute the zonal mean for latitudes between -60 and 60 degrees, at 10-degree intervals:
         >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
         """
-        if not self._face_centered() and not self._edge_centered():
+        if not self._face_centered():
             raise ValueError(
-                "Zonal mean computations are currently only supported for face-centered or edge-centered data variables."
+                "Zonal mean computations are currently only supported for face-centered data variables."
             )
 
         if isinstance(lat, tuple):
@@ -489,9 +492,8 @@ class UxDataArray(xr.DataArray):
 
         res = _compute_zonal_mean(
             uxda=self,
-            data_mapping=self.dims[-1],
             latitudes=latitudes,
-            method=method,
+            use_spherical_bounding_box=use_spherical_bounding_box,
             conservative=conservative,
         )
 
@@ -502,9 +504,7 @@ class UxDataArray(xr.DataArray):
             res,
             uxgrid=self.uxgrid,
             dims=dims,
-            coords={
-                "latitudes": latitudes
-            },  # TODO: need to preserve non-spatial coordinates
+            coords={"latitudes": latitudes},
             name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
         )
 
