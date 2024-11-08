@@ -181,3 +181,23 @@ class TestCandidateFacesUsingBounds:
         )
 
         assert len(candidate_faces) == 0
+
+
+class TestExtremes:
+    def test_extreme_latitude(self):
+        node_lon = np.array([-40, -40, 40, 40])
+        node_lat = np.array([-20, 20, 20, -20])
+        face_node_connectivity = np.array([[0, 1, 2, 3]], dtype=np.int64)
+
+        uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+
+        out1 = uxgrid.get_faces_at_constant_latitude(lat=20)
+        out2 = uxgrid.get_faces_at_constant_latitude(lat=20, use_spherical_bounding_box=True)
+
+        nt.assert_array_equal(out1, out2)
+
+        out3 = uxgrid.get_faces_at_constant_latitude(lat=25)
+        out4 = uxgrid.get_faces_at_constant_latitude(lat=25, use_spherical_bounding_box=True)
+
+        assert len(out3) == 0
+        assert len(out4) == 1
