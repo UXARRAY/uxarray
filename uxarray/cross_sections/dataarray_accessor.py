@@ -21,7 +21,7 @@ class UxDataArrayCrossSectionAccessor:
 
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, method="fast"):
+    def constant_latitude(self, lat: float, use_spherical_bounding_box=False):
         """Extracts a cross-section of the data array at a specified constant
         latitude.
 
@@ -29,12 +29,8 @@ class UxDataArrayCrossSectionAccessor:
         ----------
         lat : float
             The latitude at which to extract the cross-section, in degrees.
-        method : str, optional
-            The internal method to use when identifying faces at the constant latitude.
-            Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
+        use_spherical_bounding_box : bool, optional
+            If True, uses a spherical bounding box for intersection calculations.
 
         Raises
         ------
@@ -44,17 +40,14 @@ class UxDataArrayCrossSectionAccessor:
         Examples
         --------
         >>> uxda.constant_latitude_cross_section(lat=-15.5)
-
-        Notes
-        -----
-        The accuracy and performance of the function can be controlled using the `method` parameter.
-        For higher precision requreiments, consider using method='acurate'.
         """
-        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat, method)
+        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(
+            lat, use_spherical_bounding_box
+        )
 
         return self.uxda.isel(n_face=faces)
 
-    def constant_longitude(self, lon: float, method="fast"):
+    def constant_longitude(self, lon: float, use_spherical_bounding_box=False):
         """Extracts a cross-section of the data array at a specified constant
         longitude.
 
@@ -62,12 +55,8 @@ class UxDataArrayCrossSectionAccessor:
         ----------
         lon : float
             The longitude at which to extract the cross-section, in degrees.
-        method : str, optional
-            The internal method to use when identifying faces at the constant longitude.
-            Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
+        use_spherical_bounding_box : bool, optional
+            If True, uses a spherical bounding box for intersection calculations.
 
         Raises
         ------
@@ -83,7 +72,9 @@ class UxDataArrayCrossSectionAccessor:
         The accuracy and performance of the function can be controlled using the `method` parameter.
         For higher precision requreiments, consider using method='acurate'.
         """
-        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(lon, method)
+        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
+            lon, use_spherical_bounding_box
+        )
 
         return self.uxda.isel(n_face=faces)
 
