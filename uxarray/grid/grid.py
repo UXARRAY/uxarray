@@ -1215,7 +1215,7 @@ class Grid:
 
     @property
     def _face_edge_nodes_xyz(self):
-        """TODO:"""
+        """Internal cached attribute for storing the xyz coordinates of the nodes that make up the edges of each face."""
 
         if "_face_edge_nodes_xyz" not in self._ds:
             res = _get_cartesian_face_edge_nodes(
@@ -2219,12 +2219,38 @@ class Grid:
         face_indices=None,
         edge_indices=None,
     ):
-        """TODO:"""
+        """
+        Retrieve weights for unstructured grid elements
+
+        Parameters
+        ----------
+        weights:
+            The type of weights to retrieve. Options:
+            - "face_areas": Retrieves the areas of faces.
+            - "edge_magnitudes": Retrieves the magnitudes of edges.
+        apply_to:
+            Specifies the elements to apply the weights to. Options:
+            - "faces": Applies weights to faces.
+            - "edges": Applies weights to edges.
+        face_indices:
+            Specific indices of faces to retrieve weights for.
+            If None, weights for all relevant faces are returned.
+        edge_indices:
+            Specific indices of edges to retrieve weights for.
+            If None, weights for all relevant edges are returned.
+
+        Returns
+        -------
+        numpy.ndarray: An array of weights based on the specified parameters.
+
+        """
 
         # 1. Faces Areas
         if weights == "face_areas":
             if apply_to != "faces":
-                raise ValueError("TODO: ")
+                raise ValueError(
+                    f"Invalid apply_to value '{apply_to}' for weights='face_areas'. Expected 'faces'."
+                )
             if face_indices is None:
                 return self.face_areas
             else:
@@ -2239,8 +2265,10 @@ class Grid:
                     return self.edge_magnitudes[edge_indices]
             elif apply_to == "faces":
                 if face_indices is None:
-                    # apply to all faces
-                    pass
+                    # Apply to all faces by aggregating edge magnitudes for each face
+                    return _face_weights_from_edge_magnitudes(
+                        self.edge_magnitudes.values, self.edge_face_connectivity.values
+                    )
                 else:
                     return _face_weights_from_edge_magnitudes(
                         self.edge_magnitudes.values,
@@ -2249,9 +2277,13 @@ class Grid:
                         edge_indices=edge_indices,
                     )
             else:
-                raise ValueError("TODO: ")
+                raise ValueError(
+                    f"Invalid apply_to value '{apply_to}' for weights='edge_magnitudes'. Expected 'edges' or 'faces'."
+                )
         else:
-            raise ValueError("TODO: ")
+            raise ValueError(
+                f"Unsupported weights type '{weights}'. Supported types are 'face_areas' and 'edge_magnitudes'."
+            )
 
     def get_edges_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
         """Identifies the indices of edges that intersect with a line of constant latitude.
@@ -2260,7 +2292,7 @@ class Grid:
         ----------
         lon : float
             The latitude at which to identify intersecting edges, in degrees.
-                use_spherical_bounding_box : bool, optional
+        use_spherical_bounding_box : bool, optional
             If `True`,
             computes the bounding box for each face using great circle arcs for edges
             and considers extreme minimums or maximums to increase accuracy.

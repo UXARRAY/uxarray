@@ -125,6 +125,7 @@ Descriptors
 
    Grid.descriptors
    Grid.face_areas
+   Grid.edge_magnitudes
    Grid.bounds
    Grid.edge_node_distances
    Grid.edge_face_distances
@@ -155,6 +156,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
+   Grid.get_weights
 
 Inheritance of Xarray Functionality
 -----------------------------------
@@ -192,6 +194,13 @@ I/O & Conversion
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
+
+Methods
+~~~~~~~
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.zonal_mean
 
 UxDataset
 -----------

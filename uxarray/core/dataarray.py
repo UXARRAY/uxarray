@@ -447,10 +447,13 @@ class UxDataArray(xr.DataArray):
             each latitude in the inclusive range [start, end] at intervals of `step`. If a single float is provided,
             the zonal mean is computed for that specific latitude.
         conservative : bool, default=True
-            If True, TODO
-            If False, TODO
-        use_spherical_bounding_box: bool, default=False
-            TODO:
+            If True, data is weighted by face areas
+            If False, data is weighted by edge magnitudes
+        use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
 
         Returns
         -------
@@ -488,7 +491,9 @@ class UxDataArray(xr.DataArray):
             # zonal mean over a single latitude
             latitudes = [lat]
         else:
-            raise ValueError("Invalid value for 'lat' provided. TODO: ")
+            raise ValueError(
+                "Invalid value for 'lat' provided. Must either be a single scalar value or a tuple (min_lat, max_lat, step) "
+            )
 
         res = _compute_zonal_mean(
             uxda=self,

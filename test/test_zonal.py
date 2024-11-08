@@ -1,4 +1,5 @@
 import uxarray as ux
+import numpy as np
 import pytest
 from uxarray.constants import ERROR_TOLERANCE
 import os
