@@ -20,14 +20,11 @@ class GridCrossSectionAccessor:
         methods_heading += "  * constant_latitude(lat, )\n"
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, return_face_indices=False, method="fast"):
+    def constant_latitude(
+        self, lat: float, return_face_indices=False, use_spherical_bounding_box=False
+    ):
         """Extracts a cross-section of the grid at a specified constant
         latitude.
-
-        This method identifies and returns all faces (or grid elements) that intersect
-        with a given latitude. The returned cross-section can include either just the grid
-        or both the grid elements and the corresponding face indices, depending
-        on the `return_face_indices` parameter.
 
         Parameters
         ----------
@@ -37,12 +34,9 @@ class GridCrossSectionAccessor:
             If True, returns both the grid at the specified latitude and the indices
             of the intersecting faces. If False, only the grid is returned.
             Default is False.
-        method : str, optional
-            The internal method to use when identifying faces at the constant latitude.
-            Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
+        use_spherical_bounding_box : bool, optional
+            If True, uses a spherical bounding box for intersection calculations.
+
 
         Returns
         -------
@@ -69,7 +63,9 @@ class GridCrossSectionAccessor:
         The accuracy and performance of the function can be controlled using the `method` parameter.
         For higher precision requreiments, consider using method='acurate'.
         """
-        faces = self.uxgrid.get_faces_at_constant_latitude(lat, method)
+        faces = self.uxgrid.get_faces_at_constant_latitude(
+            lat, use_spherical_bounding_box
+        )
 
         if len(faces) == 0:
             raise ValueError(f"No intersections found at lat={lat}.")
@@ -81,29 +77,22 @@ class GridCrossSectionAccessor:
         else:
             return grid_at_constant_lat
 
-    def constant_longitude(self, lon: float, return_face_indices=False, method="fast"):
+    def constant_longitude(
+        self, lon: float, use_spherical_bounding_box=False, return_face_indices=False
+    ):
         """Extracts a cross-section of the grid at a specified constant
         longitude.
-
-        This method identifies and returns all faces (or grid elements) that intersect
-        with a given longitude. The returned cross-section can include either just the grid
-        or both the grid elements and the corresponding face indices, depending
-        on the `return_face_indices` parameter.
 
         Parameters
         ----------
         lon : float
             The longitude at which to extract the cross-section, in degrees.
+        use_spherical_bounding_box : bool, optional
+            If True, uses a spherical bounding box for intersection calculations.
         return_face_indices : bool, optional
             If True, returns both the grid at the specified longitude and the indices
             of the intersecting faces. If False, only the grid is returned.
             Default is False.
-        method : str, optional
-            The internal method to use when identifying faces at the constant longitude.
-            Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
 
         Returns
         -------
@@ -130,10 +119,12 @@ class GridCrossSectionAccessor:
         The accuracy and performance of the function can be controlled using the `method` parameter.
         For higher precision requreiments, consider using method='acurate'.
         """
-        faces = self.uxgrid.get_faces_at_constant_longitude(lon, method)
+        faces = self.uxgrid.get_faces_at_constant_longitude(
+            lon, use_spherical_bounding_box
+        )
 
         if len(faces) == 0:
-            raise ValueError(f"No intersections found at lon={lon}.")
+            raise ValueError(f"No intersections found at lon={lon}")
 
         grid_at_constant_lon = self.uxgrid.isel(n_face=faces)
 
