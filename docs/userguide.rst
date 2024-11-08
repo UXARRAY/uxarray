@@ -73,6 +73,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
  Construct the Dual Mesh of an unstructured grid
 
+`From File <user-guide/from_file.ipynb>`_
+ Load unstructured grids using the Grid from_file function
+
 
 Supplementary Guides
 --------------------
@@ -106,3 +109,4 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/structured.ipynb
    user-guide/from-points.ipynb
    user-guide/holoviz.ipynb
+   user-guide/from_file.ipynb
