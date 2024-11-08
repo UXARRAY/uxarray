@@ -11,16 +11,19 @@ from numba import njit, prange
 
 
 @njit(parallel=True, nogil=True, cache=True)
-def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
-    """Determine which edges intersect a constant line of latitude on a sphere,
-    including edges that lie exactly along the latitude.
+def constant_lat_intersections_no_extreme(lat, edge_node_z, n_edge):
+    """Determine which edges intersect a constant line of latitude on a
+    sphere, without wrapping to the opposite longitude, with extremes
+    along each great circle arc not considered.
 
     Parameters
     ----------
     lat:
         Constant latitude value in degrees.
-    edge_node_z:
-        Array of shape (n_edge, 2) containing z-coordinates of the edge nodes.
+    edge_node_x:
+        Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
+    edge_node_y:
+        Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
     n_edge:
         Total number of edges to check.
 
@@ -38,15 +41,8 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
 
     # Iterate through each edge and check for intersections
     for i in prange(n_edge):
-        # Get the z-coordinates of the edge's nodes
-        z0 = edge_node_z[i, 0]
-        z1 = edge_node_z[i, 1]
-
         # Check if the edge crosses the constant latitude or lies exactly on it
-        if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
-            abs(z0 - z_constant) < ERROR_TOLERANCE
-            and abs(z1 - z_constant) < ERROR_TOLERANCE
-        ):
+        if edge_intersects_constant_lat_no_extreme(edge_node_z[i], z_constant):
             intersecting_edges_mask[i] = 1
 
     intersecting_edges = np.argwhere(intersecting_edges_mask)
@@ -54,10 +50,28 @@ def fast_constant_lat_intersections(lat, edge_node_z, n_edge):
     return np.unique(intersecting_edges)
 
 
+@njit(cache=True, nogil=True)
+def edge_intersects_constant_lat_no_extreme(edge_node_z, z_constant):
+    """Helper to compute whether an edge intersects a line of constant latitude."""
+
+    # z coordinate of edge nodes
+    z0 = edge_node_z[0]
+    z1 = edge_node_z[1]
+
+    if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
+        abs(z0 - z_constant) < ERROR_TOLERANCE
+        and abs(z1 - z_constant) < ERROR_TOLERANCE
+    ):
+        return True
+    else:
+        return False
+
+
 @njit(parallel=True, nogil=True, cache=True)
-def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
+def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge):
     """Determine which edges intersect a constant line of longitude on a
-    sphere, without wrapping to the opposite longitude.
+    sphere, without wrapping to the opposite longitude, with extremes
+    along each great circle arc not considered.
 
     Parameters
     ----------
@@ -106,6 +120,70 @@ def fast_constant_lon_intersections(lon, edge_node_x, edge_node_y, n_edge):
     intersecting_edges = np.argwhere(intersecting_edges_mask)
 
     return np.unique(intersecting_edges)
+
+
+@njit
+def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_rad):
+    """Identifies the candidate faces on a grid that intersect with a given
+    constant latitude.
+
+    This function checks whether the specified latitude, `lat`, in degrees lies within
+    the latitude bounds of grid faces, defined by `face_min_lat_rad` and `face_max_lat_rad`,
+    which are given in radians. The function returns the indices of the faces where the
+    latitude is within these bounds.
+
+    Parameters
+    ----------
+    lat : float
+        The latitude in degrees for which to find intersecting faces.
+    face_min_lat_rad : numpy.ndarray
+        A 1D array containing the minimum latitude bounds (in radians) of each face.
+    face_max_lat_rad : numpy.ndarray
+        A 1D array containing the maximum latitude bounds (in radians) of each face.
+
+    Returns
+    -------
+    candidate_faces : numpy.ndarray
+        A 1D array containing the indices of the faces that intersect with the given latitude.
+    """
+    lat = np.deg2rad(lat)
+    within_bounds = (face_min_lat_rad <= lat) & (face_max_lat_rad >= lat)
+    candidate_faces = np.where(within_bounds)[0]
+    return candidate_faces
+
+
+@njit(cache=True)
+def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_rad):
+    """Identifies the candidate faces on a grid that intersect with a given
+    constant longitude.
+
+    This function checks whether the specified longitude, `lon`, in degrees lies within
+    the longitude bounds of grid faces, defined by `face_min_lon_rad` and `face_max_lon_rad`,
+    which are given in radians. The function returns the indices of the faces where the
+    longitude is within these bounds.
+
+    Parameters
+    ----------
+    lon : float
+        The longitude in degrees for which to find intersecting faces.
+    face_min_lon_rad : numpy.ndarray
+        A 1D array containing the minimum longitude bounds (in radians) of each face.
+    face_max_lon_rad : numpy.ndarray
+        A 1D array containing the maximum longitude bounds (in radians) of each face.
+
+    Returns
+    -------
+    candidate_faces : numpy.ndarray
+        A 1D array containing the indices of the faces that intersect with the given longitude.
+    """
+
+    # lon = np.deg2rad(lon)
+    # lon = (lon + 2 * np.pi) % (2 * np.pi)
+    # within_bounds = (face_min_lon_rad <= lon) & (face_max_lon_rad >= lon)
+    # candidate_faces = np.where(within_bounds)[0]
+    # return candidate_faces
+
+    raise NotImplementedError
 
 
 def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
