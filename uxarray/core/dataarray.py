@@ -464,13 +464,13 @@ class UxDataArray(xr.DataArray):
         Examples
         --------
         Compute the zonal mean for all latitudes between -90 and 90 degrees, at 5-degree intervals:
-        >>> uxds['var'].zonal_mean()
+        >>> uxds["var"].zonal_mean()
 
         Compute the zonal mean for a single latitude, 30 degrees:
-        >>> uxds['var'].zonal_mean(lat=30.0)
+        >>> uxds["var"].zonal_mean(lat=30.0)
 
         Compute the zonal mean for latitudes between -60 and 60 degrees, at 10-degree intervals:
-        >>> uxds['var'].zonal_mean(lat=(-60, 60, 10))
+        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
         """
         if not self._face_centered() and not self._edge_centered():
             raise ValueError(

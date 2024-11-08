@@ -58,7 +58,6 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
-    _construct_hole_edge_indices,
     _populate_pole_face_indices,
     _construct_boundary_edge_indices,
 )
@@ -2339,7 +2338,6 @@ class Grid:
             return faces[faces != INT_FILL_VALUE], edges
         else:
             return faces[faces != INT_FILL_VALUE]
-
 
     def get_edges_at_constant_longitude(self, lon, method="fast"):
         """Identifies the edges of the grid that intersect with a specified
