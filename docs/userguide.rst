@@ -43,7 +43,6 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Advanced Plotting Techniques <user-guide/advanced-plotting.ipynb>`_
  Deeper dive into getting the most out of UXarray's plotting functionality
 
-
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
 
@@ -68,8 +67,12 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Structured Grids <user-guide/structured.ipynb>`_
  Loading structured (latitude-longitude) grids
 
+`Representing Point Data <user-guide/from-points.ipynb>`_
+ Create grids from unstructured point data
+
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
  Construct the Dual Mesh of an unstructured grid
+
 
 Supplementary Guides
 --------------------
@@ -101,4 +104,5 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/area_calc.ipynb
    user-guide/dual-mesh.ipynb
    user-guide/structured.ipynb
+   user-guide/from-points.ipynb
    user-guide/holoviz.ipynb
