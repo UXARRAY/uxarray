@@ -29,14 +29,8 @@ class UxDataArrayCrossSectionAccessor:
         ----------
         lat : float
             The latitude at which to extract the cross-section, in degrees.
-        method : str, optional
-            The internal method to use when identifying faces at the constant latitude.
-            Options are:
-            - 'edge_intersection': The intersection of each edge with a line of constant latitude is calculated, with
-            faces that contain that edges included in the result.
-            - 'bounding_box_intersection': The minimum and maximum latitude of each face is used to determine if
-            the line of constant latitude intersects it.
-            Default is 'edge_intersection'.
+        use_spherical_bounding_box : bool, optional
+            If True, uses a spherical bounding box for intersection calculations.
 
         Raises
         ------
@@ -61,12 +55,8 @@ class UxDataArrayCrossSectionAccessor:
         ----------
         lon : float
             The longitude at which to extract the cross-section, in degrees.
-        method : str, optional
-            The internal method to use when identifying faces at the constant longitude.
-            Options are:
-            - 'fast': Uses a faster but potentially less accurate method for face identification.
-            - 'accurate': Uses a slower but more accurate method.
-            Default is 'fast'.
+        use_spherical_bounding_box : bool, optional
+            If True, uses a spherical bounding box for intersection calculations.
 
         Raises
         ------

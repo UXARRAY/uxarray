@@ -2190,6 +2190,11 @@ class Grid:
         ----------
         lon : float
             The latitude at which to identify intersecting edges, in degrees.
+                use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
 
         Returns
         -------
@@ -2264,6 +2269,11 @@ class Grid:
         ----------
         lon : float
             The longitude at which to identify intersecting edges, in degrees.
+        use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
 
         Returns
         -------
@@ -2316,12 +2326,6 @@ class Grid:
                 "Computing the intersection using the spherical bounding box is not"
                 "yet supported."
             )
-            # faces = constant_lon_intersections_face_bounds(
-            #     lon=lon,
-            #     face_min_lon_rad=self.bounds.values[:, 1, 0],
-            #     face_max_lon_rad=self.bounds.values[:, 1, 1],
-            # )
-            # return faces
         else:
             edges = self.get_edges_at_constant_longitude(
                 lon, use_spherical_bounding_box
