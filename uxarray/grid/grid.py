@@ -58,7 +58,6 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
-    _populate_pole_face_indices,
     _construct_boundary_edge_indices,
 )
 
@@ -1477,21 +1476,6 @@ class Grid:
         """Boolean indicated whether the Grid completely covers the unit sphere
         (i.e. contains no holes)"""
         return not self.partial_sphere_coverage
-
-    @property
-    def north_pole_face_indices(self):
-        """Indices of faces that contain the North Pole point."""
-        if "north_pole_face_indices" not in self._ds:
-            _populate_pole_face_indices(self)
-        return self._ds["north_pole_face_indices"]
-
-    @property
-    def south_pole_face_indices(self):
-        """Indices of faces that contain the South Pole point (-90 degrees
-        latitude)."""
-        if "south_pole_face_indices" not in self._ds:
-            _populate_pole_face_indices(self)
-        return self._ds["south_pole_face_indices"]
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
