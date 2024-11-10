@@ -67,37 +67,60 @@ def _xyz_to_lonlat_rad_no_norm(
     return lon, lat
 
 
+# @njit(cache=True)
+# def _xyz_to_lonlat_rad_scalar(
+#     x: Union[np.ndarray, float],
+#     y: Union[np.ndarray, float],
+#     z: Union[np.ndarray, float],
+#     normalize: bool = True,
+# ):
+#     """Converts a Cartesian x,y,z coordinates into Spherical latitude and
+#     longitude without normalization, decorated with Numba.
+#
+#     Parameters
+#     ----------
+#     x : float
+#         Cartesian x coordinate
+#     y: float
+#         Cartesiain y coordinate
+#     z: float
+#         Cartesian z coordinate
+#
+#
+#     Returns
+#     -------
+#     lon : float
+#         Longitude in radians
+#     lat: float
+#         Latitude in radians
+#     """
+#
+#     if normalize:
+#         x, y, z = _normalize_xyz_scalar(x, y, z)
+#         denom = np.abs(x * x + y * y + z * z)
+#         x /= denom
+#         y /= denom
+#         z /= denom
+#
+#     lon = math.atan2(y, x)
+#     lat = math.asin(z)
+#
+#     # set longitude range to [0, pi]
+#     lon = np.mod(lon, 2 * np.pi)
+#
+#     z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+#
+#     lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
+#     lon = np.where(z_mask, 0.0, lon)
+#
+#     return lon, lat
+
+
 @njit(cache=True)
-def _xyz_to_lonlat_rad_scalar(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-):
-    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
-    longitude without normalization, decorated with Numba.
-
-    Parameters
-    ----------
-    x : float
-        Cartesian x coordinate
-    y: float
-        Cartesiain y coordinate
-    z: float
-        Cartesian z coordinate
-
-
-    Returns
-    -------
-    lon : float
-        Longitude in radians
-    lat: float
-        Latitude in radians
-    """
-
+def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
+        denom = abs(x * x + y * y + z * z)
         x /= denom
         y /= denom
         z /= denom
@@ -105,15 +128,19 @@ def _xyz_to_lonlat_rad_scalar(
     lon = math.atan2(y, x)
     lat = math.asin(z)
 
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
+    # Set longitude range to [0, 2*pi]
+    lon = lon % (2 * math.pi)
 
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+    z_abs = abs(z)
+    if z_abs > (1.0 - ERROR_TOLERANCE):
+        lat = math.copysign(math.pi / 2, z)
+        lon = 0.0
 
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
+    lonlat = np.empty(2)
+    lonlat[0] = lon
+    lonlat[1] = lat
 
-    return lon, lat
+    return lonlat
 
 
 def _xyz_to_lonlat_rad(

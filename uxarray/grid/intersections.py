@@ -2,9 +2,10 @@ import numpy as np
 from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
+from uxarray.utils.computing import cross_fma, allclose, cross, norm
 
 
 from numba import njit, prange
@@ -186,112 +187,66 @@ def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_r
     raise NotImplementedError
 
 
-def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
-    """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
-    Cartesian coordinate system.
-
-    To reduce relative errors, the Fused Multiply-Add (FMA) operation is utilized.
-    A warning is raised if the given coordinates are not in the cartesian coordinates, or
-    they cannot be accurately handled using floating-point arithmetic.
-
-    Parameters
-    ----------
-    gca1_cart : [n, 3] np.ndarray where n is the number of intersection points
-        Cartesian coordinates of the first GCA.
-    gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
-        Cartesian coordinates of the second GCA.
-    fma_disabled : bool, optional (default=True)
-        If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
-
-    Returns
-    -------
-    np.ndarray
-        Cartesian coordinates of the intersection point(s). Returns an empty array if no intersections,
-        a 2D array with one row if one intersection, and a 2D array with two rows if two intersections.
-
-    Raises
-    ------
-    ValueError
-        If the input GCAs are not in the cartesian [x, y, z] format.
-    """
-
-    # Support lists as an input
-    gca1_cart = np.asarray(gca1_cart)
-    gca2_cart = np.asarray(gca2_cart)
-    # Check if the two GCAs are in the cartesian format (size of three)
-    if gca1_cart.shape[1] != 3 or gca2_cart.shape[1] != 3:
+@njit(cache=True)
+def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
+    if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
-    w0, w1 = gca1_cart
-    v0, v1 = gca2_cart
+    # Extract points
+    w0_xyz = gca_a_xyz[0]
+    w1_xyz = gca_a_xyz[1]
+    v0_xyz = gca_b_xyz[0]
+    v1_xyz = gca_b_xyz[1]
 
-    # Compute normals and orthogonal bases using FMA
-    if fma_disabled:
-        w0w1_norm = cross(w0, w1)
-        v0v1_norm = cross(v0, v1)
-        cross_norms = cross(w0w1_norm, v0v1_norm)
-    else:
-        w0w1_norm = cross_fma(w0, w1)
-        v0v1_norm = cross_fma(v0, v1)
-        cross_norms = cross_fma(w0w1_norm, v0v1_norm)
+    w0_lonlat = gca_a_lonlat[0]
+    w1_lonlat = gca_a_lonlat[1]
+    v0_lonlat = gca_b_lonlat[0]
+    v1_lonlat = gca_b_lonlat[1]
 
-        # Raise a warning for windows users
-        if platform.system() == "Windows":
-            warnings.warn(
-                "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
-                "https://bugs.python.org/msg312480)"
-                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
-            )
+    # Compute normals and orthogonal bases
+    w0w1_norm = cross(w0_xyz, w1_xyz)
+    v0v1_norm = cross(v0_xyz, v1_xyz)
+    cross_norms = cross(w0w1_norm, v0v1_norm)
 
-    # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not allclose(dot(w0w1_norm, w0), 0.0, atol=MACHINE_EPSILON) or not allclose(
-        dot(w0w1_norm, w1), 0.0, atol=MACHINE_EPSILON
-    ):
-        warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
-        )
+    # Initialize result array and counter
+    res = np.empty((2, 3))
+    count = 0
 
-    if not allclose(dot(v0v1_norm, v0), 0.0, 0.0, atol=MACHINE_EPSILON) or not allclose(
-        dot(v0v1_norm, v1), 0.0, atol=MACHINE_EPSILON
-    ):
-        warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
-        )
-
-    if not allclose(
-        dot(cross_norms, v0v1_norm), 0.0, atol=MACHINE_EPSILON
-    ) or not allclose(dot(cross_norms, w0w1_norm), 0.0, atol=MACHINE_EPSILON):
-        warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
-        )
-
-    # If the cross_norms is zero, the two GCAs are parallel
+    # Check if the two GCAs are parallel
     if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
-        res = []
-        # Check if the two GCAs are overlapping
-        if point_within_gca(v0, [w0, w1]):
-            # The two GCAs are overlapping, return both end points
-            res.append(v0)
+        if point_within_gca(v0_xyz, v0_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat):
+            res[count, :] = v0_xyz
+            count += 1
 
-        if point_within_gca(v1, [w0, w1]):
-            res.append(v1)
-        return np.array(res)
+        if point_within_gca(v1_xyz, v1_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat):
+            res[count, :] = v1_xyz
+            count += 1
+
+        return res[:count, :]
 
     # Normalize the cross_norms
     cross_norms = cross_norms / norm(cross_norms)
-    x1 = cross_norms
-    x2 = -x1
+    x1_xyz = cross_norms
+    x2_xyz = -x1_xyz
 
-    res = []
+    # Get lon/lat arrays
+    x1_lonlat = _xyz_to_lonlat_rad_scalar(x1_xyz[0], x1_xyz[1], x1_xyz[2])
+    x2_lonlat = _xyz_to_lonlat_rad_scalar(x2_xyz[0], x2_xyz[1], x2_xyz[2])
 
-    # Determine which intersection point is within the GCAs range
-    if point_within_gca(x1, [w0, w1]) and point_within_gca(x1, [v0, v1]):
-        res.append(x1)
+    # Check intersection points
+    if point_within_gca(
+        x1_xyz, x1_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat
+    ) and point_within_gca(x1_xyz, x1_lonlat, v0_xyz, v0_lonlat, v1_xyz, v1_lonlat):
+        res[count, :] = x1_xyz
+        count += 1
 
-    if point_within_gca(x2, [w0, w1]) and point_within_gca(x2, [v0, v1]):
-        res.append(x2)
+    if point_within_gca(
+        x2_xyz, x2_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat
+    ) and point_within_gca(x2_xyz, x2_lonlat, v0_xyz, v0_lonlat, v1_xyz, v1_lonlat):
+        res[count, :] = x2_xyz
+        count += 1
 
-    return np.array(res)
+    return res[:count, :]
 
 
 def gca_const_lat_intersection(
