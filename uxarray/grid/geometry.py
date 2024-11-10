@@ -19,6 +19,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -40,6 +41,8 @@ GDF_POLYGON_THRESHOLD = 100000
 
 REFERENCE_POINT_EQUATOR_XYZ = np.array([1.0, 0.0, 0.0])
 REFERENCE_POINT_EQUATOR_LONLAT = np.array([0.0, 0.0])  # TODO ?
+
+POLE_NAME_TO_INT = {"North": 1, "Equator": 0, "South": -1}
 
 
 @njit
@@ -674,8 +677,31 @@ def _convert_shells_to_polygons(shells):
     return polygons
 
 
+def _pole_point_inside_polygon_cartesian(pole, face_edges_xyz):
+    if isinstance(pole, str):
+        pole = POLE_NAME_TO_INT[pole]
+
+    # Extract x, y, z coordinates from face_edges_xyz
+    # Shape of each: (n_edges, 2)
+    x = face_edges_xyz[:, :, 0]
+    y = face_edges_xyz[:, :, 1]
+    z = face_edges_xyz[:, :, 2]
+
+    # Convert Cartesian coordinates to longitude and latitude in radians
+    # _xyz_to_lonlat_rad can handle numpy arrays
+    lon, lat = _xyz_to_lonlat_rad(x, y, z)
+
+    # Combine longitude and latitude into a single array
+    # Shape: (n_edges, 2, 2) where the last dimension is (lon, lat)
+    face_edges_lonlat = np.stack((lon, lat), axis=2)
+
+    return pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat)
+
+    pass
+
+
 @njit
-def _pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
+def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
     """Determines if a pole point is inside a polygon.
 
     Parameters
@@ -1161,8 +1187,8 @@ def _populate_face_latlon_bound(
     is_GCA_list=None,
 ):
     # Check if face_edges contains pole points
-    has_north_pole = _pole_point_inside_polygon(1, face_edges_xyz, face_edges_lonlat)
-    has_south_pole = _pole_point_inside_polygon(-1, face_edges_xyz, face_edges_lonlat)
+    has_north_pole = pole_point_inside_polygon(1, face_edges_xyz, face_edges_lonlat)
+    has_south_pole = pole_point_inside_polygon(-1, face_edges_xyz, face_edges_lonlat)
 
     # Initialize face_latlon_array with INT_FILL_VALUE
     face_latlon_array = np.full((2, 2), INT_FILL_VALUE, dtype=np.float64)

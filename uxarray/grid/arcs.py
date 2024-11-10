@@ -1,7 +1,8 @@
 import numpy as np
 import math
 
-# from uxarray.grid.coordinates import node_xyz_to_lonlat_rad, normalize_in_place
+
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
 
 from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
@@ -25,6 +26,39 @@ def _to_list(obj):
             # If not a list or NumPy array, return the object as-is
             obj = [obj]
     return obj
+
+
+def _point_within_gca_cartesian(pt_xyz, gca_xyz, is_directed=False):
+    pt_xyz = np.asarray(pt_xyz)
+    gca_xyz = np.asarray(gca_xyz)
+
+    pt_lonlat = np.array(
+        _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2], normalize=False)
+    )
+    gca_a_xyz = gca_xyz[0]
+
+    gca_a_lonlat = np.array(
+        _xyz_to_lonlat_rad_scalar(
+            gca_xyz[0][0], gca_xyz[0][1], gca_xyz[0][2], normalize=False
+        )
+    )
+    gca_b_xyz = gca_xyz[1]
+
+    gca_b_lonlat = np.array(
+        _xyz_to_lonlat_rad_scalar(
+            gca_xyz[1][0], gca_xyz[1][1], gca_xyz[1][2], normalize=False
+        )
+    )
+
+    return point_within_gca(
+        pt_xyz,
+        pt_lonlat,
+        gca_a_xyz,
+        gca_a_lonlat,
+        gca_b_xyz,
+        gca_b_lonlat,
+        is_directed=is_directed,
+    )
 
 
 # TODO: implement a less-strict version later
@@ -332,6 +366,18 @@ def clip_scalar(a, a_min, a_max):
         return a_max
     else:
         return a
+
+
+def _extreme_gca_latitude_cartesian(gca_cart, extreme_type):
+    # should be shape [2, 2]
+    gca_lonlat = np.array(
+        [
+            _xyz_to_lonlat_rad_scalar(gca_cart[0, 0], gca_cart[0, 1], gca_cart[0, 2]),
+            _xyz_to_lonlat_rad_scalar(gca_cart[1, 0], gca_cart[1, 1], gca_cart[1, 2]),
+        ]
+    )
+
+    return extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type)
 
 
 @njit(cache=True)

@@ -1,7 +1,12 @@
 import numpy as np
 from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
-from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
+from uxarray.grid.arcs import (
+    point_within_gca,
+    in_between,
+    _extreme_gca_latitude_cartesian,
+    _point_within_gca_cartesian,
+)
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
 import platform
 import warnings
@@ -187,6 +192,34 @@ def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_r
     raise NotImplementedError
 
 
+def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
+    gca_a_xyz = np.asarray(gca_a_xyz)
+    gca_b_xyz = np.asarray(gca_b_xyz)
+
+    # TODO:
+    gca_a_lonlat = np.array(
+        [
+            _xyz_to_lonlat_rad_scalar(
+                gca_a_xyz[0, 0], gca_a_xyz[0, 1], gca_a_xyz[0, 2]
+            ),
+            _xyz_to_lonlat_rad_scalar(
+                gca_a_xyz[1, 0], gca_a_xyz[1, 1], gca_a_xyz[1, 2]
+            ),
+        ]
+    )
+    gca_b_lonlat = np.array(
+        [
+            _xyz_to_lonlat_rad_scalar(
+                gca_b_xyz[0, 0], gca_b_xyz[0, 1], gca_b_xyz[0, 2]
+            ),
+            _xyz_to_lonlat_rad_scalar(
+                gca_b_xyz[1, 0], gca_b_xyz[1, 1], gca_b_xyz[1, 2]
+            ),
+        ]
+    )
+    return gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat)
+
+
 @njit(cache=True)
 def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
@@ -306,8 +339,9 @@ def gca_const_lat_intersection(
         return res
 
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
-    lat_min = extreme_gca_latitude(gca_cart, extreme_type="min")
-    lat_max = extreme_gca_latitude(gca_cart, extreme_type="max")
+    # TODO:
+    lat_min = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="min")
+    lat_max = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="max")
 
     constLat_rad = np.arcsin(constZ)
 
@@ -344,7 +378,7 @@ def gca_const_lat_intersection(
     res = None
 
     # Now test which intersection point is within the GCA range
-    if point_within_gca(p1, gca_cart, is_directed=is_directed):
+    if _point_within_gca_cartesian(p1, gca_cart, is_directed=is_directed):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p1, gca_cart, verbose=verbose
@@ -366,7 +400,7 @@ def gca_const_lat_intersection(
         except RuntimeError:
             raise RuntimeError(f"Error encountered with initial guess: {p1}")
 
-    if point_within_gca(p2, gca_cart, is_directed=is_directed):
+    if _point_within_gca_cartesian(p2, gca_cart, is_directed=is_directed):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p2, gca_cart, verbose=verbose
