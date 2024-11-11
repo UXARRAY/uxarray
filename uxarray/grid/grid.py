@@ -325,7 +325,8 @@ class Grid:
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         elif backend == "xarray":
-            grid_ds, source_dims_dict = cls.from_dataset(filename)
+            dataset = xr.open_dataset(filename)
+            return cls.from_dataset(dataset)
 
         else:
             raise ValueError("Backend not supported")
