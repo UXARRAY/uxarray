@@ -1,8 +1,7 @@
 import uxarray.constants
-# import sys
+import sys
 #
 # # TODO: numba recursion limit ?
-# sys.setrecursionlimit(10000)
 
 
 from .core.api import open_grid, open_dataset, open_mfdataset
@@ -40,6 +39,7 @@ def disable_fma():
 
 
 disable_fma()
+sys.setrecursionlimit(10000)
 
 
 __all__ = (
