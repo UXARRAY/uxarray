@@ -1,4 +1,10 @@
 import uxarray.constants
+# import sys
+#
+# # TODO: numba recursion limit ?
+# sys.setrecursionlimit(10000)
+
+
 from .core.api import open_grid, open_dataset, open_mfdataset
 
 from .core.dataset import UxDataset
