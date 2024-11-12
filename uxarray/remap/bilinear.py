@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from numba import njit
 
-from uxarray.grid.geometry import point_in_polygon
+from uxarray.grid.geometry import _point_in_polygon
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -243,8 +243,8 @@ def _bilinear_uxds(
     return destination_uxds
 
 
-@njit(cache=True)
-def calculate_bilinear_weights(point, triangle):
+# @njit(cache=True)
+def barycentric_coordinates(point, triangle):
     """Calculates the barycentric weights for a point inside a triangle.
 
     Args:
@@ -287,7 +287,7 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
     )  # Array to store 3 vertices (lat, lon)
 
     # If the mesh is not partial
-    if mesh.uxgrid.hole_edge_indices.size == 0:
+    if mesh.uxgrid.boundary_edge_indices.size == 0:
         # First check the nearest face
         ind = [tree.query(point, k=1, return_distance=False)]
         data = []
@@ -307,132 +307,67 @@ def find_polygon_containing_point(point, mesh, source_data, tree):
                 xyz[j] = [x, y, z]
                 data.append(source_data[node])
 
-        # Now, triangle contains 3 vertices with (lat, lon) pairs
-        point_xyz = _lonlat_rad_to_xyz(point[0], point[1])
+        lat, lon = zip(*triangle)
+        lat = list(lat)
+        lon = list(lon)
 
-        point_found = point_in_polygon(xyz, point_xyz)
+        point_found = _point_in_polygon((lon, lat), point, inclusive=True)
 
         # If found in first face, return weights
         if point_found:
-            return calculate_bilinear_weights(point=point, triangle=triangle), data
+            return barycentric_coordinates(point=point, triangle=triangle), data
         else:
-            return INT_FILL_VALUE, 0
+            # Find the largest face radius
+            max_distance = get_max_face_radius(mesh)
 
-        # Find the largest face radius
-        max_distance = get_max_face_radius(mesh)
+            # If the nearest face doesn't contain the point, continue to check nearest faces
+            for i in range(2, mesh.uxgrid.n_face):
+                triangle = np.zeros(
+                    (3, 2), dtype=np.float64
+                )  # Array to store 3 vertices (lat, lon)
 
-        # If the nearest face doesn't contain the point, continue to check nearest faces
-        for i in range(2, mesh.uxgrid.n_face):
-            triangle = np.zeros(
-                (3, 2), dtype=np.float64
-            )  # Array to store 3 vertices (lat, lon)
+                # Query the tree for increasingly more neighbors if the polygon isn't found
+                d, ind = tree.query(point, k=i, return_distance=True, sort_results=True)
+                data = []
 
-            # Query the tree for increasingly more neighbors if the polygon isn't found
-            d, ind = tree.query(point, k=i, return_distance=True, sort_results=True)
-            data = []
+                # If the distance is outside the max distance the point could be in, the point is outside the partial
+                # grid
+                if d[i - 1] > max_distance:
+                    return INT_FILL_VALUE, 0
+                
+                # Get the lat/lon for the face
+                for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
+                    if node != INT_FILL_VALUE:
+                        lat = mesh.uxgrid.node_lat[node.values].values  # Latitude for the node
+                        lon = mesh.uxgrid.node_lon[node.values].values  # Longitude for the node
+                        x = mesh.uxgrid.node_x[node.values].values
+                        y = mesh.uxgrid.node_y[node.values].values
+                        z = mesh.uxgrid.node_z[node.values].values
+                        tolerance = 1e-0
+                        if abs(lat - point[1]) <= tolerance and abs(lon - point[0]) <= tolerance:
+                            return 1, source_data[node]
 
-            # If the distance is outside the max distance the point could be in, the point is outside the partial grid
-            if d[i - 1] > max_distance:
-                return INT_FILL_VALUE, 0
-            # Get the lat/lon for the face
-            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
-                if node != INT_FILL_VALUE:
-                    lat = mesh.uxgrid.node_lat[
-                        node.values
-                    ].values  # Latitude for the node
-                    lon = mesh.uxgrid.node_lon[
-                        node.values
-                    ].values  # Longitude for the node
+                        triangle[j] = [lat, lon]  # Store the (lat, lon) pair in the triangle
+                        xyz[j] = [x, y, z]
+                        data.append(source_data[node])
 
-                    triangle[j] = [
-                        lat,
-                        lon,
-                    ]  # Store the (lat, lon) pair in the triangle
-                    data.append(source_data[node])
+                lon_rad = np.deg2rad(point[0])
+                lat_rad = np.deg2rad(point[1])
 
-            point_found = point_in_triangle_projected(
-                [point[1], point[0]],
-                triangle=triangle,
-                projection_center=[
-                    mesh.uxgrid.face_lat[ind[0]].values,
-                    mesh.uxgrid.face_lon[ind[0]].values,
-                ],
-            )
+                # Now, triangle contains 3 vertices with (lat, lon) pairs
+                point_xyz = _lonlat_rad_to_xyz(lon_rad, lat_rad)
 
-            if point_found:
-                return calculate_bilinear_weights(point=point, triangle=triangle), data
+                # Stack the rows and separate into x, y, z arrays
+                # polygon_ = np.vstack(xyz)  # This creates a 2D array with each row as [x, y, z]
+                # polygon_ = polygon_[:, 0], polygon_[:, 1], polygon_[:, 2]  # Extract columns for x, y, z
 
+                point_found = _point_in_polygon(point, triangle)
+
+                # If found in first face, return weights
+                if point_found:
+                    return barycentric_coordinates(point=point, triangle=triangle), data
+        return 0, 0
     # If the mesh is partial, limit the search to the distance of the largest face radius of the mesh
-    else:
-        # First check the nearest face
-        ind = [tree.query(point, k=1, return_distance=False)]
-        data = []
-        for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[0]]):
-            if node != INT_FILL_VALUE:
-                triangle[j] = (
-                    mesh.uxgrid.node_lat[node.values].values,
-                    mesh.uxgrid.node_lon[node.values].values,
-                )
-
-                data.append(source_data[node])
-
-        point_found = point_in_triangle_projected(
-            [point[1], point[0]],
-            triangle=triangle,
-            projection_center=[
-                mesh.uxgrid.face_lat[ind[0]].values,
-                mesh.uxgrid.face_lon[ind[0]].values,
-            ],
-        )
-        # If found in first face, return weights
-        if point_found:
-            return calculate_bilinear_weights(point=point, triangle=triangle), data
-        else:
-            print(triangle,
-                  [
-                mesh.uxgrid.face_lat[ind[0]].values,
-                mesh.uxgrid.face_lon[ind[0]].values,
-                ])
-            return INT_FILL_VALUE, 0
-
-        # Find the largest face radius
-        max_distance = get_max_face_radius(mesh)
-
-        for i in range(2, mesh.uxgrid.n_face):
-            # Query the tree for increasingly more neighbors
-            d, ind = tree.query(point, k=i, return_distance=True, sort_results=True)
-
-            # If the distance is outside the max distance the point could be in, the point is outside the partial grid
-            if d[i - 1] > max_distance:
-                return INT_FILL_VALUE, 0
-
-            lat = np.array(
-                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)],
-                dtype=INT_DTYPE,
-            )
-            lon = np.array(
-                [INT_FILL_VALUE for _ in range(mesh.uxgrid.n_max_face_nodes)],
-                dtype=INT_DTYPE,
-            )
-            data = []
-            for j, node in enumerate(mesh.uxgrid.face_node_connectivity[ind[i]]):
-                if node != INT_FILL_VALUE:
-                    lat[j] = mesh.uxgrid.node_lat[node.values].values
-                    lon[j] = mesh.uxgrid.node_lon[node.values].values
-
-                    data.append(source_data[node])
-            point_found = point_in_triangle_projected(
-                [point[1], point[0]],
-                triangle=triangle,
-                projection_center=[
-                    mesh.uxgrid.face_lat[ind[0]].values,
-                    mesh.uxgrid.face_lon[ind[0]].values,
-                ],
-            )
-
-            if point_found:
-                return calculate_bilinear_weights(point=point, triangle=triangle), data
-    return [0, 0, 0], 0
 
 
 def get_max_face_radius(mesh):
@@ -495,3 +430,4 @@ def haversine_distance(node_lats, node_lons, face_lat, face_lon):
     )
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
     return c
+

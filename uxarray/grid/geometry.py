@@ -18,7 +18,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
-from uxarray.grid.coordinates import _normalize_xyz, _lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _normalize_xyz, _lonlat_rad_to_xyz, _xyz_to_lonlat_deg, _construct_face_centroids
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -77,8 +77,8 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
 
     for point in points:
         if not any(
-            error_radius(point, unique_point) < tolerance
-            for unique_point in unique_points
+                error_radius(point, unique_point) < tolerance
+                for unique_point in unique_points
         ):
             unique_points.append(point)
 
@@ -87,7 +87,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
 
 @njit(cache=True)
 def _pad_closed_face_nodes(
-    face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
+        face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
     """Pads a closed array of face nodes by inserting the first element at any
     point a fill value is encountered.
@@ -107,14 +107,14 @@ def _pad_closed_face_nodes(
 
 
 def _build_polygon_shells(
-    node_lon,
-    node_lat,
-    face_node_connectivity,
-    n_face,
-    n_max_face_nodes,
-    n_nodes_per_face,
-    projection=None,
-    central_longitude=0.0,
+        node_lon,
+        node_lat,
+        face_node_connectivity,
+        n_face,
+        n_max_face_nodes,
+        n_nodes_per_face,
+        projection=None,
+        central_longitude=0.0,
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
@@ -250,7 +250,7 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
 
 
 def _build_geodataframe_without_antimeridian(
-    polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
+        polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or
     ``geopandas.GeoDataFrame``excluding any faces that cross the
@@ -279,10 +279,10 @@ def _build_geodataframe_without_antimeridian(
 
 
 def _build_geodataframe_with_antimeridian(
-    polygon_shells,
-    projected_polygon_shells,
-    antimeridian_face_indices,
-    engine,
+        polygon_shells,
+        projected_polygon_shells,
+        antimeridian_face_indices,
+        engine,
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
     including any faces that cross the antimeridian."""
@@ -301,9 +301,9 @@ def _build_geodataframe_with_antimeridian(
 
 
 def _build_corrected_shapely_polygons(
-    polygon_shells,
-    projected_polygon_shells,
-    antimeridian_face_indices,
+        polygon_shells,
+        projected_polygon_shells,
+        antimeridian_face_indices,
 ):
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
@@ -422,7 +422,7 @@ def _build_corrected_polygon_shells(polygon_shells):
 
 
 def _grid_to_matplotlib_polycollection(
-    grid, periodic_elements, projection=None, **kwargs
+        grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
 
@@ -626,7 +626,7 @@ def _get_polygons(grid, periodic_elements, projection=None, apply_projection=Tru
 
 
 def _grid_to_matplotlib_linecollection(
-    grid, periodic_elements, projection=None, **kwargs
+        grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
 
@@ -722,14 +722,14 @@ def _pole_point_inside_polygon(pole, face_edge_cart):
         ]
         # The equator one is assigned to the south edges
         return (
-            _check_intersection(ref_edge_north, north_edges)
-            + _check_intersection(ref_edge_south, south_edges)
+                _check_intersection(ref_edge_north, north_edges)
+                + _check_intersection(ref_edge_south, south_edges)
         ) % 2 != 0
     elif (
-        location == "North"
-        and pole == "South"
-        or location == "South"
-        and pole == "North"
+            location == "North"
+            and pole == "South"
+            or location == "South"
+            and pole == "North"
     ):
         return False
     else:
@@ -765,7 +765,7 @@ def _check_intersection(ref_edge, edges):
         if intersection_point.size != 0:
             # Handle both single point and multiple points case
             if (
-                intersection_point.ndim == 1
+                    intersection_point.ndim == 1
             ):  # If there's only one point, make it a 2D array
                 intersection_point = [intersection_point]  # Convert to list of points
 
@@ -782,7 +782,7 @@ def _check_intersection(ref_edge, edges):
     if len(intersection_points) == 1:
         for edge in edges:
             if allclose(
-                intersection_points[0], edge[0], atol=ERROR_TOLERANCE
+                    intersection_points[0], edge[0], atol=ERROR_TOLERANCE
             ) or allclose(intersection_points[0], edge[1], atol=ERROR_TOLERANCE):
                 return 0
 
@@ -928,10 +928,10 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     # Check for pole points and update latitudes
     is_pole_point = (
-        lon_pt == INT_FILL_VALUE
-        and isclose(
-            new_pt[0], np.asarray([0.5 * np.pi, -0.5 * np.pi]), atol=ERROR_TOLERANCE
-        ).any()
+            lon_pt == INT_FILL_VALUE
+            and isclose(
+        new_pt[0], np.asarray([0.5 * np.pi, -0.5 * np.pi]), atol=ERROR_TOLERANCE
+    ).any()
     )
 
     if is_pole_point:
@@ -952,11 +952,11 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         latlon_box[1] = [min(latlon_box[1][0], lon_pt), max(latlon_box[1][1], lon_pt)]
     else:
         if (
-            latlon_box[1][0] > latlon_box[1][1]
-            and (lon_pt < latlon_box[1][0] and lon_pt > latlon_box[1][1])
+                latlon_box[1][0] > latlon_box[1][1]
+                and (lon_pt < latlon_box[1][0] and lon_pt > latlon_box[1][1])
         ) or (
-            latlon_box[1][0] <= latlon_box[1][1]
-            and not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1])
+                latlon_box[1][0] <= latlon_box[1][1]
+                and not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1])
         ):
             # Calculate and compare new box widths
             box_a, box_b = np.copy(latlon_box), np.copy(latlon_box)
@@ -977,10 +977,10 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
 
 def _populate_face_latlon_bound(
-    face_edges_cartesian,
-    face_edges_lonlat_rad,
-    is_latlonface: bool = False,
-    is_GCA_list=None,
+        face_edges_cartesian,
+        face_edges_lonlat_rad,
+        is_latlonface: bool = False,
+        is_GCA_list=None,
 ):
     """Populates the bounding box for each face in the grid by evaluating the
     geographical bounds based on the Cartesian and latitudinal/longitudinal
@@ -1087,7 +1087,7 @@ def _populate_face_latlon_bound(
 
             # Check if the node matches the pole point or if the pole point is within the edge_cart
             if allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(
-                pole_point, np.array([n1_cart, n2_cart]), is_directed=False
+                    pole_point, np.array([n1_cart, n2_cart]), is_directed=False
             ):
                 is_center_pole = False
                 face_latlon_array = _insert_pt_in_latlonbox(
@@ -1115,14 +1115,14 @@ def _populate_face_latlon_bound(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
                 )
                 face_latlon_array[0][1] = (
-                    np.pi / 2
+                        np.pi / 2
                 )  # Ensure north pole is the upper latitude bound
             else:
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
                 face_latlon_array[0][0] = (
-                    -np.pi / 2
+                        -np.pi / 2
                 )  # Ensure south pole is the lower latitude bound
 
         # Adjust longitude bounds globally if the pole is centrally inside the polygon
@@ -1166,14 +1166,14 @@ def _populate_face_latlon_bound(
 
             # Insert extreme latitude points into the latlonbox if they differ from the node latitudes
             if not isclose(
-                node1_lat_rad, lat_max, atol=ERROR_TOLERANCE
+                    node1_lat_rad, lat_max, atol=ERROR_TOLERANCE
             ) and not isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
                 # Insert the maximum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
             elif not isclose(
-                node1_lat_rad, lat_min, atol=ERROR_TOLERANCE
+                    node1_lat_rad, lat_min, atol=ERROR_TOLERANCE
             ) and not isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
                 # Insert the minimum latitude
                 face_latlon_array = _insert_pt_in_latlonbox(
@@ -1189,7 +1189,7 @@ def _populate_face_latlon_bound(
 
 
 def _populate_bounds(
-    grid, is_latlonface: bool = False, is_face_GCA_list=None, return_array=False
+        grid, is_latlonface: bool = False, is_face_GCA_list=None, return_array=False
 ):
     """Populates the bounds of the grid based on the geometry of its faces,
     taking into account special conditions such as faces crossing the
@@ -1340,27 +1340,33 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-def _point_to_plane(x, y, z):
+def stereographic_projection(lon, lat, central_lon, central_lat):
     """Projects a point on the surface of the sphere to a plane using stereographic projection"""
-    x_plane = x / (1 - z)
-    y_plane = y / (1 - z)
+    lon = np.deg2rad(lon)
+    lat = np.deg2rad(lat)
+    central_lon = np.deg2rad(central_lon)
+    central_lat = np.deg2rad(central_lat)
+
+    k = 2.0 / (1.0 + np.sin(central_lat) * np.sin(lat) + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon))
+    x_plane = k * np.cos(lat) * np.sin(lon - central_lon)
+    y_plane = k * (np.cos(central_lat) * np.sin(lat) - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon))
 
     return x_plane, y_plane
 
 
-def _point_to_sphere(x_plane, y_plane):
+def inverse_stereographic_projection(x_plane, y_plane):
     """Projects a point on a plane to the surface of the sphere using stereographic projection"""
 
-    x = (2 * x_plane) / (1 + x_plane**2 + y_plane**2)
-    y = (2 * y_plane) / (1 + x_plane**2 + y_plane**2)
-    z = (-1 + x_plane**2 + y_plane**2) / (1 + x_plane**2 + y_plane**2)
+    x = (2 * x_plane) / (1 + x_plane ** 2 + y_plane ** 2)
+    y = (2 * y_plane) / (1 + x_plane ** 2 + y_plane ** 2)
+    z = (-1 + x_plane ** 2 + y_plane ** 2) / (1 + x_plane ** 2 + y_plane ** 2)
 
     x_norm, y_norm, z_norm = _normalize_xyz(x, y, z)
 
     return x_norm, y_norm, z_norm
 
 
-def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-9):
+def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-1):
     """Returns `True` if point is inside polygon, `False` otherwise.
 
      Parameters
@@ -1381,26 +1387,7 @@ def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-9):
     bool
         True if point is inside polygon, False otherwise.
     """
-
-    # Point is in cartesian coordinates
-    if len(point) == 3:
-        # Project point to plane
-        point_on_plane = _point_to_plane(point[0], point[1], point[2])
-    # Point is in spherical coordinates
-    elif len(point) == 2:
-        # Convert point to radians
-        lon_rad = np.deg2rad(point[0])
-        lat_rad = np.deg2rad(point[1])
-
-        # Convert lon/lat to xyz
-        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
-
-        # Project point to plane
-        point_on_plane = _point_to_plane(x, y, z)
-    # Point is incorrect
-    else:
-        raise ValueError("Point is incorrect, should be either lonlat or xyz")
-
+    num_vertices = len(polygon[0])
     # Polygon in cartesian coordinates
     if len(polygon) == 3:
         # Assign xyz
@@ -1408,26 +1395,33 @@ def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-9):
         y = polygon[1]
         z = polygon[2]
 
-        # Project polygon to plane
-        polygon_on_plane = _point_to_plane(x, y, z)
+        lon, lat = _xyz_to_lonlat_deg(x,y,z)
+
     # Point is in spherical coordinates
     elif len(polygon) == 2:
         # Assign lon/lat
         lon = polygon[0]
         lat = polygon[1]
 
-        # Convert lon/lat to radians
-        lon_rad = np.deg2rad(lon)
-        lat_rad = np.deg2rad(lat)
-
-        # Convert lon/lat to xyz
-        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
-
-        # Project point to plane
-        polygon_on_plane = _point_to_plane(x, y, z)
     # Point is incorrect
     else:
         raise ValueError("Polygon is incorrect, should be either lonlat or xyz")
+
+    # Point is in spherical coordinates
+    if len(point) == 2:
+        # Project point to plane
+        point_lon, point_lat = point[0], point[1]
+    # Point is in cartesian coordinates
+    elif len(point) == 3:
+        # Convert to spherical
+        point_lon, point_lat = _xyz_to_lonlat_deg(point[0], point[1], point[2])
+    # Point is incorrect
+    else:
+        raise ValueError("Point is incorrect, should be either lonlat or xyz")
+
+    # Project polygon to plane
+    polygon_on_plane = stereographic_projection(lon, lat, point_lon, point_lat)
+    point_on_plane = stereographic_projection(point_lon, point_lon, point_lon, point_lat)
 
     stacked_polygon = list(zip(*polygon_on_plane))
     point_inside = _ray_casting_plane(
@@ -1477,23 +1471,16 @@ def _ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
             if abs(cross_product) <= tolerance:
                 # Check if the point is within the bounds of the edge
                 if (
-                    min(x1, x2) - tolerance <= x <= max(x1, x2) + tolerance
-                    and min(y1, y2) - tolerance <= y <= max(y1, y2) + tolerance
+                        min(x1, x2) - tolerance <= x <= max(x1, x2) + tolerance
+                        and min(y1, y2) - tolerance <= y <= max(y1, y2) + tolerance
                 ):
                     return True  # Point is on the edge
 
         # Standard ray-casting check for intersections
-        # Correct vertex intersection check:
-        if (y1 > y) != (y2 > y):  # The point's y should be between y1 and y2
-            # Check if the intersection is exactly at a vertex and adjust
-            if y == y1 and (y2 > y) != (
-                y1 > y
-            ):  # If intersecting at a vertex, ensure proper counting
-                continue  # Skip counting this vertex intersection to avoid double-counting
 
-            intersect_x = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
-            if intersect_x > x:
-                intersections += 1
+        intersect_x = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+        if intersect_x > x:
+            intersections += 1
 
     # Return True if the number of intersections is odd
     return intersections % 2 == 1
