@@ -325,7 +325,7 @@ class Grid:
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         elif backend == "xarray":
-            dataset = xr.open_dataset(filename)
+            dataset = xr.open_dataset(filename, **kwargs)
             return cls.from_dataset(dataset)
 
         else:
