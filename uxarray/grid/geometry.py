@@ -18,7 +18,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
-from uxarray.grid.coordinates import _normalize_xyz, _lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _normalize_xyz
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -1347,9 +1347,16 @@ def stereographic_projection(lon, lat, central_lon, central_lat):
     central_lon = np.deg2rad(central_lon)
     central_lat = np.deg2rad(central_lat)
 
-    k = 2.0 / (1.0 + np.sin(central_lat) * np.sin(lat) + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon))
+    k = 2.0 / (
+        1.0
+        + np.sin(central_lat) * np.sin(lat)
+        + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+    )
     x_plane = k * np.cos(lat) * np.sin(lon - central_lon)
-    y_plane = k * (np.cos(central_lat) * np.sin(lat) - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon))
+    y_plane = k * (
+        np.cos(central_lat) * np.sin(lat)
+        - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+    )
 
     return x_plane, y_plane
 
