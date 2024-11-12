@@ -61,7 +61,6 @@ def _point_within_gca_cartesian(pt_xyz, gca_xyz, is_directed=False):
     )
 
 
-# TODO: implement a less-strict version later
 @njit(cache=True)
 def point_within_gca(
     pt_xyz,

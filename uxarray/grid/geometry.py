@@ -933,30 +933,6 @@ def _check_intersection(ref_edge_xyz, ref_edge_lonlat, edges_xyz, edges_lonlat):
     return unique_count
 
 
-# @njit(cache=True)
-# def _classify_polygon_location(face_edge_cart):
-#     """Classify the location of the polygon relative to the hemisphere."""
-#     z_coords = face_edge_cart[:, :, 2]
-#     if np.all(z_coords >= 0):
-#         return 1  # North
-#     elif np.all(z_coords <= 0):
-#         return -1  # South
-#     else:
-#         return 0  # Equator
-
-
-# @njit(cache=True)
-# def _classify_polygon_location(face_edge_cart):
-#     """Classify the location of the polygon relative to the hemisphere."""
-#     z_coords = face_edge_cart[:, :, 2]
-#     if np.all(z_coords > 0):
-#         return 1
-#     elif np.all(z_coords < 0):
-#         return -1
-#     else:
-#         return 0
-
-
 @njit(cache=True)
 def _get_latlonbox_width(latlonbox_rad):
     """Calculate the width of a latitude-longitude box in radians. The box

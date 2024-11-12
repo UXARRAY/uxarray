@@ -128,7 +128,7 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
     return np.unique(intersecting_edges)
 
 
-@njit
+@njit(cache=True)
 def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_rad):
     """Identifies the candidate faces on a grid that intersect with a given
     constant latitude.
