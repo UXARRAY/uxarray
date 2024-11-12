@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from scipy.spatial import ConvexHull
 from uxarray.conventions import ugrid
-from uxarray.grid.geometry import _point_to_plane
+from uxarray.grid.geometry import stereographic_projection
 from scipy.spatial import Delaunay
 
 
@@ -91,7 +91,7 @@ def _regional_delaunay_from_points(points, boundary_points=None):
     node_lon = np.degrees(node_lon_rad)
     node_lat = np.degrees(node_lat_rad)
 
-    x_plane, y_plane = _point_to_plane([node_x, node_y, node_z])
+    x_plane, y_plane = stereographic_projection(node_lon, node_lat, 0, 0)
 
     points = np.column_stack((x_plane, y_plane))
 

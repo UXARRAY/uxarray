@@ -1339,20 +1339,17 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-# @njit(cache=True)
-def _point_to_plane(points):
+@njit(cache=True)
+def stereographic_projection(lon, lat, central_lon, central_lat):
     """Projects a point on the surface of the sphere to a plane using stereographic projection"""
-    if len(points) == 3:
-        x, y, z = points[0], points[1], points[2]
-    elif len(points) == 2:
-        lon_rad = np.deg2rad(points[0])
-        lat_rad = np.deg2rad(points[1])
-        x, y, z = _lonlat_rad_to_xyz(lon=lon_rad, lat=lat_rad)
-    else:
-        raise ValueError("Point must be either in spherical or cartesian coordinates")
+    lon = np.deg2rad(lon)
+    lat = np.deg2rad(lat)
+    central_lon = np.deg2rad(central_lon)
+    central_lat = np.deg2rad(central_lat)
 
-    x_plane = x / (1 - z)
-    y_plane = y / (1 - z)
+    k = 2.0 / (1.0 + np.sin(central_lat) * np.sin(lat) + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon))
+    x_plane = k * np.cos(lat) * np.sin(lon - central_lon)
+    y_plane = k * (np.cos(central_lat) * np.sin(lat) - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon))
 
     return x_plane, y_plane
 
