@@ -700,29 +700,168 @@ def _pole_point_inside_polygon_cartesian(pole, face_edges_xyz):
     pass
 
 
+# @njit(cache=True)
+# def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
+#     """Determines if a pole point is inside a polygon.
+#
+#     Parameters
+#     ----------
+#     pole : int
+#         Either 1 for 'North' or -1 for 'South'.
+#     face_edges_xyz : np.ndarray
+#         A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+#     face_edges_lonlat : np.ndarray
+#         The longitude and latitude of the face edges. Shape: (n_edges, 2, 2)
+#
+#     Returns
+#     -------
+#     bool
+#         True if pole point is inside polygon, False otherwise.
+#
+#     Raises
+#     ------
+#     ValueError
+#         If the provided pole is neither 1 nor -1.
+#     """
+#
+#     if pole != 1 and pole != -1:
+#         raise ValueError("Pole must be 1 (North) or -1 (South)")
+#
+#     # Define constants within the function
+#     pole_point_xyz = np.empty(3, dtype=np.float64)
+#     pole_point_xyz[0] = 0.0
+#     pole_point_xyz[1] = 0.0
+#     pole_point_xyz[2] = 1.0 * pole
+#
+#     pole_point_lonlat = np.empty(2, dtype=np.float64)
+#     pole_point_lonlat[0] = 0.0
+#     pole_point_lonlat[1] = (math.pi / 2) * pole
+#
+#     REFERENCE_POINT_EQUATOR_XYZ = np.empty(3, dtype=np.float64)
+#     REFERENCE_POINT_EQUATOR_XYZ[0] = 1.0
+#     REFERENCE_POINT_EQUATOR_XYZ[1] = 0.0
+#     REFERENCE_POINT_EQUATOR_XYZ[2] = 0.0
+#
+#     REFERENCE_POINT_EQUATOR_LONLAT = np.empty(2, dtype=np.float64)
+#     REFERENCE_POINT_EQUATOR_LONLAT[0] = 0.0
+#     REFERENCE_POINT_EQUATOR_LONLAT[1] = 0.0
+#
+#     # Classify the polygon's location
+#     location = _classify_polygon_location(
+#         face_edges_xyz
+#     )  # This function should return 1, -1, or 0
+#
+#     if location == -1 or location == 1:
+#         # Initialize ref_edge_xyz as a (2, 3) array
+#         ref_edge_xyz = np.empty((2, 3), dtype=np.float64)
+#         ref_edge_xyz[0, 0] = pole_point_xyz[0]
+#         ref_edge_xyz[0, 1] = pole_point_xyz[1]
+#         ref_edge_xyz[0, 2] = pole_point_xyz[2]
+#         ref_edge_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
+#
+#         # Initialize ref_edge_lonlat as a (2, 2) array
+#         ref_edge_lonlat = np.empty((2, 2), dtype=np.float64)
+#         ref_edge_lonlat[0, 0] = pole_point_lonlat[0]
+#         ref_edge_lonlat[0, 1] = pole_point_lonlat[1]
+#         ref_edge_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
+#
+#         intersection_count = _check_intersection(
+#             ref_edge_xyz, ref_edge_lonlat, face_edges_xyz, face_edges_lonlat
+#         )
+#         return (intersection_count % 2) != 0
+#
+#     elif location == 0:  # Equator
+#         # Initialize ref_edge_north_xyz and ref_edge_north_lonlat
+#         ref_edge_north_xyz = np.empty((2, 3), dtype=np.float64)
+#         ref_edge_north_xyz[0, 0] = 0.0
+#         ref_edge_north_xyz[0, 1] = 0.0
+#         ref_edge_north_xyz[0, 2] = 1.0
+#         ref_edge_north_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
+#
+#         ref_edge_north_lonlat = np.empty((2, 2), dtype=np.float64)
+#         ref_edge_north_lonlat[0, 0] = 0.0
+#         ref_edge_north_lonlat[0, 1] = math.pi / 2
+#         ref_edge_north_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
+#
+#         # Initialize ref_edge_south_xyz and ref_edge_south_lonlat
+#         ref_edge_south_xyz = np.empty((2, 3), dtype=np.float64)
+#         ref_edge_south_xyz[0, 0] = 0.0
+#         ref_edge_south_xyz[0, 1] = 0.0
+#         ref_edge_south_xyz[0, 2] = -1.0
+#         ref_edge_south_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
+#
+#         ref_edge_south_lonlat = np.empty((2, 2), dtype=np.float64)
+#         ref_edge_south_lonlat[0, 0] = 0.0
+#         ref_edge_south_lonlat[0, 1] = -math.pi / 2
+#         ref_edge_south_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
+#
+#         # Classify edges based on z-coordinate
+#         n_edges = face_edges_xyz.shape[0]
+#         north_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
+#         north_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
+#         south_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
+#         south_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
+#         north_count = 0
+#         south_count = 0
+#
+#         for i in range(n_edges):
+#             edge_xyz = face_edges_xyz[i]
+#             edge_lonlat = face_edges_lonlat[i]
+#             if edge_xyz[0, 2] > 0 or edge_xyz[1, 2] > 0:
+#                 north_edges_xyz[north_count] = edge_xyz
+#                 north_edges_lonlat[north_count] = edge_lonlat
+#                 north_count += 1
+#             else:
+#                 south_edges_xyz[south_count] = edge_xyz
+#                 south_edges_lonlat[south_count] = edge_lonlat
+#                 south_count += 1
+#
+#         # Slice the arrays to actual sizes
+#         if north_count > 0:
+#             north_edges_xyz = north_edges_xyz[:north_count]
+#             north_edges_lonlat = north_edges_lonlat[:north_count]
+#         else:
+#             # Create empty arrays with shape (0, 2, 3) and (0, 2, 2)
+#             north_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
+#             north_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
+#
+#         if south_count > 0:
+#             south_edges_xyz = south_edges_xyz[:south_count]
+#             south_edges_lonlat = south_edges_lonlat[:south_count]
+#         else:
+#             # Create empty arrays with shape (0, 2, 3) and (0, 2, 2)
+#             south_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
+#             south_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
+#
+#         # Check intersections
+#         north_intersections = _check_intersection(
+#             ref_edge_north_xyz,
+#             ref_edge_north_lonlat,
+#             north_edges_xyz,
+#             north_edges_lonlat,
+#         )
+#
+#         south_intersections = _check_intersection(
+#             ref_edge_south_xyz,
+#             ref_edge_south_lonlat,
+#             south_edges_xyz,
+#             south_edges_lonlat,
+#         )
+#
+#         return ((north_intersections + south_intersections) % 2) != 0
+#
+#     elif (location == 1 and pole == -1) or (location == -1 and pole == 1):
+#         return False
+#
+#     else:
+#         raise ValueError(
+#             f"Invalid pole point query. Current location: {location}, query pole point: {pole}"
+#         )
+
+
 @njit(cache=True)
 def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
-    """Determines if a pole point is inside a polygon.
-
-    Parameters
-    ----------
-    pole : int
-        Either 1 for 'North' or -1 for 'South'.
-    face_edges_xyz : np.ndarray
-        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
-    face_edges_lonlat : np.ndarray
-        The longitude and latitude of the face edges. Shape: (n_edges, 2, 2)
-
-    Returns
-    -------
-    bool
-        True if pole point is inside polygon, False otherwise.
-
-    Raises
-    ------
-    ValueError
-        If the provided pole is neither 1 nor -1.
-    """
+    """Determines if a pole point is inside a polygon."""
 
     if pole != 1 and pole != -1:
         raise ValueError("Pole must be 1 (North) or -1 (South)")
@@ -747,11 +886,12 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
     REFERENCE_POINT_EQUATOR_LONLAT[1] = 0.0
 
     # Classify the polygon's location
-    location = _classify_polygon_location(
-        face_edges_xyz
-    )  # This function should return 1, -1, or 0
+    location = _classify_polygon_location(face_edges_xyz)  # Updated classification
 
-    if location == -1 or location == 1:
+    if (location == 1 and pole == -1) or (location == -1 and pole == 1):
+        return False
+
+    elif location == -1 or location == 1:
         # Initialize ref_edge_xyz as a (2, 3) array
         ref_edge_xyz = np.empty((2, 3), dtype=np.float64)
         ref_edge_xyz[0, 0] = pole_point_xyz[0]
@@ -795,7 +935,7 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         ref_edge_south_lonlat[0, 1] = -math.pi / 2
         ref_edge_south_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
 
-        # Classify edges based on z-coordinate
+        # Classify edges based on z-coordinate with non-strict inequalities
         n_edges = face_edges_xyz.shape[0]
         north_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
         north_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
@@ -807,14 +947,18 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         for i in range(n_edges):
             edge_xyz = face_edges_xyz[i]
             edge_lonlat = face_edges_lonlat[i]
-            if edge_xyz[0, 2] > 0 or edge_xyz[1, 2] > 0:
+            if edge_xyz[0, 2] > 0 or edge_xyz[1, 2] > 0:  # Use strict inequality
                 north_edges_xyz[north_count] = edge_xyz
                 north_edges_lonlat[north_count] = edge_lonlat
                 north_count += 1
-            else:
+            elif edge_xyz[0, 2] < 0 or edge_xyz[1, 2] < 0:  # Use strict inequality
                 south_edges_xyz[south_count] = edge_xyz
                 south_edges_lonlat[south_count] = edge_lonlat
                 south_count += 1
+            else:
+                # Handle edges exactly on the equator if necessary
+                # This might involve adding them to both north and south lists
+                pass  # Implement as needed
 
         # Slice the arrays to actual sizes
         if north_count > 0:
@@ -850,13 +994,22 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
 
         return ((north_intersections + south_intersections) % 2) != 0
 
-    elif (location == 1 and pole == -1) or (location == -1 and pole == 1):
-        return False
-
     else:
         raise ValueError(
             f"Invalid pole point query. Current location: {location}, query pole point: {pole}"
         )
+
+
+@njit(cache=True)
+def _classify_polygon_location(face_edge_cart):
+    """Classify the location of the polygon relative to the hemisphere."""
+    z_coords = face_edge_cart[:, :, 2]
+    if np.all(z_coords > 0):  # Use strict inequality
+        return 1  # North
+    elif np.all(z_coords < 0):  # Use strict inequality
+        return -1  # South
+    else:
+        return 0  # Equator
 
 
 @njit(cache=True)
@@ -939,27 +1092,28 @@ def _check_intersection(ref_edge_xyz, ref_edge_lonlat, edges_xyz, edges_lonlat):
     return unique_count
 
 
-@njit(cache=True)
-def _classify_polygon_location(face_edge_cart):
-    """Classify the location of the polygon relative to the hemisphere.
+# @njit(cache=True)
+# def _classify_polygon_location(face_edge_cart):
+#     """Classify the location of the polygon relative to the hemisphere."""
+#     z_coords = face_edge_cart[:, :, 2]
+#     if np.all(z_coords >= 0):
+#         return 1  # North
+#     elif np.all(z_coords <= 0):
+#         return -1  # South
+#     else:
+#         return 0  # Equator
 
-    Parameters
-    ----------
-    face_edge_cart : np.ndarray
-        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
 
-    Returns
-    -------
-    str
-        Returns either 'North', 'South' or 'Equator' based on the polygon's location.
-    """
-    z_coords = face_edge_cart[:, :, 2]
-    if np.all(z_coords > 0):
-        return 1
-    elif np.all(z_coords < 0):
-        return -1
-    else:
-        return 0
+# @njit(cache=True)
+# def _classify_polygon_location(face_edge_cart):
+#     """Classify the location of the polygon relative to the hemisphere."""
+#     z_coords = face_edge_cart[:, :, 2]
+#     if np.all(z_coords > 0):
+#         return 1
+#     elif np.all(z_coords < 0):
+#         return -1
+#     else:
+#         return 0
 
 
 @njit(cache=True)
@@ -1612,7 +1766,7 @@ def _populate_bounds(
     This will calculate and store the bounds for each face within the grid, adjusting for any special conditions such as crossing the antimeridian, and return them as a DataArray.
     """
     # todo:
-    is_face_GCA_list = np.asarray(is_face_GCA_list)
+    # is_face_GCA_list = np.asarray(is_face_GCA_list)
 
     # Ensure grid's cartesian coordinates are normalized
     grid.normalize_cartesian_coordinates()
