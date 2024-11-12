@@ -797,9 +797,8 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
                 south_edges_lonlat[south_count] = edge_lonlat
                 south_count += 1
             else:
-                # Handle edges exactly on the equator if necessary
-                # This might involve adding them to both north and south lists
-                pass  # Implement as needed
+                # skip edges exactly on the equator
+                continue
 
         # Slice the arrays to actual sizes
         if north_count > 0:
