@@ -34,8 +34,7 @@ REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
-    """Identify unique intersection points from a list of points, considering
-    floating point precision errors.
+    """Identify unique intersection points from a list of points, considering floating point precision errors.
 
     Parameters
     ----------
@@ -895,7 +894,9 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     Examples
     --------
-    >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
+    >>> _insert_pt_in_latlonbox(
+    ...     np.array([[1.0, 2.0], [3.0, 4.0]]), np.array([1.5, 3.5])
+    ... )
     array([[1.0, 2.0], [3.0, 4.0]])
     """
     if np.all(new_pt == INT_FILL_VALUE):
@@ -1328,7 +1329,7 @@ def _populate_bounds(
         grid._ds["bounds"] = bounds
 
 
-def _construct_hole_edge_indices(edge_face_connectivity):
+def _construct_boundary_edge_indices(edge_face_connectivity):
     """Index the missing edges on a partial grid with holes, that is a region
     of the grid that is not covered by any geometry."""
 

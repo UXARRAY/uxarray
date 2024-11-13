@@ -446,12 +446,14 @@ def _process_overlapped_intervals(intervals_df):
     Example
     -------
     >>> intervals_data = [
-    ...     {'start': 0.0, 'end': 100.0, 'face_index': 0},
-    ...     {'start': 50.0, 'end': 150.0, 'face_index': 1},
-    ...     {'start': 140.0, 'end': 150.0, 'face_index': 2}
+    ...     {"start": 0.0, "end": 100.0, "face_index": 0},
+    ...     {"start": 50.0, "end": 150.0, "face_index": 1},
+    ...     {"start": 140.0, "end": 150.0, "face_index": 2},
     ... ]
     >>> intervals_df = pd.DataFrame(intervals_data)
-    >>> overlap_contributions, total_length = _process_overlapped_intervals(intervals_df)
+    >>> overlap_contributions, total_length = _process_overlapped_intervals(
+    ...     intervals_df
+    ... )
     >>> print(overlap_contributions)
     >>> print(total_length)
     """

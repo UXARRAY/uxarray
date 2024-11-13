@@ -58,8 +58,8 @@ def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
 
 
 def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
-    """Replaces all instances of the the current fill value (``original_fill``)
-    in (``grid_var``) with (``new_fill``) and converts to the dtype defined by
+    """Replaces all instances of the current fill value (``original_fill``) in
+    (``grid_var``) with (``new_fill``) and converts to the dtype defined by
     (``new_dtype``)
 
     Parameters
@@ -82,6 +82,7 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
     # locations of fill values
     if original_fill is not None and np.isnan(original_fill):
         fill_val_idx = np.isnan(grid_var)
+        grid_var[fill_val_idx] = 0.0  # todo?
     else:
         fill_val_idx = grid_var == original_fill
 
@@ -375,11 +376,12 @@ def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
             index.
     Example
     -------
-    >>> face_nodes_conn = np.array([[3, 4, 5, INT_FILL_VALUE],
-    ...                             [3, 0, 2, 5],
-    ...                             [3, 4, 1, 0],
-    ...                             [0, 1, 2, -999]])
-    >>> face_indices, nodes_indices, non_filled_flag = _face_nodes_to_sparse_matrix(face_nodes_conn)
+    >>> face_nodes_conn = np.array(
+    ...     [[3, 4, 5, INT_FILL_VALUE], [3, 0, 2, 5], [3, 4, 1, 0], [0, 1, 2, -999]]
+    ... )
+    >>> face_indices, nodes_indices, non_filled_flag = _face_nodes_to_sparse_matrix(
+    ...     face_nodes_conn
+    ... )
     >>> face_indices = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
     >>> nodes_indices = np.array([3, 4, 5, 3, 0, 2, 5, 3, 4, 1, 0, 0, 1, 2])
     >>> non_filled_flag = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
