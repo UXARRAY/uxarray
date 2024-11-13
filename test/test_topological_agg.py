@@ -32,7 +32,6 @@ def test_node_to_face_aggs():
         assert 'n_face' in grid_reduction.dims
 
 
-
 def test_node_to_edge_aggs():
     uxds = ux.open_dataset(ds_path, ds_path)
 
@@ -40,3 +39,9 @@ def test_node_to_edge_aggs():
         grid_reduction = getattr(uxds['areaTriangle'], agg_func)(destination='edge')
 
         assert 'n_edge' in grid_reduction.dims
+
+
+def test_edge_to_face_aggs():
+    uxds = ux.open_dataset(ds_path, ds_path)
+
+    test = uxds["cellsOnEdge"].topological_mean("face")
