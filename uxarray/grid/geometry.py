@@ -1338,7 +1338,6 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-@njit(cache=True)
 def stereographic_projection(lon, lat, central_lon, central_lat):
     """Projects a point on the surface of the sphere to a plane using stereographic projection
 
@@ -1383,7 +1382,6 @@ def stereographic_projection(lon, lat, central_lon, central_lat):
     return x, y
 
 
-@njit(cache=True)
 def inverse_stereographic_projection(x, y, central_lon, central_lat):
     """Projects a point on a plane to the surface of the sphere using stereographic projection
 
