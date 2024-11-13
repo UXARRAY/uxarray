@@ -42,6 +42,9 @@ def test_node_to_edge_aggs():
 
 
 def test_edge_to_face_aggs():
-    uxds = ux.open_dataset(ds_path, ds_path)
+    grid_path = "/Users/aaronzedwick/uxarray/test/meshfiles/ugrid/quad-hexagon/grid.nc"
+    data_path = "/Users/aaronzedwick/uxarray/test/meshfiles/ugrid/quad-hexagon/random-edge-data.nc"
 
-    test = uxds["cellsOnEdge"].topological_mean("face")
+    uxds = ux.open_dataset(grid_path, data_path)
+
+    test = uxds["random_data_edge"].topological_mean("face")
