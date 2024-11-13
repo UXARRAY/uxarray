@@ -18,7 +18,6 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
-from uxarray.grid.coordinates import _normalize_xyz
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -1341,7 +1340,26 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
 
 @njit(cache=True)
 def stereographic_projection(lon, lat, central_lon, central_lat):
-    """Projects a point on the surface of the sphere to a plane using stereographic projection"""
+    """Projects a point on the surface of the sphere to a plane using stereographic projection
+
+    Parameters
+    ----------
+    lon: np.ndarray
+        Longitude coordinates of point
+    lat: np.ndarray
+        Latitude coordinate of point
+    central_lon: np.ndarray
+        Central longitude of projection
+    central_lat: np.ndarray
+        Central latitude of projection
+    Returns
+    -------
+    x: np.ndarray
+        2D x coordinate of projected point
+    y: np.ndarray
+        2D y coordinate of projected point
+    """
+
     lon = np.deg2rad(lon)
     lat = np.deg2rad(lat)
     central_lon = np.deg2rad(central_lon)
@@ -1352,23 +1370,46 @@ def stereographic_projection(lon, lat, central_lon, central_lat):
         + np.sin(central_lat) * np.sin(lat)
         + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
     )
-    x_plane = k * np.cos(lat) * np.sin(lon - central_lon)
-    y_plane = k * (
+    x = k * np.cos(lat) * np.sin(lon - central_lon)
+    y = k * (
         np.cos(central_lat) * np.sin(lat)
         - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
     )
 
-    return x_plane, y_plane
+    return x, y
 
 
 @njit(cache=True)
-def _point_to_sphere(x_plane, y_plane):
-    """Projects a point on a plane to the surface of the sphere using stereographic projection"""
+def inverse_stereographic_projection(x, y, central_lon, central_lat):
+    """Projects a point on a plane to the surface of the sphere using stereographic projection
 
-    x = (2 * x_plane) / (1 + x_plane**2 + y_plane**2)
-    y = (2 * y_plane) / (1 + x_plane**2 + y_plane**2)
-    z = (-1 + x_plane**2 + y_plane**2) / (1 + x_plane**2 + y_plane**2)
+    Parameters
+    ----------
+    x: np.ndarray
+        2D x coordinates of point
+    y: np.ndarray
+        2D y coordinate of point
+    central_lon: np.ndarray
+        Central longitude of projection
+    central_lat: np.ndarray
+        Central latitude of projection
+    Returns
+    -------
+    lon: np.ndarray
+        Longitude of projected point
+    lat: np.ndarray
+        Latitude of projected point
+    """
+    p = np.sqrt(x**2 + y**2)
+    c = 2 * np.arctan(p / 2)
 
-    x_norm, y_norm, z_norm = _normalize_xyz(x, y, z)
+    lon = central_lon + np.arctan(
+        (x * np.sin(c)) / p * np.cos(central_lat) * np.cos(c)
+        - y * np.sin(central_lat) * np.sin(c)
+    )
 
-    return x_norm, y_norm, z_norm
+    lat = np.arcsin(
+        np.cos(c) * np.sin(central_lat) + ((y * np.sin(c) * central_lat) / p)
+    )
+
+    return lon, lat
