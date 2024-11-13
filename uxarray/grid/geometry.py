@@ -1360,16 +1360,20 @@ def stereographic_projection(lon, lat, central_lon, central_lat):
         2D y coordinate of projected point
     """
 
+    # Convert to radians
     lon = np.deg2rad(lon)
     lat = np.deg2rad(lat)
     central_lon = np.deg2rad(central_lon)
     central_lat = np.deg2rad(central_lat)
 
+    # Calculate constant used for calculation
     k = 2.0 / (
         1.0
         + np.sin(central_lat) * np.sin(lat)
         + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
     )
+
+    # Calculate the x and y coordinates
     x = k * np.cos(lat) * np.sin(lon - central_lon)
     y = k * (
         np.cos(central_lat) * np.sin(lat)
@@ -1400,12 +1404,24 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     lat: np.ndarray
         Latitude of projected point
     """
+
+    # If x and y are zero, the lon and lat will also be zero
+
+    if x == 0 and y == 0:
+        return 0, 0
+
+    # Convert to radians
+    central_lat = np.deg2rad(central_lat)
+
+    # Calculate constants used for calculation
     p = np.sqrt(x**2 + y**2)
+
     c = 2 * np.arctan(p / 2)
 
-    lon = central_lon + np.arctan(
-        (x * np.sin(c)) / p * np.cos(central_lat) * np.cos(c)
-        - y * np.sin(central_lat) * np.sin(c)
+    # Calculate the lon and lat of the coordinate
+    lon = central_lon + np.arctan2(
+        x * np.sin(c),
+        p * np.cos(central_lat) * np.cos(c) - y * np.sin(central_lat) * np.sin(c),
     )
 
     lat = np.arcsin(
