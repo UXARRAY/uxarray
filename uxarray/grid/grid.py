@@ -365,6 +365,7 @@ class Grid:
 
             - `'spherical_voronoi'`: Constructs a spherical Voronoi diagram.
             - `'spherical_delaunay'`: Constructs a spherical Delaunay triangulation.
+            - `'regional_delaunay'`: Constructs a regional Delaunay triangulation.
 
             Default is `'spherical_delaunay'`.
 
