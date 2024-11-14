@@ -12,7 +12,11 @@ import spatialpandas
 from spatialpandas.geometry import MultiPolygonArray, PolygonArray
 import xarray as xr
 
-from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import (
+    ERROR_TOLERANCE,
+    INT_DTYPE,
+    INT_FILL_VALUE,
+)
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
@@ -30,8 +34,7 @@ REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
 
 
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
-    """Identify unique intersection points from a list of points, considering
-    floating point precision errors.
+    """Identify unique intersection points from a list of points, considering floating point precision errors.
 
     Parameters
     ----------
@@ -80,7 +83,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
     return unique_points
 
 
-@njit
+@njit(cache=True)
 def _pad_closed_face_nodes(
     face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
@@ -162,7 +165,7 @@ def _correct_central_longitude(node_lon, node_lat, projection):
 
 def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
-    with a geometry column of polygons."""
+    or ``geopandas.GeoDataFrame`` with a geometry column of polygons."""
 
     node_lon, node_lat, central_longitude = _correct_central_longitude(
         grid.node_lon.values, grid.node_lat.values, projection
@@ -214,9 +217,8 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
         gdf = _build_geodataframe_with_antimeridian(
             polygon_shells,
             projected_polygon_shells,
-            projection,
             antimeridian_face_indices,
-            engine=geopandas,
+            engine=engine,
         )
     elif periodic_elements == "ignore":
         if engine == "geopandas":
@@ -248,8 +250,9 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
 def _build_geodataframe_without_antimeridian(
     polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
 ):
-    """Builds a ``spatialpandas.GeoDataFrame`` excluding any faces that cross
-    the antimeridian."""
+    """Builds a ``spatialpandas.GeoDataFrame`` or
+    ``geopandas.GeoDataFrame``excluding any faces that cross the
+    antimeridian."""
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells_without_antimeridian = np.delete(
@@ -276,12 +279,11 @@ def _build_geodataframe_without_antimeridian(
 def _build_geodataframe_with_antimeridian(
     polygon_shells,
     projected_polygon_shells,
-    projection,
     antimeridian_face_indices,
     engine,
 ):
-    """Builds a ``spatialpandas.GeoDataFrame`` including any faces that cross
-    the antimeridian."""
+    """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
+    including any faces that cross the antimeridian."""
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
     )
@@ -425,7 +427,8 @@ def _grid_to_matplotlib_polycollection(
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
         raise ValueError(
-            "Projections are not supported when splitting periodic elements.'"
+            "Explicitly projecting lines is not supported. Please pass in your projection"
+            "using the 'transform' parameter"
         )
 
     # Correct the central longitude and build polygon shells
@@ -533,7 +536,7 @@ def _grid_to_matplotlib_polycollection(
         return PolyCollection(polygon_shells, **kwargs), []
 
 
-def _get_polygons(grid, periodic_elements, projection=None):
+def _get_polygons(grid, periodic_elements, projection=None, apply_projection=True):
     # Correct the central longitude if projection is provided
     node_lon, node_lat, central_longitude = _correct_central_longitude(
         grid.node_lon.values, grid.node_lat.values, projection
@@ -552,7 +555,7 @@ def _get_polygons(grid, periodic_elements, projection=None):
     )
 
     # If projection is provided, create the projected polygon shells
-    if projection:
+    if projection and apply_projection:
         projected_polygon_shells = _build_polygon_shells(
             node_lon,
             node_lat,
@@ -625,8 +628,14 @@ def _grid_to_matplotlib_linecollection(
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
 
+    if periodic_elements == "split" and projection is not None:
+        apply_projection = False
+    else:
+        apply_projection = True
+
+    # do not explicitly project when splitting elements
     polygons, central_longitude, _, _ = _get_polygons(
-        grid, periodic_elements, projection
+        grid, periodic_elements, projection, apply_projection
     )
 
     # Convert polygons to line segments for the LineCollection
@@ -639,14 +648,13 @@ def _grid_to_matplotlib_linecollection(
         else:
             lines.append(np.array(boundary.coords))
 
-    # Set default transform if not provided
     if "transform" not in kwargs:
-        if projection is None:
+        # Set default transform if one is not provided not provided
+        if projection is None or not apply_projection:
             kwargs["transform"] = ccrs.PlateCarree(central_longitude=central_longitude)
         else:
             kwargs["transform"] = projection
 
-    # Return a LineCollection of the line segments
     return LineCollection(lines, **kwargs)
 
 
@@ -886,7 +894,9 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
     Examples
     --------
-    >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
+    >>> _insert_pt_in_latlonbox(
+    ...     np.array([[1.0, 2.0], [3.0, 4.0]]), np.array([1.5, 3.5])
+    ... )
     array([[1.0, 2.0], [3.0, 4.0]])
     """
     if np.all(new_pt == INT_FILL_VALUE):
@@ -1319,7 +1329,7 @@ def _populate_bounds(
         grid._ds["bounds"] = bounds
 
 
-def _construct_hole_edge_indices(edge_face_connectivity):
+def _construct_boundary_edge_indices(edge_face_connectivity):
     """Index the missing edges on a partial grid with holes, that is a region
     of the grid that is not covered by any geometry."""
 

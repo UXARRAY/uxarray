@@ -39,9 +39,11 @@ def _calculate_grad_on_edge_from_faces(
     """Helper function for computing the horizontal gradient of a field on each
     cell using values at adjacent cells.
 
-    The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
+    The expression for calculating the gradient on each edge comes from
+    Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
 
-    Code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
+    Code is adapted from
+    https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
     """
 
     # obtain all edges that saddle two faces

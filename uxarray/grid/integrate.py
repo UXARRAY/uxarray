@@ -1,6 +1,6 @@
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.intersections import gca_constLat_intersection
+from uxarray.grid.intersections import gca_const_lat_intersection
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 import pandas as pd
 
@@ -244,7 +244,7 @@ def _get_faces_constLat_intersection_info(
         # Calculate intersections (assuming a batch-capable intersection function)
         for idx, edge in enumerate(valid_edges):
             if is_GCA[idx]:
-                intersections = gca_constLat_intersection(
+                intersections = gca_const_lat_intersection(
                     edge, latitude_cart, is_directed=is_directed
                 )
 
@@ -446,12 +446,14 @@ def _process_overlapped_intervals(intervals_df):
     Example
     -------
     >>> intervals_data = [
-    ...     {'start': 0.0, 'end': 100.0, 'face_index': 0},
-    ...     {'start': 50.0, 'end': 150.0, 'face_index': 1},
-    ...     {'start': 140.0, 'end': 150.0, 'face_index': 2}
+    ...     {"start": 0.0, "end": 100.0, "face_index": 0},
+    ...     {"start": 50.0, "end": 150.0, "face_index": 1},
+    ...     {"start": 140.0, "end": 150.0, "face_index": 2},
     ... ]
     >>> intervals_df = pd.DataFrame(intervals_data)
-    >>> overlap_contributions, total_length = _process_overlapped_intervals(intervals_df)
+    >>> overlap_contributions, total_length = _process_overlapped_intervals(
+    ...     intervals_df
+    ... )
     >>> print(overlap_contributions)
     >>> print(total_length)
     """

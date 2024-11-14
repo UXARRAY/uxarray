@@ -4,6 +4,8 @@ from pathlib import Path
 
 import uxarray as ux
 
+import numpy as np
+
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 data_var = 'bottomDepth'
@@ -34,10 +36,7 @@ class DatasetBenchmark:
     param_names = ['resolution',]
     params = [['480km', '120km'],]
 
-
     def setup(self, resolution, *args, **kwargs):
-
-
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution, *args, **kwargs):
@@ -50,12 +49,10 @@ class GridBenchmark:
     params = [['480km', '120km'], ]
 
     def setup(self, resolution, *args, **kwargs):
-
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxgrid
-
 
 
 class Gradient(DatasetBenchmark):
@@ -100,6 +97,7 @@ class MatplotlibConversion(DatasetBenchmark):
 
 
 class ConstructTreeStructures(DatasetBenchmark):
+
     def time_kd_tree(self, resolution):
         self.uxds.uxgrid.get_kd_tree()
 
@@ -142,6 +140,19 @@ class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
         ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
+
+class DualMesh(DatasetBenchmark):
+    def time_dual_mesh_construction(self, resolution):
+        self.uxds.uxgrid.get_dual()
+
+class ConstructFaceLatLon(GridBenchmark):
+    def time_welzl(self, resolution):
+        self.uxgrid.construct_face_centers(method='welzl')
+
+    def time_cartesian_averaging(self, resolution):
+        self.uxgrid.construct_face_centers(method='cartesian average')
+
+
 class CheckNorm:
     param_names = ['resolution']
     params = ['480km', '120km']
@@ -155,3 +166,11 @@ class CheckNorm:
     def time_check_norm(self, resolution):
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
+
+
+class CrossSections(DatasetBenchmark):
+    param_names = DatasetBenchmark.param_names + ['n_lat']
+    params = DatasetBenchmark.params + [[1, 2, 4, 8]]
+    def time_constant_lat_fast(self, resolution, n_lat):
+        for lat in np.linspace(-89, 89, n_lat):
+            self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')

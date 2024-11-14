@@ -6,6 +6,7 @@ import xarray as xr
 from unittest import TestCase
 from pathlib import Path
 
+import uxarray
 import uxarray as ux
 
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
@@ -16,6 +17,8 @@ from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.arcs import extreme_gca_latitude
+
+from uxarray.grid.validation import _find_duplicate_nodes
 
 try:
     import constants
@@ -31,6 +34,8 @@ gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne3
 gridfile_fesom = current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 gridfile_mpas = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+gridfile_mpas_two = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
+gridfile_geos = current_path / 'meshfiles' / "geos-cs" / "c12" / 'test-c12.native.nc4'
 gridfile_mpas_holes = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
@@ -54,8 +59,8 @@ class TestGrid(TestCase):
         grid_without_holes = ux.open_grid(gridfile_mpas)
         grid_with_holes = ux.open_grid(gridfile_mpas_holes)
 
-        self.assertTrue(grid_with_holes.hole_edge_indices.size != 0)
-        self.assertTrue(grid_without_holes.hole_edge_indices.size == 0)
+        self.assertTrue(grid_with_holes.partial_sphere_coverage)
+        self.assertTrue(grid_without_holes.global_sphere_coverage)
 
     def test_encode_as(self):
         """Reads a ugrid file and encodes it as `xarray.Dataset` in various
@@ -69,18 +74,6 @@ class TestGrid(TestCase):
         self.grid_RLL1deg.encode_as("Exodus")
         self.grid_RLL10deg_CSne4.encode_as("Exodus")
 
-    def test_open_non_mesh2_write_exodus(self):
-        """Loads grid files of different formats using uxarray's open_dataset
-        call."""
-
-        grid_geoflow = ux.open_grid(gridfile_CSne30)
-
-        exods = grid_geoflow.encode_as("Exodus")
-        # Remove the _FillValue attribute from the variable's attributes
-        if '_FillValue' in grid_geoflow._ds['face_node_connectivity'].attrs:
-            del grid_geoflow._ds['face_node_connectivity'].attrs['_FillValue']
-
-        exods.to_netcdf("grid_geoflow.exo")
 
     def test_init_verts(self):
         """Create a uxarray grid from multiple face vertices with duplicate
@@ -89,15 +82,9 @@ class TestGrid(TestCase):
         Also, test kwargs for grid initialization
 
         The input cartesian coordinates represents 8 vertices on a cube
-             7---------6
-            /|        /|
-           / |       / |
-          3---------2  |
-          |  |      |  |
-          |  4------|--5
-          | /       | /
-          |/        |/
-          0---------1
+        7---------6     /|        /|    / |       / |   3---------2  | |
+        |      |  |   |  4------|--5   | /       | /   |/        |/ 0
+        ---------1
         """
         cart_x = [
             0.577340924821405, 0.577340924821405, 0.577340924821405,
@@ -514,7 +501,7 @@ class TestConnectivity(TestCase):
             self, edge_nodes_connectivity: np.ndarray,
             face_edges_connectivity: np.ndarray,
             original_face_nodes_connectivity: np.ndarray):
-        """utilize the edge_nodes_connectivity and face_edges_connectivity to
+        """Utilize the edge_nodes_connectivity and face_edges_connectivity to
         generate the res_face_nodes_connectivity in the counter-clockwise
         order. The counter-clockwise order will be enforced by the passed in
         original_face_edges_connectivity. We will only use the first two nodes
@@ -960,8 +947,34 @@ class TestLatlonBounds(TestCase):
         nt.assert_allclose(grid.bounds.values, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_MPAS(self):
-        uxgrid = ux.open_grid(self.gridfile_mpas)
-        bounds_xarray = uxgrid.bounds
+            uxgrid = ux.open_grid(self.gridfile_mpas)
+            bounds_xarray = uxgrid.bounds
+
+
+class TestDualMesh(TestCase):
+    """Test Dual Mesh Construction."""
+
+    def test_dual_mesh_mpas(self):
+        # Open a grid with and without dual
+        grid = ux.open_grid(gridfile_mpas, use_dual=False)
+        mpas_dual = ux.open_grid(gridfile_mpas, use_dual=True)
+
+        # Construct Dual
+        dual = grid.get_dual()
+
+        # Assert the dimensions are the same
+        assert dual.n_face == mpas_dual.n_face
+        assert dual.n_node == mpas_dual.n_node
+        assert dual.n_max_face_nodes == mpas_dual.n_max_face_nodes
+
+        # Assert the faces are the same
+        nt.assert_equal(dual.face_node_connectivity.values,  mpas_dual.face_node_connectivity.values)
+
+    def test_dual_duplicate(self):
+        # Test that dual mesh throws an exception if duplicate nodes exist
+        dataset = ux.open_dataset(gridfile_geoflow, gridfile_geoflow)
+
+        nt.assert_raises(RuntimeError, dataset.get_dual)
 
 
 class TestNormalizeExistingCoordinates(TestCase):

@@ -20,8 +20,8 @@ These user guides provide the necessary background information for understanding
 `Conventions <user-guide/representation.rst>`_
  Overview of the UGRID conventions and how they are used within UXarray
 
-`Supported Grid Formats <user-guide/grid-formats.rst>`_
- List of supported grid formats and their descriptions
+`Supported Models & Grid Formats <user-guide/grid-formats.rst>`_
+ Overview of supported models and grid formats
 
 Core Guides
 ------------
@@ -31,7 +31,10 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
 
-`Plotting API <user-guide/plotting.ipynb>`_
+`Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
+ Read data with chunking and/or in parallel
+
+`Plotting <user-guide/plotting.ipynb>`_
  Visualize unstructured grid datasets using UXarray's plotting API
 
 `Plotting with Matplotlib <user-guide/mpl.ipynb>`_
@@ -42,6 +45,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
+
+`Cross-Sections <user-guide/cross-sections.ipynb>`_
+ Select cross-sections of a grid
 
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
@@ -58,10 +64,20 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
 
+`Structured Grids <user-guide/structured.ipynb>`_
+ Loading structured (latitude-longitude) grids
+
+`Representing Point Data <user-guide/from-points.ipynb>`_
+ Create grids from unstructured point data
+
+`Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
+ Construct the Dual Mesh of an unstructured grid
+
+
 Supplementary Guides
 --------------------
 
-These user guides provide additional detail about specific features in UXarray.
+These user guides provide additional details about specific features in UXarray.
 
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
@@ -75,12 +91,18 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/representation.rst
    user-guide/grid-formats.rst
    user-guide/data-structures.ipynb
+   user-guide/parallel-load-ux-with-dask.ipynb
    user-guide/plotting.ipynb
    user-guide/mpl.ipynb
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
-   user-guide/topological-aggregations.ipynb
-   user-guide/area_calc.ipynb
-   user-guide/holoviz.ipynb
+   user-guide/cross-sections.ipynb
    user-guide/remapping.ipynb
+   user-guide/topological-aggregations.ipynb
+   user-guide/calculus.ipynb
    user-guide/tree_structures.ipynb
+   user-guide/area_calc.ipynb
+   user-guide/dual-mesh.ipynb
+   user-guide/structured.ipynb
+   user-guide/from-points.ipynb
+   user-guide/holoviz.ipynb

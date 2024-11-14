@@ -20,6 +20,7 @@ dependencies:
     - scikit-learn
     - sphinx-book-theme
     - sphinx-autosummary-accessors
+    - sphinx-remove-toctrees
     - myst-nb
     - sphinx-design
     - nbsphinx

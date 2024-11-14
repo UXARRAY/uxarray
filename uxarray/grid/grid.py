@@ -1,5 +1,3 @@
-"""uxarray.core.grid module."""
-
 import xarray as xr
 import numpy as np
 
@@ -27,6 +25,9 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._structured import _read_structured_grid
+from uxarray.io._voronoi import _spherical_voronoi_from_points
+from uxarray.io._delaunay import _spherical_delaunay_from_points
 
 from uxarray.formatting_html import grid_repr
 
@@ -35,10 +36,12 @@ from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,
+    _populate_face_centerpoints,
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
     _normalize_xyz,
+    prepare_points,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -55,7 +58,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
-    _construct_hole_edge_indices,
+    _construct_boundary_edge_indices,
 )
 
 from uxarray.grid.neighbors import (
@@ -65,18 +68,30 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 
+from uxarray.grid.intersections import (
+    constant_lat_intersections_no_extreme,
+    constant_lon_intersections_no_extreme,
+    constant_lat_intersections_face_bounds,
+)
+
 from spatialpandas import GeoDataFrame
 
 from uxarray.plot.accessor import GridPlotAccessor
 
 from uxarray.subset import GridSubsetAccessor
 
+from uxarray.cross_sections import GridCrossSectionAccessor
+
 from uxarray.grid.validation import (
     _check_connectivity,
     _check_duplicate_nodes,
+    _check_duplicate_nodes_indices,
     _check_area,
     _check_normalization,
 )
+
+
+from uxarray.conventions import ugrid
 
 from xarray.core.utils import UncachedAccessor
 
@@ -85,6 +100,10 @@ from warnings import warn
 import cartopy.crs as ccrs
 
 import copy
+
+
+from uxarray.constants import INT_FILL_VALUE
+from uxarray.grid.dual import construct_dual
 
 
 class Grid:
@@ -210,6 +229,9 @@ class Grid:
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
 
+    # declare cross section accessor
+    cross_section = UncachedAccessor(GridCrossSectionAccessor)
+
     @classmethod
     def from_dataset(
         cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
@@ -230,8 +252,8 @@ class Grid:
 
         if "source_grid_spec" not in kwargs:
             # parse to detect source grid spec
-
             source_grid_spec = _parse_grid_type(dataset)
+            source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
             if source_grid_spec == "Exodus":
                 grid_ds, source_dims_dict = _read_exodus(dataset)
             elif source_grid_spec == "Scrip":
@@ -246,6 +268,9 @@ class Grid:
                 grid_ds, source_dims_dict = _read_geos_cs(dataset)
             elif source_grid_spec == "ICON":
                 grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+            elif source_grid_spec == "Structured":
+                grid_ds = _read_structured_grid(dataset[lon_name], dataset[lat_name])
+                source_dims_dict = {"n_face": (lon_name, lat_name)}
             elif source_grid_spec == "Shapefile":
                 raise ValueError(
                     "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
@@ -277,10 +302,10 @@ class Grid:
         backend : str, default='geopandas'
             Backend to use to read the file, xarray or geopandas.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp")
+        >>> grid = ux.Grid.from_file("path/to/file.shp", backend="geopandas")
 
         Note
         ----
@@ -308,6 +333,68 @@ class Grid:
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
     @classmethod
+    def from_points(
+        cls,
+        points,
+        method="spherical_delaunay",
+        boundary_points=None,
+        **kwargs,
+    ):
+        """Create a grid from unstructured points.
+
+        This class method generates connectivity information based on the provided points.
+        Depending on the chosen `method`, it constructs either a spherical Voronoi diagram
+        or a spherical Delaunay triangulation. When using the Delaunay method, `boundary_points`
+        can be specified to exclude triangles that span over defined holes in the data.
+
+        Parameters
+        ----------
+        points : sequence of array-like
+            The input points to generate connectivity from.
+
+            - If `len(points) == 2`, `points` should be `[longitude, latitude]` in degrees,
+              where each is an array-like of shape `(N,)`.
+            - If `len(points) == 3`, `points` should be `[x, y, z]` coordinates,
+              where each is an array-like of shape `(N,)`.
+
+        method : str, optional
+            The method to generate connectivity information. Supported methods are:
+
+            - `'spherical_voronoi'`: Constructs a spherical Voronoi diagram.
+            - `'spherical_delaunay'`: Constructs a spherical Delaunay triangulation.
+
+            Default is `'spherical_delaunay'`.
+
+        boundary_points : array-like of int, optional
+            Indices of points that lie on a defined boundary. These are used to exclude
+            Delaunay triangles that span over holes in the data. This parameter is only
+            applicable when `method` is `'spherical_delaunay'`.
+
+            Default is `None`.
+
+        **kwargs
+            Additional keyword arguments to pass to the underlying connectivity generation
+            functions (`_spherical_voronoi_from_points` or `_spherical_delaunay_from_points`).
+
+        Returns
+        -------
+        Grid
+            An instance of a Grid created from the points
+        """
+        _points = prepare_points(points, normalize=True)
+
+        if method == "spherical_voronoi":
+            ds = _spherical_voronoi_from_points(_points, **kwargs)
+        elif method == "spherical_delaunay":
+            ds = _spherical_delaunay_from_points(_points, boundary_points)
+        else:
+            raise ValueError(
+                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."
+            )
+
+        return cls.from_dataset(dataset=ds, source_grid_spec=method)
+
+    @classmethod
     def from_topology(
         cls,
         node_lon: np.ndarray,
@@ -323,7 +410,7 @@ class Grid:
 
         Note
         ----
-        To construct a UGRID-complient grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
+        To construct a UGRID-compliant grid, the user must provide at least ``node_lon``, ``node_lat`` and ``face_node_connectivity``
 
         Parameters
         ----------
@@ -341,11 +428,13 @@ class Grid:
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
         **kwargs :
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
         >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
-        >>> uxgrid = ux.Grid.from_ugrid(node_lon, node_lat, face_node_connectivity, fill_value)
+        >>> uxgrid = ux.Grid.from_ugrid(
+        ...     node_lon, node_lat, face_node_connectivity, fill_value
+        ... )
         """
 
         if dims_dict is None:
@@ -361,6 +450,52 @@ class Grid:
         )
         grid_spec = "User Defined Topology"
         return cls(grid_ds, grid_spec, dims_dict)
+
+    @classmethod
+    def from_structured(
+        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
+    ):
+        """
+        Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
+
+        This class method provides flexibility in converting structured grid data into an unstructured `uxarray.UxDataset`.
+        Users can either supply an existing structured `xarray.Dataset` or provide longitude and latitude coordinates
+        directly.
+
+        Parameters
+        ----------
+        ds : xr.Dataset, optional
+            The structured `xarray.Dataset` to convert. If provided, the dataset must adhere to the
+            Climate and Forecast (CF) Metadata Conventions
+
+        lon : array-like, optional
+            Longitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        lat : array-like, optional
+            Latitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        tol : float, optional
+            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
+            Default is `1e-10`.
+
+        Returns
+        -------
+        Grid
+            An instance of ``uxarray.Grid``
+        """
+        if ds is not None:
+            return cls.from_dataset(ds)
+        if lon is not None and lat is not None:
+            grid_ds = _read_structured_grid(lon, lat, tol)
+            return cls.from_dataset(
+                grid_ds, source_dims_dict=None, source_grid_spec="structured"
+            )
+        else:
+            raise ValueError(
+                "No input dataset or latitude and longitude values specified."
+            )
 
     @classmethod
     def from_face_vertices(
@@ -397,12 +532,10 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
-    def validate(self):
-        """Validate a grid object check for common errors, such as:
+    def validate(self, check_duplicates=True):
+        """Validates the current ``Grid``, checking for Duplicate Nodes,
+        Present Connectivity, and Non-Zero Face Areas.
 
-            - Duplicate nodes
-            - Connectivity
-            - Face areas (non zero)
         Raises
         ------
         RuntimeError
@@ -413,7 +546,7 @@ class Grid:
         print("Validating the mesh...")
 
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
-        checkDN = _check_duplicate_nodes(self)
+        checkDN = _check_duplicate_nodes(self) if check_duplicates else True
         check_C = _check_connectivity(self)
         check_A = _check_area(self)
 
@@ -423,10 +556,43 @@ class Grid:
         else:
             raise RuntimeError("Mesh validation failed.")
 
+    def construct_face_centers(self, method="cartesian average"):
+        """Constructs face centers, this method provides users direct control
+        of the method for constructing the face centers, the default method is
+        "cartesian average", but a more accurate method is "welzl" that is
+        based on the recursive Welzl algorithm. It must be noted that this
+        method can override the parsed/recompute the original parsed face
+        centers.
+
+        Parameters
+        ----------
+        method : str, default="cartesian average"
+            Supported methods are "cartesian average" and "welzl"
+
+        Returns
+        -------
+        None
+            This method constructs the face_lon and face_lat attributes for the grid object.
+
+        Usage
+        -----
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("GRID_FILE_NAME")
+        >>> face_lat = uxgrid.construct_face_center(method="welzl")
+        """
+        if method == "cartesian average":
+            _populate_face_centroids(self, repopulate=True)
+        elif method == "welzl":
+            _populate_face_centerpoints(self, repopulate=True)
+        else:
+            raise ValueError(
+                f"Unknown method for face center calculation. Expected one of ['cartesian average', 'welzl'] but received {method}"
+            )
+
     def __repr__(self):
         """Constructs a string representation of the contents of a ``Grid``."""
 
-        from uxarray.conventions import ugrid, descriptors
+        from uxarray.conventions import descriptors
 
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
@@ -490,9 +656,9 @@ class Grid:
         """Implementation of getitem operator for indexing a grid to obtain
         variables.
 
-        Usage
-        -----
-        >>> uxgrid['face_node_connectivity']
+        Examples
+        --------
+        >>> uxgrid["face_node_connectivity"]
         """
         return getattr(self, item)
 
@@ -944,7 +1110,7 @@ class Grid:
     def edge_node_connectivity(self) -> xr.DataArray:
         """Indices of the two nodes that make up each edge.
 
-        Dimensions: ``(n_edge, n_max_edge_nodes)``
+        Dimensions: ``(n_edge, two)``
 
         Nodes are in arbitrary order.
         """
@@ -958,6 +1124,57 @@ class Grid:
         """Setter for ``edge_node_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["edge_node_connectivity"] = value
+
+    @property
+    def edge_node_x(self) -> xr.DataArray:
+        """Cartesian x location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_x" not in self._ds:
+            _edge_node_x = self.node_x.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_x"] = xr.DataArray(
+                data=_edge_node_x,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_x"]
+
+    @property
+    def edge_node_y(self) -> xr.DataArray:
+        """Cartesian y location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_y" not in self._ds:
+            _edge_node_y = self.node_y.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_y"] = xr.DataArray(
+                data=_edge_node_y,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_y"]
+
+    @property
+    def edge_node_z(self) -> xr.DataArray:
+        """Cartesian z location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_z" not in self._ds:
+            _edge_node_z = self.node_z.values[self.edge_node_connectivity.values]
+
+            self._ds["edge_node_z"] = xr.DataArray(
+                data=_edge_node_z,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_z"]
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
@@ -1079,7 +1296,7 @@ class Grid:
 
     @property
     def edge_node_distances(self):
-        """Distances between the two nodes that surround each edge.
+        """Distances between the two nodes that surround each edge in degrees.
 
         Dimensions ``(n_edge, )``
         """
@@ -1095,7 +1312,8 @@ class Grid:
 
     @property
     def edge_face_distances(self):
-        """Distances between the centers of the faces that saddle each edge.
+        """Distances between the centers of the faces that saddle each edge in
+        degrees.
 
         Dimensions ``(n_edge, )``
         """
@@ -1142,7 +1360,8 @@ class Grid:
         """
         if "bounds" not in self._ds:
             warn(
-                "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time."
+                "Computing 'Grid.bounds' for the first time. This may take some time...",
+                UserWarning,
             )
             _populate_bounds(self)
 
@@ -1162,14 +1381,74 @@ class Grid:
         return self._face_jacobian
 
     @property
-    def hole_edge_indices(self):
-        """Indices of edges that border a region of the grid not covered by any
-        geometry, know as a hole, in a partial grid."""
-        if "hole_edge_indices" not in self._ds:
-            self._ds["hole_edge_indices"] = _construct_hole_edge_indices(
+    def boundary_edge_indices(self):
+        """Indices of edges that border regions not covered by any geometry
+        (holes) in a partial grid."""
+        if "boundary_edge_indices" not in self._ds:
+            self._ds["boundary_edge_indices"] = _construct_boundary_edge_indices(
                 self.edge_face_connectivity.values
             )
-        return self._ds["hole_edge_indices"]
+        return self._ds["boundary_edge_indices"]
+
+    @boundary_edge_indices.setter
+    def boundary_edge_indices(self, value):
+        """Setter for ``boundary_edge_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_edge_indices"] = value
+
+    @property
+    def boundary_node_indices(self):
+        """Indices of nodes that border regions not covered by any geometry
+        (holes) in a partial grid."""
+        if "boundary_node_indices" not in self._ds:
+            raise ValueError
+
+        return self._ds["boundary_node_indices"]
+
+    @boundary_node_indices.setter
+    def boundary_node_indices(self, value):
+        """Setter for ``boundary_node_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_node_indices"] = value
+
+    @property
+    def boundary_face_indices(self):
+        """Indices of faces that border regions not covered by any geometry
+        (holes) in a partial grid."""
+        if "boundary_face_indices" not in self._ds:
+            boundaries = np.unique(
+                self.node_face_connectivity[
+                    self.boundary_node_indices.values
+                ].data.ravel()
+            )
+            boundaries = boundaries[boundaries != INT_FILL_VALUE]
+            self._ds["boundary_face_indices"] = xr.DataArray(data=boundaries)
+
+        return self._ds["boundary_face_indices"]
+
+    @boundary_face_indices.setter
+    def boundary_face_indices(self, value):
+        """Setter for ``boundary_face_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_face_indices"] = value
+
+    @property
+    def triangular(self):
+        """Boolean indicated whether the Grid is strictly composed of
+        triangular faces."""
+        return self.n_max_face_nodes == 3
+
+    @property
+    def partial_sphere_coverage(self):
+        """Boolean indicated whether the Grid partial covers the unit sphere
+        (i.e. contains holes)"""
+        return self.boundary_edge_indices.size != 0
+
+    @property
+    def global_sphere_coverage(self):
+        """Boolean indicated whether the Grid completely covers the unit sphere
+        (i.e. contains no holes)"""
+        return not self.partial_sphere_coverage
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
@@ -1236,6 +1515,8 @@ class Grid:
                 setattr(self, var_name, grid_var.chunk(chunks={"n_edge": n_edge}))
             elif "n_face" in grid_var.dims:
                 setattr(self, var_name, grid_var.chunk(chunks={"n_face": n_face}))
+            else:
+                setattr(self, var_name, grid_var.chunk())
 
     def get_ball_tree(
         self,
@@ -1436,7 +1717,9 @@ class Grid:
         --------
         Open a uxarray grid file
 
-        >>> grid = ux.open_dataset("/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug")
+        >>> grid = ux.open_dataset(
+        ...     "/home/jain/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug"
+        ... )
 
 
         >>> grid.face_areas
@@ -1528,8 +1811,8 @@ class Grid:
             self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
-        """Returns a xarray Dataset representation in a specific grid format
-        from the Grid object.
+        """Returns an ``xarray.Dataset`` with the variables stored under the
+        ``Grid`` encoded in a specific grid format.
 
         Parameters
         ----------
@@ -1568,17 +1851,16 @@ class Grid:
         self,
         periodic_elements: Optional[str] = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        project: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
         exclude_antimeridian: Optional[bool] = None,
         return_non_nan_polygon_indices: Optional[bool] = False,
         exclude_nan_polygons: Optional[bool] = True,
+        **kwargs,
     ):
-        """Constructs a ``spatialpandas.GeoDataFrame`` with a "geometry"
-        column, containing a collection of Shapely Polygons or MultiPolygons
-        representing the geometry of the unstructured grid.
+        """Constructs a ``GeoDataFrame`` consisting of polygons representing
+        the faces of the current ``Grid``
 
         Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
         parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
@@ -1595,7 +1877,8 @@ class Grid:
             - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
             - 'ignore': No processing will be applied to periodic elements.
         projection: ccrs.Projection, optional
-            Geographic projection used to transform polygons
+            Geographic projection used to transform polygons. Only supported when periodic_elements is set to
+            'ignore' or 'exclude'
         cache: bool, optional
             Flag used to select whether to cache the computed GeoDataFrame
         override: bool, optional
@@ -1613,7 +1896,7 @@ class Grid:
 
         Returns
         -------
-        gdf : spatialpandas.GeoDataFrame
+        gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
 
@@ -1621,6 +1904,9 @@ class Grid:
             raise ValueError(
                 f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
             )
+
+        # if project is false, projection is only used for determining central coordinates
+        project = kwargs.get("project", True)
 
         if projection and project:
             if periodic_elements == "split":
@@ -1698,8 +1984,8 @@ class Grid:
         return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.PolyCollection``,
-        representing each face as a polygon.
+        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
+        of polygons representing the faces of the current ``Grid``
 
         Parameters
         ----------
@@ -1781,8 +2067,8 @@ class Grid:
         override: Optional[bool] = False,
         **kwargs,
     ):
-        """Converts a ``Grid`` to a ``matplotlib.collections.LineCollection``,
-        representing each edge as a line.
+        """Constructs a ``matplotlib.collections.LineCollection``` consisting
+        of lines representing the edges of the current ``Grid``
 
         Parameters
         ----------
@@ -1804,13 +2090,6 @@ class Grid:
             raise ValueError(
                 f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
-
-        if projection is not None:
-            if periodic_elements == "split":
-                raise ValueError(
-                    "Setting ``periodic_elements='split'`` is not supported when a "
-                    "projection is provided."
-                )
 
         if self._line_collection_cached_parameters["line_collection"] is not None:
             if (
@@ -1840,6 +2119,31 @@ class Grid:
             )
 
         return line_collection
+
+    def get_dual(self):
+        """Compute the dual for a grid, which constructs a new grid centered
+        around the nodes, where the nodes of the primal become the face centers
+        of the dual, and the face centers of the primal become the nodes of the
+        dual. Returns a new `Grid` object.
+
+        Returns
+        --------
+        dual : Grid
+            Dual Mesh Grid constructed
+        """
+
+        if _check_duplicate_nodes_indices(self):
+            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+
+        # Get dual mesh node face connectivity
+        dual_node_face_conn = construct_dual(grid=self)
+
+        # Construct dual mesh
+        dual = self.from_topology(
+            self.face_lon.values, self.face_lat.values, dual_node_face_conn
+        )
+
+        return dual
 
     def isel(self, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
@@ -1878,3 +2182,154 @@ class Grid:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
+
+    def get_edges_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+        """Identifies the indices of edges that intersect with a line of constant latitude.
+
+        Parameters
+        ----------
+        lon : float
+            The latitude at which to identify intersecting edges, in degrees.
+                use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of edge indices that intersect with the specified latitude.
+        """
+
+        if lat > 90.0 or lat < -90.0:
+            raise ValueError(
+                f"Latitude must be between -90 and 90 degrees. Received {lat}"
+            )
+
+        if use_spherical_bounding_box:
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box"
+                "is not yet supported."
+            )
+        else:
+            edges = constant_lat_intersections_no_extreme(
+                lat, self.edge_node_z.values, self.n_edge
+            )
+
+        return edges.squeeze()
+
+    def get_faces_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+        """
+        Identifies the indices of faces that intersect with a line of constant latitude.
+
+        When `use_spherical_bounding_box` is set to `True`,
+        the bounding box for each face is computed by representing each edge as a great circle arc.
+        This approach takes into account the extreme minimums or maximums along the arcs.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to identify intersecting faces, in degrees.
+        use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that intersect with the specified latitude.
+        """
+
+        if lat > 90.0 or lat < -90.0:
+            raise ValueError(
+                f"Latitude must be between -90 and 90 degrees. Received {lat}"
+            )
+
+        if use_spherical_bounding_box:
+            faces = constant_lat_intersections_face_bounds(
+                lat=lat,
+                face_min_lat_rad=self.bounds.values[:, 0, 0],
+                face_max_lat_rad=self.bounds.values[:, 0, 1],
+            )
+            return faces
+        else:
+            edges = self.get_edges_at_constant_latitude(lat, use_spherical_bounding_box)
+            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+
+            return faces[faces != INT_FILL_VALUE]
+
+    def get_edges_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+        """
+        Identifies the indices of edges that intersect with a line of constant longitude.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude at which to identify intersecting edges, in degrees.
+        use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of edge indices that intersect with the specified longitude.
+        """
+
+        if lon > 180.0 or lon < -180.0:
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees. Received {lon}"
+            )
+
+        if use_spherical_bounding_box:
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box"
+                "is not yet supported."
+            )
+        else:
+            edges = constant_lon_intersections_no_extreme(
+                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+            )
+            return edges.squeeze()
+
+    def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+        """
+        Identifies the indices of faces that intersect with a line of constant longitude.
+
+        When `use_spherical_bounding_box` is set to `True`,
+        the bounding box for each face is computed by representing each edge as a great circle arc.
+        This approach takes into account the extreme minimums or maximums along the arcs.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude at which to identify intersecting faces, in degrees.
+        use_spherical_bounding_box : bool, optional
+            If `True`,
+            computes the bounding box for each face using great circle arcs for edges
+            and considers extreme minimums or maximums to increase accuracy.
+            Defaults to `False`.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that intersect with the specified longitude.
+        """
+
+        if use_spherical_bounding_box:
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box is not"
+                "yet supported."
+            )
+        else:
+            edges = self.get_edges_at_constant_longitude(
+                lon, use_spherical_bounding_box
+            )
+            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+
+            return faces[faces != INT_FILL_VALUE]

@@ -13,6 +13,8 @@ from uxarray.grid import Grid
 
 
 class UxDataArrayRemapAccessor:
+    """Remapping accessor for ``UxDataArray``"""
+
     def __init__(self, uxda: UxDataArray):
         self.uxda = uxda
 
@@ -33,8 +35,8 @@ class UxDataArrayRemapAccessor:
         remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
-        """Nearest Neighbor Remapping between a source (``UxDataArray``) and
-        destination.`.
+        """Nearest Neighbor Remapping between a source ``UxDataArray`` and
+        destination ``Grid``
 
         Parameters
         ---------
@@ -56,8 +58,8 @@ class UxDataArrayRemapAccessor:
         power=2,
         k=8,
     ):
-        """Inverse Distance Weighted Remapping between a source
-        (``UxDataArray``) and destination.`.
+        """Inverse Distance Weighted Remapping between a source ``UxDataArray``
+        and destination ``Grid``
 
         Parameters
         ---------

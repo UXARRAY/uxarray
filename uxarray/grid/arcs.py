@@ -6,6 +6,9 @@ from uxarray.grid.coordinates import (
     _xyz_to_lonlat_rad_scalar,
     _normalize_xyz_scalar,
 )
+
+from uxarray.grid.utils import _angle_of_2_vectors
+
 from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
 
 from uxarray.utils.computing import isclose, cross, dot, allclose
@@ -24,7 +27,7 @@ def _to_list(obj):
     return obj
 
 
-@njit
+@njit(cache=True)
 def _point_within_gca_body(
     angle, gca_cart, pt, GCRv0_lonlat, GCRv1_lonlat, pt_lonlat, is_directed
 ):
@@ -241,7 +244,7 @@ def point_within_gca(pt, gca_cart, is_directed=False):
     return out
 
 
-@njit
+@njit(cache=True)
 def in_between(p, q, r) -> bool:
     """Determines whether the number q is between p and r.
 
@@ -263,7 +266,7 @@ def in_between(p, q, r) -> bool:
     return p <= q <= r or r <= q <= p
 
 
-@njit
+@njit(cache=True)
 def _decide_pole_latitude(lat1, lat2):
     """Determine the pole latitude based on the latitudes of two points on a
     Great Circle Arc (GCA).
@@ -301,31 +304,6 @@ def _decide_pole_latitude(lat1, lat2):
         closest_pole = -np.pi / 2 if lat1 > 0 else np.pi / 2
 
     return closest_pole
-
-
-@njit
-def _angle_of_2_vectors(u, v):
-    """Calculate the angle between two 3D vectors u and v in radians. Can be
-    used to calcualte the span of a GCR.
-
-    Parameters
-    ----------
-    u : numpy.ndarray (float)
-        The first 3D vector.
-    v : numpy.ndarray (float)
-        The second 3D vector.
-
-    Returns
-    -------
-    float
-        The angle between u and v in radians.
-    """
-    v_norm_times_u = np.linalg.norm(v) * u
-    u_norm_times_v = np.linalg.norm(u) * v
-    vec_minus = v_norm_times_u - u_norm_times_v
-    vec_sum = v_norm_times_u + u_norm_times_v
-    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
-    return angle_u_v_rad
 
 
 def extreme_gca_latitude(gca_cart, extreme_type):

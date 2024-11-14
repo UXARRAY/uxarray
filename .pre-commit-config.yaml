@@ -1,22 +1,20 @@
-repos:
--   repo: https://github.com/myint/docformatter    # To format the doc strings to conform PEP257
-    rev: v1.4
-    hooks:
-    - id: docformatter
-      args: [--in-place]
+ci:
+    autofix_prs: false
 
+repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks    # Some common pre-commit hooks
-    rev: v3.4.0
+    rev: v5.0.0
     hooks:
     - id: check-yaml               # Checks the syntax of .yaml files.
       args: [--allow-multiple-documents]
     - id: end-of-file-fixer        # Makes sure files end with a newline.
     - id: trailing-whitespace      # Checks for any tabs or spaces after the last non-whitespace character on the line.
     - id: check-docstring-first    # Checks that code comes after the docstrings.
+    - id: debug-statements
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.4.1
+  rev: v0.7.3
   hooks:
     # Run the linter.
     - id: ruff
@@ -26,3 +24,9 @@ repos:
     # Run the formatter.
     - id: ruff-format
       types_or: [ python, pyi, jupyter ]
+
+- repo: https://github.com/keewis/blackdoc
+  rev: v0.3.9
+  hooks:
+    - id: blackdoc
+      additional_dependencies: [ "black==24.10.0" ]

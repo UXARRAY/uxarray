@@ -1,7 +1,8 @@
 import numpy as np
 from warnings import warn
 
-from uxarray.constants import ERROR_TOLERANCE
+
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 
 
 # validation helper functions
@@ -20,7 +21,6 @@ def _check_connectivity(grid):
 
     # check if the size of unique nodes in connectivity is equal to the number of nodes
     if nodes_in_conn.size == grid.n_node:
-        print("-All nodes are referenced by at least one element.")
         return True
     else:
         warn(
@@ -35,9 +35,9 @@ def _check_connectivity(grid):
 def _check_duplicate_nodes(grid):
     """Check if there are duplicate nodes in the mesh."""
 
-    coords1 = np.column_stack((np.vstack(grid.node_lon), np.vstack(grid.node_lat)))
-    unique_nodes, indices = np.unique(coords1, axis=0, return_index=True)
-    duplicate_indices = np.setdiff1d(np.arange(len(coords1)), indices)
+    coords = np.vstack([grid.node_lon.values, grid.node_lat.values])
+    unique_nodes, indices = np.unique(coords, axis=0, return_index=True)
+    duplicate_indices = np.setdiff1d(np.arange(len(coords)), indices)
 
     if duplicate_indices.size > 0:
         warn(
@@ -48,8 +48,21 @@ def _check_duplicate_nodes(grid):
         )
         return False
     else:
-        print("-No duplicate nodes found in the mesh.")
         return True
+
+
+def _check_duplicate_nodes_indices(grid):
+    """Check if there are duplicate node indices, returns True if there are."""
+
+    # Create a duplication dictionary
+    duplicate_node_dict = _find_duplicate_nodes(grid)
+
+    for face_nodes in grid.face_node_connectivity.values:
+        for node in face_nodes:
+            if node in duplicate_node_dict.keys():
+                return True
+
+    return False
 
 
 def _check_area(grid):
@@ -63,8 +76,34 @@ def _check_area(grid):
         )
         return False
     else:
-        print("-No face area is close to zero.")
         return True
+
+
+def _find_duplicate_nodes(grid):
+    # list of tuple indices
+    lonlat_t = [
+        (lon, lat) for lon, lat in zip(grid.node_lon.values, grid.node_lat.values)
+    ]
+
+    # # Dictionary to track first occurrence and subsequent indices
+    occurrences = {}
+
+    # Iterate through the list and track occurrences
+    for index, tpl in enumerate(lonlat_t):
+        if tpl in occurrences:
+            occurrences[tpl].append((INT_DTYPE(index)))
+        else:
+            occurrences[tpl] = [INT_DTYPE(index)]
+
+    duplicate_dict = {}
+
+    for tpl, indices in occurrences.items():
+        if len(indices) > 1:
+            source_idx = indices[0]
+            for duplicate_idx in indices[1:]:
+                duplicate_dict[duplicate_idx] = source_idx
+
+    return duplicate_dict
 
 
 def _check_normalization(grid):

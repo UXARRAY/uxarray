@@ -56,6 +56,7 @@ extensions = [
     "nbsphinx",
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
+    "sphinx_remove_toctrees",
 ]
 
 mathjax_config = {
@@ -95,6 +96,8 @@ intersphinx_mapping = {
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
 }
+
+remove_from_toctrees = ["generated/*"]
 
 napoleon_use_admonition_for_examples = True
 napoleon_include_special_with_doc = True
@@ -207,7 +210,12 @@ htmlhelp_basename = "uxarraydoc"
 autodoc_typehints = "none"
 
 # notebooks to exclude from run-time execution, will use rendered version
-nb_execution_excludepatterns = ["3_75km_mpas.ipynb"]
+nb_execution_excludepatterns = [
+    "3_75km_mpas.ipynb",
+    "e3sm-calc-workflow.ipynb",
+    "e3sm-load-viz.ipynb",
+    "parallel-load-ux-with-dask.ipynb",
+]
 
 
 # custom scripts for making a gallery of examples notebooks

@@ -21,8 +21,7 @@ def open_grid(
     use_dual: Optional[bool] = False,
     **kwargs: Dict[str, Any],
 ) -> Grid:
-    """Constructs and returns an ``uxarray.Grid`` object from a grid topology
-    definition.
+    """Constructs and returns a ``Grid`` from a grid file.
 
     Parameters
     ----------
@@ -57,7 +56,7 @@ def open_grid(
 
     Open dataset with a grid topology file
 
-    >>> Import uxarray as ux
+    >>> import uxarray as ux
     >>> uxgrid = ux.open_grid("grid_filename.g")
     """
 
@@ -102,9 +101,8 @@ def open_dataset(
     grid_kwargs: Optional[Dict[str, Any]] = {},
     **kwargs: Dict[str, Any],
 ) -> UxDataset:
-    """Wraps ``xarray.open_dataset()`` and creates a ``uxarray.UxDataset``
-    object, given a grid topology definition with a single dataset file or
-    object with corresponding data.
+    """Wraps ``xarray.open_dataset()`` to support reading in a grid and data
+    file together.
 
     Parameters
     ----------
@@ -193,9 +191,8 @@ def open_mfdataset(
     grid_kwargs: Optional[Dict[str, Any]] = {},
     **kwargs: Dict[str, Any],
 ) -> UxDataset:
-    """Wraps ``xarray.open_mfdataset()`` and creates a ``uxarray.UxDataset``
-    object, given a single grid topology file with multiple dataset paths with
-    corresponding data.
+    """Wraps ``xarray.open_dataset()`` to support reading in a grid and
+    multiple data files together.
 
     Parameters
     ----------
@@ -242,7 +239,9 @@ def open_mfdataset(
 
     1. Open from an explicit list of dataset files
 
-    >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc")
+    >>> ux_ds = ux.open_mfdataset(
+    ...     "grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc"
+    ... )
 
     2. Open from a string glob
 
