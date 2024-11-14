@@ -1461,7 +1461,7 @@ def _populate_bounds(
 
     bounds = xr.DataArray(
         temp_latlon_array,
-        dims=["n_face", "Two", "Two"],
+        dims=["n_face", "lon_lat", "min_max"],
         attrs={
             "cf_role": "face_latlon_bounds",
             "_FillValue": INT_FILL_VALUE,

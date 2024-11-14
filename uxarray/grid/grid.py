@@ -72,6 +72,7 @@ from uxarray.grid.intersections import (
     constant_lat_intersections_no_extreme,
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
+    constant_lon_intersections_face_bounds,
 )
 
 from spatialpandas import GeoDataFrame
@@ -1354,15 +1355,11 @@ class Grid:
 
     @property
     def bounds(self):
-        """Latitude Longitude Bounds for each Face in degrees.
+        """Latitude Longitude Bounds for each Face in radians.
 
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            warn(
-                "Computing 'Grid.bounds' for the first time. This may take some time...",
-                UserWarning,
-            )
             _populate_bounds(self)
 
         return self._ds["bounds"]
@@ -1372,6 +1369,38 @@ class Grid:
         """Setter for ``bounds``"""
         assert isinstance(value, xr.DataArray)
         self._ds["bounds"] = value
+
+    @property
+    def face_bounds_lon(self):
+        """Longitude bounds for each face in degrees."""
+
+        if "face_bounds_lon" not in self._ds:
+            bounds = self.bounds.values
+
+            bounds_deg = np.rad2deg(bounds[:, 1, :])
+            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
+            bounds_lon = bounds_normalized
+            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
+            # for faces that span all longitudes (i.e. pole faces)
+            bounds_lon[mask_zero] = [-180.0, 180.0]
+            self._ds["face_bounds_lon"] = xr.DataArray(
+                data=bounds_lon,
+                dims=["n_face", "min_max"],
+            )
+
+        return self._ds["face_bounds_lon"]
+
+    @property
+    def face_bounds_lat(self):
+        """Latitude bounds for each face in degrees."""
+        if "face_bounds_lat" not in self._ds:
+            bounds = self.bounds.values
+            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
+            self._ds["face_bounds_lat"] = xr.DataArray(
+                data=bounds_lat,
+                dims=["n_face", "min_max"],
+            )
+        return self._ds["face_bounds_lat"]
 
     @property
     def face_jacobian(self):
@@ -2251,8 +2280,7 @@ class Grid:
         if use_spherical_bounding_box:
             faces = constant_lat_intersections_face_bounds(
                 lat=lat,
-                face_min_lat_rad=self.bounds.values[:, 0, 0],
-                face_max_lat_rad=self.bounds.values[:, 0, 1],
+                face_bounds_lat=self.face_bounds_lat.values,
             )
             return faces
         else:
@@ -2322,10 +2350,10 @@ class Grid:
         """
 
         if use_spherical_bounding_box:
-            raise NotImplementedError(
-                "Computing the intersection using the spherical bounding box is not"
-                "yet supported."
+            faces = constant_lon_intersections_face_bounds(
+                lon, self.face_bounds_lon.values
             )
+            return faces
         else:
             edges = self.get_edges_at_constant_longitude(
                 lon, use_spherical_bounding_box

@@ -1,5 +1,5 @@
 import numpy as np
-from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE
+from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
 from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
 from uxarray.grid.arcs import (
     point_within_gca,
@@ -129,7 +129,7 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
 
 
 @njit(cache=True)
-def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_rad):
+def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
     """Identifies the candidate faces on a grid that intersect with a given
     constant latitude.
 
@@ -142,24 +142,24 @@ def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_r
     ----------
     lat : float
         The latitude in degrees for which to find intersecting faces.
-    face_min_lat_rad : numpy.ndarray
-        A 1D array containing the minimum latitude bounds (in radians) of each face.
-    face_max_lat_rad : numpy.ndarray
-        A 1D array containing the maximum latitude bounds (in radians) of each face.
+    TODO:
 
     Returns
     -------
     candidate_faces : numpy.ndarray
         A 1D array containing the indices of the faces that intersect with the given latitude.
     """
-    lat = np.deg2rad(lat)
-    within_bounds = (face_min_lat_rad <= lat) & (face_max_lat_rad >= lat)
+
+    face_bounds_lat_min = face_bounds_lat[:, 0]
+    face_bounds_lat_max = face_bounds_lat[:, 1]
+
+    within_bounds = (face_bounds_lat_min <= lat) & (face_bounds_lat_max >= lat)
     candidate_faces = np.where(within_bounds)[0]
     return candidate_faces
 
 
 @njit(cache=True)
-def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_rad):
+def constant_lon_intersections_face_bounds(lon, face_bounds_lon):
     """Identifies the candidate faces on a grid that intersect with a given
     constant longitude.
 
@@ -172,10 +172,7 @@ def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_r
     ----------
     lon : float
         The longitude in degrees for which to find intersecting faces.
-    face_min_lon_rad : numpy.ndarray
-        A 1D array containing the minimum longitude bounds (in radians) of each face.
-    face_max_lon_rad : numpy.ndarray
-        A 1D array containing the maximum longitude bounds (in radians) of each face.
+    TODO:
 
     Returns
     -------
@@ -183,20 +180,30 @@ def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_r
         A 1D array containing the indices of the faces that intersect with the given longitude.
     """
 
-    # lon = np.deg2rad(lon)
-    # lon = (lon + 2 * np.pi) % (2 * np.pi)
-    # within_bounds = (face_min_lon_rad <= lon) & (face_max_lon_rad >= lon)
-    # candidate_faces = np.where(within_bounds)[0]
-    # return candidate_faces
+    face_bounds_lon_min = face_bounds_lon[:, 0]
+    face_bounds_lon_max = face_bounds_lon[:, 1]
+    n_face = face_bounds_lon.shape[0]
 
-    raise NotImplementedError
+    candidate_faces = []
+    for i in range(n_face):
+        cur_face_bounds_lon_min = face_bounds_lon_min[i]
+        cur_face_bounds_lon_max = face_bounds_lon_max[i]
+
+        if cur_face_bounds_lon_min < cur_face_bounds_lon_max:
+            if (lon >= cur_face_bounds_lon_min) & (lon <= cur_face_bounds_lon_max):
+                candidate_faces.append(i)
+        else:
+            # antimeridian case
+            if (lon >= cur_face_bounds_lon_min) | (lon <= cur_face_bounds_lon_max):
+                candidate_faces.append(i)
+
+    return np.array(candidate_faces, dtype=INT_DTYPE)
 
 
 def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     gca_a_xyz = np.asarray(gca_a_xyz)
     gca_b_xyz = np.asarray(gca_b_xyz)
 
-    # TODO:
     gca_a_lonlat = np.array(
         [
             _xyz_to_lonlat_rad_scalar(
