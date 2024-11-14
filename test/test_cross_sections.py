@@ -152,8 +152,7 @@ class TestCandidateFacesUsingBounds:
 
         candidate_faces = constant_lat_intersections_face_bounds(
             lat=const_lat,
-            face_min_lat_rad=bounds_rad[:, 0, 0],
-            face_max_lat_rad=bounds_rad[:, 0, 1],
+            face_bounds_lat=bounds_rad[:, 0],
         )
 
         # Expected output
@@ -176,8 +175,7 @@ class TestCandidateFacesUsingBounds:
 
         candidate_faces = constant_lat_intersections_face_bounds(
             lat=const_lat,
-            face_min_lat_rad=bounds_rad[:, 0, 0],
-            face_max_lat_rad=bounds_rad[:, 0, 1],
+            face_bounds_lat=bounds_rad[:, 0],
         )
 
         assert len(candidate_faces) == 0
