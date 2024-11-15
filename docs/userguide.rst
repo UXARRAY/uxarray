@@ -73,9 +73,6 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
  Construct the Dual Mesh of an unstructured grid
 
-`From File <user-guide/from_file.ipynb>`_
- Load unstructured grids using the Grid from_file function
-
 
 Supplementary Guides
 --------------------
@@ -85,7 +82,8 @@ These user guides provide additional details about specific features in UXarray.
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
 
-
+`Grid Function: from_file and Shapefile Remapping<user-guide/from_file.ipynb>`_
+ Load unstructured grids using the Grid from_file function
 
 .. toctree::
    :hidden:
