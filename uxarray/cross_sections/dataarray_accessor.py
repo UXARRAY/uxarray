@@ -17,29 +17,44 @@ class UxDataArrayCrossSectionAccessor:
         prefix = "<uxarray.UxDataArray.cross_section>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "  * constant_latitude(center_coord, k, element, **kwargs)\n"
+        methods_heading += "  * constant_latitude(lat, use_spherical_bounding_box)\n"
+        methods_heading += "  * constant_longitude(lon, use_spherical_bounding_box)\n"
 
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, use_spherical_bounding_box=False):
-        """Extracts a cross-section of the data array at a specified constant
-        latitude.
+    def constant_latitude(self, lat: float, use_spherical_bounding_box: bool = True):
+        """Extracts a cross-section of the data array by selecting all faces that
+        intersect with a specified line of constant latitude.
 
         Parameters
         ----------
         lat : float
             The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
         use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for intersection calculations.
+            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
+            along great circle arcs.
+
+        Returns
+        -------
+        uxarray.UxDataArray
+            A subset of the original data array containing only the faces that intersect
+            with the specified latitude.
 
         Raises
         ------
         ValueError
-            If no intersections are found at the specified latitude, a ValueError is raised.
+            If no intersections are found at the specified latitude.
 
         Examples
         --------
-        >>> uxda.constant_latitude_cross_section(lat=-15.5)
+        >>> # Extract data at 15.5°S latitude
+        >>> cross_section = uxda.constant_latitude(lat=-15.5)
+
+        Notes
+        -----
+        The initial execution time may be significantly longer than subsequent runs
+        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(
             lat, use_spherical_bounding_box
@@ -47,30 +62,39 @@ class UxDataArrayCrossSectionAccessor:
 
         return self.uxda.isel(n_face=faces)
 
-    def constant_longitude(self, lon: float, use_spherical_bounding_box=False):
-        """Extracts a cross-section of the data array at a specified constant
-        longitude.
+    def constant_longitude(self, lon: float, use_spherical_bounding_box: bool = True):
+        """Extracts a cross-section of the data array by selecting all faces that
+        intersect with a specified line of constant longitude.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to extract the cross-section, in degrees.
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -180.0 and 180.0
         use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for intersection calculations.
+            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
+            along great circle arcs.
+
+        Returns
+        -------
+        uxarray.UxDataArray
+            A subset of the original data array containing only the faces that intersect
+            with the specified longitude.
 
         Raises
         ------
         ValueError
-            If no intersections are found at the specified longitude, a ValueError is raised.
+            If no intersections are found at the specified longitude.
 
         Examples
         --------
-        >>> uxda.constant_longitude_cross_section(lon=-15.5)
+        >>> # Extract data at 0° longitude
+        >>> cross_section = uxda.constant_latitude(lon=0.0)
 
         Notes
         -----
-        The accuracy and performance of the function can be controlled using the `method` parameter.
-        For higher precision requreiments, consider using method='acurate'.
+        The initial execution time may be significantly longer than subsequent runs
+        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
             lon, use_spherical_bounding_box

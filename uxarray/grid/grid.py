@@ -2248,7 +2248,7 @@ class Grid:
 
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+    def get_faces_at_constant_latitude(self, lat, use_spherical_bounding_box=True):
         """
         Identifies the indices of faces that intersect with a line of constant latitude.
 
@@ -2325,7 +2325,7 @@ class Grid:
             )
             return edges.squeeze()
 
-    def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+    def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=True):
         """
         Identifies the indices of faces that intersect with a line of constant longitude.
 
