@@ -2212,18 +2212,19 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_edges_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+    def get_edges_at_constant_latitude(
+        self, lat: float, use_spherical_bounding_box: bool = False
+    ):
         """Identifies the indices of edges that intersect with a line of constant latitude.
 
         Parameters
         ----------
-        lon : float
-            The latitude at which to identify intersecting edges, in degrees.
-                use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+        lat : float
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+        use_spherical_bounding_box : bool, optional
+            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
+            along great circle arcs.
 
         Returns
         -------
@@ -2248,23 +2249,20 @@ class Grid:
 
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, use_spherical_bounding_box=True):
+    def get_faces_at_constant_latitude(
+        self, lat: float, use_spherical_bounding_box: bool = True
+    ):
         """
         Identifies the indices of faces that intersect with a line of constant latitude.
-
-        When `use_spherical_bounding_box` is set to `True`,
-        the bounding box for each face is computed by representing each edge as a great circle arc.
-        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
         lat : float
-            The latitude at which to identify intersecting faces, in degrees.
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
         use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
+            along great circle arcs.
 
         Returns
         -------
@@ -2289,19 +2287,20 @@ class Grid:
 
             return faces[faces != INT_FILL_VALUE]
 
-    def get_edges_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+    def get_edges_at_constant_longitude(
+        self, lon: float, use_spherical_bounding_box: bool = False
+    ):
         """
         Identifies the indices of edges that intersect with a line of constant longitude.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to identify intersecting edges, in degrees.
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
         use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
+            along great circle arcs.
 
         Returns
         -------
@@ -2325,23 +2324,20 @@ class Grid:
             )
             return edges.squeeze()
 
-    def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=True):
+    def get_faces_at_constant_longitude(
+        self, lon: float, use_spherical_bounding_box: bool = True
+    ):
         """
         Identifies the indices of faces that intersect with a line of constant longitude.
-
-        When `use_spherical_bounding_box` is set to `True`,
-        the bounding box for each face is computed by representing each edge as a great circle arc.
-        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to identify intersecting faces, in degrees.
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
         use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
+            along great circle arcs.
 
         Returns
         -------
