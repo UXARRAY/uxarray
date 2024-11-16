@@ -12,7 +12,8 @@ import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import extreme_gca_latitude, _extreme_gca_latitude_cartesian
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
-from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, stereographic_projection, inverse_stereographic_projection
+
 
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -26,13 +27,13 @@ datafile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.
 grid_files = [gridfile_CSne8, gridfile_geoflow]
 data_files = [datafile_CSne30, datafile_geoflow]
 
-grid_quad_hex = current_path/ "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
-grid_geoflow = current_path/ "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-grid_mpas = current_path/ "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
-
+grid_quad_hex = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
+grid_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
+grid_mpas = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
 
 # List of grid files to test
 grid_files_latlonBound = [grid_quad_hex, grid_geoflow, gridfile_CSne8, grid_mpas]
+
 
 class TestAntimeridian(TestCase):
 
@@ -60,8 +61,6 @@ class TestLineCollection(TestCase):
     def test_linecollection_execution(self):
         uxgrid = ux.open_grid(gridfile_CSne8)
         lines = uxgrid.to_linecollection()
-
-
 
 
 class TestPredicate(TestCase):
@@ -376,7 +375,7 @@ class TestLatlonBoundUtils(TestCase):
 
     def test_extreme_gca_latitude_max_short(self):
         # Define a great circle arc in 3D space that has a small span
-        gca_cart = np.array( [[ 0.65465367, -0.37796447, -0.65465367], [ 0.6652466,  -0.33896007, -0.6652466 ]])
+        gca_cart = np.array([[0.65465367, -0.37796447, -0.65465367], [0.6652466, -0.33896007, -0.6652466]])
 
         # Calculate the maximum latitude
         max_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'max')
@@ -462,7 +461,7 @@ class TestLatlonBoundUtils(TestCase):
 class TestLatlonBoundsGCA(TestCase):
 
     def _get_cartesian_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -521,7 +520,7 @@ class TestLatlonBoundsGCA(TestCase):
         return cartesian_coordinates
 
     def _get_lonlat_rad_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -690,7 +689,7 @@ class TestLatlonBoundsGCA(TestCase):
             [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
         bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
-        expected_bounds = np.array([[-1.20427718, -1.14935491], [0,0.13568803]])
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [0, 0.13568803]])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_near_pole2(self):
@@ -702,13 +701,12 @@ class TestLatlonBoundsGCA(TestCase):
             [[4.06271283e-01, -4.78221112e-02, -9.12500241e-01], [3.57939780e-01, -4.88684203e-02, -9.32465008e-01]]
         ])
 
-
         # Apply the inverse transformation to get the lat lon coordinates
         face_edges_lonlat = np.array(
             [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
         bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
-        expected_bounds = np.array([[-1.20427718, -1.14935491], [6.147497,4.960524e-16]])
+        expected_bounds = np.array([[-1.20427718, -1.14935491], [6.147497, 4.960524e-16]])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
     def test_populate_bounds_long_face(self):
@@ -734,10 +732,7 @@ class TestLatlonBoundsGCA(TestCase):
         bounds = _populate_face_latlon_bound(face_edges_cart, face_edges_lonlat)
 
         # The expected bounds should not contains the south pole [0,-0.5*np.pi]
-        self.assertTrue(bounds[1][0] !=  0.0)
-
-
-
+        self.assertTrue(bounds[1][0] != 0.0)
 
     def test_populate_bounds_node_on_pole(self):
         # Generate a normal face that is crossing the antimeridian
@@ -827,7 +822,7 @@ class TestLatlonBoundsGCA(TestCase):
 class TestLatlonBoundsLatLonFace(TestCase):
 
     def _get_cartesian_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -886,7 +881,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
         return cartesian_coordinates
 
     def _get_lonlat_rad_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -1087,7 +1082,7 @@ class TestLatlonBoundsLatLonFace(TestCase):
 
 class TestLatlonBoundsGCAList(TestCase):
     def _get_cartesian_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_x, node_y, node_z
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -1146,7 +1141,7 @@ class TestLatlonBoundsGCAList(TestCase):
         return cartesian_coordinates
 
     def _get_lonlat_rad_face_edge_nodes_testcase_helper(
-            self,face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
+            self, face_nodes_ind, face_edges_ind, edge_nodes_grid, node_lon, node_lat
     ):
         """This function is only used to help generating the testcase and
         should not be used in the actual implementation. Construct an array to
@@ -1233,8 +1228,6 @@ class TestLatlonBoundsGCAList(TestCase):
         bounds = _populate_face_latlon_bound(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                              is_GCA_list=[True, False, True, False])
         nt.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
-
-
 
     def test_populate_bounds_antimeridian(self):
         # Generate a normal face that is crossing the antimeridian
@@ -1438,7 +1431,6 @@ class TestLatlonBoundsFiles:
 
 class TestGeoDataFrame(TestCase):
 
-
     def test_engine(self):
         uxgrid = ux.open_grid(gridfile_geoflow)
         for engine in ['geopandas', 'spatialpandas']:
@@ -1485,3 +1477,20 @@ class TestGeoDataFrame(TestCase):
         gdf_f = uxgrid.to_geodataframe(exclude_antimeridian=True)
 
         assert gdf_f is not gdf_e
+
+
+class TestStereographicProjection(TestCase):
+    def test_stereographic_projection(self):
+        lon = np.array(0)
+        lat = np.array(0)
+
+        central_lon = np.array(0)
+        central_lat = np.array(0)
+
+        x, y = stereographic_projection(lon, lat, central_lon, central_lat)
+
+        new_lon, new_lat = inverse_stereographic_projection(x, y, central_lon, central_lat)
+
+        self.assertTrue(lon == new_lon)
+        self.assertTrue(lat == new_lat)
+        self.assertTrue(x == y == 0)

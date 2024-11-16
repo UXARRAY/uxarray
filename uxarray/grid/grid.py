@@ -27,7 +27,10 @@ from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
 from uxarray.io._structured import _read_structured_grid
 from uxarray.io._voronoi import _spherical_voronoi_from_points
-from uxarray.io._delaunay import _spherical_delaunay_from_points
+from uxarray.io._delaunay import (
+    _spherical_delaunay_from_points,
+    _regional_delaunay_from_points,
+)
 
 from uxarray.formatting_html import grid_repr
 
@@ -363,6 +366,7 @@ class Grid:
 
             - `'spherical_voronoi'`: Constructs a spherical Voronoi diagram.
             - `'spherical_delaunay'`: Constructs a spherical Delaunay triangulation.
+            - `'regional_delaunay'`: Constructs a regional Delaunay triangulation.
 
             Default is `'spherical_delaunay'`.
 
@@ -388,6 +392,8 @@ class Grid:
             ds = _spherical_voronoi_from_points(_points, **kwargs)
         elif method == "spherical_delaunay":
             ds = _spherical_delaunay_from_points(_points, boundary_points)
+        elif method == "regional_delaunay":
+            ds = _regional_delaunay_from_points(_points, boundary_points)
         else:
             raise ValueError(
                 f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."

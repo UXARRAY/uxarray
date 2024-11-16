@@ -1485,3 +1485,94 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     # If an edge only has one face saddling it than the mesh has holes in it
     edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
     return edge_with_holes
+
+
+def stereographic_projection(lon, lat, central_lon, central_lat):
+    """Projects a point on the surface of the sphere to a plane using stereographic projection
+
+    Parameters
+    ----------
+    lon: np.ndarray
+        Longitude coordinates of point
+    lat: np.ndarray
+        Latitude coordinate of point
+    central_lon: np.ndarray
+        Central longitude of projection
+    central_lat: np.ndarray
+        Central latitude of projection
+    Returns
+    -------
+    x: np.ndarray
+        2D x coordinate of projected point
+    y: np.ndarray
+        2D y coordinate of projected point
+    """
+
+    # Convert to radians
+    lon = np.deg2rad(lon)
+    lat = np.deg2rad(lat)
+    central_lon = np.deg2rad(central_lon)
+    central_lat = np.deg2rad(central_lat)
+
+    # Calculate constant used for calculation
+    k = 2.0 / (
+        1.0
+        + np.sin(central_lat) * np.sin(lat)
+        + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+    )
+
+    # Calculate the x and y coordinates
+    x = k * np.cos(lat) * np.sin(lon - central_lon)
+    y = k * (
+        np.cos(central_lat) * np.sin(lat)
+        - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+    )
+
+    return x, y
+
+
+def inverse_stereographic_projection(x, y, central_lon, central_lat):
+    """Projects a point on a plane to the surface of the sphere using stereographic projection
+
+    Parameters
+    ----------
+    x: np.ndarray
+        2D x coordinates of point
+    y: np.ndarray
+        2D y coordinate of point
+    central_lon: np.ndarray
+        Central longitude of projection
+    central_lat: np.ndarray
+        Central latitude of projection
+    Returns
+    -------
+    lon: np.ndarray
+        Longitude of projected point
+    lat: np.ndarray
+        Latitude of projected point
+    """
+
+    # If x and y are zero, the lon and lat will also be zero
+
+    if x == 0 and y == 0:
+        return 0, 0
+
+    # Convert to radians
+    central_lat = np.deg2rad(central_lat)
+
+    # Calculate constants used for calculation
+    p = np.sqrt(x**2 + y**2)
+
+    c = 2 * np.arctan(p / 2)
+
+    # Calculate the lon and lat of the coordinate
+    lon = central_lon + np.arctan2(
+        x * np.sin(c),
+        p * np.cos(central_lat) * np.cos(c) - y * np.sin(central_lat) * np.sin(c),
+    )
+
+    lat = np.arcsin(
+        np.cos(c) * np.sin(central_lat) + ((y * np.sin(c) * central_lat) / p)
+    )
+
+    return lon, lat
