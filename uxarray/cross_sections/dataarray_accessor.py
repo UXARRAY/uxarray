@@ -53,6 +53,11 @@ class UxDataArrayCrossSectionAccessor:
         The initial execution time may be significantly longer than subsequent runs
         due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
+        if not self.uxda._face_centered():
+            raise ValueError(
+                "Cross sections are only supported for face-centered data variables."
+            )
+
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
         return self.uxda.isel(n_face=faces)
@@ -88,6 +93,11 @@ class UxDataArrayCrossSectionAccessor:
         The initial execution time may be significantly longer than subsequent runs
         due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
+        if not self.uxda._face_centered():
+            raise ValueError(
+                "Cross sections are only supported for face-centered data variables."
+            )
+
         faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
             lon,
         )

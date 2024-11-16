@@ -58,6 +58,7 @@ class GridCrossSectionAccessor:
         The initial execution time may be significantly longer than subsequent runs
         due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
+
         faces = self.uxgrid.get_faces_at_constant_latitude(
             lat,
         )
