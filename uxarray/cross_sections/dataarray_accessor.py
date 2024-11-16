@@ -17,12 +17,12 @@ class UxDataArrayCrossSectionAccessor:
         prefix = "<uxarray.UxDataArray.cross_section>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "  * constant_latitude(lat, use_spherical_bounding_box)\n"
-        methods_heading += "  * constant_longitude(lon, use_spherical_bounding_box)\n"
+        methods_heading += "  * constant_latitude(lat)\n"
+        methods_heading += "  * constant_longitude(lon)\n"
 
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, use_spherical_bounding_box: bool = True):
+    def constant_latitude(self, lat: float):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant latitude.
 
@@ -31,9 +31,6 @@ class UxDataArrayCrossSectionAccessor:
         lat : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
-            along great circle arcs.
 
         Returns
         -------
@@ -56,13 +53,11 @@ class UxDataArrayCrossSectionAccessor:
         The initial execution time may be significantly longer than subsequent runs
         due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
-        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(
-            lat, use_spherical_bounding_box
-        )
+        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
         return self.uxda.isel(n_face=faces)
 
-    def constant_longitude(self, lon: float, use_spherical_bounding_box: bool = True):
+    def constant_longitude(self, lon: float):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant longitude.
 
@@ -71,9 +66,6 @@ class UxDataArrayCrossSectionAccessor:
         lon : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -180.0 and 180.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
-            along great circle arcs.
 
         Returns
         -------
@@ -97,7 +89,7 @@ class UxDataArrayCrossSectionAccessor:
         due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
-            lon, use_spherical_bounding_box
+            lon,
         )
 
         return self.uxda.isel(n_face=faces)

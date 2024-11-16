@@ -17,14 +17,13 @@ class GridCrossSectionAccessor:
         prefix = "<uxarray.Grid.cross_section>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "  * constant_latitude(lat, use_spherical_bounding_box, return_face_indices)\n"
-        methods_heading += "  * constant_longitude(lon, use_spherical_bounding_box, return_face_indices)\n"
+        methods_heading += "  * constant_latitude(lat, return_face_indices)\n"
+        methods_heading += "  * constant_longitude(lon, return_face_indices)\n"
         return prefix + methods_heading
 
     def constant_latitude(
         self,
         lat: float,
-        use_spherical_bounding_box: bool = True,
         return_face_indices: bool = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
@@ -35,9 +34,6 @@ class GridCrossSectionAccessor:
         lat : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
-            along great circle arcs.
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant latitude.
 
@@ -63,7 +59,7 @@ class GridCrossSectionAccessor:
         due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxgrid.get_faces_at_constant_latitude(
-            lat, use_spherical_bounding_box
+            lat,
         )
 
         if len(faces) == 0:
@@ -79,7 +75,6 @@ class GridCrossSectionAccessor:
     def constant_longitude(
         self,
         lon: float,
-        use_spherical_bounding_box: bool = True,
         return_face_indices: bool = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
@@ -90,9 +85,6 @@ class GridCrossSectionAccessor:
         lon : float
             The longitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
-            along great circle arcs.
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant longitude.
 
@@ -118,7 +110,7 @@ class GridCrossSectionAccessor:
         due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxgrid.get_faces_at_constant_longitude(
-            lon, use_spherical_bounding_box
+            lon,
         )
 
         if len(faces) == 0:

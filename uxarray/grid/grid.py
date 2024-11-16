@@ -1366,6 +1366,10 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
+            warn(
+                "Constructing the bounding box for each face for the first time. This may take some time.",
+                RuntimeWarning,
+            )
             _populate_bounds(self)
 
         return self._ds["bounds"]
@@ -2229,7 +2233,7 @@ class Grid:
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
         use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
+            If True, uses a spherical bounding box for getting candidate faces, which considers the extreme cases
             along great circle arcs.
 
         Returns
@@ -2256,7 +2260,8 @@ class Grid:
         return edges.squeeze()
 
     def get_faces_at_constant_latitude(
-        self, lat: float, use_spherical_bounding_box: bool = True
+        self,
+        lat: float,
     ):
         """
         Identifies the indices of faces that intersect with a line of constant latitude.
@@ -2266,9 +2271,6 @@ class Grid:
         lat : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
-            along great circle arcs.
 
         Returns
         -------
@@ -2281,17 +2283,11 @@ class Grid:
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if use_spherical_bounding_box:
-            faces = constant_lat_intersections_face_bounds(
-                lat=lat,
-                face_bounds_lat=self.face_bounds_lat.values,
-            )
-            return faces
-        else:
-            edges = self.get_edges_at_constant_latitude(lat, use_spherical_bounding_box)
-            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
-
-            return faces[faces != INT_FILL_VALUE]
+        faces = constant_lat_intersections_face_bounds(
+            lat=lat,
+            face_bounds_lat=self.face_bounds_lat.values,
+        )
+        return faces
 
     def get_edges_at_constant_longitude(
         self, lon: float, use_spherical_bounding_box: bool = False
@@ -2330,9 +2326,7 @@ class Grid:
             )
             return edges.squeeze()
 
-    def get_faces_at_constant_longitude(
-        self, lon: float, use_spherical_bounding_box: bool = True
-    ):
+    def get_faces_at_constant_longitude(self, lon: float):
         """
         Identifies the indices of faces that intersect with a line of constant longitude.
 
@@ -2341,9 +2335,6 @@ class Grid:
         lon : float
             The longitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
-            along great circle arcs.
 
         Returns
         -------
@@ -2351,15 +2342,10 @@ class Grid:
             An array of face indices that intersect with the specified longitude.
         """
 
-        if use_spherical_bounding_box:
-            faces = constant_lon_intersections_face_bounds(
-                lon, self.face_bounds_lon.values
+        if lon > 180.0 or lon < -180.0:
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
-            return faces
-        else:
-            edges = self.get_edges_at_constant_longitude(
-                lon, use_spherical_bounding_box
-            )
-            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
-            return faces[faces != INT_FILL_VALUE]
+        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
+        return faces
