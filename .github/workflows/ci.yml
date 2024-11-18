@@ -66,8 +66,6 @@ jobs:
       - name: Run Namespace Tests
         run: |
           python -m pytest test
-        env:
-          NUMBA_DISABLE_JIT: 1
 
       - name: Run Coverage Tests
         run: |
