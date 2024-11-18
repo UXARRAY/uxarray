@@ -62,6 +62,10 @@ jobs:
         run: |
           conda list
 
+      - name: Disable numba for testing & coverage
+        env:
+          NUMBA_DISABLE_JIT: 1
+
       - name: Run Namespace Tests
         run: |
           python -m pytest test
