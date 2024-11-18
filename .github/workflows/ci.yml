@@ -62,6 +62,7 @@ jobs:
         run: |
           conda list
 
+
       - name: Run Namespace Tests
         run: |
           python -m pytest test
@@ -69,6 +70,8 @@ jobs:
       - name: Run Coverage Tests
         run: |
           python -m pytest test -v --cov=./uxarray --cov-report=xml
+        env:
+          NUMBA_DISABLE_JIT: 1
 
       - name: Upload code coverage to Codecov
         if: github.repository == 'UXARRAY/uxarray'
