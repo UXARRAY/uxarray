@@ -790,8 +790,8 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = math.atan2(y, x)
-    lat = math.asin(z)
+    lon = np.atan2(y, x)
+    lat = np.asin(z)
 
     # set longitude range to [0, pi]
     lon = np.mod(lon, 2 * np.pi)
