@@ -348,6 +348,11 @@ class UxDataArrayPlotAccessor:
         periodic_elements="exclude",
         backend=None,
         engine="spatialpandas",
+        rasterize=True,
+        dynamic=False,
+        projection=None,
+        xlabel="",
+        ylabel="",
         *args,
         **kwargs,
     ):
@@ -370,15 +375,14 @@ class UxDataArrayPlotAccessor:
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         engine: str, optional
             Engine to use for GeoDataFrame construction. One of ['spatialpandas', 'geopandas']
+        rasterize: bool, optional
+            Whether to rasterize the plot (default: True)
+        projection: ccrs.Projection, optional
+            The map projection to use.
         *args : tuple
             Additional positional arguments to be passed to `hvplot.polygons`.
         **kwargs : dict
-            Additional keyword arguments passed to `hvplot.polygons`. These can include:
-            - "rasterize" (bool): Whether to rasterize the plot (default: True),
-            - "projection" (ccrs.Projection): The map projection to use (default: `ccrs.PlateCarree()`),
-            - "clabel" (str): Label for the colorbar, defaulting to the name of the data array (`_uxda.name`),
-            - "crs" (ccrs.Projection): Coordinate reference system for the plot (default: `ccrs.PlateCarree()`).
-            For additional customization, please refer to https://hvplot.holoviz.org/user_guide/Customization.html
+            Additional keyword arguments passed to `hvplot.polygons`. For additional customization, please refer to https://hvplot.holoviz.org/user_guide/Customization.html
 
         Returns
         -------
@@ -387,29 +391,35 @@ class UxDataArrayPlotAccessor:
         """
         uxarray.plot.utils.backend.assign(backend)
 
-        if "rasterize" not in kwargs:
-            kwargs["rasterize"] = True
-        if "projection" not in kwargs:
-            kwargs["projection"] = ccrs.PlateCarree()
+        if dynamic and (projection is not None or kwargs.get("geo", None) is True):
+            warnings.warn(
+                "Projections with dynamic plots may display incorrectly or update improperly. "
+                "Consider using static plots instead. See: github.com/holoviz/geoviews/issues/762"
+            )
+
+        if projection is not None:
+            if "crs" not in kwargs:
+                if "projection" in kwargs:
+                    central_longitude = kwargs["projection"].proj4_params["lon_0"]
+                else:
+                    central_longitude = 0.0
+                kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
+
         if "clabel" not in kwargs and self._uxda.name is not None:
             kwargs["clabel"] = self._uxda.name
-        if "crs" not in kwargs:
-            if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params["lon_0"]
-            else:
-                central_longitude = 0.0
-            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         gdf = self._uxda.to_geodataframe(
             periodic_elements=periodic_elements,
             projection=kwargs.get("projection"),
             engine=engine,
-            project=False,
         )
 
         return gdf.hvplot.polygons(
             c=self._uxda.name if self._uxda.name is not None else "var",
-            geo=True,
+            rasterize=rasterize,
+            dynamic=dynamic,
+            xlabel=xlabel,
+            ylabel=ylabel,
             *args,
             **kwargs,
         )
