@@ -345,14 +345,14 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements="exclude",
-        backend=None,
-        engine="spatialpandas",
-        rasterize=True,
-        dynamic=False,
-        projection=None,
-        xlabel="",
-        ylabel="",
+        periodic_elements: Optional[str] = "exclude",
+        backend: Optional[str] = None,
+        engine: Optional[str] = "spatialpandas",
+        rasterize: Optional[bool] = True,
+        dynamic: Optional[bool] = False,
+        projection: Optional[ccrs.Projection] = None,
+        xlabel: Optional[str] = "Longitude",
+        ylabel: Optional[str] = "Latitude",
         *args,
         **kwargs,
     ):
