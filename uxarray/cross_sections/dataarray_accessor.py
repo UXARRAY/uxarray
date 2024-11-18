@@ -41,7 +41,7 @@ class UxDataArrayCrossSectionAccessor:
         Raises
         ------
         ValueError
-            If no intersections are found at the specified latitude.
+            If no intersections are found at the specified longitude or the data variable is not face-centered.
 
         Examples
         --------
@@ -81,7 +81,7 @@ class UxDataArrayCrossSectionAccessor:
         Raises
         ------
         ValueError
-            If no intersections are found at the specified longitude.
+            If no intersections are found at the specified longitude or the data variable is not face-centered.
 
         Examples
         --------
