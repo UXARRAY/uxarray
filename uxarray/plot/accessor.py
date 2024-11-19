@@ -412,6 +412,7 @@ class UxDataArrayPlotAccessor:
             periodic_elements=periodic_elements,
             projection=kwargs.get("projection"),
             engine=engine,
+            project=False,
         )
 
         return gdf.hvplot.polygons(
