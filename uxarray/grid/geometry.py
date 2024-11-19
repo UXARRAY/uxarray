@@ -1366,7 +1366,7 @@ def inverse_stereographic_projection(x_plane, y_plane):
     return x_norm, y_norm, z_norm
 
 
-def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-1):
+def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-9):
     """Returns `True` if point is inside polygon, `False` otherwise.
 
      Parameters
@@ -1395,13 +1395,26 @@ def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-1):
         y = polygon[1]
         z = polygon[2]
 
-        lon, lat = _xyz_to_lonlat_deg(x,y,z)
+        x_centroid = np.mean(x)
+        y_centroid = np.mean(y)
+        z_centroid = np.mean(z)
+
+        lon_centroid, lat_centroid = _xyz_to_lonlat_deg(x_centroid, y_centroid, z_centroid)
+        lon, lat = _xyz_to_lonlat_deg(x, y, z)
 
     # Point is in spherical coordinates
     elif len(polygon) == 2:
         # Assign lon/lat
         lon = polygon[0]
         lat = polygon[1]
+
+        x, y, z = _lonlat_rad_to_xyz(np.deg2rad(lon), np.deg2rad(lat))
+
+        x_centroid = np.mean(x)
+        y_centroid = np.mean(y)
+        z_centroid = np.mean(z)
+
+        lon_centroid, lat_centroid = _xyz_to_lonlat_deg(x_centroid, y_centroid, z_centroid)
 
     # Point is incorrect
     else:
@@ -1420,8 +1433,8 @@ def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-1):
         raise ValueError("Point is incorrect, should be either lonlat or xyz")
 
     # Project polygon to plane
-    polygon_on_plane = stereographic_projection(lon, lat, point_lon, point_lat)
-    point_on_plane = stereographic_projection(point_lon, point_lon, point_lon, point_lat)
+    polygon_on_plane = stereographic_projection(lon, lat, lon_centroid, lat_centroid)
+    point_on_plane = stereographic_projection(point_lon, point_lon, lon_centroid, lat_centroid)
 
     stacked_polygon = list(zip(*polygon_on_plane))
     point_inside = _ray_casting_plane(
