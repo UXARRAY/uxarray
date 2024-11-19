@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+import pytest
+
 import dask.array as da
 import numpy as np
 import numpy.testing as nt
@@ -122,5 +124,9 @@ def test_csne30_equal_area():
 
 
 # TODO for Rachel
-def test_csne30_equal_area_dask():
+@pytest.mark.parametrize("chunk_size", [1, 2, 4])
+def test_csne30_equal_area_dask(chunk_size):
+
+    # ... .chunk(n_face=chunk_size)
+
     pass
