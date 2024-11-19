@@ -398,11 +398,11 @@ class UxDataArrayPlotAccessor:
             )
 
         if projection is not None:
+            kwargs["projection"] = projection
+            print("Hello")
+            kwargs["geo"] = True
             if "crs" not in kwargs:
-                if "projection" in kwargs:
-                    central_longitude = kwargs["projection"].proj4_params["lon_0"]
-                else:
-                    central_longitude = 0.0
+                central_longitude = projection.proj4_params["lon_0"]
                 kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         if "clabel" not in kwargs and self._uxda.name is not None:
