@@ -2222,9 +2222,7 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_edges_at_constant_latitude(
-        self, lat: float, use_spherical_bounding_box: bool = False
-    ):
+    def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):
         """Identifies the indices of edges that intersect with a line of constant latitude.
 
         Parameters
@@ -2232,9 +2230,8 @@ class Grid:
         lat : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for getting candidate faces, which considers the extreme cases
-            along great circle arcs.
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
 
         Returns
         -------
@@ -2247,7 +2244,7 @@ class Grid:
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if use_spherical_bounding_box:
+        if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
                 "is not yet supported."
@@ -2290,7 +2287,7 @@ class Grid:
         return faces
 
     def get_edges_at_constant_longitude(
-        self, lon: float, use_spherical_bounding_box: bool = False
+        self, lon: float, use_face_bounds: bool = False
     ):
         """
         Identifies the indices of edges that intersect with a line of constant longitude.
@@ -2300,9 +2297,8 @@ class Grid:
         lon : float
             The longitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        use_spherical_bounding_box : bool, optional
-            If True, uses a spherical bounding box for obtaining candidate faces, which considers the extreme cases
-            along great circle arcs.
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
 
         Returns
         -------
@@ -2315,7 +2311,7 @@ class Grid:
                 f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
 
-        if use_spherical_bounding_box:
+        if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
                 "is not yet supported."
