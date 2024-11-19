@@ -1,12 +1,11 @@
-import uxarray as ux
 import os
-
-import numpy.testing as nt
-import numpy as np
-
-import pytest
-
 from pathlib import Path
+
+import dask.array as da
+import numpy as np
+import numpy.testing as nt
+
+import uxarray as ux
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -34,6 +33,33 @@ def test_quad_hex_face_centered():
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(result.values, expected_weighted_mean, decimal=3)
 
+def test_quad_hex_face_centered_dask():
+    """Compares the weighted average computation for the quad hexagon grid
+    using a face centered data variable on a dask-backed UxDataset & Grid to the expected value computed by
+    hand."""
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path_face_centered)
+
+    # data to be dask
+    uxda = uxds['t2m'].chunk(n_face=1)
+
+    # weights to be dask
+    uxda.uxgrid.face_areas = uxda.uxgrid.face_areas.chunk(n_face=1)
+
+    # create lazy result
+    lazy_result = uxda.weighted_mean()
+
+    assert isinstance(lazy_result.data, da.Array)
+
+    # compute result
+    computed_result = lazy_result.compute()
+
+    assert isinstance(computed_result.data, np.ndarray)
+
+    expected_weighted_mean = 297.55
+
+    # ensure values are within 3 decimal points of each other
+    nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
+
 def test_quad_hex_edge_centered():
     """Compares the weighted average computation for the quad hexagon grid
     using an edge centered data variable to the expected value computed by
@@ -41,13 +67,41 @@ def test_quad_hex_edge_centered():
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path_edge_centered)
 
     # expected weighted average computed by hand
-    # expected_weighted_mean = 297.55
     expected_weighted_mean = (uxds['random_data_edge'].values * uxds.uxgrid.edge_node_distances).sum() / uxds.uxgrid.edge_node_distances.sum()
 
     # compute the weighted mean
     result = uxds['random_data_edge'].weighted_mean()
 
     nt.assert_equal(result, expected_weighted_mean)
+
+def test_quad_hex_edge_centered_dask():
+    """Compares the weighted average computation for the quad hexagon grid
+    using an edge centered data variable on a dask-backed UxDataset & Grid to the expected value computed by
+    hand."""
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path_edge_centered)
+
+    # data to be dask
+    uxda = uxds['random_data_edge'].chunk(n_edge=1)
+
+    # weights to be dask
+    uxda.uxgrid.edge_node_distances = uxda.uxgrid.edge_node_distances.chunk(n_edge=1)
+
+    # create lazy result
+    lazy_result = uxds['random_data_edge'].weighted_mean()
+
+    assert isinstance(lazy_result.data, da.Array)
+
+    # compute result
+    computed_result = lazy_result.compute()
+
+    assert isinstance(computed_result.data, np.ndarray)
+
+    # expected weighted average computed by hand
+    expected_weighted_mean = (uxds[
+                                  'random_data_edge'].values * uxds.uxgrid.edge_node_distances).sum() / uxds.uxgrid.edge_node_distances.sum()
+
+    # ensure values are within 3 decimal points of each other
+    nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
 
 
 def test_csne30_equal_area():
@@ -65,3 +119,8 @@ def test_csne30_equal_area():
 
     # with equal area, both should be equal
     nt.assert_equal(weighted_mean, unweighted_mean)
+
+
+# TODO for Rachel
+def test_csne30_equal_area_dask():
+    pass
