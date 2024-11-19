@@ -429,7 +429,7 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def weighted_mean(self, weights=None, **kwargs):
+    def weighted_mean(self, weights=None):
         """Compute the weighted mean of the data variable.
 
         This function calculates the weighted mean of a variable,
@@ -447,9 +447,6 @@ class UxDataArray(xr.DataArray):
             If the variable is neither face-centered nor edge-centered, a warning is raised, and
             an unweighted mean is computed instead. User-defined weights should match the shape
             of the data variable's last dimension.
-
-        **kwargs : dict, optional
-            Additional keyword arguments passed to the function (currently not used). TODO
 
         Returns
         -------
