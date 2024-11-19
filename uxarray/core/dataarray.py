@@ -457,6 +457,10 @@ class UxDataArray(xr.DataArray):
             A new `UxDataArray` object representing the weighted mean of the input variable. The
             result is attached to the same `uxgrid` attribute as the original variable.
 
+        Example
+        -------
+        >>> print("TODO Rachel")
+
         Raises
         ------
         AssertionError
