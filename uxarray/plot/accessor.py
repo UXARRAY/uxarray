@@ -399,7 +399,6 @@ class UxDataArrayPlotAccessor:
 
         if projection is not None:
             kwargs["projection"] = projection
-            print("Hello")
             kwargs["geo"] = True
             if "crs" not in kwargs:
                 central_longitude = projection.proj4_params["lon_0"]
