@@ -5,6 +5,16 @@ from numba import njit
 
 
 @njit(cache=True)
+def clip(a, a_min, a_max):
+    return np.clip(a, a_min, a_max)
+
+
+@njit(cache=True)
+def arcsin(x):
+    return np.arcsin(x)
+
+
+@njit(cache=True)
 def all(a):
     """Numba decorated implementation of ``np.all()``
 
