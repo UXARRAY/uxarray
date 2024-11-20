@@ -454,15 +454,9 @@ class UxDataArray(xr.DataArray):
             A UxDataArray containing the computed zonal mean for the specified latitudes. The returned UxDataArray will
             have a new dimension called `latitudes` with the corresponding latitude values as coordinates.
 
-        Raises
-        ------
-        ValueError
-            If the input data is not face-centered or edge-centered, or if the specified latitude range includes
-            values close to the poles, such as (89, 90) or (-90, -89).
-
         Examples
         --------
-        Compute the zonal mean for all latitudes between -90 and 90 degrees, at 5-degree intervals:
+        Compute the zonal mean for all latitudes between -90 and 90 degrees, at 10-degree intervals:
         >>> uxds["var"].zonal_mean()
 
         Compute the zonal mean for a single latitude, 30 degrees:
@@ -485,10 +479,11 @@ class UxDataArray(xr.DataArray):
             # zonal mean over a single latitude
             latitudes = [lat]
         elif isinstance(lat, (list, np.ndarray)):
+            # zonal mean over an array of arbitrary latitudes
             latitudes = np.asarray(lat)
         else:
             raise ValueError(
-                "Invalid value for 'lat' provided. Must either be a single scalar value or a tuple (min_lat, max_lat, step) "
+                "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
             )
 
         res = _compute_zonal_mean(
@@ -498,7 +493,6 @@ class UxDataArray(xr.DataArray):
 
         dims = list(self.dims[:-1]) + ["latitudes"]
 
-        # Result is stored and returned as a UxDataArray
         uxda = UxDataArray(
             res,
             uxgrid=self.uxgrid,
