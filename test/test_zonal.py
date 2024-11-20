@@ -1,4 +1,5 @@
 import uxarray as ux
+import dask.array as da
 import numpy as np
 import pytest
 from uxarray.constants import ERROR_TOLERANCE
@@ -43,7 +44,10 @@ class TestZonalCSne30:
         uxds = ux.open_dataset(grid_path, data_path)
 
         res = uxds['psi'].zonal_mean((-90, 90, 1))
-        print(res)
+
+        assert len(res) == 181
+
+
 
     def test_non_conservative_zonal_mean_at_pole(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
@@ -62,3 +66,18 @@ class TestZonalCSne30:
         # Assert results are approximately 1 within a delta of 1
         assert res_n90.values[0] == pytest.approx(1, abs=1)
         assert res_p90.values[0] == pytest.approx(1, abs=1)
+
+    def test_zonal_mean_dask(self):
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        uxds['psi'] = uxds['psi'].chunk()
+
+        res = uxds['psi'].zonal_mean((-90, 90, 1))
+
+        assert isinstance(res.data, da.Array)
+
+        res_computed = res.compute()
+
+        assert isinstance(res_computed.data, np.ndarray)
