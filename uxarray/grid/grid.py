@@ -62,7 +62,6 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
     _construct_boundary_edge_indices,
-    compute_temp_latlon_array,
 )
 
 from uxarray.grid.neighbors import (
@@ -1370,14 +1369,6 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            if hasattr(compute_temp_latlon_array, "inspect_llvm"):
-                if len(compute_temp_latlon_array.inspect_llvm()) == 0:
-                    warn(
-                        "Necessary functions for computing face bounds are not translated yet with Numba. This initial"
-                        "translation may take some time.",
-                        RuntimeWarning,
-                    )
-
             _populate_bounds(self)
 
         return self._ds["bounds"]

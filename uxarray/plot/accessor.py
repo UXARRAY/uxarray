@@ -557,6 +557,12 @@ class UxDataArrayPlotAccessor:
         xrda = self._uxda.to_xarray()
         return xrda.hvplot.line(*args, **kwargs)
 
+    def scatter(self, backend=None, *args, **kwargs):
+        """TODO:"""
+        uxarray.plot.utils.backend.assign(backend)
+        xrda = self._uxda.to_xarray()
+        return xrda.hvplot.scatter(*args, **kwargs)
+
     def _zonal_average_line(self, *args, **kwargs):
         pass
 

@@ -472,6 +472,7 @@ class UxDataArray(xr.DataArray):
 
         Compute the zonal mean for latitudes between -60 and 60 degrees, at 10-degree intervals:
         >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
+
         """
         if not self._face_centered():
             raise ValueError(
@@ -485,6 +486,8 @@ class UxDataArray(xr.DataArray):
         elif isinstance(lat, (float, int)):
             # zonal mean over a single latitude
             latitudes = [lat]
+        elif isinstance(lat, (list, np.ndarray)):
+            latitudes = np.asarray(lat)
         else:
             raise ValueError(
                 "Invalid value for 'lat' provided. Must either be a single scalar value or a tuple (min_lat, max_lat, step) "
@@ -505,6 +508,7 @@ class UxDataArray(xr.DataArray):
             dims=dims,
             coords={"latitudes": latitudes},
             name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
+            attrs={"zonal_average": True},
         )
 
         return uxda
