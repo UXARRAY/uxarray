@@ -434,7 +434,7 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 10), conservative=True):
+    def zonal_mean(self, lat=(-90, 90, 10)):
         """Compute the average along one or more lines of constant latitude.
 
         The candidate faces at each line of constant latitude are determined using a robust algorithm that treats each edge
@@ -442,14 +442,12 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        lat : tuple or float, default=(-90, 90, 5)
+        lat : tuple,float, or list default=(-90, 90, 5)
             Latitude values in degrees for which to compute the zonal mean. If a tuple is provided, it should specify
             the start latitude, end latitude, and step size as (start, end, step). The zonal mean will be computed for
             each latitude in the inclusive range [start, end] at intervals of `step`. If a single float is provided,
-            the zonal mean is computed for that specific latitude.
-        conservative : bool, default=True
-            If True, data is weighted by face areas
-            If False, data is weighted by edge magnitudes.
+            the zonal mean is computed for that specific latitude. If a list or array is provided, the zonal average will
+            be computed for each value provided.
         Returns
         -------
         UxDataArray
@@ -496,7 +494,6 @@ class UxDataArray(xr.DataArray):
         res = _compute_zonal_mean(
             uxda=self,
             latitudes=latitudes,
-            conservative=conservative,
         )
 
         dims = list(self.dims[:-1]) + ["latitudes"]
