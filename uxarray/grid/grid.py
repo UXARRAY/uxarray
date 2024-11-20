@@ -62,6 +62,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
     _construct_boundary_edge_indices,
+    compute_temp_latlon_array,
 )
 
 from uxarray.grid.neighbors import (
@@ -75,6 +76,7 @@ from uxarray.grid.intersections import (
     constant_lat_intersections_no_extreme,
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
+    constant_lon_intersections_face_bounds,
 )
 
 from uxarray.grid.weights import _face_weights_from_edge_magnitudes
@@ -95,8 +97,6 @@ from uxarray.grid.validation import (
     _check_area,
     _check_normalization,
 )
-
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 
 from uxarray.conventions import ugrid
@@ -1220,25 +1220,6 @@ class Grid:
         self._ds["face_edge_connectivity"] = value
 
     @property
-    def _face_edge_nodes_xyz(self):
-        """Internal cached attribute for storing the xyz coordinates of the nodes that make up the edges of each face."""
-
-        if "_face_edge_nodes_xyz" not in self._ds:
-            res = _get_cartesian_face_edge_nodes(
-                self.face_node_connectivity.values,
-                self.n_face,
-                self.n_max_face_edges,
-                self.node_x.values,
-                self.node_y.values,
-                self.node_z.values,
-            )
-            self._ds["_face_edge_nodes_xyz"] = xr.DataArray(
-                data=res, dims=["n_face", "n_max_face_edges", "two", "three"]
-            )
-
-        return self._ds["_face_edge_nodes_xyz"]
-
-    @property
     def edge_edge_connectivity(self) -> xr.DataArray:
         """Indices of the edges that surround each edge.
 
@@ -1325,11 +1306,6 @@ class Grid:
         self._ds["node_face_connectivity"] = value
 
     @property
-    def edge_magnitudes(self):
-        """TODO."""
-        return self.edge_node_distances
-
-    @property
     def edge_node_distances(self):
         """Distances between the two nodes that surround each edge in degrees.
 
@@ -1389,15 +1365,19 @@ class Grid:
 
     @property
     def bounds(self):
-        """Latitude Longitude Bounds for each Face in degrees.
+        """Latitude Longitude Bounds for each Face in radians.
 
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            warn(
-                "Computing 'Grid.bounds' for the first time. This may take some time...",
-                UserWarning,
-            )
+            if hasattr(compute_temp_latlon_array, "inspect_llvm"):
+                if len(compute_temp_latlon_array.inspect_llvm()) == 0:
+                    warn(
+                        "Necessary functions for computing face bounds are not translated yet with Numba. This initial"
+                        "translation may take some time.",
+                        RuntimeWarning,
+                    )
+
             _populate_bounds(self)
 
         return self._ds["bounds"]
@@ -1407,6 +1387,38 @@ class Grid:
         """Setter for ``bounds``"""
         assert isinstance(value, xr.DataArray)
         self._ds["bounds"] = value
+
+    @property
+    def face_bounds_lon(self):
+        """Longitude bounds for each face in degrees."""
+
+        if "face_bounds_lon" not in self._ds:
+            bounds = self.bounds.values
+
+            bounds_deg = np.rad2deg(bounds[:, 1, :])
+            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
+            bounds_lon = bounds_normalized
+            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
+            # for faces that span all longitudes (i.e. pole faces)
+            bounds_lon[mask_zero] = [-180.0, 180.0]
+            self._ds["face_bounds_lon"] = xr.DataArray(
+                data=bounds_lon,
+                dims=["n_face", "min_max"],
+            )
+
+        return self._ds["face_bounds_lon"]
+
+    @property
+    def face_bounds_lat(self):
+        """Latitude bounds for each face in degrees."""
+        if "face_bounds_lat" not in self._ds:
+            bounds = self.bounds.values
+            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
+            self._ds["face_bounds_lat"] = xr.DataArray(
+                data=bounds_lat,
+                dims=["n_face", "min_max"],
+            )
+        return self._ds["face_bounds_lat"]
 
     @property
     def face_jacobian(self):
@@ -2291,18 +2303,16 @@ class Grid:
                 f"Unsupported weights type '{weights}'. Supported types are 'face_areas' and 'edge_magnitudes'."
             )
 
-    def get_edges_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+    def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):
         """Identifies the indices of edges that intersect with a line of constant latitude.
 
         Parameters
         ----------
-        lon : float
-            The latitude at which to identify intersecting edges, in degrees.
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+        lat : float
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
 
         Returns
         -------
@@ -2315,7 +2325,7 @@ class Grid:
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if use_spherical_bounding_box:
+        if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
                 "is not yet supported."
@@ -2328,7 +2338,8 @@ class Grid:
         return edges.squeeze()
 
     def get_faces_at_constant_latitude(
-        self, lat, use_spherical_bounding_box=False, return_edge_indices=False
+        self,
+        lat: float,
     ):
         """
         Identifies the indices of faces that intersect with a line of constant latitude.
@@ -2340,12 +2351,8 @@ class Grid:
         Parameters
         ----------
         lat : float
-            The latitude at which to identify intersecting faces, in degrees.
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
 
         Returns
         -------
@@ -2358,40 +2365,25 @@ class Grid:
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if use_spherical_bounding_box:
-            faces = constant_lat_intersections_face_bounds(
-                lat=lat,
-                face_min_lat_rad=self.bounds.values[:, 0, 0],
-                face_max_lat_rad=self.bounds.values[:, 0, 1],
-            )
-            return faces
-        else:
-            edges = self.get_edges_at_constant_latitude(lat, use_spherical_bounding_box)
-            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+        faces = constant_lat_intersections_face_bounds(
+            lat=lat,
+            face_bounds_lat=self.face_bounds_lat.values,
+        )
+        return faces
 
-            faces = faces[faces != INT_FILL_VALUE]
-
-        if return_edge_indices and use_spherical_bounding_box:
-            raise ValueError("TODO")
-
-        if return_edge_indices:
-            return faces, edges
-        else:
-            return faces
-
-    def get_edges_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+    def get_edges_at_constant_longitude(
+        self, lon: float, use_face_bounds: bool = False
+    ):
         """
         Identifies the indices of edges that intersect with a line of constant longitude.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to identify intersecting edges, in degrees.
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
 
         Returns
         -------
@@ -2404,7 +2396,7 @@ class Grid:
                 f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
 
-        if use_spherical_bounding_box:
+        if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
                 "is not yet supported."
@@ -2415,23 +2407,15 @@ class Grid:
             )
             return edges.squeeze()
 
-    def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+    def get_faces_at_constant_longitude(self, lon: float):
         """
         Identifies the indices of faces that intersect with a line of constant longitude.
-
-        When `use_spherical_bounding_box` is set to `True`,
-        the bounding box for each face is computed by representing each edge as a great circle arc.
-        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to identify intersecting faces, in degrees.
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
 
         Returns
         -------
@@ -2439,15 +2423,10 @@ class Grid:
             An array of face indices that intersect with the specified longitude.
         """
 
-        if use_spherical_bounding_box:
-            raise NotImplementedError(
-                "Computing the intersection using the spherical bounding box is not"
-                "yet supported."
+        if lon > 180.0 or lon < -180.0:
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
-        else:
-            edges = self.get_edges_at_constant_longitude(
-                lon, use_spherical_bounding_box
-            )
-            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
-            return faces[faces != INT_FILL_VALUE]
+        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
+        return faces

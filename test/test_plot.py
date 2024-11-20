@@ -46,8 +46,8 @@ class TestPlot(TestCase):
         uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
 
         for backend in ['matplotlib', 'bokeh']:
-            assert(isinstance(uxds['bottomDepth'].plot(backend=backend), hv.DynamicMap))
-            assert(isinstance(uxds['bottomDepth'].plot.polygons(backend=backend), hv.DynamicMap))
+            assert(isinstance(uxds['bottomDepth'].plot(backend=backend, dynamic=True), hv.DynamicMap))
+            assert(isinstance(uxds['bottomDepth'].plot.polygons(backend=backend, dynamic=True), hv.DynamicMap))
             assert(isinstance(uxds['bottomDepth'].plot.points(backend=backend), hv.Points))
 
     def test_face_centered_remapped_dim(self):
@@ -56,8 +56,8 @@ class TestPlot(TestCase):
         uxds = ux.open_dataset(gridfile_ne30, datafile_ne30)
 
         for backend in ['matplotlib', 'bokeh']:
-            assert(isinstance(uxds['psi'].plot(backend=backend), hv.DynamicMap))
-            assert(isinstance(uxds['psi'].plot.polygons(backend=backend), hv.DynamicMap))
+            assert(isinstance(uxds['psi'].plot(backend=backend, dynamic=True), hv.DynamicMap))
+            assert(isinstance(uxds['psi'].plot.polygons(backend=backend, dynamic=True), hv.DynamicMap))
             assert(isinstance(uxds['psi'].plot.points(backend=backend), hv.Points))
 
 
@@ -71,7 +71,7 @@ class TestPlot(TestCase):
 
             assert(isinstance(uxds['v1'][0][0].plot.points(backend=backend), hv.Points))
 
-            assert(isinstance(uxds['v1'][0][0].topological_mean(destination='face').plot.polygons(backend=backend), hv.DynamicMap))
+            assert(isinstance(uxds['v1'][0][0].topological_mean(destination='face').plot.polygons(backend=backend, dynamic=True), hv.DynamicMap))
 
 
 
@@ -85,8 +85,8 @@ class TestPlot(TestCase):
 
     def test_engine(self):
         uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
-        _plot_sp = uxds['bottomDepth'].plot.polygons(rasterize=True, engine='spatialpandas')
-        _plot_gp = uxds['bottomDepth'].plot.polygons(rasterize=True, engine='geopandas')
+        _plot_sp = uxds['bottomDepth'].plot.polygons(rasterize=True, dynamic=True, engine='spatialpandas')
+        _plot_gp = uxds['bottomDepth'].plot.polygons(rasterize=True, dynamic=True, engine='geopandas')
 
         assert isinstance(_plot_sp, hv.DynamicMap)
         assert isinstance(_plot_gp, hv.DynamicMap)
