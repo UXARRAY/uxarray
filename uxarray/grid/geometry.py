@@ -1489,144 +1489,6 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-def _point_in_polygon(polygon, point, inclusive=False, tolerance=1e-9):
-    """Returns `True` if point is inside polygon, `False` otherwise.
-
-     Parameters
-    ----------
-    polygon: np.ndarray (3, n_nodes)
-        Array of cartesian or spherical coordinates of the nodes making up the polygon. Shape:
-        [[x coordinates of nodes], [y coordinates of nodes], [z coordinates of nodes]]
-    point: np.ndarray
-        A point either `lon, lat` or `x, y, z` of which to check if it resides inside the polygon
-    inclusive: bool, optional
-        Flag for determining if points on the nodes or edges of the polygon  should be considered inside or out. False
-        means they will not be included.
-    tolerance : float, optional
-        The margin within which a point is considered on the edge or vertex.
-
-    Returns
-    --------
-    bool
-        True if point is inside polygon, False otherwise.
-    """
-
-    # Point is in cartesian coordinates
-    if len(point) == 3:
-        # Project point to plane
-        point_on_plane = _point_to_plane(point[0], point[1], point[2])
-    # Point is in spherical coordinates
-    elif len(point) == 2:
-        # Convert point to radians
-        lon_rad = np.deg2rad(point[0])
-        lat_rad = np.deg2rad(point[1])
-
-        # Convert lon/lat to xyz
-        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
-
-        # Project point to plane
-        point_on_plane = _point_to_plane(x, y, z)
-    # Point is incorrect
-    else:
-        raise ValueError("Point is incorrect, should be either lonlat or xyz")
-
-    # Polygon in cartesian coordinates
-    if len(polygon) == 3:
-        # Assign xyz
-        x = polygon[0]
-        y = polygon[1]
-        z = polygon[2]
-
-        # Project polygon to plane
-        polygon_on_plane = _point_to_plane(x, y, z)
-    # Point is in spherical coordinates
-    elif len(polygon) == 2:
-        # Assign lon/lat
-        lon = polygon[0]
-        lat = polygon[1]
-
-        # Convert lon/lat to radians
-        lon_rad = np.deg2rad(lon)
-        lat_rad = np.deg2rad(lat)
-
-        # Convert lon/lat to xyz
-        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
-
-        # Project point to plane
-        polygon_on_plane = _point_to_plane(x, y, z)
-    # Point is incorrect
-    else:
-        raise ValueError("Polygon is incorrect, should be either lonlat or xyz")
-
-    stacked_polygon = list(zip(*polygon_on_plane))
-    point_inside = _ray_casting_plane(
-        stacked_polygon, point_on_plane, inclusive=inclusive, tolerance=tolerance
-    )
-
-    # Return whether the point is inside the polygon or not
-    return point_inside
-
-
-def _ray_casting_plane(polygon, point, inclusive=False, tolerance=1e-9):
-    """Tests a point to see if it lies inside a polygon on a plane.
-
-    Parameters:
-    polygon : list of tuples
-        List of (x, y) coordinates representing the vertices of the polygon.
-    point : tuple
-        (x, y) coordinates of the point to test.
-    inclusive : bool, optional
-        If True, the function will consider points on the boundary (or within the tolerance) as inside.
-    tolerance : float, optional
-        The margin within which a point is considered on the edge or vertex.
-
-    Returns:
-    bool
-        True if the point is inside the polygon, False otherwise.
-    """
-    num_vertices = len(polygon)
-    x, y = point[0], point[1]
-    intersections = 0
-
-    # Check if the point lies exactly on any of the vertices
-    if inclusive:
-        for vertex in polygon:
-            if abs(x - vertex[0]) <= tolerance and abs(y - vertex[1]) <= tolerance:
-                return True  # Point is on a vertex
-
-    # Iterate through the edges to check if the point is on the boundary or inside
-    for i in range(num_vertices):
-        x1, y1 = polygon[i][0], polygon[i][1]
-        x2, y2 = polygon[(i + 1) % num_vertices][0], polygon[(i + 1) % num_vertices][1]
-
-        # Check if the point lies on the edge using tolerance (inclusive check)
-        if inclusive:
-            # Calculate the cross-product to check collinearity
-            cross_product = (y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)
-            if abs(cross_product) <= tolerance:
-                # Check if the point is within the bounds of the edge
-                if (
-                    min(x1, x2) - tolerance <= x <= max(x1, x2) + tolerance
-                    and min(y1, y2) - tolerance <= y <= max(y1, y2) + tolerance
-                ):
-                    return True  # Point is on the edge
-
-        # Standard ray-casting check for intersections
-        # Correct vertex intersection check:
-        if (y1 > y) != (y2 > y):  # The point's y should be between y1 and y2
-            # Check if the intersection is exactly at a vertex and adjust
-            if y == y1 and (y2 > y) != (
-                y1 > y
-            ):  # If intersecting at a vertex, ensure proper counting
-                continue  # Skip counting this vertex intersection to avoid double-counting
-
-            intersect_x = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
-            if intersect_x > x:
-                intersections += 1
-
-    # Return True if the number of intersections is odd
-    return intersections % 2 == 1
-
 def stereographic_projection(lon, lat, central_lon, central_lat):
     """Projects a point on the surface of the sphere to a plane using stereographic projection
 
@@ -1716,3 +1578,104 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     )
 
     return lon, lat
+
+
+def _point_in_polygon(point, edges):
+    """
+    Determines if the given test_point is inside the polygon defined by edges in 3D space using ray-casting logic.
+
+    Parameters:
+    - test_point: Array-like, the [x, y, z] coordinates of the point to test.
+    - vertices: List or array of [x, y, z] coordinates representing the vertices of the polygon.
+    - edges_indices: List of integers, representing the indices of the vertices forming the polygon edges.
+
+    Returns:
+    - True if the point is inside the face, False otherwise.
+    """
+
+    # Get proper coordinates for points
+    # Convert test_point to XYZ coordinates if in lat/lon format
+    if len(point) == 2:
+        point = _lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1]))
+
+    # Convert vertices to XYZ coordinates if they are in lat/lon format
+    if len(edges[0]) == 2:
+        edges = [
+            _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
+            for vertex in edges
+        ]
+
+    edges = np.flip(edges, axis=0)
+    nParity = 0
+
+    point_x = point[0]
+    point_y = point[1]
+    point_z = point[2]
+
+    for edge_ind_1 in range(len(edges)):
+        edge_ind_2 = (edge_ind_1 + 1) % len(edges)
+
+        first_edge_x = edges[edge_ind_1][0]
+        first_edge_y = edges[edge_ind_1][1]
+        first_edge_z = edges[edge_ind_1][2]
+
+        second_edge_x = edges[edge_ind_2][0]
+        second_edge_y = edges[edge_ind_2][1]
+        second_edge_z = edges[edge_ind_2][2]
+
+        # If both nodes are on the same size of n0.z then there will be no
+        # intersection with the plane z=n0.z. If nodes are on opposite sides
+        # of this plane then they must have an intersection.
+        if (first_edge_z > point_z) and (second_edge_z > point_z):
+            continue
+
+        if (first_edge_z < point_z) and (second_edge_z < point_z):
+            continue
+
+        # // Arcs of constant z aren't informative for determining inside/outside
+        if first_edge_z == second_edge_z:
+            continue
+
+        # // Intersection between n1-n2 and n0.z plane
+        # // Branch here to ensure result is the same regardless of n1-n2 ordering
+        # // Under the rules of floating point arithmetic, dA should always be
+        # // in the range [0,1].
+
+        if first_edge_z < second_edge_z:
+            dA = (point_x - first_edge_z) / (second_edge_z - first_edge_z)
+            nx = (1.0 - dA) * first_edge_x + dA * second_edge_x
+            ny = (1.0 - dA) * first_edge_y + dA * second_edge_y
+            nz = point_z
+        else:
+            dA = (point_z - second_edge_z) / (first_edge_z - second_edge_z)
+            nx = (1.0 - dA) * second_edge_x + dA * first_edge_x
+            ny = (1.0 - dA) * second_edge_y + dA * first_edge_y
+            nz = point_z
+
+        dc = point_x * ny - point_y * nx
+        dd = point_x * nx + point_y * ny + point_z * nz
+
+        # // The actual angle is arctan(da), but since arctan is monotone the
+        # // actual angle is not needed.
+        da = dc / dd
+
+        if da < 0.0:
+            continue
+
+        # // Arcs that go from smaller z to larger z have positive parity.
+        # // Arcs that go from larger z to smaller z have negative parity.
+        if first_edge_z < second_edge_z:
+            if (first_edge_z == point_z) or (second_edge_z == point_z):
+                nParity += 1
+            else:
+                nParity += 2
+        else:
+            if (first_edge_z == point_z) or (second_edge_z == point_z):
+                nParity -= 1
+            else:
+                nParity -= 2
+
+    if nParity >= 0:
+        return False
+    else:
+        return True
