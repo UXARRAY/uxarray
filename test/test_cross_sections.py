@@ -185,12 +185,12 @@ class TestExtremes:
         uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
 
         out1 = uxgrid.get_faces_at_constant_latitude(lat=20)
-        out2 = uxgrid.get_faces_at_constant_latitude(lat=20, use_spherical_bounding_box=True)
+        out2 = uxgrid.get_faces_at_constant_latitude(lat=20)
 
         nt.assert_array_equal(out1, out2)
 
         out3 = uxgrid.get_faces_at_constant_latitude(lat=25)
-        out4 = uxgrid.get_faces_at_constant_latitude(lat=25, use_spherical_bounding_box=True)
+        out4 = uxgrid.get_faces_at_constant_latitude(lat=25)
 
         assert len(out3) == 0
         assert len(out4) == 1
