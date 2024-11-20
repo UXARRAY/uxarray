@@ -1367,12 +1367,13 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            if len(compute_temp_latlon_array.inspect_llvm()) == 0:
-                warn(
-                    "Necessary functions for computing face bounds are not translated yet with Numba. This initial"
-                    "translation may take some time.",
-                    RuntimeWarning,
-                )
+            if hasattr(compute_temp_latlon_array, "inspect_llvm"):
+                if len(compute_temp_latlon_array.inspect_llvm()) == 0:
+                    warn(
+                        "Necessary functions for computing face bounds are not translated yet with Numba. This initial"
+                        "translation may take some time.",
+                        RuntimeWarning,
+                    )
 
             _populate_bounds(self)
 
