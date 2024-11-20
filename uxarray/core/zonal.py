@@ -20,7 +20,7 @@ def _compute_zonal_mean(
     return result
 
 
-def _face_centered_zonal_mean(uxda, result, latitudes, conservative):
+def _face_centered_zonal_mean(uxda, result, latitudes):
     """Compute face-centered zonal means and store in provided result array."""
 
     for i, lat in enumerate(latitudes):
