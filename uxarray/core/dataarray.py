@@ -434,9 +434,7 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(
-        self, lat=(-80, 80, 10), conservative=True, use_spherical_bounding_box=False
-    ):
+    def zonal_mean(self, lat=(-90, 90, 10), conservative=True):
         """Compute the average along one or more lines of constant latitude.
 
         Parameters
@@ -448,13 +446,7 @@ class UxDataArray(xr.DataArray):
             the zonal mean is computed for that specific latitude.
         conservative : bool, default=True
             If True, data is weighted by face areas
-            If False, data is weighted by edge magnitudes
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
-
+            If False, data is weighted by edge magnitudes.
         Returns
         -------
         UxDataArray
@@ -498,7 +490,6 @@ class UxDataArray(xr.DataArray):
         res = _compute_zonal_mean(
             uxda=self,
             latitudes=latitudes,
-            use_spherical_bounding_box=use_spherical_bounding_box,
             conservative=conservative,
         )
 

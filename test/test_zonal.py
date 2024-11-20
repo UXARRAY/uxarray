@@ -16,8 +16,7 @@ class TestZonalCSne30:
     test_file_3 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_test3.nc"
 
 
-    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
-    def test_non_conservative_zonal_mean_equator(self, use_spherical_bounding_box):
+    def test_non_conservative_zonal_mean_equator(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
 
         Low error tolerance test at the equator.
@@ -28,13 +27,12 @@ class TestZonalCSne30:
         uxds = ux.open_dataset(grid_path, data_path)
 
         # Test everything away from the pole
-        res = uxds['psi'].zonal_mean(0, use_spherical_bounding_box=use_spherical_bounding_box)
+        res = uxds['psi'].zonal_mean(0)
 
         # Assert res.values[0] is approximately 1 within ERROR_TOLERANCE
         assert res.values[0] == pytest.approx(1, abs=ERROR_TOLERANCE)
 
-    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
-    def test_non_conservative_zonal_mean(self, use_spherical_bounding_box):
+    def test_non_conservative_zonal_mean(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
 
         Dummy test to ensure the function runs from -90 to 90 with a step of 1.
@@ -44,11 +42,10 @@ class TestZonalCSne30:
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
-        res = uxds['psi'].zonal_mean((-90, 90, 1), use_spherical_bounding_box=use_spherical_bounding_box)
+        res = uxds['psi'].zonal_mean((-90, 90, 1))
         print(res)
 
-    @pytest.mark.parametrize("use_spherical_bounding_box", [True, False])
-    def test_non_conservative_zonal_mean_at_pole(self, use_spherical_bounding_box):
+    def test_non_conservative_zonal_mean_at_pole(self):
         """Test _non_conservative_zonal_mean function with outCSne30 data.
 
         Dummy test to ensure the function runs at the pole.
@@ -59,8 +56,8 @@ class TestZonalCSne30:
         uxds = ux.open_dataset(grid_path, data_path)
 
         # Test at the poles
-        res_n90 = uxds['psi'].zonal_mean(90, use_spherical_bounding_box=use_spherical_bounding_box)
-        res_p90 = uxds['psi'].zonal_mean(-90, use_spherical_bounding_box=use_spherical_bounding_box)
+        res_n90 = uxds['psi'].zonal_mean(90)
+        res_p90 = uxds['psi'].zonal_mean(-90)
 
         # Assert results are approximately 1 within a delta of 1
         assert res_n90.values[0] == pytest.approx(1, abs=1)

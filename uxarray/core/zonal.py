@@ -6,7 +6,6 @@ def _compute_zonal_mean(
     uxda,
     latitudes,
     conservative,
-    use_spherical_bounding_box,
 ):
     """TODO:"""
     shape = uxda.shape[:-1] + (len(latitudes),)
@@ -17,32 +16,23 @@ def _compute_zonal_mean(
         # Create a NumPy array for storing results
         result = np.empty(shape, dtype=uxda.dtype)
 
-    _face_centered_zonal_mean(
-        uxda, result, latitudes, conservative, use_spherical_bounding_box
-    )
+    _face_centered_zonal_mean(uxda, result, latitudes, conservative)
 
     return result
 
 
-def _face_centered_zonal_mean(
-    uxda, result, latitudes, conservative, use_spherical_bounding_box
-):
+def _face_centered_zonal_mean(uxda, result, latitudes, conservative):
     """TODO:"""
-
-    # TODO: if use_spherical_bounding_box is false, doing a query exactly at the poles will not work
 
     for i, lat in enumerate(latitudes):
         if conservative:
-            face_indices = uxda.uxgrid.get_faces_at_constant_latitude(
-                lat, use_spherical_bounding_box
-            )
+            face_indices = uxda.uxgrid.get_faces_at_constant_latitude(lat)
             weights = uxda.uxgrid.get_weights(
                 weights="face_areas", apply_to="faces", face_indices=face_indices
             )
         else:
             face_indices, edge_indices = uxda.uxgrid.get_faces_at_constant_latitude(
                 lat,
-                use_spherical_bounding_box=use_spherical_bounding_box,
                 return_edge_indices=True,
             )
             weights = uxda.uxgrid.get_weights(
