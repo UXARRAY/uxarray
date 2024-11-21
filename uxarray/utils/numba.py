@@ -8,9 +8,13 @@ def is_numba_function_cached(func):
     Determines if a numba function is cached and up-to-date.
 
     Returns:
-        - True if cache exists and is valid
+        - True if cache exists and is valid or the input is not a Numba function.
         - False if cache doesn't exist or needs recompilation
     """
+
+    if not hasattr(func, "_cache"):
+        return True
+
     cache = func._cache
     cache_file = cache._cache_file
 
