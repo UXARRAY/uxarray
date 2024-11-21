@@ -95,6 +95,8 @@ from uxarray.grid.validation import (
     _check_normalization,
 )
 
+from uxarray.utils.numba import is_numba_function_cached
+
 
 from uxarray.conventions import ugrid
 
@@ -1367,13 +1369,12 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            if hasattr(compute_temp_latlon_array, "inspect_llvm"):
-                if len(compute_temp_latlon_array.inspect_llvm()) == 0:
-                    warn(
-                        "Necessary functions for computing face bounds are not translated yet with Numba. This initial"
-                        "translation may take some time.",
-                        RuntimeWarning,
-                    )
+            if not is_numba_function_cached(compute_temp_latlon_array):
+                warn(
+                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
+                    "This initial execution will be significantly longer.",
+                    RuntimeWarning,
+                )
 
             _populate_bounds(self)
 

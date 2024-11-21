@@ -829,9 +829,7 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         return ((north_intersections + south_intersections) % 2) != 0
 
     else:
-        raise ValueError(
-            f"Invalid pole point query. Current location: {location}, query pole point: {pole}"
-        )
+        raise ValueError("Invalid pole point query.")
 
 
 @njit(cache=True)
