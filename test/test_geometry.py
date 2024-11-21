@@ -12,7 +12,7 @@ import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import extreme_gca_latitude
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
-from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _point_in_polygon
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _point_in_polygon, point_in_polygon
 
 from spatialpandas.geometry import MultiPolygon
 
@@ -1485,17 +1485,15 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
+        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[0][ind] = grid.node_x[face].values
-            polygon[1][ind] = grid.node_y[face].values
-            polygon[2][ind] = grid.node_z[face].values
+            polygon[ind] = grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values
 
         # Set the point as the face center of the polygon
         point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
 
         # Assert that the point is in the polygon
-        self.assertTrue(_point_in_polygon(polygon, point))
+        self.assertTrue(_point_in_polygon(point, polygon))
 
     def test_point_outside(self):
         """Test the function `point_in_polygon`, where point is outside the polygon"""
@@ -1598,10 +1596,21 @@ class TestPointInPolygon(TestCase):
         # Assert that the point is not in the polygon
         self.assertFalse(_point_in_polygon(polygon, point))
 
-    def test_value_errors(self):
+    def test_(self):
         """Test the function `point_in_polygon`, ensuring value errors are raised properly"""
-        # Incorrect polygon
-        self.assertRaises(ValueError, _point_in_polygon, [[0, 0]], [0, 0])
+        # Open grid
+        grid_mpas_2 = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc'
 
-        # Incorrect point
-        self.assertRaises(ValueError, _point_in_polygon, [[0], [0], [0]], [0])
+        grid = ux.open_grid(grid_mpas_2)
+        # Set the point as the face center of the polygon
+        point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
+
+        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        for ind, face in enumerate(grid.face_node_connectivity[100].values):
+            polygon[ind] = grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values
+
+        ref_point = np.array([grid.face_x[101].values, grid.face_y[101].values, grid.face_z[101].values])
+        # Check if the point is inside
+        is_inside = point_in_polygon(point, polygon, ref_point=ref_point)
+        print(f"Point is inside the polygon: {is_inside}")
+

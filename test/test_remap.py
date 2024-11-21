@@ -225,7 +225,6 @@ class TestNearestNeighborRemap(TestCase):
         assert "time" in res.coords
 
 
-
 class TestInverseDistanceWeightedRemapping(TestCase):
     """Testing for inverse distance weighted remapping."""
 
@@ -439,4 +438,4 @@ class TestBilinearRemapping(TestCase):
         destination = ux.open_dataset(mpasfile_QU_2, mpasfile_QU_2)
 
         bilinear_remap = source_uxds['latVertex'].remap.bilinear(destination.uxgrid, remap_to='face centers',
-                                                               coord_type='cartesian')
+                                                                                     coord_type='spherical')
