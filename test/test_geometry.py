@@ -13,9 +13,8 @@ from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, 
 from uxarray.grid.arcs import extreme_gca_latitude, _extreme_gca_latitude_cartesian
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 
-from uxarray.grid.geometry import _point_in_polygon, _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, stereographic_projection, inverse_stereographic_projection
-
-
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, \
+    stereographic_projection, inverse_stereographic_projection, point_in_polygon
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -1499,7 +1498,7 @@ class TestPointInPolygon(TestCase):
         point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
 
         # Assert that the point is in the polygon
-        self.assertTrue(_point_in_polygon(point, polygon))
+        self.assertTrue(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
 
     def test_point_outside(self):
         """Test the function `point_in_polygon`, where point is outside the polygon"""
@@ -1516,7 +1515,7 @@ class TestPointInPolygon(TestCase):
         point = np.array([grid.face_x[0].values, grid.face_y[0].values, grid.face_z[0].values])
 
         # Assert that the point is not in the polygon
-        self.assertFalse(_point_in_polygon(point, polygon))
+        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
 
     def test_point_inside_close(self):
         """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
@@ -1532,12 +1531,12 @@ class TestPointInPolygon(TestCase):
         # Set the point as right next to one of the nodes
 
         lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]] + 0.1)
-        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]])
+        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] + 0.1)
 
         point = _lonlat_rad_to_xyz(lon.values, lat.values)
 
         # Assert that the point is in the polygon
-        self.assertTrue(_point_in_polygon(point, polygon))
+        self.assertTrue(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
 
     def test_point_outside_close(self):
         """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
@@ -1556,8 +1555,8 @@ class TestPointInPolygon(TestCase):
 
         point = _lonlat_rad_to_xyz(lon.values, lat.values)
 
-        # Assert that the point is in the polygon
-        self.assertFalse(_point_in_polygon(point, polygon))
+        # Assert that the point is not in the polygon
+        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
 
     def test_spherical(self):
         """Test the function `point_in_polygon`,  using spherical coordinates where point is outside the polygon"""
@@ -1574,7 +1573,7 @@ class TestPointInPolygon(TestCase):
         point = np.array([grid.face_lon[0].values, grid.face_lat[0].values])
 
         # Assert that the point is not in the polygon
-        self.assertFalse(_point_in_polygon(point, polygon))
+        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
 
 
 class TestStereographicProjection(TestCase):
@@ -1592,4 +1591,3 @@ class TestStereographicProjection(TestCase):
         self.assertTrue(lon == new_lon)
         self.assertTrue(lat == new_lat)
         self.assertTrue(x == y == 0)
-

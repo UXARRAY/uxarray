@@ -20,9 +20,12 @@ from uxarray.constants import (
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
 
-from uxarray.grid.coordinates import _normalize_xyz, _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
 
-from uxarray.grid.intersections import gca_gca_intersection
+from uxarray.grid.intersections import (
+    gca_gca_intersection,
+    _gca_gca_intersection_cartesian,
+)
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_lonlat_rad_face_edge_nodes,
@@ -1578,102 +1581,58 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-def _point_in_polygon(point, edges):
-    """
-    Determines if the given test_point is inside the polygon defined by edges in 3D space using ray-casting logic.
+def point_in_polygon(polygon, point, ref_point):
+    """Doc string here"""
 
-    Parameters:
-    - test_point: Array-like, the [x, y, z] coordinates of the point to test.
-    - vertices: List or array of [x, y, z] coordinates representing the vertices of the polygon.
-    - edges_indices: List of integers, representing the indices of the vertices forming the polygon edges.
+    # Validate the inputs
+    if len(point) != 2 and len(point) != 3:
+        raise ValueError(
+            "Point must be a single [3] Cartesian or [2] lon-lat coordinate."
+        )
 
-    Returns:
-    - True if the point is inside the face, False otherwise.
-    """
+    if len(ref_point) != 2 and len(ref_point) != 3:
+        raise ValueError(
+            "Reference point must be a single [3] Cartesian or [2] lon-lat coordinate."
+        )
 
-    # Get proper coordinates for points
-    # Convert test_point to XYZ coordinates if in lat/lon format
+    if len(polygon[0]) != 2 and len(polygon[0]) != 3:
+        raise ValueError(
+            "Polygon vertices must be a Cartesian array or a lon-lat array."
+        )
+
+    # Convert to cartesian if any of the inputs are in spherical coordinates
+    if len(polygon[0]) == 2:
+        polygon = [
+            _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
+            for vertex in polygon
+        ]
+
     if len(point) == 2:
         point = _lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1]))
 
-    # Convert vertices to XYZ coordinates if they are in lat/lon format
-    if len(edges[0]) == 2:
-        edges = [
-            _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
-            for vertex in edges
-        ]
+    if len(point) == 2:
+        ref_point = _lonlat_rad_to_xyz(
+            np.deg2rad(ref_point[0]), np.deg2rad(ref_point[1])
+        )
 
-    edges = np.flip(edges, axis=0)
-    nParity = 0
+    # Initialize the intersection count
+    intersection_count = 0
 
-    point_x = point[0]
-    point_y = point[1]
-    point_z = point[2]
+    # Initialize the points arc between the point and the reference point
+    gca2_cart = np.array([point, ref_point])
 
-    for edge_ind_1 in range(len(edges)):
-        edge_ind_2 = (edge_ind_1 + 1) % len(edges)
+    # Loop through the polygon's edges, checking each one for intersection
+    for ind in range(len(polygon)):
+        ind2 = (ind + 1) % len(polygon)
 
-        first_edge_x = edges[edge_ind_1][0]
-        first_edge_y = edges[edge_ind_1][1]
-        first_edge_z = edges[edge_ind_1][2]
+        # Get the first edge of the polygon
+        gca1_cart = np.array([polygon[ind], polygon[ind2]])
 
-        second_edge_x = edges[edge_ind_2][0]
-        second_edge_y = edges[edge_ind_2][1]
-        second_edge_z = edges[edge_ind_2][2]
+        # Get the number of intersections between the edge and the point arc
+        intersections = _gca_gca_intersection_cartesian(gca1_cart, gca2_cart)
 
-        # If both nodes are on the same size of n0.z then there will be no
-        # intersection with the plane z=n0.z. If nodes are on opposite sides
-        # of this plane then they must have an intersection.
-        if (first_edge_z > point_z) and (second_edge_z > point_z):
-            continue
+        # Increment the intersection count according to the number of intersections
+        intersection_count += len(intersections)
 
-        if (first_edge_z < point_z) and (second_edge_z < point_z):
-            continue
-
-        # // Arcs of constant z aren't informative for determining inside/outside
-        if first_edge_z == second_edge_z:
-            continue
-
-        # // Intersection between n1-n2 and n0.z plane
-        # // Branch here to ensure result is the same regardless of n1-n2 ordering
-        # // Under the rules of floating point arithmetic, dA should always be
-        # // in the range [0,1].
-
-        if first_edge_z < second_edge_z:
-            dA = (point_x - first_edge_z) / (second_edge_z - first_edge_z)
-            nx = (1.0 - dA) * first_edge_x + dA * second_edge_x
-            ny = (1.0 - dA) * first_edge_y + dA * second_edge_y
-            nz = point_z
-        else:
-            dA = (point_z - second_edge_z) / (first_edge_z - second_edge_z)
-            nx = (1.0 - dA) * second_edge_x + dA * first_edge_x
-            ny = (1.0 - dA) * second_edge_y + dA * first_edge_y
-            nz = point_z
-
-        dc = point_x * ny - point_y * nx
-        dd = point_x * nx + point_y * ny + point_z * nz
-
-        # // The actual angle is arctan(da), but since arctan is monotone the
-        # // actual angle is not needed.
-        da = dc / dd
-
-        if da < 0.0:
-            continue
-
-        # // Arcs that go from smaller z to larger z have positive parity.
-        # // Arcs that go from larger z to smaller z have negative parity.
-        if first_edge_z < second_edge_z:
-            if (first_edge_z == point_z) or (second_edge_z == point_z):
-                nParity += 1
-            else:
-                nParity += 2
-        else:
-            if (first_edge_z == point_z) or (second_edge_z == point_z):
-                nParity -= 1
-            else:
-                nParity -= 2
-
-    if nParity >= 0:
-        return False
-    else:
-        return True
+    # Return True if the number of intersections is odd, False otherwise
+    return intersection_count % 2 == 1
