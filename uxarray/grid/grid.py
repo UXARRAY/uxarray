@@ -62,6 +62,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
     _construct_boundary_edge_indices,
+    compute_temp_latlon_array,
 )
 
 from uxarray.grid.neighbors import (
@@ -96,6 +97,8 @@ from uxarray.grid.validation import (
     _check_area,
     _check_normalization,
 )
+
+from uxarray.utils.numba import is_numba_function_cached
 
 
 from uxarray.conventions import ugrid
@@ -1369,6 +1372,13 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
+            if not is_numba_function_cached(compute_temp_latlon_array):
+                warn(
+                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
+                    "This initial execution will be significantly longer.",
+                    RuntimeWarning,
+                )
+
             _populate_bounds(self)
 
         return self._ds["bounds"]
@@ -2334,10 +2344,6 @@ class Grid:
     ):
         """
         Identifies the indices of faces that intersect with a line of constant latitude.
-
-        When `use_spherical_bounding_box` is set to `True`,
-        the bounding box for each face is computed by representing each edge as a great circle arc.
-        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
