@@ -62,6 +62,11 @@ class TestFMAOperations(TestCase):
         self.assertEqual(y, pyfma.fma(a, b, -x))
         self.assertAlmostEqual(a * b, x + y, places=15)
 
+    def test_comp_prod_fma(self):
+        # Test `_comp_prod_fma`
+        result = ac_utils._comp_prod_fma([1.1, 2.2, 3.3])
+        self.assertEqual(result, 7.986000000000001)
+
     def test_fast_two_mult(self):
         """Test the two_prod_fma function."""
         a = 1.0
@@ -127,3 +132,8 @@ class TestNorm(TestCase):
         a = 10.0
         res = ac_utils._two_square(a)
         self.assertAlmostEqual(a * a, res[0], places=15)
+
+    def test_norm_g(self):
+        # Test `_norm_g`
+        result = ac_utils._norm_g([1.0, 2.0, 3.0])
+        self.assertEqual(result, 3.7416573867739413)
