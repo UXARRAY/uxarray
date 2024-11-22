@@ -252,6 +252,23 @@ class UxDataset(xr.Dataset):
 
         return cls(ds, uxgrid=uxgrid)
 
+    @classmethod
+    def from_xarray(cls, ds: xr.Dataset, uxgrid: Grid = None, ugrid_dims: dict = None):
+        if uxgrid is not None:
+            if ugrid_dims is None and uxgrid._source_dims_dict is not None:
+                ugrid_dims = uxgrid._source_dims_dict
+                pass
+            # Grid is provided,
+        else:
+            # parse
+            uxgrid = Grid.from_dataset(ds)
+            ugrid_dims = uxgrid._source_dims_dict
+
+        # map each dimension to its UGRID equivalent
+        ds = _map_dims_to_ugrid(ds, ugrid_dims, uxgrid)
+
+        return cls(ds, uxgrid=uxgrid)
+
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
         topology information stored in the ``uxgrid`` property.

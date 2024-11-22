@@ -35,6 +35,7 @@ from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
+from uxarray.core.utils import _map_dims_to_ugrid
 
 import warnings
 from warnings import warn
@@ -1080,6 +1081,16 @@ class UxDataArray(xr.DataArray):
         else:
             # original xarray implementation for non-grid dimensions
             return super().isel(*args, **kwargs)
+
+    @classmethod
+    def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
+        if ugrid_dims is None:
+            ugrid_dims = uxgrid._source_dims_dict
+
+        # map each dimension to its UGRID equivalent
+        ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+
+        return cls(ds, uxgrid=uxgrid)
 
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
