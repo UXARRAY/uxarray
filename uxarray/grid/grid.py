@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import os
 
 from html import escape
 
@@ -241,69 +242,70 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_fesom2_ascii(cls, grid_path):
-        """Construct a ``Grid`` object from a FESM2 ASCII Grid.
+    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
+        """Constructs a ``Grid`` object from a dataset.
 
         Parameters
         ----------
-        grid_path : str
-            Path to the FESOM2 ASCII grid directory.
-        """
-        grid_ds, source_dims_dict = _read_fesom2_asci(grid_path)
-        source_grid_spec = "FESOM2"
-        return cls(grid_ds, source_grid_spec, source_dims_dict)
-
-    @classmethod
-    def from_dataset(
-        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
-    ):
-        """Constructs a ``Grid`` object from an ``xarray.Dataset``.
-
-        Parameters
-        ----------
-        dataset : xr.Dataset
-            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
+        dataset : xr.Dataset or path-like
+            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables or a directory
+            containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
         """
-        if not isinstance(dataset, xr.Dataset):
-            raise ValueError("Input must be an xarray.Dataset")
 
-        # determine grid/mesh specification
+        # if not isinstance(dataset, xr.Dataset):
+        #     if os.path.isdir(dataset):
+        #         # FESOM2 ASCII directory.
+        #         grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
+        #         source_grid_spec = "FESOM2"
+        #         return cls(grid_ds, source_grid_spec, source_dims_dict)
+        # else:
+        #     raise ValueError("Input must be an xarray.Dataset or directory of ASCII files for FESOM2 grids.")
 
-        if "source_grid_spec" not in kwargs:
-            # parse to detect source grid spec
-            source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
-            if source_grid_spec == "Exodus":
-                grid_ds, source_dims_dict = _read_exodus(dataset)
-            elif source_grid_spec == "Scrip":
-                grid_ds, source_dims_dict = _read_scrip(dataset)
-            elif source_grid_spec == "UGRID":
-                grid_ds, source_dims_dict = _read_ugrid(dataset)
-            elif source_grid_spec == "MPAS":
-                grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-            elif source_grid_spec == "ESMF":
-                grid_ds, source_dims_dict = _read_esmf(dataset)
-            elif source_grid_spec == "GEOS-CS":
-                grid_ds, source_dims_dict = _read_geos_cs(dataset)
-            elif source_grid_spec == "ICON":
-                grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
-            elif source_grid_spec == "Structured":
-                grid_ds = _read_structured_grid(dataset[lon_name], dataset[lat_name])
-                source_dims_dict = {"n_face": (lon_name, lat_name)}
-            elif source_grid_spec == "FESOM2":
-                grid_ds, source_dims_dict = _read_fesom2_netcdf(dataset)
-            elif source_grid_spec == "Shapefile":
-                raise ValueError(
-                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
-                )
+        if isinstance(dataset, xr.Dataset):
+            # determine grid/mesh specification
+            if "source_grid_spec" not in kwargs:
+                # parse to detect source grid spec
+                source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
+                if source_grid_spec == "Exodus":
+                    grid_ds, source_dims_dict = _read_exodus(dataset)
+                elif source_grid_spec == "Scrip":
+                    grid_ds, source_dims_dict = _read_scrip(dataset)
+                elif source_grid_spec == "UGRID":
+                    grid_ds, source_dims_dict = _read_ugrid(dataset)
+                elif source_grid_spec == "MPAS":
+                    grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+                elif source_grid_spec == "ESMF":
+                    grid_ds, source_dims_dict = _read_esmf(dataset)
+                elif source_grid_spec == "GEOS-CS":
+                    grid_ds, source_dims_dict = _read_geos_cs(dataset)
+                elif source_grid_spec == "ICON":
+                    grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+                elif source_grid_spec == "Structured":
+                    grid_ds = _read_structured_grid(
+                        dataset[lon_name], dataset[lat_name]
+                    )
+                    source_dims_dict = {"n_face": (lon_name, lat_name)}
+                elif source_grid_spec == "FESOM2":
+                    grid_ds, source_dims_dict = _read_fesom2_netcdf(dataset)
+                elif source_grid_spec == "Shapefile":
+                    raise ValueError(
+                        "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                    )
+                else:
+                    raise ValueError("Unsupported Grid Format")
             else:
-                raise ValueError("Unsupported Grid Format")
+                # custom source grid spec is provided
+                source_grid_spec = kwargs.get("source_grid_spec", None)
+                grid_ds = dataset
+                source_dims_dict = {}
         else:
-            # custom source grid spec is provided
-            source_grid_spec = kwargs.get("source_grid_spec", None)
-            grid_ds = dataset
-            source_dims_dict = {}
+            if os.path.isdir(dataset):
+                # FESOM2 ASCII directory.
+                grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
+                source_grid_spec = "FESOM2"
+                return cls(grid_ds, source_grid_spec, source_dims_dict)
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 

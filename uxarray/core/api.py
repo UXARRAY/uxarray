@@ -75,7 +75,7 @@ def open_grid(
         elem2d_path = os.path.join(grid_filename_or_obj, "elem2d.out")
 
         if os.path.isfile(nod2d_path) and os.path.isfile(elem2d_path):
-            return Grid.from_fesom2_ascii(grid_filename_or_obj)
+            return Grid.from_dataset(grid_filename_or_obj)
 
         else:
             raise FileNotFoundError(

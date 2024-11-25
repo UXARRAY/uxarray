@@ -219,7 +219,7 @@ def _read_fesom2_netcdf(in_ds):
     ugrid_ds = xr.Dataset()
 
     node_lon = in_ds["lon"].data
-    node_lat = in_ds["lon"].data
+    node_lat = in_ds["lat"].data
 
     ugrid_ds["node_lon"] = xr.DataArray(
         data=node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
