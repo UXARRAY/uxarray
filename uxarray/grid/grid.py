@@ -254,15 +254,6 @@ class Grid:
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
         """
 
-        # if not isinstance(dataset, xr.Dataset):
-        #     if os.path.isdir(dataset):
-        #         # FESOM2 ASCII directory.
-        #         grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
-        #         source_grid_spec = "FESOM2"
-        #         return cls(grid_ds, source_grid_spec, source_dims_dict)
-        # else:
-        #     raise ValueError("Input must be an xarray.Dataset or directory of ASCII files for FESOM2 grids.")
-
         if isinstance(dataset, xr.Dataset):
             # determine grid/mesh specification
             if "source_grid_spec" not in kwargs:
@@ -301,11 +292,14 @@ class Grid:
                 grid_ds = dataset
                 source_dims_dict = {}
         else:
-            if os.path.isdir(dataset):
-                # FESOM2 ASCII directory.
-                grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
-                source_grid_spec = "FESOM2"
-                return cls(grid_ds, source_grid_spec, source_dims_dict)
+            try:
+                if os.path.isdir(dataset):
+                    # FESOM2 ASCII directory.
+                    grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
+                    source_grid_spec = "FESOM2"
+                    return cls(grid_ds, source_grid_spec, source_dims_dict)
+            except TypeError:
+                raise ValueError("Unsupported Grid Format")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
