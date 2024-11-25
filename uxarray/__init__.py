@@ -1,8 +1,3 @@
-# Sets the version of uxarray currently installeds
-# Attempt to import the needed modules
-
-import uxarray.constants
-
 from .core.api import open_grid, open_dataset, open_mfdataset
 
 from .core.dataset import UxDataset
@@ -23,20 +18,6 @@ except Exception:
     # Placeholder version incase an error occurs, such as the library isn't installed
     __version__ = "999"
 
-# Flag for enabling FMA instructions across the package
-
-
-def enable_fma():
-    """Enables Fused-Multiply-Add (FMA) instructions using the ``pyfma``
-    package."""
-    uxarray.constants.ENABLE_FMA = True
-
-
-def disable_fma():
-    """Disable Fused-Multiply-Add (FMA) instructions using the ``pyfma``
-    package."""
-    uxarray.constants.ENABLE_FMA = False
-
 
 __all__ = (
     "open_grid",
@@ -51,6 +32,4 @@ __all__ = (
     "diverging",
     "sequential_blue",
     "sequential_green",
-    "enable_fma",
-    "disable_fma",
 )

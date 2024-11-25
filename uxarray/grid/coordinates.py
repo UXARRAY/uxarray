@@ -1,7 +1,7 @@
 import xarray as xr
 import numpy as np
-import math
 import warnings
+import math
 
 from uxarray.conventions import ugrid
 
@@ -53,8 +53,8 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = math.atan2(y, x)
-    lat = math.asin(z)
+    lon = np.atan2(y, x)
+    lat = np.asin(z)
 
     # set longitude range to [0, pi]
     lon = np.mod(lon, 2 * np.pi)
@@ -68,52 +68,30 @@ def _xyz_to_lonlat_rad_no_norm(
 
 
 @njit(cache=True)
-def _xyz_to_lonlat_rad_scalar(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-):
-    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
-    longitude without normalization, decorated with Numba.
-
-    Parameters
-    ----------
-    x : float
-        Cartesian x coordinate
-    y: float
-        Cartesiain y coordinate
-    z: float
-        Cartesian z coordinate
-
-
-    Returns
-    -------
-    lon : float
-        Longitude in radians
-    lat: float
-        Latitude in radians
-    """
-
+def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
+        denom = abs(x * x + y * y + z * z)
         x /= denom
         y /= denom
         z /= denom
 
-    lon = math.atan2(y, x)
-    lat = math.asin(z)
+    lon = np.atan2(y, x)
+    lat = np.asin(z)
 
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
+    # Set longitude range to [0, 2*pi]
+    lon = lon % (2 * math.pi)
 
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+    z_abs = abs(z)
+    if z_abs > (1.0 - ERROR_TOLERANCE):
+        lat = math.copysign(math.pi / 2, z)
+        lon = 0.0
 
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
+    lonlat = np.empty(2)
+    lonlat[0] = lon
+    lonlat[1] = lat
 
-    return lon, lat
+    return lonlat
 
 
 def _xyz_to_lonlat_rad(
@@ -790,8 +768,8 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = math.atan2(y, x)
-    lat = math.asin(z)
+    lon = np.atan2(y, x)
+    lat = np.asin(z)
 
     # set longitude range to [0, pi]
     lon = np.mod(lon, 2 * np.pi)
@@ -877,3 +855,23 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
     y_norm = y / denom
     z_norm = z / denom
     return x_norm, y_norm, z_norm
+
+
+def prepare_points(points, normalize):
+    """Prepares points for use with ``Grid.from_points()``"""
+    if len(points) == 2:
+        lon_deg, lat_deg = points[0], points[1]
+        lon_rad = np.deg2rad(lon_deg)
+        lat_rad = np.deg2rad(lat_deg)
+        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+        x, y, z = _normalize_xyz(x, y, z)
+    elif len(points) == 3:
+        x, y, z = points[0], points[1], points[2]
+        if normalize:
+            x, y, z = _normalize_xyz(x, y, z)
+    else:
+        raise ValueError(
+            "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
+        )
+
+    return np.vstack([x, y, z]).T

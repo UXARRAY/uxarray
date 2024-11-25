@@ -5,8 +5,9 @@ from uxarray.constants import ERROR_TOLERANCE
 
 # from uxarray.grid.coordinates import node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
 
+from uxarray.grid.arcs import _extreme_gca_latitude_cartesian
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
-from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection
+from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, _gca_gca_intersection_cartesian
 
 
 class TestGCAGCAIntersection(TestCase):
@@ -24,10 +25,10 @@ class TestGCAGCAIntersection(TestCase):
             _lonlat_rad_to_xyz(np.deg2rad(70.0), 0.0),
             _lonlat_rad_to_xyz(np.deg2rad(179.0), 0.0)
         ])
-        res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
+        res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
 
         # res_cart should be empty since these two GCRs are not intersecting
-        self.assertTrue(np.array_equal(res_cart, np.array([])))
+        self.assertTrue(len(res_cart) == 0)
 
         GCR1_cart = np.array([
             _lonlat_rad_to_xyz(np.deg2rad(170.0),
@@ -40,7 +41,7 @@ class TestGCAGCAIntersection(TestCase):
             _lonlat_rad_to_xyz(np.deg2rad(175.0), 0.0)
         ])
 
-        res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
+        res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
         res_cart = res_cart[0]
 
         # Test if the result is normalized
@@ -66,7 +67,7 @@ class TestGCAGCAIntersection(TestCase):
             _lonlat_rad_to_xyz(0.5 * np.pi, 0.0),
             _lonlat_rad_to_xyz(-0.5 * np.pi - 0.01, 0.0)
         ])
-        res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
+        res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
         res_cart = res_cart[0]
         expected_res = np.array(_lonlat_rad_to_xyz(0.5 * np.pi, 0.0))
         # Test if two results are equal within the error tolerance
@@ -84,7 +85,7 @@ class TestGCAGCAIntersection(TestCase):
             _lonlat_rad_to_xyz(*[0.5 * np.pi, 0.0]),
             _lonlat_rad_to_xyz(*[-0.5 * np.pi - 0.01, 0.0])
         ])
-        res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
+        res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
         res_cart = res_cart[0]
         # Test if the result is normalized
         self.assertTrue(
@@ -133,7 +134,7 @@ class TestGCAconstLatIntersection(TestCase):
             _lonlat_rad_to_xyz(np.deg2rad(170.0),
                                     np.deg2rad(10.0))
         ])
-        max_lat = ux.grid.arcs.extreme_gca_latitude(GCR1_cart, 'max')
+        max_lat = _extreme_gca_latitude_cartesian(GCR1_cart, 'max')
 
         query_lat = (np.deg2rad(10.0) + max_lat) / 2.0
 

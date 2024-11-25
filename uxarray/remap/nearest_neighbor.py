@@ -13,6 +13,8 @@ import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
 
+from copy import deepcopy
+
 
 def _nearest_neighbor(
     source_grid: Grid,
@@ -103,15 +105,20 @@ def _nearest_neighbor_uxda(
     destination_data = _nearest_neighbor(
         source_uxda.uxgrid, destination_grid, source_uxda.data, remap_to, coord_type
     )
+
+    # preserve only non-spatial coordinates
+    destination_coords = deepcopy(source_uxda.coords)
+    if destination_dim in destination_coords:
+        del destination_coords[destination_dim]
+
     # construct data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
         data=destination_data,
         name=source_uxda.name,
-        coords=source_uxda.coords,
         dims=destination_dims,
         uxgrid=destination_grid,
+        coords=destination_coords,
     )
-    # return UxDataArray with remapped variable
     return uxda_remap
 
 

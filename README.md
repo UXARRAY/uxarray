@@ -22,7 +22,7 @@ UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
 data. UXarray provides Xarray-styled functionality to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
-MPAS, ICON, SCRIP, ESMF, and Exodus grid formats. This effort is a result of the
+MPAS, ICON, SCRIP, ESMF, FESOM2, and Exodus grid formats. This effort is a result of the
 collaboration between Project Raijin (NSF NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
 Livermore National Laboratory). The UXarray team welcomes community
@@ -45,7 +45,8 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
 ## Features
 
 * ``Grid`` class for storing grid information and providing grid-specific functionality
-  * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, FESOM2, and EXODUS grid formats
+  * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, and EXODUS grid formats
+  * Support for reader structured (i.e. latitude longitude) grids
 * Extension of xarray's ``DataArray`` and ``Dataset`` classe to support unstructured grid operations
   * ``uxarray.UxDataArray`` inherits ``xarray.DataArray`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
   * ``uxarray.UxDataset`` inherits ``xarray.Dataset`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
@@ -71,10 +72,6 @@ Raijin, and on several community platforms such as [Xarray GitHub
 Repository](https://github.com/pydata/xarray/issues/4222). The UXarray team
 is receptive to additional functionality requests.
 
-
-* Support for arbitrary structured and unstructured grids on the sphere,
-  including latitude-longitude grids, grids with only partial coverage of
-  the sphere, and grids with concave faces.
 * Support for finite volume and finite element outputs.
 * Triangular decompositions.
 * Calculation of supermeshes (consisting of grid lines from two input grids).

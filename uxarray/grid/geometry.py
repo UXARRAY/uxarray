@@ -2,7 +2,7 @@ import antimeridian
 import cartopy.crs as ccrs
 import geopandas
 from matplotlib.collections import LineCollection, PolyCollection
-from numba import njit
+from numba import njit, prange
 import numpy as np
 import pandas as pd
 import shapely
@@ -11,6 +11,7 @@ from shapely import polygons as Polygons
 import spatialpandas
 from spatialpandas.geometry import MultiPolygonArray, PolygonArray
 import xarray as xr
+import math
 
 from uxarray.constants import (
     ERROR_TOLERANCE,
@@ -18,6 +19,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import gca_gca_intersection
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -25,63 +27,67 @@ from uxarray.grid.utils import (
 )
 from uxarray.utils.computing import allclose, isclose
 
-POLE_POINTS = {"North": np.array([0.0, 0.0, 1.0]), "South": np.array([0.0, 0.0, -1.0])}
+POLE_POINTS_XYZ = {
+    "North": np.array([0.0, 0.0, 1.0]),
+    "South": np.array([0.0, 0.0, -1.0]),
+}
+POLE_POINTS_LONLAT = {
+    "North": np.array([0.0, np.pi / 2]),
+    "South": np.array([0.0, -np.pi / 2]),
+}
 
 # number of faces/polygons before raising a warning for performance
 GDF_POLYGON_THRESHOLD = 100000
 
-REFERENCE_POINT_EQUATOR = np.array([1.0, 0.0, 0.0])
+REFERENCE_POINT_EQUATOR_XYZ = np.array([1.0, 0.0, 0.0])
+REFERENCE_POINT_EQUATOR_LONLAT = np.array([0.0, 0.0])  # TODO ?
+
+POLE_NAME_TO_INT = {"North": 1, "Equator": 0, "South": -1}
 
 
+@njit(cache=True)
+def error_radius(p1, p2):
+    """Calculate the error radius between two points in 3D space."""
+    numerator = math.sqrt(
+        (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2
+    )
+    denominator = math.sqrt(p2[0] ** 2 + p2[1] ** 2 + p2[2] ** 2)
+    return numerator / denominator
+
+
+@njit(cache=True)
 def _unique_points(points, tolerance=ERROR_TOLERANCE):
-    """Identify unique intersection points from a list of points, considering
-    floating point precision errors.
+    """Identify unique intersection points from a list of points, considering floating point precision errors.
 
     Parameters
     ----------
-    points : list of array-like
-        A list containing the intersection points, where each point is an array-like structure (e.g., list, tuple, or numpy array) containing x, y, and z coordinates.
-    tolerance : float, optional
-        The distance threshold within which two points are considered identical. Default is 1e-6.
+    points : np.ndarray
+        An array of shape (n_points, 3) containing the intersection points.
+    tolerance : float
+        The distance threshold within which two points are considered identical.
 
     Returns
     -------
-    list of np.ndarray
-        A list of unique snapped points in Cartesian coordinates.
-
-    Notes
-    -----
-    Given the nature of the mathematical equations and the spherical surface, it is more reasonable to calculate the "error radius" of the results using the following formula.
-    In the equation below, \(\tilde{P}_x\) and \(\tilde{P}_y\) are the calculated results, and \(P_x\) and \(P_y\) are the actual intersection points for the \(x\) and \(y\) coordinates, respectively.
-    The \(z\) coordinate is always the input \(z_0\), the constant latitude, so it is not included in this error calculation.
-
-    .. math::
-        \begin{aligned}
-            &\frac{\sqrt{(\tilde{v}_x - v_x)^2 + (\tilde{v}_y - v_y)^2 + (\tilde{v}_z - v_z)^2}}{\sqrt{v_x^2 + v_y^2 + v_z^2}}\\
-            &= \sqrt{(\tilde{v}_x - v_x)^2 + (\tilde{v}_y - v_y)^2 + (\tilde{v}_z - v_z)^2}
-        \end{aligned}
-
-    This method ensures that small numerical inaccuracies do not lead to multiple close points being considered different.
+    np.ndarray
+        An array of unique points in Cartesian coordinates.
     """
-    unique_points = []
-    points = [np.array(point) for point in points]  # Ensure all points are numpy arrays
+    n_points = points.shape[0]
+    unique_points = np.empty((n_points, 3), dtype=points.dtype)
+    unique_count = 0
 
-    def error_radius(p1, p2):
-        """Calculate the error radius between two points in 3D space."""
-        numerator = np.sqrt(
-            (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2
-        )
-        denominator = np.sqrt(p2[0] ** 2 + p2[1] ** 2 + p2[2] ** 2)
-        return numerator / denominator
+    for i in range(n_points):
+        point = points[i]
+        is_unique = True
+        for j in range(unique_count):
+            unique_point = unique_points[j]
+            if error_radius(point, unique_point) < tolerance:
+                is_unique = False
+                break
+        if is_unique:
+            unique_points[unique_count] = point
+            unique_count += 1
 
-    for point in points:
-        if not any(
-            error_radius(point, unique_point) < tolerance
-            for unique_point in unique_points
-        ):
-            unique_points.append(point)
-
-    return unique_points
+    return unique_points[:unique_count]
 
 
 @njit(cache=True)
@@ -671,145 +677,248 @@ def _convert_shells_to_polygons(shells):
     return polygons
 
 
-def _pole_point_inside_polygon(pole, face_edge_cart):
-    """Determines if a pole point is inside a polygon.
+def _pole_point_inside_polygon_cartesian(pole, face_edges_xyz):
+    if isinstance(pole, str):
+        pole = POLE_NAME_TO_INT[pole]
 
-    .. note::
-        - If the pole point is on the edge of the polygon, it will be considered "inside the polygon".
+    x = face_edges_xyz[:, :, 0]
+    y = face_edges_xyz[:, :, 1]
+    z = face_edges_xyz[:, :, 2]
 
-    Parameters
-    ----------
-    pole : str
-        Either 'North' or 'South'.
-    face_edge_cart : np.ndarray
-        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
+    lon, lat = _xyz_to_lonlat_rad(x, y, z)
 
-    Returns
-    -------
-    bool
-        True if pole point is inside polygon, False otherwise.
+    face_edges_lonlat = np.stack((lon, lat), axis=2)
 
-    Raises
-    ------
-    ValueError
-        If the provided pole is neither 'North' nor 'South'.
+    return pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat)
 
-    Warning
-    -------
-    UserWarning
-        Raised if the face contains both pole points.
-    """
-    if pole not in POLE_POINTS:
-        raise ValueError('Pole point must be either "North" or "South"')
+    pass
+
+
+@njit(cache=True)
+def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
+    """Determines if a pole point is inside a polygon."""
+
+    if pole != 1 and pole != -1:
+        raise ValueError("Pole must be 1 (North) or -1 (South)")
+
+    # Define constants within the function
+    pole_point_xyz = np.empty(3, dtype=np.float64)
+    pole_point_xyz[0] = 0.0
+    pole_point_xyz[1] = 0.0
+    pole_point_xyz[2] = 1.0 * pole
+
+    pole_point_lonlat = np.empty(2, dtype=np.float64)
+    pole_point_lonlat[0] = 0.0
+    pole_point_lonlat[1] = (math.pi / 2) * pole
+
+    REFERENCE_POINT_EQUATOR_XYZ = np.empty(3, dtype=np.float64)
+    REFERENCE_POINT_EQUATOR_XYZ[0] = 1.0
+    REFERENCE_POINT_EQUATOR_XYZ[1] = 0.0
+    REFERENCE_POINT_EQUATOR_XYZ[2] = 0.0
+
+    REFERENCE_POINT_EQUATOR_LONLAT = np.empty(2, dtype=np.float64)
+    REFERENCE_POINT_EQUATOR_LONLAT[0] = 0.0
+    REFERENCE_POINT_EQUATOR_LONLAT[1] = 0.0
 
     # Classify the polygon's location
-    location = _classify_polygon_location(face_edge_cart)
-    pole_point = POLE_POINTS[pole]
+    location = _classify_polygon_location(face_edges_xyz)
 
-    if location == pole:
-        ref_edge = np.array([pole_point, REFERENCE_POINT_EQUATOR])
-        return _check_intersection(ref_edge, face_edge_cart) % 2 != 0
-    elif location == "Equator":
-        # smallest offset I can obtain when using the float64 type
-
-        ref_edge_north = np.array([pole_point, REFERENCE_POINT_EQUATOR])
-        ref_edge_south = np.array([-pole_point, REFERENCE_POINT_EQUATOR])
-
-        north_edges = face_edge_cart[np.any(face_edge_cart[:, :, 2] > 0, axis=1)]
-        south_edges = face_edge_cart[
-            ~np.isin(face_edge_cart, north_edges).all(axis=(1, 2))
-        ]
-        # The equator one is assigned to the south edges
-        return (
-            _check_intersection(ref_edge_north, north_edges)
-            + _check_intersection(ref_edge_south, south_edges)
-        ) % 2 != 0
-    elif (
-        location == "North"
-        and pole == "South"
-        or location == "South"
-        and pole == "North"
-    ):
+    if (location == 1 and pole == -1) or (location == -1 and pole == 1):
         return False
-    else:
-        raise ValueError(
-            "Invalid pole point query. Current location: {}, query pole point: {}".format(
-                location, pole
-            )
+
+    elif location == -1 or location == 1:
+        # Initialize ref_edge_xyz
+        ref_edge_xyz = np.empty((2, 3), dtype=np.float64)
+        ref_edge_xyz[0, 0] = pole_point_xyz[0]
+        ref_edge_xyz[0, 1] = pole_point_xyz[1]
+        ref_edge_xyz[0, 2] = pole_point_xyz[2]
+        ref_edge_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
+
+        # Initialize ref_edge_lonlat
+        ref_edge_lonlat = np.empty((2, 2), dtype=np.float64)
+        ref_edge_lonlat[0, 0] = pole_point_lonlat[0]
+        ref_edge_lonlat[0, 1] = pole_point_lonlat[1]
+        ref_edge_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
+
+        intersection_count = _check_intersection(
+            ref_edge_xyz, ref_edge_lonlat, face_edges_xyz, face_edges_lonlat
+        )
+        return (intersection_count % 2) != 0
+
+    elif location == 0:  # Equator
+        # Initialize ref_edge_north_xyz and ref_edge_north_lonlat
+        ref_edge_north_xyz = np.empty((2, 3), dtype=np.float64)
+        ref_edge_north_xyz[0, 0] = 0.0
+        ref_edge_north_xyz[0, 1] = 0.0
+        ref_edge_north_xyz[0, 2] = 1.0
+        ref_edge_north_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
+
+        ref_edge_north_lonlat = np.empty((2, 2), dtype=np.float64)
+        ref_edge_north_lonlat[0, 0] = 0.0
+        ref_edge_north_lonlat[0, 1] = math.pi / 2
+        ref_edge_north_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
+
+        # Initialize ref_edge_south_xyz and ref_edge_south_lonlat
+        ref_edge_south_xyz = np.empty((2, 3), dtype=np.float64)
+        ref_edge_south_xyz[0, 0] = 0.0
+        ref_edge_south_xyz[0, 1] = 0.0
+        ref_edge_south_xyz[0, 2] = -1.0
+        ref_edge_south_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
+
+        ref_edge_south_lonlat = np.empty((2, 2), dtype=np.float64)
+        ref_edge_south_lonlat[0, 0] = 0.0
+        ref_edge_south_lonlat[0, 1] = -math.pi / 2
+        ref_edge_south_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
+
+        # Classify edges based on z-coordinate
+        n_edges = face_edges_xyz.shape[0]
+        north_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
+        north_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
+        south_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
+        south_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
+        north_count = 0
+        south_count = 0
+
+        for i in range(n_edges):
+            edge_xyz = face_edges_xyz[i]
+            edge_lonlat = face_edges_lonlat[i]
+            if edge_xyz[0, 2] > 0 or edge_xyz[1, 2] > 0:
+                north_edges_xyz[north_count] = edge_xyz
+                north_edges_lonlat[north_count] = edge_lonlat
+                north_count += 1
+            elif edge_xyz[0, 2] < 0 or edge_xyz[1, 2] < 0:
+                south_edges_xyz[south_count] = edge_xyz
+                south_edges_lonlat[south_count] = edge_lonlat
+                south_count += 1
+            else:
+                # skip edges exactly on the equator
+                continue
+
+        if north_count > 0:
+            north_edges_xyz = north_edges_xyz[:north_count]
+            north_edges_lonlat = north_edges_lonlat[:north_count]
+        else:
+            north_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
+            north_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
+
+        if south_count > 0:
+            south_edges_xyz = south_edges_xyz[:south_count]
+            south_edges_lonlat = south_edges_lonlat[:south_count]
+        else:
+            south_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
+            south_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
+
+        # Count south intersections
+        north_intersections = _check_intersection(
+            ref_edge_north_xyz,
+            ref_edge_north_lonlat,
+            north_edges_xyz,
+            north_edges_lonlat,
         )
 
+        # Count south intersections
+        south_intersections = _check_intersection(
+            ref_edge_south_xyz,
+            ref_edge_south_lonlat,
+            south_edges_xyz,
+            south_edges_lonlat,
+        )
 
-def _check_intersection(ref_edge, edges):
-    """Check the number of intersections of the reference edge with the given
-    edges.
+        return ((north_intersections + south_intersections) % 2) != 0
+
+    else:
+        raise ValueError("Invalid pole point query.")
+
+
+@njit(cache=True)
+def _classify_polygon_location(face_edge_cart):
+    """Classify the location of the polygon relative to the hemisphere."""
+    z_coords = face_edge_cart[:, :, 2]
+    if np.all(z_coords > 0):  # Use strict inequality
+        return 1  # North
+    elif np.all(z_coords < 0):  # Use strict inequality
+        return -1  # South
+    else:
+        return 0  # Equator
+
+
+@njit(cache=True)
+def _check_intersection(ref_edge_xyz, ref_edge_lonlat, edges_xyz, edges_lonlat):
+    """Check the number of intersections of the reference edge with the given edges.
 
     Parameters
     ----------
-    ref_edge : np.ndarray
-        Reference edge to check intersections against.
-    edges : np.ndarray
+    ref_edge_xyz : np.ndarray
+        Reference edge to check intersections against. Shape: (2, 3)
+    ref_edge_lonlat : np.ndarray
+        Reference edge longitude and latitude. Shape: (2, 2)
+    edges_xyz : np.ndarray
         Edges to check for intersections. Shape: (n_edges, 2, 3)
+    edges_lonlat : np.ndarray
+        Longitude and latitude of the edges. Shape: (n_edges, 2, 2)
 
     Returns
     -------
     int
         Count of intersections.
     """
-    pole_point, ref_point = ref_edge
-    intersection_points = []
+    pole_point_xyz = ref_edge_xyz[0]
+    n_edges = edges_xyz.shape[0]
 
-    for edge in edges:
-        intersection_point = gca_gca_intersection(ref_edge, edge)
+    # Assuming at most 2 intersections per edge
+    max_intersections = n_edges * 2
+    intersection_points = np.empty((max_intersections, 3), dtype=np.float64)
+    intersection_count = 0
+
+    for i in range(n_edges):
+        edge_xyz = edges_xyz[i]
+        edge_lonlat = edges_lonlat[i]
+
+        # compute intersection
+        intersection_point = gca_gca_intersection(
+            ref_edge_xyz, ref_edge_lonlat, edge_xyz, edge_lonlat
+        )
 
         if intersection_point.size != 0:
-            # Handle both single point and multiple points case
-            if (
-                intersection_point.ndim == 1
-            ):  # If there's only one point, make it a 2D array
-                intersection_point = [intersection_point]  # Convert to list of points
-
-            # for each intersection point, check if it is a pole point
-            for point in intersection_point:
-                if allclose(point, pole_point, atol=ERROR_TOLERANCE):
+            if intersection_point.ndim == 1:
+                # Only one point
+                point = intersection_point
+                if allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
                     return True
-                intersection_points.append(point)
+                intersection_points[intersection_count] = point
+                intersection_count += 1
+            else:
+                # Multiple points
+                num_points = intersection_point.shape[0]
+                for j in range(num_points):
+                    point = intersection_point[j]
+                    if allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
+                        return True
+                    intersection_points[intersection_count] = point
+                    intersection_count += 1
 
-    # Only return the unique intersection points, the unique tolerance is set to ERROR_TOLERANCE
-    intersection_points = _unique_points(intersection_points, tolerance=ERROR_TOLERANCE)
+    if intersection_count == 0:
+        return 0
 
-    # If the unique intersection point is one and it is exactly one of the nodes of the face, return 0
-    if len(intersection_points) == 1:
-        for edge in edges:
+    unique_intersection_points = _unique_points(
+        intersection_points[:intersection_count], tolerance=ERROR_TOLERANCE
+    )
+    unique_count = unique_intersection_points.shape[0]
+
+    # If there's only one unique intersection point, check if it matches any edge nodes
+    if unique_count == 1:
+        intersection_point = unique_intersection_points[0]
+        for i in range(n_edges):
+            edge_xyz = edges_xyz[i]
             if allclose(
-                intersection_points[0], edge[0], atol=ERROR_TOLERANCE
-            ) or allclose(intersection_points[0], edge[1], atol=ERROR_TOLERANCE):
+                intersection_point, edge_xyz[0], atol=ERROR_TOLERANCE
+            ) or allclose(intersection_point, edge_xyz[1], atol=ERROR_TOLERANCE):
                 return 0
 
-    return len(intersection_points)
+    return unique_count
 
 
-def _classify_polygon_location(face_edge_cart):
-    """Classify the location of the polygon relative to the hemisphere.
-
-    Parameters
-    ----------
-    face_edge_cart : np.ndarray
-        A face polygon represented by edges in Cartesian coordinates. Shape: (n_edges, 2, 3)
-
-    Returns
-    -------
-    str
-        Returns either 'North', 'South' or 'Equator' based on the polygon's location.
-    """
-    z_coords = face_edge_cart[:, :, 2]
-    if np.all(z_coords > 0):
-        return "North"
-    elif np.all(z_coords < 0):
-        return "South"
-    else:
-        return "Equator"
-
-
+@njit(cache=True)
 def _get_latlonbox_width(latlonbox_rad):
     """Calculate the width of a latitude-longitude box in radians. The box
     should be represented by a 2x2 array in radians and lon0 represent the
@@ -848,18 +957,16 @@ def _get_latlonbox_width(latlonbox_rad):
         If the input longitude range is flagged as periodic but in the form [lon0, lon1] where lon0 < lon1.
         The function will automatically use the is_lon_periodic=False instead.
     """
-
+    # TODO: ensure this function works properly
     lon0, lon1 = latlonbox_rad[1]
 
-    # Check longitude range validity
-    # Normalize the longitude so that it is within the range [0, 2π]
-    # Normalize the longitude
     if lon0 != INT_FILL_VALUE:
         lon0 = np.mod(lon0, 2 * np.pi)
     if lon1 != INT_FILL_VALUE:
         lon1 = np.mod(lon1, 2 * np.pi)
     if (lon0 < 0.0 or lon0 > 2.0 * np.pi) and lon0 != INT_FILL_VALUE:
-        raise Exception("lon0 out of range ({} not in [0, 2π])".format(lon0))
+        # -1 used for exception
+        return -1
 
     if lon0 <= lon1:
         return lon1 - lon0
@@ -868,18 +975,33 @@ def _get_latlonbox_width(latlonbox_rad):
         return 2 * np.pi - lon0 + lon1
 
 
-def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
-    """Update the latitude-longitude box to include a new point in radians.
+@njit(cache=True)
+def all_elements_nan(arr):
+    """Check if all elements in an array are np.nan."""
+    for i in range(arr.shape[0]):
+        if not np.isnan(arr[i]):
+            return False
+    return True
 
-    This function compares the new point's latitude and longitude with the
-    existing latitude-longitude box and updates the box if necessary to include the new point.
+
+@njit(cache=True)
+def any_close_lat(lat_pt, atol):
+    """Check if the latitude point is close to either the North or South Pole."""
+    return isclose(lat_pt, 0.5 * math.pi, atol) or isclose(lat_pt, -0.5 * math.pi, atol)
+
+
+@njit(cache=True)
+def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
+    """Update the latitude-longitude box to include a new point in radians.
 
     Parameters
     ----------
     old_box : np.ndarray
-        The original latitude-longitude box in radian, a 2x2 array: [min_lat, max_lat],[left_lon, right_lon]].
+        The original latitude-longitude box in radians, a 2x2 array:
+        [[min_lat, max_lat],
+         [left_lon, right_lon]].
     new_pt : np.ndarray
-        The new latitude-longitude point in radian, an array: [lat, lon].
+        The new latitude-longitude point in radians, an array: [lat, lon].
     is_lon_periodic : bool, optional
         Flag indicating if the latitude-longitude box is periodic in longitude (default is True).
 
@@ -892,297 +1014,338 @@ def _insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     ------
     Exception
         If logic errors occur in the calculation process.
-
-    Examples
-    --------
-    >>> _insert_pt_in_latlonbox(np.array([[1.0, 2.0], [3.0, 4.0]]),np.array([1.5, 3.5]))
-    array([[1.0, 2.0], [3.0, 4.0]])
     """
-    if np.all(new_pt == INT_FILL_VALUE):
+    # Check if the new point is a fill value
+    all_fill = all_elements_nan(new_pt)
+    if all_fill:
         return old_box
 
-    latlon_box = np.copy(old_box)  # Create a copy of the old box
-    latlon_box = np.array(
-        latlon_box, dtype=np.float64
-    )  # Cast to float64, otherwise the following update might fail
+    # Create a copy of the old box
+    latlon_box = np.copy(old_box)
 
-    lat_pt, lon_pt = new_pt
+    # Extract latitude and longitude from the new point
+    lat_pt = new_pt[0]
+    lon_pt = new_pt[1]
 
-    # Normalize the longitude
-    if lon_pt != INT_FILL_VALUE:
-        lon_pt = np.mod(lon_pt, 2 * np.pi)
+    # Normalize the longitude if it's not a fill value
+    if not np.isnan(lon_pt):
+        lon_pt = lon_pt % (2.0 * math.pi)
 
     # Check if the latitude range is uninitialized and update it
-    if old_box[0][0] == old_box[0][1] == INT_FILL_VALUE:
-        latlon_box[0] = np.array([lat_pt, lat_pt])
+    if np.isnan(old_box[0, 0]) and np.isnan(old_box[0, 1]):
+        latlon_box[0, 0] = lat_pt
+        latlon_box[0, 1] = lat_pt
+    else:
+        # Update latitude range
+        if lat_pt < latlon_box[0, 0]:
+            latlon_box[0, 0] = lat_pt
+        if lat_pt > latlon_box[0, 1]:
+            latlon_box[0, 1] = lat_pt
 
     # Check if the longitude range is uninitialized and update it
-    if old_box[1][0] == old_box[1][1] == INT_FILL_VALUE:
-        latlon_box[1] = np.array([lon_pt, lon_pt])
-
-    if lon_pt != INT_FILL_VALUE and (lon_pt < 0.0 or lon_pt > 2.0 * np.pi):
-        raise Exception(f"lon_pt out of range ({lon_pt} not in [0, 2π])")
-
-    # Check for pole points and update latitudes
-    is_pole_point = (
-        lon_pt == INT_FILL_VALUE
-        and isclose(
-            new_pt[0], np.asarray([0.5 * np.pi, -0.5 * np.pi]), atol=ERROR_TOLERANCE
-        ).any()
-    )
-
-    if is_pole_point:
-        # Check if the new point is close to the North Pole
-        if isclose(new_pt[0], 0.5 * np.pi, atol=ERROR_TOLERANCE):
-            latlon_box[0][1] = 0.5 * np.pi
-
-        # Check if the new point is close to the South Pole
-        elif isclose(new_pt[0], -0.5 * np.pi, atol=ERROR_TOLERANCE):
-            latlon_box[0][0] = -0.5 * np.pi
-
-        return latlon_box
+    if np.isnan(old_box[1, 0]) and np.isnan(old_box[1, 1]):
+        latlon_box[1, 0] = lon_pt
+        latlon_box[1, 1] = lon_pt
     else:
-        latlon_box[0] = [min(latlon_box[0][0], lat_pt), max(latlon_box[0][1], lat_pt)]
+        # Validate longitude point
+        if not np.isnan(lon_pt) and (lon_pt < 0.0 or lon_pt > 2.0 * math.pi):
+            raise Exception("Longitude point out of range")
 
-    # Update longitude range for non-periodic or periodic cases
-    if not is_lon_periodic:
-        latlon_box[1] = [min(latlon_box[1][0], lon_pt), max(latlon_box[1][1], lon_pt)]
-    else:
-        if (
-            latlon_box[1][0] > latlon_box[1][1]
-            and (lon_pt < latlon_box[1][0] and lon_pt > latlon_box[1][1])
-        ) or (
-            latlon_box[1][0] <= latlon_box[1][1]
-            and not (latlon_box[1][0] <= lon_pt <= latlon_box[1][1])
-        ):
-            # Calculate and compare new box widths
-            box_a, box_b = np.copy(latlon_box), np.copy(latlon_box)
-            box_a[1][0], box_b[1][1] = lon_pt, lon_pt
-            d_width_a, d_width_b = (
-                _get_latlonbox_width(box_a),
-                _get_latlonbox_width(box_b),
-            )
+        # Check for pole points
+        is_pole_point = False
+        if np.isnan(lon_pt):
+            if any_close_lat(lat_pt, ERROR_TOLERANCE):
+                is_pole_point = True
 
-            # The width should not be negative, if so, raise an exception
-            if d_width_a < 0 or d_width_b < 0:
-                raise Exception("logic error")
+        if is_pole_point:
+            # Update latitude for pole points
+            if isclose(lat_pt, 0.5 * math.pi, ERROR_TOLERANCE):
+                latlon_box[0, 1] = 0.5 * math.pi  # Update max_lat for North Pole
+            elif isclose(lat_pt, -0.5 * math.pi, ERROR_TOLERANCE):
+                latlon_box[0, 0] = -0.5 * math.pi  # Update min_lat for South Pole
+        else:
+            # Update longitude range based on periodicity
+            if not is_lon_periodic:
+                # Non-periodic: straightforward min and max updates
+                if lon_pt < latlon_box[1, 0]:
+                    latlon_box[1, 0] = lon_pt
+                if lon_pt > latlon_box[1, 1]:
+                    latlon_box[1, 1] = lon_pt
+            else:
+                # Periodic longitude handling
+                # Determine if the new point extends the current longitude range
+                # considering the periodic boundary at 2*pi
+                left_lon = latlon_box[1, 0]
+                right_lon = latlon_box[1, 1]
 
-            # Return the arc with the smaller width
-            latlon_box = box_a if d_width_a < d_width_b else box_b
+                # Check if the current box wraps around
+                wraps_around = left_lon > right_lon
+
+                if wraps_around:
+                    # If the box wraps around, check if the new point is outside the current range
+                    if not (left_lon <= lon_pt or lon_pt <= right_lon):
+                        # Decide to extend either the left or the right
+                        # Calculate the new width for both possibilities
+                        # Option 1: Extend the left boundary to lon_pt
+                        box_a = np.copy(latlon_box)
+                        box_a[1, 0] = lon_pt
+                        d_width_a = _get_latlonbox_width(box_a)
+
+                        # Option 2: Extend the right boundary to lon_pt
+                        box_b = np.copy(latlon_box)
+                        box_b[1, 1] = lon_pt
+                        d_width_b = _get_latlonbox_width(box_b)
+
+                        # Ensure widths are non-negative
+                        if (d_width_a < 0.0) or (d_width_b < 0.0):
+                            raise Exception(
+                                "Logic error in longitude box width calculation"
+                            )
+
+                        # Choose the box with the smaller width
+                        if d_width_a < d_width_b:
+                            latlon_box = box_a
+                        else:
+                            latlon_box = box_b
+                else:
+                    # If the box does not wrap around, simply update min or max longitude
+                    if lon_pt < left_lon or lon_pt > right_lon:
+                        # Calculate the new width for both possibilities
+                        # Option 1: Extend the left boundary to lon_pt
+                        box_a = np.copy(latlon_box)
+                        box_a[1, 0] = lon_pt
+                        d_width_a = _get_latlonbox_width(box_a)
+
+                        # Option 2: Extend the right boundary to lon_pt
+                        box_b = np.copy(latlon_box)
+                        box_b[1, 1] = lon_pt
+                        d_width_b = _get_latlonbox_width(box_b)
+
+                        # Ensure widths are non-negative
+                        if (d_width_a < 0.0) or (d_width_b < 0.0):
+                            raise Exception(
+                                "Logic error in longitude box width calculation"
+                            )
+
+                        # Choose the box with the smaller width
+                        if d_width_a < d_width_b:
+                            latlon_box = box_a
+                        else:
+                            latlon_box = box_b
 
     return latlon_box
 
 
+@njit(cache=True)
 def _populate_face_latlon_bound(
-    face_edges_cartesian,
-    face_edges_lonlat_rad,
-    is_latlonface: bool = False,
+    face_edges_xyz,
+    face_edges_lonlat,
+    is_latlonface=False,
     is_GCA_list=None,
 ):
-    """Populates the bounding box for each face in the grid by evaluating the
-    geographical bounds based on the Cartesian and latitudinal/longitudinal
-    edge connectivity. This function also considers the presence of pole points
-    within the face's bounds and adjusts the bounding box accordingly.
-
-    Parameters
-    ----------
-    face_edges_cartesian : np.ndarray, shape (n_edges, 2, 3)
-        An array holding the Cartesian coordinates for the edges of a face, where `n_edges`
-        is the number of edges for the specific face. Each edge is represented by two points
-        (start and end), and each point is a 3D vector (x, y, z) in Cartesian coordinates.
-
-    face_edges_lonlat_connectivity_rad : np.ndarray, shape (n_edges, 2, 2)
-        An array holding the longitude and latitude in radians for the edges of a face,
-        formatted similarly to `face_edges_cartesian`. Each edge's start and
-        end points are represented by their longitude and latitude values in radians.
-
-    is_latlonface : bool, optional
-        A flag indicating if the current face is a latitudinal/longitudinal (latlon) face,
-        meaning its edges align with lines of constant latitude or longitude. If `True`,
-        edges are treated as following constant latitudinal or longitudinal lines. If `False`,
-        edges are considered as great circle arcs (GCA). Default is `False`.
-
-    is_GCA_list : list or np.ndarray, optional
-        A list or an array of boolean values corresponding to each edge within the face,
-        indicating whether the edge is a GCA. If `None`, the determination of whether an
-        edge is a GCA or a constant latitudinal/longitudinal line is based on `is_latlonface`.
-        Default is `None`.
-
-    Returns
-    -------
-    face_latlon_array : np.ndarray, shape (2, 2)
-        An array representing the bounding box for the face in latitude and longitude
-        coordinates (in radians). The first row contains the minimum and maximum latitude
-        values, while the second row contains the minimum and maximum longitude values.
-
-    Notes
-    -----
-    This function evaluates the presence of North or South pole points within the face's
-    bounds by inspecting the Cartesian coordinates of the face's edges. It then constructs
-    the face's bounding box by considering the extreme latitude and longitude values found
-    among the face's edges, adjusting for the presence of pole points as necessary.
-
-    The bounding box is used to determine the face's geographical extent and is crucial
-    for spatial analyses involving the grid.
-
-    Example
-    -------
-    Assuming the existence of a grid face with edges defined in both Cartesian and
-    latitudinal/longitudinal coordinates:
-
-        face_edges_cartesian = np.array([...])  # Cartesian coords
-        face_edges_connectivity_rad = np.array([...])  # Lon/Lat coords in radians
-
-    Populate the bounding box for the face, treating it as a latlon face:
-
-        face_latlon_bound = _populate_face_latlon_bound(face_edges_cartesian,
-                                                        face_edges_lonlat_connectivity_rad,
-                                                        is_latlonface=True)
-    """
-
     # Check if face_edges contains pole points
-    has_north_pole = _pole_point_inside_polygon("North", face_edges_cartesian)
-    has_south_pole = _pole_point_inside_polygon("South", face_edges_cartesian)
+    has_north_pole = pole_point_inside_polygon(1, face_edges_xyz, face_edges_lonlat)
+    has_south_pole = pole_point_inside_polygon(-1, face_edges_xyz, face_edges_lonlat)
 
-    face_latlon_array = np.full((2, 2), INT_FILL_VALUE, dtype=np.float64)
+    # Initialize face_latlon_array with INT_FILL_VALUE
+    face_latlon_array = np.full((2, 2), np.nan, dtype=np.float64)
 
     if has_north_pole or has_south_pole:
         # Initial assumption that the pole point is inside the face
         is_center_pole = True
 
-        # Define the pole point based on the hemisphere
-        pole_point = (
-            np.array([0.0, 0.0, 1.0]) if has_north_pole else np.array([0.0, 0.0, -1.0])
-        )
-        # Pre-defined new point latitude based on the pole
-        new_pt_latlon = np.array(
-            [np.pi / 2 if has_north_pole else -np.pi / 2, INT_FILL_VALUE],
-            dtype=np.float64,
-        )
+        pole_point_xyz = np.zeros(3, dtype=np.float64)
+        pole_point_lonlat = np.zeros(2, dtype=np.float64)
+        new_pt_latlon = np.zeros(2, dtype=np.float64)
 
-        for i in range(face_edges_cartesian.shape[0]):
-            edge_cart = face_edges_cartesian[i]
-            edge_lonlat = face_edges_lonlat_rad[i]
+        if has_north_pole:
+            pole_point_xyz[2] = 1.0  # [0.0, 0.0, 1.0]
+            pole_point_lonlat[1] = math.pi / 2  # [0.0, pi/2]
+            new_pt_latlon[0] = math.pi / 2  # [pi/2, INT_FILL_VALUE]
+            new_pt_latlon[1] = np.nan
+        else:
+            pole_point_xyz[2] = -1.0  # [0.0, 0.0, -1.0]
+            pole_point_lonlat[1] = -math.pi / 2  # [0.0, -pi/2]
+            new_pt_latlon[0] = -math.pi / 2  # [-pi/2, INT_FILL_VALUE]
+            new_pt_latlon[1] = np.nan
 
-            # Skip processing if the edge_cart is marked as a dummy with a fill value
-            if np.any(edge_cart == INT_FILL_VALUE):
+        for i in range(face_edges_xyz.shape[0]):
+            edge_xyz = face_edges_xyz[i]
+            edge_lonlat = face_edges_lonlat[i]
+
+            # Skip processing if the edge is marked as a dummy with a fill value
+            if np.any(edge_xyz == INT_FILL_VALUE):
                 continue
 
-            # Extract cartesian coordinates of the edge_cart's endpoints
-            n1_cart, n2_cart = edge_cart
-            n1_lonlat, n2_lonlat = edge_lonlat
+            # Extract cartesian coordinates of the edge's endpoints
+            n1_cart = edge_xyz[0]
+            n2_cart = edge_xyz[1]
+            n1_lonlat = edge_lonlat[0]
+            n2_lonlat = edge_lonlat[1]
 
-            # Convert latitudes and longitudes of the nodes to radians
-            node1_lon_rad, node1_lat_rad = n1_lonlat
+            # Extract latitudes and longitudes of the nodes
+            node1_lon_rad = n1_lonlat[0]
+            node1_lat_rad = n1_lonlat[1]
 
-            # Determine if the edge_cart's extreme latitudes need to be considered using the corrected logic
-            is_GCA = (
-                is_GCA_list[i]
-                if is_GCA_list is not None
-                else not is_latlonface or n1_cart[2] != n2_cart[2]
-            )
+            # Determine if the edge's extreme latitudes need to be considered
+            if is_GCA_list is not None:
+                is_GCA = is_GCA_list[i]
+            else:
+                is_GCA = not is_latlonface or n1_cart[2] != n2_cart[2]
 
-            # Check if the node matches the pole point or if the pole point is within the edge_cart
-            if allclose(n1_cart, pole_point, atol=ERROR_TOLERANCE) or point_within_gca(
-                pole_point, np.array([n1_cart, n2_cart]), is_directed=False
+            # Check if the node matches the pole point or if the pole point is within the edge
+            max_abs_diff = np.max(np.abs(n1_cart - pole_point_xyz))
+            if max_abs_diff <= ERROR_TOLERANCE or point_within_gca(
+                pole_point_xyz,
+                pole_point_lonlat,
+                n1_cart,
+                n1_lonlat,
+                n2_cart,
+                n2_lonlat,
+                is_directed=False,
             ):
                 is_center_pole = False
-                face_latlon_array = _insert_pt_in_latlonbox(
+                face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, new_pt_latlon
                 )
 
             # Insert the current node's lat/lon into the latlonbox
-            face_latlon_array = _insert_pt_in_latlonbox(
+            face_latlon_array = insert_pt_in_latlonbox(
                 face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
             )
 
+            # Create n1n2_cart and n1n2_lonlat arrays using preallocation
+            n1n2_cart = np.empty((2, 3), dtype=np.float64)
+            n1n2_cart[0, :] = n1_cart
+            n1n2_cart[1, :] = n2_cart
+
+            n1n2_lonlat = np.empty((2, 2), dtype=np.float64)
+            n1n2_lonlat[0, :] = n1_lonlat
+            n1n2_lonlat[1, :] = n2_lonlat
+
             # Determine extreme latitudes for GCA edges
-            lat_max, lat_min = (
-                (
-                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "max"),
-                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "min"),
-                )
-                if is_GCA
-                else (node1_lat_rad, node1_lat_rad)
-            )
+            if is_GCA:
+                lat_max = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "max")
+                lat_min = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "min")
+            else:
+                lat_max = node1_lat_rad
+                lat_min = node1_lat_rad
 
             # Insert latitudinal extremes based on pole presence
             if has_north_pole:
-                face_latlon_array = _insert_pt_in_latlonbox(
+                face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
                 )
-                face_latlon_array[0][1] = (
-                    np.pi / 2
-                )  # Ensure north pole is the upper latitude bound
+                face_latlon_array[0, 1] = math.pi / 2  # Upper latitude bound
             else:
-                face_latlon_array = _insert_pt_in_latlonbox(
+                face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
-                face_latlon_array[0][0] = (
-                    -np.pi / 2
-                )  # Ensure south pole is the lower latitude bound
+                face_latlon_array[0, 0] = -math.pi / 2  # Lower latitude bound
 
         # Adjust longitude bounds globally if the pole is centrally inside the polygon
         if is_center_pole:
-            face_latlon_array[1] = [0.0, 2 * np.pi]
+            face_latlon_array[1, 0] = 0.0
+            face_latlon_array[1, 1] = 2 * math.pi
 
     else:
         # Normal Face
-        # Iterate through each edge_cart of a face to update the bounding box (latlonbox) with extreme latitudes and longitudes
-        for i in range(face_edges_cartesian.shape[0]):
-            edge_cart = face_edges_cartesian[i]
-            edge_lonlat = face_edges_lonlat_rad[i]
+        for i in range(face_edges_xyz.shape[0]):
+            edge_xyz = face_edges_xyz[i]
+            edge_lonlat = face_edges_lonlat[i]
 
-            # Skip processing if the edge_cart is marked as a dummy with a fill value
-            if np.any(edge_cart == INT_FILL_VALUE):
+            # Skip processing if the edge is marked as a dummy with a fill value
+            if np.any(edge_xyz == INT_FILL_VALUE):
                 continue
 
-            # Extract cartesian coordinates of the edge_cart's endpoints
-            n1_cart, n2_cart = edge_cart
-            n1_lonlat, n2_lonlat = edge_lonlat
+            # Extract cartesian coordinates of the edge's endpoints
+            n1_cart = edge_xyz[0]
+            n2_cart = edge_xyz[1]
+            n1_lonlat = edge_lonlat[0]
+            n2_lonlat = edge_lonlat[1]
 
-            # Convert latitudes and longitudes of the nodes to radians
-            node1_lon_rad, node1_lat_rad = n1_lonlat
-            node2_lon_rad, node2_lat_rad = n2_lonlat
+            # Extract latitudes and longitudes of the nodes
+            node1_lon_rad = n1_lonlat[0]
+            node1_lat_rad = n1_lonlat[1]
+            # node2_lon_rad = n2_lonlat[0]
+            node2_lat_rad = n2_lonlat[1]
 
-            # Determine if the edge_cart's extreme latitudes need to be considered using the corrected logic
-            is_GCA = (
-                is_GCA_list[i]
-                if is_GCA_list is not None
-                else not is_latlonface or n1_cart[2] != n2_cart[2]
-            )
+            # Determine if the edge's extreme latitudes need to be considered
+            if is_GCA_list is not None:
+                is_GCA = is_GCA_list[i]
+            else:
+                is_GCA = not is_latlonface or n1_cart[2] != n2_cart[2]
 
-            lat_max, lat_min = (
-                (
-                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "max"),
-                    extreme_gca_latitude(np.array([n1_cart, n2_cart]), "min"),
-                )
-                if is_GCA
-                else (node1_lat_rad, node1_lat_rad)
-            )
+            # Create n1n2_cart and n1n2_lonlat arrays using preallocation
+            n1n2_cart = np.empty((2, 3), dtype=np.float64)
+            n1n2_cart[0, :] = n1_cart
+            n1n2_cart[1, :] = n2_cart
 
-            # Insert extreme latitude points into the latlonbox if they differ from the node latitudes
-            if not isclose(
-                node1_lat_rad, lat_max, atol=ERROR_TOLERANCE
-            ) and not isclose(node2_lat_rad, lat_max, atol=ERROR_TOLERANCE):
-                # Insert the maximum latitude
-                face_latlon_array = _insert_pt_in_latlonbox(
+            n1n2_lonlat = np.empty((2, 2), dtype=np.float64)
+            n1n2_lonlat[0, :] = n1_lonlat
+            n1n2_lonlat[1, :] = n2_lonlat
+
+            if is_GCA:
+                lat_max = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "max")
+                lat_min = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "min")
+            else:
+                lat_max = node1_lat_rad
+                lat_min = node1_lat_rad
+
+            # Insert extreme latitude points into the latlonbox
+            if (
+                abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
+                and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
+            ):
+                face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
-            elif not isclose(
-                node1_lat_rad, lat_min, atol=ERROR_TOLERANCE
-            ) and not isclose(node2_lat_rad, lat_min, atol=ERROR_TOLERANCE):
-                # Insert the minimum latitude
-                face_latlon_array = _insert_pt_in_latlonbox(
+            elif (
+                abs(node1_lat_rad - lat_min) > ERROR_TOLERANCE
+                and abs(node2_lat_rad - lat_min) > ERROR_TOLERANCE
+            ):
+                face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
                 )
             else:
-                # Insert the node's latitude and longitude as it matches the extreme latitudes
-                face_latlon_array = _insert_pt_in_latlonbox(
+                face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
                 )
 
     return face_latlon_array
+
+
+@njit(cache=True, parallel=True)
+def compute_temp_latlon_array(
+    face_node_connectivity,
+    faces_edges_cartesian,
+    faces_edges_lonlat_rad,
+    n_nodes_per_face,
+    is_latlonface,
+    is_face_GCA_list,
+    INT_FILL_VALUE,
+):
+    n_face = face_node_connectivity.shape[0]
+    temp_latlon_array = np.full((n_face, 2, 2), INT_FILL_VALUE, dtype=np.float64)
+    for face_idx in prange(n_face):
+        cur_face_edges_cartesian = faces_edges_cartesian[
+            face_idx, 0 : n_nodes_per_face[face_idx]
+        ]
+        cur_faces_edges_lonlat_rad = faces_edges_lonlat_rad[
+            face_idx, 0 : n_nodes_per_face[face_idx]
+        ]
+        if is_face_GCA_list is not None:
+            is_GCA_list = is_face_GCA_list[face_idx]
+        else:
+            is_GCA_list = None
+
+        temp_latlon_array[face_idx] = _populate_face_latlon_bound(
+            cur_face_edges_cartesian,
+            cur_faces_edges_lonlat_rad,
+            is_latlonface=is_latlonface,
+            is_GCA_list=is_GCA_list,
+        )
+    return temp_latlon_array
 
 
 def _populate_bounds(
@@ -1244,13 +1407,11 @@ def _populate_bounds(
 
     This will calculate and store the bounds for each face within the grid, adjusting for any special conditions such as crossing the antimeridian, and return them as a DataArray.
     """
-    temp_latlon_array = np.full((grid.n_face, 2, 2), INT_FILL_VALUE, dtype=np.float64)
 
-    # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
-    # between the intervals and the face indices
-    intervals_tuple_list = []
-    intervals_name_list = []
+    # Ensure grid's cartesian coordinates are normalized
+    grid.normalize_cartesian_coordinates()
 
+    # Prepare data for Numba functions
     faces_edges_cartesian = _get_cartesian_face_edge_nodes(
         grid.face_node_connectivity.values,
         grid.n_face,
@@ -1268,42 +1429,29 @@ def _populate_bounds(
         grid.node_lat.values,
     )
 
-    for face_idx, face_nodes in enumerate(grid.face_node_connectivity):
-        face_edges_cartesian = faces_edges_cartesian[face_idx]
+    n_nodes_per_face = grid.n_nodes_per_face.values
 
-        # Remove the edge in the face that contains the fill value
-        face_edges_cartesian = face_edges_cartesian[
-            np.all(face_edges_cartesian != INT_FILL_VALUE, axis=(1, 2))
-        ]
+    # Call the Numba-compiled function
+    temp_latlon_array = compute_temp_latlon_array(
+        grid.face_node_connectivity.values,
+        faces_edges_cartesian,
+        faces_edges_lonlat_rad,
+        n_nodes_per_face,
+        is_latlonface,
+        is_face_GCA_list,
+        INT_FILL_VALUE,
+    )
 
-        face_edges_lonlat_rad = faces_edges_lonlat_rad[face_idx]
-
-        # Remove the edge in the face that contains the fill value
-        face_edges_lonlat_rad = face_edges_lonlat_rad[
-            np.all(face_edges_lonlat_rad != INT_FILL_VALUE, axis=(1, 2))
-        ]
-
-        is_GCA_list = (
-            is_face_GCA_list[face_idx] if is_face_GCA_list is not None else None
-        )
-
-        temp_latlon_array[face_idx] = _populate_face_latlon_bound(
-            face_edges_cartesian,
-            face_edges_lonlat_rad,
-            is_latlonface=is_latlonface,
-            is_GCA_list=is_GCA_list,
-        )
-
+    # Process results outside Numba
+    intervals_tuple_list = []
+    intervals_name_list = []
+    for face_idx in range(grid.n_face):
         assert temp_latlon_array[face_idx][0][0] != temp_latlon_array[face_idx][0][1]
         assert temp_latlon_array[face_idx][1][0] != temp_latlon_array[face_idx][1][1]
         lat_array = temp_latlon_array[face_idx][0]
-
-        # Now store the latitude intervals in the tuples
         intervals_tuple_list.append((lat_array[0], lat_array[1]))
         intervals_name_list.append(face_idx)
 
-    # Because Pandas.IntervalIndex does not support naming for each interval, we need to create a mapping
-    # between the intervals and the face indices
     intervalsIndex = pd.IntervalIndex.from_tuples(intervals_tuple_list, closed="both")
     df_intervals_map = pd.DataFrame(
         index=intervalsIndex, data=intervals_name_list, columns=["face_id"]
@@ -1311,7 +1459,7 @@ def _populate_bounds(
 
     bounds = xr.DataArray(
         temp_latlon_array,
-        dims=["n_face", "Two", "Two"],
+        dims=["n_face", "lon_lat", "min_max"],
         attrs={
             "cf_role": "face_latlon_bounds",
             "_FillValue": INT_FILL_VALUE,
@@ -1328,10 +1476,101 @@ def _populate_bounds(
         grid._ds["bounds"] = bounds
 
 
-def _construct_hole_edge_indices(edge_face_connectivity):
+def _construct_boundary_edge_indices(edge_face_connectivity):
     """Index the missing edges on a partial grid with holes, that is a region
     of the grid that is not covered by any geometry."""
 
     # If an edge only has one face saddling it than the mesh has holes in it
     edge_with_holes = np.where(edge_face_connectivity[:, 1] == INT_FILL_VALUE)[0]
     return edge_with_holes
+
+
+def stereographic_projection(lon, lat, central_lon, central_lat):
+    """Projects a point on the surface of the sphere to a plane using stereographic projection
+
+    Parameters
+    ----------
+    lon: np.ndarray
+        Longitude coordinates of point
+    lat: np.ndarray
+        Latitude coordinate of point
+    central_lon: np.ndarray
+        Central longitude of projection
+    central_lat: np.ndarray
+        Central latitude of projection
+    Returns
+    -------
+    x: np.ndarray
+        2D x coordinate of projected point
+    y: np.ndarray
+        2D y coordinate of projected point
+    """
+
+    # Convert to radians
+    lon = np.deg2rad(lon)
+    lat = np.deg2rad(lat)
+    central_lon = np.deg2rad(central_lon)
+    central_lat = np.deg2rad(central_lat)
+
+    # Calculate constant used for calculation
+    k = 2.0 / (
+        1.0
+        + np.sin(central_lat) * np.sin(lat)
+        + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+    )
+
+    # Calculate the x and y coordinates
+    x = k * np.cos(lat) * np.sin(lon - central_lon)
+    y = k * (
+        np.cos(central_lat) * np.sin(lat)
+        - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+    )
+
+    return x, y
+
+
+def inverse_stereographic_projection(x, y, central_lon, central_lat):
+    """Projects a point on a plane to the surface of the sphere using stereographic projection
+
+    Parameters
+    ----------
+    x: np.ndarray
+        2D x coordinates of point
+    y: np.ndarray
+        2D y coordinate of point
+    central_lon: np.ndarray
+        Central longitude of projection
+    central_lat: np.ndarray
+        Central latitude of projection
+    Returns
+    -------
+    lon: np.ndarray
+        Longitude of projected point
+    lat: np.ndarray
+        Latitude of projected point
+    """
+
+    # If x and y are zero, the lon and lat will also be zero
+
+    if x == 0 and y == 0:
+        return 0, 0
+
+    # Convert to radians
+    central_lat = np.deg2rad(central_lat)
+
+    # Calculate constants used for calculation
+    p = np.sqrt(x**2 + y**2)
+
+    c = 2 * np.arctan(p / 2)
+
+    # Calculate the lon and lat of the coordinate
+    lon = central_lon + np.arctan2(
+        x * np.sin(c),
+        p * np.cos(central_lat) * np.cos(c) - y * np.sin(central_lat) * np.sin(c),
+    )
+
+    lat = np.arcsin(
+        np.cos(c) * np.sin(central_lat) + ((y * np.sin(c) * central_lat) / p)
+    )
+
+    return lon, lat

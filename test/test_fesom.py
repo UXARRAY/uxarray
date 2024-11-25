@@ -5,9 +5,9 @@ from pathlib import Path
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-pi_gridpath= current_path / "meshfiles" / "fesom" / "pi"
+fesom_ugrid_diag_file= current_path / "meshfiles" / "ugrid" / "fesom" / "fesom.mesh.diag.nc"
 
 
-def test_open_fesom_ascii():
-    uxgrid = ux.open_grid(pi_gridpath)
+def test_open_fesom_ugrid():
+    uxgrid = ux.open_grid(fesom_ugrid_diag_file)
     uxgrid.validate()
