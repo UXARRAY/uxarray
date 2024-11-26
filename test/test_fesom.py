@@ -47,4 +47,5 @@ def test_open_mfdataset(grid_path):
     data_path = glob.glob(str(fesom_ascii_path / "data" / "*.nc"))
     uxds = ux.open_mfdataset(grid_path, data_path)
     assert "n_node" in uxds.dims
-    assert len(uxds) == 2
+    assert "n_face" in uxds.dims
+    assert len(uxds) == 3
