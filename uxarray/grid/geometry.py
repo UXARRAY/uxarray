@@ -18,7 +18,11 @@ from uxarray.constants import (
     INT_DTYPE,
     INT_FILL_VALUE,
 )
-from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.arcs import (
+    extreme_gca_latitude,
+    point_within_gca,
+    _point_within_gca_cartesian,
+)
 
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
 
@@ -1618,6 +1622,9 @@ def point_in_polygon(polygon, point, ref_point):
     # Initialize the intersection count
     intersection_count = 0
 
+    # Set to hold unique intersections
+    unique_intersections = set()
+
     # Initialize the points arc between the point and the reference point
     gca2_cart = np.array([point, ref_point])
 
@@ -1628,11 +1635,19 @@ def point_in_polygon(polygon, point, ref_point):
         # Get the first edge of the polygon
         gca1_cart = np.array([polygon[ind], polygon[ind2]])
 
+        # If the point lies on an edge, return True
+        if _point_within_gca_cartesian(point, gca1_cart):
+            return True
+
         # Get the number of intersections between the edge and the point arc
         intersections = _gca_gca_intersection_cartesian(gca1_cart, gca2_cart)
 
-        # Increment the intersection count according to the number of intersections
-        intersection_count += len(intersections)
+        # Add any unique intersections to the intersection_count
+        for intersection in intersections:
+            intersection_tuple = tuple(np.round(intersection, decimals=8))
+            if intersection_tuple not in unique_intersections:
+                unique_intersections.add(intersection_tuple)
+                intersection_count += 1
 
     # Return True if the number of intersections is odd, False otherwise
     return intersection_count % 2 == 1
