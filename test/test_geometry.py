@@ -1517,6 +1517,26 @@ class TestPointInPolygon(TestCase):
         # Assert that the point is not in the polygon
         self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
 
+    def test_point_on_node(self):
+        """Test the function `point_in_polygon`, when the point is on the node of the polygon"""
+
+        # Open grid
+        grid = ux.open_grid(grid_mpas_2)
+
+        # Create the polygon
+        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        for ind, face in enumerate(grid.face_node_connectivity[100].values):
+            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+
+        # Set the point as a node of the polygon
+        point = polygon[0]
+
+        # Assert that the point is in the polygon when inclusive=True
+        self.assertTrue(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1]), inclusive=True))
+
+        # Assert that the point is not in the polygon when inclusive=False
+        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1]), inclusive=False))
+
     def test_point_inside_close(self):
         """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
 
@@ -1529,7 +1549,6 @@ class TestPointInPolygon(TestCase):
             polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
 
         # Set the point as right next to one of the nodes
-
         lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]] + 0.1)
         lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] + 0.1)
 
@@ -1539,7 +1558,7 @@ class TestPointInPolygon(TestCase):
         self.assertTrue(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
 
     def test_point_outside_close(self):
-        """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
+        """Test the function `point_in_polygon`, where point is outside the polygon, but very close to the edge"""
 
         # Open grid
         grid = ux.open_grid(grid_mpas_2)

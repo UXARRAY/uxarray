@@ -1585,8 +1585,25 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-def point_in_polygon(polygon, point, ref_point):
-    """Doc string here"""
+def point_in_polygon(polygon, point, ref_point, inclusive=True):
+    """Check if a point lies inside a polygon.
+
+    Parameters
+    ----------
+        polygon : numpy.ndarray
+            Coordinates of each point in the polygon
+        point : numpy.ndarray
+            Coordinate of the point
+        ref_point : numpy.ndarray
+            Coordinate of a point outside the polygon
+        inclusive : bool
+            Flag to determine whether to include points on the nodes and edges of the polygon
+
+    Returns
+    -------
+    bool
+        True if point is inside polygon, False otherwise
+    """
 
     # Validate the inputs
     if len(point) != 2 and len(point) != 3:
@@ -1636,7 +1653,7 @@ def point_in_polygon(polygon, point, ref_point):
         gca1_cart = np.array([polygon[ind], polygon[ind2]])
 
         # If the point lies on an edge, return True
-        if _point_within_gca_cartesian(point, gca1_cart):
+        if inclusive and _point_within_gca_cartesian(point, gca1_cart):
             return True
 
         # Get the number of intersections between the edge and the point arc
