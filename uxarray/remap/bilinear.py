@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from numba import njit
 
-from uxarray.grid.geometry import _point_in_polygon, point_in_polygon
+from uxarray.grid.geometry import point_in_polygon
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset

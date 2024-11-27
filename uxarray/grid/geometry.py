@@ -1340,118 +1340,26 @@ def _construct_boundary_edge_indices(edge_face_connectivity):
     return edge_with_holes
 
 
-def _point_in_polygon(point, edges):
-    """
-    Determines if the given test_point is inside the polygon defined by edges in 3D space using ray-casting logic.
-
-    Parameters:
-    - test_point: Array-like, the [x, y, z] coordinates of the point to test.
-    - vertices: List or array of [x, y, z] coordinates representing the vertices of the polygon.
-    - edges_indices: List of integers, representing the indices of the vertices forming the polygon edges.
-
-    Returns:
-    - True if the point is inside the face, False otherwise.
-    """
-
-    # Get proper coordinates for points
-    # Convert test_point to XYZ coordinates if in lat/lon format
-    if len(point) == 2:
-        point = _lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1]))
-
-    # Convert vertices to XYZ coordinates if they are in lat/lon format
-    if len(edges[0]) == 2:
-        edges = [
-            _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
-            for vertex in edges
-        ]
-    edges = np.flip(edges, axis=0)
-    nParity = 0
-
-    point_x = point[0]
-    point_y = point[1]
-    point_z = point[2]
-
-    for edge_ind_1 in range(len(edges)):
-        edge_ind_2 = (edge_ind_1 + 1) % len(edges)
-
-        first_edge_x = edges[edge_ind_1][0]
-        first_edge_y = edges[edge_ind_1][1]
-        first_edge_z = edges[edge_ind_1][2]
-
-        second_edge_x = edges[edge_ind_2][0]
-        second_edge_y = edges[edge_ind_2][1]
-        second_edge_z = edges[edge_ind_2][2]
-
-        # If both nodes are on the same size of n0.z then there will be no
-        # intersection with the plane z=n0.z. If nodes are on opposite sides
-        # of this plane then they must have an intersection.
-        if (first_edge_z > point_z) and (second_edge_z > point_z):
-            continue
-
-        if (first_edge_z < point_z) and (second_edge_z < point_z):
-            continue
-
-        # // Arcs of constant z aren't informative for determining inside/outside
-        if (first_edge_z == second_edge_z):
-            continue
-
-        # // Intersection between n1-n2 and n0.z plane
-        # // Branch here to ensure result is the same regardless of n1-n2 ordering
-        # // Under the rules of floating point arithmetic, dA should always be
-        # // in the range [0,1].
-
-        if first_edge_z < second_edge_z:
-            dA = (point_x - first_edge_z) / (second_edge_z - first_edge_z)
-            nx = (1.0 - dA) * first_edge_x + dA * second_edge_x
-            ny = (1.0 - dA) * first_edge_y + dA * second_edge_y
-            nz = point_z
-        else:
-            dA = (point_z - second_edge_z) / (first_edge_z - second_edge_z)
-            nx = (1.0 - dA) * second_edge_x + dA * first_edge_x
-            ny = (1.0 - dA) * second_edge_y + dA * first_edge_y
-            nz = point_z
-
-        dc = point_x * ny - point_y * nx
-        dd = point_x * nx + point_y * ny + point_z * nz
-
-        # // The actual angle is arctan(da), but since arctan is monotone the
-        # // actual angle is not needed.
-        da = dc / dd
-
-        if da < 0.0:
-            continue
-
-        # // Arcs that go from smaller z to larger z have positive parity.
-        # // Arcs that go from larger z to smaller z have negative parity.
-        if first_edge_z < second_edge_z:
-            if (first_edge_z == point_z) or (second_edge_z == point_z):
-                nParity += 1
-            else:
-                nParity += 2
-        else:
-            if (first_edge_z == point_z) or (second_edge_z == point_z):
-                nParity -= 1
-            else:
-                nParity -= 2
-
-    if nParity >= 0:
-        return False
-    else:
-        return True
-
-
 def point_in_polygon(polygon, point, ref_point):
+    unique_intersections = set()
     intersection_count = 0
 
     for ind in range(len(polygon)):
         ind2 = (ind + 1) % len(polygon)
 
         gca1_cart = np.array([polygon[ind], polygon[ind2]])
-
         gca2_cart = np.array([point, ref_point])
+
+        if point_within_gca(point, gca1_cart):
+            return True
 
         intersections = gca_gca_intersection(gca1_cart, gca2_cart)
 
-        intersection_count += len(intersections)
+        # Convert intersection points to a tuple for use in the set
+        for intersection in intersections:
+            intersection_tuple = tuple(np.round(intersection, decimals=8))
+            if intersection_tuple not in unique_intersections:
+                unique_intersections.add(intersection_tuple)
+                intersection_count += 1
 
     return intersection_count % 2 == 1
