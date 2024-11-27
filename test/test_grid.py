@@ -74,7 +74,6 @@ class TestGrid(TestCase):
         self.grid_RLL1deg.encode_as("Exodus")
         self.grid_RLL10deg_CSne4.encode_as("Exodus")
 
-
     def test_init_verts(self):
         """Create a uxarray grid from multiple face vertices with duplicate
         nodes and saves a ugrid file.
@@ -258,6 +257,20 @@ class TestGrid(TestCase):
         self.assertEqual(n_faces, grid_geoflow.n_face)
         self.assertEqual(n_face_nodes, grid_geoflow.n_max_face_nodes)
 
+        # Test max properties
+        self.assertEqual(self.grid_CSne30.n_max_face_faces, self.grid_CSne30.face_face_connectivity.shape[1])
+
+        # Building `edge_edge_connectivity` not yet supported, nor do any grids currently have this natively
+        # self.assertEqual(self.grid_CSne30.n_max_edge_edges, self.grid_CSne30.edge_edge_connectivity.shape[1])
+        # Building also not supported for node_edge
+        # self.assertEqual(self.grid_CSne30.n_max_node_edges, self.grid_CSne30.node_edge_connectivity.shape[1])
+        self.assertEqual(self.grid_CSne30.n_max_face_nodes, self.grid_CSne30.face_node_connectivity.shape[1])
+        self.assertEqual(self.grid_CSne30.n_max_face_edges, self.grid_CSne30.face_edge_connectivity.shape[1])
+        self.assertEqual(self.grid_CSne30.n_max_node_faces, self.grid_CSne30.node_face_connectivity.shape[1])
+
+        n_nodes_per_face = self.grid_CSne30.n_nodes_per_face
+        self.grid_CSne30.n_nodes_per_face = n_nodes_per_face
+
     def test_read_shpfile(self):
         """Reads a shape file and write ugrid file."""
         with self.assertRaises(ValueError):
@@ -268,6 +281,14 @@ class TestGrid(TestCase):
 
         # Test read from scrip and from ugrid for grid class
         grid_CSne8 = ux.open_grid(gridfile_CSne8)  # tests from scrip
+
+    def test_value_errors(self):
+        """Tests that the proper value errors are raised when incorrect inputs are used"""
+
+        # Create invalid grid
+        invalid_grid = xr.Dataset()
+
+        self.assertRaises(RuntimeError, ux.open_grid, invalid_grid)
 
 
 class TestOperators(TestCase):
