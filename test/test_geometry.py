@@ -84,7 +84,7 @@ class TestPredicate(TestCase):
                                    [vertices[1], vertices[2]],
                                    [vertices[2], vertices[3]],
                                    [vertices[3], vertices[0]]])
-        print(face_edge_cart)
+
         # Check if the North pole is inside the polygon
         result = _pole_point_inside_polygon_cartesian(
             'North', face_edge_cart)
