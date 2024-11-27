@@ -1586,7 +1586,7 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
 
 
 def point_in_polygon(polygon, point, ref_point, inclusive=True):
-    """Check if a point lies inside a polygon.
+    """Determines if a point lies inside a polygon.
 
     Parameters
     ----------
