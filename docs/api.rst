@@ -414,44 +414,15 @@ on each face.
 
 
 
-Intersections
-~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated/
-
-   grid.intersections.gca_gca_intersection
-   grid.intersections.gca_const_lat_intersection
-
-
 Spherical Geometry
 ------------------
 
-Intersections
-~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
+   grid.geometry.pole_point_inside_polygon
    grid.intersections.gca_gca_intersection
    grid.intersections.gca_const_lat_intersection
-
-Arcs
-~~~~
-
-.. autosummary::
-   :toctree: generated/
-
-   grid.arcs.in_between
    grid.arcs.point_within_gca
    grid.arcs.extreme_gca_latitude
-
-
-Accurate Computing
-------------------
-
-.. autosummary::
-   :toctree: generated/
-
-   utils.computing.cross_fma
-   utils.computing.dot_fma
