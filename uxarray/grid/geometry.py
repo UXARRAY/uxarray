@@ -1631,7 +1631,7 @@ def point_in_polygon(polygon, point, ref_point, inclusive=True):
     if len(point) == 2:
         point = _lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1]))
 
-    if len(point) == 2:
+    if len(ref_point) == 2:
         ref_point = _lonlat_rad_to_xyz(
             np.deg2rad(ref_point[0]), np.deg2rad(ref_point[1])
         )
