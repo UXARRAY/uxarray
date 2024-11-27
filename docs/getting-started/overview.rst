@@ -33,9 +33,6 @@ UGRID conventions, which can contain a mix of triangles, quadrilaterals, or
 other geometric faces.
 
 
-
-
-
 Core Data Structures
 ====================
 
@@ -54,15 +51,8 @@ an Unstructured Grid aware implementation of many Xarray functions and use cases
   a ``Grid`` property (``UxDataArray.uxgrid``) just like ``UxDataset``.
 
 Core Functionality
-====================
-In addition to providing a way to load in and interface with Unstructured Grids, we
-also aim to provide computational and analysis operators that directly operate on
-Unstructured Grids.
+==================
 
-The list of currently implemented operators can be found in the
-`User API <https://uxarray.readthedocs.io/en/latest/user_api/index.html>`_
-documentation.
-
-Get involved in the `Prioritization of Uxarray analysis
-operators <https://github.com/UXARRAY/uxarray/discussions/46>`_ to be released in
-the future!
+In addition to providing a convenient way of loading and interfacing with unstructured grids, UXarray also provides
+a toolkit of visualization and analysis functionality. They are outlined in the `API Reference <https://uxarray.readthedocs.io/en/latest/api.html>`_
+and `User Guide <https://uxarray.readthedocs.io/en/latest/userguide.html>`_.
