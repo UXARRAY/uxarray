@@ -1,10 +1,12 @@
-import uxarray as ux
+import os
+from pathlib import Path
+
 import dask.array as da
 import numpy as np
 import pytest
+
+import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
-import os
-from pathlib import Path
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -16,29 +18,18 @@ class TestZonalCSne30:
     test_file_2 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_test2.nc"
     test_file_3 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_test3.nc"
 
-
     def test_non_conservative_zonal_mean_equator(self):
-        """Test _non_conservative_zonal_mean function with outCSne30 data.
-
-        Low error tolerance test at the equator.
-        """
-        # Create test data
+        """Tests the zonal mean at the equator. This grid contains points that are exactly """
         grid_path = self.gridfile_ne30
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
-        # Test everything away from the pole
         res = uxds['psi'].zonal_mean(0)
 
-        # Assert res.values[0] is approximately 1 within ERROR_TOLERANCE
         assert res.values[0] == pytest.approx(1, abs=ERROR_TOLERANCE)
 
     def test_non_conservative_zonal_mean(self):
-        """Test _non_conservative_zonal_mean function with outCSne30 data.
-
-        Dummy test to ensure the function runs from -90 to 90 with a step of 1.
-        """
-        # Create test data
+        """Tests if the correct number of queries are returned."""
         grid_path = self.gridfile_ne30
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
@@ -47,14 +38,8 @@ class TestZonalCSne30:
 
         assert len(res) == 181
 
-
-
     def test_non_conservative_zonal_mean_at_pole(self):
-        """Test _non_conservative_zonal_mean function with outCSne30 data.
-
-        Dummy test to ensure the function runs at the pole.
-        """
-        # Create test data
+        """Tests the zonal average at both poles."""
         grid_path = self.gridfile_ne30
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
@@ -68,6 +53,7 @@ class TestZonalCSne30:
         assert res_p90.values[0] == pytest.approx(1, abs=1)
 
     def test_zonal_mean_dask(self):
+        """Tests if zonal average returns Dask arrays when appropriate."""
         grid_path = self.gridfile_ne30
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
