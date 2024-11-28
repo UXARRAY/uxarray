@@ -79,8 +79,6 @@ from uxarray.grid.intersections import (
     constant_lon_intersections_face_bounds,
 )
 
-from uxarray.grid.weights import _face_weights_from_edge_magnitudes
-
 
 from spatialpandas import GeoDataFrame
 
@@ -2246,17 +2244,16 @@ class Grid:
         weights:
             The type of weights to retrieve. Options:
             - "face_areas": Retrieves the areas of faces.
-            - "edge_magnitudes": Retrieves the magnitudes of edges.
         apply_to:
             Specifies the elements to apply the weights to. Options:
             - "faces": Applies weights to faces.
-            - "edges": Applies weights to edges.
         face_indices:
             Specific indices of faces to retrieve weights for.
             If None, weights for all relevant faces are returned.
         edge_indices:
             Specific indices of edges to retrieve weights for.
             If None, weights for all relevant edges are returned.
+            Currently not used.
 
         Returns
         -------
@@ -2274,34 +2271,9 @@ class Grid:
                 return self.face_areas
             else:
                 return self.face_areas[face_indices]
-
-        # 2. Edge Magnitudes
-        elif weights == "edge_magnitudes":
-            if apply_to == "edges":
-                if edge_indices is None:
-                    return self.edge_magnitudes
-                else:
-                    return self.edge_magnitudes[edge_indices]
-            elif apply_to == "faces":
-                if face_indices is None:
-                    # Apply to all faces by aggregating edge magnitudes for each face
-                    return _face_weights_from_edge_magnitudes(
-                        self.edge_magnitudes.values, self.edge_face_connectivity.values
-                    )
-                else:
-                    return _face_weights_from_edge_magnitudes(
-                        self.edge_magnitudes.values,
-                        self.edge_face_connectivity.values,
-                        face_indices=face_indices,
-                        edge_indices=edge_indices,
-                    )
-            else:
-                raise ValueError(
-                    f"Invalid apply_to value '{apply_to}' for weights='edge_magnitudes'. Expected 'edges' or 'faces'."
-                )
         else:
             raise ValueError(
-                f"Unsupported weights type '{weights}'. Supported types are 'face_areas' and 'edge_magnitudes'."
+                f"Unsupported weights type '{weights}'. Supported types are 'face_areas'."
             )
 
     def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):

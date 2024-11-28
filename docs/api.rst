@@ -125,7 +125,6 @@ Descriptors
 
    Grid.descriptors
    Grid.face_areas
-   Grid.edge_magnitudes
    Grid.bounds
    Grid.face_bounds_lon
    Grid.face_bounds_lat
@@ -197,12 +196,6 @@ I/O & Conversion
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
 
-Methods
-~~~~~~~
-.. autosummary::
-   :toctree: generated/
-
-   UxDataArray.zonal_mean
 
 UxDataset
 -----------
@@ -421,16 +414,13 @@ on each face.
    UxDataArray.topological_all
    UxDataArray.topological_any
 
-
-
-Intersections
+Zonal Average
 ~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
-   grid.intersections.gca_gca_intersection
-   grid.intersections.gca_const_lat_intersection
+   UxDataArray.zonal_mean
 
 
 Spherical Geometry
