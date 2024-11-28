@@ -437,8 +437,10 @@ class UxDataArray(xr.DataArray):
     def zonal_mean(self, lat=(-90, 90, 10)):
         """Compute the average along one or more lines of constant latitude.
 
-        The candidate faces at each line of constant latitude are determined using a robust algorithm that treats each edge
-        as a great circle arc, ensuring that extremes along those arcs are considered.
+        Candidate faces that intersect each line of constant latitude are calculated using a robust, accurate algorithm.
+
+        The candidate faces at each line of constant latitude are determined using a robust algorithm that correctly
+        handles spherical geometries.
 
         Parameters
         ----------
