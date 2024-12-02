@@ -434,26 +434,29 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 10)):
+    def zonal_mean(self, lat=(-90, 90, 10), conservative=True):
         """Compute the average along one or more lines of constant latitude.
 
-        Candidate faces that intersect each line of constant latitude are calculated using a robust, accurate algorithm.
-
-        The candidate faces at each line of constant latitude are determined using a robust algorithm that correctly
-        handles spherical geometries.
+        Candidate faces that intersect each line of constant latitude are determined by referencing the spherical
+        bounding box of each face. If the latitude falls within the bounding box, the face is considered.
 
         Parameters
         ----------
         lat : tuple,float, or list default=(-90, 90, 5)
-            Latitude values in degrees for which to compute the zonal mean. If a tuple is provided, it should specify
-            the start latitude, end latitude, and step size as (start, end, step). The zonal mean will be computed for
-            each latitude in the inclusive range [start, end] at intervals of `step`. If a single float is provided,
-            the zonal mean is computed for that specific latitude. If a list or array is provided, the zonal average will
+            Latitude values in degrees for which to compute the zonal mean.
+            If a tuple is provided, it should specify
+            the start latitude, end latitude, and step size as (start, end, step).
+            The zonal mean will be computed for
+            each latitude in the inclusive range [start, end] at intervals of `step`.
+            If a single float is provided,
+            the zonal mean is computed for that specific latitude.
+            If a list or array is provided, the zonal average will
             be computed for each value provided.
         Returns
         -------
         UxDataArray
-            A UxDataArray containing the computed zonal mean for the specified latitudes. The returned UxDataArray will
+            A UxDataArray containing the computed zonal mean for the specified latitudes.
+            The returned UxDataArray will
             have a new dimension called `latitudes` with the corresponding latitude values as coordinates.
 
         Examples
@@ -476,7 +479,6 @@ class UxDataArray(xr.DataArray):
         if isinstance(lat, tuple):
             # zonal mean over a range of latitudes
             latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
-
         elif isinstance(lat, (float, int)):
             # zonal mean over a single latitude
             latitudes = [lat]
