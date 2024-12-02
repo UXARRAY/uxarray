@@ -434,7 +434,7 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 10), conservative=True):
+    def zonal_mean(self, lat=(-90, 90, 10)):
         """Compute the average along one or more lines of constant latitude.
 
         Candidate faces that intersect each line of constant latitude are determined by referencing the spherical
