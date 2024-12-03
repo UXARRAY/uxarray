@@ -1,8 +1,6 @@
 import holoviews as hv
 import matplotlib as mpl
 
-import numpy as np
-
 
 class HoloviewsBackend:
     """Utility class to compare and set a HoloViews plotting backend for
@@ -35,30 +33,3 @@ class HoloviewsBackend:
 
 # global reference to holoviews backend utility class
 backend = HoloviewsBackend()
-
-
-def great_circle(p1, p2, num_points=100):
-    """
-    Generate points along the great circle between two points.
-    p1 and p2 are arrays/lists of Cartesian coordinates.
-    """
-    # Normalize the input points
-    p1 = p1 / np.linalg.norm(p1)
-    p2 = p2 / np.linalg.norm(p2)
-
-    # Compute the angle between the points
-    omega = np.arccos(np.clip(np.dot(p1, p2), -1.0, 1.0))
-
-    if omega == 0:
-        return np.array([p1 for _ in range(num_points)])
-
-    # Generate interpolation factors
-    t = np.linspace(0, 1, num_points)
-
-    # Compute points along the great circle
-    sin_omega = np.sin(omega)
-    points = (
-        np.sin((1 - t) * omega)[:, np.newaxis] * p1
-        + np.sin(t * omega)[:, np.newaxis] * p2
-    ) / sin_omega
-    return points
