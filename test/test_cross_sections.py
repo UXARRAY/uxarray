@@ -189,8 +189,7 @@ class TestArcs(TestCase):
         # intersection at exactly 20 degrees latitude
         out1 = uxgrid.get_faces_at_constant_latitude(lat=20)
 
-        # intersection at 21 degrees latitude should still intersect since the edge is an arc
+        # intersection at 25.41 degrees latitude (max along the great circle arc)
         out2 = uxgrid.get_faces_at_constant_latitude(lat=25.41)
-        print(out1, "ok", uxgrid)
 
         nt.assert_array_equal(out1, out2)
