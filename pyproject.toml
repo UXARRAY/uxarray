@@ -2,25 +2,22 @@
 classifiers=[
   "Operating System :: OS Independent",
   "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  'Operating System :: Microsoft :: Windows',
-  'Operating System :: Unix',
-  'Operating System :: MacOS',
-  "Topic :: Scientific/Engineering",
+  "Programming Language :: Python :: 3.13",
 ]
 
 dynamic = ["version"]
-keywords = ["unstructured grids", "xarray", "ugrid", "mpas", "exodus", "scrip", ]
-description = "Xarray-styled package for reading and directly operating on unstructured grid datasets following UGRID conventions"
+keywords = ["unstructured grids", "xarray", "ugrid", "mpas", "exodus", "scrip", "fesom", "icon"]
+description = "Xarray extension for unstructured climate and global weather data analysis and visualization."
 license = {file = "LICENSE"}
 name = "uxarray"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 # minimal dependencies start
 dependencies = [
@@ -50,7 +47,7 @@ dependencies = [
 
 [project.optional-dependencies]
 complete = ["uxarray[math, dev]"]
-math = ['gmpy2', 'pyfma']
+math = ['gmpy2']
 dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
 
 [project.urls]
