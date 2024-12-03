@@ -90,9 +90,15 @@ class TestMPAS(TestCase):
         # two cells with 2, 3 and 2 padded faces respectively
         verticesOnCell = np.array([[1, 2, 1, 1], [3, 4, 5, 3], [6, 7, 0, 0]],
                                   dtype=INT_DTYPE)
+        verticesOnCell = xr.DataArray(data=verticesOnCell, dims=['n_face', 'n_max_face_nodes'])
+
+
 
         # cell has 2, 3 and 2 nodes respectively
         nEdgesOnCell = np.array([2, 3, 2])
+
+        nEdgesOnCell = xr.DataArray(data=nEdgesOnCell, dims=['n_face',])
+
 
         # expected output of _add_fill_values()
         gold_output = np.array([[0, 1, self.fv, self.fv], [2, 3, 4, self.fv],
