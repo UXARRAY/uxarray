@@ -1,6 +1,8 @@
 import uxarray as ux
 import pytest
 import numpy as np
+
+from unittest import TestCase
 from pathlib import Path
 import os
 
@@ -17,7 +19,7 @@ from uxarray.grid.intersections import constant_lat_intersections_face_bounds
 
 
 
-class TestQuadHex:
+class TestQuadHex(TestCase):
     """The quad hexagon grid contains four faces.
 
     Top Left Face: Index 1
@@ -108,7 +110,7 @@ class TestQuadHex:
             uxds['t2m'].cross_section.constant_longitude(lon=10.0, )
 
 
-class TestCubeSphere:
+class TestCubeSphere(TestCase):
 
     def test_north_pole(self):
         uxgrid = ux.open_grid(cube_sphere_grid)
@@ -132,7 +134,7 @@ class TestCubeSphere:
 
 
 
-class TestCandidateFacesUsingBounds:
+class TestCandidateFacesUsingBounds(TestCase):
 
     def test_constant_lat(self):
         bounds = np.array([
@@ -176,7 +178,7 @@ class TestCandidateFacesUsingBounds:
         assert len(candidate_faces) == 0
 
 
-class TestArcs:
+class TestArcs(TestCase):
     def test_latitude_along_arc(self):
         node_lon = np.array([-40, -40, 40, 40])
         node_lat = np.array([-20, 20, 20, -20])
@@ -188,6 +190,7 @@ class TestArcs:
         out1 = uxgrid.get_faces_at_constant_latitude(lat=20)
 
         # intersection at 21 degrees latitude should still intersect since the edge is an arc
-        out2 = uxgrid.get_faces_at_constant_latitude(lat=21)
+        out2 = uxgrid.get_faces_at_constant_latitude(lat=25.41)
+        print(out1, "ok", uxgrid)
 
         nt.assert_array_equal(out1, out2)
