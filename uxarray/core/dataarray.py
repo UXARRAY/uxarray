@@ -36,7 +36,7 @@ from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
-from uxarray.core.zonal import _compute_zonal_mean
+from uxarray.core.zonal import _compute_non_conservative_zonal_mean
 
 import warnings
 from warnings import warn
@@ -490,7 +490,7 @@ class UxDataArray(xr.DataArray):
                 "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
             )
 
-        res = _compute_zonal_mean(
+        res = _compute_non_conservative_zonal_mean(
             uxda=self,
             latitudes=latitudes,
         )

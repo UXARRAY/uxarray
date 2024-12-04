@@ -601,6 +601,8 @@ class TestFaceWeights(TestCase):
             'weight': [0.46153, 0.11538, 0.30769, 0.11538]
         })
 
+        pass
+
         # Assert the results is the same to the 3 decimal places
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,

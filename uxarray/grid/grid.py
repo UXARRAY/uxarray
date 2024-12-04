@@ -96,6 +96,8 @@ from uxarray.grid.validation import (
     _check_normalization,
 )
 
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+
 from uxarray.utils.numba import is_numba_function_cached
 
 
@@ -1418,6 +1420,26 @@ class Grid:
                 dims=["n_face", "min_max"],
             )
         return self._ds["face_bounds_lat"]
+
+    @property
+    def face_edge_nodes_xyz(self):
+        if "face_edge_nodes_xyz" not in self._ds:
+            self.normalize_cartesian_coordinates()
+            face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
+                self.face_node_connectivity.values,
+                self.n_face,
+                self.n_max_face_edges,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
+
+            self._ds["face_edge_nodes_xyz"] = xr.DataArray(
+                data=face_edge_nodes_xyz,
+                dims=["n_face", "n_max_face_edges", "two", "three"],
+            )
+
+        return self._ds["face_edge_nodes_xyz"]
 
     @property
     def face_jacobian(self):
