@@ -21,14 +21,12 @@ from uxarray.constants import (
 from uxarray.grid.arcs import (
     extreme_gca_latitude,
     point_within_gca,
-    _point_within_gca_cartesian,
 )
 
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 
 from uxarray.grid.intersections import (
     gca_gca_intersection,
-    _gca_gca_intersection_cartesian,
 )
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
@@ -1585,17 +1583,32 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-def point_in_polygon(polygon, point, ref_point, inclusive=True):
+# @njit(cache=True)
+def point_in_polygon(
+    polygon_xyz,
+    polygon_lonlat,
+    point_xyz,
+    point_lonlat,
+    ref_point_xyz,
+    ref_point_lonlat,
+    inclusive=True,
+):
     """Determines if a point lies inside a polygon.
 
     Parameters
     ----------
-        polygon : numpy.ndarray
-            Coordinates of each point in the polygon
-        point : numpy.ndarray
-            Coordinate of the point
-        ref_point : numpy.ndarray
-            Coordinate of a point outside the polygon
+        polygon_xyz : numpy.ndarray
+            Cartesian coordinates of each point in the polygon
+        polygon_lonlat : numpy.ndarray
+            Spherical coordinate of each point in the polygon
+        point_xyz : numpy.ndarray
+            Cartesian coordinate of the point
+        point_lonlat : numpy.ndarray
+            Spherical coordinate of the point
+        ref_point_xyz : numpy.ndarray
+            Cartesian coordinate of a point outside the polygon
+        ref_point_lonlat : numpy.ndarray
+            Spherical coordinate of a point outside the polygon
         inclusive : bool
             Flag to determine whether to include points on the nodes and edges of the polygon
 
@@ -1606,34 +1619,21 @@ def point_in_polygon(polygon, point, ref_point, inclusive=True):
     """
 
     # Validate the inputs
-    if len(point) != 2 and len(point) != 3:
+    if len(polygon_xyz[0]) != 3:
+        raise ValueError("`polygon_xyz` vertices must be a Cartesian array.")
+    if len(polygon_lonlat[0]) != 2:
+        raise ValueError("`polygon_lonlat` vertices must be a Spherical array.")
+
+    if len(point_xyz) != 3:
+        raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
+    if len(point_lonlat) != 2:
+        raise ValueError("`point_lonlat` must be a single [2] Spherical coordinate.")
+
+    if len(ref_point_xyz) != 3:
+        raise ValueError("`ref_point_xyz` must be a single [3] Cartesian coordinate.")
+    if len(ref_point_lonlat) != 2:
         raise ValueError(
-            "Point must be a single [3] Cartesian or [2] lon-lat coordinate."
-        )
-
-    if len(ref_point) != 2 and len(ref_point) != 3:
-        raise ValueError(
-            "Reference point must be a single [3] Cartesian or [2] lon-lat coordinate."
-        )
-
-    if len(polygon[0]) != 2 and len(polygon[0]) != 3:
-        raise ValueError(
-            "Polygon vertices must be a Cartesian array or a lon-lat array."
-        )
-
-    # Convert to cartesian if any of the inputs are in spherical coordinates
-    if len(polygon[0]) == 2:
-        polygon = [
-            _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
-            for vertex in polygon
-        ]
-
-    if len(point) == 2:
-        point = _lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1]))
-
-    if len(ref_point) == 2:
-        ref_point = _lonlat_rad_to_xyz(
-            np.deg2rad(ref_point[0]), np.deg2rad(ref_point[1])
+            "`ref_point_lonlat` must be a single [2] Spherical coordinate."
         )
 
     # Initialize the intersection count
@@ -1643,25 +1643,53 @@ def point_in_polygon(polygon, point, ref_point, inclusive=True):
     unique_intersections = set()
 
     # Initialize the points arc between the point and the reference point
-    gca2_cart = np.array([point, ref_point])
+    gca2_cart = np.empty((2, 3), dtype=np.float64)
+    gca2_cart[0] = point_xyz
+    gca2_cart[1] = ref_point_xyz
+
+    gca2_lonlat = np.empty((2, 2), dtype=np.float64)
+    gca2_lonlat[0] = point_lonlat
+    gca2_lonlat[1] = ref_point_lonlat
 
     # Loop through the polygon's edges, checking each one for intersection
-    for ind in range(len(polygon)):
-        ind2 = (ind + 1) % len(polygon)
+    for ind in range(len(polygon_xyz)):
+        ind2 = (ind + 1) % len(polygon_xyz)
 
         # Get the first edge of the polygon
-        gca1_cart = np.array([polygon[ind], polygon[ind2]])
+        gca1_cart = np.empty((2, 3), dtype=np.float64)
+        gca1_cart[0] = polygon_xyz[ind]
+        gca1_cart[1] = polygon_xyz[ind2]
 
-        # If the point lies on an edge, return True
-        if inclusive and _point_within_gca_cartesian(point, gca1_cart):
-            return True
+        gca1_lonlat = np.empty((2, 2), dtype=np.float64)
+        gca1_lonlat[0] = polygon_lonlat[ind]
+        gca1_lonlat[1] = polygon_lonlat[ind2]
+
+        # If the point lies on an edge, return True if inclusive
+        if point_within_gca(
+            point_xyz,
+            point_lonlat,
+            gca1_cart[0],
+            gca1_lonlat[0],
+            gca1_cart[1],
+            gca1_lonlat[1],
+        ):
+            if inclusive:
+                return True
+            else:
+                return False
 
         # Get the number of intersections between the edge and the point arc
-        intersections = _gca_gca_intersection_cartesian(gca1_cart, gca2_cart)
+        intersections = gca_gca_intersection(
+            gca1_cart, gca1_lonlat, gca2_cart, gca2_lonlat
+        )
 
         # Add any unique intersections to the intersection_count
         for intersection in intersections:
-            intersection_tuple = tuple(np.round(intersection, decimals=8))
+            intersection_tuple = (
+                round(intersection[0], 8),
+                round(intersection[1], 8),
+                round(intersection[2], 8),
+            )
             if intersection_tuple not in unique_intersections:
                 unique_intersections.add(intersection_tuple)
                 intersection_count += 1

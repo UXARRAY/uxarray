@@ -9,7 +9,8 @@ from pathlib import Path
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
-from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad, \
+    _xyz_to_lonlat_deg, _xyz_to_lonlat_rad_scalar
 from uxarray.grid.arcs import extreme_gca_latitude, _extreme_gca_latitude_cartesian
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 
@@ -1490,15 +1491,22 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_xyz = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_lonlat = np.zeros([len(grid.face_node_connectivity[100].values), 2])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
 
         # Set the point as the face center of the polygon
-        point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
+        point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
+        point_lonlat = np.array([np.deg2rad(grid.face_lon[100].values), np.deg2rad(grid.face_lat[100].values)])
+
+        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+        ref_point_lonlat = np.array(
+            _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
 
         # Assert that the point is in the polygon
-        self.assertTrue(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
+        self.assertTrue(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat))
 
     def test_point_outside(self):
         """Test the function `point_in_polygon`, where point is outside the polygon"""
@@ -1507,15 +1515,22 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_xyz = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_lonlat = np.zeros([len(grid.face_node_connectivity[100].values), 2])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
 
         # Set the point as the face center of a far away polygon
-        point = np.array([grid.face_x[0].values, grid.face_y[0].values, grid.face_z[0].values])
+        point_xyz = np.array([grid.face_x[0].values, grid.face_y[0].values, grid.face_z[0].values])
+        point_lonlat = np.array([np.deg2rad(grid.face_lon[0].values), np.deg2rad(grid.face_lat[0].values)])
+
+        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+        ref_point_lonlat = np.array(
+            _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
 
         # Assert that the point is not in the polygon
-        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
+        self.assertFalse(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat))
 
     def test_point_on_node(self):
         """Test the function `point_in_polygon`, when the point is on the node of the polygon"""
@@ -1524,18 +1539,25 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_xyz = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_lonlat = np.zeros([len(grid.face_node_connectivity[100].values), 2])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
 
         # Set the point as a node of the polygon
-        point = polygon[0]
+        point_xyz = polygon_xyz[0]
+        point_lonlat = polygon_lonlat[0]
+
+        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+        ref_point_lonlat = np.array(
+            _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
 
         # Assert that the point is in the polygon when inclusive=True
-        self.assertTrue(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1]), inclusive=True))
+        self.assertTrue(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat, inclusive=True))
 
         # Assert that the point is not in the polygon when inclusive=False
-        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1]), inclusive=False))
+        self.assertFalse(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat, inclusive=False))
 
     def test_point_inside_close(self):
         """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
@@ -1544,18 +1566,24 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_xyz = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_lonlat = np.zeros([len(grid.face_node_connectivity[100].values), 2])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
 
         # Set the point as right next to one of the nodes
-        lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]] + 0.1)
-        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] + 0.1)
+        point_xyz = np.array([polygon_xyz[0][0] - 0.1, polygon_xyz[0][1] + 0.1, polygon_xyz[0][2] + 0.1])
+        point_xyz = np.array(_normalize_xyz(point_xyz[0], point_xyz[1], point_xyz[2]))
+        # Set the point as a node of the polygon
+        point_lonlat = np.array(_xyz_to_lonlat_rad_scalar(point_xyz[0], point_xyz[1], point_xyz[2], normalize=False))
 
-        point = _lonlat_rad_to_xyz(lon.values, lat.values)
+        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+        ref_point_lonlat = np.array(
+            _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
 
         # Assert that the point is in the polygon
-        self.assertTrue(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
+        self.assertTrue(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat))
 
     def test_point_outside_close(self):
         """Test the function `point_in_polygon`, where point is outside the polygon, but very close to the edge"""
@@ -1564,35 +1592,25 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_xyz = np.zeros([len(grid.face_node_connectivity[100].values), 3])
+        polygon_lonlat = np.zeros([len(grid.face_node_connectivity[100].values), 2])
         for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+            polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
 
         # Set the point as right next to one of the nodes
-        lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]])
-        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] - 0.01)
+        point_xyz = np.array([polygon_xyz[0][0] + 0.1, polygon_xyz[0][1] + 0.1, polygon_xyz[0][2]])
+        point_xyz = np.array(_normalize_xyz(point_xyz[0], point_xyz[1], point_xyz[2]))
+        # Set the point as a node of the polygon
+        point_lonlat = np.array(_xyz_to_lonlat_rad_scalar(point_xyz[0], point_xyz[1], point_xyz[2], normalize=False))
 
-        point = _lonlat_rad_to_xyz(lon.values, lat.values)
-
-        # Assert that the point is not in the polygon
-        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
-
-    def test_spherical(self):
-        """Test the function `point_in_polygon`,  using spherical coordinates where point is outside the polygon"""
-
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
-
-        # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 2])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = [grid.node_lon[face].values, grid.node_lat[face].values]
-
-        # Set the point as the face center of a far away polygon
-        point = np.array([grid.face_lon[0].values, grid.face_lat[0].values])
+        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+        ref_point_lonlat = np.array(
+            _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
 
         # Assert that the point is not in the polygon
-        self.assertFalse(point_in_polygon(polygon, point, ref_point=np.array([0, 0, 1])))
+        self.assertFalse(
+            point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat))
 
 
 class TestStereographicProjection(TestCase):

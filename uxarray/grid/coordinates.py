@@ -100,8 +100,8 @@ def _xyz_to_lonlat_rad(
     z: Union[np.ndarray, float],
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
+    """Converts Cartesian x, y, z coordinates in Spherical longitude and
+    latitude coordinates in radians.
 
     Parameters
     ----------
