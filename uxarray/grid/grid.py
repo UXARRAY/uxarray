@@ -44,7 +44,7 @@ from uxarray.grid.coordinates import (
     _populate_node_latlon,
     _populate_node_xyz,
     _normalize_xyz,
-    prepare_points,
+    prepare_points, _xyz_to_lonlat_rad_scalar,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -63,7 +63,7 @@ from uxarray.grid.geometry import (
     _populate_bounds,
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
-    calculate_max_face_radius,
+    calculate_max_face_radius, point_in_polygon,
 )
 
 from uxarray.grid.neighbors import (
@@ -2360,8 +2360,44 @@ class Grid:
         max_face_radius = self.get_max_face_radius()
 
         # TODO: Get a subset of faces that fit inside this radius
+        subset = self.subset.bounding_circle(center_coord=[np.rad2deg(point_lonlat[0]), np.rad2deg(point_lonlat[1])],
+                                             r=max_face_radius,
+                                             element="face centers")
 
         # TODO: Check if the point is in any of those faces
+        for ind, face in enumerate(subset.face_node_connectivity.values):
+            polygon_xyz = np.full([len(face), 3], INT_FILL_VALUE, dtype=np.float64)
+            polygon_lonlat = np.full([len(face), 2], INT_FILL_VALUE, dtype=np.float64)
+
+            # Assign a face center that is not the current face center as the reference point
+            ref_face_ind = (ind + 1) % len(subset.face_node_connectivity.values)
+
+            # ref_point_xyz = np.array([subset.face_x[ref_face_ind].values,
+            #                           subset.face_y[ref_face_ind].values,
+            #                           subset.face_z[ref_face_ind].values])
+            # ref_point_lonlat = np.array([np.deg2rad(subset.face_lon[ref_face_ind].values),
+            #                              np.deg2rad(subset.face_lat[ref_face_ind].values)])
+
+            ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+            ref_point_lonlat = np.array(
+                _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
+
+            for node_ind, face_ind in enumerate(face):
+                polygon_xyz[node_ind] = [subset.node_x[face_ind].values,
+                                         subset.node_y[face_ind].values,
+                                         subset.node_z[face_ind].values]
+                polygon_lonlat[node_ind] = [np.deg2rad(subset.node_lon[face_ind].values),
+                                            np.deg2rad(subset.node_lat[face_ind].values)]
+
+            contains_point = point_in_polygon(polygon_xyz,
+                                              polygon_lonlat,
+                                              point_xyz,
+                                              point_lonlat,
+                                              ref_point_xyz,
+                                              ref_point_lonlat,
+                                              inclusive=True)
+            print(contains_point)
+
         # TODO: if the point is on the edge, get both face indices that the point is "in"
 
         # TODO: Convert the face index of the subset back to the face index of the main grid

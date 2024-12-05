@@ -12,7 +12,7 @@ import uxarray as ux
 from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_edge_face_connectivity, \
     _build_edge_node_connectivity, _build_face_face_connectivity, _populate_face_face_connectivity
 
-from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _xyz_to_lonlat_rad_scalar
 
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
@@ -1004,3 +1004,15 @@ class TestNormalizeExistingCoordinates(TestCase):
         uxgrid = ux.open_grid(self.gridfile_CSne30)
 
         assert _check_normalization(uxgrid)
+
+
+class TestPolygonsContainingPoint(TestCase):
+    def test1(self):
+        grid_path = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc"
+
+        grid = ux.open_grid(grid_path)
+
+        point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
+        point_lonlat = np.array([np.deg2rad(grid.face_lon[100].values), np.deg2rad(grid.face_lat[100].values)])
+
+        grid.get_polygons_containing_point(point_xyz, point_lonlat)
