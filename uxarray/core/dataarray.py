@@ -459,9 +459,9 @@ class UxDataArray(xr.DataArray):
         >>> grid_path = "../../test/meshfiles/ugrid/quad-hexagon/grid.nc"
         >>> face_data = "../../test/meshfiles/ugrid/quad-hexagon/data.nc"
         >>> uxds = ux.open_dataset(grid_path, face_data)
-        >>> uxds['t2m'].values
+        >>> uxds["t2m"].values
 
-        >>> weighted_mean = uxds['t2m'].weighted_mean()
+        >>> weighted_mean = uxds["t2m"].weighted_mean()
 
 
         Raises
