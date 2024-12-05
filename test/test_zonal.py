@@ -4,14 +4,14 @@ from pathlib import Path
 import dask.array as da
 import numpy as np
 import pytest
-
+from unittest import TestCase
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
-class TestZonalCSne30:
+class TestZonalCSne30(TestCase):
     gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     datafile_vortex_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
     dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
