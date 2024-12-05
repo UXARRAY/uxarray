@@ -128,8 +128,38 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
     return np.unique(intersecting_edges)
 
 
+# @njit(cache=True)
+# def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
+#     """Identifies the candidate faces on a grid that intersect with a given
+#     constant latitude.
+#
+#     This function checks whether the specified latitude, `lat`, in degrees lies within
+#     the latitude bounds of grid faces, defined by `face_min_lat_rad` and `face_max_lat_rad`,
+#     which are given in radians. The function returns the indices of the faces where the
+#     latitude is within these bounds.
+#
+#     Parameters
+#     ----------
+#     lat : float
+#         The latitude in degrees for which to find intersecting faces.
+#     TODO:
+#
+#     Returns
+#     -------
+#     candidate_faces : numpy.ndarray
+#         A 1D array containing the indices of the faces that intersect with the given latitude.
+#     """
+#
+#     face_bounds_lat_min = face_bounds_lat[:, 0]
+#     face_bounds_lat_max = face_bounds_lat[:, 1]
+#
+#     within_bounds = (face_bounds_lat_min <= lat) & (face_bounds_lat_max >= lat)
+#     candidate_faces = np.where(within_bounds)[0]
+#     return
+
+
 @njit(cache=True)
-def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
+def constant_lat_intersections_face_bounds(lat, bounds):
     """Identifies the candidate faces on a grid that intersect with a given
     constant latitude.
 
@@ -142,7 +172,8 @@ def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
     ----------
     lat : float
         The latitude in degrees for which to find intersecting faces.
-    TODO:
+    bounds: todo
+        todo
 
     Returns
     -------
@@ -150,11 +181,24 @@ def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
         A 1D array containing the indices of the faces that intersect with the given latitude.
     """
 
-    face_bounds_lat_min = face_bounds_lat[:, 0]
-    face_bounds_lat_max = face_bounds_lat[:, 1]
+    lat_rad = np.deg2rad(lat)
 
-    within_bounds = (face_bounds_lat_min <= lat) & (face_bounds_lat_max >= lat)
+    # Check if the constant latitude is within the range of [-90, 90]
+    if lat_rad < -np.pi or lat_rad > np.pi:
+        raise ValueError(
+            "The constant latitude must be within the range of [-90, 90] degree."
+        )
+
+    # Extract the latitude bounds
+    lat_bounds_min = bounds[:, 0, 0]  # Minimum latitude bound
+    lat_bounds_max = bounds[:, 0, 1]  # Maximum latitude bound
+
+    # Check if the constant latitude is within the bounds of each face
+    within_bounds = (lat_bounds_min <= lat_rad) & (lat_bounds_max >= lat_rad)
+
+    # Get the indices of faces where the condition is True
     candidate_faces = np.where(within_bounds)[0]
+
     return candidate_faces
 
 

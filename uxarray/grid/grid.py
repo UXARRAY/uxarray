@@ -2357,9 +2357,13 @@ class Grid:
             )
 
         faces = constant_lat_intersections_face_bounds(
-            lat=lat,
-            face_bounds_lat=self.face_bounds_lat.values,
+            lat=lat, bounds=self.bounds.values
         )
+
+        # faces = constant_lat_intersections_face_bounds(
+        #     lat=lat,
+        #     face_bounds_lat=self.face_bounds_lat.values,
+        # )
         return faces
 
     def get_edges_at_constant_longitude(

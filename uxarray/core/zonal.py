@@ -24,9 +24,6 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes):
     for i, lat in enumerate(latitudes):
         face_indices = uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
-        print(len(face_indices))
-
-        # z-coordinate in cartesian form
         z = np.sin(np.deg2rad(lat))
 
         faces_edge_nodes_xyz_candidate = faces_edge_nodes_xyz[face_indices]
