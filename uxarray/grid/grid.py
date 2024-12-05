@@ -542,6 +542,10 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
+    @classmethod
+    def from_healpix(cls):
+        pass
+
     def validate(self, check_duplicates=True):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.
