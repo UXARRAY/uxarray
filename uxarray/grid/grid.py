@@ -63,6 +63,7 @@ from uxarray.grid.geometry import (
     _populate_bounds,
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
+    calculate_max_face_radius,
 )
 
 from uxarray.grid.neighbors import (
@@ -2351,3 +2352,38 @@ class Grid:
 
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
+
+    def get_polygons_containing_point(self, point_xyz, point_lonlat):
+        """Gets the indexes of the polygons that contain a specific point"""
+
+        # Obtain the maximum face radius of the grid
+        max_face_radius = self.get_max_face_radius()
+
+        # TODO: Get a subset of faces that fit inside this radius
+
+        # TODO: Check if the point is in any of those faces
+        # TODO: if the point is on the edge, get both face indices that the point is "in"
+
+        # TODO: Convert the face index of the subset back to the face index of the main grid
+
+        # TODO: Return the indices
+        pass
+
+    def get_max_face_radius(self):
+        # Parse all variables needed for `njit` functions
+        face_node_connectivity = self.face_node_connectivity.values
+        node_lats_rad = np.radians(self.node_lat.values)
+        node_lons_rad = np.radians(self.node_lon.values)
+        face_lats_rad = np.radians(self.face_lat.values)
+        face_lons_rad = np.radians(self.face_lon.values)
+
+        # Get the max distance
+        max_distance = calculate_max_face_radius(
+            face_node_connectivity,
+            node_lats_rad,
+            node_lons_rad,
+            face_lats_rad,
+            face_lons_rad,
+        )
+
+        return max_distance

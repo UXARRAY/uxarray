@@ -1583,7 +1583,7 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def point_in_polygon(
     polygon_xyz,
     polygon_lonlat,
@@ -1696,3 +1696,42 @@ def point_in_polygon(
 
     # Return True if the number of intersections is odd, False otherwise
     return intersection_count % 2 == 1
+
+
+@njit(cache=True)
+def calculate_max_face_radius(
+    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
+):
+    """Finds the max face radius in the mesh."""
+
+    # Array to store all distance of each face to it's furthest node.
+    end_distances = np.zeros(len(face_node_connectivity))
+
+    # Loop over each face and its nodes
+    for ind, face in enumerate(face_node_connectivity):
+        # Get the face lat/lon of this face
+        face_lat = face_lats_rad[ind]
+        face_lon = face_lons_rad[ind]
+
+        # Get the node lat/lon of this face
+        node_lat_rads = node_lats_rad[face]
+        node_lon_rads = node_lons_rad[face]
+
+        # Calculate Haversine distances for all nodes in this face
+        distances = haversine_distance(node_lat_rads, node_lon_rads, face_lat, face_lon)
+
+        # Store the max distance for this face
+        end_distances[ind] = np.max(distances)
+
+    # Return the maximum distance found across all faces
+    return np.max(end_distances)
+
+
+@njit(cache=True)
+def haversine_distance(lon_a, lat_a, lon_b, lat_b):
+    """Calculates the haversine distance between two points."""
+    dlat = lat_a - lat_b
+    dlon = lon_a - lon_b
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat_b) * np.cos(lat_a) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    return c
