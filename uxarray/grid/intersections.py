@@ -134,7 +134,7 @@ def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
     constant latitude.
 
     This function checks whether the specified latitude, `lat`, in degrees lies within
-    the latitude bounds of grid faces, defined by `face_min_lat_rad` and `face_max_lat_rad`,
+    the latitude bounds of grid faces, defined by `face_bounds_lat_min` and `face_bounds_lat_max`,
     which are given in radians. The function returns the indices of the faces where the
     latitude is within these bounds.
 
@@ -142,7 +142,8 @@ def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
     ----------
     lat : float
         The latitude in degrees for which to find intersecting faces.
-    TODO:
+    face_bounds_lat : numpy.ndarray
+        The latitude bounds for the face, in radians
 
     Returns
     -------
@@ -164,7 +165,7 @@ def constant_lon_intersections_face_bounds(lon, face_bounds_lon):
     constant longitude.
 
     This function checks whether the specified longitude, `lon`, in degrees lies within
-    the longitude bounds of grid faces, defined by `face_min_lon_rad` and `face_max_lon_rad`,
+    the longitude bounds of grid faces, defined by `face_bounds_lon_min` and `face_bounds_lon_max`,
     which are given in radians. The function returns the indices of the faces where the
     longitude is within these bounds.
 
@@ -172,7 +173,8 @@ def constant_lon_intersections_face_bounds(lon, face_bounds_lon):
     ----------
     lon : float
         The longitude in degrees for which to find intersecting faces.
-    TODO:
+    face_bounds_lon : numpy.ndarray
+        The latitude bounds for the face, in radians
 
     Returns
     -------
@@ -201,6 +203,23 @@ def constant_lon_intersections_face_bounds(lon, face_bounds_lon):
 
 
 def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
+    """Testing function for 'gca_gca_intersection' which converts xyz to the proper coordinates to use for
+    `gca_gca_intersection`. This function is not optimized and shouldn't be used for anything but testing.
+
+     Parameters
+    ----------
+    gca_a_xyz : numpy.ndarray
+        The first arc check for intersection, shape [2, 3]
+    gca_b_xyz : numpy.ndarray
+        The second arc to check for intersection, shape [2, 3]
+
+    Returns
+    -------
+    numpy.ndarray
+        Returns the result of `gca_gca_intersection`, which is an array of points where the two arcs intersect. Returns
+        an empty if the arcs do not intersect anywhere
+
+    """
     gca_a_xyz = np.asarray(gca_a_xyz)
     gca_b_xyz = np.asarray(gca_b_xyz)
 
@@ -229,6 +248,25 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
 
 @njit(cache=True)
 def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
+    """Returns the intersections points of two arcs. If the arcs do not intersect, returns an empty array.
+
+     Parameters
+    ----------
+    gca_a_xyz : numpy.ndarray
+        The first arc check for intersection in cartesian coordinates, shape [2, 3]
+    gca_a_lonlat : numpy.ndarray
+        The first arc check for intersection in spherical coordinates, shape [2, 2]
+    gca_b_xyz : numpy.ndarray
+        The second arc to check for intersection in cartesian coordinates, shape [2, 3]
+    gca_b_lonlat : numpy.ndarray
+        The second arc check for intersection in spherical coordinates, shape [2, 2]
+
+    Returns
+    -------
+    numpy.ndarray
+        Returns an array of points where the two arcs intersect. Returns an empty if the arcs do not intersect anywhere
+
+    """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
