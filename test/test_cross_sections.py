@@ -1,6 +1,8 @@
 import uxarray as ux
 import pytest
 import numpy as np
+
+from unittest import TestCase
 from pathlib import Path
 import os
 
@@ -17,7 +19,7 @@ from uxarray.grid.intersections import constant_lat_intersections_face_bounds
 
 
 
-class TestQuadHex:
+class TestQuadHex(TestCase):
     """The quad hexagon grid contains four faces.
 
     Top Left Face: Index 1
@@ -108,7 +110,7 @@ class TestQuadHex:
             uxds['t2m'].cross_section.constant_longitude(lon=10.0, )
 
 
-class TestCubeSphere:
+class TestCubeSphere(TestCase):
 
     def test_north_pole(self):
         uxgrid = ux.open_grid(cube_sphere_grid)
@@ -132,7 +134,7 @@ class TestCubeSphere:
 
 
 
-class TestCandidateFacesUsingBounds:
+class TestCandidateFacesUsingBounds(TestCase):
 
     def test_constant_lat(self):
         bounds = np.array([
