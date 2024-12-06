@@ -1491,22 +1491,26 @@ class TestPointInPolygon(TestCase):
         grid = ux.open_grid(grid_mpas_2)
 
         # Create the polygon
-        polygon_xyz = np.zeros([len(grid.face_node_connectivity[100].values), 3])
-        polygon_lonlat = np.zeros([len(grid.face_node_connectivity[100].values), 2])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
-            polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
+        for x in range(len(grid.face_node_connectivity.values)):
+            polygon_xyz = np.full([len(grid.face_node_connectivity[x].values), 3], INT_FILL_VALUE, dtype=np.float64)
+            polygon_lonlat = np.full([len(grid.face_node_connectivity[x].values), 2], INT_FILL_VALUE, dtype=np.float64)
+            for ind, face in enumerate(grid.face_node_connectivity[x].values):
+                if face == INT_FILL_VALUE:
+                    break
+                polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
+                polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
 
-        # Set the point as the face center of the polygon
-        point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
-        point_lonlat = np.array([np.deg2rad(grid.face_lon[100].values), np.deg2rad(grid.face_lat[100].values)])
+            # Set the point as the face center of the polygon
+            point_xyz = np.array([grid.face_x[x].values, grid.face_y[x].values, grid.face_z[x].values])
+            point_lonlat = np.array([np.deg2rad(grid.face_lon[x].values), np.deg2rad(grid.face_lat[x].values)])
 
-        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
-        ref_point_lonlat = np.array(
-            _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
+            ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+            ref_point_lonlat = np.array(
+                _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
 
-        # Assert that the point is in the polygon
-        self.assertTrue(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat))
+            # Assert that the point is in the polygon
+            #print(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, inclusive=True))
+            self.assertTrue(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat))
 
     def test_point_outside(self):
         """Test the function `point_in_polygon`, where point is outside the polygon"""

@@ -1583,14 +1583,12 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def point_in_polygon(
     polygon_xyz,
     polygon_lonlat,
     point_xyz,
     point_lonlat,
-    ref_point_xyz,
-    ref_point_lonlat,
     inclusive=True,
 ):
     """Determines if a point lies inside a polygon.
@@ -1605,10 +1603,6 @@ def point_in_polygon(
             Cartesian coordinate of the point
         point_lonlat : numpy.ndarray
             Spherical coordinate of the point
-        ref_point_xyz : numpy.ndarray
-            Cartesian coordinate of a point outside the polygon
-        ref_point_lonlat : numpy.ndarray
-            Spherical coordinate of a point outside the polygon
         inclusive : bool
             Flag to determine whether to include points on the nodes and edges of the polygon
 
@@ -1629,18 +1623,40 @@ def point_in_polygon(
     if len(point_lonlat) != 2:
         raise ValueError("`point_lonlat` must be a single [2] Spherical coordinate.")
 
-    if len(ref_point_xyz) != 3:
-        raise ValueError("`ref_point_xyz` must be a single [3] Cartesian coordinate.")
-    if len(ref_point_lonlat) != 2:
-        raise ValueError(
-            "`ref_point_lonlat` must be a single [2] Spherical coordinate."
-        )
-
     # Initialize the intersection count
     intersection_count = 0
 
     # Set to hold unique intersections
     unique_intersections = set()
+    num_nodes = 0
+    for x in polygon_xyz:
+        if x[0] == INT_FILL_VALUE:
+            break
+        num_nodes += 1
+
+    edges = np.empty([num_nodes, 2, 3])
+    for ind, node in enumerate(polygon_xyz):
+        if node[0] == INT_FILL_VALUE:
+            break
+        ind2 = (ind + 1) % num_nodes
+
+        edges[ind] = [polygon_xyz[ind], polygon_xyz[ind2]]
+
+    # rolled_nodes = np.roll(polygon_xyz, shift=-1, axis=1)
+    # # Stack original and rolled nodes to form edges
+    # edges = np.stack([polygon_xyz, rolled_nodes], axis=2)
+
+    location = _classify_polygon_location(edges)
+
+    if location == 1:
+        ref_point_xyz = np.array([0, 0, -1], dtype=np.float64)
+        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(-90)], dtype=np.float64)
+    elif location == -1:
+        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(90)], dtype=np.float64)
+    else:
+        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
+        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(90)], dtype=np.float64)
 
     # Initialize the points arc between the point and the reference point
     gca2_cart = np.empty((2, 3), dtype=np.float64)
