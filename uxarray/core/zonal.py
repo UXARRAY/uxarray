@@ -26,10 +26,10 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes):
 
         z = np.sin(np.deg2rad(lat))
 
-        faces_edge_nodes_xyz_candidate = faces_edge_nodes_xyz[face_indices]
+        faces_edge_nodes_xyz_candidate = faces_edge_nodes_xyz[face_indices, :, :, :]
 
-        bounds_candidate = bounds[face_indices]
-
+        bounds_candidate = bounds[face_indices].copy()
+        # TODO: the (z)
         weights = _get_zonal_faces_weight_at_constLat(
             faces_edge_nodes_xyz_candidate, z, bounds_candidate
         )["weight"].values

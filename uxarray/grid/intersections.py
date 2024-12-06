@@ -8,9 +8,8 @@ from uxarray.grid.arcs import (
     _point_within_gca_cartesian,
 )
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
-import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose, cross, norm
+from uxarray.utils.computing import allclose, cross, norm
 
 
 from numba import njit, prange
@@ -333,9 +332,7 @@ def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
     return res[:count, :]
 
 
-def gca_const_lat_intersection(
-    gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
-):
+def gca_const_lat_intersection(gca_cart, lat_cart, verbose=False, is_directed=False):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -346,10 +343,8 @@ def gca_const_lat_intersection(
     Parameters
     ----------
     gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
-    constZ : float
+    lat_cart : float
         The constant latitude represented in cartesian of the latitude line.
-    fma_disabled : bool, optional (default=True)
-        If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
     is_directed : bool, optional (default=False)
@@ -380,10 +375,10 @@ def gca_const_lat_intersection(
     # We are using the relative tolerance and ERROR_TOLERANCE since the constZ is calculated from np.sin, which
     # may have some floating-point error.
     res = None
-    if np.isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+    if np.isclose(x1[2], lat_cart, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
         res = np.array([x1]) if res is None else np.vstack((res, x1))
 
-    if np.isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+    if np.isclose(x2[2], lat_cart, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
         res = np.array([x2]) if res is None else np.vstack((res, x2))
 
     if res is not None:
@@ -394,37 +389,26 @@ def gca_const_lat_intersection(
     lat_min = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="min")
     lat_max = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="max")
 
-    constLat_rad = np.arcsin(constZ)
+    # TODO: is it here ?
+    constLat_rad = np.arcsin(lat_cart)
 
     # Check if the constant latitude is within the GCA range
     # Because the constant latitude is calculated from np.sin, which may have some floating-point error,
     if not in_between(lat_min, constLat_rad, lat_max):
-        pass
         return np.array([])
 
-    if fma_disabled:
-        n = cross(x1, x2)
-
-    else:
-        # Raise a warning for Windows users
-        if platform.system() == "Windows":
-            warnings.warn(
-                "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
-                "https://bugs.python.org/msg312480)"
-                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
-            )
-        n = cross_fma(x1, x2)
+    n = cross(x1, x2)
 
     nx, ny, nz = n
 
-    s_tilde = np.sqrt(nx**2 + ny**2 - (nx**2 + ny**2 + nz**2) * constZ**2)
-    p1_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz + s_tilde * ny)
-    p2_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz - s_tilde * ny)
-    p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
-    p2_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz + s_tilde * nx)
+    s_tilde = np.sqrt(nx**2 + ny**2 - (nx**2 + ny**2 + nz**2) * lat_cart**2)
+    p1_x = -(1.0 / (nx**2 + ny**2)) * (lat_cart * nx * nz + s_tilde * ny)
+    p2_x = -(1.0 / (nx**2 + ny**2)) * (lat_cart * nx * nz - s_tilde * ny)
+    p1_y = -(1.0 / (nx**2 + ny**2)) * (lat_cart * ny * nz - s_tilde * nx)
+    p2_y = -(1.0 / (nx**2 + ny**2)) * (lat_cart * ny * nz + s_tilde * nx)
 
-    p1 = np.array([p1_x, p1_y, constZ])
-    p2 = np.array([p2_x, p2_y, constZ])
+    p1 = np.array([p1_x, p1_y, lat_cart])
+    p2 = np.array([p2_x, p2_y, lat_cart])
 
     res = None
 

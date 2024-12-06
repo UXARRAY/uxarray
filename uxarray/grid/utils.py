@@ -1,7 +1,6 @@
 import numpy as np
 from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
-import uxarray.utils.computing as ac_utils
 
 from numba import njit
 
@@ -29,6 +28,20 @@ def _angle_of_2_vectors(u, v):
     vec_sum = v_norm_times_u + u_norm_times_v
     angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
     return angle_u_v_rad
+
+
+@njit
+def _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
+    jacobian = np.array(
+        [
+            [(y0 * z1 - z0 * y1), (x0 * z1 - z0 * x1)],
+            [2 * x_i_old, 2 * y_i_old],
+        ]
+    )
+
+    inverse_jacobian = np.linalg.inv(jacobian)
+
+    return inverse_jacobian
 
 
 def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
@@ -74,11 +87,7 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 0] = x_i_old / d_dx
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
-    # The Jacobian Matrix
-    jacobian = [
-        [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
-        [2 * x_i_old, 2 * y_i_old],
-    ]
+    jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
 
     # First check if the Jacobian matrix is singular
     if np.linalg.matrix_rank(jacobian) < 2:
@@ -125,6 +134,7 @@ def _newton_raphson_solver_for_gca_constLat(
     _iter = 0
 
     while error > tolerance and _iter < max_iter:
+        # TODO: Consider Numba Dot & Cross ?
         f_vector = np.array(
             [
                 np.dot(
