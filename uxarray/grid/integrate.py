@@ -94,6 +94,7 @@ def _get_zonal_faces_weight_at_constLat(
 
     # Iterate through all faces and their edges
     for face_index, face_edges in enumerate(faces_edges_cart_candidate):
+        print(face_index)
         # Remove the Int_fill_value from the face_edges
         face_edges = face_edges[np.all(face_edges != INT_FILL_VALUE, axis=(1, 2))]
         if is_face_GCA_list is not None:
@@ -259,7 +260,7 @@ def _get_faces_constLat_intersection_info(
     unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
 
     if len(unique_intersections) == 2:
-        # TODO: vectorize?
+        # TODO (1)
         unique_intersection_lonlat = np.array(
             [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
         )
@@ -277,6 +278,7 @@ def _get_faces_constLat_intersection_info(
             )
         else:
             # Now return all the intersections points and the pt_lon_min, pt_lon_max
+            # TODO (2)
             unique_intersection_lonlat = np.array(
                 [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
             )
