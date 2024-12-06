@@ -399,7 +399,6 @@ def gca_const_lat_intersection(
     # Check if the constant latitude is within the GCA range
     # Because the constant latitude is calculated from np.sin, which may have some floating-point error,
     if not in_between(lat_min, constLat_rad, lat_max):
-        pass
         return np.array([])
 
     if fma_disabled:

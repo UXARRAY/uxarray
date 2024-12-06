@@ -152,3 +152,38 @@ class TestGCAconstLatIntersection(TestCase):
         with self.assertWarns(UserWarning):
             res = gca_const_lat_intersection(GCR1_cart, constZ, verbose=False)
             self.assertTrue(res.shape[0] == 1)
+
+    def test_intersection_failing(self):
+
+        lat_deg = 38.0
+        lat_cart = np.sin(np.deg2rad(lat_deg))
+
+        face_edges = np.array([
+            [
+                [0.4750987178704505, 0.653917285715923, 0.5887897686948832],
+                [0.4346360511835707, 0.6692808272283023, 0.6026231636073673]
+            ],
+            [
+                [0.4346360511835707, 0.6692808272283023, 0.6026231636073673],
+                [0.4173058582581286, 0.6425946703262667, 0.6425946703262667]
+            ],
+            [
+                [0.4173058582581286, 0.6425946703262667, 0.6425946703262667],
+                [0.4569663116686273, 0.628960169645094, 0.628960169645094]
+            ],
+            [
+                [0.4569663116686273, 0.628960169645094, 0.628960169645094],
+                [0.4750987178704505, 0.653917285715923, 0.5887897686948832]
+            ]
+        ])
+
+        problemetic_edge = np.array([[0.43463605, 0.66928083, 0.60262316], [0.41730586, 0.64259467, 0.64259467]])
+        intersection_points = gca_const_lat_intersection(problemetic_edge, lat_cart)
+
+        n_intersections = 0
+        # for edge in face_edges:
+        #     intersection_points =  gca_const_lat_intersection(edge, lat_cart)
+        #     if len(intersection_points):
+        #         n_intersections += 1
+
+        assert n_intersections > 0
