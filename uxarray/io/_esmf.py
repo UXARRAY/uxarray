@@ -6,7 +6,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
 
 
-def _read_esmf(in_ds):
+def _read_esmf(in_ds, minimal=False):
     """Reads in an Xarray dataset containing an ESMF formatted Grid dataset and
     encodes it in the UGRID conventions.
 
@@ -27,6 +27,8 @@ def _read_esmf(in_ds):
     ----------
     in_ds: xr.Dataset
         ESMF Grid Dataset
+    minimal : bool, optional
+        Specify whether to read the minimal information (`nodes` and `face_node_connectivity`) needed for a grid
 
     Returns
     -------
@@ -56,7 +58,7 @@ def _read_esmf(in_ds):
             node_lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
         )
 
-        if "centerCoords" in in_ds:
+        if "centerCoords" in in_ds and not minimal:
             # parse center coords (face centers) if available
             face_lon = in_ds["centerCoords"].isel(coordDim=0).values
             out_ds[ugrid.FACE_COORDINATES[0]] = xr.DataArray(

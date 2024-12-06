@@ -140,3 +140,9 @@ class TestMPAS(TestCase):
 
         assert "face_areas" in uxgrid_primal._ds
         assert "face_areas" in uxgrid_dual._ds
+
+    def test_minimal(self):
+        """Tests the minimal grid reader"""
+        uxgrid = ux.open_grid(self.mpas_grid_path, minimal=True)
+
+        assert "node_x" not in uxgrid._ds

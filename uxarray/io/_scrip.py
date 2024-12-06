@@ -7,7 +7,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
 
 
-def _to_ugrid(in_ds, out_ds):
+def _to_ugrid(in_ds, out_ds, minimal=False):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
     (``out_ds``).
@@ -16,10 +16,11 @@ def _to_ugrid(in_ds, out_ds):
     ----------
     in_ds : xarray.Dataset
         Original scrip dataset of interest being used
-
     out_ds : xarray.Variable
         file to be returned by ``_populate_scrip_data``, used as an empty placeholder file
         to store reassigned SCRIP variables in UGRID conventions
+    minimal : bool, optional
+        Specify whether to read the minimal information (`nodes` and `face_node_connectivity`) needed for a grid
     """
 
     source_dims_dict = {}
@@ -55,19 +56,19 @@ def _to_ugrid(in_ds, out_ds):
         out_ds[ugrid.NODE_COORDINATES[1]] = xr.DataArray(
             unq_lat, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LAT_ATTRS
         )
+        if not minimal:
+            # Create face_lon & face_lat from grid_center_lat/lon
+            out_ds[ugrid.FACE_COORDINATES[0]] = xr.DataArray(
+                in_ds["grid_center_lon"].values,
+                dims=[ugrid.FACE_DIM],
+                attrs=ugrid.FACE_LON_ATTRS,
+            )
 
-        # Create face_lon & face_lat from grid_center_lat/lon
-        out_ds[ugrid.FACE_COORDINATES[0]] = xr.DataArray(
-            in_ds["grid_center_lon"].values,
-            dims=[ugrid.FACE_DIM],
-            attrs=ugrid.FACE_LON_ATTRS,
-        )
-
-        out_ds[ugrid.FACE_COORDINATES[1]] = xr.DataArray(
-            in_ds["grid_center_lat"].values,
-            dims=[ugrid.FACE_DIM],
-            attrs=ugrid.FACE_LAT_ATTRS,
-        )
+            out_ds[ugrid.FACE_COORDINATES[1]] = xr.DataArray(
+                in_ds["grid_center_lat"].values,
+                dims=[ugrid.FACE_DIM],
+                attrs=ugrid.FACE_LAT_ATTRS,
+            )
 
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(
@@ -90,7 +91,7 @@ def _to_ugrid(in_ds, out_ds):
     return source_dims_dict
 
 
-def _read_scrip(ext_ds):
+def _read_scrip(ext_ds, minimal):
     """Function to reassign lat/lon variables to node variables.
 
     Currently, supports unstructured SCRIP grid files following traditional SCRIP
@@ -114,7 +115,7 @@ def _read_scrip(ext_ds):
     """
     ds = xr.Dataset()
 
-    source_dims_dict = _to_ugrid(ext_ds, ds)
+    source_dims_dict = _to_ugrid(ext_ds, ds, minimal=minimal)
 
     return ds, source_dims_dict
 

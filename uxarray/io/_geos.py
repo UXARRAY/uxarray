@@ -5,8 +5,19 @@ from uxarray.constants import INT_DTYPE
 from uxarray.conventions import ugrid
 
 
-def _read_geos_cs(in_ds: xr.Dataset):
+def _read_geos_cs(in_ds: xr.Dataset, minimal=False):
     """Reads and encodes a GEOS Cube-Sphere grid into the UGRID conventions.
+    Parameters
+    ----------
+    in_ds: xr.Dataset
+        GEOS_CS Grid Dataset
+    minimal : bool, optional
+        Specify whether to read the minimal information (`nodes` and `face_node_connectivity`) needed for a grid
+
+    Returns
+    -------
+    out_ds: xr.Dataset
+        GEOS_CS Grid encoder in the UGRID conventions
 
     https://gmao.gsfc.nasa.gov/gmaoftp/ops/GEOSIT_sample/doc/CS_Description_c180_v1.pdf
     """
@@ -23,7 +34,7 @@ def _read_geos_cs(in_ds: xr.Dataset):
         data=node_lat, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LAT_ATTRS
     )
 
-    if "lons" in in_ds:
+    if "lons" in in_ds and not minimal:
         face_lon = in_ds["lons"].values.ravel()
         face_lat = in_ds["lats"].values.ravel()
 

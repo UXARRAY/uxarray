@@ -19,6 +19,7 @@ def open_grid(
     ],
     latlon: Optional[bool] = False,
     use_dual: Optional[bool] = False,
+    minimal: Optional[bool] = False,
     **kwargs: Dict[str, Any],
 ) -> Grid:
     """Constructs and returns a ``Grid`` from a grid file.
@@ -34,11 +35,13 @@ def open_grid(
         object to define the grid.
 
     latlon : bool, optional
-            Specify if the grid is lat/lon based
+        Specify if the grid is lat/lon based
 
     use_dual: bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
 
+    minimal: bool, optional
+        Specify whether to read the minimal information (`nodes` and `face_node_connectivity`) needed for a grid
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_dataset``. Refer to the
         [xarray
@@ -84,7 +87,7 @@ def open_grid(
         try:
             grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
 
-            uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+            uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual, minimal=minimal)
         except ValueError:
             raise ValueError("Inputted grid_filename_or_obj not supported.")
 

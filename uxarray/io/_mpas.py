@@ -5,7 +5,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid, descriptors
 
 
-def _primal_to_ugrid(in_ds, out_ds):
+def _primal_to_ugrid(in_ds, out_ds, minimal=False):
     """Encodes the MPAS Primal-Mesh in the UGRID conventions.
 
     Parameters
@@ -15,55 +15,59 @@ def _primal_to_ugrid(in_ds, out_ds):
     out_ds : xarray.Dataset
         Output dataset where the MPAS Primal-Mesh is encoded in the UGRID
         conventions
+    minimal : bool
+        Specify whether to read the minimal information (`nodes` and `face_node_connectivity`) needed for a grid
     """
 
     source_dims_dict = {}
 
+    _parse_face_nodes(in_ds, out_ds, mesh_type="primal")
+
     if "lonVertex" in in_ds:
         _parse_node_latlon_coords(in_ds, out_ds, mesh_type="primal")
 
-    if "xVertex" in in_ds:
-        _parse_node_xyz_coords(in_ds, out_ds, mesh_type="primal")
+    if not minimal:
+        if "xVertex" in in_ds:
+            _parse_node_xyz_coords(in_ds, out_ds, mesh_type="primal")
 
-    if "lonCell" in in_ds:
-        _parse_face_latlon_coords(in_ds, out_ds, mesh_type="primal")
+        if "lonCell" in in_ds:
+            _parse_face_latlon_coords(in_ds, out_ds, mesh_type="primal")
 
-    if "xCell" in in_ds:
-        _parse_face_xyz_coords(in_ds, out_ds, mesh_type="primal")
+        if "xCell" in in_ds:
+            _parse_face_xyz_coords(in_ds, out_ds, mesh_type="primal")
 
-    if "lonEdge" in in_ds:
-        _parse_edge_latlon_coords(in_ds, out_ds, mesh_type="primal")
+        if "lonEdge" in in_ds:
+            _parse_edge_latlon_coords(in_ds, out_ds, mesh_type="primal")
 
-    if "xEdge" in in_ds:
-        _parse_edge_xyz_coords(in_ds, out_ds, mesh_type="primal")
+        if "xEdge" in in_ds:
+            _parse_edge_xyz_coords(in_ds, out_ds, mesh_type="primal")
 
-    _parse_face_nodes(in_ds, out_ds, mesh_type="primal")
-    _parse_node_faces(in_ds, out_ds, mesh_type="primal")
+        _parse_node_faces(in_ds, out_ds, mesh_type="primal")
 
-    if "verticesOnEdge" in in_ds:
-        _parse_edge_nodes(in_ds, out_ds, "primal")
-        source_dims_dict[in_ds["verticesOnEdge"].dims[0]] = "n_edge"
+        if "verticesOnEdge" in in_ds:
+            _parse_edge_nodes(in_ds, out_ds, "primal")
+            source_dims_dict[in_ds["verticesOnEdge"].dims[0]] = "n_edge"
 
-    if "edgesOnCell" in in_ds:
-        _parse_face_edges(in_ds, out_ds, mesh_type="primal")
+        if "edgesOnCell" in in_ds:
+            _parse_face_edges(in_ds, out_ds, mesh_type="primal")
 
-    if "cellsOnEdge" in in_ds:
-        _parse_edge_faces(in_ds, out_ds, mesh_type="primal")
+        if "cellsOnEdge" in in_ds:
+            _parse_edge_faces(in_ds, out_ds, mesh_type="primal")
 
-    if "dvEdge" in in_ds:
-        _parse_edge_node_distances(in_ds, out_ds)
+        if "dvEdge" in in_ds:
+            _parse_edge_node_distances(in_ds, out_ds)
 
-    if "dcEdge" in in_ds:
-        _parse_edge_face_distances(in_ds, out_ds)
+        if "dcEdge" in in_ds:
+            _parse_edge_face_distances(in_ds, out_ds)
 
-    if "cellsOnCell" in in_ds:
-        _parse_face_faces(in_ds, out_ds)
+        if "cellsOnCell" in in_ds:
+            _parse_face_faces(in_ds, out_ds)
 
-    if "areaCell" in in_ds:
-        _parse_face_areas(in_ds, out_ds, mesh_type="primal")
+        if "areaCell" in in_ds:
+            _parse_face_areas(in_ds, out_ds, mesh_type="primal")
 
-    if "boundaryVertex" in in_ds:
-        _parse_boundary_node_indices(in_ds, out_ds, mesh_type="primal")
+        if "boundaryVertex" in in_ds:
+            _parse_boundary_node_indices(in_ds, out_ds, mesh_type="primal")
 
     # set global attributes
     _parse_global_attrs(in_ds, out_ds)
@@ -600,7 +604,7 @@ def _to_zero_index(grid_var):
     return grid_var
 
 
-def _read_mpas(ext_ds, use_dual=False):
+def _read_mpas(ext_ds, use_dual=False, minimal=False):
     """Function to read in a MPAS Grid dataset and encode either the Primal or
     Dual Mesh in the UGRID conventions.
 
@@ -613,6 +617,8 @@ def _read_mpas(ext_ds, use_dual=False):
         MPAS datafile of interest
     use_dual : bool, optional
         Flag to select whether to encode the Dual-Mesh. Defaults to False
+    minimal : bool, optional
+     Specify whether to read the minimal information (`nodes` and `face_node_connectivity`) needed for a grid
 
     Returns
     -------
@@ -628,6 +634,6 @@ def _read_mpas(ext_ds, use_dual=False):
         source_dim_map = _dual_to_ugrid(ext_ds, ds)
     # convert primal-mesh to UGRID
     else:
-        source_dim_map = _primal_to_ugrid(ext_ds, ds)
+        source_dim_map = _primal_to_ugrid(ext_ds, ds, minimal=minimal)
 
     return ds, source_dim_map

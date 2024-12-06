@@ -241,7 +241,11 @@ class Grid:
 
     @classmethod
     def from_dataset(
-        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
+        cls,
+        dataset: xr.Dataset,
+        use_dual: Optional[bool] = False,
+        minimal: Optional[bool] = False,
+        **kwargs,
     ):
         """Constructs a ``Grid`` object from an ``xarray.Dataset``.
 
@@ -251,6 +255,8 @@ class Grid:
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        minimal : bool, default=False
+             Specify whether to read the minimal information (`nodes` and `face_node_connectivity`) needed for a grid
         """
         if not isinstance(dataset, xr.Dataset):
             raise ValueError("Input must be an xarray.Dataset")
@@ -264,17 +270,21 @@ class Grid:
             if source_grid_spec == "Exodus":
                 grid_ds, source_dims_dict = _read_exodus(dataset)
             elif source_grid_spec == "Scrip":
-                grid_ds, source_dims_dict = _read_scrip(dataset)
+                grid_ds, source_dims_dict = _read_scrip(dataset, minimal)
             elif source_grid_spec == "UGRID":
-                grid_ds, source_dims_dict = _read_ugrid(dataset)
+                grid_ds, source_dims_dict = _read_ugrid(dataset, minimal=minimal)
             elif source_grid_spec == "MPAS":
-                grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+                grid_ds, source_dims_dict = _read_mpas(
+                    dataset, use_dual=use_dual, minimal=minimal
+                )
             elif source_grid_spec == "ESMF":
-                grid_ds, source_dims_dict = _read_esmf(dataset)
+                grid_ds, source_dims_dict = _read_esmf(dataset, minimal=minimal)
             elif source_grid_spec == "GEOS-CS":
-                grid_ds, source_dims_dict = _read_geos_cs(dataset)
+                grid_ds, source_dims_dict = _read_geos_cs(dataset, minimal=minimal)
             elif source_grid_spec == "ICON":
-                grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+                grid_ds, source_dims_dict = _read_icon(
+                    dataset, use_dual=use_dual, minimal=minimal
+                )
             elif source_grid_spec == "Structured":
                 grid_ds = _read_structured_grid(dataset[lon_name], dataset[lat_name])
                 source_dims_dict = {"n_face": (lon_name, lat_name)}
