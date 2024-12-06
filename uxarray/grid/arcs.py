@@ -32,23 +32,10 @@ def _point_within_gca_cartesian(pt_xyz, gca_xyz, is_directed=False):
     pt_xyz = np.asarray(pt_xyz)
     gca_xyz = np.asarray(gca_xyz)
 
-    pt_lonlat = np.array(
-        _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2], normalize=False)
-    )
     gca_a_xyz = gca_xyz[0]
 
-    gca_a_lonlat = np.array(
-        _xyz_to_lonlat_rad_scalar(
-            gca_xyz[0][0], gca_xyz[0][1], gca_xyz[0][2], normalize=False
-        )
-    )
     gca_b_xyz = gca_xyz[1]
 
-    gca_b_lonlat = np.array(
-        _xyz_to_lonlat_rad_scalar(
-            gca_xyz[1][0], gca_xyz[1][1], gca_xyz[1][2], normalize=False
-        )
-    )
 
     return point_within_gca(
         pt_xyz,
@@ -119,12 +106,10 @@ def point_within_gca(
         )
 
     # 2. if the `is_directed` is True, we also throw an exception if the GCR spans more than 180 degrees
-    if is_directed and np.allclose(angle, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
-        raise ValueError(
-            "The input Great Circle Arc spans more than 180 degrees"
-            "Consider breaking the Great Circle Arc"
-            "into two Great Circle Arcs"
-        )
+    if is_directed:
+        # Raise no implementation error
+        raise NotImplementedError("the `is_directed` mode for `point_within_gca` has not been implemented yet.")
+
     # ==================================================================================================================
     # See if the point is on the plane of the GCA, because we are dealing with floating point numbers with np.dot now
     # just using the rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON, but consider using the more proper error tolerance
@@ -143,13 +128,34 @@ def point_within_gca(
     # ==================================================================================================================
     # Check if the point lie within the great circle arc interval
     # Compute normal vectors
-    t_a_xyz = np.cross(pt_xyz, a_xyz)
-    t_b_xyz = np.cross(pt_xyz, b_xyz)
 
-    # Compute dot product of tangent vectors, if negative, the point is inside the GCA
-    d = np.dot(t_a_xyz, t_b_xyz)
+    # Convert the gca_a_xyz and gca_b_xyz to lonlat
+    gca_a_lonlat = _xyz_to_lonlat_rad_scalar(gca_a_xyz[0], gca_a_xyz[1], gca_a_xyz[2])
+    gca_b_lonlat = _xyz_to_lonlat_rad_scalar(gca_b_xyz[0], gca_b_xyz[1], gca_b_xyz[2])
 
-    return d <= 0
+    # convert the gca_a_lonlat and gca_b_lonlat to degree
+    gca_a_lonlat = np.degrees(gca_a_lonlat)
+    gca_b_lonlat = np.degrees(gca_b_lonlat)
+
+    # convert the pt_xyz to lonlat in degree
+    pt_lonlat = _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2])
+    pt_lonlat = np.degrees(pt_lonlat)
+
+    cos_pt_a = dot(pt_xyz, gca_a_xyz)
+    cos_pt_b = dot(pt_xyz, gca_b_xyz)
+
+    # if both angles are less than 180 degree in radian, then we can directly use the following logic
+    if cos_pt_a >= 0 and cos_pt_b >= 0 :
+        t_a_xyz = np.cross(pt_xyz, gca_a_xyz)
+        t_b_xyz = np.cross(pt_xyz, gca_b_xyz)
+
+        # Compute dot product of tangent vectors, if negative, the point is inside the GCA
+        d = dot(t_a_xyz, t_b_xyz)
+
+        return d <= 0
+    else:
+        # if any of the angle is larger than 180 degree, then the point is on wrong side of the GCA
+        return False
 
 
 @njit(cache=True)
