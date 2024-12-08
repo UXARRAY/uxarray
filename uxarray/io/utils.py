@@ -47,6 +47,8 @@ def _parse_grid_type(dataset):
         mesh_type = "GEOS-CS"
     elif "vertex_of_cell" in dataset:
         mesh_type = "ICON"
+    elif "triag_nodes" in dataset:
+        mesh_type = "FESOM2"
     elif _structured:
         mesh_type = "Structured"
         return mesh_type, lon_name, lat_name
