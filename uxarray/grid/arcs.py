@@ -127,25 +127,24 @@ def point_within_gca(
 
     # ==================================================================================================================
     # Check if the point lie within the great circle arc interval
-    # Compute normal vectors
 
-    # Convert the gca_a_xyz and gca_b_xyz to lonlat
+    # Convert the pt, a and b to lon lat in degree
+    pt_lonlat = _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2])
     gca_a_lonlat = _xyz_to_lonlat_rad_scalar(gca_a_xyz[0], gca_a_xyz[1], gca_a_xyz[2])
     gca_b_lonlat = _xyz_to_lonlat_rad_scalar(gca_b_xyz[0], gca_b_xyz[1], gca_b_xyz[2])
 
-    # convert the gca_a_lonlat and gca_b_lonlat to degree
+    # Now convert the lon lat to degree
+    pt_lonlat = np.degrees(pt_lonlat)
     gca_a_lonlat = np.degrees(gca_a_lonlat)
     gca_b_lonlat = np.degrees(gca_b_lonlat)
-
-    # convert the pt_xyz to lonlat in degree
-    pt_lonlat = _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2])
-    pt_lonlat = np.degrees(pt_lonlat)
 
     cos_pt_a = dot(pt_xyz, gca_a_xyz)
     cos_pt_b = dot(pt_xyz, gca_b_xyz)
 
     # if both angles are less than 180 degree in radian, then we can directly use the following logic
     if cos_pt_a >= 0 and cos_pt_b >= 0 :
+        # Compute normal vectors
+
         t_a_xyz = np.cross(pt_xyz, gca_a_xyz)
         t_b_xyz = np.cross(pt_xyz, gca_b_xyz)
 

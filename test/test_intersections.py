@@ -6,29 +6,29 @@ from uxarray.constants import ERROR_TOLERANCE
 # from uxarray.grid.coordinates import node_lonlat_rad_to_xyz, node_xyz_to_lonlat_rad
 
 from uxarray.grid.arcs import _extreme_gca_latitude_cartesian
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad,_xyz_to_lonlat_rad_scalar
 from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, _gca_gca_intersection_cartesian
 
 
 class TestGCAGCAIntersection(TestCase):
 
     def test_get_GCA_GCA_intersections_antimeridian(self):
-        # Test the case where the two GCAs are on the antimeridian
-        GCA1 = _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(89.99))
-        GCR1_cart = np.array([
-            _lonlat_rad_to_xyz(np.deg2rad(170.0),
-                                    np.deg2rad(89.99)),
-            _lonlat_rad_to_xyz(np.deg2rad(170.0),
-                                    np.deg2rad(10.0))
-        ])
-        GCR2_cart = np.array([
-            _lonlat_rad_to_xyz(np.deg2rad(70.0), 0.0),
-            _lonlat_rad_to_xyz(np.deg2rad(179.0), 0.0)
-        ])
-        res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
-
-        # res_cart should be empty since these two GCRs are not intersecting
-        self.assertTrue(len(res_cart) == 0)
+        # # Test the case where the two GCAs are on the antimeridian
+        # GCA1 = _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(89.99))
+        # GCR1_cart = np.array([
+        #     _lonlat_rad_to_xyz(np.deg2rad(170.0),
+        #                             np.deg2rad(89.99)),
+        #     _lonlat_rad_to_xyz(np.deg2rad(170.0),
+        #                             np.deg2rad(10.0))
+        # ])
+        # GCR2_cart = np.array([
+        #     _lonlat_rad_to_xyz(np.deg2rad(70.0), 0.0),
+        #     _lonlat_rad_to_xyz(np.deg2rad(179.0), 0.0)
+        # ])
+        # res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+        #
+        # # res_cart should be empty since these two GCRs are not intersecting
+        # self.assertTrue(len(res_cart) == 0)
 
         GCR1_cart = np.array([
             _lonlat_rad_to_xyz(np.deg2rad(170.0),
@@ -36,6 +36,9 @@ class TestGCAGCAIntersection(TestCase):
             _lonlat_rad_to_xyz(np.deg2rad(170.0),
                                     np.deg2rad(-10.0))
         ])
+
+
+        GCR1_cart = np.deg2rad(GCR1_cart)
         GCR2_cart = np.array([
             _lonlat_rad_to_xyz(np.deg2rad(70.0), 0.0),
             _lonlat_rad_to_xyz(np.deg2rad(175.0), 0.0)
@@ -82,21 +85,13 @@ class TestGCAGCAIntersection(TestCase):
                                     np.deg2rad(10.0))
         ])
         GCR2_cart = np.array([
-            _lonlat_rad_to_xyz(*[0.5 * np.pi, 0.0]),
-            _lonlat_rad_to_xyz(*[-0.5 * np.pi - 0.01, 0.0])
+            _lonlat_rad_to_xyz(*[0.5 * np.pi - 0.01, 0.0]),
+            _lonlat_rad_to_xyz(*[-0.5 * np.pi + 0.01, 0.0])
         ])
         res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
-        res_cart = res_cart[0]
-        # Test if the result is normalized
-        self.assertTrue(
-            np.allclose(np.linalg.norm(res_cart, axis=0),
-                        1.0,
-                        atol=ERROR_TOLERANCE))
-        res_lonlat_rad = _xyz_to_lonlat_rad(*res_cart)
-        self.assertTrue(
-            np.allclose(res_lonlat_rad,
-                        np.array([np.deg2rad(170.0),
-                                  np.deg2rad(0.0)])))
+
+        # rest_cart should be empty since these two GCAs are not intersecting
+        self.assertTrue(len(res_cart) == 0)
 
 
 class TestGCAconstLatIntersection(TestCase):

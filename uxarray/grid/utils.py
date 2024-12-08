@@ -7,6 +7,7 @@ from numba import njit
 
 
 @njit(cache=True)
+# TODO: makes the function return the angle between 0 to 360 degrees
 def _angle_of_2_vectors(u, v):
     """Calculate the angle between two 3D vectors u and v in radians. Can be
     used to calcualte the span of a GCR.

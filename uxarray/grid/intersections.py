@@ -204,31 +204,11 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     gca_a_xyz = np.asarray(gca_a_xyz)
     gca_b_xyz = np.asarray(gca_b_xyz)
 
-    gca_a_lonlat = np.array(
-        [
-            _xyz_to_lonlat_rad_scalar(
-                gca_a_xyz[0, 0], gca_a_xyz[0, 1], gca_a_xyz[0, 2]
-            ),
-            _xyz_to_lonlat_rad_scalar(
-                gca_a_xyz[1, 0], gca_a_xyz[1, 1], gca_a_xyz[1, 2]
-            ),
-        ]
-    )
-    gca_b_lonlat = np.array(
-        [
-            _xyz_to_lonlat_rad_scalar(
-                gca_b_xyz[0, 0], gca_b_xyz[0, 1], gca_b_xyz[0, 2]
-            ),
-            _xyz_to_lonlat_rad_scalar(
-                gca_b_xyz[1, 0], gca_b_xyz[1, 1], gca_b_xyz[1, 2]
-            ),
-        ]
-    )
-    return gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat)
+    return gca_gca_intersection(gca_a_xyz, gca_b_xyz)
 
 
-@njit(cache=True)
-def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
+# @njit(cache=True)
+def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
@@ -238,12 +218,40 @@ def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
     v0_xyz = gca_b_xyz[0]
     v1_xyz = gca_b_xyz[1]
 
-    w0_lonlat = gca_a_lonlat[0]
-    w1_lonlat = gca_a_lonlat[1]
-    v0_lonlat = gca_b_lonlat[0]
-    v1_lonlat = gca_b_lonlat[1]
+    # convert w0, w1 to lon lat in degree
+    w0_lonlat = _xyz_to_lonlat_rad_scalar(*w0_xyz)
+    w1_lonlat = _xyz_to_lonlat_rad_scalar(*w1_xyz)
+
+    # convert them in degree
+    w0_lonlat = np.rad2deg(w0_lonlat)
+    w1_lonlat = np.rad2deg(w1_lonlat)
+
+    # convert x2, v0, v1 to lon lat in degree
+    # x2_lonlat = _xyz_to_lonlat_rad_scalar(*x2_xyz)
+    v0_lonlat = _xyz_to_lonlat_rad_scalar(*v0_xyz)
+    v1_lonlat = _xyz_to_lonlat_rad_scalar(*v1_xyz)
+
+    # now convert the lon lat to degree
+    # x2_lonlat = np.rad2deg(x2_lonlat)
+    v0_lonlat = np.rad2deg(v0_lonlat)
+    v1_lonlat = np.rad2deg(v1_lonlat)
+    # temp2 = point_within_gca(x2_xyz, v0_xyz, v1_xyz)
 
     # Compute normals and orthogonal bases
+    # We only consider the shortest arc interval between the two points, so we need to swap the points if the
+    # angle between the two points is greater than 180 degrees.
+
+    # Calculate the dot product of the two vectors to determine their angle
+    cos_w0w1 = np.dot(w0_xyz, w1_xyz)
+    cos_v0v1 = np.dot(v0_xyz, v1_xyz)
+
+    # If the angle between the two vectors is greater than 180 degrees, swap the points
+    if cos_w0w1 < 0.0:
+        w0_xyz, w1_xyz = w1_xyz, w0_xyz
+    if cos_v0v1 < 0.0:
+        v0_xyz, v1_xyz = v1_xyz, v0_xyz
+
+
     w0w1_norm = cross(w0_xyz, w1_xyz)
     v0v1_norm = cross(v0_xyz, v1_xyz)
     cross_norms = cross(w0w1_norm, v0v1_norm)
@@ -254,11 +262,11 @@ def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
 
     # Check if the two GCAs are parallel
     if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
-        if point_within_gca(v0_xyz, v0_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat):
+        if point_within_gca(v0_xyz, w0_xyz, w1_xyz):
             res[count, :] = v0_xyz
             count += 1
 
-        if point_within_gca(v1_xyz, v1_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat):
+        if point_within_gca(v1_xyz, w0_xyz, w1_xyz):
             res[count, :] = v1_xyz
             count += 1
 
@@ -269,20 +277,24 @@ def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
     x1_xyz = cross_norms
     x2_xyz = -x1_xyz
 
-    # Get lon/lat arrays
-    x1_lonlat = _xyz_to_lonlat_rad_scalar(x1_xyz[0], x1_xyz[1], x1_xyz[2])
-    x2_lonlat = _xyz_to_lonlat_rad_scalar(x2_xyz[0], x2_xyz[1], x2_xyz[2])
-
     # Check intersection points
     if point_within_gca(
-        x1_xyz, x1_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat
-    ) and point_within_gca(x1_xyz, x1_lonlat, v0_xyz, v0_lonlat, v1_xyz, v1_lonlat):
+        x1_xyz, w0_xyz, w1_xyz
+    ) and point_within_gca(x1_xyz, v0_xyz, v1_xyz):
         res[count, :] = x1_xyz
         count += 1
 
+    temp1 = point_within_gca(
+        x2_xyz, w0_xyz, w1_xyz
+    )
+
+    temp2 = point_within_gca(x2_xyz, v0_xyz, v1_xyz)
+
+
+
     if point_within_gca(
-        x2_xyz, x2_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat
-    ) and point_within_gca(x2_xyz, x2_lonlat, v0_xyz, v0_lonlat, v1_xyz, v1_lonlat):
+        x2_xyz, w0_xyz, w1_xyz
+    ) and point_within_gca(x2_xyz, v0_xyz, v1_xyz):
         res[count, :] = x2_xyz
         count += 1
 
