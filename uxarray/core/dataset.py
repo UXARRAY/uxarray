@@ -254,6 +254,24 @@ class UxDataset(xr.Dataset):
 
     @classmethod
     def from_xarray(cls, ds: xr.Dataset, uxgrid: Grid = None, ugrid_dims: dict = None):
+        """
+        Create an instance of a ``ux.UxDataset`` from a ``xr.Dataset`` paired with a ``ux.Grid``.
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            An Xarray dataset containing data residing on an unstructured grid
+        uxgrid : Grid, optional
+            ``Grid`` object representing an unstructured grid. If a grid is not provided, the source ds will be
+            parsed to see if a grid can be constructed.
+        ugrid_dims : dict, optional
+            A dictionary mapping data array dimensions to UGRID dimensions.
+
+        Returns
+        -------
+        cls
+            A ``ux.Dataset`` with data from the ``xr.Dataset` paired with a ``ux.Grid``
+        """
         if uxgrid is not None:
             if ugrid_dims is None and uxgrid._source_dims_dict is not None:
                 ugrid_dims = uxgrid._source_dims_dict

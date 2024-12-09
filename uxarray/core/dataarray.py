@@ -1084,6 +1084,23 @@ class UxDataArray(xr.DataArray):
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
+        """
+        Create an instance of a ``ux.UxDataArray`` from a ``xr.DataArray`` paired with a ``ux.Grid``.
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            An Xarray data array containing data residing on an unstructured grid
+        uxgrid : Grid
+            ``Grid`` object representing an unstructured grid
+        ugrid_dims : dict, optional
+            A dictionary mapping data array dimensions to UGRID dimensions.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataArray`` with data from the ``xr.DataArray` paired with a ``ux.Grid``
+        """
         if ugrid_dims is None:
             ugrid_dims = uxgrid._source_dims_dict
 
