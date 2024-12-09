@@ -10,7 +10,7 @@ from numba import njit
 # TODO: makes the function return the angle between 0 to 360 degrees
 def _angle_of_2_vectors(u, v):
     """Calculate the angle between two 3D vectors u and v in radians. Can be
-    used to calcualte the span of a GCR.
+    used to calcualte the span of a GCR, it will return the degree between 0 to 360.
 
     Parameters
     ----------
@@ -24,11 +24,22 @@ def _angle_of_2_vectors(u, v):
     float
         The angle between u and v in radians.
     """
+    # First calculate the direction of the normal, which can determine if the angle is greater than 180 degrees
+    # The direction of the normal is determined by the cross product of the two vectors
+    normal = np.cross(u, v)
+
+    # Calculate the angle between the two vectors,between 0 to 180 degrees
     v_norm_times_u = np.linalg.norm(v) * u
     u_norm_times_v = np.linalg.norm(u) * v
     vec_minus = v_norm_times_u - u_norm_times_v
     vec_sum = v_norm_times_u + u_norm_times_v
     angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
+
+    # If the normal is positive, the angle is less than 180 degrees (counter-clockwise)
+    if np.dot(normal, np.array([0.0, 0.0, 1.0])) >= 0:
+        return angle_u_v_rad
+    else:
+        return 2 * np.pi - angle_u_v_rad
     return angle_u_v_rad
 
 

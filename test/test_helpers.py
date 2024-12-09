@@ -247,7 +247,9 @@ class TestVectorsAngel(TestCase):
         ])
 
         res = _angle_of_2_vectors( GCR1_cart[0],  GCR1_cart[1])
-        pass
+
+        # The angle between the two vectors should be 181 degree
+        self.assertAlmostEqual(res, np.deg2rad(181.0), places=8)
 
 
 class TestFaceEdgeConnectivityHelper(TestCase):
