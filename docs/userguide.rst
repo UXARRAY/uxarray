@@ -32,7 +32,7 @@ These user guides provide detailed explanations of the core functionality in UXa
  Core data structures for working with unstructured grid and data files
 
 `Custom Grid Topology <user-guide/custom-grid.ipynb>`_
- Create a Grid from custom Grid topology
+ Create a Grid from custom Grid topology and convert existing Xarray data structures to UXarray.
 
 `Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
  Read data with chunking and/or in parallel

@@ -194,6 +194,7 @@ I/O & Conversion
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
+   UxDataArray.from_xarray
 
 UxDataset
 -----------
@@ -221,6 +222,7 @@ I/O & Conversion
    :toctree: generated/
 
    UxDataset.from_structured
+   UxDataset.from_xarray
 
 Plotting
 --------
