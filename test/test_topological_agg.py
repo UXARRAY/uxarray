@@ -4,6 +4,7 @@ import os
 import pytest
 
 from pathlib import Path
+from unittest import TestCase
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -22,21 +23,21 @@ AGGS = ["topological_mean",
         "topological_all",
         "topological_any"]
 
+class TestTopologicalAggs(TestCase):
+    def test_node_to_face_aggs(self):
+        uxds = ux.open_dataset(ds_path, ds_path)
 
-def test_node_to_face_aggs():
-    uxds = ux.open_dataset(ds_path, ds_path)
+        for agg_func in AGGS:
+            grid_reduction = getattr(uxds['areaTriangle'], agg_func)(destination='face')
 
-    for agg_func in AGGS:
-        grid_reduction = getattr(uxds['areaTriangle'], agg_func)(destination='face')
-
-        assert 'n_face' in grid_reduction.dims
+            assert 'n_face' in grid_reduction.dims
 
 
 
-def test_node_to_edge_aggs():
-    uxds = ux.open_dataset(ds_path, ds_path)
+    def test_node_to_edge_aggs(self):
+        uxds = ux.open_dataset(ds_path, ds_path)
 
-    for agg_func in AGGS:
-        grid_reduction = getattr(uxds['areaTriangle'], agg_func)(destination='edge')
+        for agg_func in AGGS:
+            grid_reduction = getattr(uxds['areaTriangle'], agg_func)(destination='edge')
 
-        assert 'n_edge' in grid_reduction.dims
+            assert 'n_edge' in grid_reduction.dims
