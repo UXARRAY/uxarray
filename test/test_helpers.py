@@ -251,6 +251,18 @@ class TestVectorsAngel(TestCase):
         # The angle between the two vectors should be 181 degree
         self.assertAlmostEqual(res, np.deg2rad(181.0), places=8)
 
+        GCR1_cart = np.array([
+            _lonlat_rad_to_xyz(np.deg2rad(170.0),
+                                    np.deg2rad(89.0)),
+            _lonlat_rad_to_xyz(np.deg2rad(170.0),
+                                    np.deg2rad(-10.0))
+        ])
+
+        res = _angle_of_2_vectors( GCR1_cart[0],  GCR1_cart[1])
+
+        # The angle between the two vectors should be 181 degree
+        self.assertAlmostEqual(res, np.deg2rad(89.0+10.0), places=8)
+
 
 class TestFaceEdgeConnectivityHelper(TestCase):
 

@@ -44,8 +44,7 @@ def _point_within_gca_cartesian(pt_xyz, gca_xyz, is_directed=False):
         is_directed=is_directed,
     )
 
-#TODO: Need to rewrite the function
-# @njit(cache=True)
+@njit(cache=True)
 def point_within_gca(
     pt_xyz,
     gca_a_xyz,
@@ -96,9 +95,9 @@ def point_within_gca(
 
     # ==================================================================================================================
     # 1. If the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
-    angle = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
+    angle_ab = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
 
-    if np.allclose(angle, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
+    if np.allclose(angle_ab, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
         raise ValueError(
             "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
             "Consider breaking the Great Circle Arc"
@@ -126,7 +125,8 @@ def point_within_gca(
         return False
 
     # ==================================================================================================================
-    # Check if the point lie within the great circle arc interval
+    # Check if the point lie within the great circle arc interval, the following predicate is based on the fact that
+    # We always pick the small circle of the great circle arc
 
     # Convert the pt, a and b to lon lat in degree
     pt_lonlat = _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2])
@@ -138,23 +138,16 @@ def point_within_gca(
     gca_a_lonlat = np.degrees(gca_a_lonlat)
     gca_b_lonlat = np.degrees(gca_b_lonlat)
 
-    cos_pt_a = dot(pt_xyz, gca_a_xyz)
-    cos_pt_b = dot(pt_xyz, gca_b_xyz)
+    # Get the vector pt_a and pt_b
+    pt_a = pt_xyz - gca_a_xyz
+    pt_b = pt_xyz - gca_b_xyz
 
-    # if both angles are less than 180 degree in radian, then we can directly use the following logic
-    if cos_pt_a >= 0 and cos_pt_b >= 0 :
-        # Compute normal vectors
+    # Get the angle between the vector pt_a and pt_b using the dot product
+    cos_theta = np.dot(pt_a, pt_b) # We don't need to normalize the vector since we are only interested in its sign
 
-        t_a_xyz = np.cross(pt_xyz, gca_a_xyz)
-        t_b_xyz = np.cross(pt_xyz, gca_b_xyz)
+    return cos_theta <= 0
 
-        # Compute dot product of tangent vectors, if negative, the point is inside the GCA
-        d = dot(t_a_xyz, t_b_xyz)
 
-        return d <= 0
-    else:
-        # if any of the angle is larger than 180 degree, then the point is on wrong side of the GCA
-        return False
 
 
 @njit(cache=True)

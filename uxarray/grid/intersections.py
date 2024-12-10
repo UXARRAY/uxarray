@@ -1,6 +1,6 @@
 import numpy as np
 from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
-from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
+from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat, _angle_of_2_vectors
 from uxarray.grid.arcs import (
     point_within_gca,
     in_between,
@@ -207,7 +207,7 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     return gca_gca_intersection(gca_a_xyz, gca_b_xyz)
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
@@ -241,16 +241,14 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     # We only consider the shortest arc interval between the two points, so we need to swap the points if the
     # angle between the two points is greater than 180 degrees.
 
-    # Calculate the dot product of the two vectors to determine their angle
-    cos_w0w1 = np.dot(w0_xyz, w1_xyz)
-    cos_v0v1 = np.dot(v0_xyz, v1_xyz)
+    angle_w0w1 = _angle_of_2_vectors(w0_xyz, w1_xyz)
+    angle_v0v1 = _angle_of_2_vectors(v0_xyz, v1_xyz)
 
-    # If the angle between the two vectors is greater than 180 degrees, swap the points
-    if cos_w0w1 < 0.0:
+    if angle_w0w1 > np.pi:
         w0_xyz, w1_xyz = w1_xyz, w0_xyz
-    if cos_v0v1 < 0.0:
-        v0_xyz, v1_xyz = v1_xyz, v0_xyz
 
+    if angle_v0v1 > np.pi:
+        v0_xyz, v1_xyz = v1_xyz, v0_xyz
 
     w0w1_norm = cross(w0_xyz, w1_xyz)
     v0v1_norm = cross(v0_xyz, v1_xyz)
@@ -276,6 +274,12 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     cross_norms = cross_norms / norm(cross_norms)
     x1_xyz = cross_norms
     x2_xyz = -x1_xyz
+
+    temp10 = point_within_gca(
+        x1_xyz, w0_xyz, w1_xyz
+    )
+
+    temp20 = point_within_gca(x1_xyz, v0_xyz, v1_xyz)
 
     # Check intersection points
     if point_within_gca(
