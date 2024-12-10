@@ -1504,10 +1504,6 @@ class TestPointInPolygon(TestCase):
             point_xyz = np.array([grid.face_x[x].values, grid.face_y[x].values, grid.face_z[x].values])
             point_lonlat = np.array([np.deg2rad(grid.face_lon[x].values), np.deg2rad(grid.face_lat[x].values)])
 
-            ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
-            ref_point_lonlat = np.array(
-                _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
-
             # Assert that the point is in the polygon
             #print(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, inclusive=True))
             self.assertTrue(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat))

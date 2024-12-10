@@ -1628,25 +1628,24 @@ def point_in_polygon(
 
     # Set to hold unique intersections
     unique_intersections = set()
+
     num_nodes = 0
     for x in polygon_xyz:
         if x[0] == INT_FILL_VALUE:
             break
         num_nodes += 1
 
-    edges = np.empty([num_nodes, 2, 3])
+    edges_xyz = np.empty([num_nodes, 2, 3])
+    edges_lonlat = np.empty([num_nodes, 2, 2])
+
     for ind, node in enumerate(polygon_xyz):
         if node[0] == INT_FILL_VALUE:
             break
         ind2 = (ind + 1) % num_nodes
+        edges_xyz[ind] = [polygon_xyz[ind], polygon_xyz[ind2]]
+        edges_lonlat[ind] = [polygon_lonlat[ind], polygon_lonlat[ind2]]
 
-        edges[ind] = [polygon_xyz[ind], polygon_xyz[ind2]]
-
-    # rolled_nodes = np.roll(polygon_xyz, shift=-1, axis=1)
-    # # Stack original and rolled nodes to form edges
-    # edges = np.stack([polygon_xyz, rolled_nodes], axis=2)
-
-    location = _classify_polygon_location(edges)
+    location = _classify_polygon_location(edges_xyz)
 
     if location == 1:
         ref_point_xyz = np.array([0, 0, -1], dtype=np.float64)
@@ -1659,35 +1658,24 @@ def point_in_polygon(
         ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(90)], dtype=np.float64)
 
     # Initialize the points arc between the point and the reference point
-    gca2_cart = np.empty((2, 3), dtype=np.float64)
-    gca2_cart[0] = point_xyz
-    gca2_cart[1] = ref_point_xyz
+    gca_cart = np.empty((2, 3), dtype=np.float64)
+    gca_cart[0] = point_xyz
+    gca_cart[1] = ref_point_xyz
 
-    gca2_lonlat = np.empty((2, 2), dtype=np.float64)
-    gca2_lonlat[0] = point_lonlat
-    gca2_lonlat[1] = ref_point_lonlat
+    gca_lonlat = np.empty((2, 2), dtype=np.float64)
+    gca_lonlat[0] = point_lonlat
+    gca_lonlat[1] = ref_point_lonlat
 
     # Loop through the polygon's edges, checking each one for intersection
-    for ind in range(len(polygon_xyz)):
-        ind2 = (ind + 1) % len(polygon_xyz)
-
-        # Get the first edge of the polygon
-        gca1_cart = np.empty((2, 3), dtype=np.float64)
-        gca1_cart[0] = polygon_xyz[ind]
-        gca1_cart[1] = polygon_xyz[ind2]
-
-        gca1_lonlat = np.empty((2, 2), dtype=np.float64)
-        gca1_lonlat[0] = polygon_lonlat[ind]
-        gca1_lonlat[1] = polygon_lonlat[ind2]
-
+    for ind in range(len(edges_xyz)):
         # If the point lies on an edge, return True if inclusive
         if point_within_gca(
             point_xyz,
             point_lonlat,
-            gca1_cart[0],
-            gca1_lonlat[0],
-            gca1_cart[1],
-            gca1_lonlat[1],
+            edges_xyz[ind][0],
+            edges_lonlat[ind][0],
+            edges_xyz[ind][1],
+            edges_lonlat[ind][1],
         ):
             if inclusive:
                 return True
@@ -1696,15 +1684,15 @@ def point_in_polygon(
 
         # Get the number of intersections between the edge and the point arc
         intersections = gca_gca_intersection(
-            gca1_cart, gca1_lonlat, gca2_cart, gca2_lonlat
+            edges_xyz[ind], edges_lonlat[ind], gca_cart, gca_lonlat
         )
 
         # Add any unique intersections to the intersection_count
         for intersection in intersections:
             intersection_tuple = (
-                round(intersection[0], 8),
-                round(intersection[1], 8),
-                round(intersection[2], 8),
+                intersection[0],
+                intersection[1],
+                intersection[2],
             )
             if intersection_tuple not in unique_intersections:
                 unique_intersections.add(intersection_tuple)
