@@ -1085,7 +1085,7 @@ class UxDataArray(xr.DataArray):
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
         """
-        Create an instance of a ``ux.UxDataArray`` from a ``xr.DataArray`` paired with a ``ux.Grid``.
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
 
         Parameters
         ----------
