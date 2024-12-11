@@ -23,7 +23,7 @@ from uxarray.grid.arcs import (
     point_within_gca,
 )
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _lonlat_rad_to_xyz
 
 from uxarray.grid.intersections import (
     gca_gca_intersection,
@@ -1585,8 +1585,8 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
 
 # @njit(cache=True)
 def point_in_polygon(
-    polygon_xyz,
-    polygon_lonlat,
+    edges_xyz,
+    edges_lonlat,
     point_xyz,
     point_lonlat,
     inclusive=True,
@@ -1595,9 +1595,9 @@ def point_in_polygon(
 
     Parameters
     ----------
-        polygon_xyz : numpy.ndarray
+        edges_xyz : numpy.ndarray
             Cartesian coordinates of each point in the polygon
-        polygon_lonlat : numpy.ndarray
+        edges_lonlat : numpy.ndarray
             Spherical coordinate of each point in the polygon
         point_xyz : numpy.ndarray
             Cartesian coordinate of the point
@@ -1612,16 +1612,16 @@ def point_in_polygon(
         True if point is inside polygon, False otherwise
     """
 
-    # Validate the inputs
-    if len(polygon_xyz[0]) != 3:
-        raise ValueError("`polygon_xyz` vertices must be a Cartesian array.")
-    if len(polygon_lonlat[0]) != 2:
-        raise ValueError("`polygon_lonlat` vertices must be a Spherical array.")
-
-    if len(point_xyz) != 3:
-        raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
-    if len(point_lonlat) != 2:
-        raise ValueError("`point_lonlat` must be a single [2] Spherical coordinate.")
+    # # Validate the inputs
+    # if len(polygon_xyz[0]) != 3:
+    #     raise ValueError("`polygon_xyz` vertices must be a Cartesian array.")
+    # if len(polygon_lonlat[0]) != 2:
+    #     raise ValueError("`polygon_lonlat` vertices must be a Spherical array.")
+    #
+    # if len(point_xyz) != 3:
+    #     raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
+    # if len(point_lonlat) != 2:
+    #     raise ValueError("`point_lonlat` must be a single [2] Spherical coordinate.")
 
     # Initialize the intersection count
     intersection_count = 0
@@ -1629,33 +1629,17 @@ def point_in_polygon(
     # Set to hold unique intersections
     unique_intersections = set()
 
-    num_nodes = 0
-    for x in polygon_xyz:
-        if x[0] == INT_FILL_VALUE:
-            break
-        num_nodes += 1
-
-    edges_xyz = np.empty([num_nodes, 2, 3])
-    edges_lonlat = np.empty([num_nodes, 2, 2])
-
-    for ind, node in enumerate(polygon_xyz):
-        if node[0] == INT_FILL_VALUE:
-            break
-        ind2 = (ind + 1) % num_nodes
-        edges_xyz[ind] = [polygon_xyz[ind], polygon_xyz[ind2]]
-        edges_lonlat[ind] = [polygon_lonlat[ind], polygon_lonlat[ind2]]
-
     location = _classify_polygon_location(edges_xyz)
 
     if location == 1:
-        ref_point_xyz = np.array([0, 0, -1], dtype=np.float64)
-        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(-90)], dtype=np.float64)
+        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(-89)], dtype=np.float64)
+        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
     elif location == -1:
-        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
-        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(90)], dtype=np.float64)
+        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(89)], dtype=np.float64)
+        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
     else:
-        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
-        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(90)], dtype=np.float64)
+        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(-89)], dtype=np.float64)
+        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
 
     # Initialize the points arc between the point and the reference point
     gca_cart = np.empty((2, 3), dtype=np.float64)

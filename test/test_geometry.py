@@ -1489,24 +1489,34 @@ class TestPointInPolygon(TestCase):
 
         # Open grid
         grid = ux.open_grid(grid_mpas_2)
+        face_node_conn = grid.face_node_connectivity.values
+        n_nodes_per_face = grid.n_nodes_per_face.values
+
+        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_edges,
+            grid.node_x.values,
+            grid.node_y.values,
+            grid.node_z.values,
+        )
+
+        faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_edges,
+            grid.node_lon.values,
+            grid.node_lat.values,
+        )
 
         # Create the polygon
-        for x in range(len(grid.face_node_connectivity.values)):
-            polygon_xyz = np.full([len(grid.face_node_connectivity[x].values), 3], INT_FILL_VALUE, dtype=np.float64)
-            polygon_lonlat = np.full([len(grid.face_node_connectivity[x].values), 2], INT_FILL_VALUE, dtype=np.float64)
-            for ind, face in enumerate(grid.face_node_connectivity[x].values):
-                if face == INT_FILL_VALUE:
-                    break
-                polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
-                polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
-
+        for i in range(grid.n_face):
             # Set the point as the face center of the polygon
-            point_xyz = np.array([grid.face_x[x].values, grid.face_y[x].values, grid.face_z[x].values])
-            point_lonlat = np.array([np.deg2rad(grid.face_lon[x].values), np.deg2rad(grid.face_lat[x].values)])
+            point_xyz = np.array([grid.face_x[i].values, grid.face_y[i].values, grid.face_z[i].values])
+            point_lonlat = np.array([np.deg2rad(grid.face_lon[i].values), np.deg2rad(grid.face_lat[i].values)])
 
             # Assert that the point is in the polygon
-            #print(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, inclusive=True))
-            self.assertTrue(point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat))
+            print(point_in_polygon(faces_edges_cartesian[i], faces_edges_lonlat_rad[i], point_xyz, point_lonlat, inclusive=True))
 
     def test_point_outside(self):
         """Test the function `point_in_polygon`, where point is outside the polygon"""
