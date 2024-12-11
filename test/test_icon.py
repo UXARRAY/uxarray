@@ -1,19 +1,14 @@
 import uxarray as ux
 import os
-
 import pytest
-
 from pathlib import Path
-from unittest import TestCase
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-
 grid_path = current_path / 'meshfiles' / "icon" / "R02B04" / 'icon_grid_0010_R02B04_G.nc'
 
-class TestIcon(TestCase):
-    def test_read_icon_grid(self):
-        uxgrid = ux.open_grid(grid_path)
+def test_read_icon_grid():
+    uxgrid = ux.open_grid(grid_path)
 
-    def test_read_icon_dataset(self):
-        uxds = ux.open_dataset(grid_path, grid_path)
+def test_read_icon_dataset():
+    uxds = ux.open_dataset(grid_path, grid_path)
