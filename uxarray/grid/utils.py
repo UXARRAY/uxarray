@@ -7,6 +7,30 @@ from numba import njit
 
 
 @njit(cache=True)
+def _small_angle_of_2_vectors(u, v):
+    """
+    Compute the smallest angle between two vectors using the new _angle_of_2_vectors.
+
+    Parameters
+    ----------
+    u : numpy.ndarray
+        The first 3D vector.
+    v : numpy.ndarray
+        The second 3D vector.
+
+    Returns
+    -------
+    float
+        The smallest angle between `u` and `v` in radians.
+    """
+    v_norm_times_u = np.linalg.norm(v) * u
+    u_norm_times_v = np.linalg.norm(u) * v
+    vec_minus = v_norm_times_u - u_norm_times_v
+    vec_sum = v_norm_times_u + u_norm_times_v
+    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
+    return angle_u_v_rad
+
+@njit(cache=True)
 def _angle_of_2_vectors(u, v):
     """
     Calculate the angle between two 3D vectors `u` and `v` on the unit sphere in radians.
@@ -29,35 +53,31 @@ def _angle_of_2_vectors(u, v):
     Notes
     -----
     - The direction of the angle (clockwise or counter-clockwise) is determined using the cross product of `u` and `v`.
-    - If the cross product points upwards (positive z-component), the angle is less than 180° (counter-clockwise).
-    - If the cross product points downwards (negative z-component), the angle is adjusted to represent the complement in [180°, 360°].
+    - Special cases such as vectors aligned along the same longitude are handled explicitly.
     """
     # Compute the cross product to determine the direction of the normal
     normal = np.cross(u, v)
 
-    # Calculate the angle using the 2-argument arctangent for a stable result
-    angle_u_v_rad = 2 * np.arctan2(
-        np.linalg.norm(np.linalg.norm(v) * u - np.linalg.norm(u) * v),
-        np.linalg.norm(np.linalg.norm(v) * u + np.linalg.norm(u) * v)
-    )
+    # Calculate the angle using arctangent of cross and dot products
+    angle_u_v_rad = np.arctan2(np.linalg.norm(normal), np.dot(u, v))
 
-    # Adjust the angle based on the direction of the normal vector
-    if np.dot(normal, np.array([0.0, 0.0, 1.0])) > 0:
+    # Determine the direction of the angle
+    normal_z = np.dot(normal, np.array([0.0, 0.0, 1.0]))
+    if normal_z > 0:
+        # Counterclockwise direction
         return angle_u_v_rad
-    elif np.dot(normal, np.array([0.0, 0.0, 1.0])) == 0:
-        # Alwasy start for the north pole
+    elif normal_z == 0:
+        # Handle collinear vectors (same longitude)
         if u[2] > v[2]:
             return angle_u_v_rad
-        elif u[2] == v[2]:
-            # Pick the interval that is crossing the north pole.
-            if u[2] >= 0:
-                return angle_u_v_rad
-            else:
-                return 2 * np.pi - angle_u_v_rad
-        else:
+        elif u[2] < v[2]:
             return 2 * np.pi - angle_u_v_rad
+        else:
+            return 0.0  # u == v
     else:
+        # Clockwise direction
         return 2 * np.pi - angle_u_v_rad
+
 
 
 

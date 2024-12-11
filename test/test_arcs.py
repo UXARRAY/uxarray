@@ -37,16 +37,16 @@ class TestIntersectionPoint(TestCase):
         ]
 
         pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
-        # with self.assertRaises(ValueError):
-        #     _point_within_gca_cartesian(pt_same_lon_in, gcr_180degree_cart)
+        with self.assertRaises(ValueError):
+            _point_within_gca_cartesian(pt_same_lon_in, gcr_180degree_cart)
 
         # Test when the point and the GCA all have the same longitude
         gcr_same_lon_cart = [
             _lonlat_rad_to_xyz(0.0, 1.5),
             _lonlat_rad_to_xyz(0.0, -1.5)
         ]
-        # pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
-        # self.assertTrue(_point_within_gca_cartesian(pt_same_lon_in, gcr_same_lon_cart))
+        pt_same_lon_in = _lonlat_rad_to_xyz(0.0, 0.0)
+        self.assertTrue(_point_within_gca_cartesian(pt_same_lon_in, gcr_same_lon_cart))
 
         pt_same_lon_out = _lonlat_rad_to_xyz(0.0, 1.5000001)
         res = _point_within_gca_cartesian(pt_same_lon_out, gcr_same_lon_cart)
@@ -63,17 +63,14 @@ class TestIntersectionPoint(TestCase):
         gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
         pt_cart = np.array(
             [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
-        # with self.assertRaises(NotImplementedError):
-        #     _point_within_gca_cartesian(pt_cart, gcr_cart, is_directed=True)
-        # If we swap the gcr, it should throw a value error since it's larger than 180 degree
+        self.assertTrue(
+            _point_within_gca_cartesian(pt_cart, gcr_cart))
+
         gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
                                                           0.593]])
-        # with self.assertRaises(NotImplementedError):
-        #     _point_within_gca_cartesian(pt_cart, gcr_cart_flip, is_directed=True)
-
         # If we flip the gcr in the undirected mode, it should still work
         self.assertTrue(
-            _point_within_gca_cartesian(pt_cart, gcr_cart_flip, is_directed=False))
+            _point_within_gca_cartesian(pt_cart, gcr_cart_flip))
 
         # 2nd anti-meridian case
         # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
@@ -84,7 +81,7 @@ class TestIntersectionPoint(TestCase):
         pt_cart_within = np.array(
             [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
         self.assertFalse(
-            _point_within_gca_cartesian(pt_cart_within, gcr_cart_1, is_directed=False))
+            _point_within_gca_cartesian(pt_cart_within, gcr_cart_1))
 
 
 
@@ -96,8 +93,5 @@ class TestIntersectionPoint(TestCase):
         # Normalize the point abd the GCA
         pt_cart = pt_cart / np.linalg.norm(pt_cart)
         gcr_cart = np.array([x / np.linalg.norm(x) for x in gcr_cart])
-        self.assertTrue(_point_within_gca_cartesian(pt_cart, gcr_cart, is_directed=False))
+        self.assertTrue(_point_within_gca_cartesian(pt_cart, gcr_cart))
 
-        gcr_cart = np.array([[0.351, 0.0, 0.3], [-0.351, 0.0, -0.6]])
-        pt_cart = np.array(
-            [0.10, 0.0, 0.8])

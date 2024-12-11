@@ -128,7 +128,7 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
     return np.unique(intersecting_edges)
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
     """Identifies the candidate faces on a grid that intersect with a given
     constant latitude.
@@ -218,29 +218,6 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     v0_xyz = gca_b_xyz[0]
     v1_xyz = gca_b_xyz[1]
 
-    # convert w0, w1 to lon lat in degree
-    w0_lonlat = _xyz_to_lonlat_rad_scalar(*w0_xyz)
-    w1_lonlat = _xyz_to_lonlat_rad_scalar(*w1_xyz)
-
-    # convert them in degree
-    w0_lonlat = np.rad2deg(w0_lonlat)
-    w1_lonlat = np.rad2deg(w1_lonlat)
-
-    # convert x2, v0, v1 to lon lat in degree
-    # x2_lonlat = _xyz_to_lonlat_rad_scalar(*x2_xyz)
-    v0_lonlat = _xyz_to_lonlat_rad_scalar(*v0_xyz)
-    v1_lonlat = _xyz_to_lonlat_rad_scalar(*v1_xyz)
-
-    # now convert the lon lat to degree
-    # x2_lonlat = np.rad2deg(x2_lonlat)
-    v0_lonlat = np.rad2deg(v0_lonlat)
-    v1_lonlat = np.rad2deg(v1_lonlat)
-    # temp2 = point_within_gca(x2_xyz, v0_xyz, v1_xyz)
-
-    # Compute normals and orthogonal bases
-    # We only consider the shortest arc interval between the two points, so we need to swap the points if the
-    # angle between the two points is greater than 180 degrees.
-
     angle_w0w1 = _angle_of_2_vectors(w0_xyz, w1_xyz)
     angle_v0v1 = _angle_of_2_vectors(v0_xyz, v1_xyz)
 
@@ -274,27 +251,12 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     cross_norms = cross_norms / norm(cross_norms)
     x1_xyz = cross_norms
     x2_xyz = -x1_xyz
-
-    temp10 = point_within_gca(
-        x1_xyz, w0_xyz, w1_xyz
-    )
-
-    temp20 = point_within_gca(x1_xyz, v0_xyz, v1_xyz)
-
     # Check intersection points
     if point_within_gca(
         x1_xyz, w0_xyz, w1_xyz
     ) and point_within_gca(x1_xyz, v0_xyz, v1_xyz):
         res[count, :] = x1_xyz
         count += 1
-
-    temp1 = point_within_gca(
-        x2_xyz, w0_xyz, w1_xyz
-    )
-
-    temp2 = point_within_gca(x2_xyz, v0_xyz, v1_xyz)
-
-
 
     if point_within_gca(
         x2_xyz, w0_xyz, w1_xyz
@@ -306,7 +268,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
 
 def gca_const_lat_intersection(
-    gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
+    gca_cart, constZ, fma_disabled=True, verbose=False
 ):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
@@ -324,9 +286,6 @@ def gca_const_lat_intersection(
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
-    is_directed : bool, optional (default=False)
-        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
     Returns
     -------
@@ -401,7 +360,7 @@ def gca_const_lat_intersection(
     res = None
 
     # Now test which intersection point is within the GCA range
-    if _point_within_gca_cartesian(p1, gca_cart, is_directed=is_directed):
+    if _point_within_gca_cartesian(p1, gca_cart):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p1, gca_cart, verbose=verbose
@@ -423,7 +382,7 @@ def gca_const_lat_intersection(
         except RuntimeError:
             raise RuntimeError(f"Error encountered with initial guess: {p1}")
 
-    if _point_within_gca_cartesian(p2, gca_cart, is_directed=is_directed):
+    if _point_within_gca_cartesian(p2, gca_cart):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p2, gca_cart, verbose=verbose
