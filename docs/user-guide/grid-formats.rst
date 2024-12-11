@@ -140,12 +140,10 @@ References
 
 FESOM2
 ======
-The F**inite volumE Sea Ice-Ocean Model (FESOM2) is a Multi-resolution ocean general circulation
+The Finite Volume Sea Ice-Ocean Model (FESOM2) is a Multi-resolution ocean general circulation
 model that solves the equations of motion describing the ocean and sea ice using finite-volume methods
 on unstructured computational grids. The model is developed and supported by researchers at the
-Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), in Bremerhaven, Germany. UXarray
-currently supports reading the ``fesom.mesh.diag.nc`` file that is generated and encoded in the UGRID conventions.
-
+Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), in Bremerhaven, Germany.
 
 References
 ----------
