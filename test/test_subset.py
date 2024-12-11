@@ -4,7 +4,6 @@ import os
 import pytest
 
 from pathlib import Path
-from unittest import TestCase
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -20,24 +19,24 @@ DATA_PATHS = [
     current_path / "meshfiles" / "ugrid" / "outCSne30" / "var2.nc"
 ]
 
-class TestSubset(TestCase):
-    def test_grid_face_isel(self):
-        for grid_path in GRID_PATHS:
-            grid = ux.open_grid(grid_path)
 
-            face_indices = [0, 1, 2, 3, 4]
-            for n_max_faces in range(1, len(face_indices)):
-                grid_subset = grid.isel(n_face=face_indices[:n_max_faces])
-                assert grid_subset.n_face == n_max_faces
+def test_grid_face_isel():
+    for grid_path in GRID_PATHS:
+        grid = ux.open_grid(grid_path)
+
+        face_indices = [0, 1, 2, 3, 4]
+        for n_max_faces in range(1, len(face_indices)):
+            grid_subset = grid.isel(n_face=face_indices[:n_max_faces])
+            assert grid_subset.n_face == n_max_faces
 
         face_indices = [0, 1, 2, grid.n_face]
         with pytest.raises(IndexError):
             grid_subset = grid.isel(n_face=face_indices)
 
 
-    def test_grid_node_isel(self):
-        for grid_path in GRID_PATHS:
-            grid = ux.open_grid(grid_path)
+def test_grid_node_isel():
+    for grid_path in GRID_PATHS:
+        grid = ux.open_grid(grid_path)
 
         node_indices = [0, 1, 2, 3, 4]
         for n_max_nodes in range(1, len(node_indices)):
@@ -49,11 +48,11 @@ class TestSubset(TestCase):
             grid_subset = grid.isel(n_face=face_indices)
 
 
-    def test_grid_nn_subset(self):
-        coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
+def test_grid_nn_subset():
+    coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
 
-        for grid_path in GRID_PATHS:
-            grid = ux.open_grid(grid_path)
+    for grid_path in GRID_PATHS:
+        grid = ux.open_grid(grid_path)
 
         # corner-nodes
         ks = [1, 2, grid.n_node - 1]
@@ -75,18 +74,18 @@ class TestSubset(TestCase):
                 assert isinstance(grid_subset, ux.Grid)
 
 
-    def test_grid_bounding_circle_subset(self):
-        coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
-        rs = [45, 90, 180]
+def test_grid_bounding_circle_subset():
+    coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
+    rs = [45, 90, 180]
 
-        for grid_path in GRID_PATHS:
-            grid = ux.open_grid(grid_path)
-            for element in ["nodes", "face centers"]:
-                for coord in coord_locs:
-                    for r in rs:
-                        grid_subset = grid.subset.bounding_circle(coord, r, element)
+    for grid_path in GRID_PATHS:
+        grid = ux.open_grid(grid_path)
+        for element in ["nodes", "face centers"]:
+            for coord in coord_locs:
+                for r in rs:
+                    grid_subset = grid.subset.bounding_circle(coord, r, element)
 
-                        assert isinstance(grid_subset, ux.Grid)
+                    assert isinstance(grid_subset, ux.Grid)
 
 
 def test_grid_bounding_box_subset():
@@ -104,24 +103,20 @@ def test_grid_bounding_box_subset():
             grid_subset_antimeridian = grid.subset.bounding_box(
                 bbox_antimeridian[0], bbox_antimeridian[1], element=element)
 
-    def test_uxda_isel(self):
-        uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
 
-        sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
 
-        assert len(sub) == 3
 
-    def test_uxda_isel(self):
-        uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
+def test_uxda_isel():
+    uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
 
-        sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
+    sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
 
-        assert len(sub) == 3
+    assert len(sub) == 3
 
-    def test_uxda_isel_with_coords(self):
-        uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
-        uxds = uxds.assign_coords({"lon_face": uxds.uxgrid.face_lon})
-        sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
+def test_uxda_isel_with_coords():
+    uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
+    uxds = uxds.assign_coords({"lon_face": uxds.uxgrid.face_lon})
+    sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
 
-        assert "lon_face" in sub.coords
-        assert len(sub.coords['lon_face']) == 3
+    assert "lon_face" in sub.coords
+    assert len(sub.coords['lon_face']) == 3
