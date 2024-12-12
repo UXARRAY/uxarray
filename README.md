@@ -62,7 +62,23 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
   * Perform aggregations within different topology elements using connectivity information
 * Mathematical Operators
   * Support for Integral, Difference, and Gradient calculations
-
+* Dual Mesh Construction
+  * Support for constructing a dual mesh from any grid or dataset
+* Great Circle Arc (GCA) Functionality
+  * Function to find the intersection points of two GCA's
+  * Function to determine if a point is within a GCA
+* Face Area Calculation
+  * Calculate the face area of any face (or all faces) within the grid
+* Non-conservative Zonal Mean (coming soon, in development)
+  * The ability to calculate a non-conservative zonal mean
+* Point in Face (coming soon, in development)
+  * Determines if a point is inside a face
+* Faces Containing Point (coming soon, in development)
+  * For a given point, returns the face or faces containing it
+* Spherical Bounding Box
+  * A spherical bounding box for each face
+* Cross-Sections
+  * Extract cross-sections of a grid based on constant longitude or latitude
 
 ## Intended Features
 
