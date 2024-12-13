@@ -39,16 +39,21 @@ def _map_dims_to_ugrid(
             # drop dimensions not present in the original dataset
             _source_dims_dict.pop(key)
 
+        # only check edge dimension if it is present (to avoid overhead of computing connectivity)
+        if "n_edge" in grid._ds.dims:
+            n_edge = grid._ds.sizes["n_edge"]
+        else:
+            n_edge = None
+
         for dim in set(ds.dims) ^ _source_dims_dict.keys():
             # obtain dimensions that were not parsed source_dims_dict and attempt to match to a grid element
             if ds.sizes[dim] == grid.n_face:
                 _source_dims_dict[dim] = "n_face"
             elif ds.sizes[dim] == grid.n_node:
                 _source_dims_dict[dim] = "n_node"
-            elif ds.sizes[dim] == grid.n_edge:
-                _source_dims_dict[dim] = "n_edge"
-
-        # Possible Issue: https://github.com/UXARRAY/uxarray/issues/610
+            elif n_edge is not None:
+                if ds.sizes[dim] == n_edge:
+                    _source_dims_dict[dim] = "n_edge"
 
         # rename dimensions to follow the UGRID conventions
         ds = ds.swap_dims(_source_dims_dict)

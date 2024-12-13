@@ -41,6 +41,7 @@ dependencies = [
   "geopandas",
   "xarray",
   "hvplot",
+  "polars",
 ]
 # minimal dependencies end
 
