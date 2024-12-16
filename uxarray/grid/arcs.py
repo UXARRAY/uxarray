@@ -36,12 +36,8 @@ def _point_within_gca_cartesian(pt_xyz, gca_xyz):
 
     gca_b_xyz = gca_xyz[1]
 
+    return point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz)
 
-    return point_within_gca(
-        pt_xyz,
-        gca_a_xyz,
-        gca_b_xyz
-    )
 
 @njit(cache=True)
 def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
@@ -99,9 +95,6 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
 
     # Return True if the point lies within the interval (smaller arc)
     return cos_theta <= 0
-
-
-
 
 
 @njit(cache=True)

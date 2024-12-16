@@ -740,9 +740,7 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         ref_edge_lonlat[0, 1] = pole_point_lonlat[1]
         ref_edge_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
 
-        intersection_count = _check_intersection(
-            ref_edge_xyz, face_edges_xyz
-        )
+        intersection_count = _check_intersection(ref_edge_xyz, face_edges_xyz)
         return (intersection_count % 2) != 0
 
     elif location == 0:  # Equator
@@ -870,9 +868,7 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
         edge_xyz = edges_xyz[i]
 
         # compute intersection
-        intersection_point = gca_gca_intersection(
-            ref_edge_xyz, edge_xyz
-        )
+        intersection_point = gca_gca_intersection(ref_edge_xyz, edge_xyz)
 
         if intersection_point.size != 0:
             if intersection_point.ndim == 1:
@@ -1192,11 +1188,8 @@ def _populate_face_latlon_bound(
             max_abs_diff = np.max(np.abs(n1_cart - pole_point_xyz))
             if max_abs_diff <= ERROR_TOLERANCE or point_within_gca(
                 pole_point_xyz,
-                pole_point_lonlat,
                 n1_cart,
-                n1_lonlat,
                 n2_cart,
-                n2_lonlat
             ):
                 is_center_pole = False
                 face_latlon_array = insert_pt_in_latlonbox(
