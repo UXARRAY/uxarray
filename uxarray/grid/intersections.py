@@ -1,13 +1,14 @@
 import numpy as np
 from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
-from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat, _angle_of_2_vectors
+from uxarray.grid.utils import (
+    _newton_raphson_solver_for_gca_constLat,
+    _angle_of_2_vectors,
+)
 from uxarray.grid.arcs import (
-    point_within_gca,
     in_between,
     _extreme_gca_latitude_cartesian,
-    _point_within_gca_cartesian,
+    point_within_gca,
 )
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
 import platform
 import warnings
 from uxarray.utils.computing import cross_fma, allclose, cross, norm
@@ -252,24 +253,22 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     x1_xyz = cross_norms
     x2_xyz = -x1_xyz
     # Check intersection points
-    if point_within_gca(
-        x1_xyz, w0_xyz, w1_xyz
-    ) and point_within_gca(x1_xyz, v0_xyz, v1_xyz):
+    if point_within_gca(x1_xyz, w0_xyz, w1_xyz) and point_within_gca(
+        x1_xyz, v0_xyz, v1_xyz
+    ):
         res[count, :] = x1_xyz
         count += 1
 
-    if point_within_gca(
-        x2_xyz, w0_xyz, w1_xyz
-    ) and point_within_gca(x2_xyz, v0_xyz, v1_xyz):
+    if point_within_gca(x2_xyz, w0_xyz, w1_xyz) and point_within_gca(
+        x2_xyz, v0_xyz, v1_xyz
+    ):
         res[count, :] = x2_xyz
         count += 1
 
     return res[:count, :]
 
 
-def gca_const_lat_intersection(
-    gca_cart, constZ, fma_disabled=True, verbose=False
-):
+def gca_const_lat_intersection(gca_cart, constZ, fma_disabled=True, verbose=False):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -360,7 +359,7 @@ def gca_const_lat_intersection(
     res = None
 
     # Now test which intersection point is within the GCA range
-    if _point_within_gca_cartesian(p1, gca_cart):
+    if point_within_gca(p1, gca_cart[0], gca_cart[1]):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p1, gca_cart, verbose=verbose
@@ -382,7 +381,7 @@ def gca_const_lat_intersection(
         except RuntimeError:
             raise RuntimeError(f"Error encountered with initial guess: {p1}")
 
-    if _point_within_gca_cartesian(p2, gca_cart):
+    if point_within_gca(p2, gca_cart[0], gca_cart[1]):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p2, gca_cart, verbose=verbose

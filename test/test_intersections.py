@@ -92,6 +92,30 @@ class TestGCAGCAIntersection(TestCase):
         self.assertTrue(len(res_cart) == 0)
 
 
+    def test_GCA_GCA_pole(self):
+        face_lonlat = np.deg2rad(np.array([-175, 26.5]))
+
+        # this fails when the pole is set to exactly -90.0
+        ref_point_lonlat = np.deg2rad(np.array([0.0, -89.9]))
+        face_xyz = np.array(_lonlat_rad_to_xyz(*face_lonlat))
+        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
+
+        edge_a_lonlat = np.deg2rad(np.array((-175, -24.5)))
+        edge_b_lonlat = np.deg2rad(np.array((-173, 25.7)))
+
+        edge_a_xyz = np.array(_lonlat_rad_to_xyz(*edge_a_lonlat))
+        edge_b_xyz = np.array(_lonlat_rad_to_xyz(*edge_b_lonlat))
+
+        gca_a_xyz = np.array([face_xyz, ref_point_xyz])
+
+        gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
+
+        # The edge should intersect
+        self.assertTrue(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
+
+
+
+
 class TestGCAconstLatIntersection(TestCase):
 
     def test_GCA_constLat_intersections_antimeridian(self):

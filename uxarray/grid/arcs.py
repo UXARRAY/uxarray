@@ -28,15 +28,15 @@ def _to_list(obj):
     return obj
 
 
-def _point_within_gca_cartesian(pt_xyz, gca_xyz):
-    pt_xyz = np.asarray(pt_xyz)
-    gca_xyz = np.asarray(gca_xyz)
-
-    gca_a_xyz = gca_xyz[0]
-
-    gca_b_xyz = gca_xyz[1]
-
-    return point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz)
+# def _point_within_gca_cartesian(pt_xyz, gca_xyz):
+#     pt_xyz = np.asarray(pt_xyz)
+#     gca_xyz = np.asarray(gca_xyz)
+#
+#     gca_a_xyz = gca_xyz[0]
+#
+#     gca_b_xyz = gca_xyz[1]
+#
+#     return point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz)
 
 
 @njit(cache=True)
