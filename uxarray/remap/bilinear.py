@@ -182,8 +182,19 @@ def _bilinear(
 
                     values[i] = np.sum(weights * data, axis=-1)
                 else:
-                    # number_of_sides = polygon_len - 2
-                    pass
+                    reference_vertex = polygon[0]
+                    triangles = []
+                    triangle_data = []
+                    for j in range(1, polygon_len - 1):
+                        triangles.append([reference_vertex, polygon[j], polygon[j + 1]])
+                        triangle_data.append([data[0], data[j], data[j + 1]])
+
+                    for d, triangle in enumerate(triangles):
+                        if point_in_polygon(point, triangle):
+                            weights = barycentric_coordinates(point, triangle)
+
+                            values[i] = np.sum(weights * triangle_data[d], axis=-1)
+
             # On a node
             else:
                 node_ind_1 = dual.face_node_connectivity[polygon_ind[0]].values
