@@ -86,7 +86,13 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     ):
         return False
 
-    # 3. Check if the point lies within the Great Circle Arc interval
+    # 3. Explicitly check if the point matches either endpoint
+    if np.allclose(pt_xyz, gca_a_xyz, atol=MACHINE_EPSILON) or np.allclose(
+        pt_xyz, gca_b_xyz, atol=MACHINE_EPSILON
+    ):
+        return True
+
+    # 4. Check if the point lies within the Great Circle Arc interval
     pt_a = pt_xyz - gca_a_xyz
     pt_b = pt_xyz - gca_b_xyz
 
@@ -94,7 +100,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     cos_theta = np.dot(pt_a, pt_b)
 
     # Return True if the point lies within the interval (smaller arc)
-    return cos_theta <= 0
+    return cos_theta <= 0.0
 
 
 @njit(cache=True)
