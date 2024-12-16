@@ -208,6 +208,9 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     return gca_gca_intersection(gca_a_xyz, gca_b_xyz)
 
 
+np.set_printoptions(precision=20)
+
+
 @njit(cache=True)
 def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
@@ -221,6 +224,9 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
     angle_w0w1 = _angle_of_2_vectors(w0_xyz, w1_xyz)
     angle_v0v1 = _angle_of_2_vectors(v0_xyz, v1_xyz)
+
+    print(angle_w0w1)
+    print(angle_v0v1)
 
     if angle_w0w1 > np.pi:
         w0_xyz, w1_xyz = w1_xyz, w0_xyz
@@ -238,6 +244,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
     # Check if the two GCAs are parallel
     if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
+        print("Inside 246")
         if point_within_gca(v0_xyz, w0_xyz, w1_xyz):
             res[count, :] = v0_xyz
             count += 1
@@ -252,6 +259,11 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     cross_norms = cross_norms / norm(cross_norms)
     x1_xyz = cross_norms
     x2_xyz = -x1_xyz
+
+    print(x1_xyz)
+    print(v0_xyz)
+    print(v1_xyz)
+
     # Check intersection points
     if point_within_gca(x1_xyz, w0_xyz, w1_xyz) and point_within_gca(
         x1_xyz, v0_xyz, v1_xyz

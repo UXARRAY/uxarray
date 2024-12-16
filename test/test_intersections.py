@@ -96,7 +96,8 @@ class TestGCAGCAIntersection(TestCase):
         face_lonlat = np.deg2rad(np.array([-175, 26.5]))
 
         # this fails when the pole is set to exactly -90.0
-        ref_point_lonlat = np.deg2rad(np.array([0.0, -89.9]))
+        ref_point_lonlat = np.deg2rad(np.array([0.0, -90.0]))
+        # ref_point_lonlat = np.deg2rad(np.array([0.0, -89.9999999999999]))
         face_xyz = np.array(_lonlat_rad_to_xyz(*face_lonlat))
         ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
 

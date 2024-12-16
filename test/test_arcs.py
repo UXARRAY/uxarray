@@ -94,3 +94,23 @@ class TestIntersectionPoint(TestCase):
         pt_cart = pt_cart / np.linalg.norm(pt_cart)
         gcr_cart = np.array([x / np.linalg.norm(x) for x in gcr_cart])
         self.assertTrue(point_within_gca(pt_cart, gcr_cart[0], gcr_cart[1]))
+
+
+    def test_pt_within_gcr_at_pole(self):
+        # pass (-89.9999999999999])
+        pt_xyz = np.array([-0.9064985935160402, -0.07930835043484834, -0.41469324265623647])
+        gca_a_xyz = np.array([-0.906498593516039, -0.07930835043484812, -0.414693242656239])
+        gca_b_xyz = np.array([-0.8943605298456674, -0.10981366494598943, 0.4336590845875443])
+
+        res1 = point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz)
+
+        self.assertTrue(res1)
+
+        # does not pass (-90.0)
+        pt_xyz = np.array([-0.9064985935160387, -0.07930835043484809, -0.4146932426562397])
+        gca_a_xyz = np.array([-0.906498593516039, -0.07930835043484812, -0.414693242656239])
+        gca_b_xyz = np.array([-0.8943605298456674, -0.10981366494598943, 0.4336590845875443])
+
+        res2 = point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz)
+
+        self.assertTrue(res2)
