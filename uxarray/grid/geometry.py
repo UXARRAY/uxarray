@@ -93,7 +93,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
 
 @njit(cache=True)
 def _pad_closed_face_nodes(
-        face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
+    face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
     """Pads a closed array of face nodes by inserting the first element at any
     point a fill value is encountered.
@@ -113,14 +113,14 @@ def _pad_closed_face_nodes(
 
 
 def _build_polygon_shells(
-        node_lon,
-        node_lat,
-        face_node_connectivity,
-        n_face,
-        n_max_face_nodes,
-        n_nodes_per_face,
-        projection=None,
-        central_longitude=0.0,
+    node_lon,
+    node_lat,
+    face_node_connectivity,
+    n_face,
+    n_max_face_nodes,
+    n_nodes_per_face,
+    projection=None,
+    central_longitude=0.0,
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
@@ -256,7 +256,7 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
 
 
 def _build_geodataframe_without_antimeridian(
-        polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
+    polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or
     ``geopandas.GeoDataFrame``excluding any faces that cross the
@@ -285,10 +285,10 @@ def _build_geodataframe_without_antimeridian(
 
 
 def _build_geodataframe_with_antimeridian(
-        polygon_shells,
-        projected_polygon_shells,
-        antimeridian_face_indices,
-        engine,
+    polygon_shells,
+    projected_polygon_shells,
+    antimeridian_face_indices,
+    engine,
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
     including any faces that cross the antimeridian."""
@@ -307,9 +307,9 @@ def _build_geodataframe_with_antimeridian(
 
 
 def _build_corrected_shapely_polygons(
-        polygon_shells,
-        projected_polygon_shells,
-        antimeridian_face_indices,
+    polygon_shells,
+    projected_polygon_shells,
+    antimeridian_face_indices,
 ):
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
@@ -428,7 +428,7 @@ def _build_corrected_polygon_shells(polygon_shells):
 
 
 def _grid_to_matplotlib_polycollection(
-        grid, periodic_elements, projection=None, **kwargs
+    grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
 
@@ -632,7 +632,7 @@ def _get_polygons(grid, periodic_elements, projection=None, apply_projection=Tru
 
 
 def _grid_to_matplotlib_linecollection(
-        grid, periodic_elements, projection=None, **kwargs
+    grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
 
@@ -1243,7 +1243,7 @@ def _populate_face_latlon_bound(
                 face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
-                
+
                 face_latlon_array[0, 0] = -math.pi / 2  # Lower latitude bound
 
         # Adjust longitude bounds globally if the pole is centrally inside the polygon
@@ -1352,7 +1352,7 @@ def compute_temp_latlon_array(
 
 
 def _populate_bounds(
-        grid, is_latlonface: bool = False, is_face_GCA_list=None, return_array=False
+    grid, is_latlonface: bool = False, is_face_GCA_list=None, return_array=False
 ):
     """Populates the bounds of the grid based on the geometry of its faces,
     taking into account special conditions such as faces crossing the

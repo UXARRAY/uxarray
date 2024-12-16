@@ -1495,4 +1495,3 @@ class TestStereographicProjection(TestCase):
         self.assertTrue(lon == new_lon)
         self.assertTrue(lat == new_lat)
         self.assertTrue(x == y == 0)
-

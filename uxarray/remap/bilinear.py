@@ -1,20 +1,16 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from numba import njit
-
-from uxarray.grid.geometry import point_in_polygon
+from uxarray.grid.coordinates import _xyz_to_lonlat_deg
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
 
 import numpy as np
-from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
-from uxarray.grid.coordinates import _xyz_to_lonlat_deg, _lonlat_rad_to_xyz
 
 
 def _bilinear(
@@ -99,7 +95,7 @@ def _bilinear(
                 f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
                 f"but received: {remap_to}"
             )
-        # TODO: Find subset of potential polygons that contains point
+
         values = np.ndarray(data_size)
 
         tree = dual.uxgrid.get_ball_tree(
@@ -143,21 +139,58 @@ def _bilinear(
                 f"but received: {remap_to}"
             )
 
-        # TODO: Find subset of potential polygons that contains point
         values = np.ndarray(data_size)
-        tree = dual.uxgrid.get_ball_tree(
-            coordinates="face centers", coordinate_system="spherical"
-        )
+        # tree = dual.uxgrid.get_ball_tree(
+        #     coordinates="face centers", coordinate_system="spherical"
+        # )
         for i in range(len(cart_x)):
-            # Convert xyz to lat lon to use in subset and weights calculation
-            point = _xyz_to_lonlat_deg(cart_x[i], cart_y[i], cart_z[i])
+            # Get point
+            point = np.array([cart_x[i], cart_y[i], cart_z[i]])
 
-            # Find a subset of polygons that contain the point
-            weights, data = find_polygon_containing_point(
-                point, dual, source_data, tree
-            )
+            # Find the index of the polygon containing the point
+            polygon_ind = dual.get_polygons_containing_point(point)
 
-            values[i] = np.sum(weights * data, axis=-1)
+            # Convert point to lonlat for barycentric calculation
+            point = _xyz_to_lonlat_deg(*point)
+
+            if len(polygon_ind) == 0:
+                raise ValueError("No polygon found containing the point")
+
+            # Inside the polygon or on an edge
+            elif len(polygon_ind) < 3:
+                # Get the index of the face that holds the point
+                node_ind = dual.face_node_connectivity[polygon_ind[0]].values
+
+                # Create the polygon from the `face_node_connectivity`
+                nodes_per_face = dual.n_nodes_per_face[polygon_ind[0]].values
+                polygon = np.empty([nodes_per_face, 3])
+                data = np.empty([nodes_per_face])
+                for node in range(nodes_per_face):
+                    polygon[i] = [
+                        dual.node_lon.values[node_ind[node]],
+                        dual.node_lat.values[node_ind[node]],
+                    ]
+
+                    # Create the data array that is on the polygon
+                    data[i] = source_data[node]
+
+                # If the face is a triangle, use barycentric coordinates, otherwise break the face into triangles
+                # and then use barycentric coordinates
+                polygon_len = len(polygon)
+                if polygon_len == 3:
+                    weights = barycentric_coordinates(point, polygon)
+
+                    values[i] = np.sum(weights * data, axis=-1)
+                else:
+                    # number_of_sides = polygon_len - 2
+                    pass
+            # On a node
+            else:
+                node_ind_1 = dual.face_node_connectivity[polygon_ind[0]].values
+                node_ind_2 = dual.face_node_connectivity[polygon_ind[1]].values
+                for ind, x in enumerate(node_ind_1):
+                    if x == node_ind_2[ind]:
+                        values[i] = source_data[x]
 
     else:
         raise ValueError(
@@ -274,163 +307,99 @@ def barycentric_coordinates(point, triangle):
     return np.array([weight_a, weight_b, weight_c], dtype=np.float64)
 
 
-def find_polygon_containing_point(point, dual, source_data, tree):
-    """Finds the polygon that contains a point."""
-
-    # Create arrays to hold the lat/lon of first face
-    triangle = np.zeros(
-        (3, 2), dtype=np.float64
-    )  # Array to store 3 vertices (lat, lon)
-
-    xyz = np.zeros(
-        (3, 3), dtype=np.float64
-    )  # Array to store 3 vertices (lat, lon)
-
-    # If the mesh is not partial
-    if dual.uxgrid.boundary_edge_indices.size == 0:
-        # First check the nearest face
-        ind = tree.query(point, k=1, return_distance=False)
-        data = []
-        polygon = np.zeros([len(dual.uxgrid.face_node_connectivity[ind].values), 3])
-        for j, node in enumerate(dual.uxgrid.face_node_connectivity[ind]):
-            if node != INT_FILL_VALUE:
-                lon = dual.uxgrid.node_lon[node.values].values  # Longitude for the node
-                lat = dual.uxgrid.node_lat[node.values].values  # Latitude for the node
-                polygon[j] = [dual.uxgrid.node_x[node.values].values,
-                              dual.uxgrid.node_y[node.values].values,
-                              dual.uxgrid.node_z[node.values].values]
-
-                tolerance = 1e-0
-                if abs(lat - point[1]) <= tolerance and abs(lon - point[0]) <= tolerance:
-                    return 1, source_data[node]
-
-                triangle[j] = [lon, lat]  # Store the (lon, lat) pair in the triangle
-                data.append(source_data[node])
-        polygon2 = [
-            _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
-            for vertex in triangle
-        ]
-
-        face_ind = (ind + 2) % len(dual.uxgrid.node_x.values)
-        ref_point = np.array([0, 0, 1])
-        point_cart = np.array(_lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1])))
-
-        point_found = point_in_polygon(polygon2, point_cart, ref_point)
-
-        # If found in first face, return weights
-        if point_found:
-            return barycentric_coordinates(point=point, triangle=triangle), data
-        else:
-
-            # Find the largest face radius
-            max_distance = get_max_face_radius(dual)
-
-            # If the nearest face doesn't contain the point, continue to check nearest faces
-            for i in range(2, dual.uxgrid.n_face):
-                triangle = np.zeros(
-                    (3, 2), dtype=np.float64
-                )  # Array to store 3 vertices (lat, lon)
-
-                # Query the tree for increasingly more neighbors if the polygon isn't found
-                d, ind = tree.query(point, k=i, return_distance=True, sort_results=True)
-                data = []
-
-                # If the distance is outside the max distance the point could be in, the point is outside the partial
-                # grid
-                if d[i - 1] > max_distance:
-                    return INT_FILL_VALUE, 0
-                
-                # Get the lat/lon for the face
-                for j, node in enumerate(dual.uxgrid.face_node_connectivity[ind[0]]):
-                    if node != INT_FILL_VALUE:
-                        lat = dual.uxgrid.node_lat[node.values].values  # Latitude for the node
-                        lon = dual.uxgrid.node_lon[node.values].values  # Longitude for the node
-                        x = dual.uxgrid.node_x[node.values].values
-                        y = dual.uxgrid.node_y[node.values].values
-                        z = dual.uxgrid.node_z[node.values].values
-                        tolerance = 1e-0
-                        if abs(lat - point[1]) <= tolerance and abs(lon - point[0]) <= tolerance:
-                            return 1, source_data[node]
-
-                        triangle[j] = [lat, lon]  # Store the (lat, lon) pair in the triangle
-                        xyz[j] = [x, y, z]
-                        data.append(source_data[node])
-
-                polygon2 = [
-                    _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
-                    for vertex in triangle
-                ]
-
-                ref_point = np.array([0, 0, 1])
-                point_cart = np.array(_lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1])))
-
-                point_found = point_in_polygon(polygon2, point_cart, ref_point)
-
-                # If found in first face, return weights
-                if point_found:
-                    return barycentric_coordinates(point=point, triangle=triangle), data
-        return 0, 0
-    # If the mesh is partial, limit the search to the distance of the largest face radius of the mesh
-
-
-def get_max_face_radius(mesh):
-    # Parse all variables needed for `njit` functions
-    face_node_connectivity = mesh.uxgrid.face_node_connectivity.values
-    node_lats_rad = np.radians(mesh.uxgrid.node_lat.values)
-    node_lons_rad = np.radians(mesh.uxgrid.node_lon.values)
-    face_lats_rad = np.radians(mesh.uxgrid.face_lat.values)
-    face_lons_rad = np.radians(mesh.uxgrid.face_lon.values)
-
-    # Get the max distance
-    max_distance = calculate_max_face_radius(
-        face_node_connectivity,
-        node_lats_rad,
-        node_lons_rad,
-        face_lats_rad,
-        face_lons_rad,
-    )
-
-    return max_distance
-
-
-@njit(cache=True)
-def calculate_max_face_radius(
-    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
-):
-    """Finds the max face radius in the mesh."""
-
-    # Array to store all distance of each face to it's furthest node.
-    end_distances = np.zeros(len(face_node_connectivity))
-
-    # Loop over each face and its nodes
-    for ind, face in enumerate(face_node_connectivity):
-        # Get the face lat/lon of this face
-        face_lat = face_lats_rad[ind]
-        face_lon = face_lons_rad[ind]
-
-        # Get the node lat/lon of this face
-        node_lat_rads = node_lats_rad[face]
-        node_lon_rads = node_lons_rad[face]
-
-        # Calculate Haversine distances for all nodes in this face
-        distances = haversine_distance(node_lat_rads, node_lon_rads, face_lat, face_lon)
-
-        # Store the max distance for this face
-        end_distances[ind] = np.max(distances)
-
-    # Return the maximum distance found across all faces
-    return np.max(end_distances)
-
-
-@njit(cache=True)
-def haversine_distance(node_lats, node_lons, face_lat, face_lon):
-    """Calculates the haversine distance."""
-    dlat = node_lats - face_lat
-    dlon = node_lons - face_lon
-    a = (
-        np.sin(dlat / 2) ** 2
-        + np.cos(face_lat) * np.cos(node_lats) * np.sin(dlon / 2) ** 2
-    )
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-    return c
-
+# def find_polygon_containing_point(point, dual, source_data, tree):
+#     """Finds the polygon that contains a point."""
+#
+#     # Create arrays to hold the lat/lon of first face
+#     triangle = np.zeros(
+#         (3, 2), dtype=np.float64
+#     )  # Array to store 3 vertices (lat, lon)
+#
+#     xyz = np.zeros(
+#         (3, 3), dtype=np.float64
+#     )  # Array to store 3 vertices (lat, lon)
+#
+#     # If the mesh is not partial
+#     if dual.uxgrid.boundary_edge_indices.size == 0:
+#         # First check the nearest face
+#         ind = tree.query(point, k=1, return_distance=False)
+#         data = []
+#         polygon = np.zeros([len(dual.uxgrid.face_node_connectivity[ind].values), 3])
+#         for j, node in enumerate(dual.uxgrid.face_node_connectivity[ind]):
+#             if node != INT_FILL_VALUE:
+#                 lon = dual.uxgrid.node_lon[node.values].values  # Longitude for the node
+#                 lat = dual.uxgrid.node_lat[node.values].values  # Latitude for the node
+#                 polygon[j] = [dual.uxgrid.node_x[node.values].values,
+#                               dual.uxgrid.node_y[node.values].values,
+#                               dual.uxgrid.node_z[node.values].values]
+#
+#                 tolerance = 1e-0
+#                 if abs(lat - point[1]) <= tolerance and abs(lon - point[0]) <= tolerance:
+#                     return 1, source_data[node]
+#
+#                 triangle[j] = [lon, lat]  # Store the (lon, lat) pair in the triangle
+#                 data.append(source_data[node])
+#         polygon2 = [
+#             _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
+#             for vertex in triangle
+#         ]
+#
+#         face_ind = (ind + 2) % len(dual.uxgrid.node_x.values)
+#         ref_point = np.array([0, 0, 1])
+#         point_cart = np.array(_lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1])))
+#
+#         point_found = point_in_polygon(polygon2, point_cart, ref_point)
+#
+#         # If found in first face, return weights
+#         if point_found:
+#             return barycentric_coordinates(point=point, triangle=triangle), data
+#         else:
+#
+#             # Find the largest face radius
+#             max_distance = get_max_face_radius(dual)
+#
+#             # If the nearest face doesn't contain the point, continue to check nearest faces
+#             for i in range(2, dual.uxgrid.n_face):
+#                 triangle = np.zeros(
+#                     (3, 2), dtype=np.float64
+#                 )  # Array to store 3 vertices (lat, lon)
+#
+#                 # Query the tree for increasingly more neighbors if the polygon isn't found
+#                 d, ind = tree.query(point, k=i, return_distance=True, sort_results=True)
+#                 data = []
+#
+#                 # If the distance is outside the max distance the point could be in, the point is outside the partial
+#                 # grid
+#                 if d[i - 1] > max_distance:
+#                     return INT_FILL_VALUE, 0
+#
+#                 # Get the lat/lon for the face
+#                 for j, node in enumerate(dual.uxgrid.face_node_connectivity[ind[0]]):
+#                     if node != INT_FILL_VALUE:
+#                         lat = dual.uxgrid.node_lat[node.values].values  # Latitude for the node
+#                         lon = dual.uxgrid.node_lon[node.values].values  # Longitude for the node
+#                         x = dual.uxgrid.node_x[node.values].values
+#                         y = dual.uxgrid.node_y[node.values].values
+#                         z = dual.uxgrid.node_z[node.values].values
+#                         tolerance = 1e-0
+#                         if abs(lat - point[1]) <= tolerance and abs(lon - point[0]) <= tolerance:
+#                             return 1, source_data[node]
+#
+#                         triangle[j] = [lat, lon]  # Store the (lat, lon) pair in the triangle
+#                         xyz[j] = [x, y, z]
+#                         data.append(source_data[node])
+#
+#                 polygon2 = [
+#                     _lonlat_rad_to_xyz(np.deg2rad(vertex[0]), np.deg2rad(vertex[1]))
+#                     for vertex in triangle
+#                 ]
+#
+#                 ref_point = np.array([0, 0, 1])
+#                 point_cart = np.array(_lonlat_rad_to_xyz(np.deg2rad(point[0]), np.deg2rad(point[1])))
+#
+#                 point_found = point_in_polygon(polygon2, point_cart, ref_point)
+#
+#                 # If found in first face, return weights
+#                 if point_found:
+#                     return barycentric_coordinates(point=point, triangle=triangle), data
+#         return 0, 0
