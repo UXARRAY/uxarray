@@ -10,11 +10,11 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
-from uxarray.grid.arcs import extreme_gca_latitude
+from uxarray.grid.arcs import extreme_gca_latitude, _extreme_gca_latitude_cartesian
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
-from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _point_in_polygon, point_in_polygon
 
-from spatialpandas.geometry import MultiPolygon
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, stereographic_projection, inverse_stereographic_projection
+
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -84,12 +84,12 @@ class TestPredicate(TestCase):
                                    [vertices[3], vertices[0]]])
         print(face_edge_cart)
         # Check if the North pole is inside the polygon
-        result = ux.grid.geometry._pole_point_inside_polygon(
+        result = _pole_point_inside_polygon_cartesian(
             'North', face_edge_cart)
         self.assertTrue(result, "North pole should be inside the polygon")
 
         # Check if the South pole is inside the polygon
-        result = ux.grid.geometry._pole_point_inside_polygon(
+        result = _pole_point_inside_polygon_cartesian(
             'South', face_edge_cart)
         self.assertFalse(result, "South pole should not be inside the polygon")
 
@@ -111,12 +111,12 @@ class TestPredicate(TestCase):
                                    [vertices[2], vertices[0]]])
 
         # Check if the North pole is inside the polygon
-        result = ux.grid.geometry._pole_point_inside_polygon(
+        result = _pole_point_inside_polygon_cartesian(
             'North', face_edge_cart)
         self.assertFalse(result, "North pole should not be inside the polygon")
 
         # Check if the South pole is inside the polygon
-        result = ux.grid.geometry._pole_point_inside_polygon(
+        result = _pole_point_inside_polygon_cartesian(
             'South', face_edge_cart)
         self.assertTrue(result, "South pole should be inside the polygon")
 
@@ -138,12 +138,12 @@ class TestPredicate(TestCase):
                                    [vertices[3], vertices[0]]])
 
         # Check if the North pole is inside the polygon
-        result = ux.grid.geometry._pole_point_inside_polygon(
+        result = _pole_point_inside_polygon_cartesian(
             'North', face_edge_cart)
         self.assertTrue(result, "North pole should be inside the polygon")
 
         # Check if the South pole is inside the polygon
-        result = ux.grid.geometry._pole_point_inside_polygon(
+        result = _pole_point_inside_polygon_cartesian(
             'South', face_edge_cart)
         self.assertFalse(result, "South pole should not be inside the polygon")
 
@@ -164,7 +164,7 @@ class TestPredicate(TestCase):
                                    [vertices[3], vertices[0]]])
 
         # Check if the North pole is inside the polygon
-        result = ux.grid.geometry._pole_point_inside_polygon(
+        result = _pole_point_inside_polygon_cartesian(
             'North', face_edge_cart)
         self.assertTrue(result, "North pole should be inside the polygon")
 
@@ -354,7 +354,7 @@ class TestLatlonBoundUtils(TestCase):
         ])
 
         # Calculate the maximum latitude
-        max_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'max')
+        max_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'max')
 
         # Check if the maximum latitude is correct
         expected_max_latitude = self._max_latitude_rad_iterative(gca_cart)
@@ -366,7 +366,7 @@ class TestLatlonBoundUtils(TestCase):
         gca_cart = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
 
         # Calculate the maximum latitude
-        max_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'max')
+        max_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'max')
 
         # Check if the maximum latitude is correct
         expected_max_latitude = np.pi / 2  # 90 degrees in radians
@@ -379,7 +379,7 @@ class TestLatlonBoundUtils(TestCase):
         gca_cart = np.array([[0.65465367, -0.37796447, -0.65465367], [0.6652466, -0.33896007, -0.6652466]])
 
         # Calculate the maximum latitude
-        max_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'max')
+        max_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'max')
 
         # Check if the maximum latitude is correct
         expected_max_latitude = self._max_latitude_rad_iterative(gca_cart)
@@ -395,7 +395,7 @@ class TestLatlonBoundUtils(TestCase):
         ])
 
         # Calculate the minimum latitude
-        min_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'min')
+        min_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'min')
 
         # Check if the minimum latitude is correct
         expected_min_latitude = self._min_latitude_rad_iterative(gca_cart)
@@ -407,7 +407,7 @@ class TestLatlonBoundUtils(TestCase):
         gca_cart = np.array([[0.0, 0.0, -1.0], [1.0, 0.0, 0.0]])
 
         # Calculate the minimum latitude
-        min_latitude = ux.grid.arcs.extreme_gca_latitude(gca_cart, 'min')
+        min_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'min')
 
         # Check if the minimum latitude is correct
         expected_min_latitude = -np.pi / 2  # 90 degrees in radians
@@ -432,7 +432,7 @@ class TestLatlonBoundUtils(TestCase):
         old_box = np.array([[0.1, 0.2], [0.3, 0.4]])  # Radians
         new_pt = np.array([0.15, 0.35])
         expected = np.array([[0.1, 0.2], [0.3, 0.4]])
-        result = ux.grid.geometry._insert_pt_in_latlonbox(
+        result = ux.grid.geometry.insert_pt_in_latlonbox(
             old_box, new_pt, False)
         np.testing.assert_array_equal(result, expected)
 
@@ -440,22 +440,22 @@ class TestLatlonBoundUtils(TestCase):
         old_box = np.array([[0.1, 0.2], [6.0, 0.1]])  # Radians, periodic
         new_pt = np.array([0.15, 6.2])
         expected = np.array([[0.1, 0.2], [6.0, 0.1]])
-        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt, True)
+        result = ux.grid.geometry.insert_pt_in_latlonbox(old_box, new_pt, True)
         np.testing.assert_array_equal(result, expected)
 
     def test_insert_pt_in_latlonbox_pole(self):
         old_box = np.array([[0.1, 0.2], [0.3, 0.4]])
-        new_pt = np.array([np.pi / 2, INT_FILL_VALUE])  # Pole point
+        new_pt = np.array([np.pi / 2, np.nan])  # Pole point
         expected = np.array([[0.1, np.pi / 2], [0.3, 0.4]])
-        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt)
+        result = ux.grid.geometry.insert_pt_in_latlonbox(old_box, new_pt)
         np.testing.assert_array_equal(result, expected)
 
     def test_insert_pt_in_empty_state(self):
-        old_box = np.array([[INT_FILL_VALUE, INT_FILL_VALUE],
-                            [INT_FILL_VALUE, INT_FILL_VALUE]])  # Empty state
+        old_box = np.array([[np.nan, np.nan],
+                            [np.nan, np.nan]])  # Empty state
         new_pt = np.array([0.15, 0.35])
         expected = np.array([[0.15, 0.15], [0.35, 0.35]])
-        result = ux.grid.geometry._insert_pt_in_latlonbox(old_box, new_pt)
+        result = ux.grid.geometry.insert_pt_in_latlonbox(old_box, new_pt)
         np.testing.assert_array_equal(result, expected)
 
 
@@ -593,9 +593,9 @@ class TestLatlonBoundsGCA(TestCase):
         vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         # vertices_cart = [_lonlat_rad_to_xyz(vertices_rad[0], vertices_rad[1])]
         lat_max = max(np.deg2rad(60.0),
-                      extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
+                      _extreme_gca_latitude_cartesian(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
         lat_min = min(np.deg2rad(10.0),
-                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                      _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
         lon_min = np.deg2rad(10.0)
         lon_max = np.deg2rad(50.0)
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -622,9 +622,9 @@ class TestLatlonBoundsGCA(TestCase):
         vertices_rad = np.radians(vertices_lonlat)
         vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = max(np.deg2rad(60.0),
-                      extreme_gca_latitude(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
+                      _extreme_gca_latitude_cartesian(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
         lat_min = min(np.deg2rad(10.0),
-                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                      _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
         lon_min = np.deg2rad(350.0)
         lon_max = np.deg2rad(50.0)
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -745,7 +745,7 @@ class TestLatlonBoundsGCA(TestCase):
         vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(10.0),
-                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                      _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
         lon_min = np.deg2rad(10.0)
         lon_max = np.deg2rad(50.0)
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -773,7 +773,7 @@ class TestLatlonBoundsGCA(TestCase):
         vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(60.0),
-                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                      _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
         lon_min = np.deg2rad(210.0)
         lon_max = np.deg2rad(30.0)
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -801,7 +801,7 @@ class TestLatlonBoundsGCA(TestCase):
         vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
         lat_max = np.pi / 2
         lat_min = min(np.deg2rad(60.0),
-                      extreme_gca_latitude(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                      _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
         lon_min = 0
         lon_max = 2 * np.pi
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -1396,7 +1396,10 @@ class TestLatlonBoundsMix(TestCase):
                            [[np.deg2rad(60.0), np.pi / 2], [0., 2 * np.pi]]]
 
         grid = ux.Grid.from_face_vertices(faces, latlon=True)
-        bounds_xarray = _populate_bounds(grid, is_face_GCA_list=[[True, False, True, False]] * 4, return_array=True)
+        bounds_xarray = _populate_bounds(grid, is_face_GCA_list=np.array([[True, False, True, False],
+                                                                          [True, False, True, False],
+                                                                          [True, False, True, False],
+                                                                          [True, False, True, False]]) , return_array=True)
         face_bounds = bounds_xarray.values
         for i in range(len(faces)):
             nt.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
@@ -1477,140 +1480,19 @@ class TestGeoDataFrame(TestCase):
         assert gdf_f is not gdf_e
 
 
-class TestPointInPolygon(TestCase):
-    def test_point_inside(self):
-        """Test the function `point_in_polygon`, where point is inside the polygon"""
+class TestStereographicProjection(TestCase):
+    def test_stereographic_projection(self):
+        lon = np.array(0)
+        lat = np.array(0)
 
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
+        central_lon = np.array(0)
+        central_lat = np.array(0)
 
-        # Create the polygon
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values
+        x, y = stereographic_projection(lon, lat, central_lon, central_lat)
 
-        # Set the point as the face center of the polygon
-        point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
+        new_lon, new_lat = inverse_stereographic_projection(x, y, central_lon, central_lat)
 
-        # Assert that the point is in the polygon
-        self.assertTrue(_point_in_polygon(point, polygon))
-
-    def test_point_outside(self):
-        """Test the function `point_in_polygon`, where point is outside the polygon"""
-
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
-
-        # Create the polygon
-        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[0][ind] = grid.node_x[face].values
-            polygon[1][ind] = grid.node_y[face].values
-            polygon[2][ind] = grid.node_z[face].values
-
-        # Set the point as the face center of a far away polygon
-        point = np.array([grid.face_x[0].values, grid.face_y[0].values, grid.face_z[0].values])
-
-        # Assert that the point is not in the polygon
-        self.assertFalse(_point_in_polygon(polygon, point))
-
-    def test_point_inside_close(self):
-        """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
-
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
-
-        # Create the polygon
-        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[0][ind] = grid.node_x[face].values
-            polygon[1][ind] = grid.node_y[face].values
-            polygon[2][ind] = grid.node_z[face].values
-
-        # Set the point as right next to one of the nodes
-
-        lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]])
-        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] + 0.01)
-
-        point = _lonlat_rad_to_xyz(lon.values, lat.values)
-
-        # Assert that the point is in the polygon
-        self.assertTrue(_point_in_polygon(polygon, point))
-
-    def test_point_outside_close(self):
-        """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
-
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
-
-        # Create the polygon
-        polygon = np.zeros([3, len(grid.face_node_connectivity[100].values)])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[0][ind] = grid.node_x[face].values
-            polygon[1][ind] = grid.node_y[face].values
-            polygon[2][ind] = grid.node_z[face].values
-
-        # Set the point as right next to one of the nodes
-        lon = np.deg2rad(grid.node_lon[grid.face_node_connectivity[100].values[0]])
-        lat = np.deg2rad(grid.node_lat[grid.face_node_connectivity[100].values[0]] - 0.01)
-
-        point = _lonlat_rad_to_xyz(lon.values, lat.values)
-
-        # Assert that the point is in the polygon
-        self.assertFalse(_point_in_polygon(polygon, point))
-
-    def test_inclusive(self):
-        """Test the function `point_in_polygon`, where point is on one of the nodes/edges of polygon"""
-
-        # Create the polygon
-        # Defined polygon
-        polygon = [[10, 10, -10, -10], [-10, 10, -10, 10]]
-
-        # Point on node
-        point_on_node = [-10, 10]
-
-        # Point on edge
-        point_on_edge = [-10, 0]
-
-        # Assert that the point is in the polygon when inclusive is True
-        self.assertTrue(_point_in_polygon(polygon, point_on_node, inclusive=True))
-
-        # Assert that the point is in the polygon when inclusive is True
-        self.assertTrue(_point_in_polygon(polygon, point_on_edge, inclusive=True))
-
-    def test_spherical(self):
-        """Test the function `point_in_polygon`,  using spherical coordinates where point is outside the polygon"""
-
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
-
-        # Create the polygon
-        polygon = np.zeros([2, len(grid.face_node_connectivity[100].values)])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[0][ind] = grid.node_lon[face].values
-            polygon[1][ind] = grid.node_lat[face].values
-
-        # Set the point as the face center of a far away polygon
-        point = np.array([grid.face_lon[0].values, grid.face_lat[0].values])
-
-        # Assert that the point is not in the polygon
-        self.assertFalse(_point_in_polygon(polygon, point))
-
-    def test_(self):
-        """Test the function `point_in_polygon`, ensuring value errors are raised properly"""
-        # Open grid
-        grid_mpas_2 = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc'
-
-        grid = ux.open_grid(grid_mpas_2)
-        # Set the point as the face center of the polygon
-        point = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
-
-        polygon = np.zeros([len(grid.face_node_connectivity[100].values), 3])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon[ind] = grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values
-
-        ref_point = np.array([grid.face_x[101].values, grid.face_y[101].values, grid.face_z[101].values])
-        # Check if the point is inside
-        is_inside = point_in_polygon(point, polygon, ref_point=ref_point)
-        print(f"Point is inside the polygon: {is_inside}")
+        self.assertTrue(lon == new_lon)
+        self.assertTrue(lat == new_lat)
+        self.assertTrue(x == y == 0)
 

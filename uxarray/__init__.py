@@ -1,4 +1,3 @@
-import uxarray.constants
 from .core.api import open_grid, open_dataset, open_mfdataset
 
 from .core.dataset import UxDataset
@@ -20,19 +19,6 @@ except Exception:
     __version__ = "999"
 
 
-# Flag for enabling FMA instructions across the package
-def enable_fma():
-    """Enables Fused-Multiply-Add (FMA) instructions using the ``pyfma``
-    package."""
-    uxarray.constants.ENABLE_FMA = True
-
-
-def disable_fma():
-    """Disable Fused-Multiply-Add (FMA) instructions using the ``pyfma``
-    package."""
-    uxarray.constants.ENABLE_FMA = False
-
-
 __all__ = (
     "open_grid",
     "open_dataset",
@@ -46,6 +32,4 @@ __all__ = (
     "diverging",
     "sequential_blue",
     "sequential_green",
-    "enable_fma",
-    "disable_fma",
 )
