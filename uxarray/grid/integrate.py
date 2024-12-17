@@ -13,7 +13,6 @@ def _get_zonal_faces_weight_at_constLat(
     faces_edges_cart_candidate,
     latitude_cart,
     face_latlon_bound_candidate,
-    is_directed=False,
     is_latlonface=False,
     is_face_GCA_list=None,
 ):
@@ -36,10 +35,6 @@ def _get_zonal_faces_weight_at_constLat(
         It should have the same shape as the face_edges_cart_candidate.
         Shape: (n_faces(candidate),,2, 2),
         [...,[lat_min, lat_max], [lon_min, lon_max],...]
-
-    is_directed : bool, optional (default=False)
-        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
     is_latlonface : bool, optional, default=False
         A global flag to indicate if faces are latlon face. If True, then treat all faces as latlon faces. Latlon face means
@@ -105,7 +100,6 @@ def _get_zonal_faces_weight_at_constLat(
             face_edges,
             latitude_cart,
             face_latlon_bound_candidate[face_index],
-            is_directed=is_directed,
             is_latlonface=is_latlonface,
             is_GCA_list=is_GCA_list,
         )
@@ -189,7 +183,7 @@ def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
 
 
 def _get_faces_constLat_intersection_info(
-    face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
+    face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
 ):
     """Processes each edge of a face polygon in a vectorized manner to
     determine overlaps and calculate the intersections for a given latitude and
@@ -207,9 +201,7 @@ def _get_faces_constLat_intersection_info(
     is_latlonface : bool
         Flag indicating if all faces are considered as lat-lon faces, meaning all edges are either
         constant latitude or longitude lines. This parameter overwrites the `is_GCA_list` if set to True.
-    is_directed : bool
-        Flag indicating if the GCA should be considered as directed (from v0 to v1). If False,
-        the smaller circle (less than 180 degrees) side of the GCA is used.
+
 
     Returns:
     -------
@@ -245,9 +237,7 @@ def _get_faces_constLat_intersection_info(
         # Calculate intersections (assuming a batch-capable intersection function)
         for idx, edge in enumerate(valid_edges):
             if is_GCA[idx]:
-                intersections = gca_const_lat_intersection(
-                    edge, latitude_cart, is_directed=is_directed
-                )
+                intersections = gca_const_lat_intersection(edge, latitude_cart)
 
                 if intersections.size == 0:
                     continue
@@ -301,7 +291,6 @@ def _get_zonal_face_interval(
     face_edges_cart,
     latitude_cart,
     face_latlon_bound,
-    is_directed=False,
     is_latlonface=False,
     is_GCA_list=None,
 ):
@@ -325,9 +314,6 @@ def _get_zonal_face_interval(
         The latitude in cartesian, the normalized Z coordinates.
     face_latlon_bound : np.ndarray
         The latitude and longitude bounds of the face. Shape: (2, 2), [[lat_min, lat_max], [lon_min, lon_max]]
-    is_directed : bool, optional
-        If True, the GCA is considered to be directed (from v0 to v1). If False, the GCA is undirected,
-        and the smaller circle (less than 180 degrees) side of the GCA is used. Default is False.
     is_latlonface : bool, optional, default=False
         A global flag to indicate if faces are latlon face. If True, then treat all faces as latlon faces. Latlon face means
         That all edge is either a longitude or constant latitude line. If False, then all edges are GCA.
@@ -349,7 +335,7 @@ def _get_zonal_face_interval(
         # Call the vectorized function to process all edges
         unique_intersections, pt_lon_min, pt_lon_max = (
             _get_faces_constLat_intersection_info(
-                face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed
+                face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
             )
         )
 

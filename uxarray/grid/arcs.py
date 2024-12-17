@@ -28,251 +28,68 @@ def _to_list(obj):
     return obj
 
 
-def _point_within_gca_cartesian(pt_xyz, gca_xyz, is_directed=False):
-    pt_xyz = np.asarray(pt_xyz)
-    gca_xyz = np.asarray(gca_xyz)
-
-    pt_lonlat = np.array(
-        _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2], normalize=False)
-    )
-    gca_a_xyz = gca_xyz[0]
-
-    gca_a_lonlat = np.array(
-        _xyz_to_lonlat_rad_scalar(
-            gca_xyz[0][0], gca_xyz[0][1], gca_xyz[0][2], normalize=False
-        )
-    )
-    gca_b_xyz = gca_xyz[1]
-
-    gca_b_lonlat = np.array(
-        _xyz_to_lonlat_rad_scalar(
-            gca_xyz[1][0], gca_xyz[1][1], gca_xyz[1][2], normalize=False
-        )
-    )
-
-    return point_within_gca(
-        pt_xyz,
-        pt_lonlat,
-        gca_a_xyz,
-        gca_a_lonlat,
-        gca_b_xyz,
-        gca_b_lonlat,
-        is_directed=is_directed,
-    )
-
-
-# @njit(cache=True)
-def point_within_gca(
-    pt_xyz,
-    pt_lonlat,
-    gca_a_xyz,
-    gca_a_lonlat,
-    gca_b_xyz,
-    gca_b_lonlat,
-    is_directed=False,
-):
-    """Check if a point lies on a given Great Circle Arc (GCA). The anti-
-    meridian case is also considered.
+@njit(cache=True)
+def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
+    """
+    Check if a point lies on a given Great Circle Arc (GCA) interval, considering the smaller arc of the circle.
+    Handles the anti-meridian case as well.
 
     Parameters
     ----------
-    pt : numpy.ndarray (float)
+    pt_xyz : numpy.ndarray
         Cartesian coordinates of the point.
-    gca_cart : numpy.ndarray of shape (2, 3), (np.float or gmpy2.mpfr)
-        Cartesian coordinates of the Great Circle Arc (GCR).
-    is_directed : bool, optional, default = False
-        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA. The default is False.
-        For the case of the anti-podal case, the direction is v_0--> the pole point that on the same hemisphere as v_0-->v_1
+    gca_a_xyz : numpy.ndarray
+        Cartesian coordinates of the first endpoint of the Great Circle Arc.
+    gca_b_xyz : numpy.ndarray
+        Cartesian coordinates of the second endpoint of the Great Circle Arc.
 
     Returns
     -------
     bool
-        True if the point lies between the two endpoints of the GCR, False otherwise.
+        True if the point lies within the specified GCA interval, False otherwise.
 
     Raises
     ------
     ValueError
-        If the input GCR spans exactly 180 degrees (π radians), as this GCR can have multiple planes.
-        In such cases, consider breaking the GCR into two separate GCRs.
-
-    ValueError
-        If the input GCR spans more than 180 degrees (π radians).
-        In such cases, consider breaking the GCR into two separate GCRs.
+        If the input GCA spans exactly 180 degrees (π radians), as this GCA can have multiple planes.
+        In such cases, consider breaking the GCA into two separate arcs.
 
     Notes
     -----
-    The function checks if the given point is on the Great Circle Arc by considering its cartesian coordinates and
-    accounting for the anti-meridian case.
-
-    The anti-meridian case occurs when the GCR crosses the anti-meridian (0 longitude).
-    In this case, the function handles scenarios where the GCA spans across more than 180 degrees, requiring specific operation.
-
-    The function relies on the `_angle_of_2_vectors` and `is_between` functions to perform the necessary calculations.
-
-    Please ensure that the input coordinates are in radians and adhere to the ERROR_TOLERANCE value for floating-point comparisons.
+    - The function ensures that the point lies on the same plane as the GCA before performing interval checks.
+    - It assumes the input represents the smaller arc of the Great Circle.
+    - The `_angle_of_2_vectors` and `_xyz_to_lonlat_rad_scalar` functions are used for calculations.
     """
-
-    # ==================================================================================================================
-    # 1. If the input GCR is exactly 180 degree, we throw an exception, since this GCR can have multiple planes
-    angle = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
-
-    if np.allclose(angle, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
+    # 1. Check if the input GCA spans exactly 180 degrees
+    angle_ab = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
+    if np.allclose(angle_ab, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
         raise ValueError(
-            "The input Great Circle Arc is exactly 180 degree, this Great Circle Arc can have multiple planes. "
-            "Consider breaking the Great Circle Arc"
-            "into two Great Circle Arcs"
+            "The input Great Circle Arc spans exactly 180 degrees, which can correspond to multiple planes. "
+            "Consider breaking the Great Circle Arc into two smaller arcs."
         )
-    # ==================================================================================================================
-    # See if the point is on the plane of the GCA, because we are dealing with floating point numbers with np.dot now
-    # just using the rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON, but consider using the more proper error tolerance
-    # in the future
 
+    # 2. Verify if the point lies on the plane of the GCA
     cross_product = np.cross(gca_a_xyz, gca_b_xyz)
-
     if not np.allclose(
-        np.dot(cross_product, pt_xyz),
-        0,
-        rtol=MACHINE_EPSILON,
-        atol=MACHINE_EPSILON,
+        np.dot(cross_product, pt_xyz), 0, rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
     ):
         return False
-    # ==================================================================================================================
-    if np.isclose(
-        gca_a_lonlat[0], gca_b_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
-    ):
-        # If the pt and the GCA are on the same longitude (the y coordinates are the same)
-        if np.isclose(
-            gca_a_lonlat[0], pt_lonlat[0], rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
-        ):
-            # Now use the latitude to determine if the pt falls between the interval
-            return in_between(gca_a_lonlat[1], pt_lonlat[1], gca_b_lonlat[1])
-        else:
-            # If the pt and the GCA are not on the same longitude when the GCA is a longitude arc, then the pt is not on the GCA
-            return False
-    # ==================================================================================================================
-    # If the longitude span is exactly 180 degree, then the GCA goes through the pole point
-    # Or if one of the endpoints is on the pole point, then the GCA goes through the pole point
-    if (
-        np.isclose(
-            np.abs(gca_b_lonlat[0] - gca_a_lonlat[0]),
-            np.pi,
-            rtol=0.0,
-            atol=MACHINE_EPSILON,
-        )
-        or np.isclose(
-            np.abs(gca_a_lonlat[1]),
-            np.pi / 2,
-            rtol=ERROR_TOLERANCE,
-            atol=ERROR_TOLERANCE,
-        )
-        or np.isclose(
-            np.abs(gca_b_lonlat[1]),
-            np.pi / 2,
-            rtol=ERROR_TOLERANCE,
-            atol=ERROR_TOLERANCE,
-        )
-    ):
-        # ==============================================================================================================
-        # Special case, if the pt is on the pole point, then set its longitude to the GCRv0_lonlat[0]
-        # Since the point is our calculated properly, we use the atol=ERROR_TOLERANCE and rtol=ERROR_TOLERANCE
-        if np.isclose(
-            np.abs(pt_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-        ):
-            pt_lonlat[0] = gca_a_lonlat[0]
 
-        # ==============================================================================================================
-        # Special case, if one of the GCA endpoints is on the pole point, and another endpoint is not
-        # then we need to check if the pt is on the GCA
-        if np.isclose(
-            abs(gca_a_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0.0
-        ) or np.isclose(
-            abs(gca_b_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0.0
-        ):
-            # Identify the non-pole endpoint
-            non_pole_endpoint = None
-            if not np.isclose(
-                abs(gca_a_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0.0
-            ):
-                non_pole_endpoint = gca_a_lonlat
-            elif not np.isclose(
-                abs(gca_b_lonlat[1]), np.pi / 2, rtol=ERROR_TOLERANCE, atol=0.0
-            ):
-                non_pole_endpoint = gca_b_lonlat
+    # 3. Check if the point lies within the Great Circle Arc interval
+    pt_a = gca_a_xyz - pt_xyz
+    pt_b = gca_b_xyz - pt_xyz
 
-            if non_pole_endpoint is not None and not np.isclose(
-                non_pole_endpoint[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=0.0
-            ):
-                return False
-        # ==============================================================================================================
-        if not np.isclose(
-            gca_a_lonlat[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=0.0
-        ) and not np.isclose(
-            gca_b_lonlat[0], pt_lonlat[0], rtol=ERROR_TOLERANCE, atol=0.0
-        ):
-            return False
-        else:
-            # Determine the pole latitude and latitude extension
-            if (gca_a_lonlat[1] > 0.0 and gca_b_lonlat[1] > 0.0) or (
-                gca_a_lonlat[1] < 0.0 and gca_b_lonlat[1] < 0.0
-            ):
-                pole_lat = np.pi / 2 if gca_a_lonlat[1] > 0.0 else -np.pi / 2
-                lat_extend = (
-                    abs(np.pi / 2 - abs(gca_a_lonlat[1]))
-                    + np.pi / 2
-                    + abs(gca_b_lonlat[1])
-                )
-            else:
-                pole_lat = _decide_pole_latitude(gca_a_lonlat[1], gca_b_lonlat[1])
-                lat_extend = (
-                    abs(np.pi / 2 - abs(gca_a_lonlat[1]))
-                    + np.pi / 2
-                    + abs(gca_b_lonlat[1])
-                )
+    # Use the dot product to determine the sign of the angle between pt_a and pt_b
+    cos_theta = np.dot(pt_a, pt_b)
 
-            if is_directed and lat_extend >= np.pi:
-                raise ValueError(
-                    "The input GCA spans more than 180 degrees. Please divide it into two."
-                )
-
-            return in_between(gca_a_lonlat[1], pt_lonlat[1], pole_lat) or in_between(
-                pole_lat, pt_lonlat[1], gca_b_lonlat[1]
-            )
-        # endIf
-        # ==============================================================================================================
-    if is_directed:
-        # The anti-meridian case Sufficient condition: absolute difference between the longitudes of the two
-        # vertices is greater than 180 degrees (π radians): abs(GCRv1_lon - GCRv0_lon) > π
-        if abs(gca_b_lonlat[0] - gca_a_lonlat[0]) > np.pi:
-            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
-            # Case 1: where 0 --> x0--> 180 -->x1 -->0 case is lager than the 180degrees (pi radians)
-            if gca_a_lonlat[0] <= np.pi <= gca_b_lonlat[0]:
-                raise ValueError(
-                    "The input Great Circle Arc span is larger than 180 degree, please break it into two."
-                )
-
-            # The necessary condition: the pt longitude is on the opposite side of the anti-meridian
-            # Case 2: The anti-meridian case where 180 -->x0 --> 0 lon --> x1 --> 180 lon
-            elif 2 * np.pi > gca_a_lonlat[0] > np.pi > gca_b_lonlat[0] > 0.0:
-                return in_between(
-                    gca_a_lonlat[0], pt_lonlat[0], 2 * np.pi
-                ) or in_between(0, pt_lonlat[0], gca_b_lonlat[0])
-
-        # The non-anti-meridian case.
-        else:
-            return in_between(gca_a_lonlat[0], pt_lonlat[0], gca_b_lonlat[0])
+    # Return True if the point lies within the interval (smaller arc)
+    if cos_theta < 0:
+        return True
+    elif isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
+        # set error tolerance to 0.0
+        return True
     else:
-        # The undirected case
-        # sort the longitude
-        GCRv0_lonlat_min, GCRv1_lonlat_max = sorted([gca_a_lonlat[0], gca_b_lonlat[0]])
-        if np.pi > GCRv1_lonlat_max - GCRv0_lonlat_min >= 0.0:
-            return in_between(gca_a_lonlat[0], pt_lonlat[0], gca_b_lonlat[0])
-        else:
-            return in_between(GCRv1_lonlat_max, pt_lonlat[0], 2 * np.pi) or in_between(
-                0.0, pt_lonlat[0], GCRv0_lonlat_min
-            )
-
-    return None
+        return False
 
 
 @njit(cache=True)

@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import os
 
 from html import escape
 
@@ -25,6 +26,7 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
 from uxarray.io._structured import _read_structured_grid
 from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io._delaunay import (
@@ -243,55 +245,64 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_dataset(
-        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
-    ):
-        """Constructs a ``Grid`` object from an ``xarray.Dataset``.
+    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
+        """Constructs a ``Grid`` object from a dataset.
 
         Parameters
         ----------
-        dataset : xr.Dataset
-            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
+        dataset : xr.Dataset or path-like
+            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables or a directory
+            containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
         """
-        if not isinstance(dataset, xr.Dataset):
-            raise ValueError("Input must be an xarray.Dataset")
 
-        # determine grid/mesh specification
-
-        if "source_grid_spec" not in kwargs:
-            # parse to detect source grid spec
-            source_grid_spec = _parse_grid_type(dataset)
-            source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
-            if source_grid_spec == "Exodus":
-                grid_ds, source_dims_dict = _read_exodus(dataset)
-            elif source_grid_spec == "Scrip":
-                grid_ds, source_dims_dict = _read_scrip(dataset)
-            elif source_grid_spec == "UGRID":
-                grid_ds, source_dims_dict = _read_ugrid(dataset)
-            elif source_grid_spec == "MPAS":
-                grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-            elif source_grid_spec == "ESMF":
-                grid_ds, source_dims_dict = _read_esmf(dataset)
-            elif source_grid_spec == "GEOS-CS":
-                grid_ds, source_dims_dict = _read_geos_cs(dataset)
-            elif source_grid_spec == "ICON":
-                grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
-            elif source_grid_spec == "Structured":
-                grid_ds = _read_structured_grid(dataset[lon_name], dataset[lat_name])
-                source_dims_dict = {"n_face": (lon_name, lat_name)}
-            elif source_grid_spec == "Shapefile":
-                raise ValueError(
-                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
-                )
+        if isinstance(dataset, xr.Dataset):
+            # determine grid/mesh specification
+            if "source_grid_spec" not in kwargs:
+                # parse to detect source grid spec
+                source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
+                if source_grid_spec == "Exodus":
+                    grid_ds, source_dims_dict = _read_exodus(dataset)
+                elif source_grid_spec == "Scrip":
+                    grid_ds, source_dims_dict = _read_scrip(dataset)
+                elif source_grid_spec == "UGRID":
+                    grid_ds, source_dims_dict = _read_ugrid(dataset)
+                elif source_grid_spec == "MPAS":
+                    grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+                elif source_grid_spec == "ESMF":
+                    grid_ds, source_dims_dict = _read_esmf(dataset)
+                elif source_grid_spec == "GEOS-CS":
+                    grid_ds, source_dims_dict = _read_geos_cs(dataset)
+                elif source_grid_spec == "ICON":
+                    grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+                elif source_grid_spec == "Structured":
+                    grid_ds = _read_structured_grid(
+                        dataset[lon_name], dataset[lat_name]
+                    )
+                    source_dims_dict = {"n_face": (lon_name, lat_name)}
+                elif source_grid_spec == "FESOM2":
+                    grid_ds, source_dims_dict = _read_fesom2_netcdf(dataset)
+                elif source_grid_spec == "Shapefile":
+                    raise ValueError(
+                        "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                    )
+                else:
+                    raise ValueError("Unsupported Grid Format")
             else:
-                raise ValueError("Unsupported Grid Format")
+                # custom source grid spec is provided
+                source_grid_spec = kwargs.get("source_grid_spec", None)
+                grid_ds = dataset
+                source_dims_dict = {}
         else:
-            # custom source grid spec is provided
-            source_grid_spec = kwargs.get("source_grid_spec", None)
-            grid_ds = dataset
-            source_dims_dict = {}
+            try:
+                if os.path.isdir(dataset):
+                    # FESOM2 ASCII directory.
+                    grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
+                    source_grid_spec = "FESOM2"
+                    return cls(grid_ds, source_grid_spec, source_dims_dict)
+            except TypeError:
+                raise ValueError("Unsupported Grid Format")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
@@ -2359,7 +2370,7 @@ class Grid:
             )
 
         faces = constant_lat_intersections_face_bounds(
-            lat=lat, bounds=self.bounds.values
+            lat=lat, face_bounds_lat=self.bounds.values
         )
 
         # faces = constant_lat_intersections_face_bounds(

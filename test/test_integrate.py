@@ -81,10 +81,9 @@ class TestFaceWeights(TestCase):
         ])
 
         latitude_cart = -0.8660254037844386
-        is_directed=False
         is_latlonface=False
         is_GCA_list=None
-        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface)
         # The expected unique_intersections length is 1
         self.assertEqual(len(unique_intersections), 1)
 
@@ -111,10 +110,10 @@ class TestFaceWeights(TestCase):
         latitude_rad = np.arcsin(latitude_cart)
         latitude_deg = np.rad2deg(latitude_rad)
         print(latitude_deg)
-        is_directed=False
+
         is_latlonface=False
         is_GCA_list=None
-        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface)
         # The expected unique_intersections length should be no greater than 2* n_edges
         self.assertLessEqual(len(unique_intersections), 2*len(face_edges_cart))
 
@@ -133,10 +132,9 @@ class TestFaceWeights(TestCase):
              [-5.2264427688714095e-02, -5.2264427688714102e-02, -9.9726468863423734e-01]]
         ])
         latitude_cart = -0.9998476951563913
-        is_directed=False
         is_latlonface=False
         is_GCA_list=None
-        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface)
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 2)
 
@@ -156,10 +154,9 @@ class TestFaceWeights(TestCase):
         latitude_cart = -0.9876883405951378
         latitude_rad = np.arcsin(latitude_cart)
         latitude_deg = np.rad2deg(latitude_rad)
-        is_directed=False
         is_latlonface=False
         is_GCA_list=None
-        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface)
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 1)
 
@@ -182,10 +179,9 @@ class TestFaceWeights(TestCase):
                                      [0.6546536707079771, -0.37796447300922714, -0.6546536707079772]]])
 
         latitude_cart = -0.6560590289905073
-        is_directed=False
         is_latlonface=False
         is_GCA_list=None
-        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface)
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 2)
 
@@ -208,10 +204,9 @@ class TestFaceWeights(TestCase):
                                      [0.6546536707079771, -0.37796447300922714, -0.6546536707079772]]])
 
         latitude_cart = -0.6560590289905073
-        is_directed=False
         is_latlonface=False
         is_GCA_list=None
-        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, is_directed)
+        unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart, is_GCA_list, is_latlonface)
         # The expected unique_intersections length is 2
         self.assertEqual(len(unique_intersections), 2)
 
@@ -240,8 +235,7 @@ class TestFaceWeights(TestCase):
         # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
         interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
-                                                                                         0.4 * np.pi]]),
-                                               is_directed=False)
+                                                                                         0.4 * np.pi]]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -285,7 +279,7 @@ class TestFaceWeights(TestCase):
             [3.14159265, 3.2321175]
         ])
 
-        res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds, is_directed=False)
+        res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds)
         expected_res = pd.DataFrame({"start": [0.0], "end": [0.0]})
         pd.testing.assert_frame_equal(res, expected_res)
 
@@ -322,7 +316,7 @@ class TestFaceWeights(TestCase):
         })
 
         # Call the function to get the result
-        res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds, is_directed=False)
+        res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds)
 
         # Assert the result matches the expected DataFrame
         pd.testing.assert_frame_equal(res,  expected_df)
@@ -349,8 +343,7 @@ class TestFaceWeights(TestCase):
         # The latlon bounds for the latitude is not necessarily correct below since we don't use the latitudes bound anyway
         interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
-                                                                                         0.4 * np.pi]]),
-                                               is_directed=False)
+                                                                                         0.4 * np.pi]]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -383,7 +376,7 @@ class TestFaceWeights(TestCase):
         interval_df = _get_zonal_face_interval(face_edge_nodes, constZ,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                                                          0.4 * np.pi]]),
-                                               is_directed=False, is_GCA_list=np.array([True, False, True, False]))
+                                               is_GCA_list=np.array([True, False, True, False]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -415,7 +408,7 @@ class TestFaceWeights(TestCase):
         interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                                                          0.4 * np.pi]]),
-                                               is_directed=False, is_GCA_list=np.array([True, True, True, True]))
+                                               is_GCA_list=np.array([True, True, True, True]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -434,7 +427,7 @@ class TestFaceWeights(TestCase):
         interval_df = _get_zonal_face_interval(face_edge_nodes, 0.0,
                                                np.array([[-0.25 * np.pi, 0.25 * np.pi], [1.6 * np.pi,
                                                                                          0.4 * np.pi]]),
-                                               is_directed=False, is_GCA_list=np.array([True, False, True, False]))
+                                               is_GCA_list=np.array([True, False, True, False]))
         expected_interval_df = pd.DataFrame({
             'start': [1.6 * np.pi, 0.0],
             'end': [2.0 * np.pi, 00.4 * np.pi]
@@ -607,7 +600,7 @@ class TestFaceWeights(TestCase):
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
             face_3_edge_nodes
-        ]), 0.0, latlon_bounds, is_directed=False)
+        ]), 0.0, latlon_bounds)
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
@@ -668,7 +661,7 @@ class TestFaceWeights(TestCase):
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
             face_3_edge_nodes
-        ]), np.sin(0.1 * np.pi), latlon_bounds, is_directed=False)
+        ]), np.sin(0.1 * np.pi), latlon_bounds)
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
@@ -695,7 +688,7 @@ class TestFaceWeights(TestCase):
         ])
         constLat_cart = -1
 
-        weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+        weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
         # Define the expected DataFrame
         expected_weight_df = pd.DataFrame({"face_index": [0], "weight": [1.0]})
 
@@ -742,7 +735,7 @@ class TestFaceWeights(TestCase):
 
         constLat_cart = 1.0
 
-        weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+        weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
         # Define the expected DataFrame
         expected_weight_df = pd.DataFrame({
             'face_index': [0, 1, 2, 3],
@@ -776,7 +769,7 @@ class TestFaceWeights(TestCase):
         ])
         constLat_cart = -0.9986295347545738
 
-        weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds, is_directed=False)
+        weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds)
         # No Nan values should be present in the weight_df
         self.assertFalse(weight_df.isnull().values.any())
 
@@ -829,7 +822,7 @@ class TestFaceWeights(TestCase):
         # Assert the results is the same to the 3 decimal places
         weight_df = _get_zonal_faces_weight_at_constLat(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
-        ]), np.sin(np.deg2rad(20)), latlon_bounds, is_directed=False, is_latlonface=True)
+        ]), np.sin(np.deg2rad(20)), latlon_bounds, is_latlonface=True)
 
 
         nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
@@ -841,4 +834,4 @@ class TestFaceWeights(TestCase):
         with self.assertRaises(ValueError):
             _get_zonal_faces_weight_at_constLat(np.array([
                 face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
-            ]), np.deg2rad(20), latlon_bounds, is_directed=False)
+            ]), np.deg2rad(20), latlon_bounds)
