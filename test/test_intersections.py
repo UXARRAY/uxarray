@@ -248,9 +248,6 @@ class TestGCAGCAIntersection(TestCase):
         self.assertTrue(len(gca_gca_intersection(gca_a_xyz_exact, gca_b_xyz)))
 
 
-
-
-
 class TestGCAconstLatIntersection(TestCase):
 
     def test_GCA_constLat_intersections_antimeridian(self):
@@ -330,12 +327,11 @@ class TestGCAconstLatIntersection(TestCase):
         ])
 
         problemetic_edge = np.array([[0.43463605, 0.66928083, 0.60262316], [0.41730586, 0.64259467, 0.64259467]])
-        intersection_points = gca_const_lat_intersection(problemetic_edge, lat_cart)
 
         n_intersections = 0
-        # for edge in face_edges:
-        #     intersection_points =  gca_const_lat_intersection(edge, lat_cart)
-        #     if len(intersection_points):
-        #         n_intersections += 1
+        for edge in face_edges:
+            intersection_points = gca_const_lat_intersection(edge, lat_cart)
+            if len(intersection_points):
+                n_intersections += 1
 
         assert n_intersections > 0

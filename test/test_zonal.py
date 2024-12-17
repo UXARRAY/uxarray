@@ -34,7 +34,7 @@ class TestZonalCSne30:
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
-        res = uxds['psi'].zonal_mean((-90, 90, 1))
+        res = uxds['psi'].zonal_mean((-90.0, 90.0, 1))
 
         assert len(res) == 181
 
