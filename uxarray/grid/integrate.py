@@ -236,9 +236,7 @@ def _get_faces_constLat_intersection_info(
         # Calculate intersections (assuming a batch-capable intersection function)
         for idx, edge in enumerate(valid_edges):
             if is_GCA[idx]:
-                intersections = gca_const_lat_intersection(
-                    edge, latitude_cart
-                )
+                intersections = gca_const_lat_intersection(edge, latitude_cart)
 
                 if intersections.size == 0:
                     continue

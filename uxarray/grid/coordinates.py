@@ -9,7 +9,7 @@ from numba import njit
 from uxarray.constants import ERROR_TOLERANCE
 from typing import Union
 
-from uxarray.grid.utils import  _small_angle_of_2_vectors
+from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
 @njit(cache=True)
@@ -431,7 +431,7 @@ def _circle_from_two_points(p1, p2):
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
 
-    distance =  _small_angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     radius = distance / 2
 
     return center, radius
@@ -496,7 +496,7 @@ def _is_inside_circle(circle, point):
     center, radius = circle
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1])))
-    distance =  _small_angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     return distance <= radius
 
 

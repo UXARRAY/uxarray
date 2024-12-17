@@ -30,6 +30,7 @@ def _small_angle_of_2_vectors(u, v):
     angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
     return angle_u_v_rad
 
+
 @njit(cache=True)
 def _angle_of_2_vectors(u, v):
     """
@@ -77,8 +78,6 @@ def _angle_of_2_vectors(u, v):
     else:
         # Clockwise direction
         return 2 * np.pi - angle_u_v_rad
-
-
 
 
 def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
