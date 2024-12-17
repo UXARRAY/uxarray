@@ -28,7 +28,7 @@ def _to_list(obj):
     return obj
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     """
     Check if a point lies on a given Great Circle Arc (GCA) interval, considering the smaller arc of the circle.
@@ -75,23 +75,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     ):
         return False
 
-    # # 3. Explicitly check if the point matches either endpoint
-    # if np.allclose(pt_xyz, gca_a_xyz, atol=MACHINE_EPSILON) or np.allclose(
-    #     pt_xyz, gca_b_xyz, atol=MACHINE_EPSILON
-    # ):
-    #     return True
-
-    # conver the pt, gca_a, gca_b to lonlat in radians
-    pt_lonlat = _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2])
-    gca_a_lonlat = _xyz_to_lonlat_rad_scalar(gca_a_xyz[0], gca_a_xyz[1], gca_a_xyz[2])
-    gca_b_lonlat = _xyz_to_lonlat_rad_scalar(gca_b_xyz[0], gca_b_xyz[1], gca_b_xyz[2])
-
-    # convert to degrees
-    pt_lonlat = np.degrees(pt_lonlat)
-    gca_a_lonlat = np.degrees(gca_a_lonlat)
-    gca_b_lonlat = np.degrees(gca_b_lonlat)
-
-    # 4. Check if the point lies within the Great Circle Arc interval
+    # 3. Check if the point lies within the Great Circle Arc interval
     pt_a = gca_a_xyz - pt_xyz
     pt_b = gca_b_xyz - pt_xyz
 
