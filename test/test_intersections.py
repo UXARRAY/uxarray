@@ -92,21 +92,71 @@ class TestGCAGCAIntersection(TestCase):
         self.assertTrue(len(res_cart) == 0)
 
 
-    def test_GCA_GCA_pole(self):
-        face_lonlat = np.deg2rad(np.array([-175, 26.5]))
-
+    def test_GCA_GCA_single_edge_to_pole(self):
+        # GCA_a - Face Center connected to South Pole
+        # Point A - South Pole
         ref_point_lonlat = np.deg2rad(np.array([0.0, -90.0]))
-        face_xyz = np.array(_lonlat_rad_to_xyz(*face_lonlat))
         ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
+        # Point B - Face Center
+        face_lonlat = np.deg2rad(np.array([-175, 26.5]))
+        face_xyz = np.array(_lonlat_rad_to_xyz(*face_lonlat))
+        gca_a_xyz = np.array([face_xyz, ref_point_xyz])
 
+        # GCA_b - Single Face Edge
+        # Point A - First Edge Point
         edge_a_lonlat = np.deg2rad(np.array((-175, -24.5)))
         edge_b_lonlat = np.deg2rad(np.array((-173, 25.7)))
 
+        # Point B - Second Edge Point
         edge_a_xyz = np.array(_lonlat_rad_to_xyz(*edge_a_lonlat))
         edge_b_xyz = np.array(_lonlat_rad_to_xyz(*edge_b_lonlat))
+        gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
 
+        # The edge should intersect
+        self.assertTrue(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
+
+    def test_GCA_GCA_south_pole(self):
+
+        # GCA_a - Face Center connected to South Pole
+        # Point A - South Pole
+        ref_point_lonlat = np.deg2rad(np.array([0.0, -90.0]))
+        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
+        # Point B - Face Center
+        face_lonlat = np.deg2rad(np.array([0.0, 0.0]))
+        face_xyz = np.array(_lonlat_rad_to_xyz(*face_lonlat))
         gca_a_xyz = np.array([face_xyz, ref_point_xyz])
 
+        # GCA_b - Single Face Edge
+        # Point A - First Edge Point
+        edge_a_lonlat = np.deg2rad(np.array((-45, -1.0)))
+        edge_b_lonlat = np.deg2rad(np.array((45, -1.0)))
+
+        # Point B - Second Edge Point
+        edge_a_xyz = np.array(_lonlat_rad_to_xyz(*edge_a_lonlat))
+        edge_b_xyz = np.array(_lonlat_rad_to_xyz(*edge_b_lonlat))
+        gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
+
+        # The edge should intersect
+        self.assertTrue(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
+
+    def test_GCA_GCA_north_pole(self):
+        # GCA_a - Face Center connected to South Pole
+        # Point A - South Pole
+        ref_point_lonlat = np.deg2rad(np.array([0.0, 90.0]))
+        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
+        # Point B - Face Center
+        face_lonlat = np.deg2rad(np.array([0.0, 0.0]))
+        face_xyz = np.array(_lonlat_rad_to_xyz(*face_lonlat))
+        gca_a_xyz = np.array([face_xyz, ref_point_xyz])
+
+        # GCA_b - Single Face Edge
+        # Point A - First Edge Point
+        edge_a_lonlat = np.deg2rad(np.array((-45, 1.0)))
+        edge_b_lonlat = np.deg2rad(np.array((45, 1.0)))
+
+        # Point B - Second Edge Point
+        edge_a_xyz = np.array(_lonlat_rad_to_xyz(*edge_a_lonlat))
+        edge_b_xyz = np.array(_lonlat_rad_to_xyz(*edge_b_lonlat))
         gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
 
         # The edge should intersect

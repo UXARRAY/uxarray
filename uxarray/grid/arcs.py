@@ -28,17 +28,6 @@ def _to_list(obj):
     return obj
 
 
-# def _point_within_gca_cartesian(pt_xyz, gca_xyz):
-#     pt_xyz = np.asarray(pt_xyz)
-#     gca_xyz = np.asarray(gca_xyz)
-#
-#     gca_a_xyz = gca_xyz[0]
-#
-#     gca_b_xyz = gca_xyz[1]
-#
-#     return point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz)
-
-
 @njit(cache=True)
 def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     """
@@ -86,11 +75,11 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     ):
         return False
 
-    # 3. Explicitly check if the point matches either endpoint
-    if np.allclose(pt_xyz, gca_a_xyz, atol=MACHINE_EPSILON) or np.allclose(
-        pt_xyz, gca_b_xyz, atol=MACHINE_EPSILON
-    ):
-        return True
+    # # 3. Explicitly check if the point matches either endpoint
+    # if np.allclose(pt_xyz, gca_a_xyz, atol=MACHINE_EPSILON) or np.allclose(
+    #     pt_xyz, gca_b_xyz, atol=MACHINE_EPSILON
+    # ):
+    #     return True
 
     # 4. Check if the point lies within the Great Circle Arc interval
     pt_a = pt_xyz - gca_a_xyz
