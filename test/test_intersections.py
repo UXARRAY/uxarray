@@ -179,6 +179,48 @@ class TestGCAGCAIntersection(TestCase):
         self.assertTrue(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
 
 
+    def test_GCA_edge_intersection_count(self):
+
+        from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+
+        # Generate a normal face that is not crossing the antimeridian or the poles
+        vertices_lonlat = [[29.5, 11.0], [29.5, 10.0], [30.5, 10.0], [30.5, 11.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        face_edge_nodes_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_edges,
+            grid.node_x.values,
+            grid.node_y.values,
+            grid.node_z.values)
+
+        face_center_xyz = np.array([grid.face_x.values[0], grid.face_y.values[0], grid.face_z.values[0]], dtype=np.float64)
+        north_pole_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+        south_pole_xyz = np.array([0.0, 0.0, -1.0], dtype=np.float64)
+
+        gca_face_center_north_pole = np.array([face_center_xyz, north_pole_xyz], dtype=np.float64)
+        gca_face_center_south_pole = np.array([face_center_xyz, south_pole_xyz], dtype=np.float64)
+
+        intersect_north_pole_count = 0
+        intersect_south_pole_count = 0
+
+        for edge in face_edge_nodes_cartesian[0]:
+            res1 = gca_gca_intersection(edge, gca_face_center_north_pole)
+            res2 = gca_gca_intersection(edge, gca_face_center_south_pole)
+
+            if len(res1):
+                intersect_north_pole_count += 1
+            if len(res2):
+                intersect_south_pole_count += 1
+
+
+        self.assertTrue(intersect_north_pole_count == 0)
+        self.assertTrue(intersect_south_pole_count == 0)
+
+
+
 
 
 class TestGCAconstLatIntersection(TestCase):
