@@ -4,7 +4,6 @@ import numpy.testing as nt
 import xarray as xr
 import pytest
 
-from unittest import TestCase
 from pathlib import Path
 
 import uxarray as ux
