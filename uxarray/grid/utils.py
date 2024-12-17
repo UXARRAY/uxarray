@@ -4,6 +4,8 @@ import warnings
 
 from numba import njit
 
+import uxarray.utils.computing as ac_utils
+
 
 @njit(cache=True)
 def _small_angle_of_2_vectors(u, v):
@@ -79,6 +81,7 @@ def _angle_of_2_vectors(u, v):
         return 2 * np.pi - angle_u_v_rad
 
 
+# TODO:
 @njit
 def _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     jacobian = np.array(
@@ -136,7 +139,14 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 0] = x_i_old / d_dx
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
-    jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
+    # TODO: This fails
+    # jacobian = _inv_jacobian_numba(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
+
+    # TODO: THis works
+    jacobian = [
+        [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
+        [2 * x_i_old, 2 * y_i_old],
+    ]
 
     # First check if the Jacobian matrix is singular
     if np.linalg.matrix_rank(jacobian) < 2:
