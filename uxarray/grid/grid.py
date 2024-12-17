@@ -1389,9 +1389,7 @@ class Grid:
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
-            print("Populating Bounds")
             _populate_bounds(self)
-        print("Returning Bounds")
         return self._ds["bounds"]
 
     @bounds.setter
@@ -2262,53 +2260,6 @@ class Grid:
         else:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
-            )
-
-    def get_weights(
-        self,
-        weights="face_areas",
-        apply_to="faces",
-        face_indices=None,
-        edge_indices=None,
-    ):
-        """
-        Retrieve weights for unstructured grid elements
-
-        Parameters
-        ----------
-        weights:
-            The type of weights to retrieve. Options:
-            - "face_areas": Retrieves the areas of faces.
-        apply_to:
-            Specifies the elements to apply the weights to. Options:
-            - "faces": Applies weights to faces.
-        face_indices:
-            Specific indices of faces to retrieve weights for.
-            If None, weights for all relevant faces are returned.
-        edge_indices:
-            Specific indices of edges to retrieve weights for.
-            If None, weights for all relevant edges are returned.
-            Currently not used.
-
-        Returns
-        -------
-        numpy.ndarray: An array of weights based on the specified parameters.
-
-        """
-
-        # 1. Faces Areas
-        if weights == "face_areas":
-            if apply_to != "faces":
-                raise ValueError(
-                    f"Invalid apply_to value '{apply_to}' for weights='face_areas'. Expected 'faces'."
-                )
-            if face_indices is None:
-                return self.face_areas
-            else:
-                return self.face_areas[face_indices]
-        else:
-            raise ValueError(
-                f"Unsupported weights type '{weights}'. Supported types are 'face_areas'."
             )
 
     def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):
