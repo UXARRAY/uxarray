@@ -178,12 +178,10 @@ class CrossSections(DatasetBenchmark):
 
 
 class ZonalAverage(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['lat_step']
-    params = DatasetBenchmark.params + [[1, 2, 4]]
-
     def setup(self, resolution, *args, **kwargs):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
         bounds = self.uxds.uxgrid.bounds
 
-    def time_zonal_average(self, resolution, lat_step):
+    def time_zonal_average(self, resolution):
+        lat_step = 10
         self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step))
