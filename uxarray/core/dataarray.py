@@ -434,6 +434,10 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
+    def non_conservative_zonal_mean(self, lat=(-90, 90, 10)):
+        # TODO:
+        pass
+
     def zonal_mean(self, lat=(-90, 90, 10)):
         """Compute the average along one or more lines of constant latitude.
 
@@ -479,6 +483,7 @@ class UxDataArray(xr.DataArray):
         if isinstance(lat, tuple):
             # zonal mean over a range of latitudes
             latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
+            latitudes = np.clip(latitudes, -90, 90)
         elif isinstance(lat, (float, int)):
             # zonal mean over a single latitude
             latitudes = [lat]

@@ -2,6 +2,7 @@ import numpy as np
 from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
 import warnings
 
+
 from numba import njit
 
 
@@ -135,6 +136,11 @@ def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
     # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
 
     jacobian = _jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old)
+
+    # jacobian = [
+    #     [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
+    #     [2 * x_i_old, 2 * y_i_old],
+    # ]
 
     # First check if the Jacobian matrix is singular
     if np.linalg.matrix_rank(jacobian) < 2:
