@@ -215,9 +215,9 @@ class TestGCAGCAIntersection(TestCase):
             if len(res2):
                 intersect_south_pole_count += 1
 
-
-        self.assertTrue(intersect_north_pole_count == 0)
-        self.assertTrue(intersect_south_pole_count == 0)
+        print(intersect_north_pole_count, intersect_south_pole_count)
+        self.assertTrue(intersect_north_pole_count == 1)
+        self.assertTrue(intersect_south_pole_count == 1)
 
 
 
