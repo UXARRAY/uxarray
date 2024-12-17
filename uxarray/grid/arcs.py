@@ -28,7 +28,7 @@ def _to_list(obj):
     return obj
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     """
     Check if a point lies on a given Great Circle Arc (GCA) interval, considering the smaller arc of the circle.
@@ -81,15 +81,31 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     # ):
     #     return True
 
+    # conver the pt, gca_a, gca_b to lonlat in radians
+    pt_lonlat = _xyz_to_lonlat_rad_scalar(pt_xyz[0], pt_xyz[1], pt_xyz[2])
+    gca_a_lonlat = _xyz_to_lonlat_rad_scalar(gca_a_xyz[0], gca_a_xyz[1], gca_a_xyz[2])
+    gca_b_lonlat = _xyz_to_lonlat_rad_scalar(gca_b_xyz[0], gca_b_xyz[1], gca_b_xyz[2])
+
+    # convert to degrees
+    pt_lonlat = np.degrees(pt_lonlat)
+    gca_a_lonlat = np.degrees(gca_a_lonlat)
+    gca_b_lonlat = np.degrees(gca_b_lonlat)
+
     # 4. Check if the point lies within the Great Circle Arc interval
-    pt_a = pt_xyz - gca_a_xyz
-    pt_b = pt_xyz - gca_b_xyz
+    pt_a = gca_a_xyz - pt_xyz
+    pt_b = gca_b_xyz - pt_xyz
 
     # Use the dot product to determine the sign of the angle between pt_a and pt_b
     cos_theta = np.dot(pt_a, pt_b)
 
     # Return True if the point lies within the interval (smaller arc)
-    return cos_theta <= 0.0
+    if cos_theta < 0:
+        return True
+    elif isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
+        # set error tolerance to 0.0
+        return True
+    else:
+        return False
 
 
 @njit(cache=True)
