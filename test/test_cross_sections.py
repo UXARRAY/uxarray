@@ -118,7 +118,7 @@ class TestCubeSphere:
         for lat in lats:
             cross_grid = uxgrid.cross_section.constant_latitude(lat=lat, )
             # Cube sphere grid should have 4 faces centered around the pole
-            # assert cross_grid.n_face == 4
+            assert cross_grid.n_face == 4
 
     def test_south_pole(self):
         uxgrid = ux.open_grid(cube_sphere_grid)
