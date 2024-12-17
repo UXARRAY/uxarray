@@ -47,34 +47,32 @@ def test_pt_within_gcr():
     res = point_within_gca(pt_same_lon_out_2, gcr_same_lon_cart[0], gcr_same_lon_cart[1])
     assert not res
 
-    def test_pt_within_gcr_antimeridian(self):
-        # GCR vertex0 in radian : [5.163808182822441, 0.6351384888657234],
-        # GCR vertex1 in radian : [0.8280410325693055, 0.42237025187091526]
-        # Point in radian : [0.12574759138415173, 0.770098701904903]
-        gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
-        pt_cart = np.array(
-            [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
-        assert(
-            point_within_gca(pt_cart, gcr_cart[0], gcr_cart[1]))
+def test_pt_within_gcr_antimeridian():
+    # GCR vertex0 in radian : [5.163808182822441, 0.6351384888657234],
+    # GCR vertex1 in radian : [0.8280410325693055, 0.42237025187091526]
+    # Point in radian : [0.12574759138415173, 0.770098701904903]
+    gcr_cart = np.array([[0.351, -0.724, 0.593], [0.617, 0.672, 0.410]])
+    pt_cart = np.array(
+        [0.9438777657502077, 0.1193199333436068, 0.922714737029319])
+    assert(
+        point_within_gca(pt_cart, gcr_cart[0], gcr_cart[1]))
 
-        gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
-                                                          0.593]])
-        # If we flip the gcr in the undirected mode, it should still work
-        assert(
-            point_within_gca(pt_cart, gcr_cart_flip[0], gcr_cart_flip[1]))
+    gcr_cart_flip = np.array([[0.617, 0.672, 0.410], [0.351, -0.724,
+                                                        0.593]])
+    # If we flip the gcr in the undirected mode, it should still work
+    assert(
+        point_within_gca(pt_cart, gcr_cart_flip[0], gcr_cart_flip[1]))
 
-        # 2nd anti-meridian case
-        # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
-        # GCR vertex1 in radian : [2.4269979227622533, -0.007003212877856825]
-        # Point in radian : [0.43400375562899113, -0.49554509841586936]
-        gcr_cart_1 = np.array([[-0.491, -0.706, 0.510], [-0.755, 0.655,
-                                                         -0.007]])
-        pt_cart_within = np.array(
-            [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
-        assert(
-            point_within_gca(pt_cart_within, gcr_cart_1[0], gcr_cart_1[1]))
-
-
+    # 2nd anti-meridian case
+    # GCR vertex0 in radian : [4.104711496596806, 0.5352983676533828],
+    # GCR vertex1 in radian : [2.4269979227622533, -0.007003212877856825]
+    # Point in radian : [0.43400375562899113, -0.49554509841586936]
+    gcr_cart_1 = np.array([[-0.491, -0.706, 0.510], [-0.755, 0.655,
+                                                        -0.007]])
+    pt_cart_within = np.array(
+        [0.6136726305712109, 0.28442243941920053, -0.365605190899831])
+    assert( not
+        point_within_gca(pt_cart_within, gcr_cart_1[0], gcr_cart_1[1]))
 
 def test_pt_within_gcr_cross_pole():
     gcr_cart = np.array([[0.351, 0.0, 0.3], [-0.351, 0.0, 0.3]])
