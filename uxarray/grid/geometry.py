@@ -747,9 +747,7 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         ref_edge_lonlat[0, 1] = pole_point_lonlat[1]
         ref_edge_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
 
-        intersection_count = _check_intersection(
-            ref_edge_xyz, ref_edge_lonlat, face_edges_xyz, face_edges_lonlat
-        )
+        intersection_count = _check_intersection(ref_edge_xyz, face_edges_xyz)
         return (intersection_count % 2) != 0
 
     elif location == 0:  # Equator
@@ -818,17 +816,13 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         # Count south intersections
         north_intersections = _check_intersection(
             ref_edge_north_xyz,
-            ref_edge_north_lonlat,
             north_edges_xyz,
-            north_edges_lonlat,
         )
 
         # Count south intersections
         south_intersections = _check_intersection(
             ref_edge_south_xyz,
-            ref_edge_south_lonlat,
             south_edges_xyz,
-            south_edges_lonlat,
         )
 
         return ((north_intersections + south_intersections) % 2) != 0
@@ -850,7 +844,7 @@ def _classify_polygon_location(face_edge_cart):
 
 
 @njit(cache=True)
-def _check_intersection(ref_edge_xyz, ref_edge_lonlat, edges_xyz, edges_lonlat):
+def _check_intersection(ref_edge_xyz, edges_xyz):
     """Check the number of intersections of the reference edge with the given edges.
 
     Parameters
@@ -879,12 +873,9 @@ def _check_intersection(ref_edge_xyz, ref_edge_lonlat, edges_xyz, edges_lonlat):
 
     for i in range(n_edges):
         edge_xyz = edges_xyz[i]
-        edge_lonlat = edges_lonlat[i]
 
         # compute intersection
-        intersection_point = gca_gca_intersection(
-            ref_edge_xyz, ref_edge_lonlat, edge_xyz, edge_lonlat
-        )
+        intersection_point = gca_gca_intersection(ref_edge_xyz, edge_xyz)
 
         if intersection_point.size != 0:
             if intersection_point.ndim == 1:
@@ -1204,12 +1195,8 @@ def _populate_face_latlon_bound(
             max_abs_diff = np.max(np.abs(n1_cart - pole_point_xyz))
             if max_abs_diff <= ERROR_TOLERANCE or point_within_gca(
                 pole_point_xyz,
-                pole_point_lonlat,
                 n1_cart,
-                n1_lonlat,
                 n2_cart,
-                n2_lonlat,
-                is_directed=False,
             ):
                 is_center_pole = False
                 face_latlon_array = insert_pt_in_latlonbox(
