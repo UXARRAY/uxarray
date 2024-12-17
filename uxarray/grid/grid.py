@@ -1422,9 +1422,8 @@ class Grid:
     def face_bounds_lat(self):
         """Latitude bounds for each face in degrees."""
 
-        print("Inside of Face Bounds Lat")
         if "face_bounds_lat" not in self._ds:
-            bounds = self.bounds.values.copy()
+            bounds = self.bounds.values
             bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
             self._ds["face_bounds_lat"] = xr.DataArray(
                 data=bounds_lat,
