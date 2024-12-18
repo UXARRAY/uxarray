@@ -1570,27 +1570,27 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-#@njit(cache=True)
-def point_in_polygon(
+# @njit(cache=True)
+def point_in_face(
     edges_xyz,
     point_xyz,
     inclusive=True,
 ):
-    """Determines if a point lies inside a polygon.
+    """Determines if a point lies inside a face.
 
     Parameters
     ----------
         edges_xyz : numpy.ndarray
-            Cartesian coordinates of each point in the polygon
+            Cartesian coordinates of each point in the face
         point_xyz : numpy.ndarray
             Cartesian coordinate of the point
         inclusive : bool
-            Flag to determine whether to include points on the nodes and edges of the polygon
+            Flag to determine whether to include points on the nodes and edges of the face
 
     Returns
     -------
     bool
-        True if point is inside polygon, False otherwise
+        True if point is inside face, False otherwise
     """
 
     # Validate the inputs
@@ -1623,7 +1623,7 @@ def point_in_polygon(
     gca_cart[0] = point_xyz
     gca_cart[1] = ref_point_xyz
 
-    # Loop through the polygon's edges, checking each one for intersection
+    # Loop through the face's edges, checking each one for intersection
     for ind in range(len(edges_xyz)):
         # If the point lies on an edge, return True if inclusive
         if point_within_gca(
@@ -1637,9 +1637,7 @@ def point_in_polygon(
                 return False
 
         # Get the number of intersections between the edge and the point arc
-        intersections = gca_gca_intersection(
-            edges_xyz[ind], gca_cart
-        )
+        intersections = gca_gca_intersection(edges_xyz[ind], gca_cart)
 
         # Add any unique intersections to the intersection_count
         for intersection in intersections:

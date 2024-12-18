@@ -66,7 +66,7 @@ from uxarray.grid.geometry import (
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
     calculate_max_face_radius,
-    point_in_polygon,
+    point_in_face,
 )
 
 from uxarray.grid.neighbors import (
@@ -2396,7 +2396,7 @@ class Grid:
                     np.deg2rad(subset.node_lat[face_ind].values),
                 ]
 
-            contains_point = point_in_polygon(
+            contains_point = point_in_face(
                 polygon_xyz,
                 polygon_lonlat,
                 point_xyz,

@@ -15,7 +15,7 @@ from uxarray.grid.arcs import extreme_gca_latitude, _extreme_gca_latitude_cartes
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 
 from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, \
-    stereographic_projection, inverse_stereographic_projection, point_in_polygon
+    stereographic_projection, inverse_stereographic_projection, point_in_face
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -1485,11 +1485,12 @@ class TestGeoDataFrame(TestCase):
 
 class TestPointInPolygon:
     def test_point_inside(self):
-        """Test the function `point_in_polygon`, where point is inside the polygon"""
+        """Test the function `point_in_face`, where the points are all inside the face"""
 
         # Open grid
         grid = ux.open_grid(grid_mpas_2)
 
+        # Get the face edges of all faces in the grid
         faces_edges_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values,
             grid.n_face,
@@ -1505,31 +1506,10 @@ class TestPointInPolygon:
             point_xyz = np.array([grid.face_x[i].values, grid.face_y[i].values, grid.face_z[i].values])
 
             # Assert that the point is in the polygon
-            assert point_in_polygon(faces_edges_cartesian[i], point_xyz, inclusive=True)
+            assert point_in_face(faces_edges_cartesian[i], point_xyz, inclusive=True)
 
     def test_point_outside(self):
-        """Test the function `point_in_polygon`, where point is outside the polygon"""
-
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
-
-        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-            grid.face_node_connectivity.values,
-            grid.n_face,
-            grid.n_max_face_edges,
-            grid.node_x.values,
-            grid.node_y.values,
-            grid.node_z.values,
-        )
-
-        # Set the point as the face center of the polygon
-        point_xyz = np.array([grid.face_x[1].values, grid.face_y[1].values, grid.face_z[1].values])
-
-        # Assert that the point is not in the polygon
-        assert not point_in_polygon(faces_edges_cartesian[0], point_xyz, inclusive=True)
-
-    def test_point_on_node(self):
-        """Test the function `point_in_polygon`, when the point is on the node of the polygon"""
+        """Test the function `point_in_face`, where the point is outside the face"""
 
         # Open grid
         grid = ux.open_grid(grid_mpas_2)
@@ -1544,21 +1524,19 @@ class TestPointInPolygon:
             grid.node_z.values,
         )
 
-        # Set the point as a point of the face
-        point_xyz = np.array([*faces_edges_cartesian[0][0][0]])
+        # Set the point as the face center of a different face than the face tested
+        point_xyz = np.array([grid.face_x[1].values, grid.face_y[1].values, grid.face_z[1].values])
 
-        # Assert that the point is in the polygon when inclusive is true
-        assert point_in_polygon(faces_edges_cartesian[0], point_xyz, inclusive=True)
+        # Assert that the point is not in the face tested
+        assert not point_in_face(faces_edges_cartesian[0], point_xyz, inclusive=True)
 
-        # Assert that the point is not in the polygon when inclusive is false
-        assert not point_in_polygon(faces_edges_cartesian[0], point_xyz, inclusive=False)
-
-    def test_point_inside_close(self):
-        """Test the function `point_in_polygon`, where point is inside the polygon, but very close to the edge"""
+    def test_point_on_node(self):
+        """Test the function `point_in_face`, when the point is on the node of the polygon"""
 
         # Open grid
         grid = ux.open_grid(grid_mpas_2)
 
+        # Get the face edges of all faces in the grid
         faces_edges_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values,
             grid.n_face,
@@ -1568,48 +1546,74 @@ class TestPointInPolygon:
             grid.node_z.values,
         )
 
-        # Set the point as the face center of the polygon
+        # Set the point as a node
         point_xyz = np.array([*faces_edges_cartesian[0][0][0]])
 
-        # Assert that the point is in the polygon when inclusive is true
-        assert point_in_polygon(faces_edges_cartesian[0], point_xyz, inclusive=True)
+        # Assert that the point is in the face when inclusive is true
+        assert point_in_face(faces_edges_cartesian[0], point_xyz, inclusive=True)
+
+        # Assert that the point is not in the face when inclusive is false
+        assert not point_in_face(faces_edges_cartesian[0], point_xyz, inclusive=False)
+
+    def test_point_inside_close(self):
+        """Test the function `point_in_face`, where the point is inside the face, but very close to the edge"""
+
+        # Create a square
+        vertices_lonlat = [[-10.0, 10.0], [-10.0, -10.0], [10.0, -10.0], [10.0, 10.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
+
+        # Choose a point just inside the square
+        point = np.array(_lonlat_rad_to_xyz(np.deg2rad(0.0), np.deg2rad(-9.8)))
+
+        # Create the grid and face edges
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_edges,
+            grid.node_x.values,
+            grid.node_y.values,
+            grid.node_z.values,
+        )
+
+        # Use point in face to determine if the point is inside or out of the face
+        assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=False)
 
     def test_point_outside_close(self):
-        """Test the function `point_in_polygon`, where point is outside the polygon, but very close to the edge"""
+        """Test the function `point_in_face`, where the point is outside the face, but very close to the edge"""
 
-        # Open grid
-        grid = ux.open_grid(grid_mpas_2)
+        # Create a square
+        vertices_lonlat = [[-10.0, 10.0], [-10.0, -10.0], [10.0, -10.0], [10.0, 10.0]]
+        vertices_lonlat = np.array(vertices_lonlat)
 
-        # Create the polygon
-        polygon_xyz = np.zeros([len(grid.face_node_connectivity[100].values), 3])
-        polygon_lonlat = np.zeros([len(grid.face_node_connectivity[100].values), 2])
-        for ind, face in enumerate(grid.face_node_connectivity[100].values):
-            polygon_xyz[ind] = [grid.node_x[face].values, grid.node_y[face].values, grid.node_z[face].values]
-            polygon_lonlat[ind] = [np.deg2rad(grid.node_lon[face].values), np.deg2rad(grid.node_lat[face].values)]
+        # Choose a point just outside the square
+        point = np.array(_lonlat_rad_to_xyz(np.deg2rad(0.0), np.deg2rad(-10.2)))
 
-        # Set the point as right next to one of the nodes
-        point_xyz = np.array([polygon_xyz[0][0] + 0.1, polygon_xyz[0][1] + 0.1, polygon_xyz[0][2]])
-        point_xyz = np.array(_normalize_xyz(point_xyz[0], point_xyz[1], point_xyz[2]))
-        # Set the point as a node of the polygon
-        point_lonlat = np.array(_xyz_to_lonlat_rad_scalar(point_xyz[0], point_xyz[1], point_xyz[2], normalize=False))
+        # Create the grid and face edges
+        grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_edges,
+            grid.node_x.values,
+            grid.node_y.values,
+            grid.node_z.values,
+        )
 
-        ref_point_xyz = np.array([0, 0, 1], dtype=np.float64)
-        ref_point_lonlat = np.array(
-            _xyz_to_lonlat_rad_scalar(ref_point_xyz[0], ref_point_xyz[1], ref_point_xyz[2], normalize=False))
-
-        # Assert that the point is not in the polygon
-        self.assertFalse(
-            point_in_polygon(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat, ref_point_xyz, ref_point_lonlat))
+        # Use point in face to determine if the point is inside or out of the face
+        assert not point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=False)
 
     def test_face_at_pole(self):
-        # Generate a normal face that is at a pole
+        """Test the function `point_in_face`, when the face is at the North Pole"""
+
+        # Generate a face that is at a pole
         vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         vertices_lonlat = np.array(vertices_lonlat)
 
         point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
 
+        # Create the grid and face edges
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-
         faces_edges_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values,
             grid.n_face,
@@ -1619,16 +1623,18 @@ class TestPointInPolygon:
             grid.node_z.values,
         )
 
-        assert point_in_polygon(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
+        assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
 
     def test_face_at_antimeridian(self):
-        # Generate a normal face that is crossing the antimeridian
+        """Test the function `point_in_face`, where the face crosses the antimeridian"""
+
+        # Generate a face that is crossing the antimeridian
         vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
         vertices_lonlat = np.array(vertices_lonlat)
         point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
 
+        # Create the grid and face edges
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-
         faces_edges_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values,
             grid.n_face,
@@ -1638,14 +1644,18 @@ class TestPointInPolygon:
             grid.node_z.values,
         )
 
-        assert point_in_polygon(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
+        assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
 
     def test_face_normal_face(self):
+        """Test the function `point_in_face`, where the face is a normal face, not crossing the antimeridian or the
+        poles"""
+
         # Generate a normal face that is not crossing the antimeridian or the poles
         vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
         vertices_lonlat = np.array(vertices_lonlat)
         point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
 
+        # Create the grid and face edges
         grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
         faces_edges_cartesian = _get_cartesian_face_edge_nodes(
             grid.face_node_connectivity.values,
@@ -1656,7 +1666,7 @@ class TestPointInPolygon:
             grid.node_z.values,
         )
 
-        assert point_in_polygon(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
+        assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
 
 
 class TestStereographicProjection(TestCase):
