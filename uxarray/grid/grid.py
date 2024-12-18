@@ -11,6 +11,7 @@ from typing import (
     Union,
 )
 
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -2365,47 +2366,38 @@ class Grid:
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
 
-    def get_polygons_containing_point(self, point_xyz, point_lonlat):
-        """Gets the indexes of the polygons that contain a specific point"""
+    def get_face_containing_point(self, point_xyz):
+        """Gets the indexes of the faces that contain a specific point"""
 
         # Obtain the maximum face radius of the grid
         max_face_radius = self.get_max_face_radius()
 
-        # TODO: Get a subset of faces that fit inside this radius
         subset = self.subset.bounding_circle(
-            center_coord=[np.rad2deg(point_lonlat[0]), np.rad2deg(point_lonlat[1])],
+            center_coord=[*point_xyz],
             r=max_face_radius,
             element="face centers",
         )
 
-        # TODO: Check if the point is in any of those faces
-        for ind, face in enumerate(subset.face_node_connectivity.values):
-            polygon_xyz = np.full([len(face), 3], INT_FILL_VALUE, dtype=np.float64)
-            polygon_lonlat = np.full([len(face), 2], INT_FILL_VALUE, dtype=np.float64)
+        # Get the face's edges for the whole subset
+        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+            subset.face_node_connectivity.values,
+            subset.n_face,
+            subset.n_max_face_edges,
+            subset.node_x.values,
+            subset.node_y.values,
+            subset.node_z.values,
+        )
 
-            for node_ind, face_ind in enumerate(face):
-                if face_ind == INT_FILL_VALUE:
-                    break
-                polygon_xyz[node_ind] = [
-                    subset.node_x[face_ind].values,
-                    subset.node_y[face_ind].values,
-                    subset.node_z[face_ind].values,
-                ]
-                polygon_lonlat[node_ind] = [
-                    np.deg2rad(subset.node_lon[face_ind].values),
-                    np.deg2rad(subset.node_lat[face_ind].values),
-                ]
-
+        # Check if any of the faces in the subset contain the point
+        for face in faces_edges_cartesian:
             contains_point = point_in_face(
-                polygon_xyz,
-                polygon_lonlat,
+                face,
                 point_xyz,
-                point_lonlat,
                 inclusive=True,
             )
+
             if contains_point:
-                print(contains_point)
-                # print(polygon_xyz)
+                pass
 
         # TODO: if the point is on the edge, get both face indices that the point is "in"
 

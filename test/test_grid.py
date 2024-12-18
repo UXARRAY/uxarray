@@ -1013,6 +1013,5 @@ class TestPolygonsContainingPoint(TestCase):
         grid = ux.open_grid(grid_path)
 
         point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
-        point_lonlat = np.array([np.deg2rad(grid.face_lon[100].values), np.deg2rad(grid.face_lat[100].values)])
 
-        grid.get_polygons_containing_point(point_xyz, point_lonlat)
+        grid.get_face_containing_point(point_xyz)
