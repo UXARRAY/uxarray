@@ -1570,12 +1570,10 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-# @njit(cache=True)
+#@njit(cache=True)
 def point_in_polygon(
     edges_xyz,
-    edges_lonlat,
     point_xyz,
-    point_lonlat,
     inclusive=True,
 ):
     """Determines if a point lies inside a polygon.
@@ -1584,12 +1582,8 @@ def point_in_polygon(
     ----------
         edges_xyz : numpy.ndarray
             Cartesian coordinates of each point in the polygon
-        edges_lonlat : numpy.ndarray
-            Spherical coordinate of each point in the polygon
         point_xyz : numpy.ndarray
             Cartesian coordinate of the point
-        point_lonlat : numpy.ndarray
-            Spherical coordinate of the point
         inclusive : bool
             Flag to determine whether to include points on the nodes and edges of the polygon
 
@@ -1599,16 +1593,12 @@ def point_in_polygon(
         True if point is inside polygon, False otherwise
     """
 
-    # # Validate the inputs
-    # if len(polygon_xyz[0]) != 3:
-    #     raise ValueError("`polygon_xyz` vertices must be a Cartesian array.")
-    # if len(polygon_lonlat[0]) != 2:
-    #     raise ValueError("`polygon_lonlat` vertices must be a Spherical array.")
-    #
-    # if len(point_xyz) != 3:
-    #     raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
-    # if len(point_lonlat) != 2:
-    #     raise ValueError("`point_lonlat` must be a single [2] Spherical coordinate.")
+    # Validate the inputs
+    if len(edges_xyz[0][0]) != 3:
+        raise ValueError("`edges_xyz` vertices must be in Cartesian coordinates.")
+
+    if len(point_xyz) != 3:
+        raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
 
     # Initialize the intersection count
     intersection_count = 0
@@ -1633,20 +1623,13 @@ def point_in_polygon(
     gca_cart[0] = point_xyz
     gca_cart[1] = ref_point_xyz
 
-    gca_lonlat = np.empty((2, 2), dtype=np.float64)
-    gca_lonlat[0] = point_lonlat
-    gca_lonlat[1] = ref_point_lonlat
-
     # Loop through the polygon's edges, checking each one for intersection
     for ind in range(len(edges_xyz)):
         # If the point lies on an edge, return True if inclusive
         if point_within_gca(
             point_xyz,
-            point_lonlat,
             edges_xyz[ind][0],
-            edges_lonlat[ind][0],
             edges_xyz[ind][1],
-            edges_lonlat[ind][1],
         ):
             if inclusive:
                 return True
@@ -1655,7 +1638,7 @@ def point_in_polygon(
 
         # Get the number of intersections between the edge and the point arc
         intersections = gca_gca_intersection(
-            edges_xyz[ind], edges_lonlat[ind], gca_cart, gca_lonlat
+            edges_xyz[ind], gca_cart
         )
 
         # Add any unique intersections to the intersection_count
