@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     pass
@@ -19,6 +19,8 @@ class UxDataArrayCrossSectionAccessor:
 
         methods_heading += "  * constant_latitude(lat)\n"
         methods_heading += "  * constant_longitude(lon)\n"
+        methods_heading += "  * latitude_interval(lats)\n"
+        methods_heading += "  * longitude_interval(lons)\n"
 
         return prefix + methods_heading
 
@@ -104,13 +106,19 @@ class UxDataArrayCrossSectionAccessor:
 
         return self.uxda.isel(n_face=faces)
 
+    def latitude_interval(self, lats: Tuple[float, float], *args, **kwargs):
+        faces = self.uxda.uxgrid.get_faces_between_latitudes(
+            lats,
+        )
+
+        return self.uxda.isel(n_face=faces)
+
+    def longitude_interval(self, lons: Tuple[float, float], *args, **kwargs):
+        faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
+
+        return self.uxda.isel(n_face=faces)
+
     def gca(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def bounded_latitude(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def bounded_longitude(self, *args, **kwargs):
         raise NotImplementedError
 
     def gca_gca(self, *args, **kwargs):

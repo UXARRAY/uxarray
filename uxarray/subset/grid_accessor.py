@@ -29,10 +29,8 @@ class GridSubsetAccessor:
 
     def bounding_box(
         self,
-        lon_bounds: Union[Tuple, List, np.ndarray],
-        lat_bounds: Union[Tuple, List, np.ndarray],
-        element: Optional[str] = "nodes",
-        method: Optional[str] = "coords",
+        lon_bounds: Tuple[float, float],
+        lat_bounds: Tuple[float, float],
         **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
@@ -55,60 +53,12 @@ class GridSubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
 
-        if method == "coords":
-            # coordinate comparison bounding box
+        faces_between_lons = self.uxgrid.get_faces_between_longitudes(lon_bounds)
+        face_between_lats = self.uxgrid.get_faces_between_latitudes(lat_bounds)
 
-            if element == "nodes":
-                lat, lon = self.uxgrid.node_lat.values, self.uxgrid.node_lon.values
-            elif element == "face centers":
-                lat, lon = self.uxgrid.face_lat.values, self.uxgrid.face_lon.values
-            elif element == "edge centers":
-                lat, lon = self.uxgrid.edge_lat.values, self.uxgrid.edge_lon.values
-            else:
-                raise ValueError("TODO")
+        faces = np.intersect1d(faces_between_lons, face_between_lats)
 
-            if lon_bounds[0] > lon_bounds[1]:
-                # split across antimeridian
-
-                lon_indices_lhs = np.argwhere(
-                    np.logical_and(lon >= -180, lon < lon_bounds[1])
-                )
-
-                lon_indices_rhs = np.argwhere(
-                    np.logical_and(lon >= lon_bounds[0], lon < 180)
-                )
-
-                lon_indices = np.union1d(
-                    lon_indices_lhs.squeeze(), lon_indices_rhs.squeeze()
-                )
-            else:
-                # continuous bound
-
-                lon_indices = np.argwhere(
-                    np.logical_and(lon > lon_bounds[0], lon < lon_bounds[1])
-                )
-
-            lat_indices = np.argwhere(
-                np.logical_and(lat > lat_bounds[0], lat < lat_bounds[1])
-            )
-
-            # treat both indices as a set, find the intersection of both
-            indices = np.intersect1d(lat_indices, lon_indices)
-
-            if len(indices) == 0:
-                raise ValueError(
-                    f"No elements founding within the bounding box when querying {element}"
-                )
-
-            if element == "nodes":
-                return self.uxgrid.isel(n_node=indices)
-            elif element == "face centers":
-                return self.uxgrid.isel(n_face=indices)
-            elif element == "edge centers":
-                return self.uxgrid.isel(n_edge=indices)
-
-        else:
-            raise ValueError(f"Method '{method}' not supported.")
+        return self.uxgrid.isel(n_face=faces)
 
     def bounding_circle(
         self,

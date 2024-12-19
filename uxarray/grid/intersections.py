@@ -129,28 +129,26 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
     return np.unique(intersecting_edges)
 
 
-# @njit(cache=True)
-def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
-    """Identifies the candidate faces on a grid that intersect with a given
-    constant latitude.
-
-    This function checks whether the specified latitude, `lat`, in degrees lies within
-    the latitude bounds of grid faces, defined by `face_min_lat_rad` and `face_max_lat_rad`,
-    which are given in radians. The function returns the indices of the faces where the
-    latitude is within these bounds.
+@njit(cache=True)
+def constant_lat_intersections_face_bounds(lat: float, face_bounds_lat: np.ndarray):
+    """
+    Identify candidate faces that intersect with a given constant latitude line.
 
     Parameters
     ----------
     lat : float
         The latitude in degrees for which to find intersecting faces.
-    TODO:
+    face_bounds_lat : numpy.ndarray
+        A 2D array of shape (n_faces, 2), where each row represents the latitude
+        bounds of a face. The first element of each row is the minimum latitude
+        and the second element is the maximum latitude of the face.
 
     Returns
     -------
     candidate_faces : numpy.ndarray
-        A 1D array containing the indices of the faces that intersect with the given latitude.
+        A 1D array of integers containing the indices of the faces that intersect
+        the given latitude.
     """
-
     face_bounds_lat_min = face_bounds_lat[:, 0]
     face_bounds_lat_max = face_bounds_lat[:, 1]
 
@@ -160,27 +158,25 @@ def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
 
 
 @njit(cache=True)
-def constant_lon_intersections_face_bounds(lon, face_bounds_lon):
-    """Identifies the candidate faces on a grid that intersect with a given
-    constant longitude.
-
-    This function checks whether the specified longitude, `lon`, in degrees lies within
-    the longitude bounds of grid faces, defined by `face_min_lon_rad` and `face_max_lon_rad`,
-    which are given in radians. The function returns the indices of the faces where the
-    longitude is within these bounds.
+def constant_lon_intersections_face_bounds(lon: float, face_bounds_lon: np.ndarray):
+    """
+    Identify candidate faces that intersect with a given constant longitude line.
 
     Parameters
     ----------
     lon : float
         The longitude in degrees for which to find intersecting faces.
-    TODO:
+    face_bounds_lon : numpy.ndarray
+        A 2D array of shape (n_faces, 2), where each row represents the longitude
+        bounds of a face. The first element of each row is the minimum longitude
+        and the second element is the maximum longitude of the face.
 
     Returns
     -------
     candidate_faces : numpy.ndarray
-        A 1D array containing the indices of the faces that intersect with the given longitude.
+        A 1D array of integers containing the indices of the faces that intersect
+        the given longitude.
     """
-
     face_bounds_lon_min = face_bounds_lon[:, 0]
     face_bounds_lon_max = face_bounds_lon[:, 1]
     n_face = face_bounds_lon.shape[0]
@@ -191,14 +187,103 @@ def constant_lon_intersections_face_bounds(lon, face_bounds_lon):
         cur_face_bounds_lon_max = face_bounds_lon_max[i]
 
         if cur_face_bounds_lon_min < cur_face_bounds_lon_max:
-            if (lon >= cur_face_bounds_lon_min) & (lon <= cur_face_bounds_lon_max):
+            if (lon >= cur_face_bounds_lon_min) and (lon <= cur_face_bounds_lon_max):
                 candidate_faces.append(i)
         else:
             # antimeridian case
-            if (lon >= cur_face_bounds_lon_min) | (lon <= cur_face_bounds_lon_max):
+            if (lon >= cur_face_bounds_lon_min) or (lon <= cur_face_bounds_lon_max):
                 candidate_faces.append(i)
 
     return np.array(candidate_faces, dtype=INT_DTYPE)
+
+
+@njit(cache=True)
+def faces_within_lon_bounds(lons, face_bounds_lon):
+    """
+    Identify candidate faces that lie within a specified longitudinal interval.
+
+    Parameters
+    ----------
+    lons : tuple or list of length 2
+        A pair (min_lon, max_lon) specifying the query interval. If `min_lon <= max_lon`,
+        the interval is [min_lon, max_lon]. If `min_lon > max_lon`, the interval
+        crosses the antimeridian and should be interpreted as [min_lon, 180] U [-180, max_lon].
+    face_bounds_lon : numpy.ndarray
+        A 2D array of shape (n_faces, 2), where each row represents the longitude bounds
+        of a face. The first element is the minimum longitude and the second is the maximum
+        longitude for that face. Bounds may cross the antimeridian.
+
+    Returns
+    -------
+    candidate_faces : numpy.ndarray
+        A 1D array of integers containing the indices of the faces whose longitude bounds
+        overlap with the specified interval.
+    """
+    face_bounds_lon_min = face_bounds_lon[:, 0]
+    face_bounds_lon_max = face_bounds_lon[:, 1]
+    n_face = face_bounds_lon.shape[0]
+
+    min_lon, max_lon = lons
+
+    # For example, a query of (160, -160) would cross the antimeridian
+    antimeridian = min_lon > max_lon
+
+    candidate_faces = []
+    for i in range(n_face):
+        cur_face_min = face_bounds_lon_min[i]
+        cur_face_max = face_bounds_lon_max[i]
+
+        if not antimeridian:
+            # Normal case: min_lon <= max_lon
+            # Check if face overlaps with [min_lon, max_lon]
+            if (cur_face_max >= min_lon) and (cur_face_min <= max_lon):
+                candidate_faces.append(i)
+        else:
+            # Antimeridian case: interval crosses the -180/180 boundary
+            # The query interval is effectively [min_lon, 180] U [-180, max_lon]
+
+            # Check overlap with [min_lon, 180]
+            overlap_part1 = (cur_face_max >= min_lon) and (cur_face_min <= 180)
+
+            # Check overlap with [-180, max_lon]
+            overlap_part2 = (cur_face_max >= -180) and (cur_face_min <= max_lon)
+
+            if overlap_part1 or overlap_part2:
+                candidate_faces.append(i)
+
+    return np.array(candidate_faces, dtype=INT_DTYPE)
+
+
+@njit(cache=True)
+def faces_within_lat_bounds(lats, face_bounds_lat):
+    """
+    Identify candidate faces that lie within a specified latitudinal interval.
+
+    Parameters
+    ----------
+    lats : tuple or list of length 2
+        A pair (min_lat, max_lat) specifying the query interval. All returned faces
+        must be fully contained within this interval.
+    face_bounds_lat : numpy.ndarray
+        A 2D array of shape (n_faces, 2), where each row represents the latitude
+        bounds of a face. The first element is the minimum latitude and the second
+        is the maximum latitude for that face.
+
+    Returns
+    -------
+    candidate_faces : numpy.ndarray
+        A 1D array of integers containing the indices of the faces whose latitude
+        bounds lie completely within the specified interval.
+    """
+
+    min_lat, max_lat = lats
+
+    face_bounds_lat_min = face_bounds_lat[:, 0]
+    face_bounds_lat_max = face_bounds_lat[:, 1]
+
+    within_bounds = (face_bounds_lat_max <= max_lat) & (face_bounds_lat_min >= min_lat)
+    candidate_faces = np.where(within_bounds)[0]
+    return candidate_faces
 
 
 def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):

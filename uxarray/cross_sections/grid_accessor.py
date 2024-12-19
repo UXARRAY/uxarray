@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -19,6 +19,8 @@ class GridCrossSectionAccessor:
 
         methods_heading += "  * constant_latitude(lat, return_face_indices)\n"
         methods_heading += "  * constant_longitude(lon, return_face_indices)\n"
+        methods_heading += "  * latitude_interval(lats, return_face_indices)\n"
+        methods_heading += "  * longitude_interval(lons, return_face_indices)\n"
         return prefix + methods_heading
 
     def constant_latitude(
@@ -127,11 +129,37 @@ class GridCrossSectionAccessor:
     def gca(self, *args, **kwargs):
         raise NotImplementedError
 
-    def bounded_latitude(self, *args, **kwargs):
-        raise NotImplementedError
+    def latitude_interval(
+        self,
+        lats: Tuple[float, float],
+        return_face_indices: bool = False,
+        *args,
+        **kwargs,
+    ):
+        faces = self.uxgrid.get_faces_between_latitudes(lats)
 
-    def bounded_longitude(self, *args, **kwargs):
-        raise NotImplementedError
+        grid_between_lats = self.uxgrid.isel(n_face=faces)
+
+        if return_face_indices:
+            return grid_between_lats, faces
+        else:
+            return grid_between_lats
+
+    def longitude_interval(
+        self,
+        lons: Tuple[float, float],
+        return_face_indices: bool = False,
+        *args,
+        **kwargs,
+    ):
+        faces = self.uxgrid.get_faces_between_longitudes(lons)
+
+        grid_between_lons = self.uxgrid.isel(n_face=faces)
+
+        if return_face_indices:
+            return grid_between_lons, faces
+        else:
+            return grid_between_lons
 
     def gca_gca(self, *args, **kwargs):
         raise NotImplementedError

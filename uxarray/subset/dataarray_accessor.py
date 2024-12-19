@@ -31,8 +31,6 @@ class DataArraySubsetAccessor:
         self,
         lon_bounds: Union[Tuple, List, np.ndarray],
         lat_bounds: Union[Tuple, List, np.ndarray],
-        element: Optional[str] = "nodes",
-        method: Optional[str] = "coords",
         **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
@@ -54,9 +52,7 @@ class DataArraySubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         """
-        grid = self.uxda.uxgrid.subset.bounding_box(
-            lon_bounds, lat_bounds, element, method
-        )
+        grid = self.uxda.uxgrid.subset.bounding_box(lon_bounds, lat_bounds)
 
         return self.uxda._slice_from_grid(grid)
 

@@ -9,6 +9,7 @@ from xarray.core.options import OPTIONS
 from typing import (
     Optional,
     Union,
+    Tuple,
 )
 
 # reader and writer imports
@@ -79,6 +80,8 @@ from uxarray.grid.intersections import (
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
     constant_lon_intersections_face_bounds,
+    faces_within_lon_bounds,
+    faces_within_lat_bounds,
 )
 
 from spatialpandas import GeoDataFrame
@@ -2362,3 +2365,9 @@ class Grid:
 
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
+
+    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+
+    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
