@@ -327,15 +327,14 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     tuple
         The x, y, and z coordinates of the centroids.
     """
-    centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
-    centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
-    centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
 
-    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
-        # Compute Cartesian Average
-        centroid_x[face_idx] = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_y[face_idx] = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+    # Mask to ignore invalid indices
+    mask = np.arange(face_nodes.shape[1])[None, :] < n_nodes_per_face[:, None]
+
+    # Calculate centroids
+    centroid_x = np.sum(node_x[face_nodes] * mask, axis=1) / n_nodes_per_face
+    centroid_y = np.sum(node_y[face_nodes] * mask, axis=1) / n_nodes_per_face
+    centroid_z = np.sum(node_z[face_nodes] * mask, axis=1) / n_nodes_per_face
 
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
