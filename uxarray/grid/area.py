@@ -7,7 +7,13 @@ from numba import njit
 
 @njit(cache=True)
 def calculate_face_area(
-    x, y, z, quadrature_rule="gaussian", order=4, coords_type="spherical"
+    x,
+    y,
+    z,
+    quadrature_rule="gaussian",
+    order=4,
+    coords_type="spherical",
+    correct_area=False,
 ):
     """Calculate area of a face on sphere.
 
@@ -56,22 +62,28 @@ def calculate_face_area(
     # num triangles is two less than the total number of nodes
     num_triangles = num_nodes - 2
 
+    if coords_type == "spherical":
+        # Preallocate arrays for Cartesian coordinates
+        n_points = len(x)
+        x_cartesian = np.empty(n_points)
+        y_cartesian = np.empty(n_points)
+        z_cartesian = np.empty(n_points)
+
+        # Convert all points to Cartesian coordinates using an explicit loop
+        for i in range(n_points):
+            lon_rad = np.deg2rad(x[i])
+            lat_rad = np.deg2rad(y[i])
+            cartesian = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+            x_cartesian[i], y_cartesian[i], z_cartesian[i] = cartesian
+
+        x, y, z = x_cartesian, y_cartesian, z_cartesian
+
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
     # loop through all sub-triangles of face
     for j in range(0, num_triangles):
         node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
-
-        if coords_type == "spherical":
-            node1 = _lonlat_rad_to_xyz(np.deg2rad(x[0]), np.deg2rad(y[0]))
-            node1 = np.asarray(node1)
-
-            node2 = _lonlat_rad_to_xyz(np.deg2rad(x[j + 1]), np.deg2rad(y[j + 1]))
-            node2 = np.asarray(node2)
-
-            node3 = _lonlat_rad_to_xyz(np.deg2rad(x[j + 2]), np.deg2rad(y[j + 2]))
-            node3 = np.asarray(node3)
 
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
@@ -91,6 +103,28 @@ def calculate_face_area(
                 )
                 area += dW[p] * jacobian
                 jacobian += jacobian
+
+    # check if the any edge is on the line of constant latitude
+    # which means we need to check edges for same z-coordinates and call area correction routine
+    correction = 0.0
+    if correct_area:
+        for i in range(num_nodes):
+            node1 = np.array([x[i], y[i], z[i]], dtype=x.dtype)
+            node2 = np.array(
+                [
+                    x[(i + 1) % num_nodes],
+                    y[(i + 1) % num_nodes],
+                    z[(i + 1) % num_nodes],
+                ],
+                dtype=x.dtype,
+            )
+            if np.isclose(
+                node1[2], node2[2]
+            ):  # Check if z-coordinates are approximately equal
+                correction += area_correction(node1, node2)
+
+    # TODO: Fix sign of the calculated correction
+    area += correction
 
     return area, jacobian
 
@@ -141,6 +175,10 @@ def get_all_face_area_from_coords(
     -------
     area of all faces : ndarray
     """
+    # this casting helps to prevent the type mismatch
+    x = np.asarray(x, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+    z = np.asarray(z, dtype=np.float64)
 
     n_face, n_max_face_nodes = face_nodes.shape
 
@@ -168,6 +206,55 @@ def get_all_face_area_from_coords(
         jacobian[face_idx] = face_jacobian
 
     return area, jacobian
+
+
+@njit(cache=True)
+def area_correction(node1, node2):
+    """
+    Calculate the area correction A using the given formula.
+
+    Parameters:
+    - node1: first node of the edge (normalized).
+    - node2: second node of the edge (normalized).
+    - z: z-coordinate (shared by both points and part of the formula, normalized).
+
+    Returns:
+    - A: correction term of the area, when one of the edges is a line of constant latitude
+    """
+    x1 = node1[0]
+    y1 = node1[1]
+    x2 = node2[0]
+    y2 = node2[1]
+    z = node1[2]
+
+    # Calculate terms
+    term1 = x1 * y2 - x2 * y1
+    den1 = x1**2 + y1**2 + x1 * x2 + y1 * y2
+    den2 = x1 * x2 + y1 * y2
+
+    # Helper function to handle arctan quadrants
+    def arctan_quad(y, x):
+        if x > 0:
+            return np.arctan(y / x)
+        elif x < 0 and y >= 0:
+            return np.arctan(y / x) + np.pi
+        elif x < 0 and y < 0:
+            return np.arctan(y / x) - np.pi
+        elif x == 0 and y > 0:
+            return np.pi / 2
+        elif x == 0 and y < 0:
+            return -np.pi / 2
+        else:
+            return 0  # x == 0 and y == 0 case
+
+    # Compute angles using arctan
+    angle1 = arctan_quad(z * term1, den1)
+    angle2 = arctan_quad(term1, den2)
+
+    # Compute A
+    A = abs(2 * angle1 - z * angle2)
+    print(x1, y1, x2, y2, z, "correction:", A)
+    return A
 
 
 @njit(cache=True)
