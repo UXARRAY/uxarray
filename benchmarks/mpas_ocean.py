@@ -173,4 +173,4 @@ class CrossSections(DatasetBenchmark):
     params = DatasetBenchmark.params + [[1, 2, 4, 8]]
     def time_constant_lat_fast(self, resolution, n_lat):
         for lat in np.linspace(-89, 89, n_lat):
-            self.uxds.uxgrid.constant_latitude_cross_section(lat,)
+            self.uxds.uxgrid.cross_section.constant_latitude(lat)
