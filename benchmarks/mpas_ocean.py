@@ -138,7 +138,7 @@ class RemapUpsample:
 
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
-        ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+        ux.grid.geometry._construct_boundary_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
 
 class DualMesh(DatasetBenchmark):
@@ -173,4 +173,4 @@ class CrossSections(DatasetBenchmark):
     params = DatasetBenchmark.params + [[1, 2, 4, 8]]
     def time_constant_lat_fast(self, resolution, n_lat):
         for lat in np.linspace(-89, 89, n_lat):
-            self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')
+            self.uxds.uxgrid.constant_latitude_cross_section(lat,)
