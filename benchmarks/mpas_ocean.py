@@ -180,4 +180,5 @@ class CrossSection:
         del self.uxgrid
 
     def time_const_lat(self, resolution, lat_step):
-        self.uxgrid.cross_section.constant_latitude(self.lats)
+        for lat in self.lats:
+            self.uxgrid.cross_section.constant_latitude(lat)
