@@ -173,10 +173,11 @@ class CrossSection:
 
     def setup(self, resolution, lat_step):
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid.normalize_cartesian_coordinates()
         self.lats = np.arange(-45, 45, lat_step)
         _ = self.uxgrid.bounds
 
-    def teardown(self, resolution):
+    def teardown(self, resolution, lat_step):
         del self.uxgrid
 
     def time_const_lat(self, resolution, lat_step):
