@@ -7,21 +7,21 @@ from numba import njit
 
 
 @njit(cache=True)
-def _angle_of_2_vectors(u, v):
-    """Calculate the angle between two 3D vectors u and v in radians. Can be
-    used to calcualte the span of a GCR.
+def _small_angle_of_2_vectors(u, v):
+    """
+    Compute the smallest angle between two vectors using the new _angle_of_2_vectors.
 
     Parameters
     ----------
-    u : numpy.ndarray (float)
+    u : numpy.ndarray
         The first 3D vector.
-    v : numpy.ndarray (float)
+    v : numpy.ndarray
         The second 3D vector.
 
     Returns
     -------
     float
-        The angle between u and v in radians.
+        The smallest angle between `u` and `v` in radians.
     """
     v_norm_times_u = np.linalg.norm(v) * u
     u_norm_times_v = np.linalg.norm(u) * v
@@ -29,6 +29,55 @@ def _angle_of_2_vectors(u, v):
     vec_sum = v_norm_times_u + u_norm_times_v
     angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
     return angle_u_v_rad
+
+
+@njit(cache=True)
+def _angle_of_2_vectors(u, v):
+    """
+    Calculate the angle between two 3D vectors `u` and `v` on the unit sphere in radians.
+
+    This function computes the angle between two vectors originating from the center of a unit sphere.
+    The result is returned in the range [0, 2π]. It can be used to calculate the span of a great circle arc (GCA).
+
+    Parameters
+    ----------
+    u : numpy.ndarray
+        The first 3D vector (float), originating from the center of the unit sphere.
+    v : numpy.ndarray
+        The second 3D vector (float), originating from the center of the unit sphere.
+
+    Returns
+    -------
+    float
+        The angle between `u` and `v` in radians, in the range [0, 2π].
+
+    Notes
+    -----
+    - The direction of the angle (clockwise or counter-clockwise) is determined using the cross product of `u` and `v`.
+    - Special cases such as vectors aligned along the same longitude are handled explicitly.
+    """
+    # Compute the cross product to determine the direction of the normal
+    normal = np.cross(u, v)
+
+    # Calculate the angle using arctangent of cross and dot products
+    angle_u_v_rad = np.arctan2(np.linalg.norm(normal), np.dot(u, v))
+
+    # Determine the direction of the angle
+    normal_z = np.dot(normal, np.array([0.0, 0.0, 1.0]))
+    if normal_z > 0:
+        # Counterclockwise direction
+        return angle_u_v_rad
+    elif normal_z == 0:
+        # Handle collinear vectors (same longitude)
+        if u[2] > v[2]:
+            return angle_u_v_rad
+        elif u[2] < v[2]:
+            return 2 * np.pi - angle_u_v_rad
+        else:
+            return 0.0  # u == v
+    else:
+        # Clockwise direction
+        return 2 * np.pi - angle_u_v_rad
 
 
 def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
