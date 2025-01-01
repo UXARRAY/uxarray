@@ -138,7 +138,7 @@ class RemapUpsample:
 
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
-        ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+        ux.grid.geometry._construct_boundary_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
 
 class DualMesh(DatasetBenchmark):
@@ -167,10 +167,19 @@ class CheckNorm:
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
 
+class CrossSection:
+    param_names = DatasetBenchmark.param_names + ['lat_step']
+    params = DatasetBenchmark.params + [[1, 2, 4]]
 
-class CrossSections(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['n_lat']
-    params = DatasetBenchmark.params + [[1, 2, 4, 8]]
-    def time_constant_lat_fast(self, resolution, n_lat):
-        for lat in np.linspace(-89, 89, n_lat):
-            self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')
+    def setup(self, resolution, lat_step):
+        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid.normalize_cartesian_coordinates()
+        self.lats = np.arange(-45, 45, lat_step)
+        _ = self.uxgrid.bounds
+
+    def teardown(self, resolution, lat_step):
+        del self.uxgrid
+
+    def time_const_lat(self, resolution, lat_step):
+        for lat in self.lats:
+            self.uxgrid.cross_section.constant_latitude(lat)
