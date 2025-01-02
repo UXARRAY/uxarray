@@ -140,9 +140,7 @@ def _bilinear(
             )
 
         values = np.ndarray(data_size)
-        # tree = dual.uxgrid.get_ball_tree(
-        #     coordinates="face centers", coordinate_system="spherical"
-        # )
+
         for i in range(len(cart_x)):
             # Get point
             point = np.array([cart_x[i], cart_y[i], cart_z[i]])
@@ -156,8 +154,8 @@ def _bilinear(
             if len(polygon_ind) == 0:
                 raise ValueError("No polygon found containing the point")
 
-            # Inside the polygon or on an edge
-            elif len(polygon_ind) < 3:
+            # Inside the polygon or on an edge/node
+            elif len(polygon_ind) <= 3:
                 # Get the index of the face that holds the point
                 node_ind = dual.face_node_connectivity[polygon_ind[0]].values
 
@@ -171,7 +169,7 @@ def _bilinear(
                         dual.node_lat.values[node_ind[node]],
                     ]
 
-                    # Create the data array that is on the polygon
+                    # Create the data array on the polygon
                     data[i] = source_data[node]
 
                 # If the face is a triangle, use barycentric coordinates, otherwise break the face into triangles
