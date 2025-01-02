@@ -1,15 +1,11 @@
 import uxarray as ux
 import os
-
 import pytest
-
 from pathlib import Path
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-
 grid_path = current_path / 'meshfiles' / "ugrid" / "outCSne30" / 'outCSne30.ug'
-
 
 def test_spherical_delaunay():
     uxgrid = ux.open_grid(grid_path)
@@ -25,7 +21,6 @@ def test_spherical_delaunay():
     assert uxgrid_dt_xyz.triangular
     assert uxgrid_dt_latlon.triangular
 
-
 def test_regional_delaunay():
     uxgrid = ux.open_grid(grid_path)
 
@@ -40,7 +35,6 @@ def test_regional_delaunay():
     assert uxgrid_dt_xyz.n_node == uxgrid_dt_latlon.n_node == len(points_xyz[0])
     assert uxgrid_dt_xyz.triangular
     assert uxgrid_dt_latlon.triangular
-
 
 def test_spherical_voronoi():
     uxgrid = ux.open_grid(grid_path)
