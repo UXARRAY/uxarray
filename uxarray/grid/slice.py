@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     pass
 
 
-def _slice_node_indices(grid, indices, inclusive=True):
+def _slice_node_indices(grid, indices, inclusive=True, inverse_indices=False):
     """Slices (indexes) an unstructured grid given a list/array of node
     indices, returning a new Grid composed of elements that contain the nodes
     specified in the indices.
@@ -33,10 +33,10 @@ def _slice_node_indices(grid, indices, inclusive=True):
     face_indices = np.unique(grid.node_face_connectivity.values[indices].ravel())
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
-    return _slice_face_indices(grid, face_indices)
+    return _slice_face_indices(grid, face_indices, inverse_indices=inverse_indices)
 
 
-def _slice_edge_indices(grid, indices, inclusive=True):
+def _slice_edge_indices(grid, indices, inclusive=True, inverse_indices=False):
     """Slices (indexes) an unstructured grid given a list/array of edge
     indices, returning a new Grid composed of elements that contain the edges
     specified in the indices.
@@ -59,10 +59,10 @@ def _slice_edge_indices(grid, indices, inclusive=True):
     face_indices = np.unique(grid.edge_face_connectivity.values[indices].ravel())
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
-    return _slice_face_indices(grid, face_indices)
+    return _slice_face_indices(grid, face_indices, inverse_indices=inverse_indices)
 
 
-def _slice_face_indices(grid, indices, inclusive=True):
+def _slice_face_indices(grid, indices, inclusive=True, inverse_indices=False):
     """Slices (indexes) an unstructured grid given a list/array of face
     indices, returning a new Grid composed of elements that contain the faces
     specified in the indices.
@@ -77,7 +77,6 @@ def _slice_face_indices(grid, indices, inclusive=True):
         Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
         to exclusive (i.e elements be made up all desired features from a slice)
     """
-
     if inclusive is False:
         raise ValueError("Exclusive slicing is not yet supported.")
 
@@ -131,5 +130,10 @@ def _slice_face_indices(grid, indices, inclusive=True):
         elif "_connectivity" in conn_name:
             # drop any conn that would require re-computation
             ds = ds.drop_vars(conn_name)
+
+    if inverse_indices:
+        ds["inverse_face_indices"] = indices
+
+    ds["_is_subset"] = True
 
     return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec)

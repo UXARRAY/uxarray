@@ -1506,6 +1506,18 @@ class Grid:
         (i.e. contains no holes)"""
         return not self.partial_sphere_coverage
 
+    @property
+    def inverse_face_indices(self):
+        if self._is_subset:
+            return self._ds["inverse_face_indices"]
+
+    @property
+    def _is_subset(self):
+        """Boolean indicator for whether the Grid is from a subset or not."""
+        if "_is_subset" not in self._ds:
+            self._ds["_is_subset"] = False
+        return self._ds["_is_subset"]
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
@@ -2201,7 +2213,7 @@ class Grid:
 
         return dual
 
-    def isel(self, **dim_kwargs):
+    def isel(self, inverse_indices=False, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -2226,13 +2238,19 @@ class Grid:
             raise ValueError("Indexing must be along a single dimension.")
 
         if "n_node" in dim_kwargs:
-            return _slice_node_indices(self, dim_kwargs["n_node"])
+            return _slice_node_indices(
+                self, dim_kwargs["n_node"], inverse_indices=inverse_indices
+            )
 
         elif "n_edge" in dim_kwargs:
-            return _slice_edge_indices(self, dim_kwargs["n_edge"])
+            return _slice_edge_indices(
+                self, dim_kwargs["n_edge"], inverse_indices=inverse_indices
+            )
 
         elif "n_face" in dim_kwargs:
-            return _slice_face_indices(self, dim_kwargs["n_face"])
+            return _slice_face_indices(
+                self, dim_kwargs["n_face"], inverse_indices=inverse_indices
+            )
 
         else:
             raise ValueError(

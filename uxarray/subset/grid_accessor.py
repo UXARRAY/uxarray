@@ -33,6 +33,7 @@ class GridSubsetAccessor:
         lat_bounds: Union[Tuple, List, np.ndarray],
         element: Optional[str] = "nodes",
         method: Optional[str] = "coords",
+        inverse_indices=False,
         **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
@@ -53,6 +54,8 @@ class GridSubsetAccessor:
             face centers, or edge centers lie within the bounds.
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : bool
+            Flag to indicate whether to store the original grids face indices for later use
         """
 
         if method == "coords":
@@ -101,11 +104,11 @@ class GridSubsetAccessor:
                 )
 
             if element == "nodes":
-                return self.uxgrid.isel(n_node=indices)
+                return self.uxgrid.isel(inverse_indices, n_node=indices)
             elif element == "face centers":
-                return self.uxgrid.isel(n_face=indices)
+                return self.uxgrid.isel(inverse_indices, n_face=indices)
             elif element == "edge centers":
-                return self.uxgrid.isel(n_edge=indices)
+                return self.uxgrid.isel(inverse_indices, n_edge=indices)
 
         else:
             raise ValueError(f"Method '{method}' not supported.")
@@ -115,6 +118,7 @@ class GridSubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
         element: Optional[str] = "nodes",
+        inverse_indices=False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -128,6 +132,8 @@ class GridSubsetAccessor:
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : bool
+            Flag to indicate whether to store the original grids face indices for later use
         """
 
         coords = np.asarray(center_coord)
@@ -141,13 +147,14 @@ class GridSubsetAccessor:
                 f"No elements founding within the bounding circle with radius {r} when querying {element}"
             )
 
-        return self._index_grid(ind, element)
+        return self._index_grid(ind, element, inverse_indices)
 
     def nearest_neighbor(
         self,
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
         element: Optional[str] = "nodes",
+        inverse_indices=False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest
@@ -161,6 +168,8 @@ class GridSubsetAccessor:
             Number of neighbors to query
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : bool
+            Flag to indicate whether to store the original grids face indices for later use
         """
 
         coords = np.asarray(center_coord)
@@ -169,7 +178,7 @@ class GridSubsetAccessor:
 
         _, ind = tree.query(coords, k)
 
-        return self._index_grid(ind, element)
+        return self._index_grid(ind, element, inverse_indices=inverse_indices)
 
     def _get_tree(self, coords, tree_type):
         """Internal helper for obtaining the desired KDTree or BallTree."""
@@ -187,12 +196,12 @@ class GridSubsetAccessor:
 
         return tree
 
-    def _index_grid(self, ind, tree_type):
+    def _index_grid(self, ind, tree_type, inverse_indices=False):
         """Internal helper for indexing a grid with indices based off the
         provided tree type."""
         if tree_type == "nodes":
-            return self.uxgrid.isel(n_node=ind)
+            return self.uxgrid.isel(inverse_indices, n_node=ind)
         elif tree_type == "edge centers":
-            return self.uxgrid.isel(n_edge=ind)
+            return self.uxgrid.isel(inverse_indices, n_edge=ind)
         else:
-            return self.uxgrid.isel(n_face=ind)
+            return self.uxgrid.isel(inverse_indices, n_face=ind)
