@@ -51,7 +51,7 @@ class GridCrossSectionAccessor:
         Examples
         --------
         >>> # Extract data at 15.5°S latitude
-        >>> cross_section = grid.constant_latitude(lat=-15.5)
+        >>> cross_section = grid.cross_section.constant_latitude(lat=-15.5)
 
         Notes
         -----
@@ -103,7 +103,7 @@ class GridCrossSectionAccessor:
         Examples
         --------
         >>> # Extract data at 0° longitude
-        >>> cross_section = grid.constant_latitude(lon=0.0)
+        >>> cross_section = grid.cross_section.constant_latitude(lon=0.0)
 
         Notes
         -----

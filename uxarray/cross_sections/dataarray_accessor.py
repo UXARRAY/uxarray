@@ -46,7 +46,7 @@ class UxDataArrayCrossSectionAccessor:
         Examples
         --------
         >>> # Extract data at 15.5°S latitude
-        >>> cross_section = uxda.constant_latitude(lat=-15.5)
+        >>> cross_section = uxda.cross_section.constant_latitude(lat=-15.5)
 
         Notes
         -----
@@ -86,7 +86,7 @@ class UxDataArrayCrossSectionAccessor:
         Examples
         --------
         >>> # Extract data at 0° longitude
-        >>> cross_section = uxda.constant_latitude(lon=0.0)
+        >>> cross_section = uxda.cross_section.constant_latitude(lon=0.0)
 
         Notes
         -----
