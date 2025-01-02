@@ -92,6 +92,9 @@ def _slice_face_indices(grid, indices, inclusive=True):
 
     face_indices = indices
 
+    # Add original faces indices to dataset as an attribute
+    ds.attrs["inverse_indices"] = xr.DataArray(face_indices)
+
     # nodes of each face (inclusive)
     node_indices = np.unique(grid.face_node_connectivity.values[face_indices].ravel())
     node_indices = node_indices[node_indices != INT_FILL_VALUE]

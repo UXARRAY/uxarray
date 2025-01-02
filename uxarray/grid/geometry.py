@@ -23,7 +23,7 @@ from uxarray.grid.arcs import (
     point_within_gca,
 )
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad, _lonlat_rad_to_xyz
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 
 from uxarray.grid.intersections import (
     gca_gca_intersection,
@@ -1570,7 +1570,7 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def point_in_face(
     edges_xyz,
     point_xyz,
@@ -1609,14 +1609,11 @@ def point_in_face(
     location = _classify_polygon_location(edges_xyz)
 
     if location == 1:
-        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(-89)], dtype=np.float64)
-        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
+        ref_point_xyz = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
     elif location == -1:
-        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(89)], dtype=np.float64)
-        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
+        ref_point_xyz = np.array([0.01745241, 0.0, 0.9998477], dtype=np.float64)
     else:
-        ref_point_lonlat = np.array([np.deg2rad(0), np.deg2rad(-89)], dtype=np.float64)
-        ref_point_xyz = np.array(_lonlat_rad_to_xyz(*ref_point_lonlat))
+        ref_point_xyz = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
 
     # Initialize the points arc between the point and the reference point
     gca_cart = np.empty((2, 3), dtype=np.float64)

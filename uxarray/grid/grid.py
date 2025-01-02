@@ -4,6 +4,7 @@ import os
 
 from html import escape
 
+from numba import njit
 from xarray.core.options import OPTIONS
 
 from typing import (
@@ -12,6 +13,7 @@ from typing import (
 )
 
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -2366,7 +2368,7 @@ class Grid:
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
 
-    def get_face_containing_point(self, point_xyz):
+    def get_faces_containing_point(self, point_xyz):
         """Gets the indexes of the faces that contain a specific point"""
 
         # Obtain the maximum face radius of the grid
@@ -2379,7 +2381,7 @@ class Grid:
         )
 
         # Get the face's edges for the whole subset
-        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+        face_edge_cartesian = _get_cartesian_face_edge_nodes(
             subset.face_node_connectivity.values,
             subset.n_face,
             subset.n_max_face_edges,
@@ -2387,24 +2389,12 @@ class Grid:
             subset.node_y.values,
             subset.node_z.values,
         )
+        inverse_indices = subset.attrs["inverse_indices"].values
 
         # Check if any of the faces in the subset contain the point
-        for face in faces_edges_cartesian:
-            contains_point = point_in_face(
-                face,
-                point_xyz,
-                inclusive=True,
-            )
+        index = _find_faces(face_edge_cartesian, point_xyz, inverse_indices)
 
-            if contains_point:
-                pass
-
-        # TODO: if the point is on the edge, get both face indices that the point is "in"
-
-        # TODO: Convert the face index of the subset back to the face index of the main grid
-
-        # TODO: Return the indices
-        return contains_point
+        return index
 
     def get_max_face_radius(self):
         # Parse all variables needed for `njit` functions
@@ -2424,3 +2414,25 @@ class Grid:
         )
 
         return max_distance
+
+
+@njit(cache=True)
+def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
+    """Finds the faces that contain a given point, inside a subset "face_edge_cartesian"""
+
+    index = []
+
+    # Loop through the whole subset
+    for i, face in enumerate(face_edge_cartesian):
+        # Check if the point is inside the face
+        contains_point = point_in_face(
+            face,
+            point_xyz,
+            inclusive=True,
+        )
+
+        # If the point is, add it to the list of faces
+        if contains_point:
+            index.append(inverse_indices[i])
+
+    return index

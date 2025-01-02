@@ -1007,11 +1007,29 @@ class TestNormalizeExistingCoordinates(TestCase):
 
 
 class TestPolygonsContainingPoint(TestCase):
-    def test1(self):
-        grid_path = "/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc"
+    def test_number_of_faces_found(self):
+        grid = ux.open_grid(gridfile_mpas)
 
-        grid = ux.open_grid(grid_path)
-
+        # For a face center only one face should be found
         point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values])
 
-        grid.get_face_containing_point(point_xyz)
+        assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 1
+
+        # For an edge two faces should be found
+        point_xyz = np.array([grid.edge_x[100].values, grid.edge_y[100].values, grid.edge_z[100].values])
+
+        assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 2
+
+        # For a node three faces should be found
+        point_xyz = np.array([grid.node_x[100].values, grid.node_y[100].values, grid.node_z[100].values])
+
+        assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 3
+
+    def test_whole_grid(self):
+        grid = ux.open_grid(gridfile_mpas)
+
+        # Ensure a face is found on the grid for every face center
+        for i in range(len(grid.face_x.values)):
+            point_xyz = np.array([grid.face_x[i].values, grid.face_y[i].values, grid.face_z[i].values])
+
+            assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 1
