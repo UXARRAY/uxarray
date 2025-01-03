@@ -19,8 +19,10 @@ class GridCrossSectionAccessor:
 
         methods_heading += "  * constant_latitude(lat, return_face_indices)\n"
         methods_heading += "  * constant_longitude(lon, return_face_indices)\n"
-        methods_heading += "  * latitude_interval(lats, return_face_indices)\n"
-        methods_heading += "  * longitude_interval(lons, return_face_indices)\n"
+        methods_heading += "  * constant_latitude_interval(lats, return_face_indices)\n"
+        methods_heading += (
+            "  * constant_longitude_interval(lons, return_face_indices)\n"
+        )
         return prefix + methods_heading
 
     def constant_latitude(
@@ -129,7 +131,7 @@ class GridCrossSectionAccessor:
     def gca(self, *args, **kwargs):
         raise NotImplementedError
 
-    def latitude_interval(
+    def constant_latitude_interval(
         self,
         lats: Tuple[float, float],
         return_face_indices: bool = False,
@@ -145,7 +147,7 @@ class GridCrossSectionAccessor:
         else:
             return grid_between_lats
 
-    def longitude_interval(
+    def constant_longitude_interval(
         self,
         lons: Tuple[float, float],
         return_face_indices: bool = False,

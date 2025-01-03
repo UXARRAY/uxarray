@@ -19,8 +19,8 @@ class UxDataArrayCrossSectionAccessor:
 
         methods_heading += "  * constant_latitude(lat)\n"
         methods_heading += "  * constant_longitude(lon)\n"
-        methods_heading += "  * latitude_interval(lats)\n"
-        methods_heading += "  * longitude_interval(lons)\n"
+        methods_heading += "  * constant_latitude_interval(lats)\n"
+        methods_heading += "  * constant_longitude_interval(lons)\n"
 
         return prefix + methods_heading
 
@@ -106,14 +106,14 @@ class UxDataArrayCrossSectionAccessor:
 
         return self.uxda.isel(n_face=faces)
 
-    def latitude_interval(self, lats: Tuple[float, float], *args, **kwargs):
+    def constant_latitude_interval(self, lats: Tuple[float, float], *args, **kwargs):
         faces = self.uxda.uxgrid.get_faces_between_latitudes(
             lats,
         )
 
         return self.uxda.isel(n_face=faces)
 
-    def longitude_interval(self, lons: Tuple[float, float], *args, **kwargs):
+    def constant_longitude_interval(self, lons: Tuple[float, float], *args, **kwargs):
         faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
 
         return self.uxda.isel(n_face=faces)

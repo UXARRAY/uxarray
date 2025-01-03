@@ -322,6 +322,10 @@ Grid
 
    Grid.cross_section
    Grid.cross_section.constant_latitude
+   Grid.cross_section.constant_longitude
+   Grid.cross_section.constant_latitude_interval
+   Grid.cross_section.constant_longitude_interval
+
 
 UxDataArray
 ~~~~~~~~~~~
@@ -332,7 +336,9 @@ UxDataArray
 
    UxDataArray.cross_section
    UxDataArray.cross_section.constant_latitude
-
+   UxDataArray.cross_section.constant_longitude
+   UxDataArray.cross_section.constant_latitude_interval
+   UxDataArray.cross_section.constant_longitude_interval
 Remapping
 ---------
 
