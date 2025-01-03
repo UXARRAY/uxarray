@@ -25,6 +25,7 @@ class GridCrossSectionAccessor:
         self,
         lat: float,
         return_face_indices: bool = False,
+        inverse_indices: bool = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
         intersect with a specified line of constant latitude.
@@ -36,6 +37,8 @@ class GridCrossSectionAccessor:
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant latitude.
+        inverse_indices : bool, optional
+            If True, stores the original grid indices
 
         Returns
         -------
@@ -66,7 +69,9 @@ class GridCrossSectionAccessor:
         if len(faces) == 0:
             raise ValueError(f"No intersections found at lat={lat}.")
 
-        grid_at_constant_lat = self.uxgrid.isel(n_face=faces)
+        grid_at_constant_lat = self.uxgrid.isel(
+            n_face=faces, inverse_indices=inverse_indices
+        )
 
         if return_face_indices:
             return grid_at_constant_lat, faces
@@ -77,6 +82,7 @@ class GridCrossSectionAccessor:
         self,
         lon: float,
         return_face_indices: bool = False,
+        inverse_indices: bool = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
         intersect with a specified line of constant longitude.
@@ -88,6 +94,8 @@ class GridCrossSectionAccessor:
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant longitude.
+        inverse_indices : bool, optional
+            If True, stores the original grid indices
 
         Returns
         -------
@@ -117,7 +125,9 @@ class GridCrossSectionAccessor:
         if len(faces) == 0:
             raise ValueError(f"No intersections found at lon={lon}")
 
-        grid_at_constant_lon = self.uxgrid.isel(n_face=faces)
+        grid_at_constant_lon = self.uxgrid.isel(
+            n_face=faces, inverse_indices=inverse_indices
+        )
 
         if return_face_indices:
             return grid_at_constant_lon, faces

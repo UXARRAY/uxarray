@@ -33,6 +33,7 @@ class DataArraySubsetAccessor:
         lat_bounds: Union[Tuple, List, np.ndarray],
         element: Optional[str] = "nodes",
         method: Optional[str] = "coords",
+        inverse_indices=False,
         **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
@@ -53,9 +54,11 @@ class DataArraySubsetAccessor:
             face centers, or edge centers lie within the bounds.
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : bool
+            Flag to indicate whether to store the original grids face indices for later use
         """
         grid = self.uxda.uxgrid.subset.bounding_box(
-            lon_bounds, lat_bounds, element, method
+            lon_bounds, lat_bounds, element, method, inverse_indices=inverse_indices
         )
 
         return self.uxda._slice_from_grid(grid)
@@ -65,6 +68,7 @@ class DataArraySubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
         element: Optional[str] = "nodes",
+        inverse_indices=False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -78,9 +82,11 @@ class DataArraySubsetAccessor:
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : bool
+            Flag to indicate whether to store the original grids face indices for later use
         """
         grid = self.uxda.uxgrid.subset.bounding_circle(
-            center_coord, r, element, **kwargs
+            center_coord, r, element, inverse_indices=inverse_indices**kwargs
         )
         return self.uxda._slice_from_grid(grid)
 
@@ -89,6 +95,7 @@ class DataArraySubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
         element: Optional[str] = "nodes",
+        inverse_indices=False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest
@@ -102,10 +109,12 @@ class DataArraySubsetAccessor:
             Number of neighbors to query
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : bool
+            Flag to indicate whether to store the original grids face indices for later use
         """
 
         grid = self.uxda.uxgrid.subset.nearest_neighbor(
-            center_coord, k, element, **kwargs
+            center_coord, k, element, inverse_indices=inverse_indices, **kwargs
         )
 
         return self.uxda._slice_from_grid(grid)

@@ -22,7 +22,7 @@ class UxDataArrayCrossSectionAccessor:
 
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float):
+    def constant_latitude(self, lat: float, inverse_indices: bool = False):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant latitude.
 
@@ -31,6 +31,8 @@ class UxDataArrayCrossSectionAccessor:
         lat : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
+        inverse_indices : bool, optional
+            If True, stores the original grid indices
 
         Returns
         -------
@@ -60,9 +62,9 @@ class UxDataArrayCrossSectionAccessor:
 
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
-        return self.uxda.isel(n_face=faces)
+        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
-    def constant_longitude(self, lon: float):
+    def constant_longitude(self, lon: float, inverse_indices: bool = False):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant longitude.
 
@@ -71,6 +73,8 @@ class UxDataArrayCrossSectionAccessor:
         lon : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -180.0 and 180.0
+        inverse_indices : bool, optional
+            If True, stores the original grid indices
 
         Returns
         -------
@@ -102,7 +106,7 @@ class UxDataArrayCrossSectionAccessor:
             lon,
         )
 
-        return self.uxda.isel(n_face=faces)
+        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def gca(self, *args, **kwargs):
         raise NotImplementedError
