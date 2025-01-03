@@ -134,6 +134,4 @@ def _slice_face_indices(grid, indices, inclusive=True, inverse_indices=False):
     if inverse_indices:
         ds["inverse_face_indices"] = indices
 
-    ds["_is_subset"] = True
-
-    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec)
+    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec, is_subset=True)

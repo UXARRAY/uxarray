@@ -160,6 +160,7 @@ class Grid:
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
         source_dims_dict: Optional[dict] = {},
+        is_subset=False,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
@@ -191,6 +192,7 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
+        self.is_subset = is_subset
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -242,7 +244,9 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
+    def from_dataset(
+        cls, dataset, use_dual: Optional[bool] = False, is_subset=False, **kwargs
+    ):
         """Constructs a ``Grid`` object from a dataset.
 
         Parameters
@@ -301,7 +305,7 @@ class Grid:
             except TypeError:
                 raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, source_grid_spec, source_dims_dict)
+        return cls(grid_ds, source_grid_spec, source_dims_dict, is_subset=is_subset)
 
     @classmethod
     def from_file(
@@ -1508,15 +1512,13 @@ class Grid:
 
     @property
     def inverse_face_indices(self):
-        if self._is_subset:
+        """Indices for a subset that map each face in the subset back to the original grid"""
+        if self.is_subset:
             return self._ds["inverse_face_indices"]
-
-    @property
-    def _is_subset(self):
-        """Boolean indicator for whether the Grid is from a subset or not."""
-        if "_is_subset" not in self._ds:
-            self._ds["_is_subset"] = False
-        return self._ds["_is_subset"]
+        else:
+            raise Exception(
+                "Grid is not a subset, therefore no inverse face indices exist"
+            )
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
