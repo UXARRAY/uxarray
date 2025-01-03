@@ -256,6 +256,8 @@ class Grid:
             containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        is_subset : bool, default=False
+            Bool flag to indicate whether a grid is a subset
         """
 
         if isinstance(dataset, xr.Dataset):
