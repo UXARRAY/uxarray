@@ -9,6 +9,8 @@ from xarray.core.options import OPTIONS
 from typing import (
     Optional,
     Union,
+    List,
+    Set,
 )
 
 # reader and writer imports
@@ -161,6 +163,7 @@ class Grid:
         source_grid_spec: Optional[str] = None,
         source_dims_dict: Optional[dict] = {},
         is_subset=False,
+        inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
@@ -193,6 +196,9 @@ class Grid:
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self.is_subset = is_subset
+
+        if inverse_indices is not None:
+            self.inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -244,9 +250,7 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_dataset(
-        cls, dataset, use_dual: Optional[bool] = False, is_subset=False, **kwargs
-    ):
+    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
         """Constructs a ``Grid`` object from a dataset.
 
         Parameters
@@ -307,7 +311,13 @@ class Grid:
             except TypeError:
                 raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, source_grid_spec, source_dims_dict, is_subset=is_subset)
+        return cls(
+            grid_ds,
+            source_grid_spec,
+            source_dims_dict,
+            is_subset=kwargs.get("is_subset", False),
+            inverse_indices=kwargs.get("inverse_indices"),
+        )
 
     @classmethod
     def from_file(
@@ -1513,14 +1523,19 @@ class Grid:
         return not self.partial_sphere_coverage
 
     @property
-    def inverse_face_indices(self):
+    def inverse_indices(self):
         """Indices for a subset that map each face in the subset back to the original grid"""
         if self.is_subset:
-            return self._ds["inverse_face_indices"]
+            return self._inverse_indices
         else:
             raise Exception(
                 "Grid is not a subset, therefore no inverse face indices exist"
             )
+
+    @inverse_indices.setter
+    def inverse_indices(self, value):
+        assert isinstance(value, xr.Dataset)
+        self._inverse_indices = value
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
@@ -2217,7 +2232,9 @@ class Grid:
 
         return dual
 
-    def isel(self, inverse_indices=False, **dim_kwargs):
+    def isel(
+        self, inverse_indices: Union[List[str], Set[str], bool] = False, **dim_kwargs
+    ):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -2242,11 +2259,19 @@ class Grid:
             raise ValueError("Indexing must be along a single dimension.")
 
         if "n_node" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for node selection, please use face centers"
+                )
             return _slice_node_indices(
                 self, dim_kwargs["n_node"], inverse_indices=inverse_indices
             )
 
         elif "n_edge" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for edge selection, please use face centers"
+                )
             return _slice_edge_indices(
                 self, dim_kwargs["n_edge"], inverse_indices=inverse_indices
             )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, List, Set
 
 if TYPE_CHECKING:
     pass
@@ -22,7 +22,9 @@ class UxDataArrayCrossSectionAccessor:
 
         return prefix + methods_heading
 
-    def constant_latitude(self, lat: float, inverse_indices: bool = False):
+    def constant_latitude(
+        self, lat: float, inverse_indices: Union[List[str], Set[str], bool] = False
+    ):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant latitude.
 
@@ -64,7 +66,9 @@ class UxDataArrayCrossSectionAccessor:
 
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
-    def constant_longitude(self, lon: float, inverse_indices: bool = False):
+    def constant_longitude(
+        self, lon: float, inverse_indices: Union[List[str], Set[str], bool] = False
+    ):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant longitude.
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, List, Set
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -25,7 +25,7 @@ class GridCrossSectionAccessor:
         self,
         lat: float,
         return_face_indices: bool = False,
-        inverse_indices: bool = False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
         intersect with a specified line of constant latitude.
@@ -82,7 +82,7 @@ class GridCrossSectionAccessor:
         self,
         lon: float,
         return_face_indices: bool = False,
-        inverse_indices: bool = False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
         intersect with a specified line of constant longitude.

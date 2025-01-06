@@ -4,13 +4,18 @@ import numpy as np
 import xarray as xr
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, List, Set
 
 if TYPE_CHECKING:
     pass
 
 
-def _slice_node_indices(grid, indices, inclusive=True, inverse_indices=False):
+def _slice_node_indices(
+    grid,
+    indices,
+    inclusive=True,
+    inverse_indices: Union[List[str], Set[str], bool] = False,
+):
     """Slices (indexes) an unstructured grid given a list/array of node
     indices, returning a new Grid composed of elements that contain the nodes
     specified in the indices.
@@ -36,7 +41,12 @@ def _slice_node_indices(grid, indices, inclusive=True, inverse_indices=False):
     return _slice_face_indices(grid, face_indices, inverse_indices=inverse_indices)
 
 
-def _slice_edge_indices(grid, indices, inclusive=True, inverse_indices=False):
+def _slice_edge_indices(
+    grid,
+    indices,
+    inclusive=True,
+    inverse_indices: Union[List[str], Set[str], bool] = False,
+):
     """Slices (indexes) an unstructured grid given a list/array of edge
     indices, returning a new Grid composed of elements that contain the edges
     specified in the indices.
@@ -62,7 +72,12 @@ def _slice_edge_indices(grid, indices, inclusive=True, inverse_indices=False):
     return _slice_face_indices(grid, face_indices, inverse_indices=inverse_indices)
 
 
-def _slice_face_indices(grid, indices, inclusive=True, inverse_indices=False):
+def _slice_face_indices(
+    grid,
+    indices,
+    inclusive=True,
+    inverse_indices: Union[List[str], Set[str], bool] = False,
+):
     """Slices (indexes) an unstructured grid given a list/array of face
     indices, returning a new Grid composed of elements that contain the faces
     specified in the indices.
@@ -132,6 +147,25 @@ def _slice_face_indices(grid, indices, inclusive=True, inverse_indices=False):
             ds = ds.drop_vars(conn_name)
 
     if inverse_indices:
-        ds["inverse_face_indices"] = indices
+        inverse_indices_ds = xr.Dataset()
+
+        index_types = {
+            "face centers": face_indices,
+            "edge centers": edge_indices,
+            "nodes": node_indices,
+        }
+        if isinstance(inverse_indices, bool):
+            inverse_indices_ds["face centers"] = face_indices
+        else:
+            for index_type in inverse_indices[0]:
+                if index_type in index_types:
+                    inverse_indices_ds[index_type] = index_types[index_type]
+
+        return Grid.from_dataset(
+            ds,
+            source_grid_spec=grid.source_grid_spec,
+            is_subset=True,
+            inverse_indices=inverse_indices_ds,
+        )
 
     return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec, is_subset=True)

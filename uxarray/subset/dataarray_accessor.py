@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from typing import TYPE_CHECKING, Union, Tuple, List, Optional
+from typing import TYPE_CHECKING, Union, Tuple, List, Optional, Set
 
 if TYPE_CHECKING:
     pass
@@ -33,7 +33,7 @@ class DataArraySubsetAccessor:
         lat_bounds: Union[Tuple, List, np.ndarray],
         element: Optional[str] = "nodes",
         method: Optional[str] = "coords",
-        inverse_indices=False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
@@ -68,7 +68,7 @@ class DataArraySubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
         element: Optional[str] = "nodes",
-        inverse_indices=False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -86,7 +86,7 @@ class DataArraySubsetAccessor:
             Flag to indicate whether to store the original grids face indices for later use
         """
         grid = self.uxda.uxgrid.subset.bounding_circle(
-            center_coord, r, element, inverse_indices=inverse_indices**kwargs
+            center_coord, r, element, inverse_indices=inverse_indices, **kwargs
         )
         return self.uxda._slice_from_grid(grid)
 
@@ -95,7 +95,7 @@ class DataArraySubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
         element: Optional[str] = "nodes",
-        inverse_indices=False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest

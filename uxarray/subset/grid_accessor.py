@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from typing import TYPE_CHECKING, Union, Tuple, List, Optional
+from typing import TYPE_CHECKING, Union, Tuple, List, Optional, Set
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -33,7 +33,7 @@ class GridSubsetAccessor:
         lat_bounds: Union[Tuple, List, np.ndarray],
         element: Optional[str] = "nodes",
         method: Optional[str] = "coords",
-        inverse_indices=False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
@@ -118,7 +118,7 @@ class GridSubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
         element: Optional[str] = "nodes",
-        inverse_indices=False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -154,7 +154,7 @@ class GridSubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
         element: Optional[str] = "nodes",
-        inverse_indices=False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest

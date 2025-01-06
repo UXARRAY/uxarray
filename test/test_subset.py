@@ -128,16 +128,20 @@ def test_inverse_face_indices():
     coord = [0, 0]
     subset = grid.subset.nearest_neighbor(coord, k=1, element="face centers", inverse_indices=True)
 
-    assert subset.inverse_face_indices is not None
+    assert subset.inverse_indices is not None
 
     # Test bounding box subsetting
     box = [(-10, 10), (-10, 10)]
-    subset = grid.subset.bounding_box(box[0], box[1], element="edge centers", inverse_indices=True)
+    subset = grid.subset.bounding_box(box[0], box[1], element="face centers", inverse_indices=True)
 
-    assert subset.inverse_face_indices is not None
+    assert subset.inverse_indices is not None
 
     # Test bounding circle subsetting
     center_coord = [0, 0]
-    subset = grid.subset.bounding_circle(center_coord, r=10, element="nodes", inverse_indices=True)
+    subset = grid.subset.bounding_circle(center_coord, r=10, element="face centers", inverse_indices=True)
 
-    assert subset.inverse_face_indices is not None
+    assert subset.inverse_indices is not None
+
+    # Ensure code raises exceptions when the element is edges or nodes
+    assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="edge centers", inverse_indices=True)
+    assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="node centers", inverse_indices=True)
