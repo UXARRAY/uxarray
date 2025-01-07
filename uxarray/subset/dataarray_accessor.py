@@ -54,8 +54,9 @@ class DataArraySubsetAccessor:
             face centers, or edge centers lie within the bounds.
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : bool
-            Flag to indicate whether to store the original grids face indices for later use
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
         """
         grid = self.uxda.uxgrid.subset.bounding_box(
             lon_bounds, lat_bounds, element, method, inverse_indices=inverse_indices
@@ -82,8 +83,9 @@ class DataArraySubsetAccessor:
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : bool
-            Flag to indicate whether to store the original grids face indices for later use
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
         """
         grid = self.uxda.uxgrid.subset.bounding_circle(
             center_coord, r, element, inverse_indices=inverse_indices, **kwargs
@@ -109,8 +111,9 @@ class DataArraySubsetAccessor:
             Number of neighbors to query
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : bool
-            Flag to indicate whether to store the original grids face indices for later use
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
         """
 
         grid = self.uxda.uxgrid.subset.nearest_neighbor(

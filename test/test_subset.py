@@ -121,7 +121,7 @@ def test_uxda_isel_with_coords():
     assert len(sub.coords['lon_face']) == 3
 
 
-def test_inverse_face_indices():
+def test_inverse_indices():
     grid = ux.open_grid(GRID_PATHS[0])
 
     # Test nearest neighbor subsetting
@@ -145,3 +145,7 @@ def test_inverse_face_indices():
     # Ensure code raises exceptions when the element is edges or nodes
     assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="edge centers", inverse_indices=True)
     assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="node centers", inverse_indices=True)
+
+    # Test isel directly
+    subset = grid.isel(n_face=[1], inverse_indices=True)
+    assert subset.inverse_indices is not None

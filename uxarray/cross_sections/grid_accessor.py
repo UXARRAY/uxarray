@@ -37,8 +37,9 @@ class GridCrossSectionAccessor:
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant latitude.
-        inverse_indices : bool, optional
-            If True, stores the original grid indices
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
 
         Returns
         -------
@@ -94,8 +95,9 @@ class GridCrossSectionAccessor:
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant longitude.
-        inverse_indices : bool, optional
-            If True, stores the original grid indices
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
 
         Returns
         -------

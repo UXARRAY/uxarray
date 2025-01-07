@@ -14,7 +14,6 @@ def _slice_node_indices(
     grid,
     indices,
     inclusive=True,
-    inverse_indices: Union[List[str], Set[str], bool] = False,
 ):
     """Slices (indexes) an unstructured grid given a list/array of node
     indices, returning a new Grid composed of elements that contain the nodes
@@ -45,7 +44,6 @@ def _slice_edge_indices(
     grid,
     indices,
     inclusive=True,
-    inverse_indices: Union[List[str], Set[str], bool] = False,
 ):
     """Slices (indexes) an unstructured grid given a list/array of edge
     indices, returning a new Grid composed of elements that contain the edges
@@ -91,6 +89,9 @@ def _slice_face_indices(
     inclusive: bool
         Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
         to exclusive (i.e elements be made up all desired features from a slice)
+    inverse_indices : Union[List[str], Set[str], bool], optional
+        Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+        other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
     """
     if inclusive is False:
         raise ValueError("Exclusive slicing is not yet supported.")
