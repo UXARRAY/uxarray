@@ -1,10 +1,17 @@
 import numpy as np
-from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE
-from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
-from uxarray.grid.arcs import point_within_gca, extreme_gca_latitude, in_between
+from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
+from uxarray.grid.utils import (
+    _newton_raphson_solver_for_gca_constLat,
+    _angle_of_2_vectors,
+)
+from uxarray.grid.arcs import (
+    in_between,
+    _extreme_gca_latitude_cartesian,
+    point_within_gca,
+)
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose, dot, cross, norm
+from uxarray.utils.computing import cross_fma, allclose, cross, norm
 
 
 from numba import njit, prange
@@ -122,8 +129,8 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
     return np.unique(intersecting_edges)
 
 
-@njit
-def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_rad):
+# @njit(cache=True)
+def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
     """Identifies the candidate faces on a grid that intersect with a given
     constant latitude.
 
@@ -136,24 +143,24 @@ def constant_lat_intersections_face_bounds(lat, face_min_lat_rad, face_max_lat_r
     ----------
     lat : float
         The latitude in degrees for which to find intersecting faces.
-    face_min_lat_rad : numpy.ndarray
-        A 1D array containing the minimum latitude bounds (in radians) of each face.
-    face_max_lat_rad : numpy.ndarray
-        A 1D array containing the maximum latitude bounds (in radians) of each face.
+    TODO:
 
     Returns
     -------
     candidate_faces : numpy.ndarray
         A 1D array containing the indices of the faces that intersect with the given latitude.
     """
-    lat = np.deg2rad(lat)
-    within_bounds = (face_min_lat_rad <= lat) & (face_max_lat_rad >= lat)
+
+    face_bounds_lat_min = face_bounds_lat[:, 0]
+    face_bounds_lat_max = face_bounds_lat[:, 1]
+
+    within_bounds = (face_bounds_lat_min <= lat) & (face_bounds_lat_max >= lat)
     candidate_faces = np.where(within_bounds)[0]
     return candidate_faces
 
 
 @njit(cache=True)
-def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_rad):
+def constant_lon_intersections_face_bounds(lon, face_bounds_lon):
     """Identifies the candidate faces on a grid that intersect with a given
     constant longitude.
 
@@ -166,10 +173,7 @@ def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_r
     ----------
     lon : float
         The longitude in degrees for which to find intersecting faces.
-    face_min_lon_rad : numpy.ndarray
-        A 1D array containing the minimum longitude bounds (in radians) of each face.
-    face_max_lon_rad : numpy.ndarray
-        A 1D array containing the maximum longitude bounds (in radians) of each face.
+    TODO:
 
     Returns
     -------
@@ -177,126 +181,95 @@ def constant_lon_intersections_face_bounds(lon, face_min_lon_rad, face_max_lon_r
         A 1D array containing the indices of the faces that intersect with the given longitude.
     """
 
-    # lon = np.deg2rad(lon)
-    # lon = (lon + 2 * np.pi) % (2 * np.pi)
-    # within_bounds = (face_min_lon_rad <= lon) & (face_max_lon_rad >= lon)
-    # candidate_faces = np.where(within_bounds)[0]
-    # return candidate_faces
+    face_bounds_lon_min = face_bounds_lon[:, 0]
+    face_bounds_lon_max = face_bounds_lon[:, 1]
+    n_face = face_bounds_lon.shape[0]
 
-    raise NotImplementedError
+    candidate_faces = []
+    for i in range(n_face):
+        cur_face_bounds_lon_min = face_bounds_lon_min[i]
+        cur_face_bounds_lon_max = face_bounds_lon_max[i]
+
+        if cur_face_bounds_lon_min < cur_face_bounds_lon_max:
+            if (lon >= cur_face_bounds_lon_min) & (lon <= cur_face_bounds_lon_max):
+                candidate_faces.append(i)
+        else:
+            # antimeridian case
+            if (lon >= cur_face_bounds_lon_min) | (lon <= cur_face_bounds_lon_max):
+                candidate_faces.append(i)
+
+    return np.array(candidate_faces, dtype=INT_DTYPE)
 
 
-def gca_gca_intersection(gca1_cart, gca2_cart, fma_disabled=True):
-    """Calculate the intersection point(s) of two Great Circle Arcs (GCAs) in a
-    Cartesian coordinate system.
+def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
+    gca_a_xyz = np.asarray(gca_a_xyz)
+    gca_b_xyz = np.asarray(gca_b_xyz)
 
-    To reduce relative errors, the Fused Multiply-Add (FMA) operation is utilized.
-    A warning is raised if the given coordinates are not in the cartesian coordinates, or
-    they cannot be accurately handled using floating-point arithmetic.
+    return gca_gca_intersection(gca_a_xyz, gca_b_xyz)
 
-    Parameters
-    ----------
-    gca1_cart : [n, 3] np.ndarray where n is the number of intersection points
-        Cartesian coordinates of the first GCA.
-    gca2_cart : [n, 3] np.ndarray where n is the number of intersection points
-        Cartesian coordinates of the second GCA.
-    fma_disabled : bool, optional (default=True)
-        If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
 
-    Returns
-    -------
-    np.ndarray
-        Cartesian coordinates of the intersection point(s). Returns an empty array if no intersections,
-        a 2D array with one row if one intersection, and a 2D array with two rows if two intersections.
-
-    Raises
-    ------
-    ValueError
-        If the input GCAs are not in the cartesian [x, y, z] format.
-    """
-
-    # Support lists as an input
-    gca1_cart = np.asarray(gca1_cart)
-    gca2_cart = np.asarray(gca2_cart)
-    # Check if the two GCAs are in the cartesian format (size of three)
-    if gca1_cart.shape[1] != 3 or gca2_cart.shape[1] != 3:
+@njit(cache=True)
+def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
+    if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
-    w0, w1 = gca1_cart
-    v0, v1 = gca2_cart
+    # Extract points
+    w0_xyz = gca_a_xyz[0]
+    w1_xyz = gca_a_xyz[1]
+    v0_xyz = gca_b_xyz[0]
+    v1_xyz = gca_b_xyz[1]
 
-    # Compute normals and orthogonal bases using FMA
-    if fma_disabled:
-        w0w1_norm = cross(w0, w1)
-        v0v1_norm = cross(v0, v1)
-        cross_norms = cross(w0w1_norm, v0v1_norm)
-    else:
-        w0w1_norm = cross_fma(w0, w1)
-        v0v1_norm = cross_fma(v0, v1)
-        cross_norms = cross_fma(w0w1_norm, v0v1_norm)
+    angle_w0w1 = _angle_of_2_vectors(w0_xyz, w1_xyz)
+    angle_v0v1 = _angle_of_2_vectors(v0_xyz, v1_xyz)
 
-        # Raise a warning for windows users
-        if platform.system() == "Windows":
-            warnings.warn(
-                "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
-                "https://bugs.python.org/msg312480)"
-                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
-            )
+    if angle_w0w1 > np.pi:
+        w0_xyz, w1_xyz = w1_xyz, w0_xyz
 
-    # Check perpendicularity conditions and floating-point arithmetic limitations
-    if not allclose(dot(w0w1_norm, w0), 0.0, atol=MACHINE_EPSILON) or not allclose(
-        dot(w0w1_norm, w1), 0.0, atol=MACHINE_EPSILON
-    ):
-        warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution."
-        )
+    if angle_v0v1 > np.pi:
+        v0_xyz, v1_xyz = v1_xyz, v0_xyz
 
-    if not allclose(dot(v0v1_norm, v0), 0.0, 0.0, atol=MACHINE_EPSILON) or not allclose(
-        dot(v0v1_norm, v1), 0.0, atol=MACHINE_EPSILON
-    ):
-        warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic.  Use with caution. "
-        )
+    w0w1_norm = cross(w0_xyz, w1_xyz)
+    v0v1_norm = cross(v0_xyz, v1_xyz)
+    cross_norms = cross(w0w1_norm, v0v1_norm)
 
-    if not allclose(
-        dot(cross_norms, v0v1_norm), 0.0, atol=MACHINE_EPSILON
-    ) or not allclose(dot(cross_norms, w0w1_norm), 0.0, atol=MACHINE_EPSILON):
-        warnings.warn(
-            "The current input data cannot be computed accurately using floating-point arithmetic. Use with caution. "
-        )
+    # Initialize result array and counter
+    res = np.empty((2, 3))
+    count = 0
 
-    # If the cross_norms is zero, the two GCAs are parallel
+    # Check if the two GCAs are parallel
     if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
-        res = []
-        # Check if the two GCAs are overlapping
-        if point_within_gca(v0, [w0, w1]):
-            # The two GCAs are overlapping, return both end points
-            res.append(v0)
+        if point_within_gca(v0_xyz, w0_xyz, w1_xyz):
+            res[count, :] = v0_xyz
+            count += 1
 
-        if point_within_gca(v1, [w0, w1]):
-            res.append(v1)
-        return np.array(res)
+        if point_within_gca(v1_xyz, w0_xyz, w1_xyz):
+            res[count, :] = v1_xyz
+            count += 1
+
+        return res[:count, :]
 
     # Normalize the cross_norms
     cross_norms = cross_norms / norm(cross_norms)
-    x1 = cross_norms
-    x2 = -x1
+    x1_xyz = cross_norms
+    x2_xyz = -x1_xyz
 
-    res = []
+    # Check intersection points
+    if point_within_gca(x1_xyz, w0_xyz, w1_xyz) and point_within_gca(
+        x1_xyz, v0_xyz, v1_xyz
+    ):
+        res[count, :] = x1_xyz
+        count += 1
 
-    # Determine which intersection point is within the GCAs range
-    if point_within_gca(x1, [w0, w1]) and point_within_gca(x1, [v0, v1]):
-        res.append(x1)
+    if point_within_gca(x2_xyz, w0_xyz, w1_xyz) and point_within_gca(
+        x2_xyz, v0_xyz, v1_xyz
+    ):
+        res[count, :] = x2_xyz
+        count += 1
 
-    if point_within_gca(x2, [w0, w1]) and point_within_gca(x2, [v0, v1]):
-        res.append(x2)
-
-    return np.array(res)
+    return res[:count, :]
 
 
-def gca_const_lat_intersection(
-    gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
-):
+def gca_const_lat_intersection(gca_cart, constZ, fma_disabled=True, verbose=False):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -313,9 +286,6 @@ def gca_const_lat_intersection(
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
-    is_directed : bool, optional (default=False)
-        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
     Returns
     -------
@@ -351,8 +321,9 @@ def gca_const_lat_intersection(
         return res
 
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
-    lat_min = extreme_gca_latitude(gca_cart, extreme_type="min")
-    lat_max = extreme_gca_latitude(gca_cart, extreme_type="max")
+    # TODO:
+    lat_min = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="min")
+    lat_max = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="max")
 
     constLat_rad = np.arcsin(constZ)
 
@@ -389,7 +360,7 @@ def gca_const_lat_intersection(
     res = None
 
     # Now test which intersection point is within the GCA range
-    if point_within_gca(p1, gca_cart, is_directed=is_directed):
+    if point_within_gca(p1, gca_cart[0], gca_cart[1]):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p1, gca_cart, verbose=verbose
@@ -411,7 +382,7 @@ def gca_const_lat_intersection(
         except RuntimeError:
             raise RuntimeError(f"Error encountered with initial guess: {p1}")
 
-    if point_within_gca(p2, gca_cart, is_directed=is_directed):
+    if point_within_gca(p2, gca_cart[0], gca_cart[1]):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p2, gca_cart, verbose=verbose

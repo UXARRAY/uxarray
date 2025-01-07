@@ -126,6 +126,8 @@ Descriptors
    Grid.descriptors
    Grid.face_areas
    Grid.bounds
+   Grid.face_bounds_lon
+   Grid.face_bounds_lat
    Grid.edge_node_distances
    Grid.edge_face_distances
    Grid.antimeridian_face_indices
