@@ -2267,18 +2267,14 @@ class Grid:
                 raise Exception(
                     "Inverse indices are not yet supported for node selection, please use face centers"
                 )
-            return _slice_node_indices(
-                self, dim_kwargs["n_node"]
-            )
+            return _slice_node_indices(self, dim_kwargs["n_node"])
 
         elif "n_edge" in dim_kwargs:
             if inverse_indices:
                 raise Exception(
                     "Inverse indices are not yet supported for edge selection, please use face centers"
                 )
-            return _slice_edge_indices(
-                self, dim_kwargs["n_edge"]
-            )
+            return _slice_edge_indices(self, dim_kwargs["n_edge"])
 
         elif "n_face" in dim_kwargs:
             return _slice_face_indices(
