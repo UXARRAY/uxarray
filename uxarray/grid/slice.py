@@ -37,7 +37,7 @@ def _slice_node_indices(
     face_indices = np.unique(grid.node_face_connectivity.values[indices].ravel())
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
-    return _slice_face_indices(grid, face_indices, inverse_indices=inverse_indices)
+    return _slice_face_indices(grid, face_indices)
 
 
 def _slice_edge_indices(
@@ -67,7 +67,7 @@ def _slice_edge_indices(
     face_indices = np.unique(grid.edge_face_connectivity.values[indices].ravel())
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
-    return _slice_face_indices(grid, face_indices, inverse_indices=inverse_indices)
+    return _slice_face_indices(grid, face_indices)
 
 
 def _slice_face_indices(
