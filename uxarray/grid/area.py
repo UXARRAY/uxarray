@@ -118,15 +118,69 @@ def calculate_face_area(
                 ],
                 dtype=x.dtype,
             )
-            if np.isclose(
-                node1[2], node2[2]
-            ):  # Check if z-coordinates are approximately equal
-                correction += area_correction(node1, node2)
+            # Check if z-coordinates are approximately equal
+            if np.isclose(node1[2], node2[2]):
+                # Check if the edge passes through a pole
+                passes_through_pole = edge_passes_through_pole(node1, node2)
+                print("Check if edge passes through pole: ", passes_through_pole)
 
-    # TODO: Fix sign of the calculated correction
+                if passes_through_pole:
+                    # Skip the edge if it passes through a pole
+                    continue
+                else:
+                    # Calculate the correction term
+                    correction = area_correction(node1, node2)
+                print(
+                    "For Node 1 ",
+                    node1,
+                    "\n and Node 2",
+                    node2,
+                    "\nCORRECTION",
+                    correction,
+                )
+                correction += correction
+
+    if correction != 0.0:
+        print("AREA Before Correction", area)
+
+    # TODO: Fix sign of the calculated correction?
     area += correction
 
+    if correction != 0.0:
+        print("AREA After Correction", area)
+
     return area, jacobian
+
+
+@njit(cache=True)
+def edge_passes_through_pole(node1, node2):
+    """
+    Check if the edge passes through a pole.
+
+    Parameters:
+    - node1: first node of the edge (normalized).
+    - node2: second node of the edge (normalized).
+
+    Returns:
+    - bool: True if the edge passes through a pole, False otherwise.
+    """
+    # Calculate the normal vector to the plane defined by the origin, node1, and node2
+    n = np.cross(node1, node2)
+
+    # Check for numerical stability issues with the normal vector
+    if np.allclose(n, 0):
+        # Handle cases where the cross product is near zero, such as when nodes are nearly identical or opposite
+        return False  # Or handle it according to your specific needs
+
+    # Normalize the normal vector
+    n = n / np.linalg.norm(n)
+
+    # North and South Pole vectors (make them float64)
+    p_north = np.array([0.0, 0.0, 1.0])  # Changed to float64
+    p_south = np.array([0.0, 0.0, -1.0])  # Changed to float64
+
+    # Check if the normal vector is orthogonal to either pole
+    return np.isclose(np.dot(n, p_north), 0) or np.isclose(np.dot(n, p_south), 0)
 
 
 @njit(cache=True)
@@ -140,6 +194,7 @@ def get_all_face_area_from_coords(
     quadrature_rule="triangular",
     order=4,
     coords_type="spherical",
+    correct_area=False,
 ):
     """Given coords, connectivity and other area calculation params, this
     routine loop over all faces and return an numpy array with areas of each
@@ -199,7 +254,7 @@ def get_all_face_area_from_coords(
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area, face_jacobian = calculate_face_area(
-            face_x, face_y, face_z, quadrature_rule, order, coords_type
+            face_x, face_y, face_z, quadrature_rule, order, coords_type, correct_area
         )
         # store current face area
         area[face_idx] = face_area

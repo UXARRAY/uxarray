@@ -266,14 +266,15 @@ def test_face_areas_calculate_total_face_area_triangle():
     # validate the grid
     assert grid_verts.validate()
 
-    # calculate area
-    area_gaussian = grid_verts.calculate_total_face_area(
-        quadrature_rule="gaussian", order=5)
-    nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
-
+    # calculate area without correction
     area_triangular = grid_verts.calculate_total_face_area(
         quadrature_rule="triangular", order=4)
     nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
+
+    # calculate area
+    area_gaussian = grid_verts.calculate_total_face_area(
+        quadrature_rule="gaussian", order=5, correct_area=True)
+    nt.assert_almost_equal(area_gaussian, constants.CORRECTED_TRI_AREA, decimal=3)
 
 def test_face_areas_calculate_total_face_area_file():
     """Create a uxarray grid from vertices and saves an exodus file."""
