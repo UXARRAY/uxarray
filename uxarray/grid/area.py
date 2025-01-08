@@ -175,7 +175,7 @@ def edge_passes_through_pole(node1, node2):
     # Normalize the normal vector
     n = n / np.linalg.norm(n)
 
-    # North and South Pole vectors (make them float64)
+    # North and South Pole vectors
     p_north = np.array([0.0, 0.0, 1.0])  # Changed to float64
     p_south = np.array([0.0, 0.0, -1.0])  # Changed to float64
 
