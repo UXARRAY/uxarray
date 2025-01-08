@@ -170,7 +170,7 @@ def edge_passes_through_pole(node1, node2):
     # Check for numerical stability issues with the normal vector
     if np.allclose(n, 0):
         # Handle cases where the cross product is near zero, such as when nodes are nearly identical or opposite
-        return False  # Or handle it according to your specific needs
+        return False  
 
     # Normalize the normal vector
     n = n / np.linalg.norm(n)
