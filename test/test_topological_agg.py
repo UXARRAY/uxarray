@@ -7,7 +7,6 @@ from pathlib import Path
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-
 ds_path = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
 
 AGGS = ["topological_mean",
@@ -42,9 +41,12 @@ def test_node_to_edge_aggs():
 
 
 def test_edge_to_face_aggs():
-    grid_path = "/Users/aaronzedwick/uxarray/test/meshfiles/ugrid/quad-hexagon/grid.nc"
-    data_path = "/Users/aaronzedwick/uxarray/test/meshfiles/ugrid/quad-hexagon/random-edge-data.nc"
+    grid_path = '/Users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc'
 
-    uxds = ux.open_dataset(grid_path, data_path)
+    uxds = ux.open_dataset(grid_path, grid_path)
 
-    test = uxds["random_data_edge"].topological_mean("face")
+    uxds = uxds['latCell'].subset.nearest_neighbor(k=3, center_coord=[0, 0])
+
+    uxda_edge_face_agg = uxds.topological_mean(destination="node")
+
+    print(uxda_edge_face_agg)

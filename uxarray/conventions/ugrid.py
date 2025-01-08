@@ -224,6 +224,12 @@ N_NODES_PER_FACE_ATTRS = {
 
 N_NODES_PER_FACE_DIMS = ["n_face"]
 
+N_FACES_PER_NODE_ATTRS = {
+    "cf_role": "n_faces_per_node",
+    "long name": "Number of faces per node",
+}
+
+N_FACES_PER_NODE_DIMS = ["n_node"]
 
 CONNECTIVITY_NAMES = [
     "face_node_connectivity",

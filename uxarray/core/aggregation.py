@@ -56,15 +56,15 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
 
     elif uxda._face_centered():
         # aggregation of a face-centered data variable
-        raise NotImplementedError(
-            "Aggregation of face-centered data variables is not yet supported."
-        )
-        # if destination == "node":
-        #     pass
-        # elif destination == "edge":
-        #     pass
-        # else:
-        #     raise ValueError("TODO: ")
+        # raise NotImplementedError(
+        #     "Aggregation of face-centered data variables is not yet supported."
+        # )
+        if destination == "node":
+            return _face_to_node_aggregation(uxda, aggregation, kwargs)
+        elif destination == "edge":
+            pass
+        else:
+            raise ValueError("TODO: ")
 
     else:
         raise ValueError(
@@ -221,7 +221,7 @@ def _edge_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """Applies an Edge to Face Topological aggregation."""
     if not uxda._edge_centered():
         raise ValueError(
-            f"Data Variable must be mapped to the corner nodes of each face, with dimension "
+            f"Data Variable must be mapped to the edge centers of each face, with dimension "
             f"{uxda.uxgrid.n_edge}."
         )
 
@@ -244,3 +244,64 @@ def _edge_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
         dims=uxda.dims,
         name=uxda.name,
     ).rename({"n_edge": "n_face"})
+
+
+def _apply_face_to_node_aggregation_numpy(
+    uxda, aggregation_func, aggregation_func_kwargs
+):
+    """Applies an Edge to Face Topological aggregation on a Numpy array."""
+    data = uxda.values
+    node_face_conn = uxda.uxgrid.node_face_connectivity.values
+    n_nodes_per_face = uxda.uxgrid.n_faces_per_node.values
+
+    (
+        change_ind,
+        n_nodes_per_face_sorted_ind,
+        element_sizes,
+        size_counts,
+    ) = get_face_node_partitions(n_nodes_per_face)
+
+    result = np.empty(shape=(data.shape[:-1]) + (uxda.uxgrid.n_face,))
+
+    for e, start, end in zip(element_sizes, change_ind[:-1], change_ind[1:]):
+        face_inds = n_nodes_per_face_sorted_ind[start:end]
+        face_nodes_par = node_face_conn[face_inds, 0:e]
+
+        # apply aggregation function to current node face partition
+        aggregation_par = aggregation_func(
+            data[..., face_nodes_par], axis=-1, **aggregation_func_kwargs
+        )
+
+        # store current aggregation
+        result[..., face_inds] = aggregation_par
+
+    return result
+
+
+def _face_to_node_aggregation(uxda, aggregation, aggregation_func_kwargs):
+    """Applies an Edge to Face Topological aggregation."""
+    if not uxda._face_centered():
+        raise ValueError(
+            f"Data Variable must be mapped to the face centers of each face, with dimension "
+            f"{uxda.uxgrid.n_face}."
+        )
+
+    if isinstance(uxda.data, np.ndarray):
+        # apply aggregation using numpy
+        aggregated_var = _apply_face_to_node_aggregation_numpy(
+            uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
+        )
+    elif isinstance(uxda.data, da.Array):
+        # apply aggregation on dask array, TODO:
+        aggregated_var = _apply_face_to_node_aggregation_numpy(
+            uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
+        )
+    else:
+        raise ValueError
+
+    return uxarray.core.dataarray.UxDataArray(
+        uxgrid=uxda.uxgrid,
+        data=aggregated_var,
+        dims=uxda.dims,
+        name=uxda.name,
+    ).rename({"n_face": "n_node"})
