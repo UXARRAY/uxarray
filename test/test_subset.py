@@ -142,9 +142,10 @@ def test_inverse_indices():
 
     assert subset.inverse_indices is not None
 
-    # Ensure code raises exceptions when the element is edges or nodes
+    # Ensure code raises exceptions when the element is edges or nodes or inverse_indices is incorrect
     assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="edge centers", inverse_indices=True)
     assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="nodes", inverse_indices=True)
+    assert pytest.raises(ValueError, grid.subset.bounding_circle, center_coord, r=10, element="face center", inverse_indices=(['not right'], True))
 
     # Test isel directly
     subset = grid.isel(n_face=[1], inverse_indices=True)
