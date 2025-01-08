@@ -177,7 +177,7 @@ def edge_passes_through_pole(node1, node2):
 
     # North and South Pole vectors
     p_north = np.array([0.0, 0.0, 1.0])  
-    p_south = np.array([0.0, 0.0, -1.0])  # Changed to float64
+    p_south = np.array([0.0, 0.0, -1.0])  
 
     # Check if the normal vector is orthogonal to either pole
     return np.isclose(np.dot(n, p_north), 0) or np.isclose(np.dot(n, p_south), 0)
