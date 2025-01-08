@@ -162,8 +162,10 @@ def _slice_face_indices(
                 if index_type in index_types:
                     inverse_indices_ds[index_type] = index_types[index_type]
                 else:
-                    raise ValueError("Incorrect type of index for `inverse_indices`. Try passing one of the following "
-                                     "instead: 'face', 'edge', 'node'")
+                    raise ValueError(
+                        "Incorrect type of index for `inverse_indices`. Try passing one of the following "
+                        "instead: 'face', 'edge', 'node'"
+                    )
 
         return Grid.from_dataset(
             ds,
