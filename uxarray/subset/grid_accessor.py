@@ -56,7 +56,7 @@ class GridSubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         """
 
         if method == "coords":
@@ -135,7 +135,7 @@ class GridSubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         """
 
         coords = np.asarray(center_coord)
@@ -172,7 +172,7 @@ class GridSubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         """
 
         coords = np.asarray(center_coord)

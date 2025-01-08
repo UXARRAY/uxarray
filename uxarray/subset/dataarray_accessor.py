@@ -56,7 +56,7 @@ class DataArraySubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         """
         grid = self.uxda.uxgrid.subset.bounding_box(
             lon_bounds, lat_bounds, element, method, inverse_indices=inverse_indices
@@ -85,7 +85,7 @@ class DataArraySubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         """
         grid = self.uxda.uxgrid.subset.bounding_circle(
             center_coord, r, element, inverse_indices=inverse_indices, **kwargs
@@ -113,7 +113,7 @@ class DataArraySubsetAccessor:
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         """
 
         grid = self.uxda.uxgrid.subset.nearest_neighbor(

@@ -35,7 +35,7 @@ class UxDataArrayCrossSectionAccessor:
             Must be between -90.0 and 90.0
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
 
         Returns
         -------
@@ -80,7 +80,7 @@ class UxDataArrayCrossSectionAccessor:
             Must be between -180.0 and 180.0
         inverse_indices : Union[List[str], Set[str], bool], optional
             Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
 
         Returns
         -------

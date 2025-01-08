@@ -144,7 +144,7 @@ def test_inverse_indices():
 
     # Ensure code raises exceptions when the element is edges or nodes
     assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="edge centers", inverse_indices=True)
-    assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="node centers", inverse_indices=True)
+    assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="nodes", inverse_indices=True)
 
     # Test isel directly
     subset = grid.isel(n_face=[1], inverse_indices=True)

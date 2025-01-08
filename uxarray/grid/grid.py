@@ -142,7 +142,7 @@ class Grid:
     is_subset : bool, default=False
         Flag to mark if the grid is a subset or not
 
-    inverse_indices: xr.Dataset, defaul=None
+    inverse_indices: xr.Dataset, default=None
         A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
     Examples
@@ -168,7 +168,7 @@ class Grid:
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
         source_dims_dict: Optional[dict] = {},
-        is_subset=False,
+        is_subset: bool = False,
         inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
@@ -1529,7 +1529,7 @@ class Grid:
         return not self.partial_sphere_coverage
 
     @property
-    def inverse_indices(self):
+    def inverse_indices(self) -> xr.Dataset:
         """Indices for a subset that map each face in the subset back to the original grid"""
         if self.is_subset:
             return self._inverse_indices
@@ -2246,8 +2246,8 @@ class Grid:
 
         Parameters
         inverse_indices : Union[List[str], Set[str], bool], default=False
-            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+            Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
             Dimension to index, one of ['n_node', 'n_edge', 'n_face']
 

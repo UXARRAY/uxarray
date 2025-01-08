@@ -91,7 +91,7 @@ def _slice_face_indices(
         to exclusive (i.e elements be made up all desired features from a slice)
     inverse_indices : Union[List[str], Set[str], bool], optional
         Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-        other reverse indices can be stored by passing any or all of the following: (["face centers", "edge centers", "nodes"], True)
+        other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
     """
     if inclusive is False:
         raise ValueError("Exclusive slicing is not yet supported.")
@@ -151,12 +151,12 @@ def _slice_face_indices(
         inverse_indices_ds = xr.Dataset()
 
         index_types = {
-            "face centers": face_indices,
-            "edge centers": edge_indices,
-            "nodes": node_indices,
+            "face": face_indices,
+            "edge": edge_indices,
+            "node": node_indices,
         }
         if isinstance(inverse_indices, bool):
-            inverse_indices_ds["face centers"] = face_indices
+            inverse_indices_ds["face"] = face_indices
         else:
             for index_type in inverse_indices[0]:
                 if index_type in index_types:
