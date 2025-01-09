@@ -170,14 +170,14 @@ def edge_passes_through_pole(node1, node2):
     # Check for numerical stability issues with the normal vector
     if np.allclose(n, 0):
         # Handle cases where the cross product is near zero, such as when nodes are nearly identical or opposite
-        return False  
+        return False
 
     # Normalize the normal vector
     n = n / np.linalg.norm(n)
 
     # North and South Pole vectors
-    p_north = np.array([0.0, 0.0, 1.0])  
-    p_south = np.array([0.0, 0.0, -1.0])  
+    p_north = np.array([0.0, 0.0, 1.0])
+    p_south = np.array([0.0, 0.0, -1.0])
 
     # Check if the normal vector is orthogonal to either pole
     return np.isclose(np.dot(n, p_north), 0) or np.isclose(np.dot(n, p_south), 0)
