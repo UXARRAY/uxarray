@@ -1539,7 +1539,7 @@ class Grid:
             )
 
     @property
-    def is_subset(self):
+    def is_subset(self) -> bool:
         return self._is_subset
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
