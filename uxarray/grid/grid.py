@@ -54,7 +54,8 @@ from uxarray.grid.connectivity import (
     _populate_n_nodes_per_face,
     _populate_node_face_connectivity,
     _populate_edge_face_connectivity,
-    _populate_face_face_connectivity, _populate_n_faces_per_node,
+    _populate_face_face_connectivity,
+    _populate_n_faces_per_node,
 )
 
 from uxarray.grid.geometry import (

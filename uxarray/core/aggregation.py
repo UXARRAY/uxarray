@@ -261,7 +261,7 @@ def _apply_face_to_node_aggregation_numpy(
         size_counts,
     ) = get_face_node_partitions(n_nodes_per_face)
 
-    result = np.empty(shape=(data.shape[:-1]) + (uxda.uxgrid.n_face,))
+    result = np.empty(shape=(data.shape[:-1]) + (uxda.uxgrid.n_node,))
 
     for e, start, end in zip(element_sizes, change_ind[:-1], change_ind[1:]):
         face_inds = n_nodes_per_face_sorted_ind[start:end]
