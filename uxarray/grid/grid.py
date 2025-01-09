@@ -1540,7 +1540,7 @@ class Grid:
 
     @property
     def is_subset(self):
-        """Returns `True` if the Grid is a subset, and 'False' otherwise."""
+        """Returns `True` if the Grid is a subset, 'False' otherwise."""
         return self._is_subset
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
