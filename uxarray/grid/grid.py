@@ -201,7 +201,7 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
-        self.is_subset = is_subset
+        self._is_subset = is_subset
 
         if inverse_indices is not None:
             self._inverse_indices = inverse_indices
@@ -1537,6 +1537,10 @@ class Grid:
             raise Exception(
                 "Grid is not a subset, therefore no inverse face indices exist"
             )
+
+    @property
+    def is_subset(self):
+        return self._is_subset
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
