@@ -10,6 +10,8 @@ from xarray.core.options import OPTIONS
 from typing import (
     Optional,
     Union,
+    List,
+    Set,
 )
 
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
@@ -142,6 +144,12 @@ class Grid:
     source_dims_dict : dict, default={}
         Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : n_face})
 
+    is_subset : bool, default=False
+        Flag to mark if the grid is a subset or not
+
+    inverse_indices: xr.Dataset, default=None
+        A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
+
     Examples
     ----------
 
@@ -165,6 +173,8 @@ class Grid:
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
         source_dims_dict: Optional[dict] = {},
+        is_subset: bool = False,
+        inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
@@ -196,6 +206,10 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
+        self._is_subset = is_subset
+
+        if inverse_indices is not None:
+            self._inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -257,6 +271,8 @@ class Grid:
             containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        is_subset : bool, default=False
+            Bool flag to indicate whether a grid is a subset
         """
 
         if isinstance(dataset, xr.Dataset):
@@ -306,7 +322,13 @@ class Grid:
             except TypeError:
                 raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, source_grid_spec, source_dims_dict)
+        return cls(
+            grid_ds,
+            source_grid_spec,
+            source_dims_dict,
+            is_subset=kwargs.get("is_subset", False),
+            inverse_indices=kwargs.get("inverse_indices"),
+        )
 
     @classmethod
     def from_file(
@@ -1511,6 +1533,21 @@ class Grid:
         (i.e. contains no holes)"""
         return not self.partial_sphere_coverage
 
+    @property
+    def inverse_indices(self) -> xr.Dataset:
+        """Indices for a subset that map each face in the subset back to the original grid"""
+        if self.is_subset:
+            return self._inverse_indices
+        else:
+            raise Exception(
+                "Grid is not a subset, therefore no inverse face indices exist"
+            )
+
+    @property
+    def is_subset(self):
+        """Returns `True` if the Grid is a subset, 'False' otherwise."""
+        return self._is_subset
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
@@ -2206,7 +2243,9 @@ class Grid:
 
         return dual
 
-    def isel(self, **dim_kwargs):
+    def isel(
+        self, inverse_indices: Union[List[str], Set[str], bool] = False, **dim_kwargs
+    ):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -2216,6 +2255,9 @@ class Grid:
         exclusive and clipped indexing is in the works.
 
         Parameters
+        inverse_indices : Union[List[str], Set[str], bool], default=False
+            Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
             Dimension to index, one of ['n_node', 'n_edge', 'n_face']
 
@@ -2231,13 +2273,23 @@ class Grid:
             raise ValueError("Indexing must be along a single dimension.")
 
         if "n_node" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for node selection, please use face centers"
+                )
             return _slice_node_indices(self, dim_kwargs["n_node"])
 
         elif "n_edge" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for edge selection, please use face centers"
+                )
             return _slice_edge_indices(self, dim_kwargs["n_edge"])
 
         elif "n_face" in dim_kwargs:
-            return _slice_face_indices(self, dim_kwargs["n_face"])
+            return _slice_face_indices(
+                self, dim_kwargs["n_face"], inverse_indices=inverse_indices
+            )
 
         else:
             raise ValueError(
