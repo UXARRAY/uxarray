@@ -726,6 +726,7 @@ def test_normalize_existing_coordinates_non_norm_initial():
     uxgrid.normalize_cartesian_coordinates()
     assert _check_normalization(uxgrid)
 
+
 def test_normalize_existing_coordinates_norm_initial():
     gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
     from uxarray.grid.validation import _check_normalization

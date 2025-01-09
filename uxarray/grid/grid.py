@@ -2430,6 +2430,7 @@ class Grid:
             center_coord=[*point_xyz],
             r=max_face_radius,
             element="face centers",
+            inverse_indices=True,
         )
 
         # Get the face's edges for the whole subset
@@ -2441,7 +2442,7 @@ class Grid:
             subset.node_y.values,
             subset.node_z.values,
         )
-        inverse_indices = subset.attrs["inverse_indices"].values
+        inverse_indices = subset.inverse_indices.face.values
 
         # Check if any of the faces in the subset contain the point
         index = _find_faces(face_edge_cartesian, point_xyz, inverse_indices)
