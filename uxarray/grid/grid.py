@@ -4,7 +4,6 @@ import os
 
 from html import escape
 
-from numba import njit
 from xarray.core.options import OPTIONS
 
 from typing import (
@@ -14,7 +13,7 @@ from typing import (
     Set,
 )
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _find_faces
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -71,7 +70,6 @@ from uxarray.grid.geometry import (
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
     calculate_max_face_radius,
-    point_in_face,
 )
 
 from uxarray.grid.neighbors import (
@@ -2442,6 +2440,7 @@ class Grid:
             subset.node_y.values,
             subset.node_z.values,
         )
+
         inverse_indices = subset.inverse_indices.face.values
 
         # Check if any of the faces in the subset contain the point
@@ -2467,25 +2466,3 @@ class Grid:
         )
 
         return max_distance
-
-
-@njit(cache=True)
-def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
-    """Finds the faces that contain a given point, inside a subset "face_edge_cartesian"""
-
-    index = []
-
-    # Loop through the whole subset
-    for i, face in enumerate(face_edge_cartesian):
-        # Check if the point is inside the face
-        contains_point = point_in_face(
-            face,
-            point_xyz,
-            inclusive=True,
-        )
-
-        # If the point is, add it to the list of faces
-        if contains_point:
-            index.append(inverse_indices[i])
-
-    return index
