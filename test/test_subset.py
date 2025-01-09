@@ -149,4 +149,4 @@ def test_inverse_indices():
 
     # Test isel directly
     subset = grid.isel(n_face=[1], inverse_indices=True)
-    assert subset.inverse_indices is not None
+    assert subset.inverse_indices.face.values == 1
