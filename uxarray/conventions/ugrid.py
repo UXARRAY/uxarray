@@ -231,6 +231,27 @@ N_FACES_PER_NODE_ATTRS = {
 
 N_FACES_PER_NODE_DIMS = ["n_node"]
 
+N_FACES_PER_EDGE_ATTRS = {
+    "cf_role": "n_faces_per_edge",
+    "long name": "Number of faces per edge",
+}
+
+N_FACES_PER_EDGE_DIMS = ["n_edge"]
+
+N_EDGES_PER_FACE_ATTRS = {
+    "cf_role": "n_edges_per_face",
+    "long name": "Number of edges per face",
+}
+
+N_EDGES_PER_FACE_DIMS = ["n_face"]
+
+N_EDGES_PER_NODE_ATTRS = {
+    "cf_role": "n_edges_per_node",
+    "long name": "Number of edges per node",
+}
+
+N_EDGES_PER_NODE_DIMS = ["n_node"]
+
 CONNECTIVITY_NAMES = [
     "face_node_connectivity",
     "face_edge_connectivity",

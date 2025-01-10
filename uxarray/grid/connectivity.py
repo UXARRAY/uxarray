@@ -159,9 +159,9 @@ def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
 
 
 def _populate_n_faces_per_node(grid):
-    """Constructs the connectivity variable (``n_nodes_per_face``) and stores
+    """Constructs the connectivity variable (``n_faces_per_node``) and stores
     it within the internal (``Grid._ds``) and through the attribute
-    (``Grid.n_nodes_per_face``)."""
+    (``Grid.n_faces_per_node``)."""
 
     n_faces_per_node = _build_n_nodes_per_face(
         grid.node_face_connectivity.values, grid.n_node, grid.n_max_node_faces
@@ -175,16 +175,16 @@ def _populate_n_faces_per_node(grid):
     grid._ds["n_faces_per_node"] = xr.DataArray(
         data=n_faces_per_node,
         dims=ugrid.N_FACES_PER_NODE_DIMS,
-        attrs=ugrid.N_NODES_PER_FACE_ATTRS,
+        attrs=ugrid.N_FACES_PER_NODE_ATTRS,
     )
 
 
 @njit(cache=True)
 def _build_n_faces_per_node(node_faces, n_nodes, n_max_node_faces):
-    """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
-    value nodes for each face in ``face_node_connectivity``"""
+    """Constructs ``n_faces_per_node``, which contains the number of non-fill-
+    value nodes for each face in ``node_face_connectivity``"""
 
-    # padding to shape [n_face, n_max_face_nodes + 1]
+    # padding to shape [n_nodes, n_max_node_faces + 1]
     closed = np.ones((n_nodes, n_max_node_faces + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
 
     closed[:, :-1] = node_faces.copy()
@@ -192,6 +192,78 @@ def _build_n_faces_per_node(node_faces, n_nodes, n_max_node_faces):
     n_faces_per_node = np.argmax(closed == INT_FILL_VALUE, axis=1)
 
     return n_faces_per_node
+
+
+def _populate_n_faces_per_edge(grid):
+    """Constructs the connectivity variable (``n_faces_per_edge``) and stores
+    it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.n_faces_per_edge``)."""
+
+    n_faces_per_edge = _build_n_faces_per_edge(
+        grid.edge_face_connectivity.values, grid.n_edge, 2
+    )
+
+    if n_faces_per_edge.ndim == 0:
+        # convert scalar value into a [1, 1] array
+        n_faces_per_edge = np.expand_dims(n_faces_per_edge, 0)
+
+    # add to internal dataset
+    grid._ds["n_faces_per_edge"] = xr.DataArray(
+        data=n_faces_per_edge,
+        dims=ugrid.N_FACES_PER_EDGE_DIMS,
+        attrs=ugrid.N_FACES_PER_EDGE_ATTRS,
+    )
+
+
+@njit(cache=True)
+def _build_n_faces_per_edge(edge_faces, n_edges, n_max_edge_faces):
+    """Constructs ``n_faces_per_edge``, which contains the number of non-fill-
+    value nodes for each face in ``edge_face_connectivity``"""
+
+    # padding to shape [n_edges, n_max_edge_faces + 1]
+    closed = np.ones((n_edges, n_max_edge_faces + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    closed[:, :-1] = edge_faces.copy()
+
+    n_faces_per_edge = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    return n_faces_per_edge
+
+
+def _populate_n_edges_per_node(grid):
+    """Constructs the connectivity variable (``n_edges_per_node``) and stores
+    it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.n_edges_per_node``)."""
+
+    n_edges_per_node = _build_n_edges_per_node(
+        grid.node_edge_connectivity.values, grid.n_edge, grid.n_max_node_edges
+    )
+
+    if n_edges_per_node.ndim == 0:
+        # convert scalar value into a [1, 1] array
+        n_edges_per_node = np.expand_dims(n_edges_per_node, 0)
+
+    # add to internal dataset
+    grid._ds["n_edges_per_node"] = xr.DataArray(
+        data=n_edges_per_node,
+        dims=ugrid.N_EDGES_PER_NODE_DIMS,
+        attrs=ugrid.N_EDGES_PER_NODE_ATTRS,
+    )
+
+
+@njit(cache=True)
+def _build_n_edges_per_node(edge_nodes, n_edges, n_max_node_edges):
+    """Constructs ``n_edges_per_node``, which contains the number of non-fill-
+    value nodes for each face in ``node_edge_connectivity``"""
+
+    # padding to shape [n_edges, n_max_edge_faces + 1]
+    closed = np.ones((n_edges, n_max_node_edges + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    closed[:, :-1] = edge_nodes.copy()
+
+    n_edges_per_node = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    return n_edges_per_node
 
 
 def _populate_edge_node_connectivity(grid):

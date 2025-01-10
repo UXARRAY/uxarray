@@ -55,7 +55,7 @@ from uxarray.grid.connectivity import (
     _populate_node_face_connectivity,
     _populate_edge_face_connectivity,
     _populate_face_face_connectivity,
-    _populate_n_faces_per_node,
+    _populate_n_faces_per_node, _populate_n_faces_per_edge, _populate_n_edges_per_face, _populate_n_edges_per_node,
 )
 
 from uxarray.grid.geometry import (
@@ -865,6 +865,40 @@ class Grid:
         """Setter for ``n_faces_per_node``"""
         assert isinstance(value, xr.DataArray)
         self._ds["n_faces_per_node"] = value
+
+    @property
+    def n_faces_per_edge(self) -> xr.DataArray:
+        """The number of faces that surround each edge.
+
+        Dimensions: ``(n_face, )``
+        """
+        if "n_faces_per_edge" not in self._ds:
+            _populate_n_faces_per_edge(self)
+
+        return self._ds["n_faces_per_edge"]
+
+    @n_faces_per_edge.setter
+    def n_faces_per_edge(self, value):
+        """Setter for ``n_faces_per_edge``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["n_faces_per_edge"] = value
+
+    @property
+    def n_edges_per_node(self) -> xr.DataArray:
+        """The number of edges that surround each node.
+
+        Dimensions: ``(n_edge, )``
+        """
+        if "n_edges_per_node" not in self._ds:
+            _populate_n_edges_per_node(self)
+
+        return self._ds["n_edges_per_node"]
+
+    @n_edges_per_node.setter
+    def n_edges_per_node(self, value):
+        """Setter for ``n_edges_per_node``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["n_edges_per_node"] = value
 
     @property
     def node_lon(self) -> xr.DataArray:
