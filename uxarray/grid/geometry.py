@@ -1652,6 +1652,28 @@ def point_in_face(
 
 
 @njit(cache=True)
+def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
+    """Finds the faces that contain a given point, inside a subset "face_edge_cartesian"""
+
+    index = []
+
+    # Loop through the whole subset
+    for i, face in enumerate(face_edge_cartesian):
+        # Check if the point is inside the face
+        contains_point = point_in_face(
+            face,
+            point_xyz,
+            inclusive=True,
+        )
+
+        # If the point is, add it to the list of faces
+        if contains_point:
+            index.append(inverse_indices[i])
+
+    return index
+
+
+@njit(cache=True)
 def calculate_max_face_radius(
     face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
 ):

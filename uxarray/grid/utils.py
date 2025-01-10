@@ -5,8 +5,6 @@ import uxarray.utils.computing as ac_utils
 
 from numba import njit
 
-from uxarray.grid.geometry import point_in_face
-
 
 @njit(cache=True)
 def _small_angle_of_2_vectors(u, v):
@@ -460,25 +458,3 @@ def _get_lonlat_rad_face_edge_nodes(
     face_edges_lonlat_rad[valid_mask, 1] = node_lat_rad[valid_edges]
 
     return face_edges_lonlat_rad.reshape(n_face, n_max_face_edges, 2, 2)
-
-
-@njit(cache=True)
-def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
-    """Finds the faces that contain a given point, inside a subset "face_edge_cartesian"""
-
-    index = []
-
-    # Loop through the whole subset
-    for i, face in enumerate(face_edge_cartesian):
-        # Check if the point is inside the face
-        contains_point = point_in_face(
-            face,
-            point_xyz,
-            inclusive=True,
-        )
-
-        # If the point is, add it to the list of faces
-        if contains_point:
-            index.append(inverse_indices[i])
-
-    return index

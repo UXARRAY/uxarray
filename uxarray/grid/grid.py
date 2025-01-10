@@ -13,7 +13,7 @@ from typing import (
     Set,
 )
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _find_faces
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -70,6 +70,7 @@ from uxarray.grid.geometry import (
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
     calculate_max_face_radius,
+    _find_faces,
 )
 
 from uxarray.grid.neighbors import (
