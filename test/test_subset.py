@@ -97,11 +97,10 @@ def test_grid_bounding_box_subset():
             grid = ux.open_grid(grid_path)
 
             grid_subset = grid.subset.bounding_box(bbox[0],
-                                                   bbox[1],
-                                                   element=element)
+                                                   bbox[1],)
 
             grid_subset_antimeridian = grid.subset.bounding_box(
-                bbox_antimeridian[0], bbox_antimeridian[1], element=element)
+                bbox_antimeridian[0], bbox_antimeridian[1])
 
 
 def test_uxda_isel():
