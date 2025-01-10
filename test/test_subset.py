@@ -132,7 +132,7 @@ def test_inverse_indices():
 
     # Test bounding box subsetting
     box = [(-10, 10), (-10, 10)]
-    subset = grid.subset.bounding_box(box[0], box[1], element="face centers", inverse_indices=True)
+    subset = grid.subset.bounding_box(box[0], box[1], inverse_indices=True)
 
     assert subset.inverse_indices is not None
 

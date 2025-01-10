@@ -233,23 +233,34 @@ def faces_within_lon_bounds(lons, face_bounds_lon):
         cur_face_min = face_bounds_lon_min[i]
         cur_face_max = face_bounds_lon_max[i]
 
+        # Check if the face itself crosses the antimeridian
+        face_crosses_antimeridian = cur_face_min > cur_face_max
+
         if not antimeridian:
             # Normal case: min_lon <= max_lon
-            # Check if face overlaps with [min_lon, max_lon]
-            if (cur_face_max >= min_lon) and (cur_face_min <= max_lon):
-                candidate_faces.append(i)
+            # Face must be strictly contained within [min_lon, max_lon]
+            if not face_crosses_antimeridian:
+                if (cur_face_min >= min_lon) and (cur_face_max <= max_lon):
+                    candidate_faces.append(i)
+            else:
+                # If face crosses antimeridian, it cannot be strictly contained
+                # in a non-antimeridian query interval
+                continue
         else:
             # Antimeridian case: interval crosses the -180/180 boundary
             # The query interval is effectively [min_lon, 180] U [-180, max_lon]
 
-            # Check overlap with [min_lon, 180]
-            overlap_part1 = (cur_face_max >= min_lon) and (cur_face_min <= 180)
+            if face_crosses_antimeridian:
+                # If face crosses antimeridian, check if it's contained in the full query range
+                if (cur_face_min >= min_lon) and (cur_face_max <= max_lon):
+                    candidate_faces.append(i)
+            else:
+                # For non-crossing faces, check if they're strictly contained in either part
+                contained_part1 = (cur_face_min >= min_lon) and (cur_face_max <= 180)
+                contained_part2 = (cur_face_min >= -180) and (cur_face_max <= max_lon)
 
-            # Check overlap with [-180, max_lon]
-            overlap_part2 = (cur_face_max >= -180) and (cur_face_min <= max_lon)
-
-            if overlap_part1 or overlap_part2:
-                candidate_faces.append(i)
+                if contained_part1 or contained_part2:
+                    candidate_faces.append(i)
 
     return np.array(candidate_faces, dtype=INT_DTYPE)
 

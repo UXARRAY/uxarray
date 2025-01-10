@@ -19,10 +19,12 @@ class DataArraySubsetAccessor:
         prefix = "<uxarray.UxDataArray.subset>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "  * nearest_neighbor(center_coord, k, element, **kwargs)\n"
-        methods_heading += "  * bounding_circle(center_coord, r, element, **kwargs)\n"
+        methods_heading += "  * nearest_neighbor(center_coord, k, element, inverse_indices, **kwargs)\n"
         methods_heading += (
-            "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
+            "  * bounding_circle(center_coord, r, element, inverse_indices, **kwargs)\n"
+        )
+        methods_heading += (
+            "  * bounding_box(lon_bounds, lat_bounds, inverse_indices, **kwargs)\n"
         )
 
         return prefix + methods_heading
@@ -32,7 +34,6 @@ class DataArraySubsetAccessor:
         lon_bounds: Union[Tuple, List, np.ndarray],
         lat_bounds: Union[Tuple, List, np.ndarray],
         inverse_indices: Union[List[str], Set[str], bool] = False,
-        **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
@@ -53,8 +54,10 @@ class DataArraySubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
-            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
         grid = self.uxda.uxgrid.subset.bounding_box(lon_bounds, lat_bounds)
 
@@ -80,8 +83,10 @@ class DataArraySubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
-            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
         grid = self.uxda.uxgrid.subset.bounding_circle(
             center_coord, r, element, inverse_indices=inverse_indices, **kwargs
@@ -108,8 +113,10 @@ class DataArraySubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
-            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
 
         grid = self.uxda.uxgrid.subset.nearest_neighbor(

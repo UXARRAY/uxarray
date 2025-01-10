@@ -19,11 +19,11 @@ class GridSubsetAccessor:
         prefix = "<uxarray.Grid.subset>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "  * nearest_neighbor(center_coord, k, element, **kwargs)\n"
-        methods_heading += "  * bounding_circle(center_coord, r, element, **kwargs)\n"
+        methods_heading += "  * nearest_neighbor(center_coord, k, element, inverse_indices, **kwargs)\n"
         methods_heading += (
-            "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
+            "  * bounding_circle(center_coord, r, element, inverse_indices, **kwargs)\n"
         )
+        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, inverse_indices)\n"
 
         return prefix + methods_heading
 
@@ -32,7 +32,6 @@ class GridSubsetAccessor:
         lon_bounds: Tuple[float, float],
         lat_bounds: Tuple[float, float],
         inverse_indices: Union[List[str], Set[str], bool] = False,
-        **kwargs,
     ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
@@ -53,8 +52,10 @@ class GridSubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
-            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
 
         faces_between_lons = self.uxgrid.get_faces_between_longitudes(lon_bounds)
@@ -62,7 +63,7 @@ class GridSubsetAccessor:
 
         faces = np.intersect1d(faces_between_lons, face_between_lats)
 
-        return self.uxgrid.isel(n_face=faces)
+        return self.uxgrid.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def bounding_circle(
         self,
@@ -84,8 +85,10 @@ class GridSubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
-            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
 
         coords = np.asarray(center_coord)
@@ -121,8 +124,10 @@ class GridSubsetAccessor:
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
-            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
-            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
 
         coords = np.asarray(center_coord)
