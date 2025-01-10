@@ -2436,7 +2436,7 @@ class Grid:
         face_edge_cartesian = _get_cartesian_face_edge_nodes(
             subset.face_node_connectivity.values,
             subset.n_face,
-            subset.n_max_face_edges,
+            subset.n_max_face_nodes,
             subset.node_x.values,
             subset.node_y.values,
             subset.node_z.values,
