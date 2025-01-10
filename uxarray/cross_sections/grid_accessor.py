@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Union, List, Set, Tuple
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -29,6 +28,7 @@ class GridCrossSectionAccessor:
         self,
         lat: float,
         return_face_indices: bool = False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
         intersect with a specified line of constant latitude.
@@ -40,6 +40,9 @@ class GridCrossSectionAccessor:
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant latitude.
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
 
         Returns
         -------
@@ -55,7 +58,7 @@ class GridCrossSectionAccessor:
         Examples
         --------
         >>> # Extract data at 15.5°S latitude
-        >>> cross_section = grid.constant_latitude(lat=-15.5)
+        >>> cross_section = grid.cross_section.constant_latitude(lat=-15.5)
 
         Notes
         -----
@@ -70,7 +73,9 @@ class GridCrossSectionAccessor:
         if len(faces) == 0:
             raise ValueError(f"No intersections found at lat={lat}.")
 
-        grid_at_constant_lat = self.uxgrid.isel(n_face=faces)
+        grid_at_constant_lat = self.uxgrid.isel(
+            n_face=faces, inverse_indices=inverse_indices
+        )
 
         if return_face_indices:
             return grid_at_constant_lat, faces
@@ -81,6 +86,7 @@ class GridCrossSectionAccessor:
         self,
         lon: float,
         return_face_indices: bool = False,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Extracts a cross-section of the grid by selecting all faces that
         intersect with a specified line of constant longitude.
@@ -92,6 +98,9 @@ class GridCrossSectionAccessor:
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the line of constant longitude.
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
 
         Returns
         -------
@@ -107,7 +116,7 @@ class GridCrossSectionAccessor:
         Examples
         --------
         >>> # Extract data at 0° longitude
-        >>> cross_section = grid.constant_latitude(lon=0.0)
+        >>> cross_section = grid.cross_section.constant_latitude(lon=0.0)
 
         Notes
         -----
@@ -121,7 +130,9 @@ class GridCrossSectionAccessor:
         if len(faces) == 0:
             raise ValueError(f"No intersections found at lon={lon}")
 
-        grid_at_constant_lon = self.uxgrid.isel(n_face=faces)
+        grid_at_constant_lon = self.uxgrid.isel(
+            n_face=faces, inverse_indices=inverse_indices
+        )
 
         if return_face_indices:
             return grid_at_constant_lon, faces
