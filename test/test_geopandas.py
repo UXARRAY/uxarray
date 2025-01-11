@@ -9,6 +9,7 @@ shp_filename = current_path / "meshfiles" / "shp" / "cb_2018_us_nation_20m" / "c
 shp_filename_5poly = current_path / "meshfiles" / "shp" / "5poly/5poly.shp"
 shp_filename_multi = current_path / "meshfiles" / "shp" / "multipoly/multipoly.shp"
 geojson_filename = current_path / "meshfiles" / "geojson" / "sample_chicago_buildings.geojson"
+nc_filename = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
 
 def test_read_shpfile():
     """Read a shapefile."""
@@ -43,3 +44,8 @@ def test_read_geojson():
     uxgrid = ux.Grid.from_file(geojson_filename)
     assert uxgrid.n_face == 10
     assert uxgrid.n_max_face_nodes == 36
+
+def test_load_xarray_with_from_file():
+    """ Use backend xarray to call the from_file method."""
+    uxgrid = ux.Grid.from_file(nc_filename, backend="xarray")
+    uxgrid.validate()

@@ -366,7 +366,7 @@ class Grid:
 
         elif backend == "xarray":
             dataset = xr.open_dataset(filename, **kwargs)
-            grid_ds, source_grid_spec, source_dims_dict = cls.from_dataset(dataset)
+            return cls.from_dataset(dataset)
 
         else:
             raise ValueError("Backend not supported")
