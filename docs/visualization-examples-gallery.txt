@@ -1,0 +1,35 @@
+
+.. grid:: 1 2 3 3
+    :gutter: 2
+
+    
+    .. grid-item-card::
+       :text-align: center
+       :link: examples/visualization/3_75km_mpas.ipynb
+
+       .. image:: _static/thumbnails/3_75_mpas.png
+           :alt: 3.75km MPAS Atmosphere Output
+       +++
+       3.75km MPAS Atmosphere Output
+
+
+    .. grid-item-card::
+       :text-align: center
+       :link: examples/visualization/mpas_topology.ipynb
+
+       .. image:: _static/thumbnails/mpas_topology.png
+           :alt: Visualizing MPAS Grid Topology
+       +++
+       Visualizing MPAS Grid Topology
+
+
+    .. grid-item-card::
+       :text-align: center
+       :link: examples/visualization/e3sm-load-viz.ipynb
+
+       .. image:: _static/thumbnails/qflx_e3sm.png
+           :alt: Plotting E3SMv2 Output with UXarray
+       +++
+       Plotting E3SMv2 Output with UXarray
+
+    

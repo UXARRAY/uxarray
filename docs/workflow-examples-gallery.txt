@@ -1,0 +1,25 @@
+
+.. grid:: 1 2 3 3
+    :gutter: 2
+
+    
+    .. grid-item-card::
+       :text-align: center
+       :link: examples/working-with-mpas-grids.ipynb
+
+       .. image:: _static/thumbnails/004-thumbnail.png
+           :alt: Working with MPAS Grids
+       +++
+       Working with MPAS Grids
+
+
+    .. grid-item-card::
+       :text-align: center
+       :link: examples/e3sm-calc-workflow.ipynb
+
+       .. image:: _static/thumbnails/swcre_e3sm.png
+           :alt: Radiative Feedback Analysis on E3SMv2 Model Output
+       +++
+       Radiative Feedback Analysis on E3SMv2 Model Output
+
+    
