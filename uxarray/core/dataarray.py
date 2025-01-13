@@ -1036,7 +1036,7 @@ class UxDataArray(xr.DataArray):
         "n_edge" dimension)"""
         return "n_edge" in self.dims
 
-    def isel(self, ignore_grid=False, *args, **kwargs):
+    def isel(self, ignore_grid=False, inverse_indices=False, *args, **kwargs):
         """Grid-informed implementation of xarray's ``isel`` method, which
         enables indexing across grid dimensions.
 
@@ -1070,11 +1070,17 @@ class UxDataArray(xr.DataArray):
                 raise ValueError("Only one grid dimension can be sliced at a time")
 
             if "n_node" in kwargs:
-                sliced_grid = self.uxgrid.isel(n_node=kwargs["n_node"])
+                sliced_grid = self.uxgrid.isel(
+                    n_node=kwargs["n_node"], inverse_indices=inverse_indices
+                )
             elif "n_edge" in kwargs:
-                sliced_grid = self.uxgrid.isel(n_edge=kwargs["n_edge"])
+                sliced_grid = self.uxgrid.isel(
+                    n_edge=kwargs["n_edge"], inverse_indices=inverse_indices
+                )
             else:
-                sliced_grid = self.uxgrid.isel(n_face=kwargs["n_face"])
+                sliced_grid = self.uxgrid.isel(
+                    n_face=kwargs["n_face"], inverse_indices=inverse_indices
+                )
 
             return self._slice_from_grid(sliced_grid)
 
