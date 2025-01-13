@@ -184,7 +184,6 @@ def clip_scalar(a, a_min, a_max):
         return a
 
 
-@njit(cache=True)
 def _extreme_gca_latitude_cartesian(gca_cart, extreme_type):
     gca_lonlat = np.array(
         [

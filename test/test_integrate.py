@@ -806,9 +806,8 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
         }
     )
 
-    # Assert equality by comparing columns
-    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
-        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+    assert_frame_equal(weight_df, expected_weight_df)
+
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
@@ -860,9 +859,8 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
         }
     )
 
-    # Assert equality by comparing columns
-    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
-        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+    assert_frame_equal(weight_df, expected_weight_df)
+
 
 
 def test_get_zonal_face_interval_pole():
