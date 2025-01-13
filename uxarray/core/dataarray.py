@@ -434,46 +434,39 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def non_conservative_zonal_mean(self, lat=(-90, 90, 10)):
-        # TODO:
-        pass
-
     def zonal_mean(self, lat=(-90, 90, 10)):
-        """Compute the average along one or more lines of constant latitude.
-
-        Candidate faces that intersect each line of constant latitude are determined by referencing the spherical
-        bounding box of each face. If the latitude falls within the bounding box, the face is considered.
+        """Compute averages along lines of constant latitude.
 
         Parameters
         ----------
-        lat : tuple,float, or list default=(-90, 90, 5)
-            Latitude values in degrees for which to compute the zonal mean.
-            If a tuple is provided, it should specify
-            the start latitude, end latitude, and step size as (start, end, step).
-            The zonal mean will be computed for
-            each latitude in the inclusive range [start, end] at intervals of `step`.
-            If a single float is provided,
-            the zonal mean is computed for that specific latitude.
-            If a list or array is provided, the zonal average will
-            be computed for each value provided.
+        lat : tuple, float, or array-like, default=(-90, 90, 10)
+            Latitude values in degrees. Can be specified as:
+            - tuple (start, end, step): Computes means at intervals of `step` in range [start, end]
+            - float: Computes mean for a single latitude
+            - array-like: Computes means for each specified latitude
+
         Returns
         -------
         UxDataArray
-            A UxDataArray containing the computed zonal mean for the specified latitudes.
-            The returned UxDataArray will
-            have a new dimension called `latitudes` with the corresponding latitude values as coordinates.
+            Contains zonal means with a new 'latitudes' dimension and corresponding coordinates.
+            Name will be original_name + '_zonal_mean' or 'zonal_mean' if unnamed.
 
         Examples
         --------
-        Compute the zonal mean for all latitudes between -90 and 90 degrees, at 10-degree intervals:
+        # All latitudes from -90° to 90° at 10° intervals
         >>> uxds["var"].zonal_mean()
 
-        Compute the zonal mean for a single latitude, 30 degrees:
+        # Single latitude at 30°
         >>> uxds["var"].zonal_mean(lat=30.0)
 
-        Compute the zonal mean for latitudes between -60 and 60 degrees, at 10-degree intervals:
+        # Range from -60° to 60° at 10° intervals
         >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
 
+        Notes
+        -----
+        Only supported for face-centered data variables. Candidate faces are determined
+        using spherical bounding boxes - faces whose bounds contain the target latitude
+        are included in calculations.
         """
         if not self._face_centered():
             raise ValueError(
