@@ -54,6 +54,7 @@ Indexing
    :toctree: generated/
 
    Grid.isel
+   Grid.inverse_indices
 
 Dimensions
 ~~~~~~~~~~

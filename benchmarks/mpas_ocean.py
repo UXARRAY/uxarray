@@ -24,8 +24,10 @@ for filename in filenames:
         url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
         _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
 
+
 file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
                   "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
+
 
 
 class DatasetBenchmark:
@@ -137,7 +139,7 @@ class RemapUpsample:
 
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
-        ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+        ux.grid.geometry._construct_boundary_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
 
 class DualMesh(DatasetBenchmark):
@@ -167,6 +169,15 @@ class CheckNorm:
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
 
+class CrossSection:
+    param_names = DatasetBenchmark.param_names + ['lat_step']
+    params = DatasetBenchmark.params + [[1, 2, 4]]
+
+    def setup(self, resolution, lat_step):
+        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid.normalize_cartesian_coordinates()
+        self.lats = np.arange(-45, 45, lat_step)
+        _ = self.uxgrid.bounds
 
 class CrossSections(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['n_lat']
@@ -175,6 +186,12 @@ class CrossSections(DatasetBenchmark):
     def time_constant_lat_fast(self, resolution, n_lat):
         for lat in np.linspace(-89, 89, n_lat):
             self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')
+    def teardown(self, resolution, lat_step):
+        del self.uxgrid
+
+    def time_const_lat(self, resolution, lat_step):
+        for lat in self.lats:
+            self.uxgrid.cross_section.constant_latitude(lat)
 
 
 class ZonalAverage(DatasetBenchmark):
