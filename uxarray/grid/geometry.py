@@ -1708,8 +1708,12 @@ def calculate_max_face_radius(
 @njit(cache=True)
 def haversine_distance(lon_a, lat_a, lon_b, lat_b):
     """Calculates the haversine distance between two points."""
-    dlat = lat_a - lat_b
-    dlon = lon_a - lon_b
-    a = np.sin(dlat / 2) ** 2 + np.cos(lat_b) * np.cos(lat_a) * np.sin(dlon / 2) ** 2
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-    return c
+
+    # Differences in latitudes and longitudes
+    dlat = lat_b - lat_a
+    dlon = lon_b - lon_a
+
+    # Haversine formula
+    equation_in_sqrt = (np.sin(dlat / 2) ** 2) + np.cos(lat_a) * np.cos(lat_b) * (np.sin(dlon / 2) ** 2)
+    distance = 2 * np.arcsin(np.sqrt(equation_in_sqrt))
+    return distance

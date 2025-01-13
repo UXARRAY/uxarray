@@ -15,7 +15,7 @@ from uxarray.grid.arcs import extreme_gca_latitude, _extreme_gca_latitude_cartes
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 
 from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, \
-    stereographic_projection, inverse_stereographic_projection, point_in_face
+    stereographic_projection, inverse_stereographic_projection, point_in_face, haversine_distance
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -1381,3 +1381,18 @@ def test_stereographic_projection_stereographic_projection():
     assert np.array_equal(lon, new_lon)
     assert np.array_equal(lat, new_lat)
     assert np.array_equal(x, y) and x == 0
+
+
+def test_haversine_distance_creation():
+    from sklearn.metrics.pairwise import haversine_distances
+    from math import radians
+
+    bsas = [-34.83333, -58.5166646]
+    paris = [49.0083899664, 2.53844117956]
+    bsas_in_radians = [radians(_) for _ in bsas]
+    paris_in_radians = [radians(_) for _ in paris]
+    result = haversine_distances([bsas_in_radians, paris_in_radians])
+
+    distance = haversine_distance(np.radians(-58.5166646), np.radians(-34.83333), np.radians(2.53844117956), np.radians(49.0083899664))
+
+    assert result[0][1] == distance
