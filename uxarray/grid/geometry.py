@@ -1679,7 +1679,7 @@ def calculate_max_face_radius(
 ):
     """Finds the max face radius in the mesh."""
 
-    # Array to store all distance of each face to it's furthest node.
+    # Array to store all distances of each face to it's furthest node.
     end_distances = np.zeros(len(face_node_connectivity))
 
     # Loop over each face and its nodes
