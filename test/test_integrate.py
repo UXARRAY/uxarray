@@ -6,6 +6,10 @@ import pandas as pd
 
 import numpy.testing as nt
 
+import polars as pl
+
+from polars.testing import assert_frame_equal, assert_series_equal
+
 import uxarray as ux
 import pytest
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
@@ -178,8 +182,9 @@ def test_get_zonal_face_interval_empty_interval():
     ])
 
     res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds)
-    expected_res = pd.DataFrame({"start": [0.0], "end": [0.0]})
-    pd.testing.assert_frame_equal(res, expected_res)
+    expected_res = pl.DataFrame({"start": [0.0], "end": [0.0]})
+    assert_frame_equal(res, expected_res)
+
 
 def test_get_zonal_face_interval_encompass_pole():
     """Test the _get_zonal_face_interval function for cases where the face encompasses the pole inside."""
@@ -206,14 +211,14 @@ def test_get_zonal_face_interval_encompass_pole():
         [np.arcsin(0.9992005658145248), 0.5 * np.pi],
         [0, 2 * np.pi]
     ])
-    expected_df = pd.DataFrame({
+    expected_df = pl.DataFrame({
         'start': [0.000000, 1.101091, 2.357728, 3.614365, 4.871002, 6.127640],
         'end': [0.331721, 1.588358, 2.844995, 4.101632, 5.358270, 6.283185]
     })
 
     res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds)
 
-    pd.testing.assert_frame_equal(res, expected_df)
+    assert_frame_equal(res, expected_df)
 
 def test_get_zonal_face_interval_FILL_VALUE():
     """Test the _get_zonal_face_interval function for cases where there are dummy nodes."""
@@ -325,6 +330,7 @@ def test_get_zonal_face_interval_equator():
     # Asserting almost equal arrays
     nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=10)
 
+
 def test_process_overlapped_intervals_overlap_and_gap():
     intervals_data = [
         {
@@ -354,22 +360,43 @@ def test_process_overlapped_intervals_overlap_and_gap():
         },
     ]
 
-    df = pd.DataFrame(intervals_data)
-    df['interval'] = df.apply(lambda row: pd.Interval(
-        left=row['start'], right=row['end'], closed='both'),
-                              axis=1)
-    df['interval'] = df['interval'].astype('interval[float64]')
+    # Create Polars DataFrame with explicit types
+    df = pl.DataFrame(
+        {
+            'start': pl.Series([x['start'] for x in intervals_data], dtype=pl.Float64),
+            'end': pl.Series([x['end'] for x in intervals_data], dtype=pl.Float64),
+            'face_index': pl.Series([x['face_index'] for x in intervals_data], dtype=pl.Int64)
+        }
+    )
 
-    expected_overlap_contributions = np.array({
+    # Expected results
+    expected_overlap_contributions = {
         0: 75.0,
         1: 70.0,
         2: 5.0,
         3: 100.0,
         4: 90.0
-    })
+    }
+
+    # Process intervals
     overlap_contributions, total_length = _process_overlapped_intervals(df)
-    assert total_length == 340.0
-    nt.assert_array_equal(overlap_contributions, expected_overlap_contributions)
+
+    # Assertions
+    assert abs(total_length - 340.0) < 1e-10  # Using small epsilon for float comparison
+
+    # Check each contribution matches expected value
+    for face_idx, expected_value in expected_overlap_contributions.items():
+        assert abs(overlap_contributions[face_idx] - expected_value) < 1e-10, \
+            f"Mismatch for face_index {face_idx}: expected {expected_value}, got {overlap_contributions[face_idx]}"
+
+    # Check that we have all expected face indices
+    assert set(overlap_contributions.keys()) == set(expected_overlap_contributions.keys()), \
+        "Mismatch in face indices"
+
+    # Optional: Check total contributions sum matches total length
+    assert abs(sum(overlap_contributions.values()) - total_length) < 1e-10, \
+        "Sum of contributions doesn't match total length"
+
 
 def test_process_overlapped_intervals_antimeridian():
     intervals_data = [
@@ -400,21 +427,43 @@ def test_process_overlapped_intervals_antimeridian():
         },
     ]
 
-    df = pd.DataFrame(intervals_data)
-    df['interval'] = df.apply(lambda row: pd.Interval(
-        left=row['start'], right=row['end'], closed='both'),
-                              axis=1)
-    df['interval'] = df['interval'].astype('interval[float64]')
+    # Create Polars DataFrame with explicit types
+    df = pl.DataFrame(
+        {
+            'start': pl.Series([x['start'] for x in intervals_data], dtype=pl.Float64),
+            'end': pl.Series([x['end'] for x in intervals_data], dtype=pl.Float64),
+            'face_index': pl.Series([x['face_index'] for x in intervals_data], dtype=pl.Int64)
+        }
+    )
 
-    expected_overlap_contributions = np.array({
+    # Expected results for antimeridian case
+    expected_overlap_contributions = {
         0: 105.0,
         1: 25.0,
         2: 175.0,
         3: 45.0
-    })
+    }
+
+    # Process intervals
     overlap_contributions, total_length = _process_overlapped_intervals(df)
-    assert total_length == 350.0
-    nt.assert_array_equal(overlap_contributions, expected_overlap_contributions)
+
+    # Assert total length
+    assert abs(total_length - 350.0) < 1e-10, \
+        f"Expected total length 350.0, got {total_length}"
+
+    # Check each contribution matches expected value
+    for face_idx, expected_value in expected_overlap_contributions.items():
+        assert abs(overlap_contributions[face_idx] - expected_value) < 1e-10, \
+            f"Mismatch for face_index {face_idx}: expected {expected_value}, got {overlap_contributions[face_idx]}"
+
+    # Verify all expected face indices are present
+    assert set(overlap_contributions.keys()) == set(expected_overlap_contributions.keys()), \
+        "Mismatch in face indices"
+
+    # Verify total contributions sum matches total length
+    sum_contributions = sum(overlap_contributions.values())
+    assert abs(sum_contributions - total_length) < 1e-10, \
+        f"Sum of contributions ({sum_contributions}) doesn't match total length ({total_length})"
 
 def test_get_zonal_faces_weight_at_constLat_equator():
     face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
@@ -548,20 +597,18 @@ def test_get_zonal_faces_weight_at_constLat_regular():
 
     nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
+
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
-    #The face is touching the pole， so the weight should be 1.0 since there's only 1 face
+    # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
     face_edges_cart = np.array([[
         [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
-            [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
-
+         [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
         [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
-            [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
-
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
         [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
-            [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
-
+         [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
         [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
-            [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+         [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
     ]])
 
     # Corrected face_bounds
@@ -572,15 +619,22 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     constLat_cart = -1
 
     weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
-    # Define the expected DataFrame
-    expected_weight_df = pd.DataFrame({"face_index": [0], "weight": [1.0]})
 
-    # Assert that the resulting should have weight is 1.0
-    pd.testing.assert_frame_equal(weight_df, expected_weight_df)
+    # Create expected Polars DataFrame
+    expected_weight_df = pl.DataFrame(
+        {
+            "face_index": pl.Series([0], dtype=pl.Int64),
+            "weight": pl.Series([1.0], dtype=pl.Float64)
+        }
+    )
+
+    # Assert equality using Polars
+    assert_frame_equal(weight_df, expected_weight_df), \
+        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
-    #there will be 4 faces touching the pole, so the weight should be 0.25 for each face
+    # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
     face_edges_cart = np.array([
         [
             [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
@@ -598,7 +652,7 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
             [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
             [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [-5.23359562e-02, -6.40930613e-18, 9.98629535e-01]],
             [[-5.23359562e-02, -6.40930613e-18, 9.98629535e-01],
-                [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
+             [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
             [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]]
         ],
         [
@@ -619,30 +673,209 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
     constLat_cart = 1.0
 
     weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
-    # Define the expected DataFrame
-    expected_weight_df = pd.DataFrame({
-        'face_index': [0, 1, 2, 3],
-        'weight': [0.25, 0.25, 0.25, 0.25]
-    })
 
-    # Assert that the DataFrame matches the expected DataFrame
-    pd.testing.assert_frame_equal(weight_df, expected_weight_df)
+    # Create expected Polars DataFrame
+    expected_weight_df = pl.DataFrame(
+        {
+            'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
+            'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
+        }
+    )
+
+    # Assert equality using Polars
+    assert_frame_equal(weight_df, expected_weight_df), \
+        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
+    # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
+    face_edges_cart = np.array([[
+        [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
+         [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+        [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+        [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+         [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+        [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
+         [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+    ]])
+
+    # Corrected face_bounds
+    face_bounds = np.array([
+        [-1.57079633, -1.4968158],
+        [3.14159265, 0.]
+    ])
+    constLat_cart = -1
+
+    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+
+    # Create expected Polars DataFrame
+    expected_weight_df = pl.DataFrame(
+        {
+            "face_index": pl.Series([0], dtype=pl.Int64),
+            "weight": pl.Series([1.0], dtype=pl.Float64)
+        }
+    )
+
+    # Assert equality by comparing columns
+    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
+        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
+    # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
+    face_edges_cart = np.array([
+        [
+            [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+            [[5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]]
+        ],
+        [
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [-5.23359562e-02, -6.40930613e-18, 9.98629535e-01]],
+            [[-5.23359562e-02, -6.40930613e-18, 9.98629535e-01],
+             [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]]
+        ],
+        [
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [-5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+            [[-5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [-5.23359562e-02, -6.40930613e-18, 9.98629535e-01]],
+            [[-5.23359562e-02, -6.40930613e-18, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]]
+        ]
+    ])
+
+    face_bounds = np.array([
+        [[1.4968158, 1.57079633], [4.71238898, 0.0]],
+        [[1.4968158, 1.57079633], [0.0, 1.57079633]],
+        [[1.4968158, 1.57079633], [3.14159265, 0.0]],
+        [[1.4968158, 1.57079633], [0.0, 3.14159265]]
+    ])
+
+    constLat_cart = 1.0
+
+    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+
+    # Create expected Polars DataFrame
+    expected_weight_df = pl.DataFrame(
+        {
+            'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
+            'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
+        }
+    )
+
+    # Assert equality by comparing columns
+    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
+        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
+    # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
+    face_edges_cart = np.array([[
+        [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
+         [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+        [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+        [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+         [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+        [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
+         [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+    ]])
+
+    # Corrected face_bounds
+    face_bounds = np.array([
+        [-1.57079633, -1.4968158],
+        [3.14159265, 0.]
+    ])
+    constLat_cart = -1
+
+    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+
+    # Create expected Polars DataFrame
+    expected_weight_df = pl.DataFrame(
+        {
+            "face_index": pl.Series([0], dtype=pl.Int64),
+            "weight": pl.Series([1.0], dtype=pl.Float64)
+        }
+    )
+
+    # Assert equality by comparing columns
+    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
+        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
+    # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
+    face_edges_cart = np.array([
+        [
+            [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+            [[5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]]
+        ],
+        [
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [-5.23359562e-02, -6.40930613e-18, 9.98629535e-01]],
+            [[-5.23359562e-02, -6.40930613e-18, 9.98629535e-01],
+             [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]]
+        ],
+        [
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [-5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+            [[-5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [-5.23359562e-02, -6.40930613e-18, 9.98629535e-01]],
+            [[-5.23359562e-02, -6.40930613e-18, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]]
+        ]
+    ])
+
+    face_bounds = np.array([
+        [[1.4968158, 1.57079633], [4.71238898, 0.0]],
+        [[1.4968158, 1.57079633], [0.0, 1.57079633]],
+        [[1.4968158, 1.57079633], [3.14159265, 0.0]],
+        [[1.4968158, 1.57079633], [0.0, 3.14159265]]
+    ])
+
+    constLat_cart = 1.0
+
+    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+
+    # Create expected Polars DataFrame
+    expected_weight_df = pl.DataFrame(
+        {
+            'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
+            'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
+        }
+    )
+
+    # Assert equality by comparing columns
+    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
+        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
 
 def test_get_zonal_face_interval_pole():
-    #The face is touching the pole
+    # The face is touching the pole
     face_edges_cart = np.array([
         [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
-            [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
-
+         [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
         [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
-            [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
-
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
         [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
-            [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
-
+         [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
         [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
-            [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+         [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
     ])
 
     # Corrected face_bounds
@@ -653,8 +886,12 @@ def test_get_zonal_face_interval_pole():
     constLat_cart = -0.9986295347545738
 
     weight_df = _get_zonal_face_interval(face_edges_cart, constLat_cart, face_bounds)
-    # No Nan values should be present in the weight_df
-    assert (not weight_df.isnull().values.any())
+    df_null_counts = weight_df.null_count()
+
+    total_nulls = df_null_counts.to_numpy().sum()
+
+    assert total_nulls == 0, f"Found {total_nulls} null values in the DataFrame"
+
 
 
 def test_get_zonal_faces_weight_at_constLat_latlonface():

@@ -1,7 +1,6 @@
 import numpy as np
 from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
 from uxarray.grid.utils import (
-    _newton_raphson_solver_for_gca_constLat,
     _angle_of_2_vectors,
 )
 from uxarray.grid.arcs import (
@@ -11,7 +10,7 @@ from uxarray.grid.arcs import (
 )
 import platform
 import warnings
-from uxarray.utils.computing import cross_fma, allclose, cross, norm
+from uxarray.utils.computing import cross_fma, allclose, cross, norm, isclose
 
 
 from numba import njit, prange
@@ -311,10 +310,10 @@ def gca_const_lat_intersection(gca_cart, constZ, fma_disabled=True, verbose=Fals
     # We are using the relative tolerance and ERROR_TOLERANCE since the constZ is calculated from np.sin, which
     # may have some floating-point error.
     res = None
-    if np.isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+    if isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
         res = np.array([x1]) if res is None else np.vstack((res, x1))
 
-    if np.isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+    if isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
         res = np.array([x2]) if res is None else np.vstack((res, x2))
 
     if res is not None:
@@ -359,48 +358,54 @@ def gca_const_lat_intersection(gca_cart, constZ, fma_disabled=True, verbose=Fals
 
     res = None
 
-    # Now test which intersection point is within the GCA range
     if point_within_gca(p1, gca_cart[0], gca_cart[1]):
-        try:
-            converged_pt = _newton_raphson_solver_for_gca_constLat(
-                p1, gca_cart, verbose=verbose
-            )
-
-            if converged_pt is None:
-                # The point is not be able to be converged using the jacobi method, raise a warning and continue with p2
-                warnings.warn(
-                    "The intersection point cannot be converged using the Newton-Raphson method. "
-                    "The initial guess intersection point is used instead, procced with caution."
-                )
-                res = np.array([p1]) if res is None else np.vstack((res, p1))
-            else:
-                res = (
-                    np.array([converged_pt])
-                    if res is None
-                    else np.vstack((res, converged_pt))
-                )
-        except RuntimeError:
-            raise RuntimeError(f"Error encountered with initial guess: {p1}")
+        res = np.array([p1]) if res is None else np.vstack((res, p1))
 
     if point_within_gca(p2, gca_cart[0], gca_cart[1]):
-        try:
-            converged_pt = _newton_raphson_solver_for_gca_constLat(
-                p2, gca_cart, verbose=verbose
-            )
-            if converged_pt is None:
-                # The point is not be able to be converged using the jacobi method, raise a warning and continue with p2
-                warnings.warn(
-                    "The intersection point cannot be converged using the Newton-Raphson method. "
-                    "The initial guess intersection point is used instead, procced with caution."
-                )
-                res = np.array([p2]) if res is None else np.vstack((res, p2))
-            else:
-                res = (
-                    np.array([converged_pt])
-                    if res is None
-                    else np.vstack((res, converged_pt))
-                )
-        except RuntimeError:
-            raise RuntimeError(f"Error encountered with initial guess: {p2}")
+        res = np.array([p2]) if res is None else np.vstack((res, p2))
+
+    # # Now test which intersection point is within the GCA range
+    # if point_within_gca(p1, gca_cart[0], gca_cart[1]):
+    #     try:
+    #         converged_pt = _newton_raphson_solver_for_gca_constLat(
+    #             p1, gca_cart, verbose=verbose
+    #         )
+    #
+    #         if converged_pt is None:
+    #             # The point is not be able to be converged using the jacobi method, raise a warning and continue with p2
+    #             warnings.warn(
+    #                 "The intersection point cannot be converged using the Newton-Raphson method. "
+    #                 "The initial guess intersection point is used instead, procced with caution."
+    #             )
+    #             res = np.array([p1]) if res is None else np.vstack((res, p1))
+    #         else:
+    #             res = (
+    #                 np.array([converged_pt])
+    #                 if res is None
+    #                 else np.vstack((res, converged_pt))
+    #             )
+    #     except RuntimeError:
+    #         raise RuntimeError(f"Error encountered with initial guess: {p1}")
+    #
+    # if point_within_gca(p2, gca_cart[0], gca_cart[1]):
+    #     try:
+    #         converged_pt = _newton_raphson_solver_for_gca_constLat(
+    #             p2, gca_cart, verbose=verbose
+    #         )
+    #         if converged_pt is None:
+    #             # The point is not be able to be converged using the jacobi method, raise a warning and continue with p2
+    #             warnings.warn(
+    #                 "The intersection point cannot be converged using the Newton-Raphson method. "
+    #                 "The initial guess intersection point is used instead, procced with caution."
+    #             )
+    #             res = np.array([p2]) if res is None else np.vstack((res, p2))
+    #         else:
+    #             res = (
+    #                 np.array([converged_pt])
+    #                 if res is None
+    #                 else np.vstack((res, converged_pt))
+    #             )
+    #     except RuntimeError:
+    #         raise RuntimeError(f"Error encountered with initial guess: {p2}")
 
     return res if res is not None else np.array([])

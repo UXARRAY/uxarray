@@ -31,7 +31,7 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes):
         bounds_candidate = bounds[face_indices]
         weights = _get_zonal_faces_weight_at_constLat(
             faces_edge_nodes_xyz_candidate, z, bounds_candidate
-        )["weight"].values
+        )["weight"].to_numpy()
 
         total_weight = weights.sum()
         result[..., i] = ((uxda.data[..., face_indices] * weights) / total_weight).sum(
