@@ -1455,6 +1455,7 @@ class Grid:
 
     @property
     def face_edge_nodes_xyz(self):
+        """The cartesian coordinates of the edges for each face."""
         if "face_edge_nodes_xyz" not in self._ds:
             self.normalize_cartesian_coordinates()
             face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(

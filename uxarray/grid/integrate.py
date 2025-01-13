@@ -249,7 +249,6 @@ def _get_faces_constLat_intersection_info(
     unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
 
     if len(unique_intersections) == 2:
-        # TODO (1)
         unique_intersection_lonlat = np.array(
             [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
         )
@@ -267,7 +266,6 @@ def _get_faces_constLat_intersection_info(
             )
         else:
             # Now return all the intersections points and the pt_lon_min, pt_lon_max
-            # TODO (2)
             unique_intersection_lonlat = np.array(
                 [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
             )

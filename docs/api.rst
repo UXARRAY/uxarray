@@ -158,7 +158,6 @@ Methods
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
-   Grid.get_weights
 
 Inheritance of Xarray Functionality
 -----------------------------------
@@ -265,6 +264,8 @@ UxDataArray
    UxDataArray.plot
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+   UxDataArray.plot.line
+   UxDataArray.plot.scatter
 
 UxDataset
 ~~~~~~~~~

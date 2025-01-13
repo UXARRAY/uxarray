@@ -6,6 +6,7 @@ from uxarray.grid.integrate import _get_zonal_faces_weight_at_constLat
 
 
 def _compute_non_conservative_zonal_mean(uxda, latitudes):
+    """Computes the non-conservative zonal mean across one or more latitudes."""
     uxgrid = uxda.uxgrid
     shape = uxda.shape[:-1] + (len(latitudes),)
     if isinstance(uxda.data, da.Array):
@@ -15,7 +16,6 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes):
         # Create a NumPy array for storing results
         result = np.zeros(shape, dtype=uxda.dtype)
 
-    # TODO ---
     faces_edge_nodes_xyz = uxgrid.face_edge_nodes_xyz.values
 
     # Obtain computed bounds
@@ -28,8 +28,7 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes):
 
         faces_edge_nodes_xyz_candidate = faces_edge_nodes_xyz[face_indices, :, :, :]
 
-        bounds_candidate = bounds[face_indices].copy()
-        # TODO: the (z)
+        bounds_candidate = bounds[face_indices]
         weights = _get_zonal_faces_weight_at_constLat(
             faces_edge_nodes_xyz_candidate, z, bounds_candidate
         )["weight"].values
