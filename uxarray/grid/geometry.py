@@ -1684,13 +1684,16 @@ def calculate_max_face_radius(
 
     # Loop over each face and its nodes
     for ind, face in enumerate(face_node_connectivity):
+        # Filter out INT_FILL_VALUE
+        valid_nodes = face[face != INT_FILL_VALUE]
+
         # Get the face lat/lon of this face
         face_lat = face_lats_rad[ind]
         face_lon = face_lons_rad[ind]
 
         # Get the node lat/lon of this face
-        node_lat_rads = node_lats_rad[face]
-        node_lon_rads = node_lons_rad[face]
+        node_lat_rads = node_lats_rad[valid_nodes]
+        node_lon_rads = node_lons_rad[valid_nodes]
 
         # Calculate Haversine distances for all nodes in this face
         distances = haversine_distance(node_lat_rads, node_lon_rads, face_lat, face_lon)
