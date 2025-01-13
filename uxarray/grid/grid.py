@@ -2423,9 +2423,9 @@ class Grid:
         Parameters
         ----------
         lons: Tuple[float, float]
-            TODO
+            A tuple of longitudes that define that minimum and maximum longitude.
 
-                Returns
+        Returns
         -------
         faces : numpy.ndarray
             An array of face indices that are strictly between two lines of constant longitude.
@@ -2438,10 +2438,10 @@ class Grid:
 
         Parameters
         ----------
-        lats: Tuple[float, float]
-            TODO
+        lats: Tuple[float, float
+            A tuple of latitudes that define that minimum and maximum latitudes.
 
-                Returns
+        Returns
         -------
         faces : numpy.ndarray
             An array of face indices that are strictly between two lines of constant latitude.
