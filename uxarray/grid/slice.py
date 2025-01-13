@@ -4,13 +4,17 @@ import numpy as np
 import xarray as xr
 from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, List, Set
 
 if TYPE_CHECKING:
     pass
 
 
-def _slice_node_indices(grid, indices, inclusive=True):
+def _slice_node_indices(
+    grid,
+    indices,
+    inclusive=True,
+):
     """Slices (indexes) an unstructured grid given a list/array of node
     indices, returning a new Grid composed of elements that contain the nodes
     specified in the indices.
@@ -36,7 +40,11 @@ def _slice_node_indices(grid, indices, inclusive=True):
     return _slice_face_indices(grid, face_indices)
 
 
-def _slice_edge_indices(grid, indices, inclusive=True):
+def _slice_edge_indices(
+    grid,
+    indices,
+    inclusive=True,
+):
     """Slices (indexes) an unstructured grid given a list/array of edge
     indices, returning a new Grid composed of elements that contain the edges
     specified in the indices.
@@ -62,7 +70,12 @@ def _slice_edge_indices(grid, indices, inclusive=True):
     return _slice_face_indices(grid, face_indices)
 
 
-def _slice_face_indices(grid, indices, inclusive=True):
+def _slice_face_indices(
+    grid,
+    indices,
+    inclusive=True,
+    inverse_indices: Union[List[str], Set[str], bool] = False,
+):
     """Slices (indexes) an unstructured grid given a list/array of face
     indices, returning a new Grid composed of elements that contain the faces
     specified in the indices.
@@ -76,8 +89,10 @@ def _slice_face_indices(grid, indices, inclusive=True):
     inclusive: bool
         Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
         to exclusive (i.e elements be made up all desired features from a slice)
+    inverse_indices : Union[List[str], Set[str], bool], optional
+        Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
+        other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
     """
-
     if inclusive is False:
         raise ValueError("Exclusive slicing is not yet supported.")
 
@@ -132,4 +147,31 @@ def _slice_face_indices(grid, indices, inclusive=True):
             # drop any conn that would require re-computation
             ds = ds.drop_vars(conn_name)
 
-    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec)
+    if inverse_indices:
+        inverse_indices_ds = xr.Dataset()
+
+        index_types = {
+            "face": face_indices,
+            "edge": edge_indices,
+            "node": node_indices,
+        }
+        if isinstance(inverse_indices, bool):
+            inverse_indices_ds["face"] = face_indices
+        else:
+            for index_type in inverse_indices[0]:
+                if index_type in index_types:
+                    inverse_indices_ds[index_type] = index_types[index_type]
+                else:
+                    raise ValueError(
+                        "Incorrect type of index for `inverse_indices`. Try passing one of the following "
+                        "instead: 'face', 'edge', 'node'"
+                    )
+
+        return Grid.from_dataset(
+            ds,
+            source_grid_spec=grid.source_grid_spec,
+            is_subset=True,
+            inverse_indices=inverse_indices_ds,
+        )
+
+    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec, is_subset=True)
