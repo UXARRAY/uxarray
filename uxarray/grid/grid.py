@@ -1555,6 +1555,23 @@ class Grid:
             self._ds["max_face_radius"] = get_max_face_radius(self)
         return self._ds["max_face_radius"]
 
+    @property
+    def face_edge_nodes_xyz(self):
+        if "face_edge_nodes_xyz" not in self._ds:
+            face_edge = _get_cartesian_face_edge_nodes(
+                self.face_node_connectivity.values,
+                self.n_face,
+                self.n_max_face_nodes,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
+            self._ds["face_edge_nodes_xyz"] = (
+                [self.n_face, self.n_max_face_edges, 2, 3],
+                face_edge,
+            )
+        return self._ds["face_edge_nodes_xyz"]
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
@@ -2432,6 +2449,7 @@ class Grid:
 
         # Get the maximum face radius of the grid
         max_face_radius = self.max_face_radius
+        _ = self.face_edge_nodes_xyz
 
         subset = self.subset.bounding_circle(
             center_coord=[*point_xyz],
@@ -2440,19 +2458,11 @@ class Grid:
             inverse_indices=True,
         )
 
-        # Get the face's edges for the whole subset
-        face_edge_cartesian = _get_cartesian_face_edge_nodes(
-            subset.face_node_connectivity.values,
-            subset.n_face,
-            subset.n_max_face_nodes,
-            subset.node_x.values,
-            subset.node_y.values,
-            subset.node_z.values,
-        )
+        face_edge_nodes_xyz = subset.face_edge_nodes_xyz.values
 
         inverse_indices = subset.inverse_indices.face.values
 
         # Check if any of the faces in the subset contain the point
-        index = _find_faces(face_edge_cartesian, point_xyz, inverse_indices)
+        index = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
 
         return index
