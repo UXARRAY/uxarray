@@ -1673,6 +1673,26 @@ def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
     return index
 
 
+def get_max_face_radius(self):
+    # Parse all variables needed for `njit` functions
+    face_node_connectivity = self.face_node_connectivity.values
+    node_lats_rad = np.deg2rad(self.node_lat.values)
+    node_lons_rad = np.deg2rad(self.node_lon.values)
+    face_lats_rad = np.deg2rad(self.face_lat.values)
+    face_lons_rad = np.deg2rad(self.face_lon.values)
+
+    # Get the max distance
+    max_distance = calculate_max_face_radius(
+        face_node_connectivity,
+        node_lats_rad,
+        node_lons_rad,
+        face_lats_rad,
+        face_lons_rad,
+    )
+
+    return max_distance
+
+
 @njit(cache=True)
 def calculate_max_face_radius(
     face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
@@ -1696,7 +1716,7 @@ def calculate_max_face_radius(
         node_lon_rads = node_lons_rad[valid_nodes]
 
         # Calculate Haversine distances for all nodes in this face
-        distances = haversine_distance(node_lat_rads, node_lon_rads, face_lat, face_lon)
+        distances = haversine_distance(node_lon_rads, node_lat_rads, face_lon, face_lat)
 
         # Store the max distance for this face
         end_distances[ind] = np.max(distances)
@@ -1714,6 +1734,8 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
     dlon = lon_b - lon_a
 
     # Haversine formula
-    equation_in_sqrt = (np.sin(dlat / 2) ** 2) + np.cos(lat_a) * np.cos(lat_b) * (np.sin(dlon / 2) ** 2)
+    equation_in_sqrt = (np.sin(dlat / 2) ** 2) + np.cos(lat_a) * np.cos(lat_b) * (
+        np.sin(dlon / 2) ** 2
+    )
     distance = 2 * np.arcsin(np.sqrt(equation_in_sqrt))
     return distance

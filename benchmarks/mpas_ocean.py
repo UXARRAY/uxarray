@@ -183,3 +183,11 @@ class CrossSection:
     def time_const_lat(self, resolution, lat_step):
         for lat in self.lats:
             self.uxgrid.cross_section.constant_latitude(lat)
+
+
+class PointInPolygon(GridBenchmark):
+    def time_whole_grid(self):
+        for i in range(len(self.uxgrid.face_x.values)):
+            point_xyz = np.array([self.uxgrid.face_x[i].values, self.uxgrid.face_y[i].values, self.uxgrid.face_z[i].values])
+
+            self.uxgrid.get_faces_containing_point(point_xyz=point_xyz)

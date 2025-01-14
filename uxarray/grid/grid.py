@@ -69,8 +69,8 @@ from uxarray.grid.geometry import (
     _populate_bounds,
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
-    calculate_max_face_radius,
     _find_faces,
+    get_max_face_radius,
 )
 
 from uxarray.grid.neighbors import (
@@ -1547,6 +1547,13 @@ class Grid:
         """Returns `True` if the Grid is a subset, 'False' otherwise."""
         return self._is_subset
 
+    @property
+    def max_face_radius(self):
+        """Returns the maximum face radius of the grid"""
+        if "max_face_radius" not in self._ds:
+            self._ds["max_face_radius"] = get_max_face_radius(self)
+        return self._ds["max_face_radius"]
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
@@ -2422,8 +2429,8 @@ class Grid:
     def get_faces_containing_point(self, point_xyz):
         """Gets the indexes of the faces that contain a specific point"""
 
-        # Obtain the maximum face radius of the grid
-        max_face_radius = self.get_max_face_radius()
+        # Get the maximum face radius of the grid
+        max_face_radius = self.max_face_radius
 
         subset = self.subset.bounding_circle(
             center_coord=[*point_xyz],
@@ -2448,22 +2455,3 @@ class Grid:
         index = _find_faces(face_edge_cartesian, point_xyz, inverse_indices)
 
         return index
-
-    def get_max_face_radius(self):
-        # Parse all variables needed for `njit` functions
-        face_node_connectivity = self.face_node_connectivity.values
-        node_lats_rad = np.radians(self.node_lat.values)
-        node_lons_rad = np.radians(self.node_lon.values)
-        face_lats_rad = np.radians(self.face_lat.values)
-        face_lons_rad = np.radians(self.face_lon.values)
-
-        # Get the max distance
-        max_distance = calculate_max_face_radius(
-            face_node_connectivity,
-            node_lats_rad,
-            node_lons_rad,
-            face_lats_rad,
-            face_lons_rad,
-        )
-
-        return max_distance
