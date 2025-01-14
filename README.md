@@ -3,16 +3,18 @@
 
 -----------------
 
+
+
 # Xarray extension for unstructured climate and global weather data
-|    |    |
-| --- | --- |
-| **Build Status**             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![CI Upstream](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml/badge.svg)](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/UXARRAY/uxarray/main.svg)](https://results.pre-commit.ci/latest/github/UXARRAY/uxarray/main) |
-| **Code Coverage**             |  [![Code Coverage Status][codecov-badge]][codecov-link] |
-| **Docs**       |                                   [![Documentation Status][rtd-badge]][rtd-link]                                    |
-| **Benchmarks** |                                       [![ASV Repostory][asv-badge]][asv-link]                                       |
-| **Releases**    |                        ![Github release](https://img.shields.io/github/release/UXARRAY/uxarray.svg?label=tag&colorB=11ccbb) [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                         |
-| **License**    |                                       [![License][license-badge]][repo-link]                                        |
-| **Citing**     |                                            [![DOI][doi-badge]][doi-link]                                            |
+[![CI][github-ci-badge]][github-ci-link]
+[![CI Upstream](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml/badge.svg)](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/UXARRAY/uxarray/main.svg)](https://results.pre-commit.ci/latest/github/UXARRAY/uxarray/main)
+[![Code Coverage Status][codecov-badge]][codecov-link]
+[![Documentation Status][rtd-badge]][rtd-link]
+[![ASV Repostory][asv-badge]][asv-link]
+![Github release](https://img.shields.io/github/release/UXARRAY/uxarray.svg?label=tag&colorB=11ccbb) [![Conda][conda-badge]][conda-link]
+[![PyPI][pypi-badge]][pypi-link]
+[![License][license-badge]][repo-link]
+
 
 -----------------
 
@@ -43,6 +45,10 @@ recognizing unstructured grid model outputs. We picked the name "UXarray"
 (pronounced "you-ex-array"), with the "U" representing unstructured grids.
 
 ## Features
+
+* `Grid` class for storing unstructured grid information and providing grid-specific functionality,
+* with support for UGRID, MPAS, ESMF, ICOn, GEOS-CS, SCRIP, and EXODUS grid formats
+*
 
 * ``Grid`` class for storing grid information and providing grid-specific functionality
   * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, and EXODUS grid formats
