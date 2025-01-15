@@ -142,9 +142,6 @@ Geometry
    grid.geometry._populate_face_latlon_bound
    grid.geometry._populate_bounds
    grid.geometry._construct_hole_edge_indices
-   grid.geometry._point_to_plane
-   grid.geometry._point_to_sphere
-   grid.geometry._ray_casting_plane
 
 Coordinates
 -----------

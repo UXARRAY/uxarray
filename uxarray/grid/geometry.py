@@ -18,10 +18,16 @@ from uxarray.constants import (
     INT_DTYPE,
     INT_FILL_VALUE,
 )
-from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.arcs import (
+    extreme_gca_latitude,
+    point_within_gca,
+)
+
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 
-from uxarray.grid.intersections import gca_gca_intersection
+from uxarray.grid.intersections import (
+    gca_gca_intersection,
+)
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_lonlat_rad_face_edge_nodes,
@@ -1224,13 +1230,11 @@ def _populate_face_latlon_bound(
                 face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
                 )
-
                 face_latlon_array[0, 1] = math.pi / 2  # Upper latitude bound
             else:
                 face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
-
                 face_latlon_array[0, 0] = -math.pi / 2  # Lower latitude bound
 
         # Adjust longitude bounds globally if the pole is centrally inside the polygon
@@ -1564,3 +1568,170 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     )
 
     return lon, lat
+
+
+# @njit(cache=True)
+def point_in_face(
+    edges_xyz,
+    point_xyz,
+    inclusive=True,
+):
+    """Determines if a point lies inside a face.
+
+    Parameters
+    ----------
+        edges_xyz : numpy.ndarray
+            Cartesian coordinates of each point in the face
+        point_xyz : numpy.ndarray
+            Cartesian coordinate of the point
+        inclusive : bool
+            Flag to determine whether to include points on the nodes and edges of the face
+
+    Returns
+    -------
+    bool
+        True if point is inside face, False otherwise
+    """
+
+    # Validate the inputs
+    if len(edges_xyz[0][0]) != 3:
+        raise ValueError("`edges_xyz` vertices must be in Cartesian coordinates.")
+
+    if len(point_xyz) != 3:
+        raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
+
+    # Initialize the intersection count
+    intersection_count = 0
+
+    # Set to hold unique intersections
+    unique_intersections = set()
+
+    location = _classify_polygon_location(edges_xyz)
+
+    if location == 1:
+        ref_point_xyz = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
+    elif location == -1:
+        ref_point_xyz = np.array([0.01745241, 0.0, 0.9998477], dtype=np.float64)
+    else:
+        ref_point_xyz = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
+
+    # Initialize the points arc between the point and the reference point
+    gca_cart = np.empty((2, 3), dtype=np.float64)
+    gca_cart[0] = point_xyz
+    gca_cart[1] = ref_point_xyz
+
+    # Loop through the face's edges, checking each one for intersection
+    for ind in range(len(edges_xyz)):
+        # If the point lies on an edge, return True if inclusive
+        if point_within_gca(
+            point_xyz,
+            edges_xyz[ind][0],
+            edges_xyz[ind][1],
+        ):
+            if inclusive:
+                return True
+            else:
+                return False
+
+        # Get the number of intersections between the edge and the point arc
+        intersections = gca_gca_intersection(edges_xyz[ind], gca_cart)
+
+        # Add any unique intersections to the intersection_count
+        for intersection in intersections:
+            intersection_tuple = (
+                intersection[0],
+                intersection[1],
+                intersection[2],
+            )
+            if intersection_tuple not in unique_intersections:
+                unique_intersections.add(intersection_tuple)
+                intersection_count += 1
+
+    # Return True if the number of intersections is odd, False otherwise
+    return intersection_count % 2 == 1
+
+
+# @njit(cache=True)
+def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
+    """Finds the faces that contain a given point, inside a subset "face_edge_cartesian"""
+
+    index = []
+
+    for ind in inverse_indices:
+        contains_point = point_in_face(
+            face_edge_cartesian[ind],
+            point_xyz,
+            inclusive=True,
+        )
+        if contains_point:
+            index.append(ind)
+
+    return index
+
+
+def get_max_face_radius(self):
+    # Parse all variables needed for `njit` functions
+    face_node_connectivity = self.face_node_connectivity.values
+    node_lats_rad = np.deg2rad(self.node_lat.values)
+    node_lons_rad = np.deg2rad(self.node_lon.values)
+    face_lats_rad = np.deg2rad(self.face_lat.values)
+    face_lons_rad = np.deg2rad(self.face_lon.values)
+
+    # Get the max distance
+    max_distance = calculate_max_face_radius(
+        face_node_connectivity,
+        node_lats_rad,
+        node_lons_rad,
+        face_lats_rad,
+        face_lons_rad,
+    )
+
+    return max_distance
+
+
+# @njit(cache=True)
+def calculate_max_face_radius(
+    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
+):
+    """Finds the max face radius in the mesh."""
+
+    # Array to store all distances of each face to it's furthest node.
+    end_distances = np.zeros(len(face_node_connectivity))
+
+    # Loop over each face and its nodes
+    for ind, face in enumerate(face_node_connectivity):
+        # Filter out INT_FILL_VALUE
+        valid_nodes = face[face != INT_FILL_VALUE]
+
+        # Get the face lat/lon of this face
+        face_lat = face_lats_rad[ind]
+        face_lon = face_lons_rad[ind]
+
+        # Get the node lat/lon of this face
+        node_lat_rads = node_lats_rad[valid_nodes]
+        node_lon_rads = node_lons_rad[valid_nodes]
+
+        # Calculate Haversine distances for all nodes in this face
+        distances = haversine_distance(node_lon_rads, node_lat_rads, face_lon, face_lat)
+
+        # Store the max distance for this face
+        end_distances[ind] = np.max(distances)
+
+    # Return the maximum distance found across all faces
+    return np.max(end_distances)
+
+
+# @njit(cache=True)
+def haversine_distance(lon_a, lat_a, lon_b, lat_b):
+    """Calculates the haversine distance between two points."""
+
+    # Differences in latitudes and longitudes
+    dlat = lat_b - lat_a
+    dlon = lon_b - lon_a
+
+    # Haversine formula
+    equation_in_sqrt = (np.sin(dlat / 2) ** 2) + np.cos(lat_a) * np.cos(lat_b) * (
+        np.sin(dlon / 2) ** 2
+    )
+    distance = 2 * np.arcsin(np.sqrt(equation_in_sqrt))
+    return distance

@@ -13,6 +13,8 @@ from typing import (
     Set,
 )
 
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -67,6 +69,8 @@ from uxarray.grid.geometry import (
     _populate_bounds,
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
+    _find_faces,
+    get_max_face_radius,
 )
 
 from uxarray.grid.neighbors import (
@@ -1544,6 +1548,30 @@ class Grid:
         """Returns `True` if the Grid is a subset, 'False' otherwise."""
         return self._is_subset
 
+    @property
+    def max_face_radius(self):
+        """Returns the maximum face radius of the grid"""
+        if "max_face_radius" not in self._ds:
+            self._ds["max_face_radius"] = get_max_face_radius(self)
+        return self._ds["max_face_radius"]
+
+    @property
+    def face_edge_nodes_xyz(self):
+        if "face_edge_nodes_xyz" not in self._ds:
+            face_edge = _get_cartesian_face_edge_nodes(
+                self.face_node_connectivity.values,
+                self.n_face,
+                self.n_max_face_nodes,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
+            self._ds["face_edge_nodes_xyz"] = (
+                [self.n_face, self.n_max_face_edges, 2, 3],
+                face_edge,
+            )
+        return self._ds["face_edge_nodes_xyz"]
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
@@ -2415,3 +2443,26 @@ class Grid:
 
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
+
+    def get_faces_containing_point(self, point_xyz):
+        """Gets the indexes of the faces that contain a specific point"""
+
+        # Get the maximum face radius of the grid
+        max_face_radius = self.max_face_radius.values
+        _ = self.face_edge_nodes_xyz
+
+        subset = self.subset.bounding_circle(
+            center_coord=[*point_xyz],
+            r=max_face_radius,
+            element="face centers",
+            inverse_indices=True,
+        )
+
+        face_edge_nodes_xyz = subset.face_edge_nodes_xyz.values
+
+        inverse_indices = subset.inverse_indices.face.values
+
+        # Check if any of the faces in the subset contain the point
+        index = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
+
+        return index
