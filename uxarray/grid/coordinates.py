@@ -1,6 +1,7 @@
 import xarray as xr
 import numpy as np
 import warnings
+import math
 
 from uxarray.conventions import ugrid
 
@@ -8,7 +9,7 @@ from numba import njit
 from uxarray.constants import ERROR_TOLERANCE
 from typing import Union
 
-from uxarray.grid.utils import _angle_of_2_vectors
+from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
 @njit(cache=True)
@@ -67,36 +68,10 @@ def _xyz_to_lonlat_rad_no_norm(
 
 
 @njit(cache=True)
-def _xyz_to_lonlat_rad_scalar(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-):
-    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
-    longitude without normalization, decorated with Numba.
-
-    Parameters
-    ----------
-    x : float
-        Cartesian x coordinate
-    y: float
-        Cartesiain y coordinate
-    z: float
-        Cartesian z coordinate
-
-
-    Returns
-    -------
-    lon : float
-        Longitude in radians
-    lat: float
-        Latitude in radians
-    """
-
+def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
+        denom = abs(x * x + y * y + z * z)
         x /= denom
         y /= denom
         z /= denom
@@ -104,15 +79,19 @@ def _xyz_to_lonlat_rad_scalar(
     lon = np.atan2(y, x)
     lat = np.asin(z)
 
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
+    # Set longitude range to [0, 2*pi]
+    lon = lon % (2 * math.pi)
 
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+    z_abs = abs(z)
+    if z_abs > (1.0 - ERROR_TOLERANCE):
+        lat = math.copysign(math.pi / 2, z)
+        lon = 0.0
 
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
+    lonlat = np.empty(2)
+    lonlat[0] = lon
+    lonlat[1] = lat
 
-    return lon, lat
+    return lonlat
 
 
 def _xyz_to_lonlat_rad(
@@ -452,7 +431,7 @@ def _circle_from_two_points(p1, p2):
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
 
-    distance = _angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     radius = distance / 2
 
     return center, radius
@@ -488,9 +467,9 @@ def _circle_from_three_points(p1, p2, p3):
 
     radius = (
         max(
-            _angle_of_2_vectors(v1, v2),
-            _angle_of_2_vectors(v1, v3),
-            _angle_of_2_vectors(v2, v3),
+            _small_angle_of_2_vectors(v1, v2),
+            _small_angle_of_2_vectors(v1, v3),
+            _small_angle_of_2_vectors(v2, v3),
         )
         / 2
     )
@@ -517,7 +496,7 @@ def _is_inside_circle(circle, point):
     center, radius = circle
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1])))
-    distance = _angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     return distance <= radius
 
 

@@ -17,6 +17,7 @@ dependencies:
   - pandas
   - pathlib
   - pre_commit
+  - polars
   - pyarrow
   - pytest
   - pytest-cov
