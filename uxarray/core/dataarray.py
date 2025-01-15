@@ -435,7 +435,7 @@ class UxDataArray(xr.DataArray):
         This function calculates the weighted mean of a variable,
         using the specified `weights`. If no weights are provided, it will automatically select
         appropriate weights based on whether the variable is face-centered or edge-centered. If
-        the variable is neither face nor edge-centered.
+        the variable is neither face nor edge-centered a warning is raised, and an unweighted mean is computed instead.
 
         Parameters
         ----------
@@ -456,7 +456,13 @@ class UxDataArray(xr.DataArray):
 
         Example
         -------
-        >>> print("TODO Rachel")
+        >>> grid_path = "../../test/meshfiles/ugrid/quad-hexagon/grid.nc"
+        >>> face_data = "../../test/meshfiles/ugrid/quad-hexagon/data.nc"
+        >>> uxds = ux.open_dataset(grid_path, face_data)
+        >>> uxds["t2m"].values
+
+        >>> weighted_mean = uxds["t2m"].weighted_mean()
+
 
         Raises
         ------
@@ -497,7 +503,7 @@ class UxDataArray(xr.DataArray):
         # compute the total weight
         total_weight = weights.sum()
 
-        # compute weighted mean #assumption on index of dimension (last one is geometry)
+        # compute the weighted mean, with an assumption on the index of dimension (last one is geometry)
         weighted_mean = (self * weights).sum(axis=-1) / total_weight
 
         # create a UxDataArray and return it

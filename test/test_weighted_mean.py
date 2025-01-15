@@ -105,7 +105,6 @@ def test_quad_hex_edge_centered_dask():
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
 
-
 def test_csne30_equal_area():
     """Compute the weighted average with a grid that has equal-area faces and
     compare the result to the regular mean."""
@@ -122,11 +121,27 @@ def test_csne30_equal_area():
     # with equal area, both should be equal
     nt.assert_equal(weighted_mean, unweighted_mean)
 
-
-# TODO for Rachel
 @pytest.mark.parametrize("chunk_size", [1, 2, 4])
 def test_csne30_equal_area_dask(chunk_size):
+    """Compares the weighted average computation for the quad hexagon grid
+        using a face centered data variable on a dask-backed UxDataset & Grid to the expected value computed by
+        hand."""
+    uxds = ux.open_dataset(csne30_grid_path, csne30_data_path)
 
-    # ... .chunk(n_face=chunk_size)
+    # data and weights to be dask
+    uxda = uxds['psi'].chunk(n_face=chunk_size)
+    uxda.uxgrid.face_areas = uxda.uxgrid.face_areas.chunk(n_face=chunk_size)
 
-    pass
+    # Calculate lazy result
+    lazy_result = uxds['psi'].weighted_mean()
+    assert isinstance(lazy_result.data, da.Array)
+
+    # compute result
+    computed_result = lazy_result.compute()
+    assert isinstance(computed_result.data, np.ndarray)
+
+    # expected weighted average computed by hand
+    expected_weighted_mean = (uxds['psi'].values * uxds.uxgrid.face_areas).sum() / uxds.uxgrid.face_areas.sum()
+
+    # ensure values are within 3 decimal points of each other
+    nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
