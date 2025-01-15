@@ -45,7 +45,7 @@ def test_edge_to_face_aggs():
 
     uxds = ux.open_dataset(grid_path, grid_path)
 
-    uxds = uxds['latCell'].subset.nearest_neighbor(k=3, center_coord=[0, 0])
+    uxds = uxds['cellsOnEdge'].subset.nearest_neighbor(k=3, center_coord=[0, 0])
 
     uxda_edge_face_agg = uxds.topological_mean(destination="node")
 

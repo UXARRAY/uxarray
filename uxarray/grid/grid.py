@@ -59,7 +59,7 @@ from uxarray.grid.connectivity import (
     _populate_face_face_connectivity,
     _populate_n_faces_per_node,
     _populate_n_faces_per_edge,
-    _populate_n_edges_per_node,
+    _populate_n_edges_per_node, _populate_node_edge_connectivity,
 )
 
 from uxarray.grid.geometry import (
@@ -1328,10 +1328,7 @@ class Grid:
     def node_edge_connectivity(self) -> xr.DataArray:
         """Indices of the edges that surround each node."""
         if "node_edge_connectivity" not in self._ds:
-            raise NotImplementedError(
-                "Construction of `node_edge_connectivity` not yet supported."
-            )
-
+            _populate_node_edge_connectivity(self)
         return self._ds["node_edge_connectivity"]
 
     @node_edge_connectivity.setter

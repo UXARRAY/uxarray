@@ -461,6 +461,58 @@ def _build_node_faces_connectivity(face_nodes, n_node):
     return node_face_connectivity, n_max_node_faces
 
 
+def _populate_node_edge_connectivity(grid):
+    """Constructs the UGRID connectivity variable (``node_face_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.node_face_connectivity``)."""
+
+    node_edges = _build_node_edge_connectivity(grid.edge_node_connectivity.values)
+
+    grid._ds["node_edge_connectivity"] = xr.DataArray(
+        node_edges,
+        dims=ugrid.NODE_EDGE_CONNECTIVITY_DIMS,
+        attrs=ugrid.NODE_EDGE_CONNECTIVITY_ATTRS,
+    )
+
+
+def _build_node_edge_connectivity(edge_node_connectivity):
+    """Builds the `Grid.node_faces_connectivity`: integer DataArray of size
+    (n_node, n_max_faces_per_node) (optional) A DataArray of indices indicating
+    faces that are neighboring each node.
+
+    This function converts the face-node connectivity data into a sparse matrix, and then constructs the node-face
+    connectivity by iterating over each node in the mesh and retrieving the set of neighboring faces.
+
+    Raises
+    ------
+    RuntimeError
+        If the Mesh object does not contain a 'face_node_connectivity' variable.
+    """
+
+    node_edge = {}
+
+    for edge_id, node in enumerate(edge_node_connectivity):
+        # Initialize lists for nodes if they don't already exist in the dictionary
+        if node[0] not in node_edge:
+            node_edge[node[0]] = []
+        if node[1] not in node_edge:
+            node_edge[node[1]] = []
+
+        # Append the edge to both nodes
+        node_edge[node[0]].append(edge_id)
+        node_edge[node[1]].append(edge_id)
+
+    sorted_dict = {key: node_edge[key] for key in sorted(node_edge.keys())}
+
+    max_length = max(len(v) for v in sorted_dict.values())
+
+    node_edge_connectivity = np.full((len(sorted_dict), max_length), INT_FILL_VALUE, dtype=np.int64)
+
+    # Populate the array with values from the dictionary
+    for i, (key, values) in enumerate(sorted_dict.items()):
+        node_edge_connectivity[i, :len(values)] = values
+    return node_edge_connectivity
+
 def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     """Converts a given dense matrix connectivity to a sparse matrix format
     where the locations of non fill-value entries are stored using COO
