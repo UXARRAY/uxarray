@@ -202,7 +202,6 @@ class PointInPolygon:
         del self.uxgrid
 
     def time_whole_grid(self, resolution):
-        for i in range(len(self.uxgrid.face_x.values)):
-            point_xyz = np.array([self.uxgrid.face_x[i].values, self.uxgrid.face_y[i].values, self.uxgrid.face_z[i].values])
+        point_xyz = np.array([self.uxgrid.face_x[0].values, self.uxgrid.face_y[0].values, self.uxgrid.face_z[0].values])
 
-            self.uxgrid.get_faces_containing_point(point_xyz=point_xyz)
+        self.uxgrid.get_faces_containing_point(point_xyz=point_xyz)

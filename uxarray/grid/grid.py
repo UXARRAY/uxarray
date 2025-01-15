@@ -2448,7 +2448,7 @@ class Grid:
         """Gets the indexes of the faces that contain a specific point"""
 
         # Get the maximum face radius of the grid
-        max_face_radius = self.max_face_radius
+        max_face_radius = self.max_face_radius.values
         _ = self.face_edge_nodes_xyz
 
         subset = self.subset.bounding_circle(
