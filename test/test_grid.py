@@ -786,8 +786,8 @@ def test_number_of_faces_found():
 
 
 def test_whole_grid():
-    grid = ux.open_grid(gridfile_mpas)
-
+    grid = ux.open_grid(gridfile_mpas_two)
+    grid.normalize_cartesian_coordinates()
     # Ensure a face is found on the grid for every face center
     for i in range(len(grid.face_x.values)):
         point_xyz = np.array([grid.face_x[i].values, grid.face_y[i].values, grid.face_z[i].values])
