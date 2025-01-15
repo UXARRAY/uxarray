@@ -475,10 +475,6 @@ class UxDataArray(xr.DataArray):
         -----
         - The weighted mean is computed along the last dimension of the data variable, which is
           assumed to be the geometry dimension (e.g., faces, edges, or nodes).
-        - The computed weighted mean uses the formula:
-
-          .. math::
-              \text{{weighted mean}} = \frac{\sum (\text{{variable}} \times \text{{weights}})}{\sum \text{{weights}}}
         """
         if weights is None:
             if self._face_centered():
