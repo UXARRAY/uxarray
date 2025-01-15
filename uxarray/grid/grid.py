@@ -367,7 +367,8 @@ class Grid:
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         elif backend == "xarray":
-            grid_ds, source_dims_dict = cls.from_dataset(filename)
+            dataset = xr.open_dataset(filename, **kwargs)
+            return cls.from_dataset(dataset)
 
         else:
             raise ValueError("Backend not supported")
@@ -2423,9 +2424,9 @@ class Grid:
         Parameters
         ----------
         lons: Tuple[float, float]
-            TODO
+            A tuple of longitudes that define that minimum and maximum longitude.
 
-                Returns
+        Returns
         -------
         faces : numpy.ndarray
             An array of face indices that are strictly between two lines of constant longitude.
@@ -2438,10 +2439,10 @@ class Grid:
 
         Parameters
         ----------
-        lats: Tuple[float, float]
-            TODO
+        lats: Tuple[float, float
+            A tuple of latitudes that define that minimum and maximum latitudes.
 
-                Returns
+        Returns
         -------
         faces : numpy.ndarray
             An array of face indices that are strictly between two lines of constant latitude.

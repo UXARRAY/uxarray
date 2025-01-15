@@ -417,7 +417,6 @@ def gca_const_lat_intersection(gca_cart, constZ, fma_disabled=True, verbose=Fals
         return res
 
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
-    # TODO:
     lat_min = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="min")
     lat_max = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="max")
 

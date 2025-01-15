@@ -82,7 +82,8 @@ These user guides provide additional details about specific features in UXarray.
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
 
-
+`Reading & Working with Geometry Files <user-guide/from_file.ipynb>`_
+ Load and work with geometry files (i.e. Shapefile, GeoJSON)
 
 .. toctree::
    :hidden:
@@ -106,3 +107,4 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/structured.ipynb
    user-guide/from-points.ipynb
    user-guide/holoviz.ipynb
+   user-guide/from_file.ipynb
