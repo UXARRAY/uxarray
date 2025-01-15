@@ -1,9 +1,5 @@
-<img src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" width="450"/><br>
 
-
------------------
-
-
+<img src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg"  width="450"/><br>
 
 # Xarray extension for unstructured climate and global weather data
 [![CI][github-ci-badge]][github-ci-link]
@@ -15,16 +11,11 @@
 [![PyPI][pypi-badge]][pypi-link]
 [![License][license-badge]][repo-link]
 
-
------------------
-
-## What is it?
-
 UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
 data. UXarray provides Xarray-styled functionality to better read in and use
 unstructured grid datasets that follow standard conventions, including UGRID,
-MPAS, ICON, SCRIP, ESMF, FESOM2, and Exodus grid formats. This effort is a result of the
+MPAS, ICON, SCRIP, ESMF, FESOM, and Exodus grid formats. This effort is a result of the
 collaboration between Project Raijin (NSF NCAR and Pennsylvania State University)
 and the SEATS Project (Argonne National Laboratory, UC Davis, and Lawrence
 Livermore National Laboratory). The UXarray team welcomes community
@@ -44,60 +35,7 @@ commonly-used for structured grids recognition, to support reading and
 recognizing unstructured grid model outputs. We picked the name "UXarray"
 (pronounced "you-ex-array"), with the "U" representing unstructured grids.
 
-## Features
 
-* `Grid` class for storing unstructured grid information and providing grid-specific functionality,
-* with support for UGRID, MPAS, ESMF, ICOn, GEOS-CS, SCRIP, and EXODUS grid formats
-*
-
-* ``Grid`` class for storing grid information and providing grid-specific functionality
-  * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, and EXODUS grid formats
-  * Support for reader structured (i.e. latitude longitude) grids
-* Extension of xarray's ``DataArray`` and ``Dataset`` classe to support unstructured grid operations
-  * ``uxarray.UxDataArray`` inherits ``xarray.DataArray`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
-  * ``uxarray.UxDataset`` inherits ``xarray.Dataset`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
-* Extension of xarray's ``open_dataset`` and ``open_mfdataset`` methods to support reading grid and data files
-* Plotting
-  * Native visualization of unstructured grids written using the ``hvPlot`` package
-  * Support for grid topology visualization (i.e. exploring the geometry of a grid) and data visualization (i.e. data mapped to each face)
-* Subsetting
-  * Ability to select arbitrary regions of a grid using different selection methods (nearest neighbor, bounding circle, bounding box)
-* Remapping
-  * Support for nearest neighbor and inverse distance weighted unstructured to unstructured remapping
-* Topological Aggregations
-  * Perform aggregations within different topology elements using connectivity information
-* Mathematical Operators
-  * Support for Integral, Difference, and Gradient calculations
-* Dual Mesh Construction
-  * Support for constructing a dual mesh from any grid or dataset
-* Great Circle Arc (GCA) Functionality
-  * Function to find the intersection points of two GCA's
-  * Function to determine if a point is within a GCA
-* Face Area Calculation
-  * Calculate the face area of any face (or all faces) within the grid
-* Non-conservative Zonal Mean (coming soon, in development)
-  * The ability to calculate a non-conservative zonal mean
-* Point in Face (coming soon, in development)
-  * Determines if a point is inside a face
-* Faces Containing Point (coming soon, in development)
-  * For a given point, returns the face or faces containing it
-* Spherical Bounding Box
-  * A spherical bounding box for each face
-* Cross-Sections
-  * Extract cross-sections of a grid based on constant longitude or latitude
-
-## Intended Features
-
-The following intended features have been inspired by discussions with
-members of the scientific community, within the SEATS Project and Project
-Raijin, and on several community platforms such as [Xarray GitHub
-Repository](https://github.com/pydata/xarray/issues/4222). The UXarray team
-is receptive to additional functionality requests.
-
-* Support for finite volume and finite element outputs.
-* Triangular decompositions.
-* Calculation of supermeshes (consisting of grid lines from two input grids).
-* Snapshots and composites following particular features.
 
 ## Documentation
 
