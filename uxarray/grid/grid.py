@@ -2461,7 +2461,7 @@ class Grid:
         face_edge_nodes_xyz = subset.face_edge_nodes_xyz.values
 
         inverse_indices = subset.inverse_indices.face.values
-        print(inverse_indices)
+
         # Check if any of the faces in the subset contain the point
         index = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
 

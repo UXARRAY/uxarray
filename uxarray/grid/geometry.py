@@ -1657,18 +1657,14 @@ def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
 
     index = []
 
-    # Loop through the whole subset
-    for i, face in enumerate(face_edge_cartesian):
-        # Check if the point is inside the face
+    for ind in inverse_indices:
         contains_point = point_in_face(
-            face,
+            face_edge_cartesian[ind],
             point_xyz,
             inclusive=True,
         )
-
-        # If the point is, add it to the list of faces
         if contains_point:
-            index.append(inverse_indices[i])
+            index.append(ind)
 
     return index
 
