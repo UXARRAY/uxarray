@@ -1,13 +1,14 @@
 import numpy as np
 from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
-from uxarray.grid.utils import _newton_raphson_solver_for_gca_constLat
+from uxarray.grid.utils import (
+    _newton_raphson_solver_for_gca_constLat,
+    _angle_of_2_vectors,
+)
 from uxarray.grid.arcs import (
-    point_within_gca,
     in_between,
     _extreme_gca_latitude_cartesian,
-    _point_within_gca_cartesian,
+    point_within_gca,
 )
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
 import platform
 import warnings
 from uxarray.utils.computing import cross_fma, allclose, cross, norm
@@ -128,7 +129,7 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
     return np.unique(intersecting_edges)
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def constant_lat_intersections_face_bounds(lat, face_bounds_lat):
     """Identifies the candidate faces on a grid that intersect with a given
     constant latitude.
@@ -204,31 +205,11 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     gca_a_xyz = np.asarray(gca_a_xyz)
     gca_b_xyz = np.asarray(gca_b_xyz)
 
-    gca_a_lonlat = np.array(
-        [
-            _xyz_to_lonlat_rad_scalar(
-                gca_a_xyz[0, 0], gca_a_xyz[0, 1], gca_a_xyz[0, 2]
-            ),
-            _xyz_to_lonlat_rad_scalar(
-                gca_a_xyz[1, 0], gca_a_xyz[1, 1], gca_a_xyz[1, 2]
-            ),
-        ]
-    )
-    gca_b_lonlat = np.array(
-        [
-            _xyz_to_lonlat_rad_scalar(
-                gca_b_xyz[0, 0], gca_b_xyz[0, 1], gca_b_xyz[0, 2]
-            ),
-            _xyz_to_lonlat_rad_scalar(
-                gca_b_xyz[1, 0], gca_b_xyz[1, 1], gca_b_xyz[1, 2]
-            ),
-        ]
-    )
-    return gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat)
+    return gca_gca_intersection(gca_a_xyz, gca_b_xyz)
 
 
 @njit(cache=True)
-def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
+def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
@@ -238,12 +219,15 @@ def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
     v0_xyz = gca_b_xyz[0]
     v1_xyz = gca_b_xyz[1]
 
-    w0_lonlat = gca_a_lonlat[0]
-    w1_lonlat = gca_a_lonlat[1]
-    v0_lonlat = gca_b_lonlat[0]
-    v1_lonlat = gca_b_lonlat[1]
+    angle_w0w1 = _angle_of_2_vectors(w0_xyz, w1_xyz)
+    angle_v0v1 = _angle_of_2_vectors(v0_xyz, v1_xyz)
 
-    # Compute normals and orthogonal bases
+    if angle_w0w1 > np.pi:
+        w0_xyz, w1_xyz = w1_xyz, w0_xyz
+
+    if angle_v0v1 > np.pi:
+        v0_xyz, v1_xyz = v1_xyz, v0_xyz
+
     w0w1_norm = cross(w0_xyz, w1_xyz)
     v0v1_norm = cross(v0_xyz, v1_xyz)
     cross_norms = cross(w0w1_norm, v0v1_norm)
@@ -254,11 +238,11 @@ def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
 
     # Check if the two GCAs are parallel
     if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
-        if point_within_gca(v0_xyz, v0_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat):
+        if point_within_gca(v0_xyz, w0_xyz, w1_xyz):
             res[count, :] = v0_xyz
             count += 1
 
-        if point_within_gca(v1_xyz, v1_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat):
+        if point_within_gca(v1_xyz, w0_xyz, w1_xyz):
             res[count, :] = v1_xyz
             count += 1
 
@@ -269,29 +253,23 @@ def gca_gca_intersection(gca_a_xyz, gca_a_lonlat, gca_b_xyz, gca_b_lonlat):
     x1_xyz = cross_norms
     x2_xyz = -x1_xyz
 
-    # Get lon/lat arrays
-    x1_lonlat = _xyz_to_lonlat_rad_scalar(x1_xyz[0], x1_xyz[1], x1_xyz[2])
-    x2_lonlat = _xyz_to_lonlat_rad_scalar(x2_xyz[0], x2_xyz[1], x2_xyz[2])
-
     # Check intersection points
-    if point_within_gca(
-        x1_xyz, x1_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat
-    ) and point_within_gca(x1_xyz, x1_lonlat, v0_xyz, v0_lonlat, v1_xyz, v1_lonlat):
+    if point_within_gca(x1_xyz, w0_xyz, w1_xyz) and point_within_gca(
+        x1_xyz, v0_xyz, v1_xyz
+    ):
         res[count, :] = x1_xyz
         count += 1
 
-    if point_within_gca(
-        x2_xyz, x2_lonlat, w0_xyz, w0_lonlat, w1_xyz, w1_lonlat
-    ) and point_within_gca(x2_xyz, x2_lonlat, v0_xyz, v0_lonlat, v1_xyz, v1_lonlat):
+    if point_within_gca(x2_xyz, w0_xyz, w1_xyz) and point_within_gca(
+        x2_xyz, v0_xyz, v1_xyz
+    ):
         res[count, :] = x2_xyz
         count += 1
 
     return res[:count, :]
 
 
-def gca_const_lat_intersection(
-    gca_cart, constZ, fma_disabled=True, verbose=False, is_directed=False
-):
+def gca_const_lat_intersection(gca_cart, constZ, fma_disabled=True, verbose=False):
     """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
     constant latitude line in a Cartesian coordinate system.
 
@@ -308,9 +286,6 @@ def gca_const_lat_intersection(
         If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
     verbose : bool, optional (default=False)
         If True, the function prints out the intermediate results.
-    is_directed : bool, optional (default=False)
-        If True, the GCA is considered to be directed, which means it can only from v0-->v1. If False, the GCA is undirected,
-        and we will always assume the small circle (The one less than 180 degree) side is the GCA.
 
     Returns
     -------
@@ -385,7 +360,7 @@ def gca_const_lat_intersection(
     res = None
 
     # Now test which intersection point is within the GCA range
-    if _point_within_gca_cartesian(p1, gca_cart, is_directed=is_directed):
+    if point_within_gca(p1, gca_cart[0], gca_cart[1]):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p1, gca_cart, verbose=verbose
@@ -407,7 +382,7 @@ def gca_const_lat_intersection(
         except RuntimeError:
             raise RuntimeError(f"Error encountered with initial guess: {p1}")
 
-    if _point_within_gca_cartesian(p2, gca_cart, is_directed=is_directed):
+    if point_within_gca(p2, gca_cart[0], gca_cart[1]):
         try:
             converged_pt = _newton_raphson_solver_for_gca_constLat(
                 p2, gca_cart, verbose=verbose
