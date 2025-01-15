@@ -430,7 +430,7 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def weighted_mean(self, weights=None):
-        """Compute the weighted mean of the data variable.
+        """Computes a weighted mean.
 
         This function calculates the weighted mean of a variable,
         using the specified `weights`. If no weights are provided, it will automatically select
@@ -456,11 +456,6 @@ class UxDataArray(xr.DataArray):
 
         Example
         -------
-        >>> grid_path = "../../test/meshfiles/ugrid/quad-hexagon/grid.nc"
-        >>> face_data = "../../test/meshfiles/ugrid/quad-hexagon/data.nc"
-        >>> uxds = ux.open_dataset(grid_path, face_data)
-        >>> uxds["t2m"].values
-
         >>> weighted_mean = uxds["t2m"].weighted_mean()
 
 
