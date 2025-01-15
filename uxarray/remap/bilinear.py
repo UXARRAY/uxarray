@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_deg
+from uxarray.grid.coordinates import _xyz_to_lonlat_deg, _normalize_xyz
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -143,11 +143,10 @@ def _bilinear(
 
         for i in range(len(cart_x)):
             # Get point
-            point = np.array([cart_x[i], cart_y[i], cart_z[i]])
+            point = np.array([*_normalize_xyz(cart_x[i], cart_y[i], cart_z[i])], dtype=np.float64)
 
             # Find the index of the polygon containing the point
             polygon_ind = dual.uxgrid.get_faces_containing_point(point)
-            print("Worked")
 
             # Convert point to lonlat for barycentric calculation
             point = _xyz_to_lonlat_deg(*point)
@@ -162,16 +161,16 @@ def _bilinear(
 
                 # Create the polygon from the `face_node_connectivity`
                 nodes_per_face = dual.uxgrid.n_nodes_per_face[polygon_ind[0]].values
-                polygon = np.empty([nodes_per_face, 3])
+                polygon = np.empty([nodes_per_face, 2])
                 data = np.empty([nodes_per_face])
-                for node in range(nodes_per_face):
-                    polygon[i] = [
-                        dual.uxgrid.node_lon.values[node_ind[node]],
-                        dual.uxgrid.node_lat.values[node_ind[node]],
+                for ind, node in enumerate(node_ind):
+                    polygon[ind] = [
+                        dual.uxgrid.node_lon.values[node],
+                        dual.uxgrid.node_lat.values[node],
                     ]
 
                     # Create the data array on the polygon
-                    data[i] = source_data[node]
+                    data[ind] = source_data[node]
 
                 # If the face is a triangle, use barycentric coordinates, otherwise break the face into triangles
                 # and then use barycentric coordinates
@@ -196,8 +195,8 @@ def _bilinear(
 
             # On a node
             else:
-                node_ind_1 = dual.face_node_connectivity[polygon_ind[0]].values
-                node_ind_2 = dual.face_node_connectivity[polygon_ind[1]].values
+                node_ind_1 = dual.uxgrid.face_node_connectivity[polygon_ind[0]].values
+                node_ind_2 = dual.uxgrid.face_node_connectivity[polygon_ind[1]].values
                 for ind, x in enumerate(node_ind_1):
                     if x == node_ind_2[ind]:
                         values[i] = source_data[x]

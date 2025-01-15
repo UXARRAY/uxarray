@@ -265,3 +265,16 @@ def test_value_errors_idw():
 
     with nt.assert_warns(UserWarning):
         source_uxds['v1'].remap.inverse_distance_weighted(destination_grid=destination_grid, remap_to="nodes", power=6)
+
+
+def test_bilinear():
+    mpasfile_QU = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc'
+    mpasfile_QU_2 = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/oQU480.231010.nc'
+    outCS = '/users/aaronzedwick/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug'
+
+    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    destination = ux.open_grid(outCS)
+    destination_2 = ux.open_grid(mpasfile_QU_2)
+
+    bilinear_remap = source_uxds['latCell'].remap.bilinear(destination_2, remap_to='face centers',
+                                                           coord_type='cartesian')
