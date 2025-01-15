@@ -146,7 +146,8 @@ def _bilinear(
             point = np.array([cart_x[i], cart_y[i], cart_z[i]])
 
             # Find the index of the polygon containing the point
-            polygon_ind = dual.get_polygons_containing_point(point)
+            polygon_ind = dual.uxgrid.get_faces_containing_point(point)
+            print("Worked")
 
             # Convert point to lonlat for barycentric calculation
             point = _xyz_to_lonlat_deg(*point)
@@ -157,16 +158,16 @@ def _bilinear(
             # Inside the polygon or on an edge/node
             elif len(polygon_ind) <= 3:
                 # Get the index of the face that holds the point
-                node_ind = dual.face_node_connectivity[polygon_ind[0]].values
+                node_ind = dual.uxgrid.face_node_connectivity[polygon_ind[0]].values
 
                 # Create the polygon from the `face_node_connectivity`
-                nodes_per_face = dual.n_nodes_per_face[polygon_ind[0]].values
+                nodes_per_face = dual.uxgrid.n_nodes_per_face[polygon_ind[0]].values
                 polygon = np.empty([nodes_per_face, 3])
                 data = np.empty([nodes_per_face])
                 for node in range(nodes_per_face):
                     polygon[i] = [
-                        dual.node_lon.values[node_ind[node]],
-                        dual.node_lat.values[node_ind[node]],
+                        dual.uxgrid.node_lon.values[node_ind[node]],
+                        dual.uxgrid.node_lat.values[node_ind[node]],
                     ]
 
                     # Create the data array on the polygon
