@@ -55,7 +55,7 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
 
-`Weighted Average <user-guide/weighted-average.ipynb>`_
+`Weighted Mean <user-guide/weighted_mean.ipynb>`_
  Compute the weighted average
 
 `Calculus Operators <user-guide/calculus.ipynb>`_
@@ -103,6 +103,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/cross-sections.ipynb
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
+   user-guide/weighted_mean.ipynb
    user-guide/calculus.ipynb
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
