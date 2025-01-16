@@ -393,6 +393,7 @@ Dual Mesh Construction
 Aggregations
 ------------
 
+
 Topological
 ~~~~~~~~~~~
 
@@ -419,16 +420,13 @@ on each face.
    UxDataArray.topological_all
    UxDataArray.topological_any
 
-
-
-Intersections
-~~~~~~~~~~~~~
-
+Weighted
+~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
-   grid.intersections.gca_gca_intersection
-   grid.intersections.gca_const_lat_intersection
+   UxDataArray.weighted_mean
+
 
 
 Spherical Geometry
