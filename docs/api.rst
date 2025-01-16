@@ -390,6 +390,7 @@ Dual Mesh Construction
 Aggregations
 ------------
 
+
 Topological
 ~~~~~~~~~~~
 
@@ -418,11 +419,20 @@ on each face.
 
 Zonal Average
 ~~~~~~~~~~~~~
-
 .. autosummary::
    :toctree: generated/
 
    UxDataArray.zonal_mean
+
+
+
+Weighted
+~~~~~~~~
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.weighted_mean
+
 
 
 Spherical Geometry

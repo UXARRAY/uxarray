@@ -48,9 +48,9 @@ class TestZonalCSne30:
         res_n90 = uxds['psi'].zonal_mean(90)
         res_p90 = uxds['psi'].zonal_mean(-90)
 
-        # Assert results are approximately 1 within a delta of 1
-        assert res_n90.values[0] == pytest.approx(1, abs=1)
-        assert res_p90.values[0] == pytest.approx(1, abs=1)
+        # Assert results are approximately 1
+        assert res_n90.values[0] == pytest.approx(1)
+        assert res_p90.values[0] == pytest.approx(1)
 
     def test_zonal_mean_dask(self):
         """Tests if zonal average returns Dask arrays when appropriate."""
