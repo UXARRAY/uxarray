@@ -333,7 +333,6 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
 
-    # for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
     for face_idx in prange(face_nodes.shape[0]):
         n_max_nodes = n_nodes_per_face[face_idx]
         # Compute Cartesian Average
