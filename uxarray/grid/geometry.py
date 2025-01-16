@@ -1653,23 +1653,50 @@ def point_in_face(
 
 # @njit(cache=True)
 def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
-    """Finds the faces that contain a given point, inside a subset "face_edge_cartesian"""
+    """Finds the faces that contain a given point, inside a subset `face_edge_cartesian`
+    Parameters
+    ----------
+        face_edge_cartesian : numpy.ndarray
+            Cartesian coordinates of all the faces according to their edges
+        point_xyz : numpy.ndarray
+            Cartesian coordinate of the point
+        inverse_indices : numpy.ndarray
+           The original indices of the subsetted grid
+
+    Returns
+    -------
+    index : array
+        The index of the face that contains the point
+    """
 
     index = []
 
+    # Run for each face in the subset
     for ind in inverse_indices:
+        # Check to see if the face contains the point
         contains_point = point_in_face(
             face_edge_cartesian[ind],
             point_xyz,
             inclusive=True,
         )
+
+        # If the point is found, add it to the index array
         if contains_point:
             index.append(ind)
 
+    # Return the index array
     return index
 
 
-def get_max_face_radius(self):
+def _populate_max_face_radius(self):
+    """Populates `max_face_radius`
+
+    Returns
+    -------
+    max_distance : np.float64
+        The max distance from a node to a face center
+    """
+
     # Parse all variables needed for `njit` functions
     face_node_connectivity = self.face_node_connectivity.values
     node_lats_rad = np.deg2rad(self.node_lat.values)
@@ -1686,6 +1713,7 @@ def get_max_face_radius(self):
         face_lons_rad,
     )
 
+    # Return the max distance, which is the `max_face_radius`
     return max_distance
 
 
@@ -1693,7 +1721,24 @@ def get_max_face_radius(self):
 def calculate_max_face_radius(
     face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
 ):
-    """Finds the max face radius in the mesh."""
+    """Finds the max face radius in the mesh.
+    Parameters
+    ----------
+        face_node_connectivity : numpy.ndarray
+            Cartesian coordinates of all the faces according to their edges
+        node_lats_rad : numpy.ndarray
+            The `Grid.node_lat` array in radians
+        node_lons_rad : numpy.ndarray
+           The `Grid.node_lon` array in radians
+        face_lats_rad : numpy.ndarray
+           The `Grid.face_lat` array in radians
+        face_lons_rad : numpy.ndarray
+           The `Grid.face_lon` array in radians
+
+    Returns
+    -------
+    The max distance from a node to a face center
+    """
 
     # Array to store all distances of each face to it's furthest node.
     end_distances = np.zeros(len(face_node_connectivity))
@@ -1723,7 +1768,24 @@ def calculate_max_face_radius(
 
 # @njit(cache=True)
 def haversine_distance(lon_a, lat_a, lon_b, lat_b):
-    """Calculates the haversine distance between two points."""
+    """Calculates the haversine distance between two points.
+
+    Parameters
+    ----------
+    lon_a : np.float64
+        The longitude of the first point
+    lat_a : np.float64
+        The latitude of the first point
+    lon_b : np.float64
+        The longitude of the second point
+    lat_b : np.float64
+        The latitude of the second point
+
+    Returns
+    -------
+    distance :  np.float64
+        The distance between the two points
+    """
 
     # Differences in latitudes and longitudes
     dlat = lat_b - lat_a
@@ -1734,4 +1796,6 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
         np.sin(dlon / 2) ** 2
     )
     distance = 2 * np.arcsin(np.sqrt(equation_in_sqrt))
+
+    # Return the gotten distance
     return distance

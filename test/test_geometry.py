@@ -17,6 +17,8 @@ from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_f
 from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, \
     stereographic_projection, inverse_stereographic_projection, point_in_face, haversine_distance
 
+from sklearn.metrics.pairwise import haversine_distances
+
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_CSne8 = current_path / "meshfiles" / "scrip" / "outCSne8" / "outCSne8.nc"
@@ -1384,15 +1386,14 @@ def test_stereographic_projection_stereographic_projection():
 
 
 def test_haversine_distance_creation():
-    from sklearn.metrics.pairwise import haversine_distances
-    from math import radians
+    """Tests the use of `haversine_distance`"""
 
-    bsas = [-34.83333, -58.5166646]
-    paris = [49.0083899664, 2.53844117956]
-    bsas_in_radians = [radians(_) for _ in bsas]
-    paris_in_radians = [radians(_) for _ in paris]
-    result = haversine_distances([bsas_in_radians, paris_in_radians])
+    # Create two points
+    point_a = [np.deg2rad(-34.8), np.deg2rad(-58.5)]
+    point_b = [np.deg2rad(49.0), np.deg2rad(2.6)]
 
-    distance = haversine_distance(np.radians(-58.5166646), np.radians(-34.83333), np.radians(2.53844117956), np.radians(49.0083899664))
+    result = haversine_distances([point_a, point_b])
+
+    distance = haversine_distance(point_a[1], point_a[0], point_b[1], point_b[0])
 
     assert result[0][1] == distance
