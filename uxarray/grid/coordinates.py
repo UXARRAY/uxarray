@@ -5,7 +5,7 @@ import math
 
 from uxarray.conventions import ugrid
 
-from numba import njit
+from numba import njit, prange
 from uxarray.constants import ERROR_TOLERANCE
 from typing import Union
 
@@ -305,7 +305,7 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
-@njit(cache=True)
+@njit(cache=True, parallel=True)
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging.
@@ -333,7 +333,9 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
 
-    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+    # for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+    for face_idx in prange(face_nodes.shape[0]):
+        n_max_nodes = n_nodes_per_face[face_idx]
         # Compute Cartesian Average
         x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
         y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
