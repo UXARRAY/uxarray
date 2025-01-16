@@ -53,22 +53,13 @@ an Unstructured Grid aware implementation of many Xarray functions and use cases
 Core Functionality
 ==================
 
-UXarray supplies amply ability to manipulate and worth with unstructured grids and datasets.
-UXarray has many different operators and functionality, and more detailed overviews can be found
-by clicking each functionality listed below. This is not a complete list of functionality inside
-UXarray, but highlights some key functions and operators.
+In addition to providing a way to load in and interface with Unstructured Grids, we
+also aim to provide computational and analysis operators that directly operate on
+Unstructured Grids. Some of these include:
+* Visualization
+* Remapping
+* Subsetting & Selection
+* Aggregations
 
-* `Cross Sections <https://uxarray.readthedocs.io/en/latest/user-guide/cross-sections.html>`_
-* `Dual Mesh Construction <https://uxarray.readthedocs.io/en/latest/user-guide/dual-mesh.html>`_
-* `Face Area Calculation <https://uxarray.readthedocs.io/en/latest/user-guide/area_calc.html>`_
-* Faces Containing Point (coming soon)
-* `GCA Intersections <https://uxarray.readthedocs.io/en/latest/api.html#spherical-geometry>`_
-* `GCA Point Within/On <https://uxarray.readthedocs.io/en/latest/api.html#spherical-geometry>`_
-* `Gradient, Difference, Integrate <https://uxarray.readthedocs.io/en/latest/api.html#mathematical-operators>`_
-* Non-conservative Zonal Mean (coming soon)
-* Point In Face (coming soon)
-* `Remapping/Regridding Operators <https://uxarray.readthedocs.io/en/latest/user-guide/remapping.html>`_
-* `Spherical Bounding Box <https://uxarray.readthedocs.io/en/latest/api.html#descriptors>`_
-* `Subsetting <https://uxarray.readthedocs.io/en/latest/user-guide/subset.html>`_
-* `Topological Aggregations <https://uxarray.readthedocs.io/en/latest/user-guide/topological-aggregations.html>`_
-* `Visualization Tools <https://uxarray.readthedocs.io/en/latest/user-guide/plotting.html>`_
+A more detailed overview of supported functionality can be found in our `API Reference <https://uxarray.readthedocs.io/en/latest/api.html>`_
+and `User Guide <https://uxarray.readthedocs.io/en/latest/userguide.html>`_ sections.
