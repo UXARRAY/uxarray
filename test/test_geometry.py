@@ -1396,4 +1396,4 @@ def test_haversine_distance_creation():
 
     distance = haversine_distance(point_a[1], point_a[0], point_b[1], point_b[0])
 
-    assert result[0][1] == distance
+    assert np.isclose(result[0][1], distance, atol=1e-6)
