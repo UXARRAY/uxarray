@@ -435,7 +435,7 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 10), process_overlaps=False):
+    def zonal_mean(self, lat=(-90, 90, 10), **kwargs):
         """Compute averages along lines of constant latitude.
 
         Parameters
@@ -490,7 +490,7 @@ class UxDataArray(xr.DataArray):
             )
 
         res = _compute_non_conservative_zonal_mean(
-            uxda=self, latitudes=latitudes, process_overlaps=process_overlaps
+            uxda=self, latitudes=latitudes, **kwargs
         )
 
         dims = list(self.dims[:-1]) + ["latitudes"]
@@ -505,6 +505,9 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
+
+    # Alias for 'zonal_mean', since this name is also commonly used.
+    zonal_average = zonal_mean
 
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.
