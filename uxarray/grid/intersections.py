@@ -5,12 +5,10 @@ from uxarray.grid.utils import (
 )
 from uxarray.grid.arcs import (
     in_between,
-    _extreme_gca_latitude_cartesian,
+    extreme_gca_z,
     point_within_gca,
 )
-import platform
-import warnings
-from uxarray.utils.computing import cross_fma, allclose, cross, norm, isclose
+from uxarray.utils.computing import allclose, cross, norm, isclose
 
 
 from numba import njit, prange
@@ -268,100 +266,79 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     return res[:count, :]
 
 
-def gca_const_lat_intersection(gca_cart, constZ, fma_disabled=True, verbose=False):
-    """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
-    constant latitude line in a Cartesian coordinate system.
+@njit(cache=True)
+def gca_const_lat_intersection(gca_cart, const_z):
+    res = np.empty((2, 3))
+    res.fill(np.nan)
 
-    To reduce relative errors, the Fused Multiply-Add (FMA) operation is utilized.
-    A warning is raised if the given coordinates are not in the cartesian coordinates, or
-    they cannot be accurately handled using floating-point arithmetic.
-
-    Parameters
-    ----------
-    gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
-    constZ : float
-        The constant latitude represented in cartesian of the latitude line.
-    fma_disabled : bool, optional (default=True)
-        If True, the FMA operation is disabled. And a naive `np.cross` is used instead.
-    verbose : bool, optional (default=False)
-        If True, the function prints out the intermediate results.
-
-    Returns
-    -------
-    np.ndarray
-        Cartesian coordinates of the intersection point(s) the shape is [n_intersext_pts, 3].
-
-    Raises
-    ------
-    ValueError
-        If the input GCA is not in the cartesian [x, y, z] format.
-
-    Warning
-    -------
-        If running on the Windows system with fma_disabled=False since the C/C++ implementation of FMA in MS Windows
-        is fundamentally broken. (bug report: https://bugs.python.org/msg312480)
-
-        If the intersection point cannot be converged using the Newton-Raphson method, the initial guess intersection
-        point is used instead, proceed with caution.
-    """
     x1, x2 = gca_cart
 
     # Check if the constant latitude has the same latitude as the GCA endpoints
     # We are using the relative tolerance and ERROR_TOLERANCE since the constZ is calculated from np.sin, which
     # may have some floating-point error.
-    res = None
-    if isclose(x1[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
-        res = np.array([x1]) if res is None else np.vstack((res, x1))
+    x1_at_const_z = isclose(x1[2], const_z, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE)
+    x2_at_const_z = isclose(x2[2], const_z, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE)
 
-    if isclose(x2[2], constZ, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
-        res = np.array([x2]) if res is None else np.vstack((res, x2))
-
-    if res is not None:
+    if x1_at_const_z and x2_at_const_z:
+        res[0] = x1
+        res[1] = x2
+        return res
+    elif x1_at_const_z:
+        res[0] = x1
+        return res
+    elif x2_at_const_z:
+        res[0] = x2
         return res
 
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
+    z_min = extreme_gca_z(gca_cart, extreme_type="min")
+    z_max = extreme_gca_z(gca_cart, extreme_type="max")
+    lat_min = np.arcsin(z_min)
+    lat_max = np.arcsin(z_max)
+
+    const_lat_rad = np.arcsin(const_z)
+
     # TODO:
-    lat_min = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="min")
-    lat_max = _extreme_gca_latitude_cartesian(gca_cart, extreme_type="max")
-
-    constLat_rad = np.arcsin(constZ)
-
     # Check if the constant latitude is within the GCA range
     # Because the constant latitude is calculated from np.sin, which may have some floating-point error,
-    if not in_between(lat_min, constLat_rad, lat_max):
-        pass
-        return np.array([])
+    if not in_between(lat_min, const_lat_rad, lat_max):
+        return res
 
-    if fma_disabled:
-        n = cross(x1, x2)
-
-    else:
-        # Raise a warning for Windows users
-        if platform.system() == "Windows":
-            warnings.warn(
-                "The C/C++ implementation of FMA in MS Windows is reportedly broken. Use with care. (bug report: "
-                "https://bugs.python.org/msg312480)"
-                "The single rounding cannot be guaranteed, hence the relative error bound of 3u cannot be guaranteed."
-            )
-        n = cross_fma(x1, x2)
+    n = cross(x1, x2)
 
     nx, ny, nz = n
 
-    s_tilde = np.sqrt(nx**2 + ny**2 - (nx**2 + ny**2 + nz**2) * constZ**2)
-    p1_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz + s_tilde * ny)
-    p2_x = -(1.0 / (nx**2 + ny**2)) * (constZ * nx * nz - s_tilde * ny)
-    p1_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz - s_tilde * nx)
-    p2_y = -(1.0 / (nx**2 + ny**2)) * (constZ * ny * nz + s_tilde * nx)
+    s_tilde = np.sqrt(nx**2 + ny**2 - (nx**2 + ny**2 + nz**2) * const_z**2)
+    p1_x = -(1.0 / (nx**2 + ny**2)) * (const_z * nx * nz + s_tilde * ny)
+    p2_x = -(1.0 / (nx**2 + ny**2)) * (const_z * nx * nz - s_tilde * ny)
+    p1_y = -(1.0 / (nx**2 + ny**2)) * (const_z * ny * nz - s_tilde * nx)
+    p2_y = -(1.0 / (nx**2 + ny**2)) * (const_z * ny * nz + s_tilde * nx)
 
-    p1 = np.array([p1_x, p1_y, constZ])
-    p2 = np.array([p2_x, p2_y, constZ])
+    p1 = np.array([p1_x, p1_y, const_z])
+    p2 = np.array([p2_x, p2_y, const_z])
 
-    res = None
+    p1_intersects_gca = point_within_gca(p1, gca_cart[0], gca_cart[1])
+    p2_intersects_gca = point_within_gca(p2, gca_cart[0], gca_cart[1])
 
-    if point_within_gca(p1, gca_cart[0], gca_cart[1]):
-        res = np.array([p1]) if res is None else np.vstack((res, p1))
+    if p1_intersects_gca and p2_intersects_gca:
+        res[0] = p1
+        res[1] = p2
+    elif p1_intersects_gca:
+        res[0] = p1
+    elif p2_intersects_gca:
+        res[0] = p2
 
-    if point_within_gca(p2, gca_cart[0], gca_cart[1]):
-        res = np.array([p2]) if res is None else np.vstack((res, p2))
+    return res
 
-    return res if res is not None else np.array([])
+
+@njit(cache=True)
+def get_number_of_intersections(arr):
+    row1_is_nan = np.all(np.isnan(arr[0]))
+    row2_is_nan = np.all(np.isnan(arr[1]))
+
+    if row1_is_nan and row2_is_nan:
+        return 0
+    elif row2_is_nan:
+        return 1
+    else:
+        return 2

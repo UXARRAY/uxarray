@@ -14,7 +14,7 @@ import uxarray as ux
 import pytest
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
-from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_zonal_faces_weight_at_constLat,_get_faces_constLat_intersection_info
+from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, _get_faces_constLat_intersection_info, get_non_conservative_zonal_face_weights_at_const_lat, get_non_conservative_zonal_face_weights_at_const_lat_overlap
 
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -512,27 +512,29 @@ def test_get_zonal_faces_weight_at_constLat_equator():
         face_3_latlon_bound
     ])
 
-    expected_weight_df = pd.DataFrame({
-        'face_index': [0, 1, 2, 3],
-        'weight': [0.46153, 0.11538, 0.30769, 0.11538]
-    })
-
-    pass
-
-    # Assert the results is the same to the 3 decimal places
-    weight_df = _get_zonal_faces_weight_at_constLat(np.array([
+    face_edges_cart = np.array([
         face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
         face_3_edge_nodes
-    ]), 0.0, latlon_bounds)
+    ])
 
-    nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+    constLat_cart = 0.0
 
+
+
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                   latlon_bounds,
+    np.array([4, 4, 4, 4]),
+    z=constLat_cart)
+
+    expected_weights = np.array([0.46153, 0.11538, 0.30769, 0.11538])
+
+    nt.assert_array_almost_equal(weights, expected_weights, decimal=3)
 
 
     # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
     # It's edges are all GCA
     with pytest.raises(ValueError):
-        _get_zonal_faces_weight_at_constLat(np.array([
+        get_non_conservative_zonal_face_weights_at_const_lat_overlap(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)
 
@@ -584,18 +586,34 @@ def test_get_zonal_faces_weight_at_constLat_regular():
         face_3_latlon_bound
     ])
 
-    expected_weight_df = pd.DataFrame({
-        'face_index': [0, 1, 2, 3],
-        'weight': [0.375, 0.0625, 0.3125, 0.25]
-    })
-
-    # Assert the results is the same to the 3 decimal places
-    weight_df = _get_zonal_faces_weight_at_constLat(np.array([
+    face_edges_cart = np.array([
         face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
         face_3_edge_nodes
-    ]), np.sin(0.1 * np.pi), latlon_bounds)
+    ])
 
-    nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+    constLat_cart = np.sin(0.1 * np.pi)
+
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                   latlon_bounds,
+                                                                   np.array([4, 4, 4, 4]),
+                                                                   z=constLat_cart)
+
+    expected_weights = np.array([0.375, 0.0625, 0.3125, 0.25])
+
+    nt.assert_array_almost_equal(weights, expected_weights)
+
+    # expected_weight_df = pd.DataFrame({
+    #     'face_index': [0, 1, 2, 3],
+    #     'weight': [0.375, 0.0625, 0.3125, 0.25]
+    # })
+    #
+    # # Assert the results is the same to the 3 decimal places
+    # weight_df = _get_zonal_faces_weight_at_constLat(np.array([
+    #     face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
+    #     face_3_edge_nodes
+    # ]), np.sin(0.1 * np.pi), latlon_bounds)
+    #
+    # nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
@@ -618,19 +636,29 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     ])
     constLat_cart = -1
 
-    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                   np.array([4, 4, 4, 4]),
+                                                                   z=constLat_cart)
 
-    # Create expected Polars DataFrame
-    expected_weight_df = pl.DataFrame(
-        {
-            "face_index": pl.Series([0], dtype=pl.Int64),
-            "weight": pl.Series([1.0], dtype=pl.Float64)
-        }
-    )
+    expected_weights = np.array([1.0])
 
-    # Assert equality using Polars
-    assert_frame_equal(weight_df, expected_weight_df), \
-        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+    nt.assert_array_equal(weights, expected_weights)
+
+
+
+    # weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    #
+    # # Create expected Polars DataFrame
+    # expected_weight_df = pl.DataFrame(
+    #     {
+    #         "face_index": pl.Series([0], dtype=pl.Int64),
+    #         "weight": pl.Series([1.0], dtype=pl.Float64)
+    #     }
+    # )
+    #
+    # # Assert equality using Polars
+    # assert_frame_equal(weight_df, expected_weight_df), \
+    #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
@@ -672,19 +700,29 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
 
     constLat_cart = 1.0
 
-    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                   np.array([4, 4, 4, 4]),
+                                                                   z=constLat_cart)
 
-    # Create expected Polars DataFrame
-    expected_weight_df = pl.DataFrame(
-        {
-            'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
-            'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
-        }
-    )
+    expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
 
-    # Assert equality using Polars
-    assert_frame_equal(weight_df, expected_weight_df), \
-        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+    nt.assert_array_equal(weights, expected_weights)
+
+
+    #
+    # weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    #
+    # # Create expected Polars DataFrame
+    # expected_weight_df = pl.DataFrame(
+    #     {
+    #         'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
+    #         'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
+    #     }
+    # )
+    #
+    # # Assert equality using Polars
+    # assert_frame_equal(weight_df, expected_weight_df), \
+    #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
@@ -707,19 +745,28 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     ])
     constLat_cart = -1
 
-    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
 
-    # Create expected Polars DataFrame
-    expected_weight_df = pl.DataFrame(
-        {
-            "face_index": pl.Series([0], dtype=pl.Int64),
-            "weight": pl.Series([1.0], dtype=pl.Float64)
-        }
-    )
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                   np.array([4, 4, 4, 4]),
+                                                                   z=constLat_cart)
 
-    # Assert equality by comparing columns
-    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
-        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+    expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+    # weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    #
+    # # Create expected Polars DataFrame
+    # expected_weight_df = pl.DataFrame(
+    #     {
+    #         "face_index": pl.Series([0], dtype=pl.Int64),
+    #         "weight": pl.Series([1.0], dtype=pl.Float64)
+    #     }
+    # )
+    #
+    # # Assert equality by comparing columns
+    # assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
+    #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
@@ -761,19 +808,31 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
 
     constLat_cart = 1.0
 
-    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                   np.array([4, 4, 4, 4]),
+                                                                   z=constLat_cart)
 
-    # Create expected Polars DataFrame
-    expected_weight_df = pl.DataFrame(
-        {
-            'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
-            'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
-        }
-    )
+    expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
 
-    # Assert equality by comparing columns
-    assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
-        f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
+    nt.assert_array_equal(weights, expected_weights)
+
+
+
+
+
+    # weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    #
+    # # Create expected Polars DataFrame
+    # expected_weight_df = pl.DataFrame(
+    #     {
+    #         'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
+    #         'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
+    #     }
+    # )
+    #
+    # # Assert equality by comparing columns
+    # assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
+    #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
@@ -796,17 +855,29 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     ])
     constLat_cart = -1
 
-    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    # weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    #
+    # # Create expected Polars DataFrame
+    # expected_weight_df = pl.DataFrame(
+    #     {
+    #         "face_index": pl.Series([0], dtype=pl.Int64),
+    #         "weight": pl.Series([1.0], dtype=pl.Float64)
+    #     }
+    # )
+    #
+    # assert_frame_equal(weight_df, expected_weight_df)
 
-    # Create expected Polars DataFrame
-    expected_weight_df = pl.DataFrame(
-        {
-            "face_index": pl.Series([0], dtype=pl.Int64),
-            "weight": pl.Series([1.0], dtype=pl.Float64)
-        }
-    )
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                   face_bounds,
+                                                                   np.array([4, 4, 4, 4]),
+                                                                   z=constLat_cart)
 
-    assert_frame_equal(weight_df, expected_weight_df)
+    expected_weights = np.array([1.0, ])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+
 
 
 
@@ -849,17 +920,27 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
 
     constLat_cart = 1.0
 
-    weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
+    # weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
 
-    # Create expected Polars DataFrame
-    expected_weight_df = pl.DataFrame(
-        {
-            'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
-            'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
-        }
-    )
+    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
+                                                                  face_bounds,
+                                                                  np.array([4, 4, 4, 4]),
+                                                                  z=constLat_cart)
 
-    assert_frame_equal(weight_df, expected_weight_df)
+    expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+    # # Create expected Polars DataFrame
+    # expected_weight_df = pl.DataFrame(
+    #     {
+    #         'face_index': pl.Series([0, 1, 2, 3], dtype=pl.Int64),
+    #         'weight': pl.Series([0.25, 0.25, 0.25, 0.25], dtype=pl.Float64)
+    #     }
+    # )
+    #
+    # assert_frame_equal(weight_df, expected_weight_df)
 
 
 
@@ -938,7 +1019,11 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
     })
 
     # Assert the results is the same to the 3 decimal places
-    weight_df = _get_zonal_faces_weight_at_constLat(np.array([
+
+
+
+
+    weight_df = get_non_conservative_zonal_face_weights_at_const_lat_overlap(np.array([
         face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
     ]), np.sin(np.deg2rad(20)), latlon_bounds, is_latlonface=True)
 
@@ -950,6 +1035,6 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
     # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
     # It's edges are all GCA
     with pytest.raises(ValueError):
-        _get_zonal_faces_weight_at_constLat(np.array([
+        get_non_conservative_zonal_face_weights_at_const_lat_overlap(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)

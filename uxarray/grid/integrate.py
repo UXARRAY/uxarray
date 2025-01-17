@@ -1,14 +1,24 @@
 import numpy as np
+
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.intersections import gca_const_lat_intersection
+from uxarray.grid.intersections import (
+    gca_const_lat_intersection,
+    get_number_of_intersections,
+)
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
+from uxarray.grid.arcs import compute_arc_length
 import polars as pl
 
+# TODO!
+from uxarray.grid.neighbors import PointsAlongGCA
+
 from uxarray.utils.computing import isclose
+
 
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
 
+# TODO: re-write with Numba
 def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
     """Determine if each edge is a Great Circle Arc (GCA) or a constant
     latitude line in a vectorized manner.
@@ -98,10 +108,10 @@ def _get_faces_constLat_intersection_info(
         for idx, edge in enumerate(valid_edges):
             if is_GCA[idx]:
                 intersections = gca_const_lat_intersection(edge, latitude_cart)
-
-                if intersections.size == 0:
+                n_intersections = get_number_of_intersections(intersections)
+                if n_intersections == 0:
                     continue
-                elif intersections.shape[0] == 2:
+                elif n_intersections == 2:
                     intersections_pts_list_cart.extend(intersections)
                 else:
                     intersections_pts_list_cart.append(intersections[0])
@@ -110,6 +120,7 @@ def _get_faces_constLat_intersection_info(
     unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
 
     if len(unique_intersections) == 2:
+        # TODO: vectorize?
         unique_intersection_lonlat = np.array(
             [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
         )
@@ -145,7 +156,66 @@ def _get_faces_constLat_intersection_info(
         )
 
 
-def _get_zonal_faces_weight_at_constLat(
+def get_non_conservative_zonal_face_weights_at_const_lat(
+    face_edges_xyz: np.ndarray,
+    face_bounds,
+    n_edges_per_face: np.ndarray,
+    z: float,
+):
+    # TODO: edge case near the equator.
+    if np.isclose(z, 0.0):
+        return get_non_conservative_zonal_face_weights_at_const_lat_overlap(
+            face_edges_xyz, z, face_bounds
+        )["weight"].to_numpy()
+
+    n_face = face_edges_xyz.shape[0]
+
+    # 1) Pole Case: Evenly distribute weights (same as before)
+    if np.isclose(z, 1, atol=ERROR_TOLERANCE) or np.isclose(
+        z, -1, atol=ERROR_TOLERANCE
+    ):
+        return np.ones(n_face) / n_face
+
+    arc_lengths = np.zeros(n_face, dtype=float)
+
+    # 2) Regular Case:
+    for face_idx in range(n_face):
+        n_max_edges = n_edges_per_face[face_idx]
+
+        points_along_gca = PointsAlongGCA()
+
+        for edge_idx in range(n_max_edges):
+            # 2.1) Compute the intersections for the given latitude arc and current edge
+            cur_edge = face_edges_xyz[face_idx, edge_idx]
+
+            intersections = gca_const_lat_intersection(cur_edge, z)
+
+            n_intersections = get_number_of_intersections(intersections)
+
+            if n_intersections == 1:
+                points_along_gca.insert_single(p=intersections[0])
+            elif n_intersections == 2:
+                points_along_gca.insert_pair(p1=intersections[0], p2=intersections[0])
+
+        # 2.2) Compute arc length between each pair of points
+
+        # Match single nodes together
+        points_along_gca.finalize()
+
+        current_arc_length = 0.0
+        for arc in points_along_gca.get_all_edges():
+            current_arc_length += compute_arc_length(arc[0], arc[1])
+
+        arc_lengths[face_idx] = current_arc_length
+
+    # 3) Normalize so that total weight sums to 1 (does not handle overlaps)
+    total_arc = np.sum(arc_lengths)
+    weights = arc_lengths / total_arc
+    return weights
+
+
+# Correctly handles overlaps
+def get_non_conservative_zonal_face_weights_at_const_lat_overlap(
     faces_edges_cart_candidate: np.ndarray,
     latitude_cart: float,
     face_latlon_bound_candidate: np.ndarray,
@@ -186,7 +256,9 @@ def _get_zonal_faces_weight_at_constLat(
         n_faces = len(faces_edges_cart_candidate)
         weights = {face_index: 1.0 / n_faces for face_index in range(n_faces)}
         # Convert dict to Polars DataFrame
-        return pl.DataFrame(list(weights.items()), schema=["face_index", "weight"])
+        return pl.DataFrame(
+            list(weights.items()), schema=["face_index", "weight"], orient="row"
+        )
 
     intervals_list = []
 
