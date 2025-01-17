@@ -195,6 +195,7 @@ I/O & Conversion
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
+   UxDataArray.from_xarray
 
 
 UxDataset
@@ -223,6 +224,7 @@ I/O & Conversion
    :toctree: generated/
 
    UxDataset.from_structured
+   UxDataset.from_xarray
 
 Plotting
 --------
@@ -326,6 +328,10 @@ Grid
 
    Grid.cross_section
    Grid.cross_section.constant_latitude
+   Grid.cross_section.constant_longitude
+   Grid.cross_section.constant_latitude_interval
+   Grid.cross_section.constant_longitude_interval
+
 
 UxDataArray
 ~~~~~~~~~~~
@@ -336,7 +342,9 @@ UxDataArray
 
    UxDataArray.cross_section
    UxDataArray.cross_section.constant_latitude
-
+   UxDataArray.cross_section.constant_longitude
+   UxDataArray.cross_section.constant_latitude_interval
+   UxDataArray.cross_section.constant_longitude_interval
 Remapping
 ---------
 

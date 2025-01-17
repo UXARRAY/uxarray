@@ -11,6 +11,7 @@ from typing import (
     Union,
     List,
     Set,
+    Tuple,
 )
 
 # reader and writer imports
@@ -81,6 +82,8 @@ from uxarray.grid.intersections import (
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
     constant_lon_intersections_face_bounds,
+    faces_within_lon_bounds,
+    faces_within_lat_bounds,
 )
 
 
@@ -206,8 +209,7 @@ class Grid:
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self._is_subset = is_subset
 
-        if inverse_indices is not None:
-            self._inverse_indices = inverse_indices
+        self._inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -2440,3 +2442,35 @@ class Grid:
 
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
+
+    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant longitude.
+
+        Parameters
+        ----------
+        lons: Tuple[float, float]
+            A tuple of longitudes that define that minimum and maximum longitude.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant longitude.
+
+        """
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+
+    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant latitude.
+
+        Parameters
+        ----------
+        lats: Tuple[float, float
+            A tuple of latitudes that define that minimum and maximum latitudes.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant latitude.
+
+        """
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
