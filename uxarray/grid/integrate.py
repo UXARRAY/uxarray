@@ -156,13 +156,15 @@ def _get_faces_constLat_intersection_info(
         )
 
 
+# Only handles overlaps near the equator
 def get_non_conservative_zonal_face_weights_at_const_lat(
     face_edges_xyz: np.ndarray,
     face_bounds,
     n_edges_per_face: np.ndarray,
     z: float,
 ):
-    # TODO: edge case near the equator.
+    """Computes the weight of each face at a constant latitude."""
+    # 0) Use accurate method at th equator
     if np.isclose(z, 0.0):
         return get_non_conservative_zonal_face_weights_at_const_lat_overlap(
             face_edges_xyz, z, face_bounds

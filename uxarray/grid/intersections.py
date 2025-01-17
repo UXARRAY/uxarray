@@ -365,6 +365,19 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
 @njit(cache=True)
 def gca_const_lat_intersection(gca_cart, const_z):
+    """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
+    constant latitude line in a Cartesian coordinate system.
+    Parameters
+    ----------
+    gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
+    const_z : float
+        The constant latitude represented in cartesian of the latitude line.
+    Returns
+    -------
+    np.ndarray
+        Cartesian coordinates of the intersection point(s) the shape is [2, 3].
+
+    """
     res = np.empty((2, 3))
     res.fill(np.nan)
 
@@ -395,7 +408,6 @@ def gca_const_lat_intersection(gca_cart, const_z):
 
     const_lat_rad = np.arcsin(const_z)
 
-    # TODO:
     # Check if the constant latitude is within the GCA range
     # Because the constant latitude is calculated from np.sin, which may have some floating-point error,
     if not in_between(lat_min, const_lat_rad, lat_max):
@@ -430,6 +442,8 @@ def gca_const_lat_intersection(gca_cart, const_z):
 
 @njit(cache=True)
 def get_number_of_intersections(arr):
+    """Helper that detrmines the number of intersections
+    for the output of gca_const_lat_intersection."""
     row1_is_nan = np.all(np.isnan(arr[0]))
     row2_is_nan = np.all(np.isnan(arr[1]))
 

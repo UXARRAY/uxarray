@@ -915,11 +915,6 @@ def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
     return edge_face_distances
 
 
-def euclidean_distance(p1, p2):
-    """Calculate Euclidean distance between two points represented as NumPy arrays."""
-    return np.sqrt(np.sum((p1 - p2) ** 2))
-
-
 class PointsAlongGCA:
     def __init__(self):
         # List of all unique points as NumPy arrays
