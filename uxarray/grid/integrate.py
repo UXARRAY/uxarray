@@ -463,14 +463,18 @@ def _get_faces_constLat_intersection_info(
         )
 
 
-# ======================================================================================================================
-# # Updated Implementation
-# # ======================================================================================================================
 @njit
 def add_edge(edges_list, i0, i1):
-    """
-    Insert edge into edges_list in sorted (i0, i1) order,
-    and skip insertion if it already exists.
+    """Insert an edge into a list of edges in sorted order, ensuring no duplicates.
+
+    Parameters
+    ----------
+    edges_list : List
+        List of edge tuples (i0, i1) where each i represents a point index
+    i0 : int
+        First point index of the edge
+    i1 : int
+        Second point index of the edge
     """
     if i1 < i0:
         i0, i1 = i1, i0
@@ -487,8 +491,25 @@ def add_edge(edges_list, i0, i1):
 @njit
 def get_point_index(points_list, px, py, pz, tol=1e-12):
     """
-    Return index if the point (px,py,pz) is within 'tol'
-    of an existing point; otherwise append.
+    Find or create an index for a 3D point, checking for existing points within tolerance.
+
+    Parameters
+    ----------
+    points_list : List
+        List of point tuples (x, y, z)
+    px : float
+        X-coordinate of the point
+    py : float
+        Y-coordinate of the point
+    pz : float
+        Z-coordinate of the point
+    tol : float, optional
+        Tolerance for considering points as identical, default 1e-12
+
+    Returns
+    -------
+    int
+        Index of the matching point if found, or index of newly added point
     """
     for i in range(len(points_list)):
         (ex, ey, ez) = points_list[i]
@@ -504,7 +525,19 @@ def get_point_index(points_list, px, py, pz, tol=1e-12):
 @njit
 def compute_face_arc_length(face_edges_xyz, z):
     """
-    TODO: Docstring
+    Compute the total arc length of a face's intersection with a line of constant latitude.
+
+    Parameters
+    ----------
+    face_edges_xyz : np.ndarray
+        Array of shape (n_edges, 2, 3) containing the xyz coordinates of face edges
+    z : float
+        Z-coordinate of the constant latitude line
+
+    Returns
+    -------
+    float
+        Total arc length of all intersections between the face and the constant latitude line
     """
     n_edges = face_edges_xyz.shape[0]
 
@@ -570,13 +603,27 @@ def compute_face_arc_length(face_edges_xyz, z):
 
 
 @njit(parallel=True)
-def get_non_conservative_zonal_face_weights_at_const_lat_numba(
+def _get_non_conservative_zonal_face_weights_at_const_lat_numba(
     face_edges_xyz: np.ndarray,
     n_edges_per_face: np.ndarray,
     z: float,
 ) -> np.ndarray:
     """
-    TODO:
+    Calculate normalized weights for faces intersecting a constant latitude using Numba
+
+    Parameters
+    ----------
+    face_edges_xyz : np.ndarray
+        Array of shape (n_face, max_edges, 2, 3) containing face edge coordinates
+    n_edges_per_face : np.ndarray
+        Array of shape (n_face,) containing the number of edges for each face
+    z : float
+        Z-coordinate of the constant latitude line
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape (n_face,) containing normalized weights for each face
     """
     n_face = face_edges_xyz.shape[0]
     arc_lengths = np.zeros(n_face, dtype=np.float64)
@@ -594,12 +641,6 @@ def get_non_conservative_zonal_face_weights_at_const_lat_numba(
         arc_lengths[face_idx] = compute_face_arc_length(face_data, z)
 
     total_arc = np.sum(arc_lengths)
-    if total_arc == 0.0:
-        # If truly no intersections, return zero
-        # TODO: error out here?
-        return np.zeros(n_face, dtype=np.float64)
-
-    # Normalize to sum = 1
     return arc_lengths / total_arc
 
 
@@ -610,20 +651,23 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
     z: float,
 ) -> np.ndarray:
     """
-    Calculates the weights for each face that intersects a line of constant latitude.
+    Calculate weights for faces intersecting a line of constant latitude.
 
     Parameters
     ----------
     face_edges_xyz : np.ndarray
+        Array of shape (n_face, max_edges, 2, 3) containing face edge coordinates
     face_bounds : np.ndarray
+        Array containing bounds for each face
     n_edges_per_face : np.ndarray
+        Array of shape (n_face,) containing the number of edges for each face
     z : float
-        Cartesian z coordinate
+        Z-coordinate of the constant latitude line
 
     Returns
     -------
-    weights : np.ndarray
-        The weights for each face that intersects a line of constant latitude.
+    np.ndarray
+        Array of weights for each face intersecting the latitude line
     """
 
     # If near equator, use original approach
@@ -634,6 +678,6 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
         return overlap_result["weight"].to_numpy()
 
     # Otherwise, use the Numba approach
-    return get_non_conservative_zonal_face_weights_at_const_lat_numba(
+    return _get_non_conservative_zonal_face_weights_at_const_lat_numba(
         face_edges_xyz, n_edges_per_face, z
     )
