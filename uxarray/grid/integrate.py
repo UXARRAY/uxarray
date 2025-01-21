@@ -576,7 +576,7 @@ def get_non_conservative_zonal_face_weights_at_const_lat_numba(
     z: float,
 ) -> np.ndarray:
     """
-    TODO: Docstring
+    TODO:
     """
     n_face = face_edges_xyz.shape[0]
     arc_lengths = np.zeros(n_face, dtype=np.float64)
@@ -605,11 +605,26 @@ def get_non_conservative_zonal_face_weights_at_const_lat_numba(
 
 def get_non_conservative_zonal_face_weights_at_const_lat(
     face_edges_xyz: np.ndarray,
-    face_bounds,
+    face_bounds: np.ndarray,
     n_edges_per_face: np.ndarray,
     z: float,
 ) -> np.ndarray:
-    """TODO: Docstring"""
+    """
+    Calculates the weights for each face that intersects a line of constant latitude.
+
+    Parameters
+    ----------
+    face_edges_xyz : np.ndarray
+    face_bounds : np.ndarray
+    n_edges_per_face : np.ndarray
+    z : float
+        Cartesian z coordinate
+
+    Returns
+    -------
+    weights : np.ndarray
+        The weights for each face that intersects a line of constant latitude.
+    """
 
     # If near equator, use original approach
     if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):

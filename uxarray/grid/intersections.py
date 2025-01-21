@@ -364,7 +364,27 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
 @njit(cache=True)
 def gca_const_lat_intersection(gca_cart, const_z):
-    """Docstring TODO:"""
+    """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
+    constant latitude line in a Cartesian coordinate system.
+
+    To reduce relative errors, the Fused Multiply-Add (FMA) operation is utilized.
+    A warning is raised if the given coordinates are not in the cartesian coordinates, or
+    they cannot be accurately handled using floating-point arithmetic.
+
+    Parameters
+    ----------
+    gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
+    const_z : float
+        The constant latitude represented in cartesian of the latitude line.
+
+    Returns
+    -------
+    np.ndarray
+        Cartesian coordinates of the intersection point(s) the shape is [2, 3]. If no intersections are found,
+        all values a `nan`. If one intersection is found, the first column represent the intersection point, and
+        if two intersections are found, each collumn represents a point.
+
+    """
     res = np.empty((2, 3))
     res.fill(np.nan)
 
@@ -394,14 +414,9 @@ def gca_const_lat_intersection(gca_cart, const_z):
     # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
     z_min = extreme_gca_z(gca_cart, extreme_type="min")
     z_max = extreme_gca_z(gca_cart, extreme_type="max")
-    lat_min = np.arcsin(z_min)
-    lat_max = np.arcsin(z_max)
-
-    const_lat_rad = np.arcsin(const_z)
 
     # Check if the constant latitude is within the GCA range
-    # Because the constant latitude is calculated from np.sin, which may have some floating-point error,
-    if not in_between(lat_min, const_lat_rad, lat_max):
+    if not in_between(z_min, const_z, z_max):
         return res
 
     n = cross(x1, x2)
@@ -433,7 +448,7 @@ def gca_const_lat_intersection(gca_cart, const_z):
 
 @njit(cache=True)
 def get_number_of_intersections(arr):
-    """Docstring TODO"""
+    """Returns the number of intersection points for the output of the gca-const-lat intersection."""
     row1_is_nan = np.all(np.isnan(arr[0]))
     row2_is_nan = np.all(np.isnan(arr[1]))
 
