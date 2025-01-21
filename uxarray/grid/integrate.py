@@ -456,7 +456,7 @@ def _get_faces_constLat_intersection_info(
         )
 
 
-@njit
+@njit(cache=True)
 def add_edge(edges_list, i0, i1):
     """Insert an edge into a list of edges in sorted order, ensuring no duplicates.
 
@@ -481,7 +481,7 @@ def add_edge(edges_list, i0, i1):
     edges_list.append((i0, i1))
 
 
-@njit
+@njit(cache=True)
 def get_point_index(points_list, px, py, pz, tol=1e-12):
     """
     Find or create an index for a 3D point, checking for existing points within tolerance.
@@ -515,7 +515,7 @@ def get_point_index(points_list, px, py, pz, tol=1e-12):
     return idx_new
 
 
-@njit
+@njit(cache=True)
 def compute_face_arc_length(face_edges_xyz, z):
     """
     Compute the total arc length of a face's intersection with a line of constant latitude.
@@ -595,7 +595,7 @@ def compute_face_arc_length(face_edges_xyz, z):
     return total_length
 
 
-@njit(parallel=True)
+@njit(cache=True, parallel=True)
 def _get_non_conservative_zonal_face_weights_at_const_lat_numba(
     face_edges_xyz: np.ndarray,
     n_edges_per_face: np.ndarray,
@@ -642,6 +642,7 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
     face_bounds: np.ndarray,
     n_edges_per_face: np.ndarray,
     z: float,
+    check_equator: bool = False,
 ) -> np.ndarray:
     """
     Calculate weights for faces intersecting a line of constant latitude.
@@ -656,6 +657,8 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
         Array of shape (n_face,) containing the number of edges for each face
     z : float
         Z-coordinate of the constant latitude line
+    check_equator : bool
+        Whether to use a more precise weighting scheme near the equator
 
     Returns
     -------
@@ -663,12 +666,15 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
         Array of weights for each face intersecting the latitude line
     """
 
-    # If near equator, use original approach
-    if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
-        overlap_result = get_non_conservative_zonal_face_weights_at_const_lat_original(
-            face_edges_xyz, z, face_bounds
-        )
-        return overlap_result["weight"].to_numpy()
+    if check_equator:
+        # If near equator, use original approach
+        if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
+            overlap_result = (
+                get_non_conservative_zonal_face_weights_at_const_lat_original(
+                    face_edges_xyz, z, face_bounds
+                )
+            )
+            return overlap_result["weight"].to_numpy()
 
     # Otherwise, use the Numba approach
     return _get_non_conservative_zonal_face_weights_at_const_lat_numba(

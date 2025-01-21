@@ -540,7 +540,8 @@ def test_get_zonal_faces_weight_at_constLat_equator():
     weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
                                                                    latlon_bounds,
                                                                    np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+                                                                   z=constLat_cart,
+                                                                   check_equator=True)
 
     expected_weights = np.array([0.46153, 0.11538, 0.30769, 0.11538])
 
