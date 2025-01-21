@@ -410,7 +410,7 @@ def test_process_overlapped_intervals_overlap_and_gap():
     assert set(overlap_contributions.keys()) == set(expected_overlap_contributions.keys()), \
         "Mismatch in face indices"
 
-    # Optional: Check total contributions sum matches total length
+    # Check total contributions sum matches total length
     assert abs(sum(overlap_contributions.values()) - total_length) < 1e-10, \
         "Sum of contributions doesn't match total length"
 
