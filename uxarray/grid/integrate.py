@@ -57,7 +57,7 @@ def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
 
 
 # Correctly handles overlaps
-def get_non_conservative_zonal_face_weights_at_const_lat_overlap(
+def get_non_conservative_zonal_face_weights_at_const_lat_original(
     faces_edges_cart_candidate: np.ndarray,
     latitude_cart: float,
     face_latlon_bound_candidate: np.ndarray,
@@ -610,9 +610,10 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
     z: float,
 ) -> np.ndarray:
     """TODO: Docstring"""
+
     # If near equator, use original approach
     if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
-        overlap_result = get_non_conservative_zonal_face_weights_at_const_lat_overlap(
+        overlap_result = get_non_conservative_zonal_face_weights_at_const_lat_original(
             face_edges_xyz, z, face_bounds
         )
         return overlap_result["weight"].to_numpy()

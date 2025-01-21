@@ -17,7 +17,7 @@ from uxarray.constants import INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, \
     _get_faces_constLat_intersection_info, get_non_conservative_zonal_face_weights_at_const_lat, \
-    get_non_conservative_zonal_face_weights_at_const_lat_overlap
+    get_non_conservative_zonal_face_weights_at_const_lat_original
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -549,7 +549,7 @@ def test_get_zonal_faces_weight_at_constLat_equator():
     # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
     # It's edges are all GCA
     with pytest.raises(ValueError):
-        get_non_conservative_zonal_face_weights_at_const_lat_overlap(np.array([
+        get_non_conservative_zonal_face_weights_at_const_lat_original(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)
 
@@ -1007,7 +1007,7 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
     })
 
     # Assert the results is the same to the 3 decimal places
-    weight_df = get_non_conservative_zonal_face_weights_at_const_lat_overlap(np.array([
+    weight_df = get_non_conservative_zonal_face_weights_at_const_lat_original(np.array([
         face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
     ]), np.sin(np.deg2rad(20)), latlon_bounds, is_latlonface=True)
 
@@ -1016,7 +1016,7 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
     # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
     # It's edges are all GCA
     with pytest.raises(ValueError):
-        get_non_conservative_zonal_face_weights_at_const_lat_overlap(np.array([
+        get_non_conservative_zonal_face_weights_at_const_lat_original(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)
 
@@ -1050,7 +1050,7 @@ def test_compare_zonal_weights():
                                                                                n_nodes_per_face_candidate,
                                                                                z)
 
-            existing_weights = get_non_conservative_zonal_face_weights_at_const_lat_overlap(
+            existing_weights = get_non_conservative_zonal_face_weights_at_const_lat_original(
                 faces_edge_nodes_xyz_candidate, z, bounds_candidate
             )["weight"].to_numpy()
 
