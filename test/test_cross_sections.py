@@ -1,7 +1,9 @@
-import uxarray as ux
-import pytest
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pytest
+
+import uxarray as ux
 
 # Define the current path and file paths for grid and data
 current_path = Path(__file__).resolve().parent
@@ -40,7 +42,6 @@ def test_constant_lon_cross_section_grid():
 
 def test_constant_lat_cross_section_uxds():
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-    uxds.uxgrid.normalize_cartesian_coordinates()
 
     da_top_two = uxds['t2m'].cross_section.constant_latitude(lat=0.1)
     np.testing.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
@@ -56,7 +57,6 @@ def test_constant_lat_cross_section_uxds():
 
 def test_constant_lon_cross_section_uxds():
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-    uxds.uxgrid.normalize_cartesian_coordinates()
 
     da_left_two = uxds['t2m'].cross_section.constant_longitude(lon=-0.1)
     np.testing.assert_array_equal(da_left_two.data, uxds['t2m'].isel(n_face=[0, 2]).data)
@@ -115,3 +115,56 @@ def test_constant_lat_out_of_bounds():
     )
 
     assert len(candidate_faces) == 0
+
+
+
+def test_constant_longitude_interval_grid():
+    uxgrid = ux.open_grid(quad_hex_grid_path)
+
+    grid_all_four = uxgrid.cross_section.constant_longitude_interval(lons=(-1, 1))
+
+
+    assert grid_all_four.n_face == 4
+
+    grid_left_two = uxgrid.cross_section.constant_longitude_interval(lons=(-1, 0.2))
+
+    assert grid_left_two.n_face == 2
+
+    grid_right_two = uxgrid.cross_section.constant_longitude_interval(lons=(-0.1, 1.0))
+
+    assert grid_right_two.n_face == 2
+
+def test_constant_latitude_interval_grid():
+    uxgrid = ux.open_grid(quad_hex_grid_path)
+
+    grid_all_four = uxgrid.cross_section.constant_latitude_interval(lats=(-0.3, 0.3))
+
+    assert grid_all_four.n_face == 4
+
+    grid_top_two = uxgrid.cross_section.constant_latitude_interval(lats=(-0.1, 0.3))
+    assert grid_top_two.n_face == 2
+
+    grid_bottom_two = uxgrid.cross_section.constant_latitude_interval(lats=(-0.3, 0.1))
+
+    assert grid_bottom_two.n_face == 2
+
+def test_constant_latitude_interval_uxds():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+    da_top_two = uxds['t2m'].cross_section.constant_latitude_interval(lats=(-0.1, 0.3))
+    np.testing.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
+
+    da_bottom_two = uxds['t2m'].cross_section.constant_latitude_interval(lats=(-0.3, 0.1))
+    np.testing.assert_array_equal(da_bottom_two.data, uxds['t2m'].isel(n_face=[0, 3]).data)
+
+    da_all_four = uxds['t2m'].cross_section.constant_latitude_interval(lats=(-0.3, 0.3))
+    np.testing.assert_array_equal(da_all_four.data, uxds['t2m'].data)
+
+def test_constant_longitude_interval_uxds():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+    da_left_two = uxds['t2m'].cross_section.constant_longitude_interval(lons=(-1, 0.2))
+    np.testing.assert_array_equal(da_left_two.data, uxds['t2m'].isel(n_face=[0, 2]).data)
+
+    da_right_two = uxds['t2m'].cross_section.constant_longitude_interval(lons=(-0.1, 1.0))
+    np.testing.assert_array_equal(da_right_two.data, uxds['t2m'].isel(n_face=[1, 3]).data)

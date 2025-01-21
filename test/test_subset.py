@@ -97,13 +97,10 @@ def test_grid_bounding_box_subset():
             grid = ux.open_grid(grid_path)
 
             grid_subset = grid.subset.bounding_box(bbox[0],
-                                                   bbox[1],
-                                                   element=element)
+                                                   bbox[1],)
 
             grid_subset_antimeridian = grid.subset.bounding_box(
-                bbox_antimeridian[0], bbox_antimeridian[1], element=element)
-
-
+                bbox_antimeridian[0], bbox_antimeridian[1])
 
 
 def test_uxda_isel():
@@ -113,6 +110,7 @@ def test_uxda_isel():
 
     assert len(sub) == 3
 
+
 def test_uxda_isel_with_coords():
     uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
     uxds = uxds.assign_coords({"lon_face": uxds.uxgrid.face_lon})
@@ -120,3 +118,34 @@ def test_uxda_isel_with_coords():
 
     assert "lon_face" in sub.coords
     assert len(sub.coords['lon_face']) == 3
+
+
+def test_inverse_indices():
+    grid = ux.open_grid(GRID_PATHS[0])
+
+    # Test nearest neighbor subsetting
+    coord = [0, 0]
+    subset = grid.subset.nearest_neighbor(coord, k=1, element="face centers", inverse_indices=True)
+
+    assert subset.inverse_indices is not None
+
+    # Test bounding box subsetting
+    box = [(-10, 10), (-10, 10)]
+    subset = grid.subset.bounding_box(box[0], box[1], inverse_indices=True)
+
+    assert subset.inverse_indices is not None
+
+    # Test bounding circle subsetting
+    center_coord = [0, 0]
+    subset = grid.subset.bounding_circle(center_coord, r=10, element="face centers", inverse_indices=True)
+
+    assert subset.inverse_indices is not None
+
+    # Ensure code raises exceptions when the element is edges or nodes or inverse_indices is incorrect
+    assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="edge centers", inverse_indices=True)
+    assert pytest.raises(Exception, grid.subset.bounding_circle, center_coord, r=10, element="nodes", inverse_indices=True)
+    assert pytest.raises(ValueError, grid.subset.bounding_circle, center_coord, r=10, element="face center", inverse_indices=(['not right'], True))
+
+    # Test isel directly
+    subset = grid.isel(n_face=[1], inverse_indices=True)
+    assert subset.inverse_indices.face.values == 1
