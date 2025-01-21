@@ -346,7 +346,21 @@ def extreme_gca_z(gca_cart, extreme_type):
 
 @njit(cache=True)
 def compute_arc_length(pt_a, pt_b):
-    """TODO: add docstring and reference"""
+    """
+    Compute the great circle arc length between two points on a unit sphere at constant latitude.
+
+    Parameters
+    ----------
+    pt_a : tuple or array-like
+        First point coordinates (x, y, z) on unit sphere
+    pt_b : tuple or array-like
+        Second point coordinates (x, y, z) on unit sphere
+
+    Returns
+    -------
+    float
+        Arc length between the points at their constant latitude
+    """
     x1, y1, z1 = pt_a
     x2, y2, z2 = pt_b
     rho = np.sqrt(1.0 - z1 * z2)
