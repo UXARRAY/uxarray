@@ -51,12 +51,6 @@ def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
     )
 
 
-# ======================================================================================================================
-# Original Implementation (updated with Polars)
-# ======================================================================================================================
-
-
-# Correctly handles overlaps
 def get_non_conservative_zonal_face_weights_at_const_lat_original(
     faces_edges_cart_candidate: np.ndarray,
     latitude_cart: float,
