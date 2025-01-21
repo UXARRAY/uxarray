@@ -267,7 +267,28 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
 
 @njit(cache=True)
 def extreme_gca_z(gca_cart, extreme_type):
-    """Docstring TODO"""
+    """
+    Calculate the maximum or minimum latitude of a great circle arc defined
+    by two 3D points.
+
+    Parameters
+    ----------
+    gca_cart : numpy.ndarray
+        An array containing two 3D vectors that define a great circle arc.
+
+    extreme_type : str
+        The type of extreme latitude to calculate. Must be either 'max' or 'min'.
+
+    Returns
+    -------
+    float
+        The maximum or minimum z of the great circle arc
+
+    Raises
+    ------
+    ValueError
+        If `extreme_type` is not 'max' or 'min'.
+    """
 
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
