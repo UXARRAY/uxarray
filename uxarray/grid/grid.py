@@ -104,6 +104,8 @@ from uxarray.grid.validation import (
 
 from uxarray.utils.numba import is_numba_function_cached
 
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+
 
 from uxarray.conventions import ugrid
 
@@ -1339,6 +1341,27 @@ class Grid:
         """Setter for ``node_face_connectivity``"""
         assert isinstance(value, xr.DataArray)
         self._ds["node_face_connectivity"] = value
+
+    @property
+    def face_edge_nodes_xyz(self):
+        """Docstring TODO:"""
+        if "face_edge_nodes_xyz" not in self._ds:
+            self.normalize_cartesian_coordinates()
+            face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
+                self.face_node_connectivity.values,
+                self.n_face,
+                self.n_max_face_edges,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
+
+            self._ds["face_edge_nodes_xyz"] = xr.DataArray(
+                data=face_edge_nodes_xyz,
+                dims=["n_face", "n_max_face_edges", "two", "three"],
+            )
+
+        return self._ds["face_edge_nodes_xyz"]
 
     @property
     def edge_node_distances(self):
