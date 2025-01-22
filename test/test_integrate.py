@@ -16,8 +16,10 @@ import uxarray as ux
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped_intervals, \
-    _get_faces_constLat_intersection_info, get_non_conservative_zonal_face_weights_at_const_lat, \
-    get_non_conservative_zonal_face_weights_at_const_lat_original
+    _get_faces_constLat_intersection_info, _zonal_face_weights, \
+    _zonal_face_weights_robust
+
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -537,11 +539,11 @@ def test_get_zonal_faces_weight_at_constLat_equator():
 
     constLat_cart = 0.0
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   latlon_bounds,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart,
-                                                                   check_equator=True)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  latlon_bounds,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart,
+                                  check_equator=True)
 
     expected_weights = np.array([0.46153, 0.11538, 0.30769, 0.11538])
 
@@ -550,7 +552,7 @@ def test_get_zonal_faces_weight_at_constLat_equator():
     # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
     # It's edges are all GCA
     with pytest.raises(ValueError):
-        get_non_conservative_zonal_face_weights_at_const_lat_original(np.array([
+        _zonal_face_weights_robust(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)
 
@@ -609,10 +611,10 @@ def test_get_zonal_faces_weight_at_constLat_regular():
 
     constLat_cart = np.sin(0.1 * np.pi)
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   latlon_bounds,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  latlon_bounds,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
 
     expected_weights = np.array([0.375, 0.0625, 0.3125, 0.25])
 
@@ -652,9 +654,9 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     ])
     constLat_cart = -1
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
 
     expected_weights = np.array([1.0])
 
@@ -714,9 +716,9 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
 
     constLat_cart = 1.0
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
 
     expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
 
@@ -758,9 +760,9 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     ])
     constLat_cart = -1
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
 
     expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
 
@@ -820,9 +822,9 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
 
     constLat_cart = 1.0
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
 
     expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
 
@@ -875,10 +877,10 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     #
     # assert_frame_equal(weight_df, expected_weight_df)
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   face_bounds,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  face_bounds,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
 
     expected_weights = np.array([1.0, ])
 
@@ -926,10 +928,10 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
 
     # weight_df = _get_zonal_faces_weight_at_constLat(face_edges_cart, constLat_cart, face_bounds)
 
-    weights = get_non_conservative_zonal_face_weights_at_const_lat(face_edges_cart,
-                                                                   face_bounds,
-                                                                   np.array([4, 4, 4, 4]),
-                                                                   z=constLat_cart)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  face_bounds,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
 
     expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
 
@@ -1008,7 +1010,7 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
     })
 
     # Assert the results is the same to the 3 decimal places
-    weight_df = get_non_conservative_zonal_face_weights_at_const_lat_original(np.array([
+    weight_df = _zonal_face_weights_robust(np.array([
         face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
     ]), np.sin(np.deg2rad(20)), latlon_bounds, is_latlonface=True)
 
@@ -1017,7 +1019,7 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
     # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
     # It's edges are all GCA
     with pytest.raises(ValueError):
-        get_non_conservative_zonal_face_weights_at_const_lat_original(np.array([
+        _zonal_face_weights_robust(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)
 
@@ -1035,24 +1037,31 @@ def test_compare_zonal_weights():
     for gridfile in gridfiles:
         uxgrid = ux.open_grid(gridfile)
         n_nodes_per_face = uxgrid.n_nodes_per_face.values
-        faces_edge_nodes_xyz = uxgrid.face_edge_nodes_xyz.values
+        face_edge_nodes_xyz =  _get_cartesian_face_edge_nodes(
+                uxgrid.face_node_connectivity.values,
+                uxgrid.n_face,
+                uxgrid.n_max_face_edges,
+                uxgrid.node_x.values,
+                uxgrid.node_y.values,
+                uxgrid.node_z.values,
+            )
         bounds = uxgrid.bounds.values
 
         for i, lat in enumerate(latitudes):
             face_indices = uxgrid.get_faces_at_constant_latitude(lat)
             z = np.sin(np.deg2rad(lat))
 
-            faces_edge_nodes_xyz_candidate = faces_edge_nodes_xyz[face_indices, :, :, :]
+            face_edge_nodes_xyz_candidate = face_edge_nodes_xyz[face_indices, :, :, :]
             n_nodes_per_face_candidate = n_nodes_per_face[face_indices]
             bounds_candidate = bounds[face_indices]
 
-            new_weights = get_non_conservative_zonal_face_weights_at_const_lat(faces_edge_nodes_xyz_candidate,
-                                                                               bounds_candidate,
-                                                                               n_nodes_per_face_candidate,
-                                                                               z)
+            new_weights = _zonal_face_weights(face_edge_nodes_xyz_candidate,
+                                              bounds_candidate,
+                                              n_nodes_per_face_candidate,
+                                              z)
 
-            existing_weights = get_non_conservative_zonal_face_weights_at_const_lat_original(
-                faces_edge_nodes_xyz_candidate, z, bounds_candidate
+            existing_weights = _zonal_face_weights_robust(
+                face_edge_nodes_xyz_candidate, z, bounds_candidate
             )["weight"].to_numpy()
 
             abs_diff = np.abs(new_weights - existing_weights)

@@ -51,7 +51,7 @@ def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
     )
 
 
-def get_non_conservative_zonal_face_weights_at_const_lat_original(
+def _zonal_face_weights_robust(
     faces_edges_cart_candidate: np.ndarray,
     latitude_cart: float,
     face_latlon_bound_candidate: np.ndarray,
@@ -457,7 +457,7 @@ def _get_faces_constLat_intersection_info(
 
 
 @njit(cache=True)
-def add_edge(edges_list, i0, i1):
+def _add_edge(edges_list, i0, i1):
     """Insert an edge into a list of edges in sorted order, ensuring no duplicates.
 
     Parameters
@@ -482,7 +482,7 @@ def add_edge(edges_list, i0, i1):
 
 
 @njit(cache=True)
-def get_point_index(points_list, px, py, pz, tol=1e-12):
+def _get_point_index(points_list, px, py, pz, tol=1e-12):
     """
     Find or create an index for a 3D point, checking for existing points within tolerance.
 
@@ -516,7 +516,7 @@ def get_point_index(points_list, px, py, pz, tol=1e-12):
 
 
 @njit(cache=True)
-def compute_face_arc_length(face_edges_xyz, z):
+def _compute_face_arc_length(face_edges_xyz, z):
     """
     Compute the total arc length of a face's intersection with a line of constant latitude.
 
@@ -547,15 +547,15 @@ def compute_face_arc_length(face_edges_xyz, z):
 
         if n_int == 1:
             px0, py0, pz0 = intersections[0]
-            idx0 = get_point_index(points_list, px0, py0, pz0)
+            idx0 = _get_point_index(points_list, px0, py0, pz0)
             singles_list.append(idx0)
 
         elif n_int == 2:
             px0, py0, pz0 = intersections[0]
             px1, py1, pz1 = intersections[1]
-            idx0 = get_point_index(points_list, px0, py0, pz0)
-            idx1 = get_point_index(points_list, px1, py1, pz1)
-            add_edge(edges_list, idx0, idx1)
+            idx0 = _get_point_index(points_list, px0, py0, pz0)
+            idx1 = _get_point_index(points_list, px1, py1, pz1)
+            _add_edge(edges_list, idx0, idx1)
 
     # 3) Convert points_list to a (N,3) NumPy array
     n_points = len(points_list)
@@ -584,7 +584,7 @@ def compute_face_arc_length(face_edges_xyz, z):
 
         # If we found a neighbor, add the edge in canonical form
         if best_i >= 0 and best_i != s_idx:
-            add_edge(edges_list, s_idx, best_i)
+            _add_edge(edges_list, s_idx, best_i)
 
     # 5) Sum arc lengths for all edges
     total_length = 0.0
@@ -596,7 +596,7 @@ def compute_face_arc_length(face_edges_xyz, z):
 
 
 @njit(cache=True, parallel=True)
-def _get_non_conservative_zonal_face_weights_at_const_lat_numba(
+def _zonal_face_weights_util_numba(
     face_edges_xyz: np.ndarray,
     n_edges_per_face: np.ndarray,
     z: float,
@@ -631,13 +631,13 @@ def _get_non_conservative_zonal_face_weights_at_const_lat_numba(
     for face_idx in prange(n_face):
         n_edge = n_edges_per_face[face_idx]
         face_data = face_edges_xyz[face_idx, :n_edge]  # shape (n_e, 2, 3)
-        arc_lengths[face_idx] = compute_face_arc_length(face_data, z)
+        arc_lengths[face_idx] = _compute_face_arc_length(face_data, z)
 
     total_arc = np.sum(arc_lengths)
     return arc_lengths / total_arc
 
 
-def get_non_conservative_zonal_face_weights_at_const_lat(
+def _zonal_face_weights(
     face_edges_xyz: np.ndarray,
     face_bounds: np.ndarray,
     n_edges_per_face: np.ndarray,
@@ -645,7 +645,7 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
     check_equator: bool = False,
 ) -> np.ndarray:
     """
-    Calculate weights for faces intersecting a line of constant latitude.
+    Calculate weights for faces intersecting a line of constant latitude, used for non-conservative zonal averaging.
 
     Parameters
     ----------
@@ -669,14 +669,8 @@ def get_non_conservative_zonal_face_weights_at_const_lat(
     if check_equator:
         # If near equator, use original approach
         if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
-            overlap_result = (
-                get_non_conservative_zonal_face_weights_at_const_lat_original(
-                    face_edges_xyz, z, face_bounds
-                )
-            )
+            overlap_result = _zonal_face_weights_robust(face_edges_xyz, z, face_bounds)
             return overlap_result["weight"].to_numpy()
 
     # Otherwise, use the Numba approach
-    return _get_non_conservative_zonal_face_weights_at_const_lat_numba(
-        face_edges_xyz, n_edges_per_face, z
-    )
+    return _zonal_face_weights_util_numba(face_edges_xyz, n_edges_per_face, z)
