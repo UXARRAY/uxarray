@@ -35,6 +35,7 @@ from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
+from uxarray.core.utils import _map_dims_to_ugrid
 
 import warnings
 from warnings import warn
@@ -428,6 +429,77 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
+
+    def weighted_mean(self, weights=None):
+        """Computes a weighted mean.
+
+        This function calculates the weighted mean of a variable,
+        using the specified `weights`. If no weights are provided, it will automatically select
+        appropriate weights based on whether the variable is face-centered or edge-centered. If
+        the variable is neither face nor edge-centered a warning is raised, and an unweighted mean is computed instead.
+
+        Parameters
+        ----------
+        weights : np.ndarray or None, optional
+            The weights to use for the weighted mean calculation. If `None`, the function will
+            determine weights based on the variable's association:
+                - For face-centered variables: uses `self.uxgrid.face_areas.data`
+                - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+            If the variable is neither face-centered nor edge-centered, a warning is raised, and
+            an unweighted mean is computed instead. User-defined weights should match the shape
+            of the data variable's last dimension.
+
+        Returns
+        -------
+        UxDataArray
+            A new `UxDataArray` object representing the weighted mean of the input variable. The
+            result is attached to the same `uxgrid` attribute as the original variable.
+
+        Example
+        -------
+        >>> weighted_mean = uxds["t2m"].weighted_mean()
+
+
+        Raises
+        ------
+        AssertionError
+            If user-defined `weights` are provided and the shape of `weights` does not match
+            the shape of the data variable's last dimension.
+
+        Warnings
+        --------
+        UserWarning
+            Raised when attempting to compute a weighted mean on a variable without associated
+            weights. An unweighted mean will be computed in this case.
+
+        Notes
+        -----
+        - The weighted mean is computed along the last dimension of the data variable, which is
+          assumed to be the geometry dimension (e.g., faces, edges, or nodes).
+        """
+        if weights is None:
+            if self._face_centered():
+                weights = self.uxgrid.face_areas.data
+            elif self._edge_centered():
+                weights = self.uxgrid.edge_node_distances.data
+            else:
+                warnings.warn(
+                    "Attempting to perform a weighted mean calculation on a variable that does not have"
+                    "associated weights. Weighted mean is only supported for face or edge centered "
+                    "variables. Performing an unweighted mean."
+                )
+        else:
+            # user-defined weights
+            assert weights.shape[-1] == self.shape[-1]
+
+        # compute the total weight
+        total_weight = weights.sum()
+
+        # compute the weighted mean, with an assumption on the index of dimension (last one is geometry)
+        weighted_mean = (self * weights).sum(axis=-1) / total_weight
+
+        # create a UxDataArray and return it
+        return UxDataArray(weighted_mean, uxgrid=self.uxgrid)
 
     def topological_mean(
         self,
@@ -1035,7 +1107,7 @@ class UxDataArray(xr.DataArray):
         "n_edge" dimension)"""
         return "n_edge" in self.dims
 
-    def isel(self, ignore_grid=False, *args, **kwargs):
+    def isel(self, ignore_grid=False, inverse_indices=False, *args, **kwargs):
         """Grid-informed implementation of xarray's ``isel`` method, which
         enables indexing across grid dimensions.
 
@@ -1069,17 +1141,50 @@ class UxDataArray(xr.DataArray):
                 raise ValueError("Only one grid dimension can be sliced at a time")
 
             if "n_node" in kwargs:
-                sliced_grid = self.uxgrid.isel(n_node=kwargs["n_node"])
+                sliced_grid = self.uxgrid.isel(
+                    n_node=kwargs["n_node"], inverse_indices=inverse_indices
+                )
             elif "n_edge" in kwargs:
-                sliced_grid = self.uxgrid.isel(n_edge=kwargs["n_edge"])
+                sliced_grid = self.uxgrid.isel(
+                    n_edge=kwargs["n_edge"], inverse_indices=inverse_indices
+                )
             else:
-                sliced_grid = self.uxgrid.isel(n_face=kwargs["n_face"])
+                sliced_grid = self.uxgrid.isel(
+                    n_face=kwargs["n_face"], inverse_indices=inverse_indices
+                )
 
             return self._slice_from_grid(sliced_grid)
 
         else:
             # original xarray implementation for non-grid dimensions
             return super().isel(*args, **kwargs)
+
+    @classmethod
+    def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
+        """
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            An Xarray data array containing data residing on an unstructured grid
+        uxgrid : Grid
+            ``Grid`` object representing an unstructured grid
+        ugrid_dims : dict, optional
+            A dictionary mapping data array dimensions to UGRID dimensions.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataArray`` with data from the ``xr.DataArray` paired with a ``ux.Grid``
+        """
+        if ugrid_dims is None:
+            ugrid_dims = uxgrid._source_dims_dict
+
+        # map each dimension to its UGRID equivalent
+        ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+
+        return cls(ds, uxgrid=uxgrid)
 
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
