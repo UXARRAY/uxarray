@@ -52,6 +52,7 @@ from uxarray.grid.coordinates import (
     _normalize_xyz,
     prepare_points,
     _lonlat_rad_to_xyz,
+    _xyz_to_lonlat_deg,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -2451,7 +2452,7 @@ class Grid:
         """Gets the indexes of the faces that contain a specific point
         Parameters
         ----------
-        point : np.ndarray
+        point : numpy.ndarray
             A point in either cartesian coordinates or spherical coordinates
 
         Returns
@@ -2461,29 +2462,49 @@ class Grid:
 
         """
         if len(point) == 2:
-            point = np.array(_lonlat_rad_to_xyz(*np.deg2rad(point)))
+            point_xyz = np.array(
+                _lonlat_rad_to_xyz(*np.deg2rad(point)), dtype=np.float64
+            )
+            point_lonlat = point
+        elif len(point) == 3:
+            point_xyz = point
+            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
+        else:
+            raise ValueError(
+                "Point must either be in spherical or cartesian coordinates."
+            )
 
         # Get the maximum face radius of the grid
         _ = self.face_edge_nodes_xyz
         max_face_radius = self.max_face_radius.values
 
+        # Get the bounds to use for the subset
+        lon_bounds = (
+            point_lonlat[0] - np.rad2deg(max_face_radius),
+            point_lonlat[0] + np.rad2deg(max_face_radius),
+        )
+        lat_bounds = (
+            point_lonlat[1] - np.rad2deg(max_face_radius),
+            point_lonlat[1] + np.rad2deg(max_face_radius),
+        )
+
         # Try to find a subset in which the point resides
         try:
-            subset = self.subset.bounding_circle(
-                center_coord=[*point],
-                r=max_face_radius,
-                element="face centers",
-                inverse_indices=True,
+            subset = self.subset.bounding_box(
+                lon_bounds, lat_bounds, element="face centers", inverse_indices=True
             )
-        # If no subset is found it likely means the grid is a partial grid and the point is in an empty part
+        # If no subset is found, it likely means the grid is a partial grid and the point is in an empty part
         except ValueError:
+            warn("No faces found")
             return []
 
+        # Get the faces in terms of their edges
         face_edge_nodes_xyz = subset.face_edge_nodes_xyz.values
 
+        # Get the original face indices from the subset
         inverse_indices = subset.inverse_indices.face.values
 
         # Check if any of the faces in the subset contain the point
-        index = _find_faces(face_edge_nodes_xyz, point, inverse_indices)
+        index = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
 
         return index

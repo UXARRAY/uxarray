@@ -279,7 +279,7 @@ def _populate_face_centroids(grid, repopulate=False):
         # Convert to xyz if there are latlon centroids already stored
         centroid_lon, centroid_lat = grid.face_lon.values, grid.face_lat.values
         centroid_x, centroid_y, centroid_z = _lonlat_rad_to_xyz(
-            centroid_lon, centroid_lat
+            np.deg2rad(centroid_lon), np.deg2rad(centroid_lat)
         )
 
     # Populate the centroids
