@@ -10,6 +10,7 @@
 ![Github release](https://img.shields.io/github/release/UXARRAY/uxarray.svg?label=tag&colorB=11ccbb) [![Conda][conda-badge]][conda-link]
 [![PyPI][pypi-badge]][pypi-link]
 [![License][license-badge]][repo-link]
+[![Citing][doi-badge][doi-link]]
 
 
 UXarray aims to address the geoscience community's need for tools that enable
