@@ -2,13 +2,10 @@ import numpy as np
 import dask.array as da
 
 
-from uxarray.grid.integrate import (
-    get_non_conservative_zonal_face_weights_at_const_lat,
-    get_non_conservative_zonal_face_weights_at_const_lat_overlap,
-)
+from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 
 
-def _compute_non_conservative_zonal_mean(uxda, latitudes, process_overlaps=False):
+def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust=False):
     """Computes the non-conservative zonal mean across one or more latitudes."""
     uxgrid = uxda.uxgrid
     n_nodes_per_face = uxgrid.n_nodes_per_face.values
@@ -35,12 +32,12 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, process_overlaps=False
 
         bounds_candidate = bounds[face_indices]
 
-        if process_overlaps:
-            weights = get_non_conservative_zonal_face_weights_at_const_lat_overlap(
+        if use_robust:
+            weights = _zonal_face_weights_robust(
                 faces_edge_nodes_xyz_candidate, z, bounds_candidate
             )["weight"].to_numpy()
         else:
-            weights = get_non_conservative_zonal_face_weights_at_const_lat(
+            weights = _zonal_face_weights(
                 faces_edge_nodes_xyz_candidate,
                 bounds_candidate,
                 n_nodes_per_face_candidate,
