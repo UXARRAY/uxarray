@@ -7,7 +7,6 @@ from numba import njit
 
 from sklearn.neighbors import BallTree as SKBallTree
 from sklearn.neighbors import KDTree as SKKDTree
-# import math
 
 from typing import Optional, Union
 
