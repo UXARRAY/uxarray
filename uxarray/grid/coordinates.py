@@ -5,11 +5,11 @@ import math
 
 from uxarray.conventions import ugrid
 
-from numba import njit
+from numba import njit, prange
 from uxarray.constants import ERROR_TOLERANCE
 from typing import Union
 
-from uxarray.grid.utils import _angle_of_2_vectors
+from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
 @njit(cache=True)
@@ -305,6 +305,7 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
+@njit(cache=True, parallel=True)
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging.
@@ -330,14 +331,21 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    n_face = n_nodes_per_face.shape[0]
 
-    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
-        # Compute Cartesian Average
-        centroid_x[face_idx] = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_y[face_idx] = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+    for i_face in prange(n_face):
+        n_max_nodes = n_nodes_per_face[i_face]
 
-    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
+        x = np.mean(node_x[face_nodes[i_face, 0:n_max_nodes]])
+        y = np.mean(node_y[face_nodes[i_face, 0:n_max_nodes]])
+        z = np.mean(node_z[face_nodes[i_face, 0:n_max_nodes]])
+
+        x, y, z = _normalize_xyz_scalar(x, y, z)
+
+        centroid_x[i_face] = x
+        centroid_y[i_face] = y
+        centroid_z[i_face] = z
+    return centroid_x, centroid_y, centroid_z
 
 
 def _welzl_recursive(points, boundary, R):
@@ -431,7 +439,7 @@ def _circle_from_two_points(p1, p2):
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
 
-    distance = _angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     radius = distance / 2
 
     return center, radius
@@ -467,9 +475,9 @@ def _circle_from_three_points(p1, p2, p3):
 
     radius = (
         max(
-            _angle_of_2_vectors(v1, v2),
-            _angle_of_2_vectors(v1, v3),
-            _angle_of_2_vectors(v2, v3),
+            _small_angle_of_2_vectors(v1, v2),
+            _small_angle_of_2_vectors(v1, v3),
+            _small_angle_of_2_vectors(v2, v3),
         )
         / 2
     )
@@ -496,7 +504,7 @@ def _is_inside_circle(circle, point):
     center, radius = circle
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1])))
-    distance = _angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     return distance <= radius
 
 

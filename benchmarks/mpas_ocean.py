@@ -2,9 +2,9 @@ import os
 import urllib.request
 from pathlib import Path
 
-import uxarray as ux
-
 import numpy as np
+
+import uxarray as ux
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -33,14 +33,15 @@ file_path_dict = {"480km": [current_path / grid_filename_480, current_path / dat
 class DatasetBenchmark:
     """Class used as a template for benchmarks requiring a ``UxDataset`` in
     this module across both resolutions."""
-    param_names = ['resolution',]
-    params = [['480km', '120km'],]
+    param_names = ['resolution', ]
+    params = [['480km', '120km'], ]
 
     def setup(self, resolution, *args, **kwargs):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxds
+
 
 class GridBenchmark:
     """Class used as a template for benchmarks requiring a ``Grid`` in this
@@ -62,6 +63,7 @@ class Gradient(DatasetBenchmark):
     def peakmem_gradient(self, resolution):
         grad = self.uxds[data_var].gradient()
 
+
 class Integrate(DatasetBenchmark):
     def time_integrate(self, resolution):
         self.uxds[data_var].integrate()
@@ -74,10 +76,8 @@ class GeoDataFrame(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
     params = DatasetBenchmark.params + [[True, False]]
 
-
     def time_to_geodataframe(self, resolution, exclude_antimeridian):
         self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
-
 
 
 class ConnectivityConstruction(DatasetBenchmark):
@@ -136,14 +136,16 @@ class RemapUpsample:
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
 
+
 class HoleEdgeIndices(DatasetBenchmark):
     def time_construct_hole_edge_indices(self, resolution):
-        ux.grid.geometry._construct_hole_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
+        ux.grid.geometry._construct_boundary_edge_indices(self.uxds.uxgrid.edge_face_connectivity)
 
 
 class DualMesh(DatasetBenchmark):
     def time_dual_mesh_construction(self, resolution):
         self.uxds.uxgrid.get_dual()
+
 
 class ConstructFaceLatLon(GridBenchmark):
     def time_welzl(self, resolution):
@@ -167,10 +169,36 @@ class CheckNorm:
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
 
+class CrossSection:
+    param_names = DatasetBenchmark.param_names + ['lat_step']
+    params = DatasetBenchmark.params + [[1, 2, 4]]
+
+    def setup(self, resolution, lat_step):
+        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid.normalize_cartesian_coordinates()
+        self.lats = np.arange(-45, 45, lat_step)
+        _ = self.uxgrid.bounds
 
 class CrossSections(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['n_lat']
     params = DatasetBenchmark.params + [[1, 2, 4, 8]]
+
     def time_constant_lat_fast(self, resolution, n_lat):
         for lat in np.linspace(-89, 89, n_lat):
             self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')
+    def teardown(self, resolution, lat_step):
+        del self.uxgrid
+
+    def time_const_lat(self, resolution, lat_step):
+        for lat in self.lats:
+            self.uxgrid.cross_section.constant_latitude(lat)
+
+
+class ZonalAverage(DatasetBenchmark):
+    def setup(self, resolution, *args, **kwargs):
+        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        bounds = self.uxds.uxgrid.bounds
+
+    def time_zonal_average(self, resolution):
+        lat_step = 10
+        self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step))

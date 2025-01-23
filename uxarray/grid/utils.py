@@ -1,27 +1,25 @@
 import numpy as np
-from uxarray.constants import INT_FILL_VALUE, MACHINE_EPSILON
-import warnings
-import uxarray.utils.computing as ac_utils
+from uxarray.constants import INT_FILL_VALUE
 
 from numba import njit
 
 
 @njit(cache=True)
-def _angle_of_2_vectors(u, v):
-    """Calculate the angle between two 3D vectors u and v in radians. Can be
-    used to calcualte the span of a GCR.
+def _small_angle_of_2_vectors(u, v):
+    """
+    Compute the smallest angle between two vectors using the new _angle_of_2_vectors.
 
     Parameters
     ----------
-    u : numpy.ndarray (float)
+    u : numpy.ndarray
         The first 3D vector.
-    v : numpy.ndarray (float)
+    v : numpy.ndarray
         The second 3D vector.
 
     Returns
     -------
     float
-        The angle between u and v in radians.
+        The smallest angle between `u` and `v` in radians.
     """
     v_norm_times_u = np.linalg.norm(v) * u
     u_norm_times_v = np.linalg.norm(u) * v
@@ -31,140 +29,53 @@ def _angle_of_2_vectors(u, v):
     return angle_u_v_rad
 
 
-def _inv_jacobian(x0, x1, y0, y1, z0, z1, x_i_old, y_i_old):
-    """Calculate the inverse Jacobian matrix for a given set of parameters.
+@njit(cache=True)
+def _angle_of_2_vectors(u, v):
+    """
+    Calculate the angle between two 3D vectors `u` and `v` on the unit sphere in radians.
+
+    This function computes the angle between two vectors originating from the center of a unit sphere.
+    The result is returned in the range [0, 2π]. It can be used to calculate the span of a great circle arc (GCA).
 
     Parameters
     ----------
-    x0 : float
-        Description of x0.
-    x1 : float
-        Description of x1.
-    y0 : float
-        Description of y0.
-    y1 : float
-        Description of y1.
-    z0 : float
-        Description of z0.
-    z1 : float
-        Description of z1.
-    x_i_old : float
-        Description of x_i_old.
-    y_i_old : float
-        Description of y_i_old.
+    u : numpy.ndarray
+        The first 3D vector (float), originating from the center of the unit sphere.
+    v : numpy.ndarray
+        The second 3D vector (float), originating from the center of the unit sphere.
 
     Returns
     -------
-    numpy.ndarray or None
-        The inverse Jacobian matrix if it is non-singular, or None if a singular matrix is encountered.
+    float
+        The angle between `u` and `v` in radians, in the range [0, 2π].
 
     Notes
     -----
-    This function calculates the inverse Jacobian matrix based on the provided parameters. If the Jacobian matrix
-    is singular, a warning is printed, and None is returned.
+    - The direction of the angle (clockwise or counter-clockwise) is determined using the cross product of `u` and `v`.
+    - Special cases such as vectors aligned along the same longitude are handled explicitly.
     """
+    # Compute the cross product to determine the direction of the normal
+    normal = np.cross(u, v)
 
-    # d_dx = (x0 * x_i_old - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0 - y1 * y_i_old * z0)
-    # d_dy = 2 * (x0 * x_i_old * z1 - x1 * x_i_old * z0 + y0 * y_i_old * z1 - y1 * y_i_old * z0)
-    #
-    # # row 1
-    # J[0, 0] = y_i_old / d_dx
-    # J[0, 1] = (x0 * z1 - z0 * x1) / d_dy
-    # # row 2
-    # J[1, 0] = x_i_old / d_dx
-    # J[1, 1] = (y0 * z1 - z0 * y1) / d_dy
+    # Calculate the angle using arctangent of cross and dot products
+    angle_u_v_rad = np.arctan2(np.linalg.norm(normal), np.dot(u, v))
 
-    # The Jacobian Matrix
-    jacobian = [
-        [ac_utils._fmms(y0, z1, z0, y1), ac_utils._fmms(x0, z1, z0, x1)],
-        [2 * x_i_old, 2 * y_i_old],
-    ]
-
-    # First check if the Jacobian matrix is singular
-    if np.linalg.matrix_rank(jacobian) < 2:
-        warnings.warn("The Jacobian matrix is singular.")
-        return None
-
-    try:
-        inverse_jacobian = np.linalg.inv(jacobian)
-    except np.linalg.LinAlgError as e:
-        # Print out the error message
-
-        cond_number = np.linalg.cond(jacobian)
-        print(f"Condition number: {cond_number}")
-        print(f"Jacobian matrix:\n{jacobian}")
-        print(f"An error occurred: {e}")
-        raise
-
-    return inverse_jacobian
-
-
-def _newton_raphson_solver_for_gca_constLat(
-    init_cart, gca_cart, max_iter=1000, verbose=False
-):
-    """Solve for the intersection point between a great circle arc and a
-    constant latitude.
-
-    Args:
-        init_cart (np.ndarray): Initial guess for the intersection point.
-        w0_cart (np.ndarray): First vector defining the great circle arc.
-        w1_cart (np.ndarray): Second vector defining the great circle arc.
-        max_iter (int, optional): Maximum number of iterations. Defaults to 1000.
-        verbose (bool, optional): Whether to print verbose output. Defaults to False.
-
-    Returns:
-        np.ndarray or None: The intersection point or None if the solver fails to converge.
-    """
-    tolerance = MACHINE_EPSILON * 100
-    w0_cart, w1_cart = gca_cart
-    error = float("inf")
-    constZ = init_cart[2]
-    y_guess = np.array(init_cart[0:2])
-    y_new = y_guess
-
-    _iter = 0
-
-    while error > tolerance and _iter < max_iter:
-        f_vector = np.array(
-            [
-                np.dot(
-                    np.cross(w0_cart, w1_cart),
-                    np.array([y_guess[0], y_guess[1], constZ]),
-                ),
-                y_guess[0] * y_guess[0]
-                + y_guess[1] * y_guess[1]
-                + constZ * constZ
-                - 1.0,
-            ]
-        )
-
-        try:
-            j_inv = _inv_jacobian(
-                w0_cart[0],
-                w1_cart[0],
-                w0_cart[1],
-                w1_cart[1],
-                w0_cart[2],
-                w1_cart[2],
-                y_guess[0],
-                y_guess[1],
-            )
-
-            if j_inv is None:
-                return None
-        except RuntimeError as e:
-            print(f"Encountered an error: {e}")
-            raise
-
-        y_new = y_guess - np.matmul(j_inv, f_vector)
-        error = np.max(np.abs(y_guess - y_new))
-        y_guess = y_new
-
-        if verbose:
-            print(f"Newton method iter: {_iter}, error: {error}")
-        _iter += 1
-
-    return np.append(y_new, constZ)
+    # Determine the direction of the angle
+    normal_z = np.dot(normal, np.array([0.0, 0.0, 1.0]))
+    if normal_z > 0:
+        # Counterclockwise direction
+        return angle_u_v_rad
+    elif normal_z == 0:
+        # Handle collinear vectors (same longitude)
+        if u[2] > v[2]:
+            return angle_u_v_rad
+        elif u[2] < v[2]:
+            return 2 * np.pi - angle_u_v_rad
+        else:
+            return 0.0  # u == v
+    else:
+        # Clockwise direction
+        return 2 * np.pi - angle_u_v_rad
 
 
 def _swap_first_fill_value_with_last(arr):

@@ -4,7 +4,7 @@ channels:
 dependencies:
   - python=3.11
   - cartopy
-  - dask
+  - dask<2025.1.0
   - datashader
   - gmpy2
   - geoviews
@@ -17,6 +17,7 @@ dependencies:
   - pandas
   - pathlib
   - pre_commit
+  - polars
   - pyarrow
   - pytest
   - pytest-cov
