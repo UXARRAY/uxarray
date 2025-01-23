@@ -112,9 +112,7 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
                 f" float dtype: {grid_var.dtype}"
             )
     else:
-        raise ValueError(
-            f"Data type {grid_var.dtype} not supported" f"for grid variables"
-        )
+        raise ValueError(f"Data type {grid_var.dtype} not supportedfor grid variables")
 
     # replace all zeros with a fill value
     grid_var[fill_val_idx] = new_fill

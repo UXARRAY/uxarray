@@ -2,8 +2,6 @@ import numpy as np
 import math
 
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
-
 from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
@@ -184,18 +182,6 @@ def clip_scalar(a, a_min, a_max):
         return a
 
 
-def _extreme_gca_latitude_cartesian(gca_cart, extreme_type):
-    # should be shape [2, 2]
-    gca_lonlat = np.array(
-        [
-            _xyz_to_lonlat_rad_scalar(gca_cart[0, 0], gca_cart[0, 1], gca_cart[0, 2]),
-            _xyz_to_lonlat_rad_scalar(gca_cart[1, 0], gca_cart[1, 1], gca_cart[1, 2]),
-        ]
-    )
-
-    return extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type)
-
-
 @njit(cache=True)
 def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     """
@@ -277,3 +263,109 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
         return max(lat_n1, lat_n2)
     else:
         return min(lat_n1, lat_n2)
+
+
+@njit(cache=True)
+def extreme_gca_z(gca_cart, extreme_type):
+    """
+    Calculate the maximum or minimum latitude of a great circle arc defined
+    by two 3D points.
+
+    Parameters
+    ----------
+    gca_cart : numpy.ndarray
+        An array containing two 3D vectors that define a great circle arc.
+
+    extreme_type : str
+        The type of extreme latitude to calculate. Must be either 'max' or 'min'.
+
+    Returns
+    -------
+    float
+        The maximum or minimum z of the great circle arc
+
+    Raises
+    ------
+    ValueError
+        If `extreme_type` is not 'max' or 'min'.
+    """
+
+    # Validate extreme_type
+    if (extreme_type != "max") and (extreme_type != "min"):
+        raise ValueError("extreme_type must be either 'max' or 'min'")
+
+    # Extract the two points
+    n1 = gca_cart[0]
+    n2 = gca_cart[1]
+
+    # Compute dot product
+    dot_n1_n2 = dot(n1, n2)
+
+    # Compute denominator
+    denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
+
+    # (z) coordinate
+    z_n1 = gca_cart[0][2]
+    z_n2 = gca_cart[1][2]
+
+    # Check if the denominator is zero to avoid division by zero
+    if denom != 0.0:
+        d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
+
+        # Handle cases where d_a_max is very close to 0 or 1
+        if isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or isclose(
+            d_a_max, 1.0, atol=ERROR_TOLERANCE
+        ):
+            d_a_max = clip_scalar(d_a_max, 0.0, 1.0)
+
+        # Check if d_a_max is within the valid range
+        if (d_a_max > 0.0) and (d_a_max < 1.0):
+            # Compute the intermediate point on the GCA
+            node3 = (1.0 - d_a_max) * n1 + d_a_max * n2
+
+            # Normalize the intermediate point
+            x, y, z = _normalize_xyz_scalar(node3[0], node3[1], node3[2])
+            node3_normalized = np.empty(3)
+            node3_normalized[0] = x
+            node3_normalized[1] = y
+            node3_normalized[2] = z
+
+            d_z = clip_scalar(node3_normalized[2], -1.0, 1.0)
+
+            if extreme_type == "max":
+                return max3(d_z, z_n1, z_n2)
+            else:
+                return min3(d_z, z_n1, z_n2)
+
+    # If denom is zero or d_a_max is not in (0,1), return max or min of lat_n1 and lat_n2
+    if extreme_type == "max":
+        return max(z_n1, z_n2)
+    else:
+        return min(z_n1, z_n2)
+
+
+@njit(cache=True)
+def compute_arc_length(pt_a, pt_b):
+    """
+    Compute the great circle arc length between two points on a unit sphere at constant latitude.
+
+    Parameters
+    ----------
+    pt_a : tuple or array-like
+        First point coordinates (x, y, z) on unit sphere
+    pt_b : tuple or array-like
+        Second point coordinates (x, y, z) on unit sphere
+
+    Returns
+    -------
+    float
+        Arc length between the points at their constant latitude
+    """
+    x1, y1, z1 = pt_a
+    x2, y2, z2 = pt_b
+    rho = np.sqrt(1.0 - z1 * z2)
+    cross_2d = x1 * y2 - y1 * x2
+    dot_2d = x1 * x2 + y1 * y2
+    delta_theta = np.atan2(cross_2d, dot_2d)
+
+    return rho * abs(delta_theta)
