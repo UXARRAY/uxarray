@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
-from uxarray.grid.arcs import _extreme_gca_latitude_cartesian
+from uxarray.grid.arcs import extreme_gca_z
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad,_xyz_to_lonlat_rad_scalar
-from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, _gca_gca_intersection_cartesian
+from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, _gca_gca_intersection_cartesian, get_number_of_intersections
 
 def test_get_GCA_GCA_intersections_antimeridian():
     GCA1 = _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(89.99))
@@ -233,7 +233,7 @@ def test_GCA_constLat_intersections_antimeridian():
         _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(10.0))
     ])
 
-    res = gca_const_lat_intersection(GCR1_cart, np.sin(np.deg2rad(60.0)), verbose=True)
+    res = gca_const_lat_intersection(GCR1_cart, np.sin(np.deg2rad(60.0)))
     res_lonlat_rad = _xyz_to_lonlat_rad(*(res[0].tolist()))
     assert np.allclose(res_lonlat_rad, np.array([np.deg2rad(170.0), np.deg2rad(60.0)]))
 
@@ -243,27 +243,17 @@ def test_GCA_constLat_intersections_empty():
         _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(10.0))
     ])
 
-    res = gca_const_lat_intersection(GCR1_cart, np.sin(np.deg2rad(-10.0)), verbose=False)
-    assert res.size == 0
+    res = gca_const_lat_intersection(GCR1_cart, np.sin(np.deg2rad(-10.0)))
+    assert get_number_of_intersections(res) == 0
 
 def test_GCA_constLat_intersections_two_pts():
     GCR1_cart = np.array([
         _lonlat_rad_to_xyz(np.deg2rad(10.0), np.deg2rad(10)),
         _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(10.0))
     ])
-    max_lat = _extreme_gca_latitude_cartesian(GCR1_cart, 'max')
+    max_lat = extreme_gca_z(GCR1_cart, 'max')
 
     query_lat = (np.deg2rad(10.0) + max_lat) / 2.0
 
-    res = gca_const_lat_intersection(GCR1_cart, np.sin(query_lat), verbose=False)
+    res = gca_const_lat_intersection(GCR1_cart, np.sin(query_lat))
     assert res.shape[0] == 2
-
-def test_GCA_constLat_intersections_no_converge():
-    GCR1_cart = np.array([[-0.59647278, 0.59647278, -0.53706651],
-                          [-0.61362973, 0.61362973, -0.49690755]])
-
-    constZ = -0.5150380749100542
-
-    with pytest.warns(UserWarning):
-        res = gca_const_lat_intersection(GCR1_cart, constZ, verbose=False)
-        assert res.shape[0] == 1
