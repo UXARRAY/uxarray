@@ -86,6 +86,7 @@ from uxarray.grid.intersections import (
     faces_within_lat_bounds,
 )
 
+
 from spatialpandas import GeoDataFrame
 
 from uxarray.plot.accessor import GridPlotAccessor
@@ -1411,9 +1412,7 @@ class Grid:
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
-
             _populate_bounds(self)
-
         return self._ds["bounds"]
 
     @bounds.setter
@@ -1445,6 +1444,7 @@ class Grid:
     @property
     def face_bounds_lat(self):
         """Latitude bounds for each face in degrees."""
+
         if "face_bounds_lat" not in self._ds:
             bounds = self.bounds.values
             bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
