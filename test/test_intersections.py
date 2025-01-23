@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
-from uxarray.grid.arcs import _extreme_gca_latitude_cartesian
+from uxarray.grid.arcs import extreme_gca_z
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad,_xyz_to_lonlat_rad_scalar
 from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, _gca_gca_intersection_cartesian, get_number_of_intersections
 
@@ -251,7 +251,7 @@ def test_GCA_constLat_intersections_two_pts():
         _lonlat_rad_to_xyz(np.deg2rad(10.0), np.deg2rad(10)),
         _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(10.0))
     ])
-    max_lat = _extreme_gca_latitude_cartesian(GCR1_cart, 'max')
+    max_lat = extreme_gca_z(GCR1_cart, 'max')
 
     query_lat = (np.deg2rad(10.0) + max_lat) / 2.0
 

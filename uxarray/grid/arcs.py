@@ -2,8 +2,6 @@ import numpy as np
 import math
 
 
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad_scalar
-
 from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
@@ -184,17 +182,6 @@ def clip_scalar(a, a_min, a_max):
         return a
 
 
-def _extreme_gca_latitude_cartesian(gca_cart, extreme_type):
-    gca_lonlat = np.array(
-        [
-            _xyz_to_lonlat_rad_scalar(gca_cart[0, 0], gca_cart[0, 1], gca_cart[0, 2]),
-            _xyz_to_lonlat_rad_scalar(gca_cart[1, 0], gca_cart[1, 1], gca_cart[1, 2]),
-        ]
-    )
-
-    return extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type)
-
-
 @njit(cache=True)
 def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     """
@@ -295,13 +282,14 @@ def extreme_gca_z(gca_cart, extreme_type):
     Returns
     -------
     float
-        The maximum or minimum latitude of the great circle arc in radians.
+        The maximum or minimum z of the great circle arc
 
     Raises
     ------
     ValueError
         If `extreme_type` is not 'max' or 'min'.
     """
+
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
         raise ValueError("extreme_type must be either 'max' or 'min'")
@@ -358,11 +346,26 @@ def extreme_gca_z(gca_cart, extreme_type):
 
 @njit(cache=True)
 def compute_arc_length(pt_a, pt_b):
+    """
+    Compute the great circle arc length between two points on a unit sphere at constant latitude.
+
+    Parameters
+    ----------
+    pt_a : tuple or array-like
+        First point coordinates (x, y, z) on unit sphere
+    pt_b : tuple or array-like
+        Second point coordinates (x, y, z) on unit sphere
+
+    Returns
+    -------
+    float
+        Arc length between the points at their constant latitude
+    """
     x1, y1, z1 = pt_a
     x2, y2, z2 = pt_b
-    rho = np.sqrt(1 - z1 * z2)
-
+    rho = np.sqrt(1.0 - z1 * z2)
     cross_2d = x1 * y2 - y1 * x2
     dot_2d = x1 * x2 + y1 * y2
     delta_theta = np.atan2(cross_2d, dot_2d)
+
     return rho * abs(delta_theta)

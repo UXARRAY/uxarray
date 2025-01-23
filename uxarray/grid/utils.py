@@ -1,7 +1,6 @@
 import numpy as np
 from uxarray.constants import INT_FILL_VALUE
 
-
 from numba import njit
 
 
@@ -14,7 +13,7 @@ def _small_angle_of_2_vectors(u, v):
     ----------
     u : numpy.ndarray
         The first 3D vector.
-    v : numpy.ndarray (float)
+    v : numpy.ndarray
         The second 3D vector.
 
     Returns
