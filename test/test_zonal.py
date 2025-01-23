@@ -5,6 +5,8 @@ import dask.array as da
 import numpy as np
 import pytest
 
+import numpy.testing as nt
+
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
@@ -68,3 +70,21 @@ class TestZonalCSne30:
         res_computed = res.compute()
 
         assert isinstance(res_computed.data, np.ndarray)
+
+    def test_zonal_weights(self):
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        za_1 = uxds['psi'].zonal_mean((-90, 90, 1), use_robust_weights=True)
+        za_2 = uxds['psi'].zonal_mean((-90, 90, 1), use_robust_weights=False)
+
+        nt.assert_almost_equal(za_1.data, za_2.data)
+
+    def test_lat_inputs(self):
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        assert len(uxds['psi'].zonal_mean(lat=1)) == 1
+        assert len(uxds['psi'].zonal_mean(lat=(-90, 90, 1))) == 181
