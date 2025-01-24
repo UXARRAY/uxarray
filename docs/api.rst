@@ -197,6 +197,7 @@ I/O & Conversion
    UxDataArray.to_dataset
    UxDataArray.from_xarray
 
+
 UxDataset
 -----------
 
@@ -265,6 +266,8 @@ UxDataArray
    UxDataArray.plot
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+   UxDataArray.plot.line
+   UxDataArray.plot.scatter
 
 UxDataset
 ~~~~~~~~~
@@ -421,6 +424,15 @@ on each face.
    UxDataArray.topological_prod
    UxDataArray.topological_all
    UxDataArray.topological_any
+
+Zonal Average
+~~~~~~~~~~~~~
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.zonal_mean
+
+
 
 Weighted
 ~~~~~~~~
