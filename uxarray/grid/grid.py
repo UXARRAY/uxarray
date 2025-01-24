@@ -1133,7 +1133,7 @@ class Grid:
         Nodes are in counter-clockwise order.
         """
 
-        if self._ds["face_node_connectivity"].values.ndim == 1:
+        if self._ds["face_node_connectivity"].ndim == 1:
             face_node_connectivity_1d = self._ds["face_node_connectivity"].values
             face_node_connectivity_2d = np.expand_dims(
                 face_node_connectivity_1d, axis=0
@@ -1179,7 +1179,7 @@ class Grid:
         """
 
         if "edge_node_x" not in self._ds:
-            _edge_node_x = self.node_x.values[self.edge_node_connectivity.values]
+            _edge_node_x = self.node_x[self.edge_node_connectivity]
 
             self._ds["edge_node_x"] = xr.DataArray(
                 data=_edge_node_x,
@@ -1196,7 +1196,7 @@ class Grid:
         """
 
         if "edge_node_y" not in self._ds:
-            _edge_node_y = self.node_y.values[self.edge_node_connectivity.values]
+            _edge_node_y = self.node_y[self.edge_node_connectivity]
 
             self._ds["edge_node_y"] = xr.DataArray(
                 data=_edge_node_y,
@@ -1213,7 +1213,7 @@ class Grid:
         """
 
         if "edge_node_z" not in self._ds:
-            _edge_node_z = self.node_z.values[self.edge_node_connectivity.values]
+            _edge_node_z = self.node_z[self.edge_node_connectivity]
 
             self._ds["edge_node_z"] = xr.DataArray(
                 data=_edge_node_z,
