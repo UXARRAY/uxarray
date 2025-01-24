@@ -45,3 +45,9 @@ class Bounds(BaseGridBenchmark):
     @skip_benchmark_if(not all_paths_exist)
     def time_bounds(self, resolution):
         _ = self.uxgrid.bounds
+
+@timeout_class_at(1200)
+class GeoDataFrame(BaseGridBenchmark):
+    @skip_benchmark_if(not all_paths_exist)
+    def time_to_geodataframe(self, resolution):
+        self.uxgrid.to_geodataframe(exclude_antimeridian=True)
