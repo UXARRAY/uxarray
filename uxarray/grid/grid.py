@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import os
 
 from html import escape
 
@@ -8,6 +9,9 @@ from xarray.core.options import OPTIONS
 from typing import (
     Optional,
     Union,
+    List,
+    Set,
+    Tuple,
 )
 
 # reader and writer imports
@@ -25,9 +29,13 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
 from uxarray.io._structured import _read_structured_grid
 from uxarray.io._voronoi import _spherical_voronoi_from_points
-from uxarray.io._delaunay import _spherical_delaunay_from_points
+from uxarray.io._delaunay import (
+    _spherical_delaunay_from_points,
+    _regional_delaunay_from_points,
+)
 
 from uxarray.formatting_html import grid_repr
 
@@ -59,6 +67,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
     _construct_boundary_edge_indices,
+    compute_temp_latlon_array,
 )
 
 from uxarray.grid.neighbors import (
@@ -72,7 +81,11 @@ from uxarray.grid.intersections import (
     constant_lat_intersections_no_extreme,
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
+    constant_lon_intersections_face_bounds,
+    faces_within_lon_bounds,
+    faces_within_lat_bounds,
 )
+
 
 from spatialpandas import GeoDataFrame
 
@@ -89,6 +102,8 @@ from uxarray.grid.validation import (
     _check_area,
     _check_normalization,
 )
+
+from uxarray.utils.numba import is_numba_function_cached
 
 
 from uxarray.conventions import ugrid
@@ -128,6 +143,12 @@ class Grid:
     source_dims_dict : dict, default={}
         Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : n_face})
 
+    is_subset : bool, default=False
+        Flag to mark if the grid is a subset or not
+
+    inverse_indices: xr.Dataset, default=None
+        A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
+
     Examples
     ----------
 
@@ -151,6 +172,8 @@ class Grid:
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
         source_dims_dict: Optional[dict] = {},
+        is_subset: bool = False,
+        inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if not _validate_minimum_ugrid(grid_ds):
@@ -182,6 +205,9 @@ class Grid:
         # initialize attributes
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
+        self._is_subset = is_subset
+
+        self._inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -233,57 +259,74 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_dataset(
-        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
-    ):
-        """Constructs a ``Grid`` object from an ``xarray.Dataset``.
+    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
+        """Constructs a ``Grid`` object from a dataset.
 
         Parameters
         ----------
-        dataset : xr.Dataset
-            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
+        dataset : xr.Dataset or path-like
+            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables or a directory
+            containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        is_subset : bool, default=False
+            Bool flag to indicate whether a grid is a subset
         """
-        if not isinstance(dataset, xr.Dataset):
-            raise ValueError("Input must be an xarray.Dataset")
 
-        # determine grid/mesh specification
-
-        if "source_grid_spec" not in kwargs:
-            # parse to detect source grid spec
-            source_grid_spec = _parse_grid_type(dataset)
-            source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
-            if source_grid_spec == "Exodus":
-                grid_ds, source_dims_dict = _read_exodus(dataset)
-            elif source_grid_spec == "Scrip":
-                grid_ds, source_dims_dict = _read_scrip(dataset)
-            elif source_grid_spec == "UGRID":
-                grid_ds, source_dims_dict = _read_ugrid(dataset)
-            elif source_grid_spec == "MPAS":
-                grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-            elif source_grid_spec == "ESMF":
-                grid_ds, source_dims_dict = _read_esmf(dataset)
-            elif source_grid_spec == "GEOS-CS":
-                grid_ds, source_dims_dict = _read_geos_cs(dataset)
-            elif source_grid_spec == "ICON":
-                grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
-            elif source_grid_spec == "Structured":
-                grid_ds = _read_structured_grid(dataset[lon_name], dataset[lat_name])
-                source_dims_dict = {"n_face": (lon_name, lat_name)}
-            elif source_grid_spec == "Shapefile":
-                raise ValueError(
-                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
-                )
+        if isinstance(dataset, xr.Dataset):
+            # determine grid/mesh specification
+            if "source_grid_spec" not in kwargs:
+                # parse to detect source grid spec
+                source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
+                if source_grid_spec == "Exodus":
+                    grid_ds, source_dims_dict = _read_exodus(dataset)
+                elif source_grid_spec == "Scrip":
+                    grid_ds, source_dims_dict = _read_scrip(dataset)
+                elif source_grid_spec == "UGRID":
+                    grid_ds, source_dims_dict = _read_ugrid(dataset)
+                elif source_grid_spec == "MPAS":
+                    grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+                elif source_grid_spec == "ESMF":
+                    grid_ds, source_dims_dict = _read_esmf(dataset)
+                elif source_grid_spec == "GEOS-CS":
+                    grid_ds, source_dims_dict = _read_geos_cs(dataset)
+                elif source_grid_spec == "ICON":
+                    grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+                elif source_grid_spec == "Structured":
+                    grid_ds = _read_structured_grid(
+                        dataset[lon_name], dataset[lat_name]
+                    )
+                    source_dims_dict = {"n_face": (lon_name, lat_name)}
+                elif source_grid_spec == "FESOM2":
+                    grid_ds, source_dims_dict = _read_fesom2_netcdf(dataset)
+                elif source_grid_spec == "Shapefile":
+                    raise ValueError(
+                        "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                    )
+                else:
+                    raise ValueError("Unsupported Grid Format")
             else:
-                raise ValueError("Unsupported Grid Format")
+                # custom source grid spec is provided
+                source_grid_spec = kwargs.get("source_grid_spec", None)
+                grid_ds = dataset
+                source_dims_dict = {}
         else:
-            # custom source grid spec is provided
-            source_grid_spec = kwargs.get("source_grid_spec", None)
-            grid_ds = dataset
-            source_dims_dict = {}
+            try:
+                if os.path.isdir(dataset):
+                    # FESOM2 ASCII directory.
+                    grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
+                    source_grid_spec = "FESOM2"
+                    return cls(grid_ds, source_grid_spec, source_dims_dict)
+            except TypeError:
+                raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, source_grid_spec, source_dims_dict)
+        return cls(
+            grid_ds,
+            source_grid_spec,
+            source_dims_dict,
+            is_subset=kwargs.get("is_subset", False),
+            inverse_indices=kwargs.get("inverse_indices"),
+        )
 
     @classmethod
     def from_file(
@@ -325,7 +368,8 @@ class Grid:
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         elif backend == "xarray":
-            grid_ds, source_dims_dict = cls.from_dataset(filename)
+            dataset = xr.open_dataset(filename, **kwargs)
+            return cls.from_dataset(dataset)
 
         else:
             raise ValueError("Backend not supported")
@@ -362,6 +406,7 @@ class Grid:
 
             - `'spherical_voronoi'`: Constructs a spherical Voronoi diagram.
             - `'spherical_delaunay'`: Constructs a spherical Delaunay triangulation.
+            - `'regional_delaunay'`: Constructs a regional Delaunay triangulation.
 
             Default is `'spherical_delaunay'`.
 
@@ -387,6 +432,8 @@ class Grid:
             ds = _spherical_voronoi_from_points(_points, **kwargs)
         elif method == "spherical_delaunay":
             ds = _spherical_delaunay_from_points(_points, boundary_points)
+        elif method == "regional_delaunay":
+            ds = _regional_delaunay_from_points(_points, boundary_points)
         else:
             raise ValueError(
                 f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."
@@ -1354,17 +1401,18 @@ class Grid:
 
     @property
     def bounds(self):
-        """Latitude Longitude Bounds for each Face in degrees.
+        """Latitude Longitude Bounds for each Face in radians.
 
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            warn(
-                "Computing 'Grid.bounds' for the first time. This may take some time...",
-                UserWarning,
-            )
+            if not is_numba_function_cached(compute_temp_latlon_array):
+                warn(
+                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
+                    "This initial execution will be significantly longer.",
+                    RuntimeWarning,
+                )
             _populate_bounds(self)
-
         return self._ds["bounds"]
 
     @bounds.setter
@@ -1372,6 +1420,39 @@ class Grid:
         """Setter for ``bounds``"""
         assert isinstance(value, xr.DataArray)
         self._ds["bounds"] = value
+
+    @property
+    def face_bounds_lon(self):
+        """Longitude bounds for each face in degrees."""
+
+        if "face_bounds_lon" not in self._ds:
+            bounds = self.bounds.values
+
+            bounds_deg = np.rad2deg(bounds[:, 1, :])
+            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
+            bounds_lon = bounds_normalized
+            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
+            # for faces that span all longitudes (i.e. pole faces)
+            bounds_lon[mask_zero] = [-180.0, 180.0]
+            self._ds["face_bounds_lon"] = xr.DataArray(
+                data=bounds_lon,
+                dims=["n_face", "min_max"],
+            )
+
+        return self._ds["face_bounds_lon"]
+
+    @property
+    def face_bounds_lat(self):
+        """Latitude bounds for each face in degrees."""
+
+        if "face_bounds_lat" not in self._ds:
+            bounds = self.bounds.values
+            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
+            self._ds["face_bounds_lat"] = xr.DataArray(
+                data=bounds_lat,
+                dims=["n_face", "min_max"],
+            )
+        return self._ds["face_bounds_lat"]
 
     @property
     def face_jacobian(self):
@@ -1449,6 +1530,21 @@ class Grid:
         """Boolean indicated whether the Grid completely covers the unit sphere
         (i.e. contains no holes)"""
         return not self.partial_sphere_coverage
+
+    @property
+    def inverse_indices(self) -> xr.Dataset:
+        """Indices for a subset that map each face in the subset back to the original grid"""
+        if self.is_subset:
+            return self._inverse_indices
+        else:
+            raise Exception(
+                "Grid is not a subset, therefore no inverse face indices exist"
+            )
+
+    @property
+    def is_subset(self):
+        """Returns `True` if the Grid is a subset, 'False' otherwise."""
+        return self._is_subset
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
@@ -2145,7 +2241,9 @@ class Grid:
 
         return dual
 
-    def isel(self, **dim_kwargs):
+    def isel(
+        self, inverse_indices: Union[List[str], Set[str], bool] = False, **dim_kwargs
+    ):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -2155,6 +2253,9 @@ class Grid:
         exclusive and clipped indexing is in the works.
 
         Parameters
+        inverse_indices : Union[List[str], Set[str], bool], default=False
+            Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
             Dimension to index, one of ['n_node', 'n_edge', 'n_face']
 
@@ -2170,31 +2271,39 @@ class Grid:
             raise ValueError("Indexing must be along a single dimension.")
 
         if "n_node" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for node selection, please use face centers"
+                )
             return _slice_node_indices(self, dim_kwargs["n_node"])
 
         elif "n_edge" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for edge selection, please use face centers"
+                )
             return _slice_edge_indices(self, dim_kwargs["n_edge"])
 
         elif "n_face" in dim_kwargs:
-            return _slice_face_indices(self, dim_kwargs["n_face"])
+            return _slice_face_indices(
+                self, dim_kwargs["n_face"], inverse_indices=inverse_indices
+            )
 
         else:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_edges_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+    def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):
         """Identifies the indices of edges that intersect with a line of constant latitude.
 
         Parameters
         ----------
-        lon : float
-            The latitude at which to identify intersecting edges, in degrees.
-                use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+        lat : float
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
 
         Returns
         -------
@@ -2207,7 +2316,7 @@ class Grid:
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if use_spherical_bounding_box:
+        if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
                 "is not yet supported."
@@ -2219,23 +2328,18 @@ class Grid:
 
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, use_spherical_bounding_box=False):
+    def get_faces_at_constant_latitude(
+        self,
+        lat: float,
+    ):
         """
         Identifies the indices of faces that intersect with a line of constant latitude.
-
-        When `use_spherical_bounding_box` is set to `True`,
-        the bounding box for each face is computed by representing each edge as a great circle arc.
-        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
         lat : float
-            The latitude at which to identify intersecting faces, in degrees.
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
 
         Returns
         -------
@@ -2248,32 +2352,25 @@ class Grid:
                 f"Latitude must be between -90 and 90 degrees. Received {lat}"
             )
 
-        if use_spherical_bounding_box:
-            faces = constant_lat_intersections_face_bounds(
-                lat=lat,
-                face_min_lat_rad=self.bounds.values[:, 0, 0],
-                face_max_lat_rad=self.bounds.values[:, 0, 1],
-            )
-            return faces
-        else:
-            edges = self.get_edges_at_constant_latitude(lat, use_spherical_bounding_box)
-            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
+        faces = constant_lat_intersections_face_bounds(
+            lat=lat,
+            face_bounds_lat=self.face_bounds_lat.values,
+        )
+        return faces
 
-            return faces[faces != INT_FILL_VALUE]
-
-    def get_edges_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+    def get_edges_at_constant_longitude(
+        self, lon: float, use_face_bounds: bool = False
+    ):
         """
         Identifies the indices of edges that intersect with a line of constant longitude.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to identify intersecting edges, in degrees.
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
 
         Returns
         -------
@@ -2286,7 +2383,7 @@ class Grid:
                 f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
 
-        if use_spherical_bounding_box:
+        if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
                 "is not yet supported."
@@ -2297,23 +2394,15 @@ class Grid:
             )
             return edges.squeeze()
 
-    def get_faces_at_constant_longitude(self, lon, use_spherical_bounding_box=False):
+    def get_faces_at_constant_longitude(self, lon: float):
         """
         Identifies the indices of faces that intersect with a line of constant longitude.
-
-        When `use_spherical_bounding_box` is set to `True`,
-        the bounding box for each face is computed by representing each edge as a great circle arc.
-        This approach takes into account the extreme minimums or maximums along the arcs.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to identify intersecting faces, in degrees.
-        use_spherical_bounding_box : bool, optional
-            If `True`,
-            computes the bounding box for each face using great circle arcs for edges
-            and considers extreme minimums or maximums to increase accuracy.
-            Defaults to `False`.
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
 
         Returns
         -------
@@ -2321,15 +2410,42 @@ class Grid:
             An array of face indices that intersect with the specified longitude.
         """
 
-        if use_spherical_bounding_box:
-            raise NotImplementedError(
-                "Computing the intersection using the spherical bounding box is not"
-                "yet supported."
+        if lon > 180.0 or lon < -180.0:
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
-        else:
-            edges = self.get_edges_at_constant_longitude(
-                lon, use_spherical_bounding_box
-            )
-            faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
-            return faces[faces != INT_FILL_VALUE]
+        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
+        return faces
+
+    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant longitude.
+
+        Parameters
+        ----------
+        lons: Tuple[float, float]
+            A tuple of longitudes that define that minimum and maximum longitude.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant longitude.
+
+        """
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+
+    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant latitude.
+
+        Parameters
+        ----------
+        lats: Tuple[float, float
+            A tuple of latitudes that define that minimum and maximum latitudes.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant latitude.
+
+        """
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)

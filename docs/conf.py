@@ -231,12 +231,12 @@ def update_gallery(app: Sphinx):
             f"""
          .. grid-item-card::
             :text-align: center
-            :link: {item['path']}
+            :link: {item["path"]}
 
-            .. image:: {item['thumbnail']}
-                :alt: {item['title']}
+            .. image:: {item["thumbnail"]}
+                :alt: {item["title"]}
             +++
-            {item['title']}
+            {item["title"]}
             """
             for item in gallery[key]
         ]
