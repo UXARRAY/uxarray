@@ -30,7 +30,7 @@ class BaseGridBenchmark:
     def teardown(self, resolution, **kwargs):
         del self.uxgrid
 
-
+@timeout_class_at(1200)
 class OpenGrid:
     param_names = ['resolution']
     params = [['30km', '15km', '7.5km', '3.75km'], ]
