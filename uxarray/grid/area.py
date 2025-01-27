@@ -80,6 +80,7 @@ def calculate_face_area(
 
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
     # loop through all sub-triangles of face
+    total_correction = 0.0
     for j in range(0, num_triangles):
         node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
@@ -130,6 +131,35 @@ def calculate_face_area(
                 else:
                     # Calculate the correction term
                     correction = area_correction(node1, node2)
+                    print("\n\ncalculated correction: ", correction)
+                # Check if the edge is in the northern or southern hemisphere
+                hemisphere = ""
+                if node1[2] > 0 and node2[2] > 0:
+                    hemisphere = "Northern"
+                else:
+                    hemisphere = "Southern"
+                if hemisphere != "":
+                    print("Edge is in the ", hemisphere, " hemisphere.")
+                    # Check if the edge goes from higher to lower longitude
+                    # Convert Cartesian coordinates to longitude
+                    lon1 = np.arctan2(node1[1], node1[0])
+                    lon2 = np.arctan2(node2[1], node2[0])
+
+                    # Calculate the longitude difference in radians
+                    lon_diff = lon2 - lon1
+
+                    # Adjust for the case where longitude wraps around the 180° meridian
+                    if lon_diff > np.pi:
+                        lon_diff -= 2 * np.pi
+                    elif lon_diff < -np.pi:
+                        lon_diff += 2 * np.pi
+
+                    # Check if the longitude is increasing
+                    if lon_diff > 0 and hemisphere == "Northern":
+                        correction = -correction
+                    elif lon_diff < 0 and hemisphere == "Southern":
+                        correction = -correction
+
                 print(
                     "For Node 1 ",
                     node1,
@@ -138,15 +168,14 @@ def calculate_face_area(
                     "\nCORRECTION",
                     correction,
                 )
-                correction += correction
+                total_correction += correction
 
-    if correction != 0.0:
+    if total_correction != 0.0:
         print("AREA Before Correction", area)
 
-    # TODO: Fix sign of the calculated correction?
-    area += correction
+    area += total_correction
 
-    if correction != 0.0:
+    if total_correction != 0.0:
         print("AREA After Correction", area)
 
     return area, jacobian
