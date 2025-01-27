@@ -86,6 +86,8 @@ from uxarray.grid.intersections import (
     faces_within_lat_bounds,
 )
 
+from uxarray.grid.utils import maybe_load
+
 
 from spatialpandas import GeoDataFrame
 
@@ -192,6 +194,9 @@ class Grid:
                 Warning,
             )
             # TODO: more checks for validate grid (lat/lon coords, etc)
+
+        # TODO:
+        self._load_on_access = False
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
@@ -650,36 +655,33 @@ class Grid:
             if dim_name in self._ds.sizes:
                 dims_str += f"  * {dim_name}: {self._ds.sizes[dim_name]}\n"
 
-        dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
-
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        for coord_name in ugrid.SPHERICAL_COORD_NAMES:
-            if coord_name in self._ds:
-                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
+        for coord_name in list(
+            [coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds]
+        ):
+            coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        for coord_name in ugrid.CARTESIAN_COORD_NAMES:
-            if coord_name in self._ds:
-                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
+        for coord_name in list(
+            [coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds]
+        ):
+            coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
 
-        for conn_name in ugrid.CONNECTIVITY_NAMES:
-            if conn_name in self._ds:
-                connectivity_str += (
-                    f"  * {conn_name}: {getattr(self, conn_name).shape}\n"
-                )
+        for conn_name in self.connectivity:
+            connectivity_str += f"  * {conn_name}: {getattr(self, conn_name).shape}\n"
 
         descriptors_heading = "Grid Descriptor Variables:\n"
         descriptors_str = ""
-
-        for descriptor_name in descriptors.DESCRIPTOR_NAMES:
-            if descriptor_name in self._ds:
-                descriptors_str += (
-                    f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
-                )
+        for descriptor_name in list(
+            [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds]
+        ):
+            descriptors_str += (
+                f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
+            )
 
         return (
             prefix
@@ -1126,6 +1128,7 @@ class Grid:
         self._ds["face_z"] = value
 
     @property
+    @maybe_load
     def face_node_connectivity(self) -> xr.DataArray:
         """Indices of the nodes that make up each face.
 

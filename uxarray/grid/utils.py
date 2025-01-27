@@ -3,6 +3,31 @@ from uxarray.constants import INT_FILL_VALUE
 
 from numba import njit
 
+import functools
+from typing import Callable
+import dask.array as da
+
+
+def maybe_load(func: Callable) -> Callable:
+    """
+    Decorator to load Xarray DataArrays backed by Dask into memory
+    based on the instance's _persist_in_memory flag.
+    """
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        data = func(self, *args, **kwargs)
+        # Check if loading is requested and if the data uses Dask
+        if self._load_on_access and isinstance(data.data, da.Array):
+            # Load the data into memory
+            loaded_data = data.load()
+            # Optionally, update the dataset with the loaded data to avoid re-loading
+            self._ds[data.name] = loaded_data
+            return loaded_data
+        return data
+
+    return wrapper
+
 
 @njit(cache=True)
 def _small_angle_of_2_vectors(u, v):

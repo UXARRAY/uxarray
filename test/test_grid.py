@@ -448,8 +448,8 @@ def test_connectivity_build_n_nodes_per_face():
         max_dimension = grid.n_max_face_nodes
         min_dimension = 3
 
-        assert grid.n_nodes_per_face.min() >= min_dimension
-        assert grid.n_nodes_per_face.max() <= max_dimension
+        assert grid.n_nodes_per_face.values.min() >= min_dimension
+        assert grid.n_nodes_per_face.values.max() <= max_dimension
 
     verts = [f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg]
     grid_from_verts = ux.open_grid(verts)
