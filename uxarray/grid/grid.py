@@ -86,8 +86,6 @@ from uxarray.grid.intersections import (
     faces_within_lat_bounds,
 )
 
-from uxarray.grid.utils import maybe_load
-
 
 from spatialpandas import GeoDataFrame
 
@@ -196,7 +194,7 @@ class Grid:
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # TODO:
-        self._load_on_access = False
+        self._load_on_access = True
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
@@ -1128,7 +1126,6 @@ class Grid:
         self._ds["face_z"] = value
 
     @property
-    @maybe_load
     def face_node_connectivity(self) -> xr.DataArray:
         """Indices of the nodes that make up each face.
 
@@ -1619,7 +1616,7 @@ class Grid:
 
     def get_ball_tree(
         self,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "spherical",
         distance_metric: Optional[str] = "haversine",
         reconstruct: bool = False,
@@ -1669,7 +1666,7 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "cartesian",
         distance_metric: Optional[str] = "minkowski",
         reconstruct: bool = False,

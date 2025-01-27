@@ -8,10 +8,9 @@ from typing import Callable
 import dask.array as da
 
 
-def maybe_load(func: Callable) -> Callable:
-    """
-    Decorator to load Xarray DataArrays backed by Dask into memory
-    based on the _load_on_access flag.
+def load_on_access(func: Callable) -> Callable:
+    """Decorator that loads a Xarray DataArray backed by Dask into
+    memory when the user first invokes a property, based on the _load_on_access _load_on_access flag.
     """
 
     @functools.wraps(func)
@@ -20,9 +19,8 @@ def maybe_load(func: Callable) -> Callable:
         # Check if loading is requested and if the data uses Dask
         if self._load_on_access and isinstance(data.data, da.Array):
             # Load the data into memory
-            loaded_data = data.load()
-            self._ds[data.name] = loaded_data
-            return loaded_data
+            data.load()
+            return data
         return data
 
     return wrapper
