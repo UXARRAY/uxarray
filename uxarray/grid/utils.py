@@ -11,7 +11,7 @@ import dask.array as da
 def maybe_load(func: Callable) -> Callable:
     """
     Decorator to load Xarray DataArrays backed by Dask into memory
-    based on the instance's _persist_in_memory flag.
+    based on the _load_on_access flag.
     """
 
     @functools.wraps(func)
@@ -21,7 +21,6 @@ def maybe_load(func: Callable) -> Callable:
         if self._load_on_access and isinstance(data.data, da.Array):
             # Load the data into memory
             loaded_data = data.load()
-            # Optionally, update the dataset with the loaded data to avoid re-loading
             self._ds[data.name] = loaded_data
             return loaded_data
         return data
