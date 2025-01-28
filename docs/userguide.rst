@@ -31,6 +31,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
 
+`Custom Grid Topology <user-guide/custom-grid.ipynb>`_
+ Create a Grid from custom Grid topology and convert existing Xarray data structures to UXarray.
+
 `Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
  Read data with chunking and/or in parallel
 
@@ -48,6 +51,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 
 `Cross-Sections <user-guide/cross-sections.ipynb>`_
  Select cross-sections of a grid
+
+`Zonal Means <user-guide/zonal-average.ipynb>`_
+ Compute the zonal averages across lines of constant latitude
 
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
@@ -101,6 +107,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
    user-guide/cross-sections.ipynb
+   user-guide/zonal-average.ipynb
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/weighted_mean.ipynb

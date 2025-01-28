@@ -87,3 +87,13 @@ def test_dataarray_methods():
 
     # plot.scatter() is an xarray method
     assert hasattr(uxds.plot, 'scatter')
+
+def test_line():
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+    _plot_line = uxds['bottomDepth'].zonal_average().plot.line()
+    assert isinstance(_plot_line, hv.Curve)
+
+def test_scatter():
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+    _plot_line = uxds['bottomDepth'].zonal_average().plot.scatter()
+    assert isinstance(_plot_line, hv.Scatter)

@@ -22,7 +22,7 @@ requires-python = ">=3.10"
 dependencies = [
   "antimeridian",
   "cartopy",
-  "dask[dataframe]",
+  "dask[dataframe]<2025.1.0",
   "datashader",
   "geoviews",
   "holoviews",
