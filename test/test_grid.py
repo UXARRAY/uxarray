@@ -792,7 +792,7 @@ def test_number_of_faces_found():
     # Test for a node on the edge where only 2 faces should be found
     point_xyz = np.array([partial_grid.node_x[1].values, partial_grid.node_y[1].values, partial_grid.node_z[1].values], dtype=np.float64)
 
-    print(partial_grid.get_faces_containing_point(point_xyz))
+    assert len(partial_grid.get_faces_containing_point(point_xyz)) == 0
 
 
 def test_whole_grid():

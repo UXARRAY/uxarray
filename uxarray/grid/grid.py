@@ -2461,10 +2461,9 @@ class Grid:
             Array of the face indices containing point. Empty if no face is found
 
         """
+        # Depending on the point coordinates, convert to the coordinate system needed
         if len(point) == 2:
-            point_xyz = np.array(
-                _lonlat_rad_to_xyz(*np.deg2rad(point)), dtype=np.float64
-            )
+            point_xyz = np.array(_lonlat_rad_to_xyz(*np.deg2rad(point)))
             point_lonlat = point
         elif len(point) == 3:
             point_xyz = point
@@ -2478,20 +2477,13 @@ class Grid:
         _ = self.face_edge_nodes_xyz
         max_face_radius = self.max_face_radius.values
 
-        # Get the bounds to use for the subset
-        lon_bounds = (
-            point_lonlat[0] - np.rad2deg(max_face_radius),
-            point_lonlat[0] + np.rad2deg(max_face_radius),
-        )
-        lat_bounds = (
-            point_lonlat[1] - np.rad2deg(max_face_radius),
-            point_lonlat[1] + np.rad2deg(max_face_radius),
-        )
-
         # Try to find a subset in which the point resides
         try:
-            subset = self.subset.bounding_box(
-                lon_bounds, lat_bounds, element="face centers", inverse_indices=True
+            subset = self.subset.bounding_circle(
+                r=np.rad2deg(max_face_radius),
+                center_coord=point_lonlat,
+                element="face centers",
+                inverse_indices=True,
             )
         # If no subset is found, it likely means the grid is a partial grid and the point is in an empty part
         except ValueError:
