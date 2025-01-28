@@ -214,8 +214,8 @@ class PointInPolygon:
         point_xyz = np.array([self.uxgrid.face_x[0].values, self.uxgrid.face_y[0].values, self.uxgrid.face_z[0].values])
 
         self.uxgrid.get_faces_containing_point(point_xyz=point_xyz)
-        
-        
+
+
 class ZonalAverage(DatasetBenchmark):
     def setup(self, resolution, *args, **kwargs):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])

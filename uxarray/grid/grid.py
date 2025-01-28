@@ -2449,7 +2449,7 @@ class Grid:
 
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
-      
+
     def get_faces_between_longitudes(self, lons: Tuple[float, float]):
         """Identifies the indices of faces that are strictly between two lines of constant longitude.
 
