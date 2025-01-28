@@ -3,7 +3,7 @@ channels:
     - conda-forge
 dependencies:
     - python
-    - dask
+    - dask<2025.1.0
     - netcdf4
     - numba
     - numpy

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import xarray as xr
 import numpy as np
 
@@ -35,6 +36,8 @@ from uxarray.subset import DataArraySubsetAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.core.aggregation import _uxda_grid_aggregate
+from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.core.zonal import _compute_non_conservative_zonal_mean
 
 import warnings
 from warnings import warn
@@ -375,6 +378,9 @@ class UxDataArray(xr.DataArray):
 
         return uxds
 
+    def to_xarray(self):
+        return xr.DataArray(self)
+
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> UxDataArray:
@@ -428,6 +434,80 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
+
+    def zonal_mean(self, lat=(-90, 90, 10), **kwargs):
+        """Compute averages along lines of constant latitude.
+
+        Parameters
+        ----------
+        lat : tuple, float, or array-like, default=(-90, 90, 10)
+            Latitude values in degrees. Can be specified as:
+            - tuple (start, end, step): Computes means at intervals of `step` in range [start, end]
+            - float: Computes mean for a single latitude
+            - array-like: Computes means for each specified latitude
+
+        Returns
+        -------
+        UxDataArray
+            Contains zonal means with a new 'latitudes' dimension and corresponding coordinates.
+            Name will be original_name + '_zonal_mean' or 'zonal_mean' if unnamed.
+
+        Examples
+        --------
+        # All latitudes from -90° to 90° at 10° intervals
+        >>> uxds["var"].zonal_mean()
+
+        # Single latitude at 30°
+        >>> uxds["var"].zonal_mean(lat=30.0)
+
+        # Range from -60° to 60° at 10° intervals
+        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
+
+        Notes
+        -----
+        Only supported for face-centered data variables. Candidate faces are determined
+        using spherical bounding boxes - faces whose bounds contain the target latitude
+        are included in calculations.
+        """
+        if not self._face_centered():
+            raise ValueError(
+                "Zonal mean computations are currently only supported for face-centered data variables."
+            )
+
+        if isinstance(lat, tuple):
+            # zonal mean over a range of latitudes
+            latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
+            latitudes = np.clip(latitudes, -90, 90)
+        elif isinstance(lat, (float, int)):
+            # zonal mean over a single latitude
+            latitudes = [lat]
+        elif isinstance(lat, (list, np.ndarray)):
+            # zonal mean over an array of arbitrary latitudes
+            latitudes = np.asarray(lat)
+        else:
+            raise ValueError(
+                "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
+            )
+
+        res = _compute_non_conservative_zonal_mean(
+            uxda=self, latitudes=latitudes, **kwargs
+        )
+
+        dims = list(self.dims[:-1]) + ["latitudes"]
+
+        uxda = UxDataArray(
+            res,
+            uxgrid=self.uxgrid,
+            dims=dims,
+            coords={"latitudes": latitudes},
+            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
+            attrs={"zonal_mean": True},
+        )
+
+        return uxda
+
+    # Alias for 'zonal_mean', since this name is also commonly used.
+    zonal_average = zonal_mean
 
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.
@@ -1157,6 +1237,33 @@ class UxDataArray(xr.DataArray):
         else:
             # original xarray implementation for non-grid dimensions
             return super().isel(*args, **kwargs)
+
+    @classmethod
+    def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
+        """
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            An Xarray data array containing data residing on an unstructured grid
+        uxgrid : Grid
+            ``Grid`` object representing an unstructured grid
+        ugrid_dims : dict, optional
+            A dictionary mapping data array dimensions to UGRID dimensions.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataArray`` with data from the ``xr.DataArray` paired with a ``ux.Grid``
+        """
+        if ugrid_dims is None:
+            ugrid_dims = uxgrid._source_dims_dict
+
+        # map each dimension to its UGRID equivalent
+        ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+
+        return cls(ds, uxgrid=uxgrid)
 
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
