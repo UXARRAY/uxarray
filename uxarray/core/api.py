@@ -189,9 +189,11 @@ def open_dataset(
     ds = xr.open_dataset(filename_or_obj, **kwargs)  # type: ignore
 
     # map each dimension to its UGRID equivalent
+    # TODO: maybe issues here?
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     uxds = UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
+    # UxDataset.from_xarray(ds, uxgrid=uxgrid, source_d
 
     return uxds
 
