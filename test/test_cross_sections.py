@@ -2,6 +2,9 @@ import uxarray as ux
 import pytest
 import numpy as np
 from pathlib import Path
+import os
+
+import numpy.testing as nt
 
 # Define the current path and file paths for grid and data
 current_path = Path(__file__).resolve().parent
@@ -115,3 +118,20 @@ def test_constant_lat_out_of_bounds():
     )
 
     assert len(candidate_faces) == 0
+
+
+class TestArcs:
+    def test_latitude_along_arc(self):
+        node_lon = np.array([-40, -40, 40, 40])
+        node_lat = np.array([-20, 20, 20, -20])
+        face_node_connectivity = np.array([[0, 1, 2, 3]], dtype=np.int64)
+
+        uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+
+        # intersection at exactly 20 degrees latitude
+        out1 = uxgrid.get_faces_at_constant_latitude(lat=20)
+
+        # intersection at 25.41 degrees latitude (max along the great circle arc)
+        out2 = uxgrid.get_faces_at_constant_latitude(lat=25.41)
+
+        nt.assert_array_equal(out1, out2)

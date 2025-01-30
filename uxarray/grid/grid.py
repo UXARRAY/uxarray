@@ -11,6 +11,7 @@ from typing import (
     Union,
     List,
     Set,
+    Tuple,
 )
 
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
@@ -51,6 +52,8 @@ from uxarray.grid.coordinates import (
     _populate_node_xyz,
     _normalize_xyz,
     prepare_points,
+    _lonlat_rad_to_xyz,
+    _xyz_to_lonlat_deg,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -70,7 +73,7 @@ from uxarray.grid.geometry import (
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
     _find_faces,
-    get_max_face_radius,
+    _populate_max_face_radius,
 )
 
 from uxarray.grid.neighbors import (
@@ -85,7 +88,10 @@ from uxarray.grid.intersections import (
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
     constant_lon_intersections_face_bounds,
+    faces_within_lon_bounds,
+    faces_within_lat_bounds,
 )
+
 
 from spatialpandas import GeoDataFrame
 
@@ -207,8 +213,7 @@ class Grid:
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self._is_subset = is_subset
 
-        if inverse_indices is not None:
-            self._inverse_indices = inverse_indices
+        self._inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -1413,9 +1418,7 @@ class Grid:
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
-
             _populate_bounds(self)
-
         return self._ds["bounds"]
 
     @bounds.setter
@@ -1447,6 +1450,7 @@ class Grid:
     @property
     def face_bounds_lat(self):
         """Latitude bounds for each face in degrees."""
+
         if "face_bounds_lat" not in self._ds:
             bounds = self.bounds.values
             bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
@@ -1552,7 +1556,7 @@ class Grid:
     def max_face_radius(self):
         """Returns the maximum face radius of the grid"""
         if "max_face_radius" not in self._ds:
-            self._ds["max_face_radius"] = get_max_face_radius(self)
+            self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
 
     @property
@@ -2446,22 +2450,84 @@ class Grid:
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
 
-    def get_faces_containing_point(self, point_xyz):
-        """Gets the indexes of the faces that contain a specific point"""
+    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant longitude.
+
+        Parameters
+        ----------
+        lons: Tuple[float, float]
+            A tuple of longitudes that define that minimum and maximum longitude.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant longitude.
+
+        """
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+
+    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant latitude.
+
+        Parameters
+        ----------
+        lats: Tuple[float, float
+            A tuple of latitudes that define that minimum and maximum latitudes.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant latitude.
+
+        """
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
+
+    def get_faces_containing_point(self, point):
+        """Gets the indexes of the faces that contain a specific point
+        Parameters
+        ----------
+        point : numpy.ndarray
+            A point in either cartesian coordinates or spherical coordinates
+
+        Returns
+        -------
+        index : array
+            Array of the face indices containing point. Empty if no face is found
+
+        """
+        # Depending on the point coordinates, convert to the coordinate system needed
+        if len(point) == 2:
+            point_xyz = np.array(_lonlat_rad_to_xyz(*np.deg2rad(point)))
+            point_lonlat = point
+        elif len(point) == 3:
+            point_xyz = point
+            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
+        else:
+            raise ValueError(
+                "Point must either be in spherical or cartesian coordinates."
+            )
 
         # Get the maximum face radius of the grid
         _ = self.face_edge_nodes_xyz
         max_face_radius = self.max_face_radius.values
 
-        subset = self.subset.bounding_circle(
-            center_coord=[*point_xyz],
-            r=max_face_radius,
-            element="face centers",
-            inverse_indices=True,
-        )
+        # Try to find a subset in which the point resides
+        try:
+            subset = self.subset.bounding_circle(
+                r=np.rad2deg(max_face_radius),
+                center_coord=point_lonlat,
+                element="face centers",
+                inverse_indices=True,
+            )
+        # If no subset is found, it likely means the grid is a partial grid and the point is in an empty part
+        except ValueError:
+            warn("No faces found")
+            return []
 
+        # Get the faces in terms of their edges
         face_edge_nodes_xyz = subset.face_edge_nodes_xyz.values
 
+        # Get the original face indices from the subset
         inverse_indices = subset.inverse_indices.face.values
 
         # Check if any of the faces in the subset contain the point
