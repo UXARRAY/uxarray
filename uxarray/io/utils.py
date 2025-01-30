@@ -1,6 +1,10 @@
-from uxarray.io._ugrid import _is_ugrid
 import numpy as np
 import xarray as xr
+
+from uxarray.io._ugrid import _is_ugrid, _read_ugrid
+from uxarray.io._mpas import _mpas_to_ugrid_dims
+from uxarray.io._icon import _icon_to_ugrid_dims
+from uxarray.io._esmf import _esmf_to_ugrid_dims
 
 
 def _parse_grid_type(dataset):
@@ -123,3 +127,17 @@ def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
         print("Longitude coordinates are not regularly spaced.")
 
     return lat_regular and lon_regular, lon_name, lat_name
+
+
+def _get_source_dims_dict(grid_ds, grid_spec):
+    if grid_spec == "MPAS":
+        return _mpas_to_ugrid_dims(grid_ds)
+    if grid_spec == "UGRID":
+        _, dim_dict = _read_ugrid(grid_ds)
+        return dim_dict
+    elif grid_spec == "ICON":
+        return _icon_to_ugrid_dims(grid_ds)
+    elif grid_spec == "ESMF":
+        return _esmf_to_ugrid_dims(grid_ds)
+    else:
+        return dict()

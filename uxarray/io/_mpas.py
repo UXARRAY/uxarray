@@ -5,6 +5,27 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid, descriptors
 
 
+def _mpas_to_ugrid_dims(in_ds, primal=True):
+    """TODO:"""
+    source_dims_dict = {}
+    if primal:
+        source_dims_dict["nVertices"] = ugrid.NODE_DIM
+        source_dims_dict[in_ds["verticesOnCell"].dims[0]] = ugrid.FACE_DIM
+        source_dims_dict[in_ds["verticesOnCell"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
+
+        if "verticesOnEdge" in in_ds:
+            source_dims_dict[in_ds["verticesOnEdge"].dims[0]] = "n_edge"
+    else:
+        source_dims_dict[in_ds["latCell"].dims[0]] = ugrid.NODE_DIM
+        source_dims_dict[in_ds["cellsOnVertex"].dims[0]] = ugrid.FACE_DIM
+        source_dims_dict[in_ds["cellsOnVertex"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
+
+        if "cellsOnEdge" in in_ds:
+            source_dims_dict[in_ds["cellsOnEdge"].dims[0]] = "n_edge"
+
+    return source_dims_dict
+
+
 def _primal_to_ugrid(in_ds, out_ds):
     """Encodes the MPAS Primal-Mesh in the UGRID conventions."""
     source_dims_dict = {}

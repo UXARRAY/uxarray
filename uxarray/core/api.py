@@ -9,8 +9,26 @@ from typing import Any, Dict, Optional, Union
 from uxarray.grid import Grid
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.io.utils import _parse_grid_type, _get_source_dims_dict
+
 
 from warnings import warn
+
+
+def rename_chunks(grid_ds, chunks):
+    # TODO: might need to copy chunks
+    print(chunks)
+    grid_spec = _parse_grid_type(grid_ds)
+
+    source_dims_dict = _get_source_dims_dict(grid_ds, grid_spec)
+
+    # correctly chunk standardized ugrid dimension names
+    for original_grid_dim, ugrid_grid_dim in source_dims_dict.items():
+        if ugrid_grid_dim in chunks["chunks"]:
+            chunks["chunks"][original_grid_dim] = chunks["chunks"][ugrid_grid_dim]
+
+    print(chunks)
+    return chunks
 
 
 def open_grid(
@@ -84,6 +102,7 @@ def open_grid(
 
     if isinstance(grid_filename_or_obj, xr.Dataset):
         # construct a grid from a dataset file
+        # TODO: insert/rechunk here?
         uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
 
     elif isinstance(grid_filename_or_obj, dict):
@@ -97,7 +116,16 @@ def open_grid(
     # attempt to use Xarray directly for remaining input types
     else:
         try:
-            grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
+            # TODO: Insert chunking here
+            if "data_chunks" in kwargs:
+                data_chunks = kwargs["data_chunks"]
+                del kwargs["data_chunks"]
+
+                grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
+                chunks = rename_chunks(grid_ds, data_chunks)
+                grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=chunks, **kwargs)
+            else:
+                grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
 
             uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
         except ValueError:
@@ -173,17 +201,23 @@ def open_dataset(
             stacklevel=2,
         )
 
+    # TODO:
+    if "chunks" in kwargs and "chunks" not in grid_kwargs:
+        chunks = kwargs["chunks"]
+
+        grid_kwargs["data_chunks"] = chunks
+
     # Grid definition
     uxgrid = open_grid(
         grid_filename_or_obj, latlon=latlon, use_dual=use_dual, **grid_kwargs
     )
 
-    if "chunks" in kwargs:
-        # correctly chunk standardized ugrid dimension names
-        source_dims_dict = uxgrid._source_dims_dict
-        for original_grid_dim, ugrid_grid_dim in source_dims_dict.items():
-            if ugrid_grid_dim in kwargs["chunks"]:
-                kwargs["chunks"][original_grid_dim] = kwargs["chunks"][ugrid_grid_dim]
+    # if "chunks" in kwargs:
+    #     # correctly chunk standardized ugrid dimension names
+    #     source_dims_dict = uxgrid._source_dims_dict
+    #     for original_grid_dim, ugrid_grid_dim in source_dims_dict.items():
+    #         if ugrid_grid_dim in kwargs["chunks"]:
+    #             kwargs["chunks"][original_grid_dim] = kwargs["chunks"][ugrid_grid_dim]
 
     # UxDataset
     ds = xr.open_dataset(filename_or_obj, **kwargs)  # type: ignore
@@ -277,12 +311,12 @@ def open_mfdataset(
         grid_filename_or_obj, latlon=latlon, use_dual=use_dual, **grid_kwargs
     )
 
-    if "chunks" in kwargs:
-        # correctly chunk standardized ugrid dimension names
-        source_dims_dict = uxgrid._source_dims_dict
-        for original_grid_dim, ugrid_grid_dim in source_dims_dict.items():
-            if ugrid_grid_dim in kwargs["chunks"]:
-                kwargs["chunks"][original_grid_dim] = kwargs["chunks"][ugrid_grid_dim]
+    # if "chunks" in kwargs:
+    #     # correctly chunk standardized ugrid dimension names
+    #     source_dims_dict = uxgrid._source_dims_dict
+    #     for original_grid_dim, ugrid_grid_dim in source_dims_dict.items():
+    #         if ugrid_grid_dim in kwargs["chunks"]:
+    #             kwargs["chunks"][original_grid_dim] = kwargs["chunks"][ugrid_grid_dim]
 
     # UxDataset
     ds = xr.open_mfdataset(paths, **kwargs)  # type: ignore
