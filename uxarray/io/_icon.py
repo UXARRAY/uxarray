@@ -3,16 +3,21 @@ import xarray as xr
 import numpy as np
 
 
+def _icon_to_ugrid_dims(in_ds):
+    source_dims_dict = {"vertex": "n_node", "edge": "n_edge", "cell": "n_face"}
+    return source_dims_dict
+
+
 def _primal_to_ugrid(in_ds, out_ds):
     """Encodes the Primal Mesh of an ICON Grid into the UGRID conventions."""
-    source_dims_dict = {"vertex": "n_node", "edge": "n_edge", "cell": "n_face"}
+    source_dims_dict = _icon_to_ugrid_dims(in_ds)
 
     # rename dimensions to match ugrid conventions
     in_ds = in_ds.rename_dims(source_dims_dict)
 
     # node coordinates
-    node_lon = np.rad2deg(in_ds["vlon"])
-    node_lat = np.rad2deg(in_ds["vlat"])
+    node_lon = 180.0 * in_ds["vlon"] / np.pi
+    node_lat = 180.0 * in_ds["vlat"] / np.pi
 
     out_ds["node_lon"] = xr.DataArray(
         data=node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
@@ -22,8 +27,8 @@ def _primal_to_ugrid(in_ds, out_ds):
     )
 
     # edge coordinates
-    edge_lon = np.rad2deg(in_ds["elon"])
-    edge_lat = np.rad2deg(in_ds["elat"])
+    edge_lon = 180.0 * in_ds["elon"] / np.pi
+    edge_lat = 180.0 * in_ds["elat"] / np.pi
 
     out_ds["edge_lon"] = xr.DataArray(
         data=edge_lon, dims=ugrid.EDGE_DIM, attrs=ugrid.EDGE_LON_ATTRS
@@ -33,8 +38,8 @@ def _primal_to_ugrid(in_ds, out_ds):
     )
 
     # face coordinates
-    face_lon = np.rad2deg(in_ds["clon"])
-    face_lat = np.rad2deg(in_ds["clat"])
+    face_lon = 180.0 * in_ds["clon"] / np.pi
+    face_lat = 180.0 * in_ds["clat"] / np.pi
 
     out_ds["face_lon"] = xr.DataArray(
         data=face_lon, dims=ugrid.FACE_DIM, attrs=ugrid.FACE_LON_ATTRS

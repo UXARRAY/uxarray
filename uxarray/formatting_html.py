@@ -26,7 +26,7 @@ def _grid_sections(grid, max_items_collapse=15):
     spherical_coordinates = list(
         [coord for coord in ugrid.SPHERICAL_COORDS if coord in grid._ds]
     )
-    descritor = list(
+    descriptor = list(
         [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in grid._ds]
     )
     connectivity = grid.connectivity
@@ -58,7 +58,7 @@ def _grid_sections(grid, max_items_collapse=15):
 
     sections.append(
         grid_descriptor_section(
-            grid._ds[descritor],
+            grid._ds[descriptor],
             max_items_collapse=max_items_collapse,
             name="Descriptors",
         )
