@@ -14,6 +14,8 @@ from typing import (
     Tuple,
 )
 
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -50,6 +52,8 @@ from uxarray.grid.coordinates import (
     _populate_node_xyz,
     _normalize_xyz,
     prepare_points,
+    _lonlat_rad_to_xyz,
+    _xyz_to_lonlat_deg,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -68,6 +72,8 @@ from uxarray.grid.geometry import (
     _populate_bounds,
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
+    _find_faces,
+    _populate_max_face_radius,
 )
 
 from uxarray.grid.neighbors import (
@@ -1546,6 +1552,32 @@ class Grid:
         """Returns `True` if the Grid is a subset, 'False' otherwise."""
         return self._is_subset
 
+    @property
+    def max_face_radius(self):
+        """Returns the maximum face radius of the grid"""
+        if "max_face_radius" not in self._ds:
+            self._ds["max_face_radius"] = _populate_max_face_radius(self)
+        return self._ds["max_face_radius"]
+
+    @property
+    def face_edge_nodes_xyz(self):
+        if "face_edge_nodes_xyz" not in self._ds:
+            # Normalize the grid to ensure consistency
+            self.normalize_cartesian_coordinates()
+            face_edge = _get_cartesian_face_edge_nodes(
+                self.face_node_connectivity.values,
+                self.n_face,
+                self.n_max_face_nodes,
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+            )
+            self._ds["face_edge_nodes_xyz"] = (
+                [self.n_face, self.n_max_face_edges, 2, 3],
+                face_edge,
+            )
+        return self._ds["face_edge_nodes_xyz"]
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
@@ -2449,3 +2481,56 @@ class Grid:
 
         """
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
+
+    def get_faces_containing_point(self, point):
+        """Gets the indexes of the faces that contain a specific point
+        Parameters
+        ----------
+        point : numpy.ndarray
+            A point in either cartesian coordinates or spherical coordinates
+
+        Returns
+        -------
+        index : array
+            Array of the face indices containing point. Empty if no face is found
+
+        """
+        # Depending on the point coordinates, convert to the coordinate system needed
+        if len(point) == 2:
+            point_xyz = np.array(_lonlat_rad_to_xyz(*np.deg2rad(point)))
+            point_lonlat = point
+        elif len(point) == 3:
+            point_xyz = point
+            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
+        else:
+            raise ValueError(
+                "Point must either be in spherical or cartesian coordinates."
+            )
+
+        # Get the maximum face radius of the grid
+        _ = self.face_edge_nodes_xyz
+        max_face_radius = self.max_face_radius.values
+
+        # Try to find a subset in which the point resides
+        try:
+            subset = self.subset.bounding_circle(
+                r=np.rad2deg(max_face_radius),
+                center_coord=point_lonlat,
+                element="face centers",
+                inverse_indices=True,
+            )
+        # If no subset is found, it likely means the grid is a partial grid and the point is in an empty part
+        except ValueError:
+            warn("No faces found")
+            return []
+
+        # Get the faces in terms of their edges
+        face_edge_nodes_xyz = subset.face_edge_nodes_xyz.values
+
+        # Get the original face indices from the subset
+        inverse_indices = subset.inverse_indices.face.values
+
+        # Check if any of the faces in the subset contain the point
+        index = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
+
+        return index
