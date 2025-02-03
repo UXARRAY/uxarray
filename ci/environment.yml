@@ -11,6 +11,7 @@ dependencies:
   - geoviews
   - h5netcdf
   - hdf5
+  - healpix
   - holoviews
   - hvplot
   - matplotlib-base

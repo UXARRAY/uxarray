@@ -591,9 +591,6 @@ class Grid:
 
         return cls.from_dataset(grid_ds, source_grid_spec="HEALPix")
 
-    def to_healpix(self):
-        pass
-
     def validate(self, check_duplicates=True):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.

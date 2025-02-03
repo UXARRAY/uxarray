@@ -12,6 +12,7 @@ dependencies:
     - pytest
     - pytest-cov
     - scipy
+    - healpix
     - xarray
     - pip
     - ipykernel
