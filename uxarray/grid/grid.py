@@ -30,6 +30,7 @@ from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
 from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
+from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
 from uxarray.io._structured import _read_structured_grid
 from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io._delaunay import (
@@ -176,12 +177,14 @@ class Grid:
         inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        if not _validate_minimum_ugrid(grid_ds):
-            raise ValueError(
-                "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
-                "at least the following variables: ['node_lon',"
-                "'node_lat', and 'face_node_connectivity']"
-            )
+        # TODO:
+        if source_grid_spec != "HEALPix":
+            if not _validate_minimum_ugrid(grid_ds):
+                raise ValueError(
+                    "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
+                    "at least the following variables: ['node_lon',"
+                    "'node_lat', and 'face_node_connectivity']"
+                )
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
@@ -579,6 +582,18 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
+    @classmethod
+    def from_healpix(cls, resolution_level, nest=True, pixels_only=True):
+        grid_ds = _pixels_to_ugrid(resolution_level, nest)
+
+        if not pixels_only:
+            _populate_healpix_boundaries(grid_ds)
+
+        return cls.from_dataset(grid_ds, source_grid_spec="HEALPix")
+
+    def to_healpix(self):
+        pass
+
     def validate(self, check_duplicates=True):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.
@@ -878,8 +893,11 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lon" not in self._ds:
-            _set_desired_longitude_range(self._ds)
-            _populate_node_latlon(self)
+            if self.source_grid_spec == "HEALPix":
+                _populate_healpix_boundaries(self._ds)
+            else:
+                _set_desired_longitude_range(self._ds)
+                _populate_node_latlon(self)
         return self._ds["node_lon"]
 
     @node_lon.setter
@@ -895,8 +913,11 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lat" not in self._ds:
-            _set_desired_longitude_range(self._ds)
-            _populate_node_latlon(self)
+            if self.source_grid_spec == "HEALPix":
+                _populate_healpix_boundaries(self._ds)
+            else:
+                _set_desired_longitude_range(self._ds)
+                _populate_node_latlon(self)
         return self._ds["node_lat"]
 
     @node_lat.setter
@@ -1130,6 +1151,12 @@ class Grid:
 
         Nodes are in counter-clockwise order.
         """
+
+        if (
+            "face_node_connectivity" not in self._ds
+            and self.source_grid_spec == "HEALPix"
+        ):
+            _populate_healpix_boundaries(self)
 
         if self._ds["face_node_connectivity"].ndim == 1:
             face_node_connectivity_1d = self._ds["face_node_connectivity"].values
