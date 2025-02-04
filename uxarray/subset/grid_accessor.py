@@ -69,7 +69,7 @@ class GridSubsetAccessor:
         self,
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
-        element: Optional[str] = "nodes",
+        element: Optional[str] = "face centers",
         inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
@@ -108,7 +108,7 @@ class GridSubsetAccessor:
         self,
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
-        element: Optional[str] = "nodes",
+        element: Optional[str] = "face centers",
         inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):

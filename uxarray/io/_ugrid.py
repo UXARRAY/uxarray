@@ -128,27 +128,29 @@ def _standardize_connectivity(ds, conn_name):
     ----------
     ds : xarray.Dataset
         Input Dataset
+    conn_name : str
+        The name of the connectivity variable to standardize.
 
     Returns
-    ----------
+    -------
     ds : xarray.Dataset
-        Input Dataset with correct index variables
+        Input Dataset with standardized connectivity variable.
     """
 
-    # original connectivity
-    conn = ds[conn_name].values
+    # Extract the connectivity variable
+    conn = ds[conn_name]
 
-    # original fill value, if one exists
-    if "_FillValue" in ds[conn_name].attrs:
-        original_fv = ds[conn_name]._FillValue
-    elif np.isnan(ds[conn_name].values).any():
+    # Determine the original fill value
+    if "_FillValue" in conn.attrs:
+        original_fv = conn.attrs["_FillValue"]
+    elif conn.isnull().any():
         original_fv = np.nan
     else:
         original_fv = None
 
-    # if current dtype and fill value are not standardized
+    # Check if dtype or fill value needs to be standardized
     if conn.dtype != INT_DTYPE or original_fv != INT_FILL_VALUE:
-        # replace fill values and set correct dtype
+        # Replace fill values and set the correct dtype
         new_conn = _replace_fill_values(
             grid_var=conn,
             original_fill=original_fv,
@@ -156,17 +158,34 @@ def _standardize_connectivity(ds, conn_name):
             new_dtype=INT_DTYPE,
         )
 
-        if "start_index" in ds[conn_name].attrs:
-            new_conn[new_conn != INT_FILL_VALUE] -= INT_DTYPE(ds[conn_name].start_index)
+        # Check if 'start_index' attribute exists
+        if "start_index" in conn.attrs:
+            # Retrieve and convert 'start_index'
+            start_index = INT_DTYPE(conn.attrs["start_index"])
+
+            # Perform conditional subtraction using `.where()`
+            new_conn = new_conn.where(
+                new_conn == INT_FILL_VALUE, new_conn - start_index
+            )
         else:
+            # Identify non-fill value indices
             fill_value_indices = new_conn != INT_FILL_VALUE
-            start_index = new_conn[fill_value_indices].min()
-            new_conn[fill_value_indices] -= INT_DTYPE(start_index)
 
-        # reassign data to use updated connectivity
-        ds[conn_name].data = new_conn
+            # Compute the minimum start_index from non-fill values
+            start_index = new_conn.where(fill_value_indices).min().item()
 
-        # use new fill value
+            # Convert start_index to the desired integer dtype
+            start_index = INT_DTYPE(start_index)
+
+            # Perform conditional subtraction using `.where()`
+            new_conn = new_conn.where(
+                new_conn == INT_FILL_VALUE, new_conn - start_index
+            )
+
+        # Update the connectivity variable in the dataset
+        ds = ds.assign({conn_name: new_conn})
+
+        # Update the '_FillValue' attribute
         ds[conn_name].attrs["_FillValue"] = INT_FILL_VALUE
 
     return ds
@@ -174,8 +193,6 @@ def _standardize_connectivity(ds, conn_name):
 
 def _is_ugrid(ds):
     """Check mesh topology and dimension."""
-    # getkeys_filter_by_attribute(filepath, attr_name, attr_val)
-    # return type KeysView
     node_coords_dv = ds.filter_by_attrs(node_coordinates=lambda v: v is not None)
     face_conn_dv = ds.filter_by_attrs(face_node_connectivity=lambda v: v is not None)
     topo_dim_dv = ds.filter_by_attrs(topology_dimension=lambda v: v is not None)
