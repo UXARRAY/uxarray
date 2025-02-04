@@ -11,6 +11,8 @@ from uxarray.constants import INT_DTYPE
 def pix2corner_ang(
     nside: int, ipix: Any, nest: bool = False, lonlat: bool = False
 ) -> Tuple[Any, Any, Any, Any]:
+    # TODO: Use the new API when this becomes available from healpix
+    # https://github.com/ntessore/healpix/issues/66
     if nest:
         fu = hp._chp.nest2ang_uv
     else:
