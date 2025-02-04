@@ -107,22 +107,29 @@ def _slice_face_indices(
 
     face_indices = indices
 
+    # TODO: stop using .values, use Xarray directly
     # nodes of each face (inclusive)
     node_indices = np.unique(grid.face_node_connectivity.values[face_indices].ravel())
     node_indices = node_indices[node_indices != INT_FILL_VALUE]
 
-    # edges of each face (inclusive)
-    edge_indices = np.unique(grid.face_edge_connectivity.values[face_indices].ravel())
-    edge_indices = edge_indices[edge_indices != INT_FILL_VALUE]
-
     # index original dataset to obtain a 'subgrid'
     ds = ds.isel(n_node=node_indices)
     ds = ds.isel(n_face=face_indices)
-    ds = ds.isel(n_edge=edge_indices)
+
+    # Only slice edge dimension if we already have the connectivity
+    if "face_edge_connectivity" in grid._ds:
+        # TODO: add a warning here?
+        edge_indices = np.unique(
+            grid.face_edge_connectivity.values[face_indices].ravel()
+        )
+        edge_indices = edge_indices[edge_indices != INT_FILL_VALUE]
+        ds = ds.isel(n_edge=edge_indices)
+        ds["subgrid_edge_indices"] = xr.DataArray(edge_indices, dims=["n_edge"])
+    else:
+        edge_indices = None
 
     ds["subgrid_node_indices"] = xr.DataArray(node_indices, dims=["n_node"])
     ds["subgrid_face_indices"] = xr.DataArray(face_indices, dims=["n_face"])
-    ds["subgrid_edge_indices"] = xr.DataArray(edge_indices, dims=["n_edge"])
 
     # mapping to update existing connectivity
     node_indices_dict = {
@@ -152,9 +159,12 @@ def _slice_face_indices(
 
         index_types = {
             "face": face_indices,
-            "edge": edge_indices,
             "node": node_indices,
         }
+
+        if edge_indices is not None:
+            index_types["edge"] = edge_indices
+
         if isinstance(inverse_indices, bool):
             inverse_indices_ds["face"] = face_indices
         else:
