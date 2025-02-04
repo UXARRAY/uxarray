@@ -199,11 +199,12 @@ class Grid:
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
 
-        # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
-        self.source_grid_spec = source_grid_spec
-
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
+
+        # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
+        self.source_grid_spec = source_grid_spec
+        self._ds = self._ds.assign_attrs({"source_grid_spec": source_grid_spec})
 
         # initialize attributes
         self._antimeridian_face_indices = None
