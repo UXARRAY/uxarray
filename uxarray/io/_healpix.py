@@ -1,7 +1,6 @@
 import healpix as hp
 import xarray as xr
 import numpy as np
-import polars as pl
 from typing import Any, Tuple
 
 import uxarray.conventions.ugrid as ugrid
@@ -52,47 +51,27 @@ def _pixels_to_ugrid(resolution_level, nest):
 
 
 def _populate_healpix_boundaries(ds):
-    # Get corners of all the pixels at once
-
+    """Compute node locations and face-node connectivity for HEALPix."""
     n_side = ds.attrs["n_side"]
     n_pix = ds.attrs["n_pix"]
-    nest = ds.attrs["nest"]  # <-- Retrieve 'nest' from ds
+    nest = ds.attrs["nest"]
 
-    # Pass 'nest' to pix2corner_ang!
     corners = pix2corner_ang(n_side, np.arange(n_pix), nest=nest, lonlat=True)
+    nodes = corners.reshape(-1, 2)  # Flattened shape: (n_cell * 4, 2)
 
-    # Flatten the cell corner data to a 2D array of shape (n_cell * 4, 2)
-    nodes = corners.reshape(-1, 2)  # Shape: (n_cell * 4, 2)
-    nodes_df = pl.DataFrame(nodes)
-    unique_nodes_df = nodes_df.unique()
+    # Extract unique nodes
+    unique_nodes, inverse_indices = np.unique(nodes, axis=0, return_inverse=True)
 
-    # Add a unique index to `unique_nodes_df`
-    unique_nodes_with_index = unique_nodes_df.with_row_index("unique_index")
-
-    # Perform a left join on all columns
-    merged = nodes_df.join(
-        unique_nodes_with_index, on=list(nodes_df.columns), how="left"
-    )
-
-    # Extract the inverse indices
-    inverse_indices_df = merged.select("unique_index")
-
-    unique_nodes_df_np = unique_nodes_df.to_numpy()
-    inverse_indices_df_np = inverse_indices_df.to_numpy()
-
-    # Extract node longitude and latitude arrays
-    node_lon = unique_nodes_df_np[:, 0]
-    node_lat = unique_nodes_df_np[:, 1]
+    # Extract node longitude and latitude
+    node_lon, node_lat = unique_nodes[:, 0], unique_nodes[:, 1]
 
     # Reshape inverse indices to get face-node connectivity
     n_cell = corners.shape[0]
-    face_node_connectivity = inverse_indices_df_np.reshape(n_cell, 4).astype(
-        dtype=INT_DTYPE
-    )
+    face_node_connectivity = inverse_indices.reshape(n_cell, 4).astype(INT_DTYPE)
 
+    # Assign data to xarray dataset
     ds["node_lon"] = xr.DataArray(node_lon, dims=["n_node"], attrs=ugrid.NODE_LON_ATTRS)
     ds["node_lat"] = xr.DataArray(node_lat, dims=["n_node"], attrs=ugrid.NODE_LAT_ATTRS)
-
     ds["face_node_connectivity"] = xr.DataArray(
         face_node_connectivity,
         dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
