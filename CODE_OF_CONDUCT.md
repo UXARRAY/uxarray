@@ -4,8 +4,8 @@
 
 We, as members, contributors, creators, stewards, and maintainers, i.e. all the
 participants, of UXarray pledge to make participation in our software, system
-or hardware project and community a safe, healthy, open, productive, and 
-harassment-free experience for everyone, protected under applicable US federal 
+or hardware project and community a safe, healthy, open, productive, and
+harassment-free experience for everyone, protected under applicable US federal
 or state law.
 
 All participants are required to abide by this Code of Conduct.
