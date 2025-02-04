@@ -16,7 +16,7 @@ Examples of behaviors that contribute to a positive environment for our communit
 include:
 
 - Demonstrating empathy and kindness toward other people
-- Being considerate and respectful of and collaborative with various opinions,
+- Being considerate and respectful of and collaborative with differing opinions,
   viewpoints, and experiences
 - Acknowledging the contributions of others
 - Giving and gracefully accepting constructive feedback
