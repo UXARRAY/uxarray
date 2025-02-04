@@ -5,28 +5,8 @@ import polars as pl
 from typing import Any, Tuple
 
 import uxarray.conventions.ugrid as ugrid
+from uxarray.grid.coordinates import _set_desired_longitude_range
 from uxarray.constants import INT_DTYPE
-
-
-def _pixels_to_ugrid(resolution_level, nest):
-    ds = xr.Dataset()
-
-    nside = hp.order2nside(resolution_level)
-    npix = hp.nside2npix(nside)
-
-    hp_lon, hp_lat = hp.pix2ang(
-        nside=nside, ipix=np.arange(npix), lonlat=True, nest=nest
-    )
-    hp_lon = (hp_lon + 180) % 360 - 180
-
-    ds["face_lon"] = xr.DataArray(hp_lon, dims=["n_face"], attrs=ugrid.FACE_LON_ATTRS)
-
-    ds["face_lat"] = xr.DataArray(hp_lat, dims=["n_face"], attrs=ugrid.FACE_LAT_ATTRS)
-
-    ds = ds.assign_attrs({"resolution_level": resolution_level})
-    ds = ds.assign_attrs({"n_side": nside})
-    ds = ds.assign_attrs({"n_pix": npix})
-    return ds
 
 
 def pix2corner_ang(
@@ -49,13 +29,37 @@ def pix2corner_ang(
     return np.nan_to_num(corners, copy=False)
 
 
+def _pixels_to_ugrid(resolution_level, nest):
+    ds = xr.Dataset()
+
+    nside = hp.order2nside(resolution_level)
+    npix = hp.nside2npix(nside)
+
+    hp_lon, hp_lat = hp.pix2ang(
+        nside=nside, ipix=np.arange(npix), lonlat=True, nest=nest
+    )
+    hp_lon = (hp_lon + 180) % 360 - 180
+
+    ds["face_lon"] = xr.DataArray(hp_lon, dims=["n_face"], attrs=ugrid.FACE_LON_ATTRS)
+    ds["face_lat"] = xr.DataArray(hp_lat, dims=["n_face"], attrs=ugrid.FACE_LAT_ATTRS)
+
+    ds = ds.assign_attrs({"resolution_level": resolution_level})
+    ds = ds.assign_attrs({"n_side": nside})
+    ds = ds.assign_attrs({"n_pix": npix})
+    ds = ds.assign_attrs({"nest": nest})
+
+    return ds
+
+
 def _populate_healpix_boundaries(ds):
     # Get corners of all the pixels at once
 
     n_side = ds.attrs["n_side"]
     n_pix = ds.attrs["n_pix"]
+    nest = ds.attrs["nest"]  # <-- Retrieve 'nest' from ds
 
-    corners = pix2corner_ang(n_side, np.arange(n_pix), lonlat=True)
+    # Pass 'nest' to pix2corner_ang!
+    corners = pix2corner_ang(n_side, np.arange(n_pix), nest=nest, lonlat=True)
 
     # Flatten the cell corner data to a 2D array of shape (n_cell * 4, 2)
     nodes = corners.reshape(-1, 2)  # Shape: (n_cell * 4, 2)
@@ -87,7 +91,6 @@ def _populate_healpix_boundaries(ds):
     )
 
     ds["node_lon"] = xr.DataArray(node_lon, dims=["n_node"], attrs=ugrid.NODE_LON_ATTRS)
-
     ds["node_lat"] = xr.DataArray(node_lat, dims=["n_node"], attrs=ugrid.NODE_LAT_ATTRS)
 
     ds["face_node_connectivity"] = xr.DataArray(
@@ -95,3 +98,5 @@ def _populate_healpix_boundaries(ds):
         dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
         attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
+
+    _set_desired_longitude_range(ds)
