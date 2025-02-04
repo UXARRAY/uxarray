@@ -118,7 +118,6 @@ def _slice_face_indices(
 
     # Only slice edge dimension if we already have the connectivity
     if "face_edge_connectivity" in grid._ds:
-        # TODO: add a warning here?
         edge_indices = np.unique(
             grid.face_edge_connectivity.values[face_indices].ravel()
         )
