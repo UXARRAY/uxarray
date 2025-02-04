@@ -107,7 +107,6 @@ def _slice_face_indices(
 
     face_indices = indices
 
-    # TODO: stop using .values, use Xarray directly
     # nodes of each face (inclusive)
     node_indices = np.unique(grid.face_node_connectivity.values[face_indices].ravel())
     node_indices = node_indices[node_indices != INT_FILL_VALUE]
