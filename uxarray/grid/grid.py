@@ -11,6 +11,7 @@ from typing import (
     Union,
     List,
     Set,
+    Tuple,
 )
 
 # reader and writer imports
@@ -81,7 +82,10 @@ from uxarray.grid.intersections import (
     constant_lon_intersections_no_extreme,
     constant_lat_intersections_face_bounds,
     constant_lon_intersections_face_bounds,
+    faces_within_lon_bounds,
+    faces_within_lat_bounds,
 )
+
 
 from spatialpandas import GeoDataFrame
 
@@ -203,8 +207,7 @@ class Grid:
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self._is_subset = is_subset
 
-        if inverse_indices is not None:
-            self._inverse_indices = inverse_indices
+        self._inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -647,36 +650,33 @@ class Grid:
             if dim_name in self._ds.sizes:
                 dims_str += f"  * {dim_name}: {self._ds.sizes[dim_name]}\n"
 
-        dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
-
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        for coord_name in ugrid.SPHERICAL_COORD_NAMES:
-            if coord_name in self._ds:
-                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
+        for coord_name in list(
+            [coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds]
+        ):
+            coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        for coord_name in ugrid.CARTESIAN_COORD_NAMES:
-            if coord_name in self._ds:
-                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
+        for coord_name in list(
+            [coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds]
+        ):
+            coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
 
-        for conn_name in ugrid.CONNECTIVITY_NAMES:
-            if conn_name in self._ds:
-                connectivity_str += (
-                    f"  * {conn_name}: {getattr(self, conn_name).shape}\n"
-                )
+        for conn_name in self.connectivity:
+            connectivity_str += f"  * {conn_name}: {getattr(self, conn_name).shape}\n"
 
         descriptors_heading = "Grid Descriptor Variables:\n"
         descriptors_str = ""
-
-        for descriptor_name in descriptors.DESCRIPTOR_NAMES:
-            if descriptor_name in self._ds:
-                descriptors_str += (
-                    f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
-                )
+        for descriptor_name in list(
+            [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds]
+        ):
+            descriptors_str += (
+                f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
+            )
 
         return (
             prefix
@@ -1131,7 +1131,7 @@ class Grid:
         Nodes are in counter-clockwise order.
         """
 
-        if self._ds["face_node_connectivity"].values.ndim == 1:
+        if self._ds["face_node_connectivity"].ndim == 1:
             face_node_connectivity_1d = self._ds["face_node_connectivity"].values
             face_node_connectivity_2d = np.expand_dims(
                 face_node_connectivity_1d, axis=0
@@ -1409,9 +1409,7 @@ class Grid:
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
-
             _populate_bounds(self)
-
         return self._ds["bounds"]
 
     @bounds.setter
@@ -1443,6 +1441,7 @@ class Grid:
     @property
     def face_bounds_lat(self):
         """Latitude bounds for each face in degrees."""
+
         if "face_bounds_lat" not in self._ds:
             bounds = self.bounds.values
             bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
@@ -2415,3 +2414,35 @@ class Grid:
 
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
+
+    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant longitude.
+
+        Parameters
+        ----------
+        lons: Tuple[float, float]
+            A tuple of longitudes that define that minimum and maximum longitude.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant longitude.
+
+        """
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+
+    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant latitude.
+
+        Parameters
+        ----------
+        lats: Tuple[float, float
+            A tuple of latitudes that define that minimum and maximum latitudes.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant latitude.
+
+        """
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)

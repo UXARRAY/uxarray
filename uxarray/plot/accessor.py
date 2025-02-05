@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import cartopy.crs as ccrs
 import hvplot.pandas
+import hvplot.xarray
 import pandas as pd
 
 import uxarray.plot.dataarray_plot as dataarray_plot
@@ -549,6 +550,18 @@ class UxDataArrayPlotAccessor:
             size=size,
             **kwargs,
         )
+
+    def line(self, backend=None, *args, **kwargs):
+        """Wrapper for ``hvplot.line()``"""
+        uxarray.plot.utils.backend.assign(backend)
+        da = self._uxda.to_xarray()
+        return da.hvplot.line(*args, **kwargs)
+
+    def scatter(self, backend=None, *args, **kwargs):
+        """Wrapper for ``hvplot.scatter()``"""
+        uxarray.plot.utils.backend.assign(backend)
+        da = self._uxda.to_xarray()
+        return da.hvplot.scatter(*args, **kwargs)
 
 
 class UxDatasetPlotAccessor:

@@ -332,6 +332,7 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
+    n_face = n_nodes_per_face.shape[0]
 
     for face_idx in prange(face_nodes.shape[0]):
         n_max_nodes = n_nodes_per_face[face_idx]
