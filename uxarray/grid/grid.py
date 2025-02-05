@@ -1154,7 +1154,7 @@ class Grid:
             "face_node_connectivity" not in self._ds
             and self.source_grid_spec == "HEALPix"
         ):
-            _populate_healpix_boundaries(self)
+            _populate_healpix_boundaries(self._ds)
 
         if self._ds["face_node_connectivity"].ndim == 1:
             face_node_connectivity_1d = self._ds["face_node_connectivity"].values
