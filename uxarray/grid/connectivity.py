@@ -146,13 +146,14 @@ def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
 
-    # padding to shape [n_face, n_max_face_nodes + 1]
-    closed = np.ones((n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
-
-    closed[:, :-1] = face_nodes.copy()
-
-    n_nodes_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
-
+    n_face, n_max_face_nodes = face_nodes.shape
+    n_nodes_per_face = np.empty(n_face, dtype=INT_DTYPE)
+    for i in range(n_face):
+        c = 0
+        for j in range(n_max_face_nodes):
+            if face_nodes[i, j] != INT_FILL_VALUE:
+                c += 1
+        n_nodes_per_face[i] = c
     return n_nodes_per_face
 
 
