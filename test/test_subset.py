@@ -24,14 +24,20 @@ def test_grid_face_isel():
     for grid_path in GRID_PATHS:
         grid = ux.open_grid(grid_path)
 
+        grid_contains_edge_node_conn = "edge_node_connectivity" in grid._ds
+
         face_indices = [0, 1, 2, 3, 4]
         for n_max_faces in range(1, len(face_indices)):
             grid_subset = grid.isel(n_face=face_indices[:n_max_faces])
             assert grid_subset.n_face == n_max_faces
+            if not grid_contains_edge_node_conn:
+                assert "edge_node_connectivity" not in grid_subset._ds
 
         face_indices = [0, 1, 2, grid.n_face]
         with pytest.raises(IndexError):
             grid_subset = grid.isel(n_face=face_indices)
+            if not grid_contains_edge_node_conn:
+                assert "edge_node_connectivity" not in grid_subset._ds
 
 
 def test_grid_node_isel():
