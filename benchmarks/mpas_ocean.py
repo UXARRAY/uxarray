@@ -194,6 +194,28 @@ class CrossSections(DatasetBenchmark):
             self.uxgrid.cross_section.constant_latitude(lat)
 
 
+class PointInPolygon:
+    param_names = ['resolution']
+    params = ['480km', '120km']
+
+    def setup(self, resolution):
+        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid.normalize_cartesian_coordinates()
+
+        _ = self.uxgrid.face_edge_connectivity
+
+        point = np.array([0.0, 0.0, 1.0])
+        res = self.uxgrid.get_faces_containing_point(point)
+
+    def teardown(self, resolution):
+        del self.uxgrid
+
+    def time_whole_grid(self, resolution):
+        point_xyz = np.array([self.uxgrid.face_x[0].values, self.uxgrid.face_y[0].values, self.uxgrid.face_z[0].values])
+
+        self.uxgrid.get_faces_containing_point(point_xyz=point_xyz)
+
+
 class ZonalAverage(DatasetBenchmark):
     def setup(self, resolution, *args, **kwargs):
         self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
