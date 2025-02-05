@@ -153,6 +153,10 @@ class UxDataArray(xr.DataArray):
         else:
             return None
 
+    def to_healpix(self):
+        # TODO:
+        pass
+
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
