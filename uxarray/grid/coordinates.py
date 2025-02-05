@@ -328,23 +328,25 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     tuple
         The x, y, and z coordinates of the centroids.
     """
+
     centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
-    n_face = n_nodes_per_face.shape[0]
 
-    for i_face in prange(n_face):
-        n_max_nodes = n_nodes_per_face[i_face]
+    for face_idx in prange(face_nodes.shape[0]):
+        n_max_nodes = n_nodes_per_face[face_idx]
+        # Compute Cartesian Average
+        x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
 
-        x = np.mean(node_x[face_nodes[i_face, 0:n_max_nodes]])
-        y = np.mean(node_y[face_nodes[i_face, 0:n_max_nodes]])
-        z = np.mean(node_z[face_nodes[i_face, 0:n_max_nodes]])
-
+        # Normalize coordinates
         x, y, z = _normalize_xyz_scalar(x, y, z)
+        # Store coordinates
+        centroid_x[face_idx] = x
+        centroid_y[face_idx] = y
+        centroid_z[face_idx] = z
 
-        centroid_x[i_face] = x
-        centroid_y[i_face] = y
-        centroid_z[i_face] = z
     return centroid_x, centroid_y, centroid_z
 
 
