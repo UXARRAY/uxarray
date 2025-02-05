@@ -1570,7 +1570,7 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def point_in_face(
     edges_xyz,
     point_xyz,
@@ -1651,7 +1651,7 @@ def point_in_face(
     return intersection_count % 2 == 1
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
     """Finds the faces that contain a given point, inside a subset `face_edge_cartesian`
     Parameters
@@ -1672,17 +1672,17 @@ def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
     index = []
 
     # Run for each face in the subset
-    for ind in inverse_indices:
+    for i, face in enumerate(inverse_indices):
         # Check to see if the face contains the point
         contains_point = point_in_face(
-            face_edge_cartesian[ind],
+            face_edge_cartesian[i],
             point_xyz,
             inclusive=True,
         )
 
         # If the point is found, add it to the index array
         if contains_point:
-            index.append(ind)
+            index.append(face)
 
     # Return the index array
     return index
@@ -1717,7 +1717,7 @@ def _populate_max_face_radius(self):
     return max_distance
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def calculate_max_face_radius(
     face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
 ):
@@ -1766,7 +1766,7 @@ def calculate_max_face_radius(
     return np.max(end_distances)
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def haversine_distance(lon_a, lat_a, lon_b, lat_b):
     """Calculates the haversine distance between two points.
 

@@ -822,3 +822,18 @@ def test_point_types():
     # Test both points find faces
     assert len(grid.get_faces_containing_point(point_xyz)) != 0
     assert len(grid.get_faces_containing_point(point_lonlat)) !=0
+
+def test_point_along_arc():
+    node_lon = np.array([-40, -40, 40, 40])
+    node_lat = np.array([-20, 20, 20, -20])
+    face_node_connectivity = np.array([[0, 1, 2, 3]], dtype=np.int64)
+
+    uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+
+    # point at exactly 20 degrees latitude
+    out1 = uxgrid.get_faces_containing_point((0, 20))
+
+    # point at 25.41 degrees latitude (max along the great circle arc)
+    out2 = uxgrid.get_faces_containing_point((0, 25.41))
+
+    nt.assert_array_equal(out1, out2)

@@ -1556,25 +1556,6 @@ class Grid:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
 
-    @property
-    def face_edge_nodes_xyz(self):
-        if "face_edge_nodes_xyz" not in self._ds:
-            # Normalize the grid to ensure consistency
-            self.normalize_cartesian_coordinates()
-            face_edge = _get_cartesian_face_edge_nodes(
-                self.face_node_connectivity.values,
-                self.n_face,
-                self.n_max_face_nodes,
-                self.node_x.values,
-                self.node_y.values,
-                self.node_z.values,
-            )
-            self._ds["face_edge_nodes_xyz"] = (
-                [self.n_face, self.n_max_face_edges, 2, 3],
-                face_edge,
-            )
-        return self._ds["face_edge_nodes_xyz"]
-
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.
@@ -2492,6 +2473,9 @@ class Grid:
             Array of the face indices containing point. Empty if no face is found
 
         """
+
+        # point = np.asarray(point, dtype=np.float64)
+
         # Depending on the point coordinates, convert to the coordinate system needed
         if len(point) == 2:
             point_xyz = np.array(_lonlat_rad_to_xyz(*np.deg2rad(point)))
@@ -2504,9 +2488,8 @@ class Grid:
                 "Point must either be in spherical or cartesian coordinates."
             )
 
-        # Get the maximum face radius of the grid
-        _ = self.face_edge_nodes_xyz
-        max_face_radius = self.max_face_radius.values
+        # Get the maximum face radius of the grid, plus a small adjustment for if the point is this exact radius away
+        max_face_radius = self.max_face_radius.values + 0.0001
 
         # Try to find a subset in which the point resides
         try:
@@ -2522,7 +2505,14 @@ class Grid:
             return []
 
         # Get the faces in terms of their edges
-        face_edge_nodes_xyz = subset.face_edge_nodes_xyz.values
+        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
+            subset.face_node_connectivity.values,
+            subset.n_face,
+            subset.n_max_face_nodes,
+            subset.node_x.values,
+            subset.node_y.values,
+            subset.node_z.values,
+        )
 
         # Get the original face indices from the subset
         inverse_indices = subset.inverse_indices.face.values
