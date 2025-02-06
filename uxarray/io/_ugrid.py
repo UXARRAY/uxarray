@@ -172,7 +172,8 @@ def _standardize_connectivity(ds, conn_name):
             fill_value_indices = new_conn != INT_FILL_VALUE
 
             # Compute the minimum start_index from non-fill values
-            start_index = new_conn.where(fill_value_indices).min().item()
+            start_index = new_conn.where(fill_value_indices).min()
+            # .item()
 
             # Convert start_index to the desired integer dtype
             start_index = INT_DTYPE(start_index)

@@ -3,6 +3,7 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
+
 from uxarray.conventions import ugrid
 
 
@@ -85,15 +86,15 @@ def _read_esmf(in_ds):
         attrs=ugrid.N_NODES_PER_FACE_ATTRS,
     )
 
-    if "start_index" in in_ds["elementConn"]:
+    if "start_index" in in_ds["elementConn"].attrs:
         start_index = in_ds["elementConn"].start_index
     else:
         # assume start index is 1 if one is not provided
         start_index = 1
 
-    face_node_connectivity = in_ds["elementConn"].astype(INT_DTYPE)
+    face_node_connectivity = in_ds["elementConn"].values.astype(INT_DTYPE)
 
-    for i, max_nodes in enumerate(n_nodes_per_face):
+    for i, max_nodes in enumerate(n_nodes_per_face.values):
         # convert to zero index and standardize fill values
         face_node_connectivity[i, 0:max_nodes] -= start_index
         face_node_connectivity[i, max_nodes:] = INT_FILL_VALUE

@@ -1826,14 +1826,14 @@ class Grid:
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
         if latlon:
-            x = self.node_lon.data
-            y = self.node_lat.data
+            x = self.node_lon.values
+            y = self.node_lat.values
             z = np.zeros((self.n_node))
             coords_type = "spherical"
         else:
-            x = self.node_x.data
-            y = self.node_y.data
-            z = self.node_z.data
+            x = self.node_x.values
+            y = self.node_y.values
+            z = self.node_z.values
             coords_type = "cartesian"
 
         dim = 2
