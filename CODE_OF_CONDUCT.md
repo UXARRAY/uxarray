@@ -4,13 +4,9 @@
 
 We, as members, contributors, creators, stewards, and maintainers, i.e. all the
 participants, of UXarray pledge to make participation in our software, system
-or hardware project and community a safe, healthy, open, productive, welcoming,
-diverse, inclusive, and harassment-free experience for everyone, regardless of
-age, body size, visible or invisible disability, ethnicity, sex characteristics,
-gender identity and expression, level of experience, education, socio-economic
-status, nationality, personal appearance, race, caste, color, religion, or
-sexual identity and orientation, as well as any other characteristic protected
-under applicable US federal or state law.
+or hardware project and community a safe, healthy, open, productive, and
+harassment-free experience for everyone, protected under applicable US federal
+or state law.
 
 All participants are required to abide by this Code of Conduct.
 
@@ -32,9 +28,8 @@ include:
 
 Examples of unacceptable behavior include, but are not limited to:
 
-- Public or private harassment, intimidation, or discrimination in any form
-- Physical, verbal, or written abuse by anyone to anyone, including repeated
-  use of pronouns other than those requested
+- Public or private harassment or intimidation in any form
+- Physical, verbal, or written abuse by anyone to anyone
 - The use of sexualized language or imagery, and sexual attention or advances
   of any kind
 - Personal attacks directed at other guests, members, participants, etc.
@@ -124,7 +119,7 @@ Violating these terms may lead to a permanent ban.
 
 **Community Impact**: Demonstrating a pattern of violation of community
 standards, including sustained inappropriate behavior, harassment of an
-individual, or aggression toward or disparagement of classes of individuals.
+individual, or aggression toward or disparagement of individuals.
 
 **Consequence**: A permanent ban from any sort of public interaction within the
 community.

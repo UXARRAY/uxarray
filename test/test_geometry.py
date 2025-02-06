@@ -9,9 +9,14 @@ from pathlib import Path
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 import uxarray.utils.computing as ac_utils
+
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad, \
     _xyz_to_lonlat_deg, _xyz_to_lonlat_rad_scalar
 from uxarray.grid.arcs import extreme_gca_latitude, _extreme_gca_latitude_cartesian
+
+from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
+from uxarray.grid.arcs import extreme_gca_latitude, extreme_gca_z
+
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
 
 from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, \
@@ -320,13 +325,13 @@ def test_extreme_gca_latitude_max():
         _normalize_xyz(*[-0.5, 0.5, 0.5])
     ])
 
-    max_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'max')
-    expected_max_latitude = _max_latitude_rad_iterative(gca_cart)
+    max_latitude = extreme_gca_z(gca_cart, 'max')
+    expected_max_latitude = np.cos(_max_latitude_rad_iterative(gca_cart))
     assert np.isclose(max_latitude, expected_max_latitude, atol=ERROR_TOLERANCE)
 
     gca_cart = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
-    max_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'max')
-    expected_max_latitude = np.pi / 2  # 90 degrees in radians
+    max_latitude = extreme_gca_z(gca_cart, 'max')
+    expected_max_latitude = 1.0
     assert np.isclose(max_latitude, expected_max_latitude, atol=ERROR_TOLERANCE)
 
 
@@ -335,7 +340,7 @@ def test_extreme_gca_latitude_max_short():
     gca_cart = np.array([[0.65465367, -0.37796447, -0.65465367], [0.6652466, -0.33896007, -0.6652466]])
 
     # Calculate the maximum latitude
-    max_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'max')
+    max_latitude = np.asin(extreme_gca_z(gca_cart, 'max'))
 
     # Check if the maximum latitude is correct
     expected_max_latitude = _max_latitude_rad_iterative(gca_cart)
@@ -350,13 +355,13 @@ def test_extreme_gca_latitude_min():
         _normalize_xyz(*[-0.5, 0.5, -0.5])
     ])
 
-    min_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'min')
+    min_latitude = np.asin(extreme_gca_z(gca_cart, 'min'))
     expected_min_latitude = _min_latitude_rad_iterative(gca_cart)
     assert np.isclose(min_latitude, expected_min_latitude, atol=ERROR_TOLERANCE)
 
     gca_cart = np.array([[0.0, 0.0, -1.0], [1.0, 0.0, 0.0]])
-    min_latitude = _extreme_gca_latitude_cartesian(gca_cart, 'min')
-    expected_min_latitude = -np.pi / 2  # 90 degrees in radians
+    min_latitude = np.asin(extreme_gca_z(gca_cart, 'min'))
+    expected_min_latitude = -np.pi / 2
     assert np.isclose(min_latitude, expected_min_latitude, atol=ERROR_TOLERANCE)
 
 
@@ -462,9 +467,9 @@ def test_populate_bounds_normal_latlon_bounds_gca():
     vertices_rad = np.radians(vertices_lonlat)
     vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
     lat_max = max(np.deg2rad(60.0),
-                  _extreme_gca_latitude_cartesian(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
+                  np.asin(extreme_gca_z(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max")))
     lat_min = min(np.deg2rad(10.0),
-                  _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                  np.asin(extreme_gca_z(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min")))
     lon_min = np.deg2rad(10.0)
     lon_max = np.deg2rad(50.0)
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -490,9 +495,9 @@ def test_populate_bounds_antimeridian_latlon_bounds_gca():
     vertices_rad = np.radians(vertices_lonlat)
     vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
     lat_max = max(np.deg2rad(60.0),
-                  _extreme_gca_latitude_cartesian(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max"))
+                  np.asin(extreme_gca_z(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max")))
     lat_min = min(np.deg2rad(10.0),
-                  _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                  np.asin(extreme_gca_z(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min")))
     lon_min = np.deg2rad(350.0)
     lon_max = np.deg2rad(50.0)
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -607,7 +612,7 @@ def test_populate_bounds_node_on_pole_latlon_bounds_gca():
     vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
     lat_max = np.pi / 2
     lat_min = min(np.deg2rad(10.0),
-                  _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                  np.asin(extreme_gca_z(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min")))
     lon_min = np.deg2rad(10.0)
     lon_max = np.deg2rad(50.0)
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -634,7 +639,7 @@ def test_populate_bounds_edge_over_pole_latlon_bounds_gca():
     vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
     lat_max = np.pi / 2
     lat_min = min(np.deg2rad(60.0),
-                  _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                  np.asin(extreme_gca_z(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min")))
     lon_min = np.deg2rad(210.0)
     lon_max = np.deg2rad(30.0)
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
@@ -661,7 +666,7 @@ def test_populate_bounds_pole_inside_latlon_bounds_gca():
     vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
     lat_max = np.pi / 2
     lat_min = min(np.deg2rad(60.0),
-                  _extreme_gca_latitude_cartesian(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min"))
+                  np.asin(extreme_gca_z(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min")))
     lon_min = 0
     lon_max = 2 * np.pi
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)

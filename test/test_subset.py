@@ -24,14 +24,20 @@ def test_grid_face_isel():
     for grid_path in GRID_PATHS:
         grid = ux.open_grid(grid_path)
 
+        grid_contains_edge_node_conn = "edge_node_connectivity" in grid._ds
+
         face_indices = [0, 1, 2, 3, 4]
         for n_max_faces in range(1, len(face_indices)):
             grid_subset = grid.isel(n_face=face_indices[:n_max_faces])
             assert grid_subset.n_face == n_max_faces
+            if not grid_contains_edge_node_conn:
+                assert "edge_node_connectivity" not in grid_subset._ds
 
         face_indices = [0, 1, 2, grid.n_face]
         with pytest.raises(IndexError):
             grid_subset = grid.isel(n_face=face_indices)
+            if not grid_contains_edge_node_conn:
+                assert "edge_node_connectivity" not in grid_subset._ds
 
 
 def test_grid_node_isel():
@@ -97,11 +103,10 @@ def test_grid_bounding_box_subset():
             grid = ux.open_grid(grid_path)
 
             grid_subset = grid.subset.bounding_box(bbox[0],
-                                                   bbox[1],
-                                                   element=element)
+                                                   bbox[1],)
 
             grid_subset_antimeridian = grid.subset.bounding_box(
-                bbox_antimeridian[0], bbox_antimeridian[1], element=element)
+                bbox_antimeridian[0], bbox_antimeridian[1])
 
 
 def test_uxda_isel():
@@ -132,7 +137,7 @@ def test_inverse_indices():
 
     # Test bounding box subsetting
     box = [(-10, 10), (-10, 10)]
-    subset = grid.subset.bounding_box(box[0], box[1], element="face centers", inverse_indices=True)
+    subset = grid.subset.bounding_box(box[0], box[1], inverse_indices=True)
 
     assert subset.inverse_indices is not None
 
