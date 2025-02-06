@@ -76,8 +76,8 @@ class TestZonalCSne30:
         data_path = self.datafile_vortex_ne30
         uxds = ux.open_dataset(grid_path, data_path)
 
-        za_1 = uxds['psi'].zonal_mean((-90, 90, 1), use_robust_weights=True)
-        za_2 = uxds['psi'].zonal_mean((-90, 90, 1), use_robust_weights=False)
+        za_1 = uxds['psi'].zonal_mean((-90, 90, 30), use_robust_weights=True)
+        za_2 = uxds['psi'].zonal_mean((-90, 90, 30), use_robust_weights=False)
 
         nt.assert_almost_equal(za_1.data, za_2.data)
 
