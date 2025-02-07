@@ -159,9 +159,6 @@ class GridCrossSectionAccessor:
         else:
             return grid_at_constant_lon
 
-    def gca(self, *args, **kwargs):
-        raise NotImplementedError
-
     def constant_latitude_interval(
         self,
         lats: Tuple[float, float],
@@ -284,6 +281,3 @@ class GridCrossSectionAccessor:
             return grid_between_lons, faces
         else:
             return grid_between_lons
-
-    def gca_gca(self, *args, **kwargs):
-        raise NotImplementedError
