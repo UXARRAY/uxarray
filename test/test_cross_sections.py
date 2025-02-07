@@ -10,9 +10,30 @@ import numpy.testing as nt
 current_path = Path(__file__).resolve().parent
 quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'grid.nc'
 quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
+quad_hex_node_data = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'random-node-data.nc'
 cube_sphere_grid = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 
 from uxarray.grid.intersections import constant_lat_intersections_face_bounds
+
+
+def test_repr():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+    # grid repr
+    grid_repr = uxds.uxgrid.cross_section.__repr__()
+    assert "constant_latitude" in grid_repr
+    assert "constant_longitude" in grid_repr
+    assert "constant_latitude_interval" in grid_repr
+    assert "constant_longitude_interval" in grid_repr
+
+    # data array repr
+    da_repr = uxds['t2m'].cross_section.__repr__()
+    assert "constant_latitude" in da_repr
+    assert "constant_longitude" in da_repr
+    assert "constant_latitude_interval" in da_repr
+    assert "constant_longitude_interval" in da_repr
+
+
 
 def test_constant_lat_cross_section_grid():
     uxgrid = ux.open_grid(quad_hex_grid_path)
@@ -118,6 +139,24 @@ def test_constant_lat_out_of_bounds():
     )
 
     assert len(candidate_faces) == 0
+
+
+
+def test_const_lat_interval():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+    uxds.uxgrid.normalize_cartesian_coordinates()
+
+    res = uxds['t2m'].cross_section.constant_latitude_interval(lats=(-10, 10))
+
+    assert len(res) == 4
+
+def test_const_lon_interval():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+    uxds.uxgrid.normalize_cartesian_coordinates()
+
+    res = uxds['t2m'].cross_section.constant_longitude_interval(lons=(-10, 10))
+
+    assert len(res) == 4
 
 
 class TestArcs:

@@ -19,6 +19,24 @@ DATA_PATHS = [
     current_path / "meshfiles" / "ugrid" / "outCSne30" / "var2.nc"
 ]
 
+quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'grid.nc'
+quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
+
+def test_repr():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+    # grid repr
+    grid_repr = uxds.uxgrid.subset.__repr__()
+    assert "bounding_box" in grid_repr
+    assert "bounding_circle" in grid_repr
+    assert "nearest_neighbor" in grid_repr
+
+    # data array repr
+    da_repr = uxds['t2m'].subset.__repr__()
+    assert "bounding_box" in da_repr
+    assert "bounding_circle" in da_repr
+    assert "nearest_neighbor" in da_repr
+
 
 def test_grid_face_isel():
     for grid_path in GRID_PATHS:

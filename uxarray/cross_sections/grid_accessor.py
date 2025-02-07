@@ -284,6 +284,3 @@ class GridCrossSectionAccessor:
             return grid_between_lons, faces
         else:
             return grid_between_lons
-
-    def gca_gca(self, *args, **kwargs):
-        raise NotImplementedError

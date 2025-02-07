@@ -215,9 +215,3 @@ class UxDataArrayCrossSectionAccessor:
         faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
 
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
-
-    def gca(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def gca_gca(self, *args, **kwargs):
-        raise NotImplementedError
