@@ -142,7 +142,7 @@ def test_constant_lat_out_of_bounds():
 
 
 
-def test_const_lat_interval():
+def test_const_lat_interval_da():
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
 
@@ -150,13 +150,37 @@ def test_const_lat_interval():
 
     assert len(res) == 4
 
-def test_const_lon_interval():
+
+def test_const_lat_interval_grid():
+    uxgrid = ux.open_grid(quad_hex_grid_path)
+
+    res = uxgrid.cross_section.constant_latitude_interval(lats=(-10, 10))
+
+    assert res.n_face == 4
+
+    res, indices = uxgrid.cross_section.constant_latitude_interval(lats=(-10, 10), return_face_indices=True)
+
+    assert len(indices) == 4
+
+def test_const_lon_interva_da():
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
 
     res = uxds['t2m'].cross_section.constant_longitude_interval(lons=(-10, 10))
 
     assert len(res) == 4
+
+
+def test_const_lon_interval_grid():
+    uxgrid = ux.open_grid(quad_hex_grid_path)
+
+    res = uxgrid.cross_section.constant_longitude_interval(lons=(-10, 10))
+
+    assert res.n_face == 4
+
+    res, indices = uxgrid.cross_section.constant_longitude_interval(lons=(-10, 10), return_face_indices=True)
+
+    assert len(indices) == 4
 
 
 class TestArcs:
