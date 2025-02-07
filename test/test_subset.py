@@ -173,3 +173,13 @@ def test_inverse_indices():
     # Test isel directly
     subset = grid.isel(n_face=[1], inverse_indices=True)
     assert subset.inverse_indices.face.values == 1
+
+
+def test_da_subset():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+    res1 = uxds['t2m'].subset.bounding_box(lon_bounds=(-10, 10), lat_bounds=(-10, 10))
+    res2 = uxds['t2m'].subset.bounding_circle(center_coord=(0,0), r=10)
+    res3 = uxds['t2m'].subset.nearest_neighbor(center_coord=(0, 0), k=4)
+
+    assert len(res1) == len(res2) == len(res3) == 4
