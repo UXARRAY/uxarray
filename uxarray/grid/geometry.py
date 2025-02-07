@@ -38,6 +38,10 @@ POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
     "South": np.array([0.0, 0.0, -1.0]),
 }
+
+REF_POINT_NORTH_XYZ = np.array([0.01745241, 0.0, 0.9998477], dtype=np.float64)
+REF_POINT_SOUTH_XYZ = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
+
 POLE_POINTS_LONLAT = {
     "North": np.array([0.0, np.pi / 2]),
     "South": np.array([0.0, -np.pi / 2]),
@@ -1609,11 +1613,11 @@ def point_in_face(
     location = _classify_polygon_location(edges_xyz)
 
     if location == 1:
-        ref_point_xyz = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
+        ref_point_xyz = REF_POINT_SOUTH_XYZ
     elif location == -1:
-        ref_point_xyz = np.array([0.01745241, 0.0, 0.9998477], dtype=np.float64)
+        ref_point_xyz = REF_POINT_NORTH_XYZ
     else:
-        ref_point_xyz = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
+        ref_point_xyz = REF_POINT_SOUTH_XYZ
 
     # Initialize the points arc between the point and the reference point
     gca_cart = np.empty((2, 3), dtype=np.float64)

@@ -2461,7 +2461,7 @@ class Grid:
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
     def get_faces_containing_point(self, point):
-        """Gets the indexes of the faces that contain a specific point
+        """Identifies the indices of faces that contain a given point.
         Parameters
         ----------
         point : numpy.ndarray
@@ -2518,6 +2518,6 @@ class Grid:
         inverse_indices = subset.inverse_indices.face.values
 
         # Check if any of the faces in the subset contain the point
-        index = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
+        face_indices = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
 
-        return index
+        return face_indices
