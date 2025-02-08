@@ -48,14 +48,22 @@ def test_calculate_face_area():
     """Test function for helper function calculate_face_area - only one face."""
     # Note: currently only testing one face, but this can be used to get area of multiple faces
     # Also note, this does not need face_nodes, assumes nodes are in counterclockwise orientation
-    x = np.array([0.57735027, 0.57735027, -0.57735027])
-    y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
-    z = np.array([-0.57735027, -0.57735027, -0.57735027])
+    # Cartesian coordinates (x, y, z) for each city
+    # Index 0: Chicago, Index 1: Tempe, Index 2: Newburgh, New York, USA.
+
+    x = np.array([0.0303, -0.3183,  0.2055])
+    y = np.array([-0.7443, -0.7712, -0.7162])
+    z = np.array([0.6670,  0.5510,  0.6670])
 
     area, jacobian = ux.grid.area.calculate_face_area(
-        x, y, z, "gaussian", 5, "cartesian")
+        x, y, z, "gaussian", 5, "cartesian", correct_area=False)
 
     nt.assert_almost_equal(area, constants.TRI_AREA, decimal=3)
+
+    area_corrected, jacobian = ux.grid.area.calculate_face_area(
+        x, y, z, "gaussian", 5, "cartesian", correct_area=True)
+
+    nt.assert_almost_equal(area_corrected, constants.CORRECTED_TRI_AREA, decimal=3)
 
 def test_quadrature():
     order = 1
