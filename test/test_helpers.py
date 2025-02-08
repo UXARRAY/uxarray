@@ -32,9 +32,9 @@ err_tolerance = 1.0e-12
 def test_face_area_coords():
     """Test function for helper function get_all_face_area_from_coords."""
     # Note: currently only testing one face, but this can be used to get area of multiple faces
-    x = np.array([0.57735027, 0.57735027, -0.57735027])
-    y = np.array([-5.77350269e-01, 5.77350269e-01, 5.77350269e-01])
-    z = np.array([-0.57735027, -0.57735027, -0.57735027])
+    x = np.array([0.0303, -0.3183,  0.2055])
+    y = np.array([-0.7443, -0.7712, -0.7162])
+    z = np.array([0.6670,  0.5510,  0.6670])
 
     face_nodes = np.array([[0, 1, 2]]).astype(INT_DTYPE)
     face_dimension = np.array([3], dtype=INT_DTYPE)

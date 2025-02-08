@@ -257,9 +257,13 @@ def test_operators_ne():
 
 def test_face_areas_calculate_total_face_area_triangle():
     """Create a uxarray grid from vertices and saves an exodus file."""
-    verts = [[[0.57735027, -5.77350269e-01, -0.57735027],
-              [0.57735027, 5.77350269e-01, -0.57735027],
-              [-0.57735027, 5.77350269e-01, -0.57735027]]]
+    verts = [
+        [
+            [0.0303, -0.7443, 0.6670],
+            [-0.3183, -0.7712, 0.5510],
+            [0.2055, -0.7162, 0.6670],
+        ]
+    ]
 
     grid_verts = ux.open_grid(verts, latlon=False)
 
