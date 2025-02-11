@@ -140,7 +140,6 @@ def calculate_face_area(
                 else:
                     hemisphere = "Southern"
                 if hemisphere != "":
-                    print("Edge is in the ", hemisphere, " hemisphere.")
                     # Check if the edge goes from higher to lower longitude
                     # Convert Cartesian coordinates to longitude
                     lon1 = np.arctan2(node1[1], node1[0])
