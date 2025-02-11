@@ -41,6 +41,9 @@ def calculate_face_area(
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
 
+    correct_area : bool, optional
+        If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
+
     Returns
     -------
     area : double
@@ -160,7 +163,6 @@ def calculate_face_area(
                     ):
                         correction = -correction
 
-
                 total_correction += correction
 
     if total_correction != 0.0:
@@ -244,9 +246,12 @@ def get_all_face_area_from_coords(
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
 
+    correct_area : bool, optional
+        If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
+
     Returns
     -------
-    area of all faces : ndarray
+    area and jacobian of all faces : ndarray, ndarray
     """
     # this casting helps to prevent the type mismatch
     x = np.asarray(x, dtype=np.float64)
