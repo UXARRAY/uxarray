@@ -218,8 +218,8 @@ def _read_fesom2_netcdf(in_ds):
     source_dims_dict = {"ncells": "n_face"}
     ugrid_ds = xr.Dataset()
 
-    node_lon = in_ds["lon"].data
-    node_lat = in_ds["lat"].data
+    node_lon = in_ds["lon"]
+    node_lat = in_ds["lat"]
 
     ugrid_ds["node_lon"] = xr.DataArray(
         data=node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
@@ -228,7 +228,7 @@ def _read_fesom2_netcdf(in_ds):
         data=node_lat, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LAT_ATTRS
     )
 
-    face_node_connectivity = in_ds["triag_nodes"].data - 1
+    face_node_connectivity = in_ds["triag_nodes"] - 1
 
     ugrid_ds["face_node_connectivity"] = xr.DataArray(
         data=face_node_connectivity,

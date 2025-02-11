@@ -73,6 +73,9 @@ def test_add_fill_values():
     nEdgesOnCell = np.array([2, 3, 2])
     gold_output = np.array([[0, 1, fv, fv], [2, 3, 4, fv], [5, 6, fv, fv]], dtype=INT_DTYPE)
 
+    verticesOnCell = xr.DataArray(data=verticesOnCell, dims=['n_face', 'n_max_face_nodes'])
+    nEdgesOnCell = xr.DataArray(data=nEdgesOnCell, dims=['n_face'])
+
     verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
     verticesOnCell = _replace_zeros(verticesOnCell)
     verticesOnCell = _to_zero_index(verticesOnCell)
