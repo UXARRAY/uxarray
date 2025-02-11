@@ -160,14 +160,6 @@ def calculate_face_area(
                     ):
                         correction = -correction
 
-                print(
-                    "For Node 1",
-                    node1,
-                    "\n and Node 2",
-                    node2,
-                    "\nCORRECTION",
-                    correction,
-                )
 
                 total_correction += correction
 
