@@ -166,7 +166,6 @@ def calculate_face_area(
     if total_correction != 0.0:
         print("AREA Before Correction", area)
         area += total_correction
-        print("AREA After Correction", area)
 
     return area, jacobian
 
