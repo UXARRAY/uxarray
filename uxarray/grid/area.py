@@ -121,11 +121,14 @@ def calculate_face_area(
             )
             # Check if z-coordinates are approximately equal
             if np.isclose(node1[2], node2[2]):
+                if node1[2] == 0:
+                    # check if z-coordinates are 0 - Equator
+                    continue
                 # Check if the edge passes through a pole
                 passes_through_pole = edge_passes_through_pole(node1, node2)
-                print("Check if edge passes through pole: ", passes_through_pole)
 
                 if passes_through_pole:
+                    print("Edge passes through pole! :", passes_through_pole)
                     # Skip the edge if it passes through a pole
                     continue
                 else:
@@ -155,27 +158,25 @@ def calculate_face_area(
                         lon_diff += 2 * np.pi
 
                     # Check if the longitude is increasing
-                    if lon_diff > 0 and hemisphere == "Northern":
-                        correction = -correction
-                    elif lon_diff < 0 and hemisphere == "Southern":
+                    if (lon_diff > 0 and hemisphere == "Northern") or (
+                        lon_diff < 0 and hemisphere == "Southern"
+                    ):
                         correction = -correction
 
                 print(
-                    "For Node 1 ",
+                    "For Node 1",
                     node1,
                     "\n and Node 2",
                     node2,
                     "\nCORRECTION",
                     correction,
                 )
+
                 total_correction += correction
 
     if total_correction != 0.0:
         print("AREA Before Correction", area)
-
-    area += total_correction
-
-    if total_correction != 0.0:
+        area += total_correction
         print("AREA After Correction", area)
 
     return area, jacobian
@@ -305,39 +306,21 @@ def area_correction(node1, node2):
     Returns:
     - A: correction term of the area, when one of the edges is a line of constant latitude
     """
-    x1 = node1[0]
-    y1 = node1[1]
-    x2 = node2[0]
-    y2 = node2[1]
-    z = node1[2]
+    x1, y1, z = node1
+    x2, y2, _ = node2
 
     # Calculate terms
     term1 = x1 * y2 - x2 * y1
     den1 = x1**2 + y1**2 + x1 * x2 + y1 * y2
     den2 = x1 * x2 + y1 * y2
 
-    # Helper function to handle arctan quadrants
-    def arctan_quad(y, x):
-        if x > 0:
-            return np.arctan(y / x)
-        elif x < 0 and y >= 0:
-            return np.arctan(y / x) + np.pi
-        elif x < 0 and y < 0:
-            return np.arctan(y / x) - np.pi
-        elif x == 0 and y > 0:
-            return np.pi / 2
-        elif x == 0 and y < 0:
-            return -np.pi / 2
-        else:
-            return 0  # x == 0 and y == 0 case
-
-    # Compute angles using arctan
-    angle1 = arctan_quad(z * term1, den1)
-    angle2 = arctan_quad(term1, den2)
+    # Compute angles using arctan2
+    angle1 = np.arctan2(z * term1, den1)
+    angle2 = np.arctan2(term1, den2)
 
     # Compute A
-    A = abs(2 * angle1 - z * angle2)
-    print(x1, y1, x2, y2, z, "correction:", A)
+    A = np.abs(2 * angle1 - z * angle2)
+
     return A
 
 
