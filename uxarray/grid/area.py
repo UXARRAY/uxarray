@@ -133,7 +133,6 @@ def calculate_face_area(
                 else:
                     # Calculate the correction term
                     correction = area_correction(node1, node2)
-                    print("\n\ncalculated correction: ", correction)
                 # Check if the edge is in the northern or southern hemisphere
                 hemisphere = ""
                 if node1[2] > 0 and node2[2] > 0:
