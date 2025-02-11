@@ -128,7 +128,6 @@ def calculate_face_area(
                 passes_through_pole = edge_passes_through_pole(node1, node2)
 
                 if passes_through_pole:
-                    print("Edge passes through pole! :", passes_through_pole)
                     # Skip the edge if it passes through a pole
                     continue
                 else:
