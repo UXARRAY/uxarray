@@ -7,7 +7,13 @@ from numba import njit
 
 @njit(cache=True)
 def calculate_face_area(
-    x, y, z, quadrature_rule="gaussian", order=4, coords_type="spherical"
+    x,
+    y,
+    z,
+    quadrature_rule="gaussian",
+    order=4,
+    coords_type="spherical",
+    correct_area=False,
 ):
     """Calculate area of a face on sphere.
 
@@ -35,6 +41,9 @@ def calculate_face_area(
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
 
+    correct_area : bool, optional
+        If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
+
     Returns
     -------
     area : double
@@ -56,22 +65,29 @@ def calculate_face_area(
     # num triangles is two less than the total number of nodes
     num_triangles = num_nodes - 2
 
+    if coords_type == "spherical":
+        # Preallocate arrays for Cartesian coordinates
+        n_points = len(x)
+        x_cartesian = np.empty(n_points)
+        y_cartesian = np.empty(n_points)
+        z_cartesian = np.empty(n_points)
+
+        # Convert all points to Cartesian coordinates using an explicit loop
+        for i in range(n_points):
+            lon_rad = np.deg2rad(x[i])
+            lat_rad = np.deg2rad(y[i])
+            cartesian = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+            x_cartesian[i], y_cartesian[i], z_cartesian[i] = cartesian
+
+        x, y, z = x_cartesian, y_cartesian, z_cartesian
+
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
     # loop through all sub-triangles of face
+    total_correction = 0.0
     for j in range(0, num_triangles):
         node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
-
-        if coords_type == "spherical":
-            node1 = _lonlat_rad_to_xyz(np.deg2rad(x[0]), np.deg2rad(y[0]))
-            node1 = np.asarray(node1)
-
-            node2 = _lonlat_rad_to_xyz(np.deg2rad(x[j + 1]), np.deg2rad(y[j + 1]))
-            node2 = np.asarray(node2)
-
-            node3 = _lonlat_rad_to_xyz(np.deg2rad(x[j + 2]), np.deg2rad(y[j + 2]))
-            node3 = np.asarray(node3)
 
         for p in range(len(dW)):
             if quadrature_rule == "gaussian":
@@ -92,7 +108,99 @@ def calculate_face_area(
                 area += dW[p] * jacobian
                 jacobian += jacobian
 
+    # check if the any edge is on the line of constant latitude
+    # which means we need to check edges for same z-coordinates and call area correction routine
+    correction = 0.0
+    if correct_area:
+        for i in range(num_nodes):
+            node1 = np.array([x[i], y[i], z[i]], dtype=x.dtype)
+            node2 = np.array(
+                [
+                    x[(i + 1) % num_nodes],
+                    y[(i + 1) % num_nodes],
+                    z[(i + 1) % num_nodes],
+                ],
+                dtype=x.dtype,
+            )
+            # Check if z-coordinates are approximately equal
+            if np.isclose(node1[2], node2[2]):
+                if node1[2] == 0:
+                    # check if z-coordinates are 0 - Equator
+                    continue
+                # Check if the edge passes through a pole
+                passes_through_pole = edge_passes_through_pole(node1, node2)
+
+                if passes_through_pole:
+                    # Skip the edge if it passes through a pole
+                    continue
+                else:
+                    # Calculate the correction term
+                    correction = area_correction(node1, node2)
+                # Check if the edge is in the northern or southern hemisphere
+                hemisphere = ""
+                if node1[2] > 0 and node2[2] > 0:
+                    hemisphere = "Northern"
+                else:
+                    hemisphere = "Southern"
+                if hemisphere != "":
+                    # Check if the edge goes from higher to lower longitude
+                    # Convert Cartesian coordinates to longitude
+                    lon1 = np.arctan2(node1[1], node1[0])
+                    lon2 = np.arctan2(node2[1], node2[0])
+
+                    # Calculate the longitude difference in radians
+                    lon_diff = lon2 - lon1
+
+                    # Adjust for the case where longitude wraps around the 180° meridian
+                    if lon_diff > np.pi:
+                        lon_diff -= 2 * np.pi
+                    elif lon_diff < -np.pi:
+                        lon_diff += 2 * np.pi
+
+                    # Check if the longitude is increasing
+                    if (lon_diff > 0 and hemisphere == "Northern") or (
+                        lon_diff < 0 and hemisphere == "Southern"
+                    ):
+                        correction = -correction
+
+                total_correction += correction
+
+    if total_correction != 0.0:
+        print("AREA Before Correction", area)
+        area += total_correction
+
     return area, jacobian
+
+
+@njit(cache=True)
+def edge_passes_through_pole(node1, node2):
+    """
+    Check if the edge passes through a pole.
+
+    Parameters:
+    - node1: first node of the edge (normalized).
+    - node2: second node of the edge (normalized).
+
+    Returns:
+    - bool: True if the edge passes through a pole, False otherwise.
+    """
+    # Calculate the normal vector to the plane defined by the origin, node1, and node2
+    n = np.cross(node1, node2)
+
+    # Check for numerical stability issues with the normal vector
+    if np.allclose(n, 0):
+        # Handle cases where the cross product is near zero, such as when nodes are nearly identical or opposite
+        return False
+
+    # Normalize the normal vector
+    n = n / np.linalg.norm(n)
+
+    # North and South Pole vectors
+    p_north = np.array([0.0, 0.0, 1.0])
+    p_south = np.array([0.0, 0.0, -1.0])
+
+    # Check if the normal vector is orthogonal to either pole
+    return np.isclose(np.dot(n, p_north), 0) or np.isclose(np.dot(n, p_south), 0)
 
 
 @njit(cache=True)
@@ -106,6 +214,7 @@ def get_all_face_area_from_coords(
     quadrature_rule="triangular",
     order=4,
     coords_type="spherical",
+    correct_area=False,
 ):
     """Given coords, connectivity and other area calculation params, this
     routine loop over all faces and return an numpy array with areas of each
@@ -137,10 +246,17 @@ def get_all_face_area_from_coords(
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
 
+    correct_area : bool, optional
+        If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
+
     Returns
     -------
-    area of all faces : ndarray
+    area and jacobian of all faces : ndarray, ndarray
     """
+    # this casting helps to prevent the type mismatch
+    x = np.asarray(x, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+    z = np.asarray(z, dtype=np.float64)
 
     n_face, n_max_face_nodes = face_nodes.shape
 
@@ -161,13 +277,44 @@ def get_all_face_area_from_coords(
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area, face_jacobian = calculate_face_area(
-            face_x, face_y, face_z, quadrature_rule, order, coords_type
+            face_x, face_y, face_z, quadrature_rule, order, coords_type, correct_area
         )
         # store current face area
         area[face_idx] = face_area
         jacobian[face_idx] = face_jacobian
 
     return area, jacobian
+
+
+@njit(cache=True)
+def area_correction(node1, node2):
+    """
+    Calculate the area correction A using the given formula.
+
+    Parameters:
+    - node1: first node of the edge (normalized).
+    - node2: second node of the edge (normalized).
+    - z: z-coordinate (shared by both points and part of the formula, normalized).
+
+    Returns:
+    - A: correction term of the area, when one of the edges is a line of constant latitude
+    """
+    x1, y1, z = node1
+    x2, y2, _ = node2
+
+    # Calculate terms
+    term1 = x1 * y2 - x2 * y1
+    den1 = x1**2 + y1**2 + x1 * x2 + y1 * y2
+    den2 = x1 * x2 + y1 * y2
+
+    # Compute angles using arctan2
+    angle1 = np.arctan2(z * term1, den1)
+    angle2 = np.arctan2(term1, den2)
+
+    # Compute A
+    A = np.abs(2 * angle1 - z * angle2)
+
+    return A
 
 
 @njit(cache=True)

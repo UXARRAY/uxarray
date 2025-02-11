@@ -73,9 +73,7 @@ mathjax_config = {
     "SVG": {"linebreaks": {"automatic": True, "width": "container"}},
 }
 
-mathjax_path = (
-    "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
-)
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
