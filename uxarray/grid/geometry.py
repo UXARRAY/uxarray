@@ -1655,7 +1655,7 @@ def point_in_face(
     return intersection_count % 2 == 1
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
     """Finds the faces that contain a given point, inside a subset `face_edge_cartesian`
     Parameters
