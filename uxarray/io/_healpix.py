@@ -12,6 +12,29 @@ from uxarray.constants import INT_DTYPE
 def pix2corner_ang(
     nside: int, ipix: Any, nest: bool = False, lonlat: bool = False
 ) -> Tuple[Any, Any, Any, Any]:
+    """
+    Computes the corner coordinates for one or more HEALPix pixels.
+
+    Parameters
+    ----------
+    nside : int
+        HEALPix nside parameter.
+    ipix : Any
+        Pixel index or indices.
+    nest : bool, optional
+        If True, use nested pixel ordering; otherwise, use ring ordering. Default is False.
+    lonlat : bool, optional
+        If True, convert the angular coordinates to (longitude, latitude). Default is False.
+
+    Returns
+    -------
+    Tuple[Any, Any, Any, Any]
+        A tuple containing the corner coordinates for each pixel.
+
+    Note
+    ----
+    This will be updated when https://github.com/ntessore/healpix/issues/66 is implemented.
+    """
     if nest:
         fu = hp._chp.nest2ang_uv
     else:
@@ -30,6 +53,22 @@ def pix2corner_ang(
 
 
 def _pixels_to_ugrid(zoom, nest):
+    """
+    Constructs an xarray Dataset representing a HEALPix grid with face coordinates.
+
+    Parameters
+    ----------
+    zoom : int
+        HEALPix zoom level.
+    nest : bool
+        If True, use nested pixel ordering; if False, use ring ordering.
+
+    Returns
+    -------
+    xr.Dataset
+        A dataset containing pixel longitude and latitude coordinates along with related attributes.
+
+    """
     ds = xr.Dataset()
 
     nside = hp.order2nside(zoom)
@@ -52,6 +91,15 @@ def _pixels_to_ugrid(zoom, nest):
 
 
 def _populate_healpix_boundaries(ds):
+    """
+    Populates an xarray Dataset with HEALPix grid cell boundaries.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        A dataset representing a HEALPix grid in the UGRID conventions.
+
+    """
     # Get corners of all the pixels at once
 
     n_side = ds.attrs["n_side"]
