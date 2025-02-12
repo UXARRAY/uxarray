@@ -1,8 +1,14 @@
 import uxarray as ux
 import healpix as hp
 import pytest
-import numpy as np
+import os
+from pathlib import Path
 
+
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
+
+ds_path = current_path / "meshfiles" / "healpix" / "outCSne30" / "data.nc"
 
 
 @pytest.mark.parametrize("resolution_level", [1, 2, 3, 4])
@@ -26,3 +32,9 @@ def test_boundaries(resolution_level):
     assert "face_node_connectivity" in uxgrid.connectivity
     assert "node_lon" in uxgrid.coordinates
     assert "node_lat" in uxgrid.coordinates
+
+def test_dataset():
+    uxds = ux.UxDataset.from_healpix(ds_path)
+
+    assert uxds.uxgrid.source_grid_spec == "HEALPix"
+    assert "n_face" in uxds.dims
