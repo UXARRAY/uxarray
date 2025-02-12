@@ -1655,7 +1655,7 @@ def point_in_face(
     return intersection_count % 2 == 1
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
     """Finds the faces that contain a given point, inside a subset `face_edge_cartesian`
     Parameters
@@ -1673,23 +1673,34 @@ def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
         The index of the face that contains the point
     """
 
-    index = []
+    index = set()
 
     # Run for each face in the subset
     for i, face in enumerate(inverse_indices):
-        # Check to see if the face contains the point
-        contains_point = point_in_face(
+        lies_on_node = np.isclose(
             face_edge_cartesian[i],
-            point_xyz,
-            inclusive=True,
+            point_xyz[None, None, :],
+            rtol=ERROR_TOLERANCE,
+            atol=ERROR_TOLERANCE,
         )
 
-        # If the point is found, add it to the index array
-        if contains_point:
-            index.append(face)
+        # If any element in lies_on_node is True, add index to the set
+        if np.any(lies_on_node):
+            index.add(face)
+        else:
+            # Check to see if the face contains the point
+            contains_point = point_in_face(
+                face_edge_cartesian[i],
+                point_xyz,
+                inclusive=True,
+            )
+
+            # If the point is found, add it to the index array
+            if contains_point:
+                index.add(face)
 
     # Return the index array
-    return index
+    return np.array(list(index), dtype=np.int64)
 
 
 def _populate_max_face_radius(self):

@@ -2473,10 +2473,8 @@ class Grid:
             Array of the face indices containing point. Empty if no face is found
 
         """
-
-        # point = np.asarray(point, dtype=np.float64)
-
         # Depending on the point coordinates, convert to the coordinate system needed
+        point = np.asarray(point, dtype=np.float64)
         if len(point) == 2:
             point_xyz = np.array(_lonlat_rad_to_xyz(*np.deg2rad(point)))
             point_lonlat = point
