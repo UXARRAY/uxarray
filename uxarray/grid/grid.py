@@ -584,8 +584,22 @@ class Grid:
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
     @classmethod
-    def from_healpix(cls, resolution_level, nest=True, pixels_only=True):
-        grid_ds = _pixels_to_ugrid(resolution_level, nest)
+    def from_healpix(cls, zoom: int, pixels_only: bool = True, nest: bool = True):
+        """Constructs a ``Grid`` object representing a given HEALPix zoom level.
+
+        Parameters
+        ----------
+        zoom : int
+            Zoom level of HEALPix, with 12*zoom^4 representing the number of pixels (`n_face`)
+        pixels_only : bool
+            Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
+
+        Returns
+        -------
+        Grid
+            An instance of ``uxarray.Grid``
+        """
+        grid_ds = _pixels_to_ugrid(zoom, nest)
 
         if not pixels_only:
             _populate_healpix_boundaries(grid_ds)

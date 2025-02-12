@@ -29,10 +29,10 @@ def pix2corner_ang(
     return np.nan_to_num(corners, copy=False)
 
 
-def _pixels_to_ugrid(resolution_level, nest):
+def _pixels_to_ugrid(zoom, nest):
     ds = xr.Dataset()
 
-    nside = hp.order2nside(resolution_level)
+    nside = hp.order2nside(zoom)
     npix = hp.nside2npix(nside)
 
     hp_lon, hp_lat = hp.pix2ang(
@@ -43,7 +43,7 @@ def _pixels_to_ugrid(resolution_level, nest):
     ds["face_lon"] = xr.DataArray(hp_lon, dims=["n_face"], attrs=ugrid.FACE_LON_ATTRS)
     ds["face_lat"] = xr.DataArray(hp_lat, dims=["n_face"], attrs=ugrid.FACE_LAT_ATTRS)
 
-    ds = ds.assign_attrs({"resolution_level": resolution_level})
+    ds = ds.assign_attrs({"zoom": zoom})
     ds = ds.assign_attrs({"n_side": nside})
     ds = ds.assign_attrs({"n_pix": npix})
     ds = ds.assign_attrs({"nest": nest})
@@ -56,7 +56,7 @@ def _populate_healpix_boundaries(ds):
 
     n_side = ds.attrs["n_side"]
     n_pix = ds.attrs["n_pix"]
-    nest = ds.attrs["nest"]  # <-- Retrieve 'nest' from ds
+    nest = ds.attrs["nest"]
 
     # Pass 'nest' to pix2corner_ang!
     corners = pix2corner_ang(n_side, np.arange(n_pix), nest=nest, lonlat=True)
