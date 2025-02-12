@@ -437,7 +437,20 @@ class UxDataset(xr.Dataset):
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
-        """TODO:"""
+        """
+        Converts a ``ux.UXDataset`` to a ``xr.Dataset``.
+
+        Parameters
+        ----------
+        grid_format : str, default="UGRID"
+            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix". The dimensions will
+            match the selected grid format.
+
+        Returns
+        -------
+        xr.Dataset
+            The ``ux.UXDataset`` represented as a ``xr.Dataset``
+        """
         if grid_format == "HEALPix":
             ds = self.rename_dims({"n_face": "cell"})
             return xr.Dataset(ds)
