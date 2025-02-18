@@ -166,7 +166,6 @@ def calculate_face_area(
                 total_correction += correction
 
     if total_correction != 0.0:
-        print("AREA Before Correction", area)
         area += total_correction
 
     return area, jacobian
@@ -433,55 +432,45 @@ def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, dA, d
     -------
     jacobian : float
     """
+    # Calculate the position vector dF
+    dF = np.array([
+        dA * node1[0] + dB * node2[0] + (1.0 - dA - dB) * node3[0],
+        dA * node1[1] + dB * node2[1] + (1.0 - dA - dB) * node3[1],
+        dA * node1[2] + dB * node2[2] + (1.0 - dA - dB) * node3[2]
+    ])
 
-    dF = np.array(
-        [
-            dA * node1[0] + dB * node2[0] + (1.0 - dA - dB) * node3[0],
-            dA * node1[1] + dB * node2[1] + (1.0 - dA - dB) * node3[1],
-            dA * node1[2] + dB * node2[2] + (1.0 - dA - dB) * node3[2],
-        ]
-    )
-
+    # Calculate the gradients dDaF and dDbF
     dDaF = np.array([node1[0] - node3[0], node1[1] - node3[1], node1[2] - node3[2]])
-
     dDbF = np.array([node2[0] - node3[0], node2[1] - node3[1], node2[2] - node3[2]])
 
+    # Calculate the inverse radius
     dInvR = 1.0 / np.sqrt(dF[0] * dF[0] + dF[1] * dF[1] + dF[2] * dF[2])
 
-    dDaG = np.array(
-        [
-            dDaF[0] * (dF[1] * dF[1] + dF[2] * dF[2])
-            - dF[0] * (dDaF[1] * dF[1] + dDaF[2] * dF[2]),
-            dDaF[1] * (dF[0] * dF[0] + dF[2] * dF[2])
-            - dF[1] * (dDaF[0] * dF[0] + dDaF[2] * dF[2]),
-            dDaF[2] * (dF[0] * dF[0] + dF[1] * dF[1])
-            - dF[2] * (dDaF[0] * dF[0] + dDaF[1] * dF[1]),
-        ]
-    )
+    # Calculate the gradients dDaG and dDbG
+    dDaG = np.array([
+        dDaF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] * (dDaF[1] * dF[1] + dDaF[2] * dF[2]),
+        dDaF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] * (dDaF[0] * dF[0] + dDaF[2] * dF[2]),
+        dDaF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] * (dDaF[0] * dF[0] + dDaF[1] * dF[1])
+    ])
 
-    dDbG = np.array(
-        [
-            dDbF[0] * (dF[1] * dF[1] + dF[2] * dF[2])
-            - dF[0] * (dDbF[1] * dF[1] + dDbF[2] * dF[2]),
-            dDbF[1] * (dF[0] * dF[0] + dF[2] * dF[2])
-            - dF[1] * (dDbF[0] * dF[0] + dDbF[2] * dF[2]),
-            dDbF[2] * (dF[0] * dF[0] + dF[1] * dF[1])
-            - dF[2] * (dDbF[0] * dF[0] + dDbF[1] * dF[1]),
-        ]
-    )
+    dDbG = np.array([
+        dDbF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] * (dDbF[1] * dF[1] + dDbF[2] * dF[2]),
+        dDbF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] * (dDbF[0] * dF[0] + dDbF[2] * dF[2]),
+        dDbF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] * (dDbF[0] * dF[0] + dDbF[1] * dF[1])
+    ])
 
+    # Calculate the denominator term
     dDenomTerm = dInvR * dInvR * dInvR
 
+    # Scale the gradients
     dDaG *= dDenomTerm
     dDbG *= dDenomTerm
 
-    #  Cross product gives local Jacobian
+    # Calculate the cross product
     nodeCross = np.cross(dDaG, dDbG)
-    dJacobian = np.sqrt(
-        nodeCross[0] * nodeCross[0]
-        + nodeCross[1] * nodeCross[1]
-        + nodeCross[2] * nodeCross[2]
-    )
+
+    # Calculate the Jacobian
+    dJacobian = np.sqrt(nodeCross[0] * nodeCross[0] + nodeCross[1] * nodeCross[1] + nodeCross[2] * nodeCross[2])
 
     return 0.5 * dJacobian
 
