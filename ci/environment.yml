@@ -5,7 +5,7 @@ channels:
 dependencies:
   - antimeridian
   - cartopy
-  - dask<2025.1.0
+  - dask
   - datashader
   - gmpy2
   - geoviews
