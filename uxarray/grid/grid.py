@@ -123,7 +123,7 @@ import cartopy.crs as ccrs
 import copy
 
 
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 from uxarray.grid.dual import construct_dual
 
 
@@ -2460,12 +2460,14 @@ class Grid:
         """
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
-    def get_faces_containing_point(self, point):
+    def get_faces_containing_point(self, point, error_tolerance=ERROR_TOLERANCE):
         """Identifies the indices of faces that contain a given point.
         Parameters
         ----------
         point : numpy.ndarray
             A point in either cartesian coordinates or spherical coordinates
+        error_tolerance : numpy.ndarray
+            An optional error tolerance for points that lie on the nodes of a face
 
         Returns
         -------
@@ -2515,7 +2517,23 @@ class Grid:
         # Get the original face indices from the subset
         inverse_indices = subset.inverse_indices.face.values
 
-        # Check if any of the faces in the subset contain the point
-        face_indices = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
+        # Check to see if the point is on the nodes of any face
+        lies_on_node = np.isclose(
+            face_edge_nodes_xyz,
+            point_xyz[None, None, :],  # Expands dimensions for broadcasting
+            rtol=error_tolerance,
+            atol=error_tolerance,
+        )
 
-        return face_indices
+        edge_matches = np.all(lies_on_node, axis=-1)
+        face_matches = np.any(edge_matches, axis=1)
+        face_indices = inverse_indices[np.any(face_matches, axis=1)]
+
+        # If a face is in face_indices, return that as the point was found to lie on a node
+        if len(face_indices) != 0:
+            return face_indices
+        else:
+            # Check if any of the faces in the subset contain the point
+            face_indices = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
+
+            return face_indices

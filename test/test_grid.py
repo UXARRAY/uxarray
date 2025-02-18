@@ -831,9 +831,9 @@ def test_point_along_arc():
     uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
 
     # point at exactly 20 degrees latitude
-    out1 = uxgrid.get_faces_containing_point((0, 20))
+    out1 = uxgrid.get_faces_containing_point(np.array([0, 20], dtype=np.float64))
 
     # point at 25.41 degrees latitude (max along the great circle arc)
-    out2 = uxgrid.get_faces_containing_point((0, 25.41))
+    out2 = uxgrid.get_faces_containing_point(np.array([0, 25.41], dtype=np.float64))
 
     nt.assert_array_equal(out1, out2)

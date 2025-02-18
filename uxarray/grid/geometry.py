@@ -1673,34 +1673,23 @@ def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
         The index of the face that contains the point
     """
 
-    index = set()
+    index = []
 
     # Run for each face in the subset
     for i, face in enumerate(inverse_indices):
-        lies_on_node = np.isclose(
+        # Check to see if the face contains the point
+        contains_point = point_in_face(
             face_edge_cartesian[i],
-            point_xyz[None, None, :],
-            rtol=ERROR_TOLERANCE,
-            atol=ERROR_TOLERANCE,
+            point_xyz,
+            inclusive=True,
         )
 
-        # If any element in lies_on_node is True, add index to the set
-        if np.any(lies_on_node):
-            index.add(face)
-        else:
-            # Check to see if the face contains the point
-            contains_point = point_in_face(
-                face_edge_cartesian[i],
-                point_xyz,
-                inclusive=True,
-            )
-
-            # If the point is found, add it to the index array
-            if contains_point:
-                index.add(face)
+        # If the point is found, add it to the index array
+        if contains_point:
+            index.append(face)
 
     # Return the index array
-    return np.array(list(index), dtype=np.int64)
+    return index
 
 
 def _populate_max_face_radius(self):
