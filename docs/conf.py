@@ -98,6 +98,13 @@ source_suffix = {
     ".myst": "myst-nb",
 }
 
+# MyST configuration
+myst_enable_extensions = [
+    "amsmath",  # for extended math environments
+    "dollarmath",  # for $ ... $ syntax
+]
+
+
 # The master toctree document.
 master_doc = "index"
 
