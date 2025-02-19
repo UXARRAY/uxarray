@@ -12,7 +12,7 @@ classifiers=[
 ]
 
 dynamic = ["version"]
-keywords = ["unstructured grids", "xarray", "ugrid", "mpas", "exodus", "scrip", "fesom", "icon"]
+keywords = ["unstructured grids", "xarray", "ugrid", "mpas", "exodus", "scrip", "fesom", "icon", "esmf"]
 description = "Xarray extension for unstructured climate and global weather data analysis and visualization."
 license = {file = "LICENSE"}
 name = "uxarray"
