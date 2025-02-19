@@ -4,7 +4,7 @@ channels:
 dependencies:
   - python=3.11
   - cartopy
-  - dask<2025.1.0
+  - dask
   - datashader
   - gmpy2
   - geoviews
@@ -13,7 +13,7 @@ dependencies:
   - matplotlib-inline
   - netcdf4
   - numba
-  - numpy<2.1
+  - numpy
   - pandas
   - pathlib
   - pre_commit
