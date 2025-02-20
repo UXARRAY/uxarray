@@ -3,10 +3,10 @@ channels:
     - conda-forge
 dependencies:
     - python
-    - dask<2025.1.0
+    - dask
     - netcdf4
     - numba
-    - numpy<2.1
+    - numpy
     - pathlib
     - pre_commit
     - pytest
@@ -19,6 +19,7 @@ dependencies:
     - ipython
     - jupyter_client
     - scikit-learn
+    - sphinx<8.2
     - sphinx-book-theme
     - sphinx-autosummary-accessors
     - sphinx-remove-toctrees

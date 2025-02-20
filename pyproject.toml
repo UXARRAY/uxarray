@@ -8,10 +8,11 @@ classifiers=[
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 
 dynamic = ["version"]
-keywords = ["unstructured grids", "xarray", "ugrid", "mpas", "exodus", "scrip", "fesom", "icon"]
+keywords = ["unstructured grids", "xarray", "ugrid", "mpas", "exodus", "scrip", "fesom", "icon", "esmf"]
 description = "Xarray extension for unstructured climate and global weather data analysis and visualization."
 license = {file = "LICENSE"}
 name = "uxarray"
@@ -22,7 +23,7 @@ requires-python = ">=3.10"
 dependencies = [
   "antimeridian",
   "cartopy",
-  "dask[dataframe]<2025.1.0",
+  "dask[dataframe]",
   "datashader",
   "geoviews",
   "holoviews",
@@ -30,7 +31,7 @@ dependencies = [
   "matplotlib-inline",
   "netcdf4",
   "numba",
-  "numpy<2.1",
+  "numpy",
   "pandas",
   "pyarrow",
   "requests",
