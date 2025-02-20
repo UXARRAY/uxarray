@@ -43,6 +43,7 @@ I/O & Conversion
    Grid.from_topology
    Grid.from_structured
    Grid.from_points
+   Grid.from_healpix
    Grid.to_xarray
    Grid.to_geodataframe
    Grid.to_polycollection
@@ -225,6 +226,7 @@ I/O & Conversion
 
    UxDataset.from_structured
    UxDataset.from_xarray
+   UxDataset.from_healpix
 
 Plotting
 --------
