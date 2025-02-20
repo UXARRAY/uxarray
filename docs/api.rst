@@ -252,8 +252,8 @@ Grid
    Grid.plot.face_centers
    Grid.plot.edge_coords
    Grid.plot.edge_centers
-   Grid.face_degree_distribution
-   Grid.face_area_distribution
+   Grid.plot.face_degree_distribution
+   Grid.plot.face_area_distribution
 
 
 UxDataArray

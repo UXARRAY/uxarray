@@ -133,9 +133,6 @@ class UxDataArrayCrossSectionAccessor:
         lats : Tuple[float, float]
             The latitude interval (min_lat, max_lat) at which to extract the cross-section,
             in degrees. Values must be between -90.0 and 90.0
-        return_face_indices : bool, optional
-            If True, also returns the indices of the faces that intersect with the
-            latitude interval.
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
@@ -181,8 +178,6 @@ class UxDataArrayCrossSectionAccessor:
         lons : Tuple[float, float]
             The longitude interval (min_lon, max_lon) at which to extract the cross-section,
             in degrees. Values must be between -180.0 and 180.0
-        return_face_indices : bool, optional
-            If True, also returns the indices of the faces that intersect are within a specifed longitude interval.
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
@@ -215,9 +210,3 @@ class UxDataArrayCrossSectionAccessor:
         faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
 
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
-
-    def gca(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def gca_gca(self, *args, **kwargs):
-        raise NotImplementedError
