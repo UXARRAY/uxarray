@@ -152,6 +152,7 @@ def test_replace_fill_values():
     for dtype in dtypes:
         # test face nodes with set dtype
         face_nodes = np.array([[1, 2, -1], [-1, -1, -1]], dtype=dtype)
+        face_nodes = xr.DataArray(data=face_nodes)
 
         # output of _replace_fill_values()
         face_nodes_test = _replace_fill_values(

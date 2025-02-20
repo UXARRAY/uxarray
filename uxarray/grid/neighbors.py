@@ -45,7 +45,7 @@ class KDTree:
     def __init__(
         self,
         grid,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "cartesian",
         distance_metric: Optional[str] = "minkowski",
         reconstruct: bool = False,
@@ -433,7 +433,7 @@ class BallTree:
     def __init__(
         self,
         grid,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "spherical",
         distance_metric: Optional[str] = "haversine",
         reconstruct: bool = False,
