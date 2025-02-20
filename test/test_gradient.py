@@ -51,7 +51,7 @@ def test_quad_hex():
         if INT_FILL_VALUE in edge:
             assert grad.values[i] == 0
         else:
-            assert np.nonzero(grad.values[i])
+            assert grad.values[i] != 0
 
     expected_values = np.array([27.95, 20.79, 28.96, 0, 0, 0, 0, 60.64, 0, 86.45, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     nt.assert_almost_equal(grad.values, expected_values, 1e-2)
