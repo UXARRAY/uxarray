@@ -41,8 +41,7 @@ def test_individual_var_chunking():
 
 def test_uxds_chunking():
     """Tests the chunking of a dataset."""
-    uxds = ux.open_dataset(csne30_grid, csne30_data, chunks={"n_face": 4})
+    uxds = ux.open_dataset(csne30_grid, csne30_data, chunks=-1)
 
-    # Add assertions to check the correctness of chunking
     for var in uxds.variables:
         assert isinstance(uxds[var].data, da.Array)
