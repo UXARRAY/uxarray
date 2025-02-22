@@ -269,7 +269,7 @@ class Grid:
         ----------
         dataset : xr.Dataset or path-like
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables or a directory
-            containing ASCII files represents a FESOM2 grid.
+              containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
         is_subset : bool, default=False

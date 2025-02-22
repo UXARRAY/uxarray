@@ -115,21 +115,18 @@ def open_grid(
 
     # attempt to use Xarray directly for remaining input types
     else:
-        try:
-            # TODO: Insert chunking here
-            if "data_chunks" in kwargs:
-                data_chunks = kwargs["data_chunks"]
-                del kwargs["data_chunks"]
+        # TODO: Insert chunking here
+        if "data_chunks" in kwargs:
+            data_chunks = kwargs["data_chunks"]
+            del kwargs["data_chunks"]
 
-                grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
-                chunks = rename_chunks(grid_ds, data_chunks)
-                grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=chunks, **kwargs)
-            else:
-                grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
+            grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
+            chunks = rename_chunks(grid_ds, data_chunks)
+            grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=chunks, **kwargs)
+        else:
+            grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
 
-            uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
-        except ValueError:
-            raise ValueError("Inputted grid_filename_or_obj not supported.")
+        uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
 
     return uxgrid
 
