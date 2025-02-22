@@ -272,8 +272,6 @@ class Grid:
               containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
-        is_subset : bool, default=False
-            Bool flag to indicate whether a grid is a subset
         """
 
         if isinstance(dataset, xr.Dataset):
@@ -965,8 +963,7 @@ class Grid:
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
-        # temp until we construct edge lon
-        _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self._ds)
         return self._ds["edge_lon"]
 
     @edge_lon.setter
@@ -983,7 +980,7 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
-        _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self._ds)
         return self._ds["edge_lat"]
 
     @edge_lat.setter
