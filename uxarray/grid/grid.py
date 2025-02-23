@@ -250,7 +250,7 @@ class Grid:
         self._normalized = None
 
         # set desired longitude range to [-180, 180]
-        _set_desired_longitude_range(self._ds)
+        _set_desired_longitude_range(self)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -879,7 +879,7 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lon" not in self._ds:
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
             _populate_node_latlon(self)
         return self._ds["node_lon"]
 
@@ -896,7 +896,7 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lat" not in self._ds:
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
             _populate_node_latlon(self)
         return self._ds["node_lat"]
 
@@ -963,7 +963,7 @@ class Grid:
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
         return self._ds["edge_lon"]
 
     @edge_lon.setter
@@ -980,7 +980,7 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
         return self._ds["edge_lat"]
 
     @edge_lat.setter
@@ -1046,7 +1046,7 @@ class Grid:
         """
         if "face_lon" not in self._ds:
             _populate_face_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
         return self._ds["face_lon"]
 
     @face_lon.setter
@@ -1063,7 +1063,7 @@ class Grid:
         """
         if "face_lat" not in self._ds:
             _populate_face_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
 
         return self._ds["face_lat"]
 
