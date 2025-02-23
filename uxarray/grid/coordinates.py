@@ -697,11 +697,9 @@ def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables."""
 
     for lon_name in ["node_lon", "edge_lon", "face_lon"]:
-        if lon_name in uxgrid.coordinates:
+        if lon_name in uxgrid._ds:
             if uxgrid._ds[lon_name].max() > 180:
-                uxgrid._ds[lon_name].data = (
-                    uxgrid._ds[lon_name].data + 180
-                ) % 360 - 180
+                uxgrid._ds[lon_name] = (uxgrid._ds[lon_name] + 180) % 360 - 180
 
 
 def _xyz_to_lonlat_rad(
