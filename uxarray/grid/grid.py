@@ -1777,6 +1777,8 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        correct_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
@@ -1806,6 +1808,10 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        latlon : bool, optional
+            If True, the coordinates are in latlon. Defaults to True.
+        correct_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
