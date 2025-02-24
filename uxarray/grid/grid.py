@@ -2471,7 +2471,7 @@ class Grid:
 
         Returns
         -------
-        index : array
+        index : numpy.ndarray
             Array of the face indices containing point. Empty if no face is found
 
         """
