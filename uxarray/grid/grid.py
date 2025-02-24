@@ -73,6 +73,7 @@ from uxarray.grid.geometry import (
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
+    SpatialHash,
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
@@ -242,6 +243,7 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
+        self._spatialhash = None
 
         # flag to track if coordinates are normalized
         self._normalized = None
@@ -1710,6 +1712,15 @@ class Grid:
 
         return self._kd_tree
 
+    def get_spatialhash(
+            self,
+            reconstruct: bool = False,
+    ):
+        if self._spatialhash is None or reconstruct:
+            self._spatialhash = SpatialHash(self,reconstruct)
+        
+        return self._spatialhash
+            
     def copy(self):
         """Returns a deep copy of this grid."""
 
