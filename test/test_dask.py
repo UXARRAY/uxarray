@@ -41,7 +41,13 @@ def test_individual_var_chunking():
 
 def test_uxds_chunking():
     """Tests the chunking of a dataset."""
-    uxds = ux.open_dataset(csne30_grid, csne30_data, chunks=-1)
+    uxds = ux.open_dataset(csne30_grid, csne30_data, chunks=-1, chunk_grid=False)
 
     for var in uxds.variables:
         assert isinstance(uxds[var].data, da.Array)
+    assert isinstance(uxds.uxgrid.face_node_connectivity.data, np.ndarray)
+
+    uxds = ux.open_dataset(csne30_grid, csne30_data, chunks=-1, chunk_grid=True)
+    for var in uxds.variables:
+        assert isinstance(uxds[var].data, da.Array)
+    assert isinstance(uxds.uxgrid.face_node_connectivity.data, da.Array)

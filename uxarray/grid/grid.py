@@ -1543,6 +1543,12 @@ class Grid:
         """Returns `True` if the Grid is a subset, 'False' otherwise."""
         return self._is_subset
 
+    def compute(self):
+        pass
+
+    def load(self):
+        pass
+
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
         dimensions in-place.

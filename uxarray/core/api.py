@@ -17,6 +17,7 @@ def open_grid(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     chunks: T_Chunks = None,
     use_dual: Optional[bool] = False,
+    return_chunks: Optional[bool] = False,
     **kwargs: Dict[str, Any],
 ) -> Grid:
     """Constructs and returns a ``Grid`` from a grid file.
@@ -60,7 +61,6 @@ def open_grid(
     Lazily load grid variables using Dask
     >>> uxgrid = ux.open_grid("grid_filename.nc", chunks=-1)
     """
-    print(chunks)
     # Special case for FESOM2 ASCII Dataset (stored as a directory)
     if isinstance(grid_filename_or_obj, (str, os.PathLike)) and os.path.isdir(
         grid_filename_or_obj
@@ -102,7 +102,10 @@ def open_grid(
         grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=chunks, **kwargs)
         uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
 
-    return uxgrid
+    if return_chunks:
+        return uxgrid, chunks
+    else:
+        return uxgrid
 
 
 def open_dataset(
@@ -165,9 +168,18 @@ def open_dataset(
     """
 
     # Create a Grid and validate parameters
-    uxgrid = _get_grid(
-        grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+    uxgrid, updated_chunks = _get_grid(
+        grid_filename_or_obj,
+        chunks,
+        chunk_grid,
+        use_dual,
+        grid_kwargs,
+        return_chunks=True,
+        **kwargs,
     )
+
+    print(kwargs.get("chunks"))
+    print(updated_chunks)
 
     # Load the data as a Xarray Dataset
     ds = xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
@@ -249,11 +261,21 @@ def open_mfdataset(
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
+    print(kwargs.get("chunks"))
+
     # Create a Grid and validate parameters
-    uxgrid = _get_grid(
-        grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+    uxgrid, updated_chunks = _get_grid(
+        grid_filename_or_obj,
+        chunks,
+        chunk_grid,
+        use_dual,
+        grid_kwargs,
+        return_chunks=True,
+        **kwargs,
     )
 
+    print(kwargs.get("chunks"))
+    print(updated_chunks)
     # Load the data as a Xarray Dataset
     ds = xr.open_mfdataset(paths, **kwargs)
 
@@ -265,7 +287,13 @@ def open_mfdataset(
 
 
 def _get_grid(
-    grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+    grid_filename_or_obj,
+    chunks,
+    chunk_grid,
+    use_dual,
+    grid_kwargs,
+    return_chunks,
+    **kwargs,
 ):
     """Utility function to validate the input parameters and return a Grid."""
     if "latlon" in kwargs:
@@ -281,4 +309,9 @@ def _get_grid(
         grid_kwargs["data_chunks"] = chunks
 
     # Create a Grid
-    return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
+    return open_grid(
+        grid_filename_or_obj,
+        use_dual=use_dual,
+        return_chunk=return_chunks,
+        **grid_kwargs,
+    )
