@@ -3,6 +3,7 @@ import numpy as np
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 from numba import njit
+from uxarray.constants import ERROR_TOLERANCE
 
 
 @njit(cache=True)
@@ -123,45 +124,33 @@ def calculate_face_area(
                 dtype=x.dtype,
             )
             # Check if z-coordinates are approximately equal
-            if np.isclose(node1[2], node2[2]):
+            if np.isclose(node1[2], node2[2], atol=ERROR_TOLERANCE):
                 if node1[2] == 0:
                     # check if z-coordinates are 0 - Equator
                     continue
+
                 # Check if the edge passes through a pole
                 passes_through_pole = edge_passes_through_pole(node1, node2)
-
                 if passes_through_pole:
                     # Skip the edge if it passes through a pole
+                    continue
+
+                z_sign = np.sign(node1[2])
+                # Convert Cartesian coordinates to longitude
+                lon1 = np.arctan2(node1[1], node1[0])
+                lon2 = np.arctan2(node2[1], node2[0])
+                # Calculate the longitude difference in radians
+                lon_diff = lon2 - lon1
+                # Skip the edge if it spans more than 180 degrees of longitude
+                if abs(lon_diff) > np.pi:
                     continue
                 else:
                     # Calculate the correction term
                     correction = area_correction(node1, node2)
-                # Check if the edge is in the northern or southern hemisphere
-                hemisphere = ""
-                if node1[2] > 0 and node2[2] > 0:
-                    hemisphere = "Northern"
-                else:
-                    hemisphere = "Southern"
-                if hemisphere != "":
-                    # Check if the edge goes from higher to lower longitude
-                    # Convert Cartesian coordinates to longitude
-                    lon1 = np.arctan2(node1[1], node1[0])
-                    lon2 = np.arctan2(node2[1], node2[0])
 
-                    # Calculate the longitude difference in radians
-                    lon_diff = lon2 - lon1
-
-                    # Adjust for the case where longitude wraps around the 180° meridian
-                    if lon_diff > np.pi:
-                        lon_diff -= 2 * np.pi
-                    elif lon_diff < -np.pi:
-                        lon_diff += 2 * np.pi
-
-                    # Check if the longitude is increasing
-                    if (lon_diff > 0 and hemisphere == "Northern") or (
-                        lon_diff < 0 and hemisphere == "Southern"
-                    ):
-                        correction = -correction
+                # Check if the longitude is increasing in the northern hemisphere or decreasing in the southern hemisphere
+                if (z_sign > 0 and lon_diff > 0) or (z_sign < 0 and lon_diff < 0):
+                    correction = -correction
 
                 total_correction += correction
 
@@ -199,7 +188,9 @@ def edge_passes_through_pole(node1, node2):
     p_south = np.array([0.0, 0.0, -1.0])
 
     # Check if the normal vector is orthogonal to either pole
-    return np.isclose(np.dot(n, p_north), 0) or np.isclose(np.dot(n, p_south), 0)
+    return np.isclose(np.dot(n, p_north), 0, atol=ERROR_TOLERANCE) or np.isclose(
+        np.dot(n, p_south), 0, atol=ERROR_TOLERANCE
+    )
 
 
 @njit(cache=True)
