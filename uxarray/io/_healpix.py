@@ -111,6 +111,10 @@ def _populate_healpix_boundaries(ds):
 
     # Flatten the cell corner data to a 2D array of shape (n_cell * 4, 2)
     nodes = corners.reshape(-1, 2)  # Shape: (n_cell * 4, 2)
+
+    # Normalize
+    nodes[:, 0] = (nodes[:, 0] + 180) % 360 - 180
+
     nodes_df = pl.DataFrame(nodes)
     unique_nodes_df = nodes_df.unique()
 
