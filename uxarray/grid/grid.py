@@ -193,9 +193,6 @@ class Grid:
             )
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
-        # TODO:
-        self._load_on_access = True
-
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
 
