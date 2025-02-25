@@ -80,14 +80,14 @@ def test_calculate_face_area():
 
 def test_quadrature():
     order = 1
-    dG, dW = ux.grid.area.get_tri_quadratureDG(order)
+    dG, dW = ux.grid.area.get_tri_quadrature_dg(order)
     G = np.array([[0.33333333, 0.33333333, 0.33333333]])
     W = np.array([1.0])
 
     np.testing.assert_array_almost_equal(G, dG)
     np.testing.assert_array_almost_equal(W, dW)
 
-    dG, dW = ux.grid.area.get_gauss_quadratureDG(order)
+    dG, dW = ux.grid.area.get_gauss_quadrature_dg(order)
 
     G = np.array([[0.5]])
     W = np.array([1.0])
