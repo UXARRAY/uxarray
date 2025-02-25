@@ -1551,7 +1551,10 @@ class Grid:
 
     @property
     def max_face_radius(self):
-        """Returns the maximum face radius of the grid"""
+        """Maximum face radius of the grid
+
+        Dimensions ``(1, )``
+        """
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
@@ -2460,13 +2463,13 @@ class Grid:
         """
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
-    def get_faces_containing_point(self, point, tolerance =ERROR_TOLERANCE):
+    def get_faces_containing_point(self, point, tolerance=ERROR_TOLERANCE):
         """Identifies the indices of faces that contain a given point.
         Parameters
         ----------
         point : numpy.ndarray
             A point in either cartesian coordinates or spherical coordinates
-        error_tolerance : numpy.ndarray
+        tolerance : numpy.ndarray
             An optional error tolerance for points that lie on the nodes of a face
 
         Returns
@@ -2501,7 +2504,12 @@ class Grid:
             )
         # If no subset is found, it likely means the grid is a partial grid and the point is in an empty part
         except ValueError:
-            warn("No faces found")
+            if self.partial_sphere_coverage:
+                warn(
+                    "No faces found. The grid has partial spherical coverage, and the point may be outside the defined region of the grid."
+                )
+            else:
+                warn("No faces found. Try adjusting the tolerance.")
             return []
 
         # Get the faces in terms of their edges
@@ -2521,8 +2529,8 @@ class Grid:
         lies_on_node = np.isclose(
             face_edge_nodes_xyz,
             point_xyz[None, None, :],  # Expands dimensions for broadcasting
-            rtol=error_tolerance,
-            atol=error_tolerance,
+            rtol=tolerance,
+            atol=tolerance,
         )
 
         edge_matches = np.all(lies_on_node, axis=-1)
