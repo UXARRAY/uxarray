@@ -180,9 +180,6 @@ def edge_passes_through_pole(node1, node2):
         # Handle cases where the cross product is near zero, such as when nodes are nearly identical or opposite
         return False
 
-    # Normalize the normal vector
-    n = n / np.linalg.norm(n)
-
     # North and South Pole vectors
     p_north = np.array([0.0, 0.0, 1.0])
     p_south = np.array([0.0, 0.0, -1.0])
@@ -294,8 +291,8 @@ def area_correction(node1, node2):
 
     # Calculate terms
     term1 = x1 * y2 - x2 * y1
-    den1 = x1**2 + y1**2 + x1 * x2 + y1 * y2
     den2 = x1 * x2 + y1 * y2
+    den1 = x1**2 + y1**2 + den2
 
     # Compute angles using arctan2
     angle1 = np.arctan2(z * term1, den1)
