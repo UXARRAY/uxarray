@@ -116,7 +116,7 @@ def open_dataset(
     chunks: T_Chunks = None,
     chunk_grid: bool = True,
     use_dual: Optional[bool] = False,
-    grid_kwargs: Optional[Dict[str, Any]] = {},
+    grid_kwargs: Optional[Dict[str, Any]] = None,
     **kwargs: Dict[str, Any],
 ) -> UxDataset:
     """Wraps ``xarray.open_dataset()`` for loading in a dataset paired with a grid file.
@@ -166,6 +166,9 @@ def open_dataset(
     >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
     """
 
+    if grid_kwargs is None:
+        grid_kwargs = {}
+
     # Construct a Grid, validate parameters, and correct chunks
     uxgrid, corrected_chunks = _get_grid(
         grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
@@ -187,7 +190,7 @@ def open_mfdataset(
     chunks: T_Chunks = None,
     chunk_grid: bool = True,
     use_dual: Optional[bool] = False,
-    grid_kwargs: Optional[Dict[str, Any]] = {},
+    grid_kwargs: Optional[Dict[str, Any]] = None,
     **kwargs: Dict[str, Any],
 ) -> UxDataset:
     """Wraps ``xarray.open_dataset()`` to support reading in a grid and
@@ -248,6 +251,9 @@ def open_mfdataset(
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
+    if grid_kwargs is None:
+        grid_kwargs = {}
+
     # Construct a Grid, validate parameters, and correct chunks
     uxgrid, corrected_chunks = _get_grid(
         grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
@@ -276,9 +282,8 @@ def _get_grid(
         grid_kwargs["latlon"] = kwargs["latlon"]
 
     # TODO:
-    if chunks is not None and "chunks" not in grid_kwargs and chunk_grid:
-        grid_kwargs["data_chunks"] = chunks
-
+    # if chunks is not None and "chunks" not in grid_kwargs and chunk_grid:
+    grid_kwargs["data_chunks"] = chunks
     grid_kwargs["chunk_grid"] = chunk_grid
     grid_kwargs["return_chunks"] = True
 
