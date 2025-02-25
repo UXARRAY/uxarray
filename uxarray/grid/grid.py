@@ -2502,8 +2502,9 @@ class Grid:
                 element="face centers",
                 inverse_indices=True,
             )
-        # If no subset is found, it likely means the grid is a partial grid and the point is in an empty part
+        # If no subset is found, warn the user
         except ValueError:
+            # If the grid is partial, let the user know the point likely lies outside the grid region
             if self.partial_sphere_coverage:
                 warn(
                     "No faces found. The grid has partial spherical coverage, and the point may be outside the defined region of the grid."
