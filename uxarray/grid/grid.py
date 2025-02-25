@@ -1590,10 +1590,7 @@ class Grid:
 
     @property
     def max_face_radius(self):
-        """Maximum face radius of the grid
-
-        Dimensions ``(1, )``
-        """
+        """Maximum face radius of the grid in radians"""
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
@@ -2503,18 +2500,20 @@ class Grid:
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
     def get_faces_containing_point(self, point, tolerance=ERROR_TOLERANCE):
-        """Identifies the indices of faces that contain a given point.
+        """Identifies the indices of faces that contain a given point. This function will typically return a
+        single face, unless the point falls directly on a corner or edge, where there will instead be multiple values.
+
         Parameters
         ----------
         point : numpy.ndarray
-            A point in either cartesian coordinates or spherical coordinates
+            A point in either cartesian coordinates or spherical coordinates.
         tolerance : numpy.ndarray
-            An optional error tolerance for points that lie on the nodes of a face
+            An optional error tolerance for points that lie on the nodes of a face.
 
         Returns
         -------
         index : numpy.ndarray
-            Array of the face indices containing point. Empty if no face is found
+            Array of the face indices containing point. Empty if no face is found.
 
         """
         # Depending on the point coordinates, convert to the coordinate system needed
