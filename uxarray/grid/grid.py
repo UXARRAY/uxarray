@@ -32,6 +32,7 @@ from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
 from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
+from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
 from uxarray.io._structured import _read_structured_grid
 from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io._delaunay import (
@@ -182,12 +183,14 @@ class Grid:
         inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        if not _validate_minimum_ugrid(grid_ds):
-            raise ValueError(
-                "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
-                "at least the following variables: ['node_lon',"
-                "'node_lat', and 'face_node_connectivity']"
-            )
+        # TODO:
+        if source_grid_spec != "HEALPix":
+            if not _validate_minimum_ugrid(grid_ds):
+                raise ValueError(
+                    "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
+                    "at least the following variables: ['node_lon',"
+                    "'node_lat', and 'face_node_connectivity']"
+                )
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
@@ -202,11 +205,12 @@ class Grid:
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
 
-        # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
-        self.source_grid_spec = source_grid_spec
-
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
+
+        # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
+        self.source_grid_spec = source_grid_spec
+        self._ds = self._ds.assign_attrs({"source_grid_spec": source_grid_spec})
 
         # initialize attributes
         self._antimeridian_face_indices = None
@@ -585,6 +589,29 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
+    @classmethod
+    def from_healpix(cls, zoom: int, pixels_only: bool = True, nest: bool = True):
+        """Constructs a ``Grid`` object representing a given HEALPix zoom level.
+
+        Parameters
+        ----------
+        zoom : int
+            Zoom level of HEALPix, with 12*zoom^4 representing the number of pixels (`n_face`)
+        pixels_only : bool
+            Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
+
+        Returns
+        -------
+        Grid
+            An instance of ``uxarray.Grid``
+        """
+        grid_ds = _pixels_to_ugrid(zoom, nest)
+
+        if not pixels_only:
+            _populate_healpix_boundaries(grid_ds)
+
+        return cls.from_dataset(grid_ds, source_grid_spec="HEALPix")
+
     def validate(self, check_duplicates=True):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.
@@ -884,8 +911,11 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lon" not in self._ds:
-            _set_desired_longitude_range(self._ds)
-            _populate_node_latlon(self)
+            if self.source_grid_spec == "HEALPix":
+                _populate_healpix_boundaries(self._ds)
+            else:
+                _set_desired_longitude_range(self._ds)
+                _populate_node_latlon(self)
         return self._ds["node_lon"]
 
     @node_lon.setter
@@ -901,8 +931,11 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lat" not in self._ds:
-            _set_desired_longitude_range(self._ds)
-            _populate_node_latlon(self)
+            if self.source_grid_spec == "HEALPix":
+                _populate_healpix_boundaries(self._ds)
+            else:
+                _set_desired_longitude_range(self._ds)
+                _populate_node_latlon(self)
         return self._ds["node_lat"]
 
     @node_lat.setter
@@ -1136,6 +1169,12 @@ class Grid:
 
         Nodes are in counter-clockwise order.
         """
+
+        if (
+            "face_node_connectivity" not in self._ds
+            and self.source_grid_spec == "HEALPix"
+        ):
+            _populate_healpix_boundaries(self._ds)
 
         if self._ds["face_node_connectivity"].ndim == 1:
             face_node_connectivity_1d = self._ds["face_node_connectivity"].values
