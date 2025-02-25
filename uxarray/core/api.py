@@ -18,7 +18,7 @@ def open_grid(
     chunks: T_Chunks = None,
     use_dual: Optional[bool] = False,
     **kwargs: Dict[str, Any],
-) -> Grid:
+):
     """Constructs and returns a ``Grid`` from a grid file.
 
     Parameters
@@ -60,49 +60,54 @@ def open_grid(
     Lazily load grid variables using Dask
     >>> uxgrid = ux.open_grid("grid_filename.nc", chunks=-1)
     """
-    print(chunks)
+    # Handle chunk-related kwargs first.
+    data_chunks = kwargs.pop("data_chunks", None)
+    if data_chunks is not None:
+        chunks = match_chunks_to_ugrid(grid_filename_or_obj, data_chunks)
+    elif chunks is not None:
+        chunks = match_chunks_to_ugrid(grid_filename_or_obj, chunks)
+
+    return_chunks = kwargs.pop("return_chunks", False)
+    chunk_grid = kwargs.pop("chunk_grid", chunks is not None)
+    grid_chunks = chunks if chunk_grid else None
+
+    grid = None
+
     # Special case for FESOM2 ASCII Dataset (stored as a directory)
     if isinstance(grid_filename_or_obj, (str, os.PathLike)) and os.path.isdir(
         grid_filename_or_obj
     ):
         nod2d_path = os.path.join(grid_filename_or_obj, "nod2d.out")
         elem2d_path = os.path.join(grid_filename_or_obj, "elem2d.out")
-
         if os.path.isfile(nod2d_path) and os.path.isfile(elem2d_path):
-            return Grid.from_dataset(grid_filename_or_obj)
-
+            grid = Grid.from_dataset(grid_filename_or_obj)
         else:
             raise FileNotFoundError(
                 f"The directory '{grid_filename_or_obj}' must contain both 'nod2d.out' and 'elem2d.out'."
             )
 
     elif isinstance(grid_filename_or_obj, dict):
-        # unpack the dictionary and construct a grid from topology
-        return Grid.from_topology(**grid_filename_or_obj)
+        # Unpack the dictionary and construct a grid from topology
+        grid = Grid.from_topology(**grid_filename_or_obj)
 
     elif isinstance(grid_filename_or_obj, (list, tuple, np.ndarray, xr.DataArray)):
-        # construct Grid from face vertices
-        return Grid.from_face_vertices(grid_filename_or_obj, **kwargs)
+        # Construct grid from face vertices
+        grid = Grid.from_face_vertices(grid_filename_or_obj, **kwargs)
 
-    # TODO:
-    if "data_chunks" in kwargs:
-        # Special case for when chunks are passed in from open_dataset()
-        chunks = match_chunks_to_ugrid(grid_filename_or_obj, kwargs["data_chunks"])
-        del kwargs["data_chunks"]
-    elif chunks is not None:
-        chunks = match_chunks_to_ugrid(grid_filename_or_obj, chunks)
+    elif isinstance(grid_filename_or_obj, xr.Dataset):
+        # Construct a grid from a dataset file
+        grid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
 
-    if isinstance(grid_filename_or_obj, xr.Dataset):
-        # construct a grid from a dataset file
-        # TODO: insert/rechunk here?
-        uxgrid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
-
-    # attempt to use Xarray directly for remaining input types
     else:
-        grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=chunks, **kwargs)
-        uxgrid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+        # Attempt to use Xarray directly for remaining input types
+        grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=grid_chunks, **kwargs)
+        grid = Grid.from_dataset(grid_ds, use_dual=use_dual)
 
-    return uxgrid
+    # Return the grid (and chunks, if requested) in a consistent manner.
+    if return_chunks:
+        return grid, chunks
+    else:
+        return grid
 
 
 def open_dataset(
@@ -141,10 +146,7 @@ def open_dataset(
     use_dual: bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS
     grid_kwargs : dict, optional
-        Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
-        [xarray
-        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
-        for accepted keyword arguments.
+        Additional arguments passed on to ``ux.open_grid`` when opening up a Grid File.
     **kwargs:
         Additional arguments passed on to ``xarray.open_dataset``. Refer to the
         [xarray
@@ -164,13 +166,13 @@ def open_dataset(
     >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
     """
 
-    # Create a Grid and validate parameters
-    uxgrid = _get_grid(
+    # Construct a Grid, validate parameters, and correct chunks
+    uxgrid, corrected_chunks = _get_grid(
         grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
     )
 
     # Load the data as a Xarray Dataset
-    ds = xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
+    ds = xr.open_dataset(filename_or_obj, chunks=corrected_chunks, **kwargs)
 
     # Map original dimensions to the UGRID conventions
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
@@ -215,10 +217,7 @@ def open_mfdataset(
     use_dual: bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
     grid_kwargs : dict, optional
-        Additional arguments passed on to ``xarray.open_dataset`` when opening up a Grid File. Refer to the
-        [xarray
-        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
-        for accepted keyword arguments.
+        Additional arguments passed on to ``ux.open_grid`` when opening up a Grid File.
     **kwargs : Dict[str, Any]
         Additional arguments passed on to ``xarray.open_mfdataset``. Refer to the
         [xarray
@@ -249,13 +248,13 @@ def open_mfdataset(
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
 
-    # Create a Grid and validate parameters
-    uxgrid = _get_grid(
+    # Construct a Grid, validate parameters, and correct chunks
+    uxgrid, corrected_chunks = _get_grid(
         grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
     )
 
     # Load the data as a Xarray Dataset
-    ds = xr.open_mfdataset(paths, **kwargs)
+    ds = xr.open_mfdataset(paths, chunks=corrected_chunks, **kwargs)
 
     # Map original dimensions to the UGRID conventions
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
@@ -270,7 +269,7 @@ def _get_grid(
     """Utility function to validate the input parameters and return a Grid."""
     if "latlon" in kwargs:
         warn(
-            "latlon is no longer a supported parameter",
+            "'latlon is no longer a supported parameter",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -279,6 +278,9 @@ def _get_grid(
     # TODO:
     if chunks is not None and "chunks" not in grid_kwargs and chunk_grid:
         grid_kwargs["data_chunks"] = chunks
+
+    grid_kwargs["chunk_grid"] = chunk_grid
+    grid_kwargs["return_chunks"] = True
 
     # Create a Grid
     return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
