@@ -1013,7 +1013,7 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
-        _set_desired_longitude_range(self._ds)
+        _set_desired_longitude_range(self)
         return self._ds["edge_lat"]
 
     @edge_lat.setter
