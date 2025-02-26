@@ -6,6 +6,8 @@ import xarray as xr
 import sys
 import os
 
+from functools import wraps
+
 from typing import Optional, IO, Union
 
 import uxarray
@@ -506,3 +508,23 @@ class UxDataset(xr.Dataset):
             dataset[var] = uxda
 
         return dataset
+
+    def where(self, *args, **kwargs):
+        parent_where = super().where
+
+        @wraps(parent_where)
+        def wrapped(*args, **kwargs):
+            result = parent_where(*args, **kwargs)
+            return UxDataset(result, uxgrid=self.uxgrid)
+
+        return wrapped(*args, **kwargs)
+
+    def fillna(self, *args, **kwargs):
+        parent_fillna = super().fillna
+
+        @wraps(parent_fillna)
+        def wrapped(*args, **kwargs):
+            result = parent_fillna(*args, **kwargs)
+            return UxDataset(result, uxgrid=self.uxgrid)
+
+        return wrapped(*args, **kwargs)

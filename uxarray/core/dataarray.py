@@ -1,48 +1,38 @@
 from __future__ import annotations
 
-
-import xarray as xr
-import numpy as np
-
-
-from typing import TYPE_CHECKING, Optional, Hashable, Literal
-
-import uxarray
-from uxarray.formatting_html import array_repr
-
-from html import escape
-
-from xarray.core.options import OPTIONS
-
-from uxarray.grid import Grid
-import uxarray.core.dataset
-from uxarray.grid.dual import construct_dual
-from uxarray.grid.validation import _check_duplicate_nodes_indices
-
-if TYPE_CHECKING:
-    from uxarray.core.dataset import UxDataset
-
-from xarray.core.utils import UncachedAccessor
-
-
-from uxarray.core.gradient import (
-    _calculate_grad_on_edge_from_faces,
-    _calculate_edge_face_difference,
-    _calculate_edge_node_difference,
-)
-
-from uxarray.plot.accessor import UxDataArrayPlotAccessor
-from uxarray.subset import DataArraySubsetAccessor
-from uxarray.remap import UxDataArrayRemapAccessor
-from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
-from uxarray.core.aggregation import _uxda_grid_aggregate
-from uxarray.core.utils import _map_dims_to_ugrid
-from uxarray.core.zonal import _compute_non_conservative_zonal_mean
-
 import warnings
+from functools import wraps
+from html import escape
+from typing import Hashable, Literal, Optional, TYPE_CHECKING
 from warnings import warn
 
 import cartopy.crs as ccrs
+import numpy as np
+import xarray as xr
+
+import uxarray
+from uxarray.core.aggregation import _uxda_grid_aggregate
+from uxarray.core.gradient import (
+    _calculate_edge_face_difference,
+    _calculate_edge_node_difference,
+    _calculate_grad_on_edge_from_faces,
+)
+from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.core.zonal import _compute_non_conservative_zonal_mean
+from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
+from uxarray.formatting_html import array_repr
+from uxarray.grid import Grid
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.plot.accessor import UxDataArrayPlotAccessor
+from uxarray.remap import UxDataArrayRemapAccessor
+from uxarray.subset import DataArraySubsetAccessor
+
+from xarray.core.options import OPTIONS
+from xarray.core.utils import UncachedAccessor
+
+if TYPE_CHECKING:
+    from uxarray.core.dataset import UxDataset
 
 
 class UxDataArray(xr.DataArray):
@@ -1333,3 +1323,23 @@ class UxDataArray(xr.DataArray):
         uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
 
         return uxda
+
+    def where(self, *args, **kwargs):
+        parent_where = super().where
+
+        @wraps(parent_where)
+        def wrapped(*args, **kwargs):
+            result = parent_where(*args, **kwargs)
+            return UxDataArray(result, uxgrid=self.uxgrid)
+
+        return wrapped(*args, **kwargs)
+
+    def fillna(self, *args, **kwargs):
+        parent_fillna = super().fillna
+
+        @wraps(parent_fillna)
+        def wrapped(*args, **kwargs):
+            result = parent_fillna(*args, **kwargs)
+            return UxDataArray(result, uxgrid=self.uxgrid)
+
+        return wrapped(*args, **kwargs)
