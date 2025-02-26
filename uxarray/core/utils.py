@@ -11,7 +11,10 @@ def _map_dims_to_ugrid(
     remaps the original dimension name to match the UGRID conventions (i.e.
     "nCell": "n_face")"""
 
-    if grid.source_grid_spec == "Structured":
+    if grid.source_grid_spec == "HEALPix":
+        ds = ds.swap_dims({"cell": "n_face"})
+
+    elif grid.source_grid_spec == "Structured":
         # Case for structured grids, flatten bottom two sptial dimensions
 
         lon_name, lat_name = _source_dims_dict["n_face"]
