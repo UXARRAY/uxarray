@@ -1713,14 +1713,14 @@ class Grid:
         return self._kd_tree
 
     def get_spatialhash(
-            self,
-            reconstruct: bool = False,
+        self,
+        reconstruct: bool = False,
     ):
         if self._spatialhash is None or reconstruct:
-            self._spatialhash = SpatialHash(self,reconstruct)
-        
+            self._spatialhash = SpatialHash(self, reconstruct)
+
         return self._spatialhash
-            
+
     def copy(self):
         """Returns a deep copy of this grid."""
 
