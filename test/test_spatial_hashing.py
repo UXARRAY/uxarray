@@ -33,7 +33,7 @@ def test_construction():
 
 
 def test_is_inside():
-    """Verifies element search across Antimeridian."""
+    """Verifies simple test for points inside and outside an element."""
     verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
     uxgrid = ux.open_grid(verts, latlon=True)
     # Verify that a point outside the element returns a face id of -1
@@ -45,3 +45,33 @@ def test_is_inside():
 
     assert face_ids[0] == 0
     assert np.allclose(bcoords[0], [0.25, 0.5, 0.25], atol=1e-06)
+
+def test_list_of_coords_simple():
+    """Verifies test using list of points inside and outside an element"""
+    verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+    uxgrid = ux.open_grid(verts, latlon=True)
+
+    coords = [[90.0, 0.0], [-90.0, 0.0]]
+    face_ids, bcoords = uxgrid.get_spatialhash().query(coords)
+    assert face_ids[0] == -1
+    assert face_ids[1] == 0
+    assert np.allclose(bcoords[1], [0.25, 0.5, 0.25], atol=1e-06)
+
+def test_list_of_coords_fesom():
+    """Verifies test using list of points on the fesom grid"""
+    uxgrid = ux.open_grid(gridfile_fesom)
+
+    num_particles = 20
+    coords = np.zeros((num_particles,2))
+    x_min = 1.0
+    x_max = 3.0
+    y_min = 2.0
+    y_max = 10.0
+    for k in range(num_particles):
+        coords[k,0] = np.deg2rad(np.random.uniform(x_min, x_max))
+        coords[k,1] = np.deg2rad(np.random.uniform(y_min, y_max))
+    face_ids, bcoords = uxgrid.get_spatialhash().query(coords)
+    assert len(face_ids) == num_particles
+    assert bcoords.shape[0] == num_particles
+    assert bcoords.shape[1] == 3
+    assert np.all(face_ids >= 0) # All particles should be inside an element
