@@ -6,9 +6,8 @@ import xarray as xr
 import sys
 import os
 
-from functools import wraps
 
-from typing import Optional, IO, Union
+from typing import Optional, IO, Union, Any
 
 import uxarray
 from uxarray.grid import Grid
@@ -22,6 +21,7 @@ from uxarray.plot.accessor import UxDatasetPlotAccessor
 from xarray.core.utils import UncachedAccessor
 
 from uxarray.formatting_html import dataset_repr
+from xarray.core import dtypes
 
 from html import escape
 
@@ -509,22 +509,12 @@ class UxDataset(xr.Dataset):
 
         return dataset
 
-    def where(self, *args, **kwargs):
-        parent_where = super().where
+    def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
+        return UxDataset(super().where(cond, other, drop), uxgrid=self.uxgrid)
 
-        @wraps(parent_where)
-        def wrapped(*args, **kwargs):
-            result = parent_where(*args, **kwargs)
-            return UxDataset(result, uxgrid=self.uxgrid)
+    where.__doc__ = xr.Dataset.where.__doc__
 
-        return wrapped(*args, **kwargs)
+    def fillna(self, value: Any):
+        return UxDataset(super().fillna(value), uxgrid=self.uxgrid)
 
-    def fillna(self, *args, **kwargs):
-        parent_fillna = super().fillna
-
-        @wraps(parent_fillna)
-        def wrapped(*args, **kwargs):
-            result = parent_fillna(*args, **kwargs)
-            return UxDataset(result, uxgrid=self.uxgrid)
-
-        return wrapped(*args, **kwargs)
+    fillna.__doc__ = xr.Dataset.fillna.__doc__

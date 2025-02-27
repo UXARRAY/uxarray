@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import warnings
-from functools import wraps
 from html import escape
-from typing import Hashable, Literal, Optional, TYPE_CHECKING
+from typing import Hashable, Literal, Optional, TYPE_CHECKING, Any
 from warnings import warn
 
 import cartopy.crs as ccrs
@@ -30,6 +29,7 @@ from uxarray.subset import DataArraySubsetAccessor
 
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
+from xarray.core import dtypes
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
@@ -1324,22 +1324,12 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def where(self, *args, **kwargs):
-        parent_where = super().where
+    def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
+        return UxDataArray(super().where(cond, other, drop), uxgrid=self.uxgrid)
 
-        @wraps(parent_where)
-        def wrapped(*args, **kwargs):
-            result = parent_where(*args, **kwargs)
-            return UxDataArray(result, uxgrid=self.uxgrid)
+    where.__doc__ = xr.DataArray.where.__doc__
 
-        return wrapped(*args, **kwargs)
+    def fillna(self, value: Any):
+        return UxDataArray(super().fillna(value), uxgrid=self.uxgrid)
 
-    def fillna(self, *args, **kwargs):
-        parent_fillna = super().fillna
-
-        @wraps(parent_fillna)
-        def wrapped(*args, **kwargs):
-            result = parent_fillna(*args, **kwargs)
-            return UxDataArray(result, uxgrid=self.uxgrid)
-
-        return wrapped(*args, **kwargs)
+    fillna.__doc__ = xr.DataArray.fillna.__doc__
