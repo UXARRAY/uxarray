@@ -807,21 +807,20 @@ class SpatialHash:
         self._nelements = self._source_grid.n_face
 
         self.reconstruct = reconstruct
-        self.coordinate_system == "spherical"
 
         # Hash grid size
-        self.dh = self._hash_cell_size()
+        self._dh = self._hash_cell_size()
         # Lower left corner of the hash grid
-        self.xmin = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
-        self.ymin = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
-        self.xmax = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
-        self.ymax = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
+        self._xmin = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
+        self._ymin = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
+        self._xmax = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
+        self._ymax = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
         # Number of x points in the hash grid; used for
         # array flattening
-        Lx = self.xmax - self.xmin
-        Ly = self.ymax - self.ymin
-        self.nx = int(np.ceil(Lx / self.dh))
-        self.ny = int(np.ceil(Ly / self.dh))
+        Lx = self._xmax - self._xmin
+        Ly = self._ymax - self._ymin
+        self._nx = int(np.ceil(Lx / self._dh))
+        self._ny = int(np.ceil(Ly / self._dh))
 
         # Generate the mapping from the hash indices to unstructured grid elements
         self._face_hash_table = self._initialize_face_hash_table()
@@ -835,8 +834,8 @@ class SpatialHash:
         """Computes the 2-d hash index (i,j) for the location (x,y), where x and y are given in spherical
         coordinates (in degrees)"""
 
-        i = ((coords[:, 0] - self.xmin) / self.dh).astype(INT_DTYPE)
-        j = ((coords[:, 1] - self.ymin) / self.dh).astype(INT_DTYPE)
+        i = ((coords[:, 0] - self._xmin) / self._dh).astype(INT_DTYPE)
+        j = ((coords[:, 1] - self._ymin) / self._dh).astype(INT_DTYPE)
         return i, j
 
     def _hash_index(self, coords):
@@ -844,14 +843,14 @@ class SpatialHash:
         coordinates (in degrees). The single dimensioned hash index orders the flat index with all of the
         i-points first and then all the j-points."""
         i, j = self._hash_index2d(coords)
-        return i + self.nx * j
+        return i + self._nx * j
 
     def _initialize_face_hash_table(self):
         """Create a mapping that relates unstructured grid faces to hash indices by determining
         which faces overlap with which hash cells"""
 
         if self._face_hash_table is None or self.reconstruct:
-            index_to_face = [[] for i in range(self.nx * self.ny)]
+            index_to_face = [[] for i in range(self._nx * self._ny)]
             lon_bounds = self._source_grid.face_bounds_lon.to_numpy()
             lat_bounds = self._source_grid.face_bounds_lat.to_numpy()
             ib, jb = self._hash_index2d(lon_bounds, lat_bounds)
@@ -859,7 +858,7 @@ class SpatialHash:
             for eid in range(self._source_grid.n_face):
                 for j in range(jb[eid, 0], jb[eid, 1] + 1):
                     for i in range(ib[eid, 0], ib[eid, 1] + 1):
-                        index_to_face[i + self.nx * j].append(eid)
+                        index_to_face[i + self._nx * j].append(eid)
 
             return index_to_face
 
