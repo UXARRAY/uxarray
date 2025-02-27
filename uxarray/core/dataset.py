@@ -510,9 +510,19 @@ class UxDataset(xr.Dataset):
         return dataset
 
     def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
-        return UxDataset(super().where(cond, other, drop), uxgrid=self.uxgrid)
+        return UxDataset(self.to_xarray().where(cond, other, drop), uxgrid=self.uxgrid)
 
     where.__doc__ = xr.Dataset.where.__doc__
+
+    def sel(
+        self, indexers=None, method=None, tolerance=None, drop=False, **indexers_kwargs
+    ):
+        return UxDataset(
+            self.to_xarray().sel(indexers, tolerance, drop, **indexers_kwargs),
+            uxgrid=self.uxgrid,
+        )
+
+    sel.__doc__ = xr.Dataset.sel.__doc__
 
     def fillna(self, value: Any):
         return UxDataset(super().fillna(value), uxgrid=self.uxgrid)
