@@ -811,10 +811,10 @@ class SpatialHash:
         # Hash grid size
         self._dh = self._hash_cell_size()
         # Lower left corner of the hash grid
-        self._xmin = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
-        self._ymin = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
-        self._xmax = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
-        self._ymax = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
+        self._xmin = np.deg2rad(self._source_grid.node_lon.min().to_numpy()) - self._dh
+        self._ymin = np.deg2rad(self._source_grid.node_lat.min().to_numpy()) - self._dh
+        self._xmax = np.deg2rad(self._source_grid.node_lon.max().to_numpy()) + self._dh
+        self._ymax = np.deg2rad(self._source_grid.node_lat.max().to_numpy()) + self._dh
         # Number of x points in the hash grid; used for
         # array flattening
         Lx = self._xmax - self._xmin
@@ -823,6 +823,7 @@ class SpatialHash:
         self._ny = int(np.ceil(Ly / self._dh))
 
         # Generate the mapping from the hash indices to unstructured grid elements
+        self._face_hash_table = None
         self._face_hash_table = self._initialize_face_hash_table()
 
     def _hash_cell_size(self):
@@ -851,13 +852,27 @@ class SpatialHash:
 
         if self._face_hash_table is None or self.reconstruct:
             index_to_face = [[] for i in range(self._nx * self._ny)]
-            lon_bounds = self._source_grid.face_bounds_lon.to_numpy()
+            lon_bounds = np.sort(self._source_grid.face_bounds_lon.to_numpy(), 1)
             lat_bounds = self._source_grid.face_bounds_lat.to_numpy()
-            ib, jb = self._hash_index2d(lon_bounds, lat_bounds)
+
+            coords = np.column_stack(
+                (
+                    np.deg2rad(lon_bounds[:, 0].flatten()),
+                    np.deg2rad(lat_bounds[:, 0].flatten()),
+                )
+            )
+            i1, j1 = self._hash_index2d(coords)
+            coords = np.column_stack(
+                (
+                    np.deg2rad(lon_bounds[:, 1].flatten()),
+                    np.deg2rad(lat_bounds[:, 1].flatten()),
+                )
+            )
+            i2, j2 = self._hash_index2d(coords)
 
             for eid in range(self._source_grid.n_face):
-                for j in range(jb[eid, 0], jb[eid, 1] + 1):
-                    for i in range(ib[eid, 0], ib[eid, 1] + 1):
+                for j in range(j1[eid], j2[eid] + 1):
+                    for i in range(i1[eid], i2[eid] + 1):
                         index_to_face[i + self._nx * j].append(eid)
 
             return index_to_face
@@ -866,6 +881,7 @@ class SpatialHash:
         self,
         coords: Union[np.ndarray, list, tuple],
         in_radians: Optional[bool] = False,
+        tol: Optional[float] = 1e-6,
     ):
         """Queries the hash table.
 
@@ -887,7 +903,7 @@ class SpatialHash:
         """
 
         coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
-
+        print(f"coords: {coords}")
         bcoords = np.zeros(
             (coords.shape[0], self._source_grid.n_max_face_nodes), dtype=np.double
         )
@@ -898,24 +914,31 @@ class SpatialHash:
         candidate_faces = [
             self._face_hash_table[pid] for pid in self._hash_index(coords)
         ]
-
+        print(f"hash table : {self._face_hash_table}")
+        print(f"hash indices : {self._hash_index(coords)}")
+        print(f"candidate_faces: {candidate_faces}")
         # For each coordinate, perform the in/out check on each candidate face
         for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
-            n_nodes = 3  ## For now, assume all triangles
+            is_inside = False
             for face_id in candidates:
+                n_nodes = self._source_grid.n_nodes_per_face[face_id].to_numpy()
                 node_ids = self._source_grid.face_node_connectivity[face_id, 0:n_nodes]
                 nodes = np.column_stack(
-                    np.deg2rad(self._source_grid.node_lon[node_ids].to_numpy()),
-                    np.deg2rad(self._source_grid.node_lon[node_ids].to_numpy()),
+                    (
+                        np.deg2rad(self._source_grid.node_lon[node_ids].to_numpy()),
+                        np.deg2rad(self._source_grid.node_lat[node_ids].to_numpy()),
+                    )
                 )
                 bcoord = _barycentric_coordinates(nodes, coord)
+                err = np.abs(np.sum(bcoord * nodes[:, 0], axis=0) - coord[0])
+                +np.abs(np.sum(bcoord * nodes[:, 1], axis=0) - coord[1])
                 is_inside = all(lambda_i >= 0 for lambda_i in bcoord)
-                if is_inside:
+                if is_inside and err < tol:
                     break
 
-            if is_inside:
+            if is_inside and err < tol:
                 faces[i] = face_id
-                bcoords[i] = bcoord
+                bcoords[i, 0:n_nodes] = bcoord[0:n_nodes]
 
         return faces, bcoords
 
@@ -947,19 +970,14 @@ def _barycentric_coordinates(nodes, point):
     total_area = 0
     areas = []
 
-    for i in range(0, n - 1):
-        vi = nodes[i]
-        vi1 = nodes[i + 1]
+    for i in range(0, n):
+        vi = nodes[(i + 1) % n]
+        vi1 = nodes[(i + 2) % n]
         area = _triangle_area(vi, vi1, point)
         total_area += area
         areas.append(area)
 
-    # Compute barycentric coordinates
     barycentric_coords = [a_i / total_area for a_i in areas]
-
-    # Append the last coordinate to ensure sum is 1
-    last_coord = 1.0 - sum(barycentric_coords)
-    barycentric_coords.insert(0, last_coord)
 
     return barycentric_coords
 
