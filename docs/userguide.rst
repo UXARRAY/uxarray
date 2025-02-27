@@ -91,6 +91,9 @@ Supplementary Guides
 
 These user guides provide additional details about specific features in UXarray.
 
+`Working with HEALPix Grids <user-guide/healpix.ipynb>`_
+ Use UXarray with HEALPix
+
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
 
@@ -120,5 +123,6 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/dual-mesh.ipynb
    user-guide/structured.ipynb
    user-guide/from-points.ipynb
+   user-guide/healpix.ipynb
    user-guide/holoviz.ipynb
    user-guide/from_file.ipynb
