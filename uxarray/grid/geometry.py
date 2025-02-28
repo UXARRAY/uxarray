@@ -1718,7 +1718,7 @@ def _populate_max_face_radius(self):
     )
 
     # Return the max distance, which is the `max_face_radius`
-    return max_distance
+    return np.rad2deg(max_distance)
 
 
 @njit(cache=True)

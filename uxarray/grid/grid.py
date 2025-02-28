@@ -1590,7 +1590,7 @@ class Grid:
 
     @property
     def max_face_radius(self):
-        """Maximum face radius of the grid in radians"""
+        """Maximum face radius of the grid in degrees"""
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
@@ -2499,35 +2499,39 @@ class Grid:
         """
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
-    def get_faces_containing_point(self, point, tolerance=ERROR_TOLERANCE):
-        """Identifies the indices of faces that contain a given point. This function will typically return a
-        single face, unless the point falls directly on a corner or edge, where there will instead be multiple values.
+    def get_faces_containing_point(
+        self, point_xyz=None, point_lonlat=None, tolerance=ERROR_TOLERANCE
+    ):
+        """Identifies the indices of faces that contain a given point.
 
         Parameters
         ----------
-        point : numpy.ndarray
-            A point in either cartesian coordinates or spherical coordinates.
+        point_xyz : numpy.ndarray
+            A point in cartesian coordinates. Best performance if
+        point_lonlat : numpy.ndarray
+            A point in spherical coordinates.
         tolerance : numpy.ndarray
             An optional error tolerance for points that lie on the nodes of a face.
 
         Returns
         -------
         index : numpy.ndarray
-            Array of the face indices containing point. Empty if no face is found.
+            Array of the face indices containing point. Empty if no face is found. This function will typically return
+            a single face, unless the point falls directly on a corner or edge, where there will be multiple values.
 
         """
-        # Depending on the point coordinates, convert to the coordinate system needed
-        point = np.asarray(point, dtype=np.float64)
-        if len(point) == 2:
-            point_xyz = np.array(_lonlat_rad_to_xyz(*np.deg2rad(point)))
-            point_lonlat = point
-        elif len(point) == 3:
-            point_xyz = point
-            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
-        else:
-            raise ValueError(
-                "Point must either be in spherical or cartesian coordinates."
+        if point_xyz is None and point_lonlat is None:
+            raise ValueError("Either `point_xyz` or `point_lonlat` must be passed in.")
+
+        # Depending on the provided point coordinates, convert to get all needed coordinate systems
+        if point_xyz is None:
+            point_lonlat = np.asarray(point_lonlat, dtype=np.float64)
+            point_xyz = np.array(
+                _lonlat_rad_to_xyz(*np.deg2rad(point_lonlat)), dtype=np.float64
             )
+        elif point_lonlat is None:
+            point_xyz = np.asarray(point_xyz, dtype=np.float64)
+            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
 
         # Get the maximum face radius of the grid, plus a small adjustment for if the point is this exact radius away
         max_face_radius = self.max_face_radius.values + 0.0001
@@ -2535,7 +2539,7 @@ class Grid:
         # Try to find a subset in which the point resides
         try:
             subset = self.subset.bounding_circle(
-                r=np.rad2deg(max_face_radius),
+                r=max_face_radius,
                 center_coord=point_lonlat,
                 element="face centers",
                 inverse_indices=True,
@@ -2549,7 +2553,7 @@ class Grid:
                 )
             else:
                 warn("No faces found. Try adjusting the tolerance.")
-            return []
+            return np.empty(0, dtype=np.int64)
 
         # Get the faces in terms of their edges
         face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(

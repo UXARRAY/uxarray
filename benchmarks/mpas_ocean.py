@@ -3,6 +3,7 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
+from polars.testing.parametric import dtypes
 
 import uxarray as ux
 
@@ -202,7 +203,10 @@ class PointInPolygon:
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
         self.uxgrid.normalize_cartesian_coordinates()
 
+        # Construct variables needed to ensure that the benchmark doesn't measure construction time
         _ = self.uxgrid.face_edge_connectivity
+        _ = self.uxgrid.face_x.values
+        _ = self.uxgrid.face_lon.values
 
         point = np.array([0.0, 0.0, 1.0])
         res = self.uxgrid.get_faces_containing_point(point)
@@ -211,9 +215,9 @@ class PointInPolygon:
         del self.uxgrid
 
     def time_face_search(self, resolution):
-        point_xyz = np.array([self.uxgrid.face_x[0].values, self.uxgrid.face_y[0].values, self.uxgrid.face_z[0].values])
-
-        self.uxgrid.get_faces_containing_point(point=point_xyz)
+        point_xyz = np.array([self.uxgrid.face_x[0].values, self.uxgrid.face_y[0].values, self.uxgrid.face_z[0].values], dtype=np.float64)
+        point_lonlat = np.array([self.uxgrid.face_lon[0].values, self.uxgrid.face_lat.values[0]], dtype=np.float64)
+        self.uxgrid.get_faces_containing_point(point_xyz=point_xyz, point_lonlat=point_lonlat)
 
 
 class ZonalAverage(DatasetBenchmark):
