@@ -275,7 +275,7 @@ def test_face_areas_calculate_total_face_area_triangle():
 
     # calculate area
     area_gaussian = grid_verts.calculate_total_face_area(
-        quadrature_rule="gaussian", order=5, correct_area=True)
+        quadrature_rule="gaussian", order=5, latitude_adjusted_area=True)
     nt.assert_almost_equal(area_gaussian, constants.CORRECTED_TRI_AREA, decimal=3)
 
 def test_face_areas_calculate_total_face_area_file():

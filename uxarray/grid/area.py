@@ -14,7 +14,7 @@ def calculate_face_area(
     quadrature_rule="gaussian",
     order=4,
     coords_type="spherical",
-    correct_area=False,
+    latitude_adjusted_area=False,
 ):
     """Calculate area of a face on sphere.
 
@@ -42,7 +42,7 @@ def calculate_face_area(
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
 
-    correct_area : bool, optional
+    latitude_adjusted_area : bool, optional
         If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
 
     Returns
@@ -66,6 +66,7 @@ def calculate_face_area(
     # num triangles is two less than the total number of nodes
     num_triangles = num_nodes - 2
 
+    # TODO: Remove/clarify option for spherical coordinates
     if coords_type == "spherical":
         # Preallocate arrays for Cartesian coordinates
         n_points = len(x)
@@ -112,7 +113,8 @@ def calculate_face_area(
     # check if the any edge is on the line of constant latitude
     # which means we need to check edges for same z-coordinates and call area correction routine
     correction = 0.0
-    if correct_area:
+    # TODO: Make this work when latitude_adjusted_area is False and each edge has a flag that indicates if it is a constant latitude edge
+    if latitude_adjusted_area:
         for i in range(num_nodes):
             node1 = np.array([x[i], y[i], z[i]], dtype=x.dtype)
             node2 = np.array(
@@ -201,7 +203,7 @@ def get_all_face_area_from_coords(
     quadrature_rule="triangular",
     order=4,
     coords_type="spherical",
-    correct_area=False,
+    latitude_adjusted_area=False,
 ):
     """Given coords, connectivity and other area calculation params, this
     routine loop over all faces and return an numpy array with areas of each
@@ -233,7 +235,7 @@ def get_all_face_area_from_coords(
     coords_type : str, optional
         coordinate type, default is spherical, can be cartesian also.
 
-    correct_area : bool, optional
+    latitude_adjusted_area : bool, optional
         If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
 
     Returns
@@ -264,7 +266,13 @@ def get_all_face_area_from_coords(
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area, face_jacobian = calculate_face_area(
-            face_x, face_y, face_z, quadrature_rule, order, coords_type, correct_area
+            face_x,
+            face_y,
+            face_z,
+            quadrature_rule,
+            order,
+            coords_type,
+            latitude_adjusted_area,
         )
         # store current face area
         area[face_idx] = face_area
