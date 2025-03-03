@@ -1755,6 +1755,20 @@ class Grid:
         self,
         reconstruct: bool = False,
     ):
+        """Get the SpatialHash data structure of this Grid that allows for
+        fast face search queries. Face searches are used to find the faces that
+        a list of points, in spherical coordinates, are contained within.
+
+        Parameters
+        ----------
+        reconstruct : bool, default=False
+            If true, reconstructs the tree
+
+        Returns
+        -------
+        self._spatialhash : grid.Neighbors.SpatialHash
+            SpatialHash instance
+        """
         if self._spatialhash is None or reconstruct:
             self._spatialhash = SpatialHash(self, reconstruct)
 
