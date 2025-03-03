@@ -791,7 +791,7 @@ class SpatialHash:
     grid : ux.Grid
         Source grid used to construct the hash grid and hash table
     reconstruct : bool, default=False
-        If true, reconstructs the tree
+        If true, reconstructs the spatial hash
     """
 
     def __init__(
