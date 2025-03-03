@@ -1,5 +1,3 @@
-"""UXarray dataset module."""
-
 import os
 import numpy as np
 import xarray as xr
@@ -319,9 +317,7 @@ def concat(objs, *args, **kwargs):
                 f"Object at index {i} does not have a 'uxgrid' attribute."
             )
         if id(uxgrid) != ref_id:
-            raise ValueError(
-                f"Object at index {i} has a different 'uxgrid' attribute (memory address mismatch)."
-            )
+            raise ValueError(f"Object at index {i} has a different 'uxgrid' attribute.")
 
     res = xr.concat(objs, *args, **kwargs)
     return UxDataset(res, uxgrid=uxgrid)

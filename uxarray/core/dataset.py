@@ -1,35 +1,26 @@
 from __future__ import annotations
 
+import os
+import sys
+from html import escape
+from typing import IO, Optional, Union, Any
+from warnings import warn
+
 import numpy as np
 import xarray as xr
-
-import sys
-import os
-
-
-from typing import Optional, IO, Union, Any
-
-import uxarray
-from uxarray.grid import Grid
-from uxarray.core.dataarray import UxDataArray
-from uxarray.grid.dual import construct_dual
-from uxarray.grid.validation import _check_duplicate_nodes_indices
-from uxarray.core.utils import _map_dims_to_ugrid
-
-from uxarray.plot.accessor import UxDatasetPlotAccessor
-
+from xarray.core import dtypes
+from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
+import uxarray
+from uxarray.core.dataarray import UxDataArray
+from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.formatting_html import dataset_repr
-from xarray.core import dtypes
-
-from html import escape
-
-from xarray.core.options import OPTIONS
-
+from uxarray.grid import Grid
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap import UxDatasetRemapAccessor
-
-from warnings import warn
 
 
 class UxDataset(xr.Dataset):
