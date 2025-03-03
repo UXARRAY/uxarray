@@ -1762,7 +1762,7 @@ class Grid:
         Parameters
         ----------
         reconstruct : bool, default=False
-            If true, reconstructs the tree
+            If true, reconstructs the spatial hash
 
         Returns
         -------
