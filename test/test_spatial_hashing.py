@@ -41,7 +41,6 @@ def test_is_inside():
     assert face_ids[0] == -1
     # Verify that a point inside the element returns a face id of 0
     face_ids, bcoords = uxgrid.get_spatial_hash().query([-90.0, 0.0])
-    print(face_ids[0], bcoords[0])
 
     assert face_ids[0] == 0
     assert np.allclose(bcoords[0], [0.25, 0.5, 0.25], atol=1e-06)
