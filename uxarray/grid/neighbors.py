@@ -792,10 +792,6 @@ class SpatialHash:
         Source grid used to construct the hash grid and hash table
     reconstruct : bool, default=False
         If true, reconstructs the tree
-
-    Notes
-    -----
-
     """
 
     def __init__(
