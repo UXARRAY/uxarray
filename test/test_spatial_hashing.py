@@ -28,7 +28,7 @@ def test_construction():
     """Tests the construction of the SpatialHash object"""
     for grid_file in grid_files:
         uxgrid = ux.open_grid(grid_file)
-        face_ids, bcoords = uxgrid.get_spatialhash().query([0.9, 1.8])
+        face_ids, bcoords = uxgrid.get_spatial_hash().query([0.9, 1.8])
         assert face_ids.shape[0] == bcoords.shape[0]
 
 
@@ -37,10 +37,10 @@ def test_is_inside():
     verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
     uxgrid = ux.open_grid(verts, latlon=True)
     # Verify that a point outside the element returns a face id of -1
-    face_ids, bcoords = uxgrid.get_spatialhash().query([90.0, 0.0])
+    face_ids, bcoords = uxgrid.get_spatial_hash().query([90.0, 0.0])
     assert face_ids[0] == -1
     # Verify that a point inside the element returns a face id of 0
-    face_ids, bcoords = uxgrid.get_spatialhash().query([-90.0, 0.0])
+    face_ids, bcoords = uxgrid.get_spatial_hash().query([-90.0, 0.0])
     print(face_ids[0], bcoords[0])
 
     assert face_ids[0] == 0
@@ -52,7 +52,7 @@ def test_list_of_coords_simple():
     uxgrid = ux.open_grid(verts, latlon=True)
 
     coords = [[90.0, 0.0], [-90.0, 0.0]]
-    face_ids, bcoords = uxgrid.get_spatialhash().query(coords)
+    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords)
     assert face_ids[0] == -1
     assert face_ids[1] == 0
     assert np.allclose(bcoords[1], [0.25, 0.5, 0.25], atol=1e-06)
@@ -70,7 +70,7 @@ def test_list_of_coords_fesom():
     for k in range(num_particles):
         coords[k,0] = np.deg2rad(np.random.uniform(x_min, x_max))
         coords[k,1] = np.deg2rad(np.random.uniform(y_min, y_max))
-    face_ids, bcoords = uxgrid.get_spatialhash().query(coords)
+    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords)
     assert len(face_ids) == num_particles
     assert bcoords.shape[0] == num_particles
     assert bcoords.shape[1] == 3
