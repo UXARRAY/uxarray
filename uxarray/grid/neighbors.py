@@ -909,9 +909,6 @@ class SpatialHash:
         candidate_faces = [
             self._face_hash_table[pid] for pid in self._hash_index(coords)
         ]
-        print(f"hash table : {self._face_hash_table}")
-        print(f"hash indices : {self._hash_index(coords)}")
-        print(f"candidate_faces: {candidate_faces}")
         # For each coordinate, perform the in/out check on each candidate face
         for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
             is_inside = False
