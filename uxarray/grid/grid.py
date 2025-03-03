@@ -1751,7 +1751,7 @@ class Grid:
 
         return self._kd_tree
 
-    def get_spatialhash(
+    def get_spatial_hash(
         self,
         reconstruct: bool = False,
     ):
