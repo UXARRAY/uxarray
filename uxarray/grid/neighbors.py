@@ -899,7 +899,6 @@ class SpatialHash:
         """
 
         coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
-        print(f"coords: {coords}")
         bcoords = np.zeros(
             (coords.shape[0], self._source_grid.n_max_face_nodes), dtype=np.double
         )
