@@ -2521,17 +2521,22 @@ class Grid:
 
         Examples
         --------
+        Open a grid from a file path:
+
         >>> import uxarray as ux
-        Open a grid from a file path
         >>> uxgrid = ux.open_grid("grid_filename.nc")
 
-        Define a spherical point
+        Define a spherical point:
+
+        >>> import numpy as np
         >>> point_lonlat = np.array([45.2, 32.6], dtype=np.float64)
 
-        Define a cartesian point
+        Define a cartesian point:
+
         >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
 
-        Find the indices of the faces that contain the given point
+        Find the indices of the faces that contain the given point:
+
         >>> lonlat_point_face_indices = uxgrid.get_faces_containing_point(
         ...     point_lonlat=point_lonlat
         ... )
