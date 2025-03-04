@@ -1771,14 +1771,17 @@ class Grid:
 
         Examples
         --------
+        Open a grid from a file path:
+         
         >>> import uxarray as ux
-        Open a grid from a file path
         >>> uxgrid = ux.open_grid("grid_filename.nc")
 
-        Obtain SpatialHash instance
+        Obtain SpatialHash instance:
+        
         >>> spatial_hash = uxgrid.get_spatial_hash()
 
-        Query to find the face a point lies within in addition to its barycentric coordinates.
+        Query to find the face a point lies within in addition to its barycentric coordinates:
+        
         >>> face_ids, bcoords = spatial_hash.query([0.0, 0.0])
         """
         if self._spatialhash is None or reconstruct:
