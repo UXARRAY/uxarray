@@ -2519,7 +2519,7 @@ class Grid:
             Array of the face indices containing point. Empty if no face is found. This function will typically return
             a single face, unless the point falls directly on a corner or edge, where there will be multiple values.
 
-         Examples
+        Examples
         --------
         >>> import uxarray as ux
         Open a grid from a file path
