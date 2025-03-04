@@ -74,3 +74,42 @@ def test_list_of_coords_fesom():
     assert bcoords.shape[0] == num_particles
     assert bcoords.shape[1] == 3
     assert np.all(face_ids >= 0) # All particles should be inside an element
+
+def test_list_of_coords_mpas_dual():
+    """Verifies test using list of points on the dual MPAS grid"""
+    uxgrid = ux.open_grid(gridfile_mpas, use_dual=True)
+
+    num_particles = 20
+    coords = np.zeros((num_particles,2))
+    x_min = -40.0
+    x_max = 40.0
+    y_min = -20.0
+    y_max = 20.0
+    for k in range(num_particles):
+        coords[k,0] = np.deg2rad(np.random.uniform(x_min, x_max))
+        coords[k,1] = np.deg2rad(np.random.uniform(y_min, y_max))
+    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords)
+    assert len(face_ids) == num_particles
+    assert bcoords.shape[0] == num_particles
+    assert bcoords.shape[1] == 3 # max sides of an element
+    assert np.all(face_ids >= 0) # All particles should be inside an element
+
+
+def test_list_of_coords_mpas_primal():
+    """Verifies test using list of points on the primal MPAS grid"""
+    uxgrid = ux.open_grid(gridfile_mpas, use_dual=False)
+
+    num_particles = 20
+    coords = np.zeros((num_particles,2))
+    x_min = -40.0
+    x_max = 40.0
+    y_min = -20.0
+    y_max = 20.0
+    for k in range(num_particles):
+        coords[k,0] = np.deg2rad(np.random.uniform(x_min, x_max))
+        coords[k,1] = np.deg2rad(np.random.uniform(y_min, y_max))
+    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords)
+    assert len(face_ids) == num_particles
+    assert bcoords.shape[0] == num_particles
+    assert bcoords.shape[1] == 6 # max sides of an element
+    assert np.all(face_ids >= 0) # All particles should be inside an element

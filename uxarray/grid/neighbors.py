@@ -945,6 +945,8 @@ def _triangle_area(A, B, C):
 def _barycentric_coordinates(nodes, point):
     """
     Compute the barycentric coordinates of a point P inside a convex polygon using area-based weights.
+    So that this method generalizes to n-sided polygons, we use the Waschpress points as the generalized
+    barycentric coordinates, which is only valid for convex polygons.
 
     Parameters
     ----------
@@ -959,17 +961,20 @@ def _barycentric_coordinates(nodes, point):
 
     """
     n = len(nodes)
-    total_area = 0
-    areas = []
+    sum_wi = 0
+    w = []
 
     for i in range(0, n):
-        vi = nodes[(i + 1) % n]
-        vi1 = nodes[(i + 2) % n]
-        area = _triangle_area(vi, vi1, point)
-        total_area += area
-        areas.append(area)
+        vim1 = nodes[i - 1]
+        vi = nodes[i]
+        vi1 = nodes[(i + 1) % n]
+        a0 = _triangle_area(vim1, vi, vi1)
+        a1 = _triangle_area(point, vim1, vi)
+        a2 = _triangle_area(point, vi, vi1)
+        sum_wi += a0 / (a1 * a2)
+        w.append(a0 / (a1 * a2))
 
-    barycentric_coords = [a_i / total_area for a_i in areas]
+    barycentric_coords = [w_i / sum_wi for w_i in w]
 
     return barycentric_coords
 
