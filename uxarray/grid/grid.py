@@ -2525,11 +2525,19 @@ class Grid:
         Open a grid from a file path
         >>> uxgrid = ux.open_grid("grid_filename.nc")
 
-        Define the point's lonlat coordinates
+        Define a spherical point
         >>> point_lonlat = np.array([45.2, 32.6], dtype=np.float64)
 
+        Define a cartesian point
+        >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
         Find the indices of the faces that contain the given point
-        >>> face_indices = uxgrid.get_faces_containing_point(point_lonlat=point_lonlat)
+        >>> lonlat_point_face_indices = uxgrid.get_faces_containing_point(
+        ...     point_lonlat=point_lonlat
+        ... )
+        >>> xyz_point_face_indices = uxgrid.get_faces_containing_point(
+        ...     point_xyz=point_xyz
+        ... )
 
         """
         if point_xyz is None and point_lonlat is None:
