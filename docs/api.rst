@@ -139,6 +139,7 @@ Descriptors
    Grid.partial_sphere_coverage
    Grid.global_sphere_coverage
    Grid.triangular
+   Grid.max_face_radius
 
 Attributes
 ~~~~~~~~~~
@@ -160,7 +161,7 @@ Methods
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
    Grid.get_spatial_hash
-
+   Grid.get_faces_containing_point
 
 Inheritance of Xarray Functionality
 -----------------------------------
