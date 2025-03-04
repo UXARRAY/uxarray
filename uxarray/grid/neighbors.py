@@ -937,7 +937,7 @@ class SpatialHash:
 
 def _triangle_area(A, B, C):
     """
-    Compute the signed area of a triangle given by three points.
+    Compute the area of a triangle given by three points.
     """
     return 0.5 * abs(A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1]))
 
