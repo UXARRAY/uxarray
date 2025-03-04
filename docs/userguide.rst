@@ -82,8 +82,6 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
  Construct the Dual Mesh of an unstructured grid
 
-`Point in Face <user-guide/point_in_face.ipynb>`_
- Check if a point is within a face and find the faces containing a point
 
 Supplementary Guides
 --------------------
