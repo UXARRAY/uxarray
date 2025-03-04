@@ -2519,6 +2519,18 @@ class Grid:
             Array of the face indices containing point. Empty if no face is found. This function will typically return
             a single face, unless the point falls directly on a corner or edge, where there will be multiple values.
 
+         Examples
+        --------
+        >>> import uxarray as ux
+        Open a grid from a file path
+        >>> uxgrid = ux.open_grid("grid_filename.nc")
+
+        Define the point's lonlat coordinates
+        >>> point_lonlat = np.array([45.2, 32.6], dtype=np.float64)
+
+        Find the indices of the faces that contain the given point
+        >>> face_indices = uxgrid.get_faces_containing_point(point_lonlat=point_lonlat)
+
         """
         if point_xyz is None and point_lonlat is None:
             raise ValueError("Either `point_xyz` or `point_lonlat` must be passed in.")
