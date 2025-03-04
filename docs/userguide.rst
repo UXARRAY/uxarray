@@ -123,4 +123,3 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/healpix.ipynb
    user-guide/holoviz.ipynb
    user-guide/from_file.ipynb
-   user-guide/point_in_face.ipynb
