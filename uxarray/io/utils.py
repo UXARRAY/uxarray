@@ -132,12 +132,13 @@ def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
 def _get_source_dims_dict(grid_ds, grid_spec):
     if grid_spec == "MPAS":
         return _mpas_to_ugrid_dims(grid_ds)
-    if grid_spec == "UGRID":
+    elif grid_spec == "UGRID":
         _, dim_dict = _read_ugrid(grid_ds)
         return dim_dict
     elif grid_spec == "ICON":
         return _icon_to_ugrid_dims(grid_ds)
     elif grid_spec == "ESMF":
         return _esmf_to_ugrid_dims(grid_ds)
+
     else:
         return dict()

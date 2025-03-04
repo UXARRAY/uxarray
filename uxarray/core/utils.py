@@ -69,7 +69,7 @@ def _map_dims_to_ugrid(
 
 
 def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
-    # TODO: might need to copy chunks
+    """Matches chunks to of the original dimensions to the UGRID conventions."""
 
     if not isinstance(chunks, dict):
         # No need to rename
