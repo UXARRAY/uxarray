@@ -2,7 +2,8 @@ import os
 import numpy as np
 import xarray as xr
 
-from typing import Any, Dict, Optional, Union
+from collections.abc import Hashable, Iterable
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
 
 from uxarray.grid import Grid
 from uxarray.core.dataset import UxDataset
@@ -11,6 +12,13 @@ from uxarray.core.utils import _map_dims_to_ugrid, match_chunks_to_ugrid
 from xarray.core.types import T_Chunks
 
 from warnings import warn
+
+if TYPE_CHECKING:
+    from xarray.core.types import (
+        ConcatOptions,
+    )
+
+    T_DataVars = Union[ConcatOptions, Iterable[Hashable]]
 
 
 def open_grid(
@@ -289,3 +297,30 @@ def _get_grid(
 
     # Create a Grid
     return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
+
+
+def concat(objs, *args, **kwargs):
+    # Ensure there is at least one object to concat.
+    if not objs:
+        raise ValueError("No objects provided for concatenation.")
+
+    ref_uxgrid = getattr(objs[0], "uxgrid", None)
+    if ref_uxgrid is None:
+        raise AttributeError("The first object does not have a 'uxgrid' attribute.")
+
+    ref_id = id(ref_uxgrid)
+
+    for i, obj in enumerate(objs):
+        uxgrid = getattr(obj, "uxgrid", None)
+        if uxgrid is None:
+            raise AttributeError(
+                f"Object at index {i} does not have a 'uxgrid' attribute."
+            )
+        if id(uxgrid) != ref_id:
+            raise ValueError(f"Object at index {i} has a different 'uxgrid' attribute.")
+
+    res = xr.concat(objs, *args, **kwargs)
+    return UxDataset(res, uxgrid=uxgrid)
+
+
+concat.__doc__ = xr.concat.__doc__
