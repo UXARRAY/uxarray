@@ -9,8 +9,6 @@ from xarray.core.options import OPTIONS
 from typing import (
     Optional,
     Union,
-    List,
-    Set,
     Tuple,
 )
 
@@ -153,8 +151,6 @@ class Grid:
     is_subset : bool, default=False
         Flag to mark if the grid is a subset or not
 
-    inverse_indices: xr.Dataset, default=None
-        A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
     Examples
     ----------
@@ -180,7 +176,6 @@ class Grid:
         source_grid_spec: Optional[str] = None,
         source_dims_dict: Optional[dict] = {},
         is_subset: bool = False,
-        inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         # TODO:
@@ -216,8 +211,6 @@ class Grid:
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self._is_subset = is_subset
-
-        self._inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -335,7 +328,6 @@ class Grid:
             source_grid_spec,
             source_dims_dict,
             is_subset=kwargs.get("is_subset", False),
-            inverse_indices=kwargs.get("inverse_indices"),
         )
 
     @classmethod
@@ -1574,19 +1566,27 @@ class Grid:
         return not self.partial_sphere_coverage
 
     @property
-    def inverse_indices(self) -> xr.Dataset:
-        """Indices for a subset that map each face in the subset back to the original grid"""
-        if self.is_subset:
-            return self._inverse_indices
-        else:
-            raise Exception(
-                "Grid is not a subset, therefore no inverse face indices exist"
-            )
-
-    @property
     def is_subset(self):
         """Returns `True` if the Grid is a subset, 'False' otherwise."""
         return self._is_subset
+
+    @property
+    def source_face_indices(self):
+        """TODO:"""
+        if "source_face_indices" in self._ds:
+            return self._ds["source_face_indices"]
+
+    @property
+    def source_edge_indices(self):
+        """TODO:"""
+        if "source_edge_indices" in self._ds:
+            return self._ds["source_edge_indices"]
+
+    @property
+    def source_node_indices(self):
+        """TODO:"""
+        if "source_node_indices" in self._ds:
+            return self._ds["source_node_indices"]
 
     @property
     def max_face_radius(self):
@@ -2290,9 +2290,7 @@ class Grid:
 
         return dual
 
-    def isel(
-        self, inverse_indices: Union[List[str], Set[str], bool] = False, **dim_kwargs
-    ):
+    def isel(self, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -2302,9 +2300,6 @@ class Grid:
         exclusive and clipped indexing is in the works.
 
         Parameters
-        inverse_indices : Union[List[str], Set[str], bool], default=False
-            Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
-            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
             Dimension to index, one of ['n_node', 'n_edge', 'n_face']
 
@@ -2320,22 +2315,15 @@ class Grid:
             raise ValueError("Indexing must be along a single dimension.")
 
         if "n_node" in dim_kwargs:
-            if inverse_indices:
-                raise Exception(
-                    "Inverse indices are not yet supported for node selection, please use face centers"
-                )
             return _slice_node_indices(self, dim_kwargs["n_node"])
 
         elif "n_edge" in dim_kwargs:
-            if inverse_indices:
-                raise Exception(
-                    "Inverse indices are not yet supported for edge selection, please use face centers"
-                )
             return _slice_edge_indices(self, dim_kwargs["n_edge"])
 
         elif "n_face" in dim_kwargs:
             return _slice_face_indices(
-                self, dim_kwargs["n_face"], inverse_indices=inverse_indices
+                self,
+                dim_kwargs["n_face"],
             )
 
         else:
@@ -2567,7 +2555,6 @@ class Grid:
                 r=max_face_radius,
                 center_coord=point_lonlat,
                 element="face centers",
-                inverse_indices=True,
             )
         # If no subset is found, warn the user
         except ValueError:
@@ -2591,7 +2578,7 @@ class Grid:
         )
 
         # Get the original face indices from the subset
-        inverse_indices = subset.inverse_indices.face.values
+        inverse_indices = subset["source_face_indices"].values
 
         # Check to see if the point is on the nodes of any face
         lies_on_node = np.isclose(

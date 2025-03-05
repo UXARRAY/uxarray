@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from typing import TYPE_CHECKING, Union, List, Set, Tuple
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     pass
@@ -24,9 +24,7 @@ class UxDataArrayCrossSectionAccessor:
 
         return prefix + methods_heading
 
-    def constant_latitude(
-        self, lat: float, inverse_indices: Union[List[str], Set[str], bool] = False
-    ):
+    def constant_latitude(self, lat: float):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant latitude.
 
@@ -35,11 +33,6 @@ class UxDataArrayCrossSectionAccessor:
         lat : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
 
         Returns
         -------
@@ -69,11 +62,9 @@ class UxDataArrayCrossSectionAccessor:
 
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        return self.uxda.isel(n_face=faces)
 
-    def constant_longitude(
-        self, lon: float, inverse_indices: Union[List[str], Set[str], bool] = False
-    ):
+    def constant_longitude(self, lon: float):
         """Extracts a cross-section of the data array by selecting all faces that
         intersect with a specified line of constant longitude.
 
@@ -82,11 +73,6 @@ class UxDataArrayCrossSectionAccessor:
         lon : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -180.0 and 180.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
 
         Returns
         -------
@@ -118,12 +104,11 @@ class UxDataArrayCrossSectionAccessor:
             lon,
         )
 
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        return self.uxda.isel(n_face=faces)
 
     def constant_latitude_interval(
         self,
         lats: Tuple[float, float],
-        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Extracts a cross-section of data by selecting all faces that
         are within a specified latitude interval.
@@ -133,11 +118,6 @@ class UxDataArrayCrossSectionAccessor:
         lats : Tuple[float, float]
             The latitude interval (min_lat, max_lat) at which to extract the cross-section,
             in degrees. Values must be between -90.0 and 90.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
 
         Returns
         -------
@@ -164,12 +144,11 @@ class UxDataArrayCrossSectionAccessor:
         """
         faces = self.uxda.uxgrid.get_faces_between_latitudes(lats)
 
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        return self.uxda.isel(n_face=faces)
 
     def constant_longitude_interval(
         self,
         lons: Tuple[float, float],
-        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Extracts a cross-section of data by selecting all faces are within a specifed longitude interval.
 
@@ -178,11 +157,6 @@ class UxDataArrayCrossSectionAccessor:
         lons : Tuple[float, float]
             The longitude interval (min_lon, max_lon) at which to extract the cross-section,
             in degrees. Values must be between -180.0 and 180.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
 
         Returns
         -------
@@ -209,4 +183,4 @@ class UxDataArrayCrossSectionAccessor:
         """
         faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
 
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        return self.uxda.isel(n_face=faces)
