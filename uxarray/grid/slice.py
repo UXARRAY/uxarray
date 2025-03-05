@@ -31,6 +31,14 @@ def update_connectivity(conn, indices_dict, fill_value):
     return result.reshape(dim_a, dim_b)
 
 
+@njit(cache=True)
+def create_indices_dict(indices):
+    indices_dict = Dict.empty(key_type=types.int64, value_type=types.int64)
+    for new_idx, old_idx in enumerate(indices):
+        indices_dict[old_idx] = new_idx
+    return indices_dict
+
+
 def _slice_node_indices(
     grid,
     indices,
@@ -151,9 +159,10 @@ def _slice_face_indices(grid, indices):
     ]
 
     if node_conn_names:
-        node_indices_dict = Dict.empty(key_type=types.int64, value_type=types.int64)
-        for new_idx, old_idx in enumerate(node_indices):
-            node_indices_dict[old_idx] = new_idx
+        # node_indices_dict = Dict.empty(key_type=types.int64, value_type=types.int64)
+        # for new_idx, old_idx in enumerate(node_indices):
+        #     node_indices_dict[old_idx] = new_idx
+        node_indices_dict = create_indices_dict(node_indices)
 
         for conn_name in node_conn_names:
             ds[conn_name].data = update_connectivity(
@@ -161,9 +170,10 @@ def _slice_face_indices(grid, indices):
             )
 
     if edge_conn_names:
-        edge_indices_dict = Dict.empty(key_type=types.int64, value_type=types.int64)
-        for new_idx, old_idx in enumerate(edge_indices):
-            edge_indices_dict[old_idx] = new_idx
+        # edge_indices_dict = Dict.empty(key_type=types.int64, value_type=types.int64)
+        # for new_idx, old_idx in enumerate(edge_indices):
+        #     edge_indices_dict[old_idx] = new_idx
+        edge_indices_dict = create_indices_dict(edge_indices)
 
         for conn_name in edge_conn_names:
             ds[conn_name].data = update_connectivity(
