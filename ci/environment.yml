@@ -5,19 +5,20 @@ channels:
 dependencies:
   - antimeridian
   - cartopy
-  - dask<2025.1.0
+  - dask
   - datashader
   - gmpy2
   - geoviews
   - h5netcdf
   - hdf5
+  - healpix
   - holoviews
   - hvplot
   - matplotlib-base
   - matplotlib-inline
   - netcdf4
   - numba
-  - numpy<2.1
+  - numpy
   - pandas
   - pathlib
   - pre_commit

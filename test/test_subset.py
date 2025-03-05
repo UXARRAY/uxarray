@@ -19,6 +19,24 @@ DATA_PATHS = [
     current_path / "meshfiles" / "ugrid" / "outCSne30" / "var2.nc"
 ]
 
+quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'grid.nc'
+quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
+
+def test_repr():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+    # grid repr
+    grid_repr = uxds.uxgrid.subset.__repr__()
+    assert "bounding_box" in grid_repr
+    assert "bounding_circle" in grid_repr
+    assert "nearest_neighbor" in grid_repr
+
+    # data array repr
+    da_repr = uxds['t2m'].subset.__repr__()
+    assert "bounding_box" in da_repr
+    assert "bounding_circle" in da_repr
+    assert "nearest_neighbor" in da_repr
+
 
 def test_grid_face_isel():
     for grid_path in GRID_PATHS:
@@ -155,3 +173,13 @@ def test_inverse_indices():
     # Test isel directly
     subset = grid.isel(n_face=[1], inverse_indices=True)
     assert subset.inverse_indices.face.values == 1
+
+
+def test_da_subset():
+    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+
+    res1 = uxds['t2m'].subset.bounding_box(lon_bounds=(-10, 10), lat_bounds=(-10, 10))
+    res2 = uxds['t2m'].subset.bounding_circle(center_coord=(0,0), r=10)
+    res3 = uxds['t2m'].subset.nearest_neighbor(center_coord=(0, 0), k=4)
+
+    assert len(res1) == len(res2) == len(res3) == 4

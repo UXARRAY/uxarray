@@ -59,9 +59,11 @@ class DataArraySubsetAccessor:
             - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         """
-        grid = self.uxda.uxgrid.subset.bounding_box(lon_bounds, lat_bounds)
+        grid = self.uxda.uxgrid.subset.bounding_box(
+            lon_bounds, lat_bounds, inverse_indices=inverse_indices
+        )
 
-        return self.uxda._slice_from_grid(grid, inverse_indices=inverse_indices)
+        return self.uxda._slice_from_grid(grid)
 
     def bounding_circle(
         self,
