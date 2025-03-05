@@ -43,6 +43,7 @@ I/O & Conversion
    Grid.from_topology
    Grid.from_structured
    Grid.from_points
+   Grid.from_healpix
    Grid.to_xarray
    Grid.to_geodataframe
    Grid.to_polycollection
@@ -227,6 +228,7 @@ I/O & Conversion
 
    UxDataset.from_structured
    UxDataset.from_xarray
+   UxDataset.from_healpix
 
 Plotting
 --------
@@ -254,8 +256,8 @@ Grid
    Grid.plot.face_centers
    Grid.plot.edge_coords
    Grid.plot.edge_centers
-   Grid.face_degree_distribution
-   Grid.face_area_distribution
+   Grid.plot.face_degree_distribution
+   Grid.plot.face_area_distribution
 
 
 UxDataArray

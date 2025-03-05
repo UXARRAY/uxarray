@@ -82,13 +82,14 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
  Construct the Dual Mesh of an unstructured grid
 
-`Point in Face <user-guide/point_in_face.ipynb>`_
- Check if a point is within a face and find the faces containing a point
 
 Supplementary Guides
 --------------------
 
 These user guides provide additional details about specific features in UXarray.
+
+`Working with HEALPix Grids <user-guide/healpix.ipynb>`_
+ Use UXarray with HEALPix
 
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
@@ -119,6 +120,6 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/dual-mesh.ipynb
    user-guide/structured.ipynb
    user-guide/from-points.ipynb
+   user-guide/healpix.ipynb
    user-guide/holoviz.ipynb
    user-guide/from_file.ipynb
-   user-guide/point_in_face.ipynb

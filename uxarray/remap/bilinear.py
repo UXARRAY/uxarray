@@ -143,7 +143,9 @@ def _bilinear(
 
         for i in range(len(cart_x)):
             # Get point
-            point = np.array([*_normalize_xyz(cart_x[i], cart_y[i], cart_z[i])], dtype=np.float64)
+            point = np.array(
+                [*_normalize_xyz(cart_x[i], cart_y[i], cart_z[i])], dtype=np.float64
+            )
 
             # Find the index of the polygon containing the point
             polygon_ind = dual.uxgrid.get_faces_containing_point(point)
