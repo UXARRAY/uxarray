@@ -67,9 +67,16 @@ def _slice_node_indices(
     if inclusive is False:
         raise ValueError("Exclusive slicing is not yet supported.")
 
-    # faces that saddle nodes given in 'indices'
-    face_indices = np.unique(grid.node_face_connectivity.values[indices].ravel())
-    face_indices = face_indices[face_indices != INT_FILL_VALUE]
+    node_indices = _validate_indices(indices)
+
+    # Identify face indices from edge_face_connectivity
+    node_face_connectivity = grid.node_face_connectivity.isel(
+        n_node=node_indices
+    ).values
+    face_indices = (
+        pl.DataFrame(node_face_connectivity.flatten()).unique().to_numpy().squeeze()
+    )
+    face_indices = face_indices[face_indices >= 0]
 
     return _slice_face_indices(grid, face_indices)
 
@@ -97,9 +104,16 @@ def _slice_edge_indices(
     if inclusive is False:
         raise ValueError("Exclusive slicing is not yet supported.")
 
-    # faces that saddle nodes given in 'indices'
-    face_indices = np.unique(grid.edge_face_connectivity.values[indices].ravel())
-    face_indices = face_indices[face_indices != INT_FILL_VALUE]
+    edge_indices = _validate_indices(indices)
+
+    # Identify face indices from edge_face_connectivity
+    edge_face_connectivity = grid.edge_face_connectivity.isel(
+        n_edge=edge_indices
+    ).values
+    face_indices = (
+        pl.DataFrame(edge_face_connectivity.flatten()).unique().to_numpy().squeeze()
+    )
+    face_indices = face_indices[face_indices >= 0]
 
     return _slice_face_indices(grid, face_indices)
 
@@ -107,15 +121,7 @@ def _slice_edge_indices(
 def _slice_face_indices(grid, indices):
     ds = grid._ds
 
-    if hasattr(indices, "ndim") and indices.ndim == 0:
-        # Handle scalar numpy array case
-        face_indices = [indices.item()]
-    elif np.isscalar(indices):
-        # Handle Python scalar case
-        face_indices = [indices]
-    else:
-        # Already array-like
-        face_indices = indices
+    face_indices = _validate_indices(indices)
 
     # Identify node indices from face_node_connectivity
     face_node_connectivity = grid.face_node_connectivity.isel(
@@ -124,7 +130,7 @@ def _slice_face_indices(grid, indices):
     node_indices = (
         pl.DataFrame(face_node_connectivity.flatten()).unique().to_numpy().squeeze()
     )
-    node_indices = node_indices[node_indices > 0]
+    node_indices = node_indices[node_indices >= 0]
 
     # Prepare indexers and source indices
     indexers = {"n_node": node_indices, "n_face": face_indices}
@@ -134,7 +140,7 @@ def _slice_face_indices(grid, indices):
         "source_face_indices": xr.DataArray(face_indices, dims=["n_face"]),
     }
 
-    # Identify edge indicies from face_edge_connectivity and prepare indexers and source indicies
+    # Identify edge indices from face_edge_connectivity and prepare indexers and source indices
     if "n_edge" in ds.dims:
         face_edge_connectivity = grid.face_edge_connectivity.isel(
             n_face=face_indices
@@ -142,7 +148,7 @@ def _slice_face_indices(grid, indices):
         edge_indices = (
             pl.DataFrame(face_edge_connectivity.flatten()).unique().to_numpy()
         )
-        edge_indices = edge_indices[edge_indices > 0]
+        edge_indices = edge_indices[edge_indices >= 0]
         indexers["n_edge"] = edge_indices
         source_indices["source_edge_indices"] = xr.DataArray(
             edge_indices, dims=["n_edge"]
@@ -152,17 +158,17 @@ def _slice_face_indices(grid, indices):
     ds = ds.assign(source_indices)
 
     # Update existing connectivity to match valid indices
-    conn_names = ds.data_vars
     node_conn_names = [
-        conn_name for conn_name in conn_names if "_node_connectivity" in conn_name
+        conn_name for conn_name in ds.data_vars if "_node_connectivity" in conn_name
     ]
     edge_conn_names = [
-        conn_name for conn_name in conn_names if "_edge_connectivity" in conn_name
+        conn_name for conn_name in ds.data_vars if "_edge_connectivity" in conn_name
     ]
     face_conn_names = [
-        conn_name for conn_name in conn_names if "_face_connectivity" in conn_name
+        conn_name for conn_name in ds.data_vars if "_face_connectivity" in conn_name
     ]
 
+    # Update Node Connectivity Variables
     if node_conn_names:
         node_indices_dict = create_indices_dict(node_indices)
 
@@ -171,6 +177,7 @@ def _slice_face_indices(grid, indices):
                 ds[conn_name].values, node_indices_dict, INT_FILL_VALUE
             )
 
+    # Update Edge Connectivity Variables
     if edge_conn_names:
         edge_indices_dict = create_indices_dict(edge_indices)
 
@@ -179,7 +186,20 @@ def _slice_face_indices(grid, indices):
                 ds[conn_name].values, edge_indices_dict, INT_FILL_VALUE
             )
 
+    # Update Face Connectivity Variables (TODO)
     if face_conn_names:
         ds = ds.drop_vars(face_conn_names)
 
     return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec, is_subset=True)
+
+
+def _validate_indices(indices):
+    if hasattr(indices, "ndim") and indices.ndim == 0:
+        # Handle scalar numpy array case
+        return [indices.item()]
+    elif np.isscalar(indices):
+        # Handle Python scalar case
+        return [indices]
+    else:
+        # Already array-like
+        return indices
