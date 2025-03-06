@@ -1679,7 +1679,7 @@ class Grid:
 
         Parameters
         ----------
-        coordinates : str, default="nodes"
+        coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
@@ -1729,7 +1729,7 @@ class Grid:
 
         Parameters
         ----------
-        coordinates : str, default="nodes"
+        coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
