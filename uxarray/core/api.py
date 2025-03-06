@@ -289,8 +289,6 @@ def _get_grid(
         )
         grid_kwargs["latlon"] = kwargs["latlon"]
 
-    # TODO:
-    # if chunks is not None and "chunks" not in grid_kwargs and chunk_grid:
     grid_kwargs["data_chunks"] = chunks
     grid_kwargs["chunk_grid"] = chunk_grid
     grid_kwargs["return_chunks"] = True
