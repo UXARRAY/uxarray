@@ -1,6 +1,5 @@
 import xarray as xr
 
-
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -92,12 +91,12 @@ def _read_esmf(in_ds):
         # assume start index is 1 if one is not provided
         start_index = 1
 
-    face_node_connectivity = in_ds["elementConn"].values.astype(INT_DTYPE)
-
-    for i, max_nodes in enumerate(n_nodes_per_face.values):
-        # convert to zero index and standardize fill values
-        face_node_connectivity[i, 0:max_nodes] -= start_index
-        face_node_connectivity[i, max_nodes:] = INT_FILL_VALUE
+    face_node_connectivity = in_ds["elementConn"].astype(INT_DTYPE)
+    face_node_connectivity = xr.where(
+        face_node_connectivity != INT_FILL_VALUE,
+        face_node_connectivity - start_index,
+        face_node_connectivity,
+    )
 
     out_ds["face_node_connectivity"] = xr.DataArray(
         data=face_node_connectivity,
