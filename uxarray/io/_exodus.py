@@ -34,9 +34,6 @@ def _read_exodus(ext_ds):
             if ext_ds.sizes[dim] > max_face_nodes:
                 max_face_nodes = ext_ds.sizes[dim]
 
-    # create an empty conn array for storing all blk face_nodes_data
-    conn = np.empty((0, max_face_nodes))
-
     for key, value in ext_ds.variables.items():
         if key == "qa_records":
             # TODO: Use the data here for Mesh2 construct, if required.
@@ -70,25 +67,16 @@ def _read_exodus(ext_ds):
         elif "connect" in key:
             # check if num face nodes is less than max.
             if value.data.shape[1] <= max_face_nodes:
-                conn = np.full(
-                    (value.data.shape[1], max_face_nodes), 0, dtype=conn.dtype
-                )
-                conn = value.data
+                face_nodes = value
             else:
                 raise RuntimeError("found face_nodes_dim greater than n_max_face_nodes")
-
-            # find the elem_type as etype for this element
-            # for k, v in value.attrs.items():
-            #     if k == "elem_type":
-            #         # TODO: etype if not used now, remove if it'll never be required
-            #         etype = v
 
     # outside the k,v for loop
     # set the face nodes data compiled in "connect" section
 
     # standardize fill values and data type face nodes
     face_nodes = _replace_fill_values(
-        grid_var=conn[:] - 1,
+        grid_var=face_nodes[:] - 1,
         original_fill=-1,
         new_fill=INT_FILL_VALUE,
         new_dtype=INT_DTYPE,

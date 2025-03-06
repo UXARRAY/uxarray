@@ -75,12 +75,15 @@ def _to_ugrid(in_ds, out_ds):
 
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(
-            unq_inv, original_fill=-1, new_fill=INT_FILL_VALUE, new_dtype=INT_DTYPE
+            xr.DataArray(data=unq_inv),
+            original_fill=-1,
+            new_fill=INT_FILL_VALUE,
+            new_dtype=INT_DTYPE,
         )
 
         # set the face nodes data compiled in "connect" section
         out_ds["face_node_connectivity"] = xr.DataArray(
-            data=face_nodes,
+            data=face_nodes.data,
             dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
             attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
         )

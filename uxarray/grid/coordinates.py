@@ -693,13 +693,13 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
-def _set_desired_longitude_range(ds):
+def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables."""
 
     for lon_name in ["node_lon", "edge_lon", "face_lon"]:
-        if lon_name in ds:
-            if ds[lon_name].max() > 180:
-                ds[lon_name].data = (ds[lon_name].data + 180) % 360 - 180
+        if lon_name in uxgrid._ds:
+            if uxgrid._ds[lon_name].max() > 180:
+                uxgrid._ds[lon_name] = (uxgrid._ds[lon_name] + 180) % 360 - 180
 
 
 def _xyz_to_lonlat_rad(

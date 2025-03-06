@@ -270,7 +270,6 @@ class UxDataset(xr.Dataset):
         if uxgrid is not None:
             if ugrid_dims is None and uxgrid._source_dims_dict is not None:
                 ugrid_dims = uxgrid._source_dims_dict
-                pass
             # Grid is provided,
         else:
             # parse

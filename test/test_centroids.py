@@ -26,7 +26,7 @@ def test_centroids_from_mean_verts_triangle():
         expected_centroid[0], expected_centroid[1], expected_centroid[2]
     )
 
-    grid = ux.open_grid(test_triangle)
+    grid = ux.open_grid(test_triangle, latlon=False)
     _populate_face_centroids(grid)
 
     assert norm_x == grid.face_x
@@ -41,7 +41,7 @@ def test_centroids_from_mean_verts_pentagon():
         expected_centroid[0], expected_centroid[1], expected_centroid[2]
     )
 
-    grid = ux.open_grid(test_polygon)
+    grid = ux.open_grid(test_polygon, latlon=False)
     _populate_face_centroids(grid)
 
     assert norm_x == grid.face_x
@@ -66,7 +66,7 @@ def test_centroids_from_mean_verts_scrip():
 def test_edge_centroids_from_triangle():
     """Test finding the centroid of a triangle."""
     test_triangle = np.array([(0, 0, 0), (-1, 1, 0), (-1, -1, 0)])
-    grid = ux.open_grid(test_triangle)
+    grid = ux.open_grid(test_triangle, latlon=False)
     _populate_edge_centroids(grid)
 
     centroid_x = np.mean(grid.node_x[grid.edge_node_connectivity[0][0:]])

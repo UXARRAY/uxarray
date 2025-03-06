@@ -5,7 +5,6 @@ import polars as pl
 from typing import Any, Tuple
 
 import uxarray.conventions.ugrid as ugrid
-from uxarray.grid.coordinates import _set_desired_longitude_range
 from uxarray.constants import INT_DTYPE
 
 
@@ -150,5 +149,3 @@ def _populate_healpix_boundaries(ds):
         dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
         attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
-
-    _set_desired_longitude_range(ds)
