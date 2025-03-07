@@ -899,40 +899,44 @@ class SpatialHash:
         """
 
         coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
-        bcoords = np.zeros(
-            (coords.shape[0], self._source_grid.n_max_face_nodes), dtype=np.double
-        )
+        num_coords = coords.shape[0]
+        max_nodes = self._source_grid.n_max_face_nodes
 
-        faces = np.zeros((coords.shape[0]), dtype=INT_DTYPE) - 1  # Default to -1
+        # Preallocate results
+        bcoords = np.zeros((num_coords, max_nodes), dtype=np.double)
+        faces = np.full(num_coords, -1, dtype=INT_DTYPE)
 
-        # Get the list of faces to search for each coordinate
+        # Get grid variables
+        n_nodes_per_face = self._source_grid.n_nodes_per_face.to_numpy()
+        face_node_connectivity = self._source_grid.face_node_connectivity.to_numpy()
+
+        # Precompute radian values for node coordinates:
+        node_lon = np.deg2rad(self._source_grid.node_lon.to_numpy())
+        node_lat = np.deg2rad(self._source_grid.node_lat.to_numpy())
+
+        # Get the list of candidate faces for each coordinate
         candidate_faces = [
             self._face_hash_table[pid] for pid in self._hash_index(coords)
         ]
-        # For each coordinate, perform the in/out check on each candidate face
+
         for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
-            is_inside = False
             for face_id in candidates:
-                n_nodes = self._source_grid.n_nodes_per_face[face_id].to_numpy()
-                node_ids = self._source_grid.face_node_connectivity[face_id, 0:n_nodes]
-                nodes = np.column_stack(
-                    (
-                        np.deg2rad(self._source_grid.node_lon[node_ids].to_numpy()),
-                        np.deg2rad(self._source_grid.node_lat[node_ids].to_numpy()),
-                    )
+                n_nodes = n_nodes_per_face[face_id]
+                node_ids = face_node_connectivity[face_id, :n_nodes]
+                nodes = np.column_stack((node_lon[node_ids], node_lat[node_ids]))
+                bcoord = np.asarray(_barycentric_coordinates(nodes, coord))
+                err = abs(np.dot(bcoord, nodes[:, 0]) - coord[0]) + abs(
+                    np.dot(bcoord, nodes[:, 1]) - coord[1]
                 )
-                bcoord = _barycentric_coordinates(nodes, coord)
-                err = np.abs(np.sum(bcoord * nodes[:, 0], axis=0) - coord[0])
-                +np.abs(np.sum(bcoord * nodes[:, 1], axis=0) - coord[1])
-                is_inside = all(lambda_i >= 0 for lambda_i in bcoord)
-                if is_inside and err < tol:
+                if (bcoord >= 0).all() and err < tol:
+                    faces[i] = face_id
+                    bcoords[i, :n_nodes] = bcoord[:n_nodes]
                     break
 
-            if is_inside and err < tol:
-                faces[i] = face_id
-                bcoords[i, 0:n_nodes] = bcoord[0:n_nodes]
+        return faces, bcoords
 
         return faces, bcoords
+
 
 @njit(cache=True)
 def _triangle_area(A, B, C):
@@ -940,6 +944,7 @@ def _triangle_area(A, B, C):
     Compute the area of a triangle given by three points.
     """
     return 0.5 * abs(A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1]))
+
 
 @njit(cache=True)
 def _barycentric_coordinates(nodes, point):
