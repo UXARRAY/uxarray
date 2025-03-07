@@ -837,3 +837,15 @@ def test_point_along_arc():
     out2 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 25.41], dtype=np.float64))
 
     nt.assert_array_equal(out1, out2)
+
+def test_from_topology():
+    node_lon = np.array([-20.0, 0.0, 20.0, -20, -40])
+    node_lat = np.array([-10.0, 10.0, -10.0, 10, -10])
+    face_node_connectivity = np.array([[0, 1, 2, -1], [0, 1, 3, 4]])
+
+    uxgrid = ux.Grid.from_topology(
+        node_lon=node_lon,
+        node_lat=node_lat,
+        face_node_connectivity=face_node_connectivity,
+        fill_value=-1,
+    )
