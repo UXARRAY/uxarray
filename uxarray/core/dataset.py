@@ -1,33 +1,26 @@
 from __future__ import annotations
 
+import os
+import sys
+from html import escape
+from typing import IO, Optional, Union, Any
+from warnings import warn
+
 import numpy as np
 import xarray as xr
-
-import sys
-import os
-
-from typing import Optional, IO, Union
-
-import uxarray
-from uxarray.grid import Grid
-from uxarray.core.dataarray import UxDataArray
-from uxarray.grid.dual import construct_dual
-from uxarray.grid.validation import _check_duplicate_nodes_indices
-from uxarray.core.utils import _map_dims_to_ugrid
-
-from uxarray.plot.accessor import UxDatasetPlotAccessor
-
+from xarray.core import dtypes
+from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
+import uxarray
+from uxarray.core.dataarray import UxDataArray
+from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.formatting_html import dataset_repr
-
-from html import escape
-
-from xarray.core.options import OPTIONS
-
+from uxarray.grid import Grid
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap import UxDatasetRemapAccessor
-
-from warnings import warn
 
 
 class UxDataset(xr.Dataset):
@@ -506,3 +499,23 @@ class UxDataset(xr.Dataset):
             dataset[var] = uxda
 
         return dataset
+
+    def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
+        return UxDataset(self.to_xarray().where(cond, other, drop), uxgrid=self.uxgrid)
+
+    where.__doc__ = xr.Dataset.where.__doc__
+
+    def sel(
+        self, indexers=None, method=None, tolerance=None, drop=False, **indexers_kwargs
+    ):
+        return UxDataset(
+            self.to_xarray().sel(indexers, tolerance, drop, **indexers_kwargs),
+            uxgrid=self.uxgrid,
+        )
+
+    sel.__doc__ = xr.Dataset.sel.__doc__
+
+    def fillna(self, value: Any):
+        return UxDataset(super().fillna(value), uxgrid=self.uxgrid)
+
+    fillna.__doc__ = xr.Dataset.fillna.__doc__

@@ -18,9 +18,16 @@ from uxarray.constants import (
     INT_DTYPE,
     INT_FILL_VALUE,
 )
-from uxarray.grid.arcs import extreme_gca_latitude, point_within_gca
+from uxarray.grid.arcs import (
+    extreme_gca_latitude,
+    point_within_gca,
+)
+
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
-from uxarray.grid.intersections import gca_gca_intersection
+
+from uxarray.grid.intersections import (
+    gca_gca_intersection,
+)
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_lonlat_rad_face_edge_nodes,
@@ -31,6 +38,10 @@ POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
     "South": np.array([0.0, 0.0, -1.0]),
 }
+
+REF_POINT_NORTH_XYZ = np.array([0.01745241, 0.0, 0.9998477], dtype=np.float64)
+REF_POINT_SOUTH_XYZ = np.array([0.01745241, 0.0, -0.9998477], dtype=np.float64)
+
 POLE_POINTS_LONLAT = {
     "North": np.array([0.0, np.pi / 2]),
     "South": np.array([0.0, -np.pi / 2]),
@@ -1561,3 +1572,234 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     )
 
     return lon, lat
+
+
+@njit(cache=True)
+def point_in_face(
+    edges_xyz,
+    point_xyz,
+    inclusive=True,
+):
+    """Determines if a point lies inside a face.
+
+    Parameters
+    ----------
+        edges_xyz : numpy.ndarray
+            Cartesian coordinates of each point in the face
+        point_xyz : numpy.ndarray
+            Cartesian coordinate of the point
+        inclusive : bool
+            Flag to determine whether to include points on the nodes and edges of the face
+
+    Returns
+    -------
+    bool
+        True if point is inside face, False otherwise
+    """
+
+    # Validate the inputs
+    if len(edges_xyz[0][0]) != 3:
+        raise ValueError("`edges_xyz` vertices must be in Cartesian coordinates.")
+
+    if len(point_xyz) != 3:
+        raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
+
+    # Initialize the intersection count
+    intersection_count = 0
+
+    # Set to hold unique intersections
+    unique_intersections = set()
+
+    location = _classify_polygon_location(edges_xyz)
+
+    if location == 1:
+        ref_point_xyz = REF_POINT_SOUTH_XYZ
+    elif location == -1:
+        ref_point_xyz = REF_POINT_NORTH_XYZ
+    else:
+        ref_point_xyz = REF_POINT_SOUTH_XYZ
+
+    # Initialize the points arc between the point and the reference point
+    gca_cart = np.empty((2, 3), dtype=np.float64)
+    gca_cart[0] = point_xyz
+    gca_cart[1] = ref_point_xyz
+
+    # Loop through the face's edges, checking each one for intersection
+    for ind in range(len(edges_xyz)):
+        # If the point lies on an edge, return True if inclusive
+        if point_within_gca(
+            point_xyz,
+            edges_xyz[ind][0],
+            edges_xyz[ind][1],
+        ):
+            if inclusive:
+                return True
+            else:
+                return False
+
+        # Get the number of intersections between the edge and the point arc
+        intersections = gca_gca_intersection(edges_xyz[ind], gca_cart)
+
+        # Add any unique intersections to the intersection_count
+        for intersection in intersections:
+            intersection_tuple = (
+                intersection[0],
+                intersection[1],
+                intersection[2],
+            )
+            if intersection_tuple not in unique_intersections:
+                unique_intersections.add(intersection_tuple)
+                intersection_count += 1
+
+    # Return True if the number of intersections is odd, False otherwise
+    return intersection_count % 2 == 1
+
+
+@njit(cache=True)
+def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
+    """Finds the faces that contain a given point, inside a subset `face_edge_cartesian`
+    Parameters
+    ----------
+        face_edge_cartesian : numpy.ndarray
+            Cartesian coordinates of all the faces according to their edges
+        point_xyz : numpy.ndarray
+            Cartesian coordinate of the point
+        inverse_indices : numpy.ndarray
+           The original indices of the subsetted grid
+
+    Returns
+    -------
+    index : array
+        The index of the face that contains the point
+    """
+
+    index = []
+
+    # Run for each face in the subset
+    for i, face in enumerate(inverse_indices):
+        # Check to see if the face contains the point
+        contains_point = point_in_face(
+            face_edge_cartesian[i],
+            point_xyz,
+            inclusive=True,
+        )
+
+        # If the point is found, add it to the index array
+        if contains_point:
+            index.append(face)
+
+    # Return the index array
+    return index
+
+
+def _populate_max_face_radius(self):
+    """Populates `max_face_radius`
+
+    Returns
+    -------
+    max_distance : np.float64
+        The max distance from a node to a face center
+    """
+
+    # Parse all variables needed for `njit` functions
+    face_node_connectivity = self.face_node_connectivity.values
+    node_lats_rad = np.deg2rad(self.node_lat.values)
+    node_lons_rad = np.deg2rad(self.node_lon.values)
+    face_lats_rad = np.deg2rad(self.face_lat.values)
+    face_lons_rad = np.deg2rad(self.face_lon.values)
+
+    # Get the max distance
+    max_distance = calculate_max_face_radius(
+        face_node_connectivity,
+        node_lats_rad,
+        node_lons_rad,
+        face_lats_rad,
+        face_lons_rad,
+    )
+
+    # Return the max distance, which is the `max_face_radius`
+    return np.rad2deg(max_distance)
+
+
+@njit(cache=True)
+def calculate_max_face_radius(
+    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
+):
+    """Finds the max face radius in the mesh.
+    Parameters
+    ----------
+        face_node_connectivity : numpy.ndarray
+            Cartesian coordinates of all the faces according to their edges
+        node_lats_rad : numpy.ndarray
+            The `Grid.node_lat` array in radians
+        node_lons_rad : numpy.ndarray
+           The `Grid.node_lon` array in radians
+        face_lats_rad : numpy.ndarray
+           The `Grid.face_lat` array in radians
+        face_lons_rad : numpy.ndarray
+           The `Grid.face_lon` array in radians
+
+    Returns
+    -------
+    The max distance from a node to a face center
+    """
+
+    # Array to store all distances of each face to it's furthest node.
+    end_distances = np.zeros(len(face_node_connectivity))
+
+    # Loop over each face and its nodes
+    for ind, face in enumerate(face_node_connectivity):
+        # Filter out INT_FILL_VALUE
+        valid_nodes = face[face != INT_FILL_VALUE]
+
+        # Get the face lat/lon of this face
+        face_lat = face_lats_rad[ind]
+        face_lon = face_lons_rad[ind]
+
+        # Get the node lat/lon of this face
+        node_lat_rads = node_lats_rad[valid_nodes]
+        node_lon_rads = node_lons_rad[valid_nodes]
+
+        # Calculate Haversine distances for all nodes in this face
+        distances = haversine_distance(node_lon_rads, node_lat_rads, face_lon, face_lat)
+
+        # Store the max distance for this face
+        end_distances[ind] = np.max(distances)
+
+    # Return the maximum distance found across all faces
+    return np.max(end_distances)
+
+
+@njit(cache=True)
+def haversine_distance(lon_a, lat_a, lon_b, lat_b):
+    """Calculates the haversine distance between two points.
+
+    Parameters
+    ----------
+    lon_a : np.float64
+        The longitude of the first point
+    lat_a : np.float64
+        The latitude of the first point
+    lon_b : np.float64
+        The longitude of the second point
+    lat_b : np.float64
+        The latitude of the second point
+
+    Returns
+    -------
+    distance :  np.float64
+        The distance between the two points
+    """
+
+    # Differences in latitudes and longitudes
+    dlat = lat_b - lat_a
+    dlon = lon_b - lon_a
+
+    # Haversine formula
+    equation_in_sqrt = (np.sin(dlat / 2) ** 2) + np.cos(lat_a) * np.cos(lat_b) * (
+        np.sin(dlon / 2) ** 2
+    )
+    distance = 2 * np.arcsin(np.sqrt(equation_in_sqrt))
+
+    # Return the gotten distance
+    return distance
