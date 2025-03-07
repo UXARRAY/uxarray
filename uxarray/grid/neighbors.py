@@ -935,8 +935,6 @@ class SpatialHash:
 
         return faces, bcoords
 
-        return faces, bcoords
-
 
 @njit(cache=True)
 def _triangle_area(A, B, C):
