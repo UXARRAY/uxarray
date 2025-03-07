@@ -934,7 +934,7 @@ class SpatialHash:
 
         return faces, bcoords
 
-
+@njit(cache=True)
 def _triangle_area(A, B, C):
     """
     Compute the area of a triangle given by three points.
