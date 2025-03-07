@@ -913,7 +913,7 @@ class Grid:
         """
         if "node_lon" not in self._ds:
             if self.source_grid_spec == "HEALPix":
-                _populate_healpix_boundaries(self)
+                _populate_healpix_boundaries(self._ds)
             else:
                 _set_desired_longitude_range(self)
                 _populate_node_latlon(self)
