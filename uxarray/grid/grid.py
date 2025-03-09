@@ -80,6 +80,7 @@ from uxarray.grid.geometry import (
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
+    SpatialHash,
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
@@ -255,6 +256,7 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
+        self._spatialhash = None
 
         # flag to track if coordinates are normalized
         self._normalized = None
@@ -1761,6 +1763,44 @@ class Grid:
                 self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
+
+    def get_spatial_hash(
+        self,
+        reconstruct: bool = False,
+    ):
+        """Get the SpatialHash data structure of this Grid that allows for
+        fast face search queries. Face searches are used to find the faces that
+        a list of points, in spherical coordinates, are contained within.
+
+        Parameters
+        ----------
+        reconstruct : bool, default=False
+            If true, reconstructs the spatial hash
+
+        Returns
+        -------
+        self._spatialhash : grid.Neighbors.SpatialHash
+            SpatialHash instance
+
+        Examples
+        --------
+        Open a grid from a file path:
+
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("grid_filename.nc")
+
+        Obtain SpatialHash instance:
+
+        >>> spatial_hash = uxgrid.get_spatial_hash()
+
+        Query to find the face a point lies within in addition to its barycentric coordinates:
+
+        >>> face_ids, bcoords = spatial_hash.query([0.0, 0.0])
+        """
+        if self._spatialhash is None or reconstruct:
+            self._spatialhash = SpatialHash(self, reconstruct)
+
+        return self._spatialhash
 
     def copy(self):
         """Returns a deep copy of this grid."""

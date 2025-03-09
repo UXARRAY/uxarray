@@ -161,6 +161,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
+   Grid.get_spatial_hash
    Grid.get_faces_containing_point
 
 Inheritance of Xarray Functionality
