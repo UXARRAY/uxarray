@@ -883,7 +883,7 @@ class SpatialHash:
                             index_to_face[i + self._nx * j].append(eid)
             except IndexError:
                 raise IndexError(
-                    "list index out of range. This may indicate an incorrect `edge_node_distances` value."
+                    "list index out of range. This may indicate incorrect `edge_node_distances` values."
                 )
 
             return index_to_face
