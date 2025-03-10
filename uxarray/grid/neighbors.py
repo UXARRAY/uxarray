@@ -10,7 +10,7 @@ from sklearn.neighbors import KDTree as SKKDTree
 
 from typing import Optional, Union
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 
 
 class KDTree:
@@ -974,8 +974,8 @@ def _barycentric_coordinates(nodes, point):
         a0 = _triangle_area(vim1, vi, vi1)
         a1 = _triangle_area(point, vim1, vi)
         a2 = _triangle_area(point, vi, vi1)
-        sum_wi += a0 / (a1 * a2)
-        w.append(a0 / (a1 * a2))
+        sum_wi += a0 / (max(a1 * a2, ERROR_TOLERANCE))
+        w.append(a0 / (max(a1 * a2, ERROR_TOLERANCE)))
 
     barycentric_coords = [w_i / sum_wi for w_i in w]
 
