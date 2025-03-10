@@ -4,6 +4,7 @@ import pytest
 import xarray as xr
 from pathlib import Path
 import uxarray as ux
+from uxarray.constants import ERROR_TOLERANCE
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -45,6 +46,31 @@ def test_is_inside():
     assert face_ids[0] == 0
     assert np.allclose(bcoords[0], [0.25, 0.5, 0.25], atol=1e-06)
 
+
+def test_query_on_vertex():
+    """Verifies correct values when a query is made exactly on a vertex"""
+    verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+    uxgrid = ux.open_grid(verts, latlon=True)
+    # Verify that a point outside the element returns a face id of -1
+    face_ids, bcoords = uxgrid.get_spatial_hash().query([0.0, 90.0])
+    assert face_ids[0] == 0
+    assert np.isclose(bcoords[0,0],1.0,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,1],0.0,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,2],0.0,atol=ERROR_TOLERANCE)
+
+
+def test_query_on_edge():
+    """Verifies correct values when a query is made exactly on an edge of a face"""
+    verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+    uxgrid = ux.open_grid(verts, latlon=True)
+    # Verify that a point outside the element returns a face id of -1
+    face_ids, bcoords = uxgrid.get_spatial_hash().query([0.0, 0.0])
+    assert face_ids[0] == 0
+    assert np.isclose(bcoords[0,0],0.5,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,1],0.0,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,2],0.5,atol=ERROR_TOLERANCE)
+
+
 def test_list_of_coords_simple():
     """Verifies test using list of points inside and outside an element"""
     verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
@@ -55,6 +81,7 @@ def test_list_of_coords_simple():
     assert face_ids[0] == -1
     assert face_ids[1] == 0
     assert np.allclose(bcoords[1], [0.25, 0.5, 0.25], atol=1e-06)
+
 
 def test_list_of_coords_fesom():
     """Verifies test using list of points on the fesom grid"""
@@ -74,6 +101,7 @@ def test_list_of_coords_fesom():
     assert bcoords.shape[0] == num_particles
     assert bcoords.shape[1] == 3
     assert np.all(face_ids >= 0) # All particles should be inside an element
+
 
 def test_list_of_coords_mpas_dual():
     """Verifies test using list of points on the dual MPAS grid"""
