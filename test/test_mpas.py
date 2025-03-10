@@ -110,3 +110,10 @@ def test_face_area():
 
     assert "face_areas" in uxgrid_primal._ds
     assert "face_areas" in uxgrid_dual._ds
+
+
+def test_distance_units():
+    uxgrid = ux.open_grid(mpas_ocean_mesh)
+
+    assert "edge_node_distances" in uxgrid._ds
+    assert "edge_face_distances" in uxgrid._ds
