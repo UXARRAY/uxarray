@@ -206,6 +206,9 @@ class Grid:
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict
 
+        # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
+        self.source_grid_spec = source_grid_spec
+
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
 
@@ -259,7 +262,7 @@ class Grid:
         self._normalized = None
 
         # set desired longitude range to [-180, 180]
-        _set_desired_longitude_range(self._ds)
+        _set_desired_longitude_range(self)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -278,11 +281,9 @@ class Grid:
         ----------
         dataset : xr.Dataset or path-like
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables or a directory
-            containing ASCII files represents a FESOM2 grid.
+              containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
-        is_subset : bool, default=False
-            Bool flag to indicate whether a grid is a subset
         """
 
         if isinstance(dataset, xr.Dataset):
@@ -916,7 +917,7 @@ class Grid:
             if self.source_grid_spec == "HEALPix":
                 _populate_healpix_boundaries(self._ds)
             else:
-                _set_desired_longitude_range(self._ds)
+                _set_desired_longitude_range(self)
                 _populate_node_latlon(self)
         return self._ds["node_lon"]
 
@@ -934,9 +935,9 @@ class Grid:
         """
         if "node_lat" not in self._ds:
             if self.source_grid_spec == "HEALPix":
-                _populate_healpix_boundaries(self._ds)
+                _populate_healpix_boundaries(self)
             else:
-                _set_desired_longitude_range(self._ds)
+                _set_desired_longitude_range(self)
                 _populate_node_latlon(self)
         return self._ds["node_lat"]
 
@@ -1003,8 +1004,7 @@ class Grid:
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
-        # temp until we construct edge lon
-        _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
         return self._ds["edge_lon"]
 
     @edge_lon.setter
@@ -1021,7 +1021,7 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
-        _set_desired_longitude_range(self._ds)
+        _set_desired_longitude_range(self)
         return self._ds["edge_lat"]
 
     @edge_lat.setter
@@ -1087,7 +1087,7 @@ class Grid:
         """
         if "face_lon" not in self._ds:
             _populate_face_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
         return self._ds["face_lon"]
 
     @face_lon.setter
@@ -1104,7 +1104,7 @@ class Grid:
         """
         if "face_lat" not in self._ds:
             _populate_face_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
 
         return self._ds["face_lat"]
 
@@ -1224,7 +1224,7 @@ class Grid:
         """
 
         if "edge_node_x" not in self._ds:
-            _edge_node_x = self.node_x.values[self.edge_node_connectivity.values]
+            _edge_node_x = self.node_x[self.edge_node_connectivity]
 
             self._ds["edge_node_x"] = xr.DataArray(
                 data=_edge_node_x,
@@ -1241,7 +1241,7 @@ class Grid:
         """
 
         if "edge_node_y" not in self._ds:
-            _edge_node_y = self.node_y.values[self.edge_node_connectivity.values]
+            _edge_node_y = self.node_y[self.edge_node_connectivity]
 
             self._ds["edge_node_y"] = xr.DataArray(
                 data=_edge_node_y,
@@ -1258,7 +1258,7 @@ class Grid:
         """
 
         if "edge_node_z" not in self._ds:
-            _edge_node_z = self.node_z.values[self.edge_node_connectivity.values]
+            _edge_node_z = self.node_z[self.edge_node_connectivity]
 
             self._ds["edge_node_z"] = xr.DataArray(
                 data=_edge_node_z,
@@ -1667,7 +1667,7 @@ class Grid:
 
     def get_ball_tree(
         self,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "spherical",
         distance_metric: Optional[str] = "haversine",
         reconstruct: bool = False,
@@ -1681,7 +1681,7 @@ class Grid:
 
         Parameters
         ----------
-        coordinates : str, default="nodes"
+        coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
@@ -1717,7 +1717,7 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "cartesian",
         distance_metric: Optional[str] = "minkowski",
         reconstruct: bool = False,
@@ -1731,7 +1731,7 @@ class Grid:
 
         Parameters
         ----------
-        coordinates : str, default="nodes"
+        coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
@@ -1855,7 +1855,10 @@ class Grid:
         return out_ds
 
     def calculate_total_face_area(
-        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+        self,
+        quadrature_rule: Optional[str] = "triangular",
+        order: Optional[int] = 4,
+        latitude_adjusted_area: Optional[bool] = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1866,6 +1869,8 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        latitude_adjusted_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
@@ -1873,7 +1878,9 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas, face_jacobian = self.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(
+            quadrature_rule, order, latitude_adjusted_area=latitude_adjusted_area
+        )
 
         return np.sum(face_areas)
 
@@ -1882,6 +1889,7 @@ class Grid:
         quadrature_rule: Optional[str] = "triangular",
         order: Optional[int] = 4,
         latlon: Optional[bool] = True,
+        latitude_adjusted_area: Optional[bool] = False,
     ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -1892,6 +1900,10 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        latlon : bool, optional
+            If True, the coordinates are in latlon. Defaults to True.
+        latitude_adjusted_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
@@ -1915,14 +1927,14 @@ class Grid:
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
         if latlon:
-            x = self.node_lon.data
-            y = self.node_lat.data
+            x = self.node_lon.values
+            y = self.node_lat.values
             z = np.zeros((self.n_node))
             coords_type = "spherical"
         else:
-            x = self.node_x.data
-            y = self.node_y.data
-            z = self.node_z.data
+            x = self.node_x.values
+            y = self.node_y.values
+            z = self.node_z.values
             coords_type = "cartesian"
 
         dim = 2
@@ -1949,6 +1961,7 @@ class Grid:
             quadrature_rule,
             order,
             coords_type,
+            latitude_adjusted_area,
         )
 
         min_jacobian = np.min(self._face_jacobian)
