@@ -784,7 +784,8 @@ class BallTree:
 class SpatialHash:
     """Custom data structure that is used for performing grid searches using Spatial Hashing. This class constructs an overlying
     uniformly spaced structured grid, called the "hash grid" on top an unstructured grid. Faces in the unstructured grid are related
-    to the cells in the hash grid by determining the hash cells the bounding box of the unstructured face cells overlap with.
+    to the cells in the hash grid by determining the hash cells the bounding box of the unstructured face cells overlap with. Currently does
+        not handle periodic elements.
 
     Parameters
     ----------
