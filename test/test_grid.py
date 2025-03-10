@@ -466,8 +466,8 @@ def test_connectivity_build_n_nodes_per_face():
         max_dimension = grid.n_max_face_nodes
         min_dimension = 3
 
-        assert grid.n_nodes_per_face.min() >= min_dimension
-        assert grid.n_nodes_per_face.max() <= max_dimension
+        assert grid.n_nodes_per_face.values.min() >= min_dimension
+        assert grid.n_nodes_per_face.values.max() <= max_dimension
 
     verts = [f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg]
     grid_from_verts = ux.open_grid(verts)
@@ -840,3 +840,15 @@ def test_point_along_arc():
     out2 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 25.41], dtype=np.float64))
 
     nt.assert_array_equal(out1, out2)
+
+def test_from_topology():
+    node_lon = np.array([-20.0, 0.0, 20.0, -20, -40])
+    node_lat = np.array([-10.0, 10.0, -10.0, 10, -10])
+    face_node_connectivity = np.array([[0, 1, 2, -1], [0, 1, 3, 4]])
+
+    uxgrid = ux.Grid.from_topology(
+        node_lon=node_lon,
+        node_lat=node_lat,
+        face_node_connectivity=face_node_connectivity,
+        fill_value=-1,
+    )
