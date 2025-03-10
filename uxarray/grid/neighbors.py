@@ -784,8 +784,7 @@ class BallTree:
 class SpatialHash:
     """Custom data structure that is used for performing grid searches using Spatial Hashing. This class constructs an overlying
     uniformly spaced structured grid, called the "hash grid" on top an unstructured grid. Faces in the unstructured grid are related
-    to the cells in the hash grid by determining the hash cells the bounding box of the unstructured face cells overlap with. Currently does
-        not handle periodic elements.
+    to the cells in the hash grid by determining the hash cells the bounding box of the unstructured face cells overlap with.
 
     Parameters
     ----------
@@ -793,6 +792,10 @@ class SpatialHash:
         Source grid used to construct the hash grid and hash table
     reconstruct : bool, default=False
         If true, reconstructs the spatial hash
+
+    Note
+    ----
+    Does not currently support queries on periodic elements.
     """
 
     def __init__(

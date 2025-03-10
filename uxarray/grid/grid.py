@@ -1770,8 +1770,7 @@ class Grid:
     ):
         """Get the SpatialHash data structure of this Grid that allows for
         fast face search queries. Face searches are used to find the faces that
-        a list of points, in spherical coordinates, are contained within. Currently does
-        not handle periodic elements.
+        a list of points, in spherical coordinates, are contained within.
 
         Parameters
         ----------
@@ -1782,6 +1781,10 @@ class Grid:
         -------
         self._spatialhash : grid.Neighbors.SpatialHash
             SpatialHash instance
+
+        Note
+        ----
+        Does not currently support queries on periodic elements.
 
         Examples
         --------
