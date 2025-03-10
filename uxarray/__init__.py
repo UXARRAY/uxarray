@@ -1,4 +1,4 @@
-from .core.api import open_grid, open_dataset, open_mfdataset
+from .core.api import open_grid, open_dataset, open_mfdataset, concat
 
 from .core.dataset import UxDataset
 from .core.dataarray import UxDataArray
@@ -23,6 +23,7 @@ __all__ = (
     "open_grid",
     "open_dataset",
     "open_mfdataset",
+    "concat",
     "UxDataset",
     "UxDataArray",
     "INT_DTYPE",
