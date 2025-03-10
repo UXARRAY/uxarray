@@ -265,23 +265,26 @@ def test_operators_ne():
 
 def test_face_areas_calculate_total_face_area_triangle():
     """Create a uxarray grid from vertices and saves an exodus file."""
-    verts = [[[0.57735027, -5.77350269e-01, -0.57735027],
-              [0.57735027, 5.77350269e-01, -0.57735027],
-              [-0.57735027, 5.77350269e-01, -0.57735027]]]
+    verts = [
+    [[0.02974582, -0.74469018, 0.66674712],
+    [0.1534193, -0.88744577, 0.43462917],
+    [0.18363692, -0.72230586, 0.66674712]]
+    ]
 
     grid_verts = ux.open_grid(verts, latlon=False)
 
     # validate the grid
     assert grid_verts.validate()
 
-    # calculate area
-    area_gaussian = grid_verts.calculate_total_face_area(
-        quadrature_rule="gaussian", order=5)
-    nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
-
+    # calculate area without correction
     area_triangular = grid_verts.calculate_total_face_area(
         quadrature_rule="triangular", order=4)
     nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
+
+    # calculate area
+    area_gaussian = grid_verts.calculate_total_face_area(
+        quadrature_rule="gaussian", order=5, latitude_adjusted_area=True)
+    nt.assert_almost_equal(area_gaussian, constants.CORRECTED_TRI_AREA, decimal=3)
 
 
 def test_face_areas_calculate_total_face_area_file():
@@ -463,8 +466,8 @@ def test_connectivity_build_n_nodes_per_face():
         max_dimension = grid.n_max_face_nodes
         min_dimension = 3
 
-        assert grid.n_nodes_per_face.min() >= min_dimension
-        assert grid.n_nodes_per_face.max() <= max_dimension
+        assert grid.n_nodes_per_face.values.min() >= min_dimension
+        assert grid.n_nodes_per_face.values.max() <= max_dimension
 
     verts = [f0_deg, f1_deg, f2_deg, f3_deg, f4_deg, f5_deg, f6_deg]
     grid_from_verts = ux.open_grid(verts)
@@ -837,3 +840,15 @@ def test_point_along_arc():
     out2 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 25.41], dtype=np.float64))
 
     nt.assert_array_equal(out1, out2)
+
+def test_from_topology():
+    node_lon = np.array([-20.0, 0.0, 20.0, -20, -40])
+    node_lat = np.array([-10.0, 10.0, -10.0, 10, -10])
+    face_node_connectivity = np.array([[0, 1, 2, -1], [0, 1, 3, 4]])
+
+    uxgrid = ux.Grid.from_topology(
+        node_lon=node_lon,
+        node_lat=node_lat,
+        face_node_connectivity=face_node_connectivity,
+        fill_value=-1,
+    )

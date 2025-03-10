@@ -92,7 +92,7 @@ def _parse_nod2d(grid_path):
 
     nodes = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=1,
         names=["node_number", "x", "y", "flag"],
     )
@@ -123,7 +123,7 @@ def _parse_elem2d(grid_path):
 
     file_content = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=1,
         names=["first_elem", "second_elem", "third_elem"],
     )
@@ -153,7 +153,7 @@ def _parse_edge_tri(grid_path):
         return None
     file_content = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=0,
         names=["first_elem", "second_elem"],
     )
@@ -184,7 +184,7 @@ def _parse_edges(grid_path):
         return None
     file_content = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=0,
         names=["first_elem", "second_elem"],
     )
@@ -218,17 +218,22 @@ def _read_fesom2_netcdf(in_ds):
     source_dims_dict = {"ncells": "n_face"}
     ugrid_ds = xr.Dataset()
 
-    node_lon = in_ds["lon"].data
-    node_lat = in_ds["lat"].data
+    node_dim = in_ds["lon"].dims[0]
 
-    ugrid_ds["node_lon"] = xr.DataArray(
-        data=node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
+    ugrid_ds["node_lon"] = (
+        in_ds["lon"]
+        .rename("node_lon")
+        .assign_attrs(ugrid.NODE_LON_ATTRS)
+        .swap_dims({node_dim: ugrid.NODE_DIM})
     )
-    ugrid_ds["node_lat"] = xr.DataArray(
-        data=node_lat, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LAT_ATTRS
+    ugrid_ds["node_lat"] = (
+        in_ds["lat"]
+        .rename("node_lat")
+        .assign_attrs(ugrid.NODE_LAT_ATTRS)
+        .swap_dims({node_dim: ugrid.NODE_DIM})
     )
 
-    face_node_connectivity = in_ds["triag_nodes"].data - 1
+    face_node_connectivity = in_ds["triag_nodes"] - 1
 
     ugrid_ds["face_node_connectivity"] = xr.DataArray(
         data=face_node_connectivity,

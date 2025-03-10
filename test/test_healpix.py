@@ -46,4 +46,8 @@ def test_dataset():
 
 def test_number_of_boundary_nodes():
     uxgrid = ux.Grid.from_healpix(0)
-    _ = uxgrid.face_node_connectivity
+    face_node_conn = uxgrid.face_node_connectivity
+    n_face, n_max_face_nodes = face_node_conn.shape
+
+    assert n_face == uxgrid.n_face
+    assert n_max_face_nodes == uxgrid.n_max_face_nodes
