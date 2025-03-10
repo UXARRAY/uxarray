@@ -1385,7 +1385,7 @@ class Grid:
 
     @property
     def edge_node_distances(self):
-        """Distances between the two nodes that surround each edge in degrees.
+        """Distances between the two nodes that surround each edge in radians.
 
         Dimensions ``(n_edge, )``
         """
@@ -1402,7 +1402,7 @@ class Grid:
     @property
     def edge_face_distances(self):
         """Distances between the centers of the faces that saddle each edge in
-        degrees.
+        radians.
 
         Dimensions ``(n_edge, )``
         """
