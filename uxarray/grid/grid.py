@@ -1815,7 +1815,10 @@ class Grid:
         return out_ds
 
     def calculate_total_face_area(
-        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+        self,
+        quadrature_rule: Optional[str] = "triangular",
+        order: Optional[int] = 4,
+        latitude_adjusted_area: Optional[bool] = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1826,6 +1829,8 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        latitude_adjusted_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
@@ -1833,7 +1838,9 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas, face_jacobian = self.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(
+            quadrature_rule, order, latitude_adjusted_area=latitude_adjusted_area
+        )
 
         return np.sum(face_areas)
 
@@ -1842,6 +1849,7 @@ class Grid:
         quadrature_rule: Optional[str] = "triangular",
         order: Optional[int] = 4,
         latlon: Optional[bool] = True,
+        latitude_adjusted_area: Optional[bool] = False,
     ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -1852,6 +1860,10 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        latlon : bool, optional
+            If True, the coordinates are in latlon. Defaults to True.
+        latitude_adjusted_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
@@ -1909,6 +1921,7 @@ class Grid:
             quadrature_rule,
             order,
             coords_type,
+            latitude_adjusted_area,
         )
 
         min_jacobian = np.min(self._face_jacobian)
