@@ -49,6 +49,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
 
+`Spatial Hashing <user-guide/spatial-hashing.ipynb>`_
+ Use spatial hashing to locate the faces a list of points reside in.
+
 `Cross-Sections <user-guide/cross-sections.ipynb>`_
  Select cross-sections of a grid
 
