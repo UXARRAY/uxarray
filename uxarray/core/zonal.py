@@ -6,6 +6,8 @@ from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robu
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 
+#TODO: Optimize the entire zonal average function to avoid unnecessary computations
+
 def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=False):
     """Computes the non-conservative zonal mean across one or more latitudes."""
     uxgrid = uxda.uxgrid
