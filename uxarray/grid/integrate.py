@@ -215,19 +215,20 @@ def _get_zonal_face_interval(
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
 
     try:
-        unique_intersections, pt_lon_min, pt_lon_max = (
+
+        unique_intersections_cart,unique_intersection_lonlat, pt_lon_min, pt_lon_max = (
             _get_faces_constLat_intersection_info(
                 face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
             )
         )
 
         # If there's exactly one intersection, the face is only "touched"
-        if len(unique_intersections) == 1:
+        if len(unique_intersections_cart) == 1:
             return pl.DataFrame({"start": [0.0], "end": [0.0]})
 
-        # Convert intersection points to (lon, lat) in radians
+        # Extract unique longitudes from intersection points
         longitudes = np.array(
-            [_xyz_to_lonlat_rad(*pt.tolist())[0] for pt in unique_intersections]
+            [pt[0] for pt in unique_intersection_lonlat]
         )
 
         # Handle special wrap-around cases (crossing anti-meridian, etc.)
@@ -378,7 +379,8 @@ def _get_faces_constLat_intersection_info(
     -------
     tuple
         A tuple containing:
-        - intersections_pts_list_cart (list): A list of intersection points where each point is where an edge intersects with the latitude.
+        - intersections_pts_list_cart (list): A list of intersection points in cartesian where each point is where an edge intersects with the latitude.
+        - intersections_pts_list_lon (list): A list of intersection points in lonlat where each point is where an edge intersects with the latitude.
         - pt_lon_min (float): The min longnitude of the interseted intercal in radian if any; otherwise, None..
         - pt_lon_max (float): The max longnitude of the interseted intercal in radian, if any; otherwise, None.
     """
@@ -418,28 +420,30 @@ def _get_faces_constLat_intersection_info(
                     intersections_pts_list_cart.append(intersections[0])
 
     # Find the unique intersection points
-    unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
+    unique_intersections_cart = np.unique(intersections_pts_list_cart, axis=0)
 
-    if len(unique_intersections) == 2:
+    if len(unique_intersections_cart) == 2:
         unique_intersection_lonlat = np.array(
-            [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
+            [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections_cart]
         )
 
         sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
         pt_lon_min, pt_lon_max = sorted_lonlat[:, 0]
-        return unique_intersections, pt_lon_min, pt_lon_max
-    elif len(unique_intersections) == 1:
-        return unique_intersections, None, None
-    elif len(unique_intersections) != 0 and len(unique_intersections) != 1:
+        return unique_intersections_cart,unique_intersection_lonlat, pt_lon_min, pt_lon_max
+    elif len(unique_intersections_cart) == 1:
+        return unique_intersections_cart, np.array(_xyz_to_lonlat_rad(unique_intersections_cart[0][0],
+                                                                      unique_intersections_cart[0][1],
+                                                                      unique_intersections_cart[0][2])), None, None
+    elif len(unique_intersections_cart) != 0 and len(unique_intersections_cart) != 1:
         # If the unique intersections numbers is larger than n_edges * 2, then it means the face is concave
-        if len(unique_intersections) > len(valid_edges) * 2:
+        if len(unique_intersections_cart) > len(valid_edges) * 2:
             raise ValueError(
                 "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
             )
         else:
             # Now return all the intersections points and the pt_lon_min, pt_lon_max
             unique_intersection_lonlat = np.array(
-                [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
+                [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections_cart]
             )
 
             sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
@@ -449,8 +453,8 @@ def _get_faces_constLat_intersection_info(
                 np.max(sorted_lonlat[:, 0]),
             )
 
-            return unique_intersections, pt_lon_min, pt_lon_max
-    elif len(unique_intersections) == 0:
+            return unique_intersections_cart, unique_intersection_lonlat, pt_lon_min, pt_lon_max
+    elif len(unique_intersections_cart) == 0:
         raise ValueError(
             "No intersections are found for the face, please make sure the build_latlon_box generates the correct results"
         )
