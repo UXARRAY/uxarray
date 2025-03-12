@@ -2610,6 +2610,9 @@ class Grid:
         elif point_lonlat is None:
             point_xyz = np.asarray(point_xyz, dtype=np.float64)
             point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
+        else:
+            point_xyz = np.asarray(point_xyz, dtype=np.float64)
+            point_lonlat = np.asarray(point_lonlat, dtype=np.float64)
 
         # Get the maximum face radius of the grid, plus a small adjustment for if the point is this exact radius away
         max_face_radius = self.max_face_radius.values + 0.0001

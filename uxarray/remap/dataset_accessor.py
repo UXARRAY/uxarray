@@ -136,12 +136,10 @@ class UxDatasetRemapAccessor:
         ---------
         destination_grid : Grid
             Destination Grid for remapping
-        remap_to : str, default="nodes"
-            Location of where to map data, either "nodes" or "face centers"
         coord_type : str, default="spherical"
             Indicates whether to remap using on spherical or cartesian coordinates
         """
         if destination_grid is None:
             raise ValueError("Destination needed for remap.")
 
-        return _bilinear_uxds(self.uxds, destination_grid, remap_to, coord_type)
+        return _bilinear_uxds(self.uxds, destination_grid, remap_to)

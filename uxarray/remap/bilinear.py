@@ -13,13 +13,12 @@ import numpy as np
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
-
+from uxarray.grid.neighbors import _barycentric_coordinates
 
 def _bilinear(
     source_uxda: UxDataArray,
     destination_grid: Grid,
     remap_to: str = "face centers",
-    coord_type: str = "spherical",
 ) -> np.ndarray:
     """Bilinear Remapping between two grids, mapping data that resides on the
     corner nodes, edge centers, or face centers on the source grid to the
@@ -31,8 +30,6 @@ def _bilinear(
         Source UxDataArray
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type: str, default="spherical"
-        Coordinate type to use for bilinear query, either "spherical" or "Cartesian"
 
     Returns
     -------
@@ -66,6 +63,9 @@ def _bilinear(
     # If the data isn't face centered, take a `topological_mean` so the data will be face centered for the dual
     if source_data_mapping != "face centers":
         source_uxda = source_uxda.topological_mean(destination="face")
+
+    # Ensure the destination grid is normalized
+    destination_grid.normalize_cartesian_coordinates()
 
     # Reload the data array after topological mean
     source_data = np.asarray(source_uxda.data)
@@ -111,8 +111,11 @@ def _bilinear(
             f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
             f"but received: {remap_to}"
         )
+    # Get the point coordinates to use for search
+    point_lonlat = np.column_stack([lon, lat])
+    point_xyz = np.column_stack([cart_x, cart_y, cart_z])
 
-    values = _get_values(lon, lat, cart_x, cart_y, cart_z, dual, source_data, data_size)
+    values = _get_values(point_xyz=point_xyz, point_lonlat=point_lonlat, dual=dual, source_data=source_data, data_size=data_size)
 
     return values
 
@@ -121,7 +124,6 @@ def _bilinear_uxda(
     source_uxda: UxDataArray,
     destination_grid: Grid,
     remap_to: str = "face centers",
-    coord_type: str = "spherical",
 ):
     """Bilinear Remapping implementation for ``UxDataArray``.
 
@@ -133,9 +135,6 @@ def _bilinear_uxda(
         Destination Grid for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type : str, default="spherical"
-        Indicates whether to remap using on Spherical or Cartesian coordinates for computations when
-        remapping.
     """
 
     # prepare dimensions
@@ -150,7 +149,7 @@ def _bilinear_uxda(
     destination_dims[-1] = destination_dim
 
     # perform remapping
-    destination_data = _bilinear(source_uxda, destination_grid, remap_to, coord_type)
+    destination_data = _bilinear(source_uxda, destination_grid, remap_to)
     # construct a data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
         data=destination_data,
@@ -166,8 +165,7 @@ def _bilinear_uxda(
 def _bilinear_uxds(
     source_uxds: UxDataset,
     destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
+    remap_to: str = "face centers"
 ):
     """Bilinear Remapping implementation for ``UxDataset``.
 
@@ -179,45 +177,35 @@ def _bilinear_uxds(
         Destination for remapping
     remap_to : str, default="nodes"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type : str, default="spherical"
-        Indicates whether to remap using on Spherical or Cartesian coordinates
     """
 
     destination_uxds = uxarray.core.dataset.UxDataset(uxgrid=destination_grid)
 
     for var_name in source_uxds.data_vars:
         destination_uxds = _bilinear_uxda(
-            source_uxds[var_name], destination_grid, remap_to, coord_type
+            source_uxds[var_name], destination_grid, remap_to
         )
 
     return destination_uxds
 
 
-#@njit(cache=True)
-def _get_values(lon, lat, cart_x, cart_y, cart_z, dual, source_data, data_size):
-    values = np.ndarray(data_size)
+def _get_values(point_xyz, point_lonlat, dual, source_data, data_size):
+    values = np.zeros(data_size)
 
     for i in range(data_size):
-        # Get the point coordinates to use for search
-        point_lonlat = np.array([lon[i], lat[i]], dtype=np.float64
-                                )
-        point_xyz = np.array(
-            [cart_x[i], cart_y[i], cart_z[i]], dtype=np.float64
-        )
-
         # Find the index of the polygon containing the point
-        polygon_ind = dual.uxgrid.get_faces_containing_point(point_lonlat=point_lonlat, point_xyz=point_xyz)
+        face_ind = dual.uxgrid.get_faces_containing_point(point_xyz=point_xyz[i], point_lonlat=point_lonlat[i])
 
-        if len(polygon_ind) == 0:
-            raise ValueError("No polygon found containing the point")
+        number_of_faces = len(face_ind)
 
-        # Inside the polygon or on an edge/node
-        elif len(polygon_ind) <= 3:
+        if number_of_faces == 0:
+            values[i] = 0
+        else:
             # Get the index of the face that holds the point
-            node_ind = dual.uxgrid.face_node_connectivity[polygon_ind[0]].values
+            node_ind = dual.uxgrid.face_node_connectivity[face_ind[0]].values
 
             # Create the polygon from the `face_node_connectivity`
-            nodes_per_face = dual.uxgrid.n_nodes_per_face[polygon_ind[0]].values
+            nodes_per_face = dual.uxgrid.n_nodes_per_face[face_ind[0]].values
             polygon = np.empty([nodes_per_face, 2])
             data = np.empty([nodes_per_face])
             for ind, node in enumerate(node_ind):
@@ -229,34 +217,43 @@ def _get_values(lon, lat, cart_x, cart_y, cart_z, dual, source_data, data_size):
                 # Create the data array on the polygon
                 data[ind] = source_data[node]
 
+            weights = _barycentric_coordinates(polygon, point_lonlat[i])
+            values[i] = np.sum(weights * data, axis=-1)
+
+
+    return values
+            # Get the barycentric coordinates for the polygon
+
             # If the face is a triangle, use barycentric coordinates, otherwise break the face into triangles
             # and then use barycentric coordinates
-            polygon_len = len(polygon)
-            if polygon_len == 3:
-                weights = barycentric_coordinates(point_lonlat, polygon)
 
-                values[i] = np.sum(weights * data, axis=-1)
-            else:
-                reference_vertex = polygon[0]
-                triangles = []
-                triangle_data = []
-                for j in range(1, polygon_len - 1):
-                    triangles.append([reference_vertex, polygon[j], polygon[j + 1]])
-                    triangle_data.append([data[0], data[j], data[j + 1]])
+            # polygon_len = len(polygon)
+            # if polygon_len == 3:
+            #     weights = barycentric_coordinates(point_lonlat, polygon)
+            #
+            #     values[i] = np.sum(weights * data, axis=-1)
+            # else:
+            #     reference_vertex = polygon[0]
+            #     triangles = []
+            #     triangle_data = []
+            #     for j in range(1, polygon_len - 1):
+            #         triangles.append([reference_vertex, polygon[j], polygon[j + 1]])
+            #         triangle_data.append([data[0], data[j], data[j + 1]])
+            #
+            #     for d, triangle in enumerate(triangles):
+            #         if point_in_polygon(point, triangle):
+            #             weights = barycentric_coordinates(point, triangle)
+            #
+            #             values[i] = np.sum(weights * triangle_data[d], axis=-1)
 
-                for d, triangle in enumerate(triangles):
-                    if point_in_polygon(point, triangle):
-                        weights = barycentric_coordinates(point, triangle)
-
-                        values[i] = np.sum(weights * triangle_data[d], axis=-1)
 
         # On a node
-        else:
-            node_ind_1 = dual.uxgrid.face_node_connectivity[polygon_ind[0]].values
-            node_ind_2 = dual.uxgrid.face_node_connectivity[polygon_ind[1]].values
-            for ind, x in enumerate(node_ind_1):
-                if x == node_ind_2[ind]:
-                    values[i] = source_data[x]
+        # else:
+        #     node_ind_1 = dual.uxgrid.face_node_connectivity[polygon_ind[0]].values
+        #     node_ind_2 = dual.uxgrid.face_node_connectivity[polygon_ind[1]].values
+        #     for ind, x in enumerate(node_ind_1):
+        #         if x == node_ind_2[ind]:
+        #             values[i] = source_data[x]
 
 
 # @njit(cache=True)

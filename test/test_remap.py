@@ -276,5 +276,4 @@ def test_bilinear():
     destination = ux.open_grid(outCS)
     destination_2 = ux.open_grid(mpasfile_QU_2)
 
-    bilinear_remap = source_uxds['latCell'].remap.bilinear(destination_2, remap_to='face centers',
-                                                           coord_type='cartesian')
+    bilinear_remap = source_uxds['latCell'].remap.bilinear(destination_2, remap_to='face centers')
