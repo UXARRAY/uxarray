@@ -792,6 +792,10 @@ class SpatialHash:
         Source grid used to construct the hash grid and hash table
     reconstruct : bool, default=False
         If true, reconstructs the spatial hash
+
+    Note
+    ----
+    Does not currently support queries on periodic elements.
     """
 
     def __init__(
@@ -806,11 +810,21 @@ class SpatialHash:
 
         # Hash grid size
         self._dh = self._hash_cell_size()
+
         # Lower left corner of the hash grid
-        self._xmin = np.deg2rad(self._source_grid.node_lon.min().to_numpy()) - self._dh
-        self._ymin = np.deg2rad(self._source_grid.node_lat.min().to_numpy()) - self._dh
-        self._xmax = np.deg2rad(self._source_grid.node_lon.max().to_numpy()) + self._dh
-        self._ymax = np.deg2rad(self._source_grid.node_lat.max().to_numpy()) + self._dh
+        lon_min = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
+        lat_min = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
+        lon_max = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
+        lat_max = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
+
+        self._xmin = lon_min - self._dh
+        self._ymin = lat_min - self._dh
+        self._xmax = lon_max + self._dh
+        self._ymax = lat_max + self._dh
+
+        print(self._xmin, self._xmax)
+        print(self._ymin, self._ymax)
+
         # Number of x points in the hash grid; used for
         # array flattening
         Lx = self._xmax - self._xmin
@@ -866,10 +880,15 @@ class SpatialHash:
             )
             i2, j2 = self._hash_index2d(coords)
 
-            for eid in range(self._source_grid.n_face):
-                for j in range(j1[eid], j2[eid] + 1):
-                    for i in range(i1[eid], i2[eid] + 1):
-                        index_to_face[i + self._nx * j].append(eid)
+            try:
+                for eid in range(self._source_grid.n_face):
+                    for j in range(j1[eid], j2[eid] + 1):
+                        for i in range(i1[eid], i2[eid] + 1):
+                            index_to_face[i + self._nx * j].append(eid)
+            except IndexError:
+                raise IndexError(
+                    "list index out of range. This may indicate incorrect `edge_node_distances` values."
+                )
 
             return index_to_face
 
