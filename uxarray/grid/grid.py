@@ -1444,6 +1444,22 @@ class Grid:
         self._ds["face_areas"] = value
 
     @property
+    def face_edges_cartesian(self):
+        """Cartesian Coordinates for each Face Edge.
+
+        Dimensions ``(n_face, n_max_face_edges, 2, 3)``
+        """
+        pass
+
+    @property
+    def face_edges_spherical(self):
+        """Latitude Longitude Bounds for each Face in radians.
+
+        Dimensions ``(n_face, n_max_face_edges, 2, 2)``
+        """
+        pass
+
+    @property
     def bounds(self):
         """Latitude Longitude Bounds for each Face in radians.
 

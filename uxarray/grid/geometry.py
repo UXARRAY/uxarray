@@ -103,7 +103,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
 
 @njit(cache=True)
 def _pad_closed_face_nodes(
-    face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
+        face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
     """Pads a closed array of face nodes by inserting the first element at any
     point a fill value is encountered.
@@ -123,14 +123,14 @@ def _pad_closed_face_nodes(
 
 
 def _build_polygon_shells(
-    node_lon,
-    node_lat,
-    face_node_connectivity,
-    n_face,
-    n_max_face_nodes,
-    n_nodes_per_face,
-    projection=None,
-    central_longitude=0.0,
+        node_lon,
+        node_lat,
+        face_node_connectivity,
+        n_face,
+        n_max_face_nodes,
+        n_nodes_per_face,
+        projection=None,
+        central_longitude=0.0,
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
@@ -266,7 +266,7 @@ def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, 
 
 
 def _build_geodataframe_without_antimeridian(
-    polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
+        polygon_shells, projected_polygon_shells, antimeridian_face_indices, engine
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or
     ``geopandas.GeoDataFrame``excluding any faces that cross the
@@ -295,10 +295,10 @@ def _build_geodataframe_without_antimeridian(
 
 
 def _build_geodataframe_with_antimeridian(
-    polygon_shells,
-    projected_polygon_shells,
-    antimeridian_face_indices,
-    engine,
+        polygon_shells,
+        projected_polygon_shells,
+        antimeridian_face_indices,
+        engine,
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
     including any faces that cross the antimeridian."""
@@ -317,9 +317,9 @@ def _build_geodataframe_with_antimeridian(
 
 
 def _build_corrected_shapely_polygons(
-    polygon_shells,
-    projected_polygon_shells,
-    antimeridian_face_indices,
+        polygon_shells,
+        projected_polygon_shells,
+        antimeridian_face_indices,
 ):
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
@@ -438,7 +438,7 @@ def _build_corrected_polygon_shells(polygon_shells):
 
 
 def _grid_to_matplotlib_polycollection(
-    grid, periodic_elements, projection=None, **kwargs
+        grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
 
@@ -642,7 +642,7 @@ def _get_polygons(grid, periodic_elements, projection=None, apply_projection=Tru
 
 
 def _grid_to_matplotlib_linecollection(
-    grid, periodic_elements, projection=None, **kwargs
+        grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
 
@@ -913,7 +913,7 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
         for i in range(n_edges):
             edge_xyz = edges_xyz[i]
             if allclose(
-                intersection_point, edge_xyz[0], atol=ERROR_TOLERANCE
+                    intersection_point, edge_xyz[0], atol=ERROR_TOLERANCE
             ) or allclose(intersection_point, edge_xyz[1], atol=ERROR_TOLERANCE):
                 return 0
 
@@ -1140,10 +1140,10 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
 @njit(cache=True)
 def _populate_face_latlon_bound(
-    face_edges_xyz,
-    face_edges_lonlat,
-    is_latlonface=False,
-    is_GCA_list=None,
+        face_edges_xyz,
+        face_edges_lonlat,
+        is_latlonface=False,
+        is_GCA_list=None,
 ):
     # Check if face_edges contains pole points
     has_north_pole = pole_point_inside_polygon(1, face_edges_xyz, face_edges_lonlat)
@@ -1198,9 +1198,9 @@ def _populate_face_latlon_bound(
             # Check if the node matches the pole point or if the pole point is within the edge
             max_abs_diff = np.max(np.abs(n1_cart - pole_point_xyz))
             if max_abs_diff <= ERROR_TOLERANCE or point_within_gca(
-                pole_point_xyz,
-                n1_cart,
-                n2_cart,
+                    pole_point_xyz,
+                    n1_cart,
+                    n2_cart,
             ):
                 is_center_pole = False
                 face_latlon_array = insert_pt_in_latlonbox(
@@ -1292,15 +1292,15 @@ def _populate_face_latlon_bound(
 
             # Insert extreme latitude points into the latlonbox
             if (
-                abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
-                and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
+                    abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
+                    and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
             ):
                 face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_max, node1_lon_rad])
                 )
             elif (
-                abs(node1_lat_rad - lat_min) > ERROR_TOLERANCE
-                and abs(node2_lat_rad - lat_min) > ERROR_TOLERANCE
+                    abs(node1_lat_rad - lat_min) > ERROR_TOLERANCE
+                    and abs(node2_lat_rad - lat_min) > ERROR_TOLERANCE
             ):
                 face_latlon_array = insert_pt_in_latlonbox(
                     face_latlon_array, np.array([lat_min, node1_lon_rad])
@@ -1315,23 +1315,23 @@ def _populate_face_latlon_bound(
 
 @njit(cache=True, parallel=True)
 def compute_temp_latlon_array(
-    face_node_connectivity,
-    faces_edges_cartesian,
-    faces_edges_lonlat_rad,
-    n_nodes_per_face,
-    is_latlonface,
-    is_face_GCA_list,
-    INT_FILL_VALUE,
+        face_node_connectivity,
+        faces_edges_cartesian,
+        faces_edges_lonlat_rad,
+        n_nodes_per_face,
+        is_latlonface,
+        is_face_GCA_list,
+        INT_FILL_VALUE,
 ):
     n_face = face_node_connectivity.shape[0]
     temp_latlon_array = np.full((n_face, 2, 2), INT_FILL_VALUE, dtype=np.float64)
     for face_idx in prange(n_face):
         cur_face_edges_cartesian = faces_edges_cartesian[
-            face_idx, 0 : n_nodes_per_face[face_idx]
-        ]
+                                   face_idx, 0: n_nodes_per_face[face_idx]
+                                   ]
         cur_faces_edges_lonlat_rad = faces_edges_lonlat_rad[
-            face_idx, 0 : n_nodes_per_face[face_idx]
-        ]
+                                     face_idx, 0: n_nodes_per_face[face_idx]
+                                     ]
         if is_face_GCA_list is not None:
             is_GCA_list = is_face_GCA_list[face_idx]
         else:
@@ -1347,7 +1347,12 @@ def compute_temp_latlon_array(
 
 
 def _populate_bounds(
-    grid, is_latlonface: bool = False, is_face_GCA_list=None, return_array=False
+    grid,
+    faces_edges_cartesian: np.ndarray = None,
+    faces_edges_lonlat_rad: np.ndarray = None,
+    is_latlonface: bool = False,
+    is_face_GCA_list=None,
+    return_array=False
 ):
     """Populates the bounds of the grid based on the geometry of its faces,
     taking into account special conditions such as faces crossing the
@@ -1357,6 +1362,21 @@ def _populate_bounds(
 
     Parameters
     ----------
+    grid : object
+        The grid object whose internal representation will be updated with the computed
+        face bounds.
+
+    faces_edges_cartesian : np.ndarray, optional
+        An array of shape (n_face, n_max_face_edges, 2, 3) containing the Cartesian coordinates
+        of each face's edges. This array may include dummy values for grids with holes.
+        Default is None.
+
+    faces_edges_lonlat_rad : np.ndarray, optional
+        An array of shape (n_face, n_max_face_edges, 2, 2) containing the longitude and latitude
+        (in radians) coordinates of each face's edges. This array may include dummy values for
+        grids with holes.
+        Default is None.
+
     is_latlonface : bool, optional
         A global flag that indicates if faces are latlon faces. If True, all faces
         are treated as latlon faces, meaning that all edges are either longitude or
@@ -1407,25 +1427,29 @@ def _populate_bounds(
     """
 
     # Ensure grid's cartesian coordinates are normalized
+    # TODO: Is it possible to have a more flexible normalization? (Avoid duplicated normalizations)
     grid.normalize_cartesian_coordinates()
 
     # Prepare data for Numba functions
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    # TODO: remove the duplicate call for this function in both zonal average and bounds
+    if faces_edges_cartesian is None:
+        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_edges,
+            grid.node_x.values,
+            grid.node_y.values,
+            grid.node_z.values,
+        )
 
-    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_lon.values,
-        grid.node_lat.values,
-    )
+    if faces_edges_lonlat_rad is None:
+        faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+            grid.face_node_connectivity.values,
+            grid.n_face,
+            grid.n_max_face_edges,
+            grid.node_lon.values,
+            grid.node_lat.values,
+        )
 
     n_nodes_per_face = grid.n_nodes_per_face.values
 
@@ -1512,16 +1536,16 @@ def stereographic_projection(lon, lat, central_lon, central_lat):
 
     # Calculate constant used for calculation
     k = 2.0 / (
-        1.0
-        + np.sin(central_lat) * np.sin(lat)
-        + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+            1.0
+            + np.sin(central_lat) * np.sin(lat)
+            + np.cos(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
     )
 
     # Calculate the x and y coordinates
     x = k * np.cos(lat) * np.sin(lon - central_lon)
     y = k * (
-        np.cos(central_lat) * np.sin(lat)
-        - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
+            np.cos(central_lat) * np.sin(lat)
+            - np.sin(central_lat) * np.cos(lat) * np.cos(lon - central_lon)
     )
 
     return x, y
@@ -1557,7 +1581,7 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     central_lat = np.deg2rad(central_lat)
 
     # Calculate constants used for calculation
-    p = np.sqrt(x**2 + y**2)
+    p = np.sqrt(x ** 2 + y ** 2)
 
     c = 2 * np.arctan(p / 2)
 
@@ -1576,9 +1600,9 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
 
 @njit(cache=True)
 def point_in_face(
-    edges_xyz,
-    point_xyz,
-    inclusive=True,
+        edges_xyz,
+        point_xyz,
+        inclusive=True,
 ):
     """Determines if a point lies inside a face.
 
@@ -1628,9 +1652,9 @@ def point_in_face(
     for ind in range(len(edges_xyz)):
         # If the point lies on an edge, return True if inclusive
         if point_within_gca(
-            point_xyz,
-            edges_xyz[ind][0],
-            edges_xyz[ind][1],
+                point_xyz,
+                edges_xyz[ind][0],
+                edges_xyz[ind][1],
         ):
             if inclusive:
                 return True
@@ -1723,7 +1747,7 @@ def _populate_max_face_radius(self):
 
 @njit(cache=True)
 def calculate_max_face_radius(
-    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
+        face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
 ):
     """Finds the max face radius in the mesh.
     Parameters
@@ -1797,7 +1821,7 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
 
     # Haversine formula
     equation_in_sqrt = (np.sin(dlat / 2) ** 2) + np.cos(lat_a) * np.cos(lat_b) * (
-        np.sin(dlon / 2) ** 2
+            np.sin(dlon / 2) ** 2
     )
     distance = 2 * np.arcsin(np.sqrt(equation_in_sqrt))
 
