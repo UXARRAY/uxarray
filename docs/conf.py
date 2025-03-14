@@ -167,7 +167,7 @@ html_theme_options = {
         "image_dark": "_static/images/logos/uxarray_logo_h_light.svg",
     },
     "analytics": {
-         "google_analytics_id": "G-7ZSVEDR2SX",
+         "google_analytics_id": "G-LGWCS4YKZV",
      },
 }
 
