@@ -14,7 +14,7 @@ from typing import (
     Tuple,
 )
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_faces_edge_nodes
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -2664,14 +2664,10 @@ class Grid:
             return np.empty(0, dtype=np.int64)
 
         # Get the faces in terms of their edges
-        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
-            subset.face_node_connectivity.values,
-            subset.n_face,
-            subset.n_max_face_nodes,
-            subset.node_x.values,
-            subset.node_y.values,
-            subset.node_z.values,
-        )
+        # Since this is a new subset, the cartesian_faces_edge_nodes need to be recalculated anyway
+        face_edge_nodes_xyz = _get_cartesian_faces_edge_nodes(subset.face_node_connectivity.values, subset.n_face,
+                                                              subset.n_max_face_nodes, subset.node_x.values,
+                                                              subset.node_y.values, subset.node_z.values)
 
         # Get the original face indices from the subset
         inverse_indices = subset.inverse_indices.face.values

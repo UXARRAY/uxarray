@@ -19,7 +19,7 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
         result = np.zeros(shape, dtype=uxda.dtype)
 
     bounds = uxgrid.bounds.values
-    faces_edges_cartesian = uxgrid.face_edges_cartesian.values
+    faces_edges_cartesian = uxgrid.faces_edges_cartesian.values
 
     for i, lat in enumerate(latitudes):
         face_indices = uxda.uxgrid.get_faces_at_constant_latitude(lat)

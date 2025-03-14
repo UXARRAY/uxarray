@@ -29,8 +29,8 @@ from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
 from uxarray.grid.utils import (
-    _get_cartesian_face_edge_nodes,
-    _get_lonlat_rad_face_edge_nodes,
+    _get_cartesian_faces_edge_nodes,
+    _get_lonlat_rad_faces_edge_nodes,
 )
 from uxarray.utils.computing import allclose, isclose
 
@@ -1346,42 +1346,10 @@ def compute_temp_latlon_array(
     return temp_latlon_array
 
 
-def _populate_face_edges_cartesian(grid, return_array=False):
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
-
-    faces_edges_cartesian_xarray = xr.DataArray(
-        faces_edges_cartesian,
-        dims=["n_face", "n_max_face_edges", "two", "three"],
-        attrs={
-            "cf_role": "face_edges_cartesian",
-            "_FillValue": INT_FILL_VALUE,
-            "long_name": "Provide the Cartesian coordinates of the edge for each face",
-            "start_index": INT_DTYPE(0)
-        },
-    )
-
-    if return_array:
-        return faces_edges_cartesian_xarray
-    else:
-        grid._ds["face_edges_cartesian"] = faces_edges_cartesian_xarray
-
-
 def _populate_faces_edges_cartesian(grid, return_array=False):
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     faces_edges_cartesian_xarray = xr.DataArray(
         faces_edges_cartesian,
@@ -1401,13 +1369,9 @@ def _populate_faces_edges_cartesian(grid, return_array=False):
 
 
 def _populate_faces_edges_spherical(grid, return_array=False):
-    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_lon.values,
-        grid.node_lat.values,
-    )
+    faces_edges_lonlat_rad = _get_lonlat_rad_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                              grid.n_max_face_edges, grid.node_lon.values,
+                                                              grid.node_lat.values)
 
     faces_edges_lonlat_rad_xarray = xr.DataArray(
         faces_edges_lonlat_rad,

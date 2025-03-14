@@ -11,7 +11,7 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_faces_edge_nodes, _get_lonlat_rad_faces_edge_nodes
 from uxarray.grid.geometry import pole_point_inside_polygon, _pole_point_inside_polygon_cartesian
 
 try:
@@ -273,9 +273,8 @@ def test_get_cartesian_face_edge_nodes_pipeline():
     node_y = grid.node_y.values
     node_z = grid.node_z.values
 
-    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
-        face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
-    )
+    face_edges_connectivity_cartesian = _get_cartesian_faces_edge_nodes(face_node_conn, n_face, n_max_face_edges,
+                                                                        node_x, node_y, node_z)
 
     result = _pole_point_inside_polygon_cartesian(
         'North', face_edges_connectivity_cartesian[0]
@@ -298,9 +297,8 @@ def test_get_cartesian_face_edge_nodes_filled_value():
     node_y = grid.node_y.values
     node_z = grid.node_z.values
 
-    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
-        face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
-    )
+    face_edges_connectivity_cartesian = _get_cartesian_faces_edge_nodes(face_node_conn, n_face, n_max_face_edges,
+                                                                        node_x, node_y, node_z)
 
     result = _pole_point_inside_polygon_cartesian(
         'North', face_edges_connectivity_cartesian[0]
@@ -335,9 +333,8 @@ def test_get_cartesian_face_edge_nodes_filled_value2():
     node_y = np.array([v0_cart[1],v1_cart[1],v2_cart[1],v3_cart[1],v4_cart[1]])
     node_z = np.array([v0_cart[2],v1_cart[2],v2_cart[2],v3_cart[2],v4_cart[2]])
 
-    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
-        face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
-    )
+    face_edges_connectivity_cartesian = _get_cartesian_faces_edge_nodes(face_node_conn, n_face, n_max_face_edges,
+                                                                        node_x, node_y, node_z)
 
     correct_result = np.array([
         [
@@ -368,9 +365,8 @@ def test_get_lonlat_face_edge_nodes_pipeline():
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
 
-    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
-        face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
-    )
+    face_edges_connectivity_lonlat = _get_lonlat_rad_faces_edge_nodes(face_node_conn, n_face, n_max_face_edges,
+                                                                      node_lon, node_lat)
 
     face_edges_connectivity_lonlat = face_edges_connectivity_lonlat[0]
     face_edges_connectivity_cartesian = []
@@ -398,9 +394,8 @@ def test_get_lonlat_face_edge_nodes_filled_value():
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
 
-    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
-        face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
-    )
+    face_edges_connectivity_lonlat = _get_lonlat_rad_faces_edge_nodes(face_node_conn, n_face, n_max_face_edges,
+                                                                      node_lon, node_lat)
 
     face_edges_connectivity_lonlat = face_edges_connectivity_lonlat[0]
     face_edges_connectivity_cartesian = []
@@ -434,9 +429,8 @@ def test_get_lonlat_face_edge_nodes_filled_value2():
     node_lon = np.array([v0_rad[0],v1_rad[0],v2_rad[0],v3_rad[0],v4_rad[0]])
     node_lat = np.array([v0_rad[1],v1_rad[1],v2_rad[1],v3_rad[1],v4_rad[1]])
 
-    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
-        face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
-    )
+    face_edges_connectivity_lonlat = _get_lonlat_rad_faces_edge_nodes(face_node_conn, n_face, n_max_face_edges,
+                                                                      node_lon, node_lat)
 
     correct_result = np.array([
         [
