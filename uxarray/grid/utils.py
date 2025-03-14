@@ -179,7 +179,9 @@ def _get_cartesian_faces_edge_nodes(
     >>> node_x = np.array([0, 1, 1, 0, 1, 0])
     >>> node_y = np.array([0, 0, 1, 1, 2, 2])
     >>> node_z = np.array([0, 0, 0, 0, 1, 1])
-    >>> _get_cartesian_faces_edge_nodes(face_node_conn,n_face,n_max_face_edges,node_x,node_y,node_z)
+    >>> _get_cartesian_faces_edge_nodes(
+    ...     face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
+    ... )
     array([[[[    0,     0,     0],
          [    1,     0,     0]],
 

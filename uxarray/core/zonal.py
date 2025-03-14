@@ -5,7 +5,6 @@ import dask.array as da
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 
 
-
 def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=False):
     """Computes the non-conservative zonal mean across one or more latitudes."""
     uxgrid = uxda.uxgrid
@@ -50,4 +49,3 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
         )
 
     return result
-

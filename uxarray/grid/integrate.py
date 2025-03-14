@@ -215,11 +215,13 @@ def _get_zonal_face_interval(
     face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
 
     try:
-
-        unique_intersections_cart,unique_intersection_lonlat, pt_lon_min, pt_lon_max = (
-            _get_faces_constLat_intersection_info(
-                face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
-            )
+        (
+            unique_intersections_cart,
+            unique_intersection_lonlat,
+            pt_lon_min,
+            pt_lon_max,
+        ) = _get_faces_constLat_intersection_info(
+            face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
         )
 
         # If there's exactly one intersection, the face is only "touched"
@@ -227,9 +229,7 @@ def _get_zonal_face_interval(
             return pl.DataFrame({"start": [0.0], "end": [0.0]})
 
         # Extract unique longitudes from intersection points
-        longitudes = np.array(
-            [pt[0] for pt in unique_intersection_lonlat]
-        )
+        longitudes = np.array([pt[0] for pt in unique_intersection_lonlat])
 
         # Handle special wrap-around cases (crossing anti-meridian, etc.)
         if face_lon_bound_left >= face_lon_bound_right or (
@@ -424,16 +424,33 @@ def _get_faces_constLat_intersection_info(
 
     if len(unique_intersections_cart) == 2:
         unique_intersection_lonlat = np.array(
-            [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections_cart]
+            [
+                _xyz_to_lonlat_rad(pt[0], pt[1], pt[2])
+                for pt in unique_intersections_cart
+            ]
         )
 
         sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
         pt_lon_min, pt_lon_max = sorted_lonlat[:, 0]
-        return unique_intersections_cart,unique_intersection_lonlat, pt_lon_min, pt_lon_max
+        return (
+            unique_intersections_cart,
+            unique_intersection_lonlat,
+            pt_lon_min,
+            pt_lon_max,
+        )
     elif len(unique_intersections_cart) == 1:
-        return unique_intersections_cart, np.array(_xyz_to_lonlat_rad(unique_intersections_cart[0][0],
-                                                                      unique_intersections_cart[0][1],
-                                                                      unique_intersections_cart[0][2])), None, None
+        return (
+            unique_intersections_cart,
+            np.array(
+                _xyz_to_lonlat_rad(
+                    unique_intersections_cart[0][0],
+                    unique_intersections_cart[0][1],
+                    unique_intersections_cart[0][2],
+                )
+            ),
+            None,
+            None,
+        )
     elif len(unique_intersections_cart) != 0 and len(unique_intersections_cart) != 1:
         # If the unique intersections numbers is larger than n_edges * 2, then it means the face is concave
         if len(unique_intersections_cart) > len(valid_edges) * 2:
@@ -443,7 +460,10 @@ def _get_faces_constLat_intersection_info(
         else:
             # Now return all the intersections points and the pt_lon_min, pt_lon_max
             unique_intersection_lonlat = np.array(
-                [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections_cart]
+                [
+                    _xyz_to_lonlat_rad(pt[0], pt[1], pt[2])
+                    for pt in unique_intersections_cart
+                ]
             )
 
             sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
@@ -453,7 +473,12 @@ def _get_faces_constLat_intersection_info(
                 np.max(sorted_lonlat[:, 0]),
             )
 
-            return unique_intersections_cart, unique_intersection_lonlat, pt_lon_min, pt_lon_max
+            return (
+                unique_intersections_cart,
+                unique_intersection_lonlat,
+                pt_lon_min,
+                pt_lon_max,
+            )
     elif len(unique_intersections_cart) == 0:
         raise ValueError(
             "No intersections are found for the face, please make sure the build_latlon_box generates the correct results"

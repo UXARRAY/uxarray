@@ -2665,9 +2665,14 @@ class Grid:
 
         # Get the faces in terms of their edges
         # Since this is a new subset, the cartesian_faces_edge_nodes need to be recalculated anyway
-        face_edge_nodes_xyz = _get_cartesian_faces_edge_nodes(subset.face_node_connectivity.values, subset.n_face,
-                                                              subset.n_max_face_nodes, subset.node_x.values,
-                                                              subset.node_y.values, subset.node_z.values)
+        face_edge_nodes_xyz = _get_cartesian_faces_edge_nodes(
+            subset.face_node_connectivity.values,
+            subset.n_face,
+            subset.n_max_face_nodes,
+            subset.node_x.values,
+            subset.node_y.values,
+            subset.node_z.values,
+        )
 
         # Get the original face indices from the subset
         inverse_indices = subset.inverse_indices.face.values

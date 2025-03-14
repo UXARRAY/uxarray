@@ -67,7 +67,7 @@ def test_get_faces_constLat_intersection_info_one_intersection():
     latitude_cart = -0.8660254037844386
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) == 1
 
@@ -97,7 +97,7 @@ def test_get_faces_constLat_intersection_info_encompass_pole():
 
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) <= 2 * len(face_edges_cart)
 
@@ -119,7 +119,7 @@ def test_get_faces_constLat_intersection_info_on_pole():
     latitude_cart = -0.9998476951563913
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) == 2
 
@@ -141,7 +141,7 @@ def test_get_faces_constLat_intersection_info_near_pole():
     latitude_deg = np.rad2deg(latitude_rad)
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) == 1
 
