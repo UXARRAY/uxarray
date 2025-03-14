@@ -71,6 +71,8 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
+    _populate_faces_edges_cartesian,
+    _populate_faces_edges_spherical,
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
     _find_faces,
@@ -1444,20 +1446,24 @@ class Grid:
         self._ds["face_areas"] = value
 
     @property
-    def face_edges_cartesian(self):
+    def faces_edges_cartesian(self):
         """Cartesian Coordinates for each Face Edge.
 
         Dimensions ``(n_face, n_max_face_edges, 2, 3)``
         """
-        pass
+        if "faces_edges_cartesian" not in self._ds:
+            _populate_faces_edges_cartesian(self)
+        return self._ds["faces_edges_cartesian"]
 
     @property
-    def face_edges_spherical(self):
-        """Latitude Longitude Bounds for each Face in radians.
+    def faces_edges_spherical(self):
+        """Latitude Longitude Coordinates for each Face in radians.
 
         Dimensions ``(n_face, n_max_face_edges, 2, 2)``
         """
-        pass
+        if "faces_edges_spherical" not in self._ds:
+            _populate_faces_edges_spherical(self)
+        return self._ds["faces_edges_spherical"]
 
     @property
     def bounds(self):
@@ -1472,6 +1478,10 @@ class Grid:
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
+            if "faces_edges_cartesian" not in self._ds:
+                _populate_faces_edges_cartesian(self)
+            if "faces_edges_spherical" not in self._ds:
+                _populate_faces_edges_spherical(self)
             _populate_bounds(self)
         return self._ds["bounds"]
 

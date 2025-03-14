@@ -1346,13 +1346,91 @@ def compute_temp_latlon_array(
     return temp_latlon_array
 
 
+def _populate_face_edges_cartesian(grid, return_array=False):
+    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+    )
+
+    faces_edges_cartesian_xarray = xr.DataArray(
+        faces_edges_cartesian,
+        dims=["n_face", "n_max_face_edges", "two", "three"],
+        attrs={
+            "cf_role": "face_edges_cartesian",
+            "_FillValue": INT_FILL_VALUE,
+            "long_name": "Provide the Cartesian coordinates of the edge for each face",
+            "start_index": INT_DTYPE(0)
+        },
+    )
+
+    if return_array:
+        return faces_edges_cartesian_xarray
+    else:
+        grid._ds["face_edges_cartesian"] = faces_edges_cartesian_xarray
+
+
+def _populate_faces_edges_cartesian(grid, return_array=False):
+    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+    )
+
+    faces_edges_cartesian_xarray = xr.DataArray(
+        faces_edges_cartesian,
+        dims=["n_face", "n_max_face_edges", "two", "three"],
+        attrs={
+            "cf_role": "faces_edges_cartesian",
+            "_FillValue": INT_FILL_VALUE,
+            "long_name": "Provide the Cartesian coordinates of the edge for each face",
+            "start_index": INT_DTYPE(0)
+        },
+    )
+
+    if return_array:
+        return faces_edges_cartesian_xarray
+    else:
+        grid._ds["faces_edges_cartesian"] = faces_edges_cartesian_xarray
+
+
+def _populate_faces_edges_spherical(grid, return_array=False):
+    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_lon.values,
+        grid.node_lat.values,
+    )
+
+    faces_edges_lonlat_rad_xarray = xr.DataArray(
+        faces_edges_lonlat_rad,
+        dims=["n_face", "n_max_face_edges", "two", "two"],
+        attrs={
+            "cf_role": "faces_edges_spherical",
+            "_FillValue": INT_FILL_VALUE,
+            "long_name": "Provide the Spherical coordinates (lon lat) in radians of the edge for each face",
+            "start_index": INT_DTYPE(0)
+        },
+    )
+
+    if return_array:
+        return faces_edges_lonlat_rad_xarray
+    else:
+        grid._ds["faces_edges_spherical"] = faces_edges_lonlat_rad_xarray
+
+
 def _populate_bounds(
-    grid,
-    faces_edges_cartesian: np.ndarray = None,
-    faces_edges_lonlat_rad: np.ndarray = None,
-    is_latlonface: bool = False,
-    is_face_GCA_list=None,
-    return_array=False
+        grid,
+        is_latlonface: bool = False,
+        is_face_GCA_list=None,
+        return_array=False
 ):
     """Populates the bounds of the grid based on the geometry of its faces,
     taking into account special conditions such as faces crossing the
@@ -1430,26 +1508,11 @@ def _populate_bounds(
     # TODO: Is it possible to have a more flexible normalization? (Avoid duplicated normalizations)
     grid.normalize_cartesian_coordinates()
 
-    # Prepare data for Numba functions
-    # TODO: remove the duplicate call for this function in both zonal average and bounds
-    if faces_edges_cartesian is None:
-        faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-            grid.face_node_connectivity.values,
-            grid.n_face,
-            grid.n_max_face_edges,
-            grid.node_x.values,
-            grid.node_y.values,
-            grid.node_z.values,
-        )
+    # If the face_edges_cartesian and face_edges_lonlat_rad didn't exist,
+    # The following call will automatically populate them
+    faces_edges_cartesian = grid.faces_edges_cartesian.values
 
-    if faces_edges_lonlat_rad is None:
-        faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
-            grid.face_node_connectivity.values,
-            grid.n_face,
-            grid.n_max_face_edges,
-            grid.node_lon.values,
-            grid.node_lat.values,
-        )
+    faces_edges_lonlat_rad = grid.faces_edges_spherical.values
 
     n_nodes_per_face = grid.n_nodes_per_face.values
 
