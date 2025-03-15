@@ -19,6 +19,7 @@ dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1
 dsfile_v2_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v2.nc"
 dsfile_v3_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v3.nc"
 mpasfile_QU = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+mpasfile_QU_2 = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
 
 
 def test_remap_to_same_grid_corner_nodes():
@@ -264,3 +265,15 @@ def test_value_errors_idw():
 
     with nt.assert_warns(UserWarning):
         source_uxds['v1'].remap.inverse_distance_weighted(destination_grid=destination_grid, remap_to="nodes", power=6)
+
+
+def test_bilinear():
+    mpasfile_QU = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc'
+    mpasfile_QU_2 = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/oQU480.231010.nc'
+    outCS = '/users/aaronzedwick/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug'
+
+    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    destination = ux.open_grid(outCS)
+    destination_2 = ux.open_grid(mpasfile_QU_2)
+
+    bilinear_remap = source_uxds['latCell'].remap.bilinear(destination_2, remap_to='face centers')
