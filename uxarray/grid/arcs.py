@@ -59,17 +59,20 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     - The `_angle_of_2_vectors` and `_xyz_to_lonlat_rad_scalar` functions are used for calculations.
     """
     # 1. Check if the input GCA spans exactly 180 degrees
-    angle_ab = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
-    if np.allclose(angle_ab, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
+    normal = np.cross(gca_a_xyz, gca_b_xyz)
+
+    # Calculate the angle using arctangent of cross and dot products
+    angle_u_v_rad = np.arctan2(np.linalg.norm(normal), np.dot(gca_a_xyz, gca_b_xyz))
+
+    if np.allclose(angle_u_v_rad, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
         raise ValueError(
             "The input Great Circle Arc spans exactly 180 degrees, which can correspond to multiple planes. "
             "Consider breaking the Great Circle Arc into two smaller arcs."
         )
 
     # 2. Verify if the point lies on the plane of the GCA
-    cross_product = np.cross(gca_a_xyz, gca_b_xyz)
     if not np.allclose(
-        np.dot(cross_product, pt_xyz), 0, rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
+        np.dot(normal, pt_xyz), 0, rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
     ):
         return False
 
@@ -88,7 +91,6 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
         return True
     else:
         return False
-
 
 @njit(cache=True)
 def in_between(p, q, r) -> bool:
