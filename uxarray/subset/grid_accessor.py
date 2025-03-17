@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from typing import TYPE_CHECKING, Union, Tuple, List, Optional
+from typing import TYPE_CHECKING, Union, Tuple, List, Optional, Set
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -19,21 +19,19 @@ class GridSubsetAccessor:
         prefix = "<uxarray.Grid.subset>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "  * nearest_neighbor(center_coord, k, element, **kwargs)\n"
-        methods_heading += "  * bounding_circle(center_coord, r, element, **kwargs)\n"
+        methods_heading += "  * nearest_neighbor(center_coord, k, element, inverse_indices, **kwargs)\n"
         methods_heading += (
-            "  * bounding_box(lon_bounds, lat_bounds, element, method, **kwargs)\n"
+            "  * bounding_circle(center_coord, r, element, inverse_indices, **kwargs)\n"
         )
+        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, inverse_indices)\n"
 
         return prefix + methods_heading
 
     def bounding_box(
         self,
-        lon_bounds: Union[Tuple, List, np.ndarray],
-        lat_bounds: Union[Tuple, List, np.ndarray],
-        element: Optional[str] = "nodes",
-        method: Optional[str] = "coords",
-        **kwargs,
+        lon_bounds: Tuple[float, float],
+        lat_bounds: Tuple[float, float],
+        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
@@ -53,68 +51,26 @@ class GridSubsetAccessor:
             face centers, or edge centers lie within the bounds.
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
 
-        if method == "coords":
-            # coordinate comparison bounding box
+        faces_between_lons = self.uxgrid.get_faces_between_longitudes(lon_bounds)
+        face_between_lats = self.uxgrid.get_faces_between_latitudes(lat_bounds)
 
-            if element == "nodes":
-                lat, lon = self.uxgrid.node_lat.values, self.uxgrid.node_lon.values
-            elif element == "face centers":
-                lat, lon = self.uxgrid.face_lat.values, self.uxgrid.face_lon.values
-            elif element == "edge centers":
-                lat, lon = self.uxgrid.edge_lat.values, self.uxgrid.edge_lon.values
-            else:
-                raise ValueError("TODO")
+        faces = np.intersect1d(faces_between_lons, face_between_lats)
 
-            if lon_bounds[0] > lon_bounds[1]:
-                # split across antimeridian
-
-                lon_indices_lhs = np.argwhere(
-                    np.logical_and(lon >= -180, lon < lon_bounds[1])
-                )
-
-                lon_indices_rhs = np.argwhere(
-                    np.logical_and(lon >= lon_bounds[0], lon < 180)
-                )
-
-                lon_indices = np.union1d(
-                    lon_indices_lhs.squeeze(), lon_indices_rhs.squeeze()
-                )
-            else:
-                # continuous bound
-
-                lon_indices = np.argwhere(
-                    np.logical_and(lon > lon_bounds[0], lon < lon_bounds[1])
-                )
-
-            lat_indices = np.argwhere(
-                np.logical_and(lat > lat_bounds[0], lat < lat_bounds[1])
-            )
-
-            # treat both indices as a set, find the intersection of both
-            indices = np.intersect1d(lat_indices, lon_indices)
-
-            if len(indices) == 0:
-                raise ValueError(
-                    f"No elements founding within the bounding box when querying {element}"
-                )
-
-            if element == "nodes":
-                return self.uxgrid.isel(n_node=indices)
-            elif element == "face centers":
-                return self.uxgrid.isel(n_face=indices)
-            elif element == "edge centers":
-                return self.uxgrid.isel(n_edge=indices)
-
-        else:
-            raise ValueError(f"Method '{method}' not supported.")
+        return self.uxgrid.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def bounding_circle(
         self,
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
-        element: Optional[str] = "nodes",
+        element: Optional[str] = "face centers",
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -128,6 +84,11 @@ class GridSubsetAccessor:
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
 
         coords = np.asarray(center_coord)
@@ -141,13 +102,14 @@ class GridSubsetAccessor:
                 f"No elements founding within the bounding circle with radius {r} when querying {element}"
             )
 
-        return self._index_grid(ind, element)
+        return self._index_grid(ind, element, inverse_indices)
 
     def nearest_neighbor(
         self,
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
-        element: Optional[str] = "nodes",
+        element: Optional[str] = "face centers",
+        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest
@@ -161,6 +123,11 @@ class GridSubsetAccessor:
             Number of neighbors to query
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
+        inverse_indices : Union[List[str], Set[str], bool], optional
+            Controls storage of original grid indices. Options:
+            - True: Stores original face indices
+            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - False: No index storage (default)
         """
 
         coords = np.asarray(center_coord)
@@ -169,7 +136,7 @@ class GridSubsetAccessor:
 
         _, ind = tree.query(coords, k)
 
-        return self._index_grid(ind, element)
+        return self._index_grid(ind, element, inverse_indices=inverse_indices)
 
     def _get_tree(self, coords, tree_type):
         """Internal helper for obtaining the desired KDTree or BallTree."""
@@ -187,12 +154,12 @@ class GridSubsetAccessor:
 
         return tree
 
-    def _index_grid(self, ind, tree_type):
+    def _index_grid(self, ind, tree_type, inverse_indices=False):
         """Internal helper for indexing a grid with indices based off the
         provided tree type."""
         if tree_type == "nodes":
-            return self.uxgrid.isel(n_node=ind)
+            return self.uxgrid.isel(inverse_indices, n_node=ind)
         elif tree_type == "edge centers":
-            return self.uxgrid.isel(n_edge=ind)
+            return self.uxgrid.isel(inverse_indices, n_edge=ind)
         else:
-            return self.uxgrid.isel(n_face=ind)
+            return self.uxgrid.isel(inverse_indices, n_face=ind)

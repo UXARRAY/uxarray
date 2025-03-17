@@ -1,6 +1,8 @@
 import xarray as xr
 import numpy as np
 
+import polars as pl
+
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
@@ -11,43 +13,45 @@ def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
     (``out_ds``).
-
-    Parameters
-    ----------
-    in_ds : xarray.Dataset
-        Original scrip dataset of interest being used
-
-    out_ds : xarray.Variable
-        file to be returned by ``_populate_scrip_data``, used as an empty placeholder file
-        to store reassigned SCRIP variables in UGRID conventions
     """
 
     source_dims_dict = {}
 
     if in_ds["grid_area"].all():
         # Create node_lon & node_lat variables from grid_corner_lat/lon
-        # Turn latitude scrip array into 1D instead of 2D
+        # Turn latitude and longitude scrip arrays into 1D
         corner_lat = in_ds["grid_corner_lat"].values.ravel()
-
-        # Repeat above steps with longitude data instead
         corner_lon = in_ds["grid_corner_lon"].values.ravel()
 
-        # Combine flat lat and lon arrays
-        corner_lon_lat = np.vstack((corner_lon, corner_lat)).T
-
-        # Run numpy unique to determine which rows/values are actually unique
-        _, unq_ind, unq_inv = np.unique(
-            corner_lon_lat, return_index=True, return_inverse=True, axis=0
+        # Use Polars to find unique coordinate pairs
+        df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
+            "original_index"
         )
 
-        # Now, calculate unique lon and lat values to account for 'node_lon' and 'node_lat'
-        unq_lon = corner_lon_lat[unq_ind, :][:, 0]
-        unq_lat = corner_lon_lat[unq_ind, :][:, 1]
+        # Get unique rows (first occurrence). This preserves the order in which they appear.
+        unique_df = df.unique(subset=["lon", "lat"], keep="first")
+
+        # unq_ind: The indices of the unique rows in the original array
+        unq_ind = unique_df["original_index"].to_numpy().astype(INT_DTYPE)
+
+        # To get the inverse index (unq_inv): map each original row back to its unique row index.
+        # Add a unique_id to the unique_df which will serve as the "inverse" mapping.
+        unique_df = unique_df.with_row_count("unique_id")
+
+        # Join original df with unique_df to find out which unique_id corresponds to each row
+        df_joined = df.join(
+            unique_df.drop("original_index"), on=["lon", "lat"], how="left"
+        )
+        unq_inv = df_joined["unique_id"].to_numpy().astype(INT_DTYPE)
+
+        # Extract unique lon and lat values using unq_ind
+        unq_lon = corner_lon[unq_ind]
+        unq_lat = corner_lat[unq_ind]
 
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
-        # Create node_lon & node_lat from unsorted, unique grid_corner_lat/lon
+        # Create node_lon & node_lat
         out_ds[ugrid.NODE_COORDINATES[0]] = xr.DataArray(
             unq_lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
         )
@@ -71,12 +75,15 @@ def _to_ugrid(in_ds, out_ds):
 
         # standardize fill values and data type face nodes
         face_nodes = _replace_fill_values(
-            unq_inv, original_fill=-1, new_fill=INT_FILL_VALUE, new_dtype=INT_DTYPE
+            xr.DataArray(data=unq_inv),
+            original_fill=-1,
+            new_fill=INT_FILL_VALUE,
+            new_dtype=INT_DTYPE,
         )
 
         # set the face nodes data compiled in "connect" section
         out_ds["face_node_connectivity"] = xr.DataArray(
-            data=face_nodes,
+            data=face_nodes.data,
             dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
             attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
         )

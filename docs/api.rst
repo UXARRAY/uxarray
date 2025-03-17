@@ -19,6 +19,7 @@ Top Level Functions
    open_grid
    open_dataset
    open_mfdataset
+   concat
 
 
 Grid
@@ -41,6 +42,9 @@ I/O & Conversion
    Grid.from_dataset
    Grid.from_file
    Grid.from_topology
+   Grid.from_structured
+   Grid.from_points
+   Grid.from_healpix
    Grid.to_xarray
    Grid.to_geodataframe
    Grid.to_polycollection
@@ -52,6 +56,7 @@ Indexing
    :toctree: generated/
 
    Grid.isel
+   Grid.inverse_indices
 
 Dimensions
 ~~~~~~~~~~
@@ -124,10 +129,18 @@ Descriptors
    Grid.descriptors
    Grid.face_areas
    Grid.bounds
+   Grid.face_bounds_lon
+   Grid.face_bounds_lat
    Grid.edge_node_distances
    Grid.edge_face_distances
    Grid.antimeridian_face_indices
-   Grid.hole_edge_indices
+   Grid.boundary_node_indices
+   Grid.boundary_edge_indices
+   Grid.boundary_face_indices
+   Grid.partial_sphere_coverage
+   Grid.global_sphere_coverage
+   Grid.triangular
+   Grid.max_face_radius
 
 Attributes
 ~~~~~~~~~~
@@ -148,6 +161,8 @@ Methods
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
+   Grid.get_spatial_hash
+   Grid.get_faces_containing_point
 
 Inheritance of Xarray Functionality
 -----------------------------------
@@ -185,6 +200,8 @@ I/O & Conversion
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
+   UxDataArray.from_xarray
+
 
 UxDataset
 -----------
@@ -205,6 +222,15 @@ Grid Accessor
 
    UxDataset.uxgrid
 
+I/O & Conversion
+~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.from_structured
+   UxDataset.from_xarray
+   UxDataset.from_healpix
 
 Plotting
 --------
@@ -232,6 +258,8 @@ Grid
    Grid.plot.face_centers
    Grid.plot.edge_coords
    Grid.plot.edge_centers
+   Grid.plot.face_degree_distribution
+   Grid.plot.face_area_distribution
 
 
 UxDataArray
@@ -244,6 +272,8 @@ UxDataArray
    UxDataArray.plot
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+   UxDataArray.plot.line
+   UxDataArray.plot.scatter
 
 UxDataset
 ~~~~~~~~~
@@ -304,6 +334,10 @@ Grid
 
    Grid.cross_section
    Grid.cross_section.constant_latitude
+   Grid.cross_section.constant_longitude
+   Grid.cross_section.constant_latitude_interval
+   Grid.cross_section.constant_longitude_interval
+
 
 UxDataArray
 ~~~~~~~~~~~
@@ -314,7 +348,9 @@ UxDataArray
 
    UxDataArray.cross_section
    UxDataArray.cross_section.constant_latitude
-
+   UxDataArray.cross_section.constant_longitude
+   UxDataArray.cross_section.constant_latitude_interval
+   UxDataArray.cross_section.constant_longitude_interval
 Remapping
 ---------
 
@@ -368,6 +404,7 @@ Dual Mesh Construction
 Aggregations
 ------------
 
+
 Topological
 ~~~~~~~~~~~
 
@@ -394,16 +431,22 @@ on each face.
    UxDataArray.topological_all
    UxDataArray.topological_any
 
-
-
-Intersections
+Zonal Average
 ~~~~~~~~~~~~~
-
 .. autosummary::
    :toctree: generated/
 
-   grid.intersections.gca_gca_intersection
-   grid.intersections.gca_const_lat_intersection
+   UxDataArray.zonal_mean
+
+
+
+Weighted
+~~~~~~~~
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.weighted_mean
+
 
 
 Spherical Geometry

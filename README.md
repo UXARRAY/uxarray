@@ -1,22 +1,17 @@
-<img src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" data-canonical-src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg" width="450"/><br>
 
-
------------------
+<img src="https://github.com/UXARRAY/uxarray/raw/main/docs/_static/images/logos/uxarray_logo_h_dark.svg"  width="450"/><br>
 
 # Xarray extension for unstructured climate and global weather data
-|    |    |
-| --- | --- |
-| **Build Status**             | [![GitHub Workflow Status][github-ci-badge]][github-ci-link] [![CI Upstream](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml/badge.svg)](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/UXARRAY/uxarray/main.svg)](https://results.pre-commit.ci/latest/github/UXARRAY/uxarray/main) |
-| **Code Coverage**             |  [![Code Coverage Status][codecov-badge]][codecov-link] |
-| **Docs**       |                                   [![Documentation Status][rtd-badge]][rtd-link]                                    |
-| **Benchmarks** |                                       [![ASV Repostory][asv-badge]][asv-link]                                       |
-| **Releases**    |                        ![Github release](https://img.shields.io/github/release/UXARRAY/uxarray.svg?label=tag&colorB=11ccbb) [![Conda][conda-badge]][conda-link] [![PyPI][pypi-badge]][pypi-link]                         |
-| **License**    |                                       [![License][license-badge]][repo-link]                                        |
-| **Citing**     |                                            [![DOI][doi-badge]][doi-link]                                            |
+[![CI][github-ci-badge]][github-ci-link]
+[![CI Upstream](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml/badge.svg)](https://github.com/UXARRAY/uxarray/actions/workflows/upstream-dev-ci.yml) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/UXARRAY/uxarray/main.svg)](https://results.pre-commit.ci/latest/github/UXARRAY/uxarray/main)
+[![Code Coverage Status][codecov-badge]][codecov-link]
+[![Documentation Status][rtd-badge]][rtd-link]
+[![ASV Repostory][asv-badge]][asv-link]
+![Github release](https://img.shields.io/github/release/UXARRAY/uxarray.svg?label=tag&colorB=11ccbb) [![Conda][conda-badge]][conda-link]
+[![PyPI][pypi-badge]][pypi-link]
+[![License][license-badge]][repo-link]
+[![Citing][doi-badge]][doi-link]
 
------------------
-
-## What is it?
 
 UXarray aims to address the geoscience community's need for tools that enable
 standard data analysis techniques to operate directly on unstructured grid
@@ -41,44 +36,6 @@ We have created UXarray based on [Xarray](https://docs.xarray.dev/en/stable/)
 commonly-used for structured grids recognition, to support reading and
 recognizing unstructured grid model outputs. We picked the name "UXarray"
 (pronounced "you-ex-array"), with the "U" representing unstructured grids.
-
-## Features
-
-* ``Grid`` class for storing grid information and providing grid-specific functionality
-  * Support for reading UGRID, MPAS, ESMF, ICON, GEOS-CS, SCRIP, and EXODUS grid formats
-* Extension of xarray's ``DataArray`` and ``Dataset`` classe to support unstructured grid operations
-  * ``uxarray.UxDataArray`` inherits ``xarray.DataArray`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
-  * ``uxarray.UxDataset`` inherits ``xarray.Dataset`` and is attached to a ``Grid`` instance through the ``.uxgrid`` accessor
-* Extension of xarray's ``open_dataset`` and ``open_mfdataset`` methods to support reading grid and data files
-* Plotting
-  * Native visualization of unstructured grids written using the ``hvPlot`` package
-  * Support for grid topology visualization (i.e. exploring the geometry of a grid) and data visualization (i.e. data mapped to each face)
-* Subsetting
-  * Ability to select arbitrary regions of a grid using different selection methods (nearest neighbor, bounding circle, bounding box)
-* Remapping
-  * Support for nearest neighbor and inverse distance weighted unstructured to unstructured remapping
-* Topological Aggregations
-  * Perform aggregations within different topology elements using connectivity information
-* Mathematical Operators
-  * Support for Integral, Difference, and Gradient calculations
-
-
-## Intended Features
-
-The following intended features have been inspired by discussions with
-members of the scientific community, within the SEATS Project and Project
-Raijin, and on several community platforms such as [Xarray GitHub
-Repository](https://github.com/pydata/xarray/issues/4222). The UXarray team
-is receptive to additional functionality requests.
-
-
-* Support for arbitrary structured and unstructured grids on the sphere,
-  including latitude-longitude grids, grids with only partial coverage of
-  the sphere, and grids with concave faces.
-* Support for finite volume and finite element outputs.
-* Triangular decompositions.
-* Calculation of supermeshes (consisting of grid lines from two input grids).
-* Snapshots and composites following particular features.
 
 ## Documentation
 

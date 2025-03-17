@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import cartopy.crs as ccrs
 import hvplot.pandas
+import hvplot.xarray
 import pandas as pd
 
 import uxarray.plot.dataarray_plot as dataarray_plot
@@ -232,6 +233,79 @@ class GridPlotAccessor:
 
     mesh.__doc__ = edges.__doc__
 
+    def face_degree_distribution(
+        self,
+        backend=None,
+        xlabel="Number of Nodes per Face",
+        ylabel="Count",
+        title="Face Degree Distribution",
+        show_grid=True,
+        xaxis="bottom",
+        yaxis="left",
+        xrotation=0,
+        **kwargs,
+    ):
+        """Plots the distribution of the number of nodes per face as a bar
+        plot."""
+        uxarray.plot.utils.backend.assign(backend)
+
+        n_nodes_per_face = self._uxgrid.n_nodes_per_face.values
+
+        nodes_series = pd.Series(n_nodes_per_face, name="number_of_nodes")
+        counts = nodes_series.value_counts().sort_index()
+        df = counts.reset_index()
+        df.columns = ["number_of_nodes", "count"]
+        df["number_of_nodes"] = df["number_of_nodes"].astype(str)
+
+        return df.hvplot.bar(
+            x="number_of_nodes",
+            y="count",
+            xlabel=xlabel,
+            ylabel=ylabel,
+            title=title,
+            **kwargs,
+        ).opts(
+            xrotation=xrotation,
+            show_grid=show_grid,
+            xaxis=xaxis,
+            yaxis=yaxis,
+        )
+
+    def face_area_distribution(
+        self,
+        backend=None,
+        xlabel="Face Area",
+        ylabel="Count",
+        title="Face Area Distribution",
+        show_grid=True,
+        xaxis="bottom",
+        yaxis="left",
+        xrotation=0,
+        bins=30,  # Number of bins for the histogram
+        **kwargs,
+    ):
+        """Plots a histogram of the face areas using hvplot."""
+        # Assign the plotting backend if provided
+        uxarray.plot.utils.backend.assign(backend)
+
+        # Extract face areas from the grid
+        face_areas = self._uxgrid.face_areas.values
+
+        # Create a pandas Series from face areas
+        face_areas_series = pd.Series(face_areas, name="face_area")
+
+        # Plot the histogram using hvplot
+        histogram = face_areas_series.hvplot.hist(
+            bins=bins, xlabel=xlabel, ylabel=ylabel, title=title, **kwargs
+        ).opts(
+            xrotation=xrotation,
+            show_grid=show_grid,
+            xaxis=xaxis,
+            yaxis=yaxis,
+        )
+
+        return histogram
+
 
 class UxDataArrayPlotAccessor:
     """Plotting Accessor for ``UxDataArray``.
@@ -272,9 +346,14 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements="exclude",
-        backend=None,
-        engine="spatialpandas",
+        periodic_elements: Optional[str] = "exclude",
+        backend: Optional[str] = None,
+        engine: Optional[str] = "spatialpandas",
+        rasterize: Optional[bool] = True,
+        dynamic: Optional[bool] = False,
+        projection: Optional[ccrs.Projection] = None,
+        xlabel: Optional[str] = "Longitude",
+        ylabel: Optional[str] = "Latitude",
         *args,
         **kwargs,
     ):
@@ -297,15 +376,14 @@ class UxDataArrayPlotAccessor:
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         engine: str, optional
             Engine to use for GeoDataFrame construction. One of ['spatialpandas', 'geopandas']
+        rasterize: bool, optional
+            Whether to rasterize the plot (default: True)
+        projection: ccrs.Projection, optional
+            The map projection to use.
         *args : tuple
             Additional positional arguments to be passed to `hvplot.polygons`.
         **kwargs : dict
-            Additional keyword arguments passed to `hvplot.polygons`. These can include:
-            - "rasterize" (bool): Whether to rasterize the plot (default: True),
-            - "projection" (ccrs.Projection): The map projection to use (default: `ccrs.PlateCarree()`),
-            - "clabel" (str): Label for the colorbar, defaulting to the name of the data array (`_uxda.name`),
-            - "crs" (ccrs.Projection): Coordinate reference system for the plot (default: `ccrs.PlateCarree()`).
-            For additional customization, please refer to https://hvplot.holoviz.org/user_guide/Customization.html
+            Additional keyword arguments passed to `hvplot.polygons`. For additional customization, please refer to https://hvplot.holoviz.org/user_guide/Customization.html
 
         Returns
         -------
@@ -314,18 +392,21 @@ class UxDataArrayPlotAccessor:
         """
         uxarray.plot.utils.backend.assign(backend)
 
-        if "rasterize" not in kwargs:
-            kwargs["rasterize"] = True
-        if "projection" not in kwargs:
-            kwargs["projection"] = ccrs.PlateCarree()
+        if dynamic and (projection is not None or kwargs.get("geo", None) is True):
+            warnings.warn(
+                "Projections with dynamic plots may display incorrectly or update improperly. "
+                "Consider using static plots instead. See: github.com/holoviz/geoviews/issues/762"
+            )
+
+        if projection is not None:
+            kwargs["projection"] = projection
+            kwargs["geo"] = True
+            if "crs" not in kwargs:
+                central_longitude = projection.proj4_params["lon_0"]
+                kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
+
         if "clabel" not in kwargs and self._uxda.name is not None:
             kwargs["clabel"] = self._uxda.name
-        if "crs" not in kwargs:
-            if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params["lon_0"]
-            else:
-                central_longitude = 0.0
-            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         gdf = self._uxda.to_geodataframe(
             periodic_elements=periodic_elements,
@@ -336,7 +417,10 @@ class UxDataArrayPlotAccessor:
 
         return gdf.hvplot.polygons(
             c=self._uxda.name if self._uxda.name is not None else "var",
-            geo=True,
+            rasterize=rasterize,
+            dynamic=dynamic,
+            xlabel=xlabel,
+            ylabel=ylabel,
             *args,
             **kwargs,
         )
@@ -466,6 +550,18 @@ class UxDataArrayPlotAccessor:
             size=size,
             **kwargs,
         )
+
+    def line(self, backend=None, *args, **kwargs):
+        """Wrapper for ``hvplot.line()``"""
+        uxarray.plot.utils.backend.assign(backend)
+        da = self._uxda.to_xarray()
+        return da.hvplot.line(*args, **kwargs)
+
+    def scatter(self, backend=None, *args, **kwargs):
+        """Wrapper for ``hvplot.scatter()``"""
+        uxarray.plot.utils.backend.assign(backend)
+        da = self._uxda.to_xarray()
+        return da.hvplot.scatter(*args, **kwargs)
 
 
 class UxDatasetPlotAccessor:

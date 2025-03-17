@@ -12,12 +12,14 @@ dependencies:
     - pytest
     - pytest-cov
     - scipy
+    - healpix
     - xarray
     - pip
     - ipykernel
     - ipython
     - jupyter_client
     - scikit-learn
+    - sphinx<8.2
     - sphinx-book-theme
     - sphinx-autosummary-accessors
     - sphinx-remove-toctrees
@@ -34,6 +36,7 @@ dependencies:
     - pandas
     - geocat-datafiles
     - spatialpandas
+    - polars
     - geopandas
     - pip:
       - antimeridian

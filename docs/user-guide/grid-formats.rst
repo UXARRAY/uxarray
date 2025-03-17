@@ -20,6 +20,7 @@ models have their own grid format (e.g. MPAS, ICON). Below is a list of support 
 * GEOS CS
 * ICON
 * FESOM2
+* HEALPix
 
 UGRID
 =====
@@ -140,16 +141,29 @@ References
 
 FESOM2
 ======
-The F**inite volumE Sea Ice-Ocean Model (FESOM2) is a Multi-resolution ocean general circulation
+The Finite Volume Sea Ice-Ocean Model (FESOM2) is a Multi-resolution ocean general circulation
 model that solves the equations of motion describing the ocean and sea ice using finite-volume methods
 on unstructured computational grids. The model is developed and supported by researchers at the
-Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), in Bremerhaven, Germany. UXarray
-currently supports reading the ``fesom.mesh.diag.nc`` file that is generated and encoded in the UGRID conventions.
-
+Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), in Bremerhaven, Germany.
 
 References
 ----------
 * https://fesom2.readthedocs.io/en/latest/index.html#
+
+HEALPix
+=======
+The Hierarchical Equal Area isoLatitude Pixelisation (HEALPix) algorithm is a method for the pixelisation of the
+2-sphere. It has three defining qualities.
+- The sphere is hierarchically tessellated into curvilinear quadrilaterals
+- Areas of all pixels at a given resolution are identical
+- Pixels are distributed on lines of constant latitude
+
+References
+----------
+* https://easy.gems.dkrz.de/Processing/healpix/index.html#hierarchical-healpix-output
+* https://healpix.sourceforge.io/
+* https://healpix.jpl.nasa.gov/
+* https://iopscience.iop.org/article/10.1086/427976
 
 Parsed Variables
 ================

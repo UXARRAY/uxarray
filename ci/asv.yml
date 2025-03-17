@@ -11,12 +11,14 @@ dependencies:
   - holoviews
   - matplotlib-base
   - matplotlib-inline
+  - healpix
   - netcdf4
   - numba
   - numpy
   - pandas
   - pathlib
   - pre_commit
+  - polars
   - pyarrow
   - pytest
   - pytest-cov

@@ -1,15 +1,15 @@
 import xarray as xr
 import numpy as np
-import math
 import warnings
+import math
 
 from uxarray.conventions import ugrid
 
-from numba import njit
+from numba import njit, prange
 from uxarray.constants import ERROR_TOLERANCE
 from typing import Union
 
-from uxarray.grid.utils import _angle_of_2_vectors
+from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
 @njit(cache=True)
@@ -53,8 +53,8 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = math.atan2(y, x)
-    lat = math.asin(z)
+    lon = np.atan2(y, x)
+    lat = np.asin(z)
 
     # set longitude range to [0, pi]
     lon = np.mod(lon, 2 * np.pi)
@@ -68,52 +68,30 @@ def _xyz_to_lonlat_rad_no_norm(
 
 
 @njit(cache=True)
-def _xyz_to_lonlat_rad_scalar(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-):
-    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
-    longitude without normalization, decorated with Numba.
-
-    Parameters
-    ----------
-    x : float
-        Cartesian x coordinate
-    y: float
-        Cartesiain y coordinate
-    z: float
-        Cartesian z coordinate
-
-
-    Returns
-    -------
-    lon : float
-        Longitude in radians
-    lat: float
-        Latitude in radians
-    """
-
+def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
+        denom = abs(x * x + y * y + z * z)
         x /= denom
         y /= denom
         z /= denom
 
-    lon = math.atan2(y, x)
-    lat = math.asin(z)
+    lon = np.atan2(y, x)
+    lat = np.asin(z)
 
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
+    # Set longitude range to [0, 2*pi]
+    lon = lon % (2 * math.pi)
 
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
+    z_abs = abs(z)
+    if z_abs > (1.0 - ERROR_TOLERANCE):
+        lat = math.copysign(math.pi / 2, z)
+        lon = 0.0
 
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
+    lonlat = np.empty(2)
+    lonlat[0] = lon
+    lonlat[1] = lat
 
-    return lon, lat
+    return lonlat
 
 
 def _xyz_to_lonlat_rad(
@@ -122,8 +100,8 @@ def _xyz_to_lonlat_rad(
     z: Union[np.ndarray, float],
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
+    """Converts Cartesian x, y, z coordinates in Spherical longitude and
+    latitude coordinates in radians.
 
     Parameters
     ----------
@@ -301,7 +279,7 @@ def _populate_face_centroids(grid, repopulate=False):
         # Convert to xyz if there are latlon centroids already stored
         centroid_lon, centroid_lat = grid.face_lon.values, grid.face_lat.values
         centroid_x, centroid_y, centroid_z = _lonlat_rad_to_xyz(
-            centroid_lon, centroid_lat
+            np.deg2rad(centroid_lon), np.deg2rad(centroid_lat)
         )
 
     # Populate the centroids
@@ -327,6 +305,7 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
+@njit(cache=True, parallel=True)
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging.
@@ -349,17 +328,26 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     tuple
         The x, y, and z coordinates of the centroids.
     """
+
     centroid_x = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_y = np.zeros((face_nodes.shape[0]), dtype=np.float64)
     centroid_z = np.zeros((face_nodes.shape[0]), dtype=np.float64)
 
-    for face_idx, n_max_nodes in enumerate(n_nodes_per_face):
+    for face_idx in prange(face_nodes.shape[0]):
+        n_max_nodes = n_nodes_per_face[face_idx]
         # Compute Cartesian Average
-        centroid_x[face_idx] = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_y[face_idx] = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
-        centroid_z[face_idx] = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
+        x = np.mean(node_x[face_nodes[face_idx, 0:n_max_nodes]])
+        y = np.mean(node_y[face_nodes[face_idx, 0:n_max_nodes]])
+        z = np.mean(node_z[face_nodes[face_idx, 0:n_max_nodes]])
 
-    return _normalize_xyz(centroid_x, centroid_y, centroid_z)
+        # Normalize coordinates
+        x, y, z = _normalize_xyz_scalar(x, y, z)
+        # Store coordinates
+        centroid_x[face_idx] = x
+        centroid_y[face_idx] = y
+        centroid_z[face_idx] = z
+
+    return centroid_x, centroid_y, centroid_z
 
 
 def _welzl_recursive(points, boundary, R):
@@ -453,7 +441,7 @@ def _circle_from_two_points(p1, p2):
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
 
-    distance = _angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     radius = distance / 2
 
     return center, radius
@@ -489,9 +477,9 @@ def _circle_from_three_points(p1, p2, p3):
 
     radius = (
         max(
-            _angle_of_2_vectors(v1, v2),
-            _angle_of_2_vectors(v1, v3),
-            _angle_of_2_vectors(v2, v3),
+            _small_angle_of_2_vectors(v1, v2),
+            _small_angle_of_2_vectors(v1, v3),
+            _small_angle_of_2_vectors(v2, v3),
         )
         / 2
     )
@@ -518,7 +506,7 @@ def _is_inside_circle(circle, point):
     center, radius = circle
     v1 = np.array(_lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1])))
     v2 = np.array(_lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1])))
-    distance = _angle_of_2_vectors(v1, v2)
+    distance = _small_angle_of_2_vectors(v1, v2)
     return distance <= radius
 
 
@@ -660,7 +648,7 @@ def _populate_edge_centroids(grid, repopulate=False):
         # Convert to xyz if there are latlon centroids already stored
         centroid_lon, centroid_lat = grid.edge_lon.values, grid.edge_lat.values
         centroid_x, centroid_y, centroid_z = _lonlat_rad_to_xyz(
-            centroid_lon, centroid_lat
+            np.deg2rad(centroid_lon), np.deg2rad(centroid_lat)
         )
 
     # Populate the centroids
@@ -705,13 +693,13 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
-def _set_desired_longitude_range(ds):
+def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables."""
 
     for lon_name in ["node_lon", "edge_lon", "face_lon"]:
-        if lon_name in ds:
-            if ds[lon_name].max() > 180:
-                ds[lon_name].data = (ds[lon_name].data + 180) % 360 - 180
+        if lon_name in uxgrid._ds:
+            if uxgrid._ds[lon_name].max() > 180:
+                uxgrid._ds[lon_name] = (uxgrid._ds[lon_name] + 180) % 360 - 180
 
 
 def _xyz_to_lonlat_rad(
@@ -790,8 +778,8 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = math.atan2(y, x)
-    lat = math.asin(z)
+    lon = np.atan2(y, x)
+    lat = np.asin(z)
 
     # set longitude range to [0, pi]
     lon = np.mod(lon, 2 * np.pi)
@@ -877,3 +865,23 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
     y_norm = y / denom
     z_norm = z / denom
     return x_norm, y_norm, z_norm
+
+
+def prepare_points(points, normalize):
+    """Prepares points for use with ``Grid.from_points()``"""
+    if len(points) == 2:
+        lon_deg, lat_deg = points[0], points[1]
+        lon_rad = np.deg2rad(lon_deg)
+        lat_rad = np.deg2rad(lat_deg)
+        x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+        x, y, z = _normalize_xyz(x, y, z)
+    elif len(points) == 3:
+        x, y, z = points[0], points[1], points[2]
+        if normalize:
+            x, y, z = _normalize_xyz(x, y, z)
+    else:
+        raise ValueError(
+            "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
+        )
+
+    return np.vstack([x, y, z]).T

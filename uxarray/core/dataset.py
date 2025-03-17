@@ -1,31 +1,25 @@
 from __future__ import annotations
 
+import os
+import sys
+from html import escape
+from typing import IO, Optional, Union, Any, Callable
+from warnings import warn
+
 import numpy as np
 import xarray as xr
-
-import sys
-
-from typing import Callable, Optional, IO
-
-from uxarray.constants import GRID_DIMS
-from uxarray.grid import Grid
-from uxarray.core.dataarray import UxDataArray
-from uxarray.grid.dual import construct_dual
-from uxarray.grid.validation import _check_duplicate_nodes_indices
-
-from uxarray.plot.accessor import UxDatasetPlotAccessor
-
 from xarray.core.utils import UncachedAccessor
 
+import uxarray
+from uxarray.constants import GRID_DIMS
+from uxarray.core.dataarray import UxDataArray
+from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.formatting_html import dataset_repr
-
-from html import escape
-
-from xarray.core.options import OPTIONS
-
+from uxarray.grid import Grid
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap import UxDatasetRemapAccessor
-
-from warnings import warn
 
 
 class UxDataset(xr.Dataset):
@@ -76,7 +70,7 @@ class UxDataset(xr.Dataset):
                 "an instance of the `uxarray.Grid` class"
             )
         else:
-            self.uxgrid = uxgrid
+            self._uxgrid = uxgrid
 
         super().__init__(*args, **kwargs)
 
@@ -218,6 +212,105 @@ class UxDataset(xr.Dataset):
             **kwargs,
         )
 
+    @classmethod
+    def from_structured(cls, ds: xr.Dataset):
+        """Converts a structured ``xarray.Dataset`` into an unstructured ``uxarray.UxDataset``
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            The structured `xarray.Dataset` to convert. Must contain longitude and latitude variables consistent
+            with the CF-conventions
+
+        tol : float, optional
+            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
+            Default is `1e-10`.
+
+        Returns
+        -------
+        UxDataset
+            An instance of `uxarray.UxDataset`
+        """
+        from uxarray import Grid
+
+        uxgrid = Grid.from_dataset(ds)
+
+        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
+
+        # Drop spatial coordinates
+        coords_to_drop = [
+            coord for coord, da_coord in ds.coords.items() if "n_face" in da_coord.dims
+        ]
+        ds = ds.drop_vars(coords_to_drop)
+
+        return cls(ds, uxgrid=uxgrid)
+
+    @classmethod
+    def from_xarray(cls, ds: xr.Dataset, uxgrid: Grid = None, ugrid_dims: dict = None):
+        """
+        Converts a ``xarray.Dataset`` into a ``uxarray.UxDataset``, paired with either a user-defined or
+        parsed ``Grid``
+
+        Parameters
+        ----------
+        ds: xr.Dataset
+            An Xarray dataset containing data residing on an unstructured grid
+        uxgrid: Grid, optional
+            ``Grid`` object representing an unstructured grid. If a grid is not provided, the source ds will be
+            parsed to see if a ``Grid`` can be constructed.
+        ugrid_dims: dict, optional
+            A dictionary mapping dataset dimensions to UGRID dimensions.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataset`` with data from the ``xr.Dataset` paired with a ``ux.Grid``
+        """
+        if uxgrid is not None:
+            if ugrid_dims is None and uxgrid._source_dims_dict is not None:
+                ugrid_dims = uxgrid._source_dims_dict
+            # Grid is provided,
+        else:
+            # parse
+            uxgrid = Grid.from_dataset(ds)
+            ugrid_dims = uxgrid._source_dims_dict
+
+        # map each dimension to its UGRID equivalent
+        ds = _map_dims_to_ugrid(ds, ugrid_dims, uxgrid)
+
+        return cls(ds, uxgrid=uxgrid)
+
+    @classmethod
+    def from_healpix(cls, ds: Union[str, os.PathLike, xr.Dataset], **kwargs):
+        """
+        Loads a dataset represented in the HEALPix format into a ``ux.UxDataSet``, paired
+        with a ``Grid`` containing information about the HEALPix definition.
+
+        Parameters
+        ----------
+        ds: str, os.PathLike, xr.Dataset
+            Reference to a HEALPix Dataset
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataset`` instance
+        """
+
+        if not isinstance(ds, xr.Dataset):
+            ds = xr.open_dataset(ds, **kwargs)
+
+        if "cell" not in ds.dims:
+            raise ValueError("Healpix dataset must contain a 'cell' dimension.")
+
+        # Compute the HEALPix Zoom Level
+        zoom = np.emath.logn(4, (ds.sizes["cell"] / 12)).astype(int)
+
+        # Attach a  HEALPix Grid
+        uxgrid = Grid.from_healpix(zoom)
+
+        return cls.from_xarray(ds, uxgrid, {"cell": "n_face"})
+
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
         topology information stored in the ``uxgrid`` property.
@@ -334,6 +427,7 @@ class UxDataset(xr.Dataset):
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
+
     def neighborhood_filter(
         self,
         func: Callable = np.mean,
@@ -369,6 +463,28 @@ class UxDataset(xr.Dataset):
 
         return destination_uxds
 
+    def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
+        """
+        Converts a ``ux.UXDataset`` to a ``xr.Dataset``.
+
+        Parameters
+        ----------
+        grid_format : str, default="UGRID"
+            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix". The dimensions will
+            match the selected grid format.
+
+        Returns
+        -------
+        xr.Dataset
+            The ``ux.UXDataset`` represented as a ``xr.Dataset``
+        """
+        if grid_format == "HEALPix":
+            ds = self.rename_dims({"n_face": "cell"})
+            return xr.Dataset(ds)
+
+        return xr.Dataset(self)
+
+
     def get_dual(self):
         """Compute the dual mesh for a dataset, returns a new dataset object.
 
@@ -381,7 +497,7 @@ class UxDataset(xr.Dataset):
         if _check_duplicate_nodes_indices(self.uxgrid):
             raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
-        if self.uxgrid.hole_edge_indices.size != 0:
+        if self.uxgrid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
@@ -418,3 +534,23 @@ class UxDataset(xr.Dataset):
             dataset[var] = uxda
 
         return dataset
+
+    def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
+        return UxDataset(self.to_xarray().where(cond, other, drop), uxgrid=self.uxgrid)
+
+    where.__doc__ = xr.Dataset.where.__doc__
+
+    def sel(
+        self, indexers=None, method=None, tolerance=None, drop=False, **indexers_kwargs
+    ):
+        return UxDataset(
+            self.to_xarray().sel(indexers, tolerance, drop, **indexers_kwargs),
+            uxgrid=self.uxgrid,
+        )
+
+    sel.__doc__ = xr.Dataset.sel.__doc__
+
+    def fillna(self, value: Any):
+        return UxDataset(super().fillna(value), uxgrid=self.uxgrid)
+
+    fillna.__doc__ = xr.Dataset.fillna.__doc__

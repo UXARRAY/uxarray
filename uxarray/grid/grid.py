@@ -1,7 +1,6 @@
-"""uxarray.core.grid module."""
-
 import xarray as xr
 import numpy as np
+import os
 
 from html import escape
 
@@ -10,7 +9,12 @@ from xarray.core.options import OPTIONS
 from typing import (
     Optional,
     Union,
+    List,
+    Set,
+    Tuple,
 )
+
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -27,6 +31,14 @@ from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._topology import _read_topology
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._icon import _read_icon
+from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
+from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
+from uxarray.io._structured import _read_structured_grid
+from uxarray.io._voronoi import _spherical_voronoi_from_points
+from uxarray.io._delaunay import (
+    _spherical_delaunay_from_points,
+    _regional_delaunay_from_points,
+)
 
 from uxarray.formatting_html import grid_repr
 
@@ -40,6 +52,9 @@ from uxarray.grid.coordinates import (
     _populate_node_latlon,
     _populate_node_xyz,
     _normalize_xyz,
+    prepare_points,
+    _lonlat_rad_to_xyz,
+    _xyz_to_lonlat_deg,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -56,19 +71,29 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
-    _construct_hole_edge_indices,
+    _construct_boundary_edge_indices,
+    compute_temp_latlon_array,
+    _find_faces,
+    _populate_max_face_radius,
 )
 
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
+    SpatialHash,
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
 
 from uxarray.grid.intersections import (
-    fast_constant_lat_intersections,
+    constant_lat_intersections_no_extreme,
+    constant_lon_intersections_no_extreme,
+    constant_lat_intersections_face_bounds,
+    constant_lon_intersections_face_bounds,
+    faces_within_lon_bounds,
+    faces_within_lat_bounds,
 )
+
 
 from spatialpandas import GeoDataFrame
 
@@ -86,6 +111,8 @@ from uxarray.grid.validation import (
     _check_normalization,
 )
 
+from uxarray.utils.numba import is_numba_function_cached
+
 
 from uxarray.conventions import ugrid
 
@@ -98,7 +125,7 @@ import cartopy.crs as ccrs
 import copy
 
 
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 from uxarray.grid.dual import construct_dual
 
 
@@ -124,6 +151,12 @@ class Grid:
     source_dims_dict : dict, default={}
         Mapping of dimensions from the source dataset to their UGRID equivalent (i.e. {nCell : n_face})
 
+    is_subset : bool, default=False
+        Flag to mark if the grid is a subset or not
+
+    inverse_indices: xr.Dataset, default=None
+        A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
+
     Examples
     ----------
 
@@ -147,14 +180,18 @@ class Grid:
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
         source_dims_dict: Optional[dict] = {},
+        is_subset: bool = False,
+        inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        if not _validate_minimum_ugrid(grid_ds):
-            raise ValueError(
-                "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
-                "at least the following variables: ['node_lon',"
-                "'node_lat', and 'face_node_connectivity']"
-            )
+        # TODO:
+        if source_grid_spec != "HEALPix":
+            if not _validate_minimum_ugrid(grid_ds):
+                raise ValueError(
+                    "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
+                    "at least the following variables: ['node_lon',"
+                    "'node_lat', and 'face_node_connectivity']"
+                )
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
@@ -175,9 +212,16 @@ class Grid:
         # internal xarray dataset for storing grid variables
         self._ds = grid_ds
 
+        # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
+        self.source_grid_spec = source_grid_spec
+        self._ds = self._ds.assign_attrs({"source_grid_spec": source_grid_spec})
+
         # initialize attributes
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
+        self._is_subset = is_subset
+
+        self._inverse_indices = inverse_indices
 
         # cached parameters for GeoDataFrame conversions
         self._gdf_cached_parameters = {
@@ -212,12 +256,13 @@ class Grid:
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
         self._kd_tree = None
+        self._spatialhash = None
 
         # flag to track if coordinates are normalized
         self._normalized = None
 
         # set desired longitude range to [-180, 180]
-        _set_desired_longitude_range(self._ds)
+        _set_desired_longitude_range(self)
 
     # declare plotting accessor
     plot = UncachedAccessor(GridPlotAccessor)
@@ -229,54 +274,72 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_dataset(
-        cls, dataset: xr.Dataset, use_dual: Optional[bool] = False, **kwargs
-    ):
-        """Constructs a ``Grid`` object from an ``xarray.Dataset``.
+    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
+        """Constructs a ``Grid`` object from a dataset.
 
         Parameters
         ----------
-        dataset : xr.Dataset
-            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables
+        dataset : xr.Dataset or path-like
+            ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables or a directory
+              containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
         """
-        if not isinstance(dataset, xr.Dataset):
-            raise ValueError("Input must be an xarray.Dataset")
 
-        # determine grid/mesh specification
-
-        if "source_grid_spec" not in kwargs:
-            # parse to detect source grid spec
-
-            source_grid_spec = _parse_grid_type(dataset)
-            if source_grid_spec == "Exodus":
-                grid_ds, source_dims_dict = _read_exodus(dataset)
-            elif source_grid_spec == "Scrip":
-                grid_ds, source_dims_dict = _read_scrip(dataset)
-            elif source_grid_spec == "UGRID":
-                grid_ds, source_dims_dict = _read_ugrid(dataset)
-            elif source_grid_spec == "MPAS":
-                grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
-            elif source_grid_spec == "ESMF":
-                grid_ds, source_dims_dict = _read_esmf(dataset)
-            elif source_grid_spec == "GEOS-CS":
-                grid_ds, source_dims_dict = _read_geos_cs(dataset)
-            elif source_grid_spec == "ICON":
-                grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
-            elif source_grid_spec == "Shapefile":
-                raise ValueError(
-                    "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
-                )
+        if isinstance(dataset, xr.Dataset):
+            # determine grid/mesh specification
+            if "source_grid_spec" not in kwargs:
+                # parse to detect source grid spec
+                source_grid_spec, lon_name, lat_name = _parse_grid_type(dataset)
+                if source_grid_spec == "Exodus":
+                    grid_ds, source_dims_dict = _read_exodus(dataset)
+                elif source_grid_spec == "Scrip":
+                    grid_ds, source_dims_dict = _read_scrip(dataset)
+                elif source_grid_spec == "UGRID":
+                    grid_ds, source_dims_dict = _read_ugrid(dataset)
+                elif source_grid_spec == "MPAS":
+                    grid_ds, source_dims_dict = _read_mpas(dataset, use_dual=use_dual)
+                elif source_grid_spec == "ESMF":
+                    grid_ds, source_dims_dict = _read_esmf(dataset)
+                elif source_grid_spec == "GEOS-CS":
+                    grid_ds, source_dims_dict = _read_geos_cs(dataset)
+                elif source_grid_spec == "ICON":
+                    grid_ds, source_dims_dict = _read_icon(dataset, use_dual=use_dual)
+                elif source_grid_spec == "Structured":
+                    grid_ds = _read_structured_grid(
+                        dataset[lon_name], dataset[lat_name]
+                    )
+                    source_dims_dict = {"n_face": (lon_name, lat_name)}
+                elif source_grid_spec == "FESOM2":
+                    grid_ds, source_dims_dict = _read_fesom2_netcdf(dataset)
+                elif source_grid_spec == "Shapefile":
+                    raise ValueError(
+                        "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                    )
+                else:
+                    raise ValueError("Unsupported Grid Format")
             else:
-                raise ValueError("Unsupported Grid Format")
+                # custom source grid spec is provided
+                source_grid_spec = kwargs.get("source_grid_spec", None)
+                grid_ds = dataset
+                source_dims_dict = {}
         else:
-            # custom source grid spec is provided
-            source_grid_spec = kwargs.get("source_grid_spec", None)
-            grid_ds = dataset
-            source_dims_dict = {}
+            try:
+                if os.path.isdir(dataset):
+                    # FESOM2 ASCII directory.
+                    grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
+                    source_grid_spec = "FESOM2"
+                    return cls(grid_ds, source_grid_spec, source_dims_dict)
+            except TypeError:
+                raise ValueError("Unsupported Grid Format")
 
-        return cls(grid_ds, source_grid_spec, source_dims_dict)
+        return cls(
+            grid_ds,
+            source_grid_spec,
+            source_dims_dict,
+            is_subset=kwargs.get("is_subset", False),
+            inverse_indices=kwargs.get("inverse_indices"),
+        )
 
     @classmethod
     def from_file(
@@ -318,12 +381,78 @@ class Grid:
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         elif backend == "xarray":
-            grid_ds, source_dims_dict = cls.from_dataset(filename)
+            dataset = xr.open_dataset(filename, **kwargs)
+            return cls.from_dataset(dataset)
 
         else:
             raise ValueError("Backend not supported")
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    @classmethod
+    def from_points(
+        cls,
+        points,
+        method="spherical_delaunay",
+        boundary_points=None,
+        **kwargs,
+    ):
+        """Create a grid from unstructured points.
+
+        This class method generates connectivity information based on the provided points.
+        Depending on the chosen `method`, it constructs either a spherical Voronoi diagram
+        or a spherical Delaunay triangulation. When using the Delaunay method, `boundary_points`
+        can be specified to exclude triangles that span over defined holes in the data.
+
+        Parameters
+        ----------
+        points : sequence of array-like
+            The input points to generate connectivity from.
+
+            - If `len(points) == 2`, `points` should be `[longitude, latitude]` in degrees,
+              where each is an array-like of shape `(N,)`.
+            - If `len(points) == 3`, `points` should be `[x, y, z]` coordinates,
+              where each is an array-like of shape `(N,)`.
+
+        method : str, optional
+            The method to generate connectivity information. Supported methods are:
+
+            - `'spherical_voronoi'`: Constructs a spherical Voronoi diagram.
+            - `'spherical_delaunay'`: Constructs a spherical Delaunay triangulation.
+            - `'regional_delaunay'`: Constructs a regional Delaunay triangulation.
+
+            Default is `'spherical_delaunay'`.
+
+        boundary_points : array-like of int, optional
+            Indices of points that lie on a defined boundary. These are used to exclude
+            Delaunay triangles that span over holes in the data. This parameter is only
+            applicable when `method` is `'spherical_delaunay'`.
+
+            Default is `None`.
+
+        **kwargs
+            Additional keyword arguments to pass to the underlying connectivity generation
+            functions (`_spherical_voronoi_from_points` or `_spherical_delaunay_from_points`).
+
+        Returns
+        -------
+        Grid
+            An instance of a Grid created from the points
+        """
+        _points = prepare_points(points, normalize=True)
+
+        if method == "spherical_voronoi":
+            ds = _spherical_voronoi_from_points(_points, **kwargs)
+        elif method == "spherical_delaunay":
+            ds = _spherical_delaunay_from_points(_points, boundary_points)
+        elif method == "regional_delaunay":
+            ds = _regional_delaunay_from_points(_points, boundary_points)
+        else:
+            raise ValueError(
+                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."
+            )
+
+        return cls.from_dataset(dataset=ds, source_grid_spec=method)
 
     @classmethod
     def from_topology(
@@ -383,6 +512,52 @@ class Grid:
         return cls(grid_ds, grid_spec, dims_dict)
 
     @classmethod
+    def from_structured(
+        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
+    ):
+        """
+        Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
+
+        This class method provides flexibility in converting structured grid data into an unstructured `uxarray.UxDataset`.
+        Users can either supply an existing structured `xarray.Dataset` or provide longitude and latitude coordinates
+        directly.
+
+        Parameters
+        ----------
+        ds : xr.Dataset, optional
+            The structured `xarray.Dataset` to convert. If provided, the dataset must adhere to the
+            Climate and Forecast (CF) Metadata Conventions
+
+        lon : array-like, optional
+            Longitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        lat : array-like, optional
+            Latitude coordinates of the structured grid. Required if `ds` is not provided.
+            Should be a one-dimensional or two-dimensional array following CF conventions.
+
+        tol : float, optional
+            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
+            Default is `1e-10`.
+
+        Returns
+        -------
+        Grid
+            An instance of ``uxarray.Grid``
+        """
+        if ds is not None:
+            return cls.from_dataset(ds)
+        if lon is not None and lat is not None:
+            grid_ds = _read_structured_grid(lon, lat, tol)
+            return cls.from_dataset(
+                grid_ds, source_dims_dict=None, source_grid_spec="structured"
+            )
+        else:
+            raise ValueError(
+                "No input dataset or latitude and longitude values specified."
+            )
+
+    @classmethod
     def from_face_vertices(
         cls,
         face_vertices: Union[list, tuple, np.ndarray],
@@ -417,7 +592,30 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
 
-    def validate(self):
+    @classmethod
+    def from_healpix(cls, zoom: int, pixels_only: bool = True, nest: bool = True):
+        """Constructs a ``Grid`` object representing a given HEALPix zoom level.
+
+        Parameters
+        ----------
+        zoom : int
+            Zoom level of HEALPix, with 12*zoom^4 representing the number of pixels (`n_face`)
+        pixels_only : bool
+            Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
+
+        Returns
+        -------
+        Grid
+            An instance of ``uxarray.Grid``
+        """
+        grid_ds = _pixels_to_ugrid(zoom, nest)
+
+        if not pixels_only:
+            _populate_healpix_boundaries(grid_ds)
+
+        return cls.from_dataset(grid_ds, source_grid_spec="HEALPix")
+
+    def validate(self, check_duplicates=True):
         """Validates the current ``Grid``, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.
 
@@ -431,7 +629,7 @@ class Grid:
         print("Validating the mesh...")
 
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
-        checkDN = _check_duplicate_nodes(self)
+        checkDN = _check_duplicate_nodes(self) if check_duplicates else True
         check_C = _check_connectivity(self)
         check_A = _check_area(self)
 
@@ -488,36 +686,33 @@ class Grid:
             if dim_name in self._ds.sizes:
                 dims_str += f"  * {dim_name}: {self._ds.sizes[dim_name]}\n"
 
-        dims_str += f"  * n_nodes_per_face: {self.n_nodes_per_face.shape}\n"
-
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        for coord_name in ugrid.SPHERICAL_COORD_NAMES:
-            if coord_name in self._ds:
-                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
+        for coord_name in list(
+            [coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds]
+        ):
+            coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        for coord_name in ugrid.CARTESIAN_COORD_NAMES:
-            if coord_name in self._ds:
-                coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
+        for coord_name in list(
+            [coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds]
+        ):
+            coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
         connectivity_str = ""
 
-        for conn_name in ugrid.CONNECTIVITY_NAMES:
-            if conn_name in self._ds:
-                connectivity_str += (
-                    f"  * {conn_name}: {getattr(self, conn_name).shape}\n"
-                )
+        for conn_name in self.connectivity:
+            connectivity_str += f"  * {conn_name}: {getattr(self, conn_name).shape}\n"
 
         descriptors_heading = "Grid Descriptor Variables:\n"
         descriptors_str = ""
-
-        for descriptor_name in descriptors.DESCRIPTOR_NAMES:
-            if descriptor_name in self._ds:
-                descriptors_str += (
-                    f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
-                )
+        for descriptor_name in list(
+            [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds]
+        ):
+            descriptors_str += (
+                f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
+            )
 
         return (
             prefix
@@ -719,8 +914,11 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lon" not in self._ds:
-            _set_desired_longitude_range(self._ds)
-            _populate_node_latlon(self)
+            if self.source_grid_spec == "HEALPix":
+                _populate_healpix_boundaries(self._ds)
+            else:
+                _set_desired_longitude_range(self)
+                _populate_node_latlon(self)
         return self._ds["node_lon"]
 
     @node_lon.setter
@@ -736,8 +934,11 @@ class Grid:
         Dimensions: ``(n_node, )``
         """
         if "node_lat" not in self._ds:
-            _set_desired_longitude_range(self._ds)
-            _populate_node_latlon(self)
+            if self.source_grid_spec == "HEALPix":
+                _populate_healpix_boundaries(self)
+            else:
+                _set_desired_longitude_range(self)
+                _populate_node_latlon(self)
         return self._ds["node_lat"]
 
     @node_lat.setter
@@ -803,8 +1004,7 @@ class Grid:
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
-        # temp until we construct edge lon
-        _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
         return self._ds["edge_lon"]
 
     @edge_lon.setter
@@ -821,7 +1021,7 @@ class Grid:
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
-        _set_desired_longitude_range(self._ds)
+        _set_desired_longitude_range(self)
         return self._ds["edge_lat"]
 
     @edge_lat.setter
@@ -887,7 +1087,7 @@ class Grid:
         """
         if "face_lon" not in self._ds:
             _populate_face_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
         return self._ds["face_lon"]
 
     @face_lon.setter
@@ -904,7 +1104,7 @@ class Grid:
         """
         if "face_lat" not in self._ds:
             _populate_face_centroids(self)
-            _set_desired_longitude_range(self._ds)
+            _set_desired_longitude_range(self)
 
         return self._ds["face_lat"]
 
@@ -972,7 +1172,13 @@ class Grid:
         Nodes are in counter-clockwise order.
         """
 
-        if self._ds["face_node_connectivity"].values.ndim == 1:
+        if (
+            "face_node_connectivity" not in self._ds
+            and self.source_grid_spec == "HEALPix"
+        ):
+            _populate_healpix_boundaries(self._ds)
+
+        if self._ds["face_node_connectivity"].ndim == 1:
             face_node_connectivity_1d = self._ds["face_node_connectivity"].values
             face_node_connectivity_2d = np.expand_dims(
                 face_node_connectivity_1d, axis=0
@@ -1011,6 +1217,40 @@ class Grid:
         self._ds["edge_node_connectivity"] = value
 
     @property
+    def edge_node_x(self) -> xr.DataArray:
+        """Cartesian x location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_x" not in self._ds:
+            _edge_node_x = self.node_x[self.edge_node_connectivity]
+
+            self._ds["edge_node_x"] = xr.DataArray(
+                data=_edge_node_x,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_x"]
+
+    @property
+    def edge_node_y(self) -> xr.DataArray:
+        """Cartesian y location for the two nodes that make up every edge.
+
+        Dimensions: ``(n_edge, two)``
+        """
+
+        if "edge_node_y" not in self._ds:
+            _edge_node_y = self.node_y[self.edge_node_connectivity]
+
+            self._ds["edge_node_y"] = xr.DataArray(
+                data=_edge_node_y,
+                dims=["n_edge", "two"],
+            )
+
+        return self._ds["edge_node_y"]
+
+    @property
     def edge_node_z(self) -> xr.DataArray:
         """Cartesian z location for the two nodes that make up every edge.
 
@@ -1018,7 +1258,7 @@ class Grid:
         """
 
         if "edge_node_z" not in self._ds:
-            _edge_node_z = self.node_z.values[self.edge_node_connectivity.values]
+            _edge_node_z = self.node_z[self.edge_node_connectivity]
 
             self._ds["edge_node_z"] = xr.DataArray(
                 data=_edge_node_z,
@@ -1147,7 +1387,7 @@ class Grid:
 
     @property
     def edge_node_distances(self):
-        """Distances between the two nodes that surround each edge in degrees.
+        """Distances between the two nodes that surround each edge in radians.
 
         Dimensions ``(n_edge, )``
         """
@@ -1164,7 +1404,7 @@ class Grid:
     @property
     def edge_face_distances(self):
         """Distances between the centers of the faces that saddle each edge in
-        degrees.
+        radians.
 
         Dimensions ``(n_edge, )``
         """
@@ -1205,16 +1445,18 @@ class Grid:
 
     @property
     def bounds(self):
-        """Latitude Longitude Bounds for each Face in degrees.
+        """Latitude Longitude Bounds for each Face in radians.
 
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            warn(
-                "Constructing of `Grid.bounds` has not been optimized, which may lead to a long execution time."
-            )
+            if not is_numba_function_cached(compute_temp_latlon_array):
+                warn(
+                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
+                    "This initial execution will be significantly longer.",
+                    RuntimeWarning,
+                )
             _populate_bounds(self)
-
         return self._ds["bounds"]
 
     @bounds.setter
@@ -1224,6 +1466,39 @@ class Grid:
         self._ds["bounds"] = value
 
     @property
+    def face_bounds_lon(self):
+        """Longitude bounds for each face in degrees."""
+
+        if "face_bounds_lon" not in self._ds:
+            bounds = self.bounds.values
+
+            bounds_deg = np.rad2deg(bounds[:, 1, :])
+            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
+            bounds_lon = bounds_normalized
+            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
+            # for faces that span all longitudes (i.e. pole faces)
+            bounds_lon[mask_zero] = [-180.0, 180.0]
+            self._ds["face_bounds_lon"] = xr.DataArray(
+                data=bounds_lon,
+                dims=["n_face", "min_max"],
+            )
+
+        return self._ds["face_bounds_lon"]
+
+    @property
+    def face_bounds_lat(self):
+        """Latitude bounds for each face in degrees."""
+
+        if "face_bounds_lat" not in self._ds:
+            bounds = self.bounds.values
+            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
+            self._ds["face_bounds_lat"] = xr.DataArray(
+                data=bounds_lat,
+                dims=["n_face", "min_max"],
+            )
+        return self._ds["face_bounds_lat"]
+
+    @property
     def face_jacobian(self):
         """Declare face_jacobian as a property."""
         if self._face_jacobian is None:
@@ -1231,14 +1506,96 @@ class Grid:
         return self._face_jacobian
 
     @property
-    def hole_edge_indices(self):
-        """Indices of edges that border a region of the grid not covered by any
-        geometry, know as a hole, in a partial grid."""
-        if "hole_edge_indices" not in self._ds:
-            self._ds["hole_edge_indices"] = _construct_hole_edge_indices(
+    def boundary_edge_indices(self):
+        """Indices of edges that border regions not covered by any geometry
+        (holes) in a partial grid."""
+        if "boundary_edge_indices" not in self._ds:
+            self._ds["boundary_edge_indices"] = _construct_boundary_edge_indices(
                 self.edge_face_connectivity.values
             )
-        return self._ds["hole_edge_indices"]
+        return self._ds["boundary_edge_indices"]
+
+    @boundary_edge_indices.setter
+    def boundary_edge_indices(self, value):
+        """Setter for ``boundary_edge_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_edge_indices"] = value
+
+    @property
+    def boundary_node_indices(self):
+        """Indices of nodes that border regions not covered by any geometry
+        (holes) in a partial grid."""
+        if "boundary_node_indices" not in self._ds:
+            raise ValueError
+
+        return self._ds["boundary_node_indices"]
+
+    @boundary_node_indices.setter
+    def boundary_node_indices(self, value):
+        """Setter for ``boundary_node_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_node_indices"] = value
+
+    @property
+    def boundary_face_indices(self):
+        """Indices of faces that border regions not covered by any geometry
+        (holes) in a partial grid."""
+        if "boundary_face_indices" not in self._ds:
+            boundaries = np.unique(
+                self.node_face_connectivity[
+                    self.boundary_node_indices.values
+                ].data.ravel()
+            )
+            boundaries = boundaries[boundaries != INT_FILL_VALUE]
+            self._ds["boundary_face_indices"] = xr.DataArray(data=boundaries)
+
+        return self._ds["boundary_face_indices"]
+
+    @boundary_face_indices.setter
+    def boundary_face_indices(self, value):
+        """Setter for ``boundary_face_indices``"""
+        assert isinstance(value, xr.DataArray)
+        self._ds["boundary_face_indices"] = value
+
+    @property
+    def triangular(self):
+        """Boolean indicated whether the Grid is strictly composed of
+        triangular faces."""
+        return self.n_max_face_nodes == 3
+
+    @property
+    def partial_sphere_coverage(self):
+        """Boolean indicated whether the Grid partial covers the unit sphere
+        (i.e. contains holes)"""
+        return self.boundary_edge_indices.size != 0
+
+    @property
+    def global_sphere_coverage(self):
+        """Boolean indicated whether the Grid completely covers the unit sphere
+        (i.e. contains no holes)"""
+        return not self.partial_sphere_coverage
+
+    @property
+    def inverse_indices(self) -> xr.Dataset:
+        """Indices for a subset that map each face in the subset back to the original grid"""
+        if self.is_subset:
+            return self._inverse_indices
+        else:
+            raise Exception(
+                "Grid is not a subset, therefore no inverse face indices exist"
+            )
+
+    @property
+    def is_subset(self):
+        """Returns `True` if the Grid is a subset, 'False' otherwise."""
+        return self._is_subset
+
+    @property
+    def max_face_radius(self):
+        """Maximum face radius of the grid in degrees"""
+        if "max_face_radius" not in self._ds:
+            self._ds["max_face_radius"] = _populate_max_face_radius(self)
+        return self._ds["max_face_radius"]
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
@@ -1305,10 +1662,12 @@ class Grid:
                 setattr(self, var_name, grid_var.chunk(chunks={"n_edge": n_edge}))
             elif "n_face" in grid_var.dims:
                 setattr(self, var_name, grid_var.chunk(chunks={"n_face": n_face}))
+            else:
+                setattr(self, var_name, grid_var.chunk())
 
     def get_ball_tree(
         self,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "spherical",
         distance_metric: Optional[str] = "haversine",
         reconstruct: bool = False,
@@ -1322,7 +1681,7 @@ class Grid:
 
         Parameters
         ----------
-        coordinates : str, default="nodes"
+        coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
@@ -1358,7 +1717,7 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: Optional[str] = "nodes",
+        coordinates: Optional[str] = "face centers",
         coordinate_system: Optional[str] = "cartesian",
         distance_metric: Optional[str] = "minkowski",
         reconstruct: bool = False,
@@ -1372,7 +1731,7 @@ class Grid:
 
         Parameters
         ----------
-        coordinates : str, default="nodes"
+        coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
         coordinate_system : str, default="cartesian"
@@ -1404,6 +1763,48 @@ class Grid:
                 self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
+
+    def get_spatial_hash(
+        self,
+        reconstruct: bool = False,
+    ):
+        """Get the SpatialHash data structure of this Grid that allows for
+        fast face search queries. Face searches are used to find the faces that
+        a list of points, in spherical coordinates, are contained within.
+
+        Parameters
+        ----------
+        reconstruct : bool, default=False
+            If true, reconstructs the spatial hash
+
+        Returns
+        -------
+        self._spatialhash : grid.Neighbors.SpatialHash
+            SpatialHash instance
+
+        Note
+        ----
+        Does not currently support queries on periodic elements.
+
+        Examples
+        --------
+        Open a grid from a file path:
+
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("grid_filename.nc")
+
+        Obtain SpatialHash instance:
+
+        >>> spatial_hash = uxgrid.get_spatial_hash()
+
+        Query to find the face a point lies within in addition to its barycentric coordinates:
+
+        >>> face_ids, bcoords = spatial_hash.query([0.0, 0.0])
+        """
+        if self._spatialhash is None or reconstruct:
+            self._spatialhash = SpatialHash(self, reconstruct)
+
+        return self._spatialhash
 
     def copy(self):
         """Returns a deep copy of this grid."""
@@ -1458,7 +1859,10 @@ class Grid:
         return out_ds
 
     def calculate_total_face_area(
-        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+        self,
+        quadrature_rule: Optional[str] = "triangular",
+        order: Optional[int] = 4,
+        latitude_adjusted_area: Optional[bool] = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1469,6 +1873,8 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        latitude_adjusted_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
@@ -1476,7 +1882,9 @@ class Grid:
         """
 
         # call function to get area of all the faces as a np array
-        face_areas, face_jacobian = self.compute_face_areas(quadrature_rule, order)
+        face_areas, face_jacobian = self.compute_face_areas(
+            quadrature_rule, order, latitude_adjusted_area=latitude_adjusted_area
+        )
 
         return np.sum(face_areas)
 
@@ -1485,6 +1893,7 @@ class Grid:
         quadrature_rule: Optional[str] = "triangular",
         order: Optional[int] = 4,
         latlon: Optional[bool] = True,
+        latitude_adjusted_area: Optional[bool] = False,
     ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -1495,6 +1904,10 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
+        latlon : bool, optional
+            If True, the coordinates are in latlon. Defaults to True.
+        latitude_adjusted_area : bool, optional
+            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
         Returns
         -------
@@ -1518,14 +1931,14 @@ class Grid:
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
         if latlon:
-            x = self.node_lon.data
-            y = self.node_lat.data
+            x = self.node_lon.values
+            y = self.node_lat.values
             z = np.zeros((self.n_node))
             coords_type = "spherical"
         else:
-            x = self.node_x.data
-            y = self.node_y.data
-            z = self.node_z.data
+            x = self.node_x.values
+            y = self.node_y.values
+            z = self.node_z.values
             coords_type = "cartesian"
 
         dim = 2
@@ -1552,6 +1965,7 @@ class Grid:
             quadrature_rule,
             order,
             coords_type,
+            latitude_adjusted_area,
         )
 
         min_jacobian = np.min(self._face_jacobian)
@@ -1933,7 +2347,9 @@ class Grid:
 
         return dual
 
-    def isel(self, **dim_kwargs):
+    def isel(
+        self, inverse_indices: Union[List[str], Set[str], bool] = False, **dim_kwargs
+    ):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -1943,6 +2359,9 @@ class Grid:
         exclusive and clipped indexing is in the works.
 
         Parameters
+        inverse_indices : Union[List[str], Set[str], bool], default=False
+            Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
+            other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
             Dimension to index, one of ['n_node', 'n_edge', 'n_face']
 
@@ -1958,80 +2377,296 @@ class Grid:
             raise ValueError("Indexing must be along a single dimension.")
 
         if "n_node" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for node selection, please use face centers"
+                )
             return _slice_node_indices(self, dim_kwargs["n_node"])
 
         elif "n_edge" in dim_kwargs:
+            if inverse_indices:
+                raise Exception(
+                    "Inverse indices are not yet supported for edge selection, please use face centers"
+                )
             return _slice_edge_indices(self, dim_kwargs["n_edge"])
 
         elif "n_face" in dim_kwargs:
-            return _slice_face_indices(self, dim_kwargs["n_face"])
+            return _slice_face_indices(
+                self, dim_kwargs["n_face"], inverse_indices=inverse_indices
+            )
 
         else:
             raise ValueError(
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
-    def get_edges_at_constant_latitude(self, lat, method="fast"):
-        """Identifies the edges of the grid that intersect with a specified
-        constant latitude.
-
-        This method computes the intersection of grid edges with a given latitude and
-        returns a collection of edges that cross or are aligned with that latitude.
-        The method used for identifying these edges can be controlled by the `method`
-        parameter.
+    def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):
+        """Identifies the indices of edges that intersect with a line of constant latitude.
 
         Parameters
         ----------
         lat : float
-            The latitude at which to identify intersecting edges, in degrees.
-        method : str, optional
-            The computational method used to determine edge intersections. Options are:
-            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
-            - 'accurate': Uses a slower but more precise method.
-            Default is 'fast'.
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
 
         Returns
         -------
-        edges : array
-            A squeezed array of edges that intersect the specified constant latitude.
+        faces : numpy.ndarray
+            An array of edge indices that intersect with the specified latitude.
         """
-        if method == "fast":
-            edges = fast_constant_lat_intersections(
+
+        if lat > 90.0 or lat < -90.0:
+            raise ValueError(
+                f"Latitude must be between -90 and 90 degrees. Received {lat}"
+            )
+
+        if use_face_bounds:
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box"
+                "is not yet supported."
+            )
+        else:
+            edges = constant_lat_intersections_no_extreme(
                 lat, self.edge_node_z.values, self.n_edge
             )
-        elif method == "accurate":
-            raise NotImplementedError("Accurate method not yet implemented.")
-        else:
-            raise ValueError(f"Invalid method: {method}.")
+
         return edges.squeeze()
 
-    def get_faces_at_constant_latitude(self, lat, method="fast"):
-        """Identifies the faces of the grid that intersect with a specified
-        constant latitude.
-
-        This method finds the faces (or cells) of the grid that intersect a given latitude
-        by first identifying the intersecting edges and then determining the faces connected
-        to these edges. The method used for identifying edges can be adjusted with the `method`
-        parameter.
+    def get_faces_at_constant_latitude(
+        self,
+        lat: float,
+    ):
+        """
+        Identifies the indices of faces that intersect with a line of constant latitude.
 
         Parameters
         ----------
         lat : float
-            The latitude at which to identify intersecting faces, in degrees.
-        method : str, optional
-            The computational method used to determine intersecting edges. Options are:
-            - 'fast': Uses a faster but potentially less accurate method for determining intersections.
-            - 'accurate': Uses a slower but more precise method.
-            Default is 'fast'.
+            The latitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
 
         Returns
         -------
-        faces : array
-            An array of unique face indices that intersect the specified latitude.
-            Faces that are invalid or missing (e.g., with a fill value) are excluded
-            from the result.
+        faces : numpy.ndarray
+            An array of face indices that intersect with the specified latitude.
         """
-        edges = self.get_edges_at_constant_latitude(lat, method)
-        faces = np.unique(self.edge_face_connectivity[edges].data.ravel())
 
-        return faces[faces != INT_FILL_VALUE]
+        if lat > 90.0 or lat < -90.0:
+            raise ValueError(
+                f"Latitude must be between -90 and 90 degrees. Received {lat}"
+            )
+
+        faces = constant_lat_intersections_face_bounds(
+            lat=lat,
+            face_bounds_lat=self.face_bounds_lat.values,
+        )
+        return faces
+
+    def get_edges_at_constant_longitude(
+        self, lon: float, use_face_bounds: bool = False
+    ):
+        """
+        Identifies the indices of edges that intersect with a line of constant longitude.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+        use_face_bounds : bool, optional
+            If True, uses the bounds of each face for computing intersections.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of edge indices that intersect with the specified longitude.
+        """
+
+        if lon > 180.0 or lon < -180.0:
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees. Received {lon}"
+            )
+
+        if use_face_bounds:
+            raise NotImplementedError(
+                "Computing the intersection using the spherical bounding box"
+                "is not yet supported."
+            )
+        else:
+            edges = constant_lon_intersections_no_extreme(
+                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+            )
+            return edges.squeeze()
+
+    def get_faces_at_constant_longitude(self, lon: float):
+        """
+        Identifies the indices of faces that intersect with a line of constant longitude.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude at which to extract the cross-section, in degrees.
+            Must be between -90.0 and 90.0
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that intersect with the specified longitude.
+        """
+
+        if lon > 180.0 or lon < -180.0:
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees. Received {lon}"
+            )
+
+        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
+        return faces
+
+    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant longitude.
+
+        Parameters
+        ----------
+        lons: Tuple[float, float]
+            A tuple of longitudes that define that minimum and maximum longitude.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant longitude.
+
+        """
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+
+    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+        """Identifies the indices of faces that are strictly between two lines of constant latitude.
+
+        Parameters
+        ----------
+        lats: Tuple[float, float
+            A tuple of latitudes that define that minimum and maximum latitudes.
+
+        Returns
+        -------
+        faces : numpy.ndarray
+            An array of face indices that are strictly between two lines of constant latitude.
+
+        """
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
+
+    def get_faces_containing_point(
+        self, point_xyz=None, point_lonlat=None, tolerance=ERROR_TOLERANCE
+    ):
+        """Identifies the indices of faces that contain a given point.
+
+        Parameters
+        ----------
+        point_xyz : numpy.ndarray
+            A point in cartesian coordinates. Best performance if
+        point_lonlat : numpy.ndarray
+            A point in spherical coordinates.
+        tolerance : numpy.ndarray
+            An optional error tolerance for points that lie on the nodes of a face.
+
+        Returns
+        -------
+        index : numpy.ndarray
+            Array of the face indices containing point. Empty if no face is found. This function will typically return
+            a single face, unless the point falls directly on a corner or edge, where there will be multiple values.
+
+        Examples
+        --------
+        Open a grid from a file path:
+
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("grid_filename.nc")
+
+        Define a spherical point:
+
+        >>> import numpy as np
+        >>> point_lonlat = np.array([45.2, 32.6], dtype=np.float64)
+
+        Define a cartesian point:
+
+        >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
+        Find the indices of the faces that contain the given point:
+
+        >>> lonlat_point_face_indices = uxgrid.get_faces_containing_point(
+        ...     point_lonlat=point_lonlat
+        ... )
+        >>> xyz_point_face_indices = uxgrid.get_faces_containing_point(
+        ...     point_xyz=point_xyz
+        ... )
+
+        """
+        if point_xyz is None and point_lonlat is None:
+            raise ValueError("Either `point_xyz` or `point_lonlat` must be passed in.")
+
+        # Depending on the provided point coordinates, convert to get all needed coordinate systems
+        if point_xyz is None:
+            point_lonlat = np.asarray(point_lonlat, dtype=np.float64)
+            point_xyz = np.array(
+                _lonlat_rad_to_xyz(*np.deg2rad(point_lonlat)), dtype=np.float64
+            )
+        elif point_lonlat is None:
+            point_xyz = np.asarray(point_xyz, dtype=np.float64)
+            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
+
+        # Get the maximum face radius of the grid, plus a small adjustment for if the point is this exact radius away
+        max_face_radius = self.max_face_radius.values + 0.0001
+
+        # Try to find a subset in which the point resides
+        try:
+            subset = self.subset.bounding_circle(
+                r=max_face_radius,
+                center_coord=point_lonlat,
+                element="face centers",
+                inverse_indices=True,
+            )
+        # If no subset is found, warn the user
+        except ValueError:
+            # If the grid is partial, let the user know the point likely lies outside the grid region
+            if self.partial_sphere_coverage:
+                warn(
+                    "No faces found. The grid has partial spherical coverage, and the point may be outside the defined region of the grid."
+                )
+            else:
+                warn("No faces found. Try adjusting the tolerance.")
+            return np.empty(0, dtype=np.int64)
+
+        # Get the faces in terms of their edges
+        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
+            subset.face_node_connectivity.values,
+            subset.n_face,
+            subset.n_max_face_nodes,
+            subset.node_x.values,
+            subset.node_y.values,
+            subset.node_z.values,
+        )
+
+        # Get the original face indices from the subset
+        inverse_indices = subset.inverse_indices.face.values
+
+        # Check to see if the point is on the nodes of any face
+        lies_on_node = np.isclose(
+            face_edge_nodes_xyz,
+            point_xyz[None, None, :],  # Expands dimensions for broadcasting
+            rtol=tolerance,
+            atol=tolerance,
+        )
+
+        edge_matches = np.all(lies_on_node, axis=-1)
+        face_matches = np.any(edge_matches, axis=1)
+        face_indices = inverse_indices[np.any(face_matches, axis=1)]
+
+        # If a face is in face_indices, return that as the point was found to lie on a node
+        if len(face_indices) != 0:
+            return face_indices
+        else:
+            # Check if any of the faces in the subset contain the point
+            face_indices = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
+
+            return face_indices

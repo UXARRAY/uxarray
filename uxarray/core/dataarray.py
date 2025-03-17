@@ -1,45 +1,39 @@
 from __future__ import annotations
 
-import xarray as xr
-import numpy as np
-
-
-from typing import TYPE_CHECKING, Callable, Optional, Hashable, Literal
-
-from uxarray.constants import GRID_DIMS
-from uxarray.formatting_html import array_repr
-
-from html import escape
-
-from xarray.core.options import OPTIONS
-
-from uxarray.grid import Grid
-import uxarray.core.dataset
-from uxarray.grid.dual import construct_dual
-from uxarray.grid.validation import _check_duplicate_nodes_indices
-
-if TYPE_CHECKING:
-    from uxarray.core.dataset import UxDataset
-
-from xarray.core.utils import UncachedAccessor
-
-
-from uxarray.core.gradient import (
-    _calculate_grad_on_edge_from_faces,
-    _calculate_edge_face_difference,
-    _calculate_edge_node_difference,
-)
-
-from uxarray.plot.accessor import UxDataArrayPlotAccessor
-from uxarray.subset import DataArraySubsetAccessor
-from uxarray.remap import UxDataArrayRemapAccessor
-from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
-from uxarray.core.aggregation import _uxda_grid_aggregate
-
 import warnings
+from html import escape
+from typing import Hashable, Literal, Optional, TYPE_CHECKING, Any, Callable
 from warnings import warn
 
 import cartopy.crs as ccrs
+import numpy as np
+import xarray as xr
+
+import uxarray
+from uxarray.core.aggregation import _uxda_grid_aggregate
+from uxarray.core.gradient import (
+    _calculate_edge_face_difference,
+    _calculate_edge_node_difference,
+    _calculate_grad_on_edge_from_faces,
+)
+from uxarray.constants import GRID_DIMS
+from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.core.zonal import _compute_non_conservative_zonal_mean
+from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
+from uxarray.formatting_html import array_repr
+from uxarray.grid import Grid
+from uxarray.grid.dual import construct_dual
+from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.plot.accessor import UxDataArrayPlotAccessor
+from uxarray.remap import UxDataArrayRemapAccessor
+from uxarray.subset import DataArraySubsetAccessor
+
+from xarray.core.options import OPTIONS
+from xarray.core.utils import UncachedAccessor
+from xarray.core import dtypes
+
+if TYPE_CHECKING:
+    from uxarray.core.dataset import UxDataset
 
 
 class UxDataArray(xr.DataArray):
@@ -375,6 +369,9 @@ class UxDataArray(xr.DataArray):
 
         return uxds
 
+    def to_xarray(self):
+        return xr.DataArray(self)
+
     def integrate(
         self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
     ) -> UxDataArray:
@@ -428,6 +425,151 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
+
+    def zonal_mean(self, lat=(-90, 90, 10), **kwargs):
+        """Compute averages along lines of constant latitude.
+
+        Parameters
+        ----------
+        lat : tuple, float, or array-like, default=(-90, 90, 10)
+            Latitude values in degrees. Can be specified as:
+            - tuple (start, end, step): Computes means at intervals of `step` in range [start, end]
+            - float: Computes mean for a single latitude
+            - array-like: Computes means for each specified latitude
+
+        Returns
+        -------
+        UxDataArray
+            Contains zonal means with a new 'latitudes' dimension and corresponding coordinates.
+            Name will be original_name + '_zonal_mean' or 'zonal_mean' if unnamed.
+
+        Examples
+        --------
+        # All latitudes from -90° to 90° at 10° intervals
+        >>> uxds["var"].zonal_mean()
+
+        # Single latitude at 30°
+        >>> uxds["var"].zonal_mean(lat=30.0)
+
+        # Range from -60° to 60° at 10° intervals
+        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
+
+        Notes
+        -----
+        Only supported for face-centered data variables. Candidate faces are determined
+        using spherical bounding boxes - faces whose bounds contain the target latitude
+        are included in calculations.
+        """
+        if not self._face_centered():
+            raise ValueError(
+                "Zonal mean computations are currently only supported for face-centered data variables."
+            )
+
+        if isinstance(lat, tuple):
+            # zonal mean over a range of latitudes
+            latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
+            latitudes = np.clip(latitudes, -90, 90)
+        elif isinstance(lat, (float, int)):
+            # zonal mean over a single latitude
+            latitudes = [lat]
+        elif isinstance(lat, (list, np.ndarray)):
+            # zonal mean over an array of arbitrary latitudes
+            latitudes = np.asarray(lat)
+        else:
+            raise ValueError(
+                "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
+            )
+
+        res = _compute_non_conservative_zonal_mean(
+            uxda=self, latitudes=latitudes, **kwargs
+        )
+
+        dims = list(self.dims[:-1]) + ["latitudes"]
+
+        uxda = UxDataArray(
+            res,
+            uxgrid=self.uxgrid,
+            dims=dims,
+            coords={"latitudes": latitudes},
+            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
+            attrs={"zonal_mean": True},
+        )
+
+        return uxda
+
+    # Alias for 'zonal_mean', since this name is also commonly used.
+    zonal_average = zonal_mean
+
+    def weighted_mean(self, weights=None):
+        """Computes a weighted mean.
+
+        This function calculates the weighted mean of a variable,
+        using the specified `weights`. If no weights are provided, it will automatically select
+        appropriate weights based on whether the variable is face-centered or edge-centered. If
+        the variable is neither face nor edge-centered a warning is raised, and an unweighted mean is computed instead.
+
+        Parameters
+        ----------
+        weights : np.ndarray or None, optional
+            The weights to use for the weighted mean calculation. If `None`, the function will
+            determine weights based on the variable's association:
+                - For face-centered variables: uses `self.uxgrid.face_areas.data`
+                - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+            If the variable is neither face-centered nor edge-centered, a warning is raised, and
+            an unweighted mean is computed instead. User-defined weights should match the shape
+            of the data variable's last dimension.
+
+        Returns
+        -------
+        UxDataArray
+            A new `UxDataArray` object representing the weighted mean of the input variable. The
+            result is attached to the same `uxgrid` attribute as the original variable.
+
+        Example
+        -------
+        >>> weighted_mean = uxds["t2m"].weighted_mean()
+
+
+        Raises
+        ------
+        AssertionError
+            If user-defined `weights` are provided and the shape of `weights` does not match
+            the shape of the data variable's last dimension.
+
+        Warnings
+        --------
+        UserWarning
+            Raised when attempting to compute a weighted mean on a variable without associated
+            weights. An unweighted mean will be computed in this case.
+
+        Notes
+        -----
+        - The weighted mean is computed along the last dimension of the data variable, which is
+          assumed to be the geometry dimension (e.g., faces, edges, or nodes).
+        """
+        if weights is None:
+            if self._face_centered():
+                weights = self.uxgrid.face_areas.data
+            elif self._edge_centered():
+                weights = self.uxgrid.edge_node_distances.data
+            else:
+                warnings.warn(
+                    "Attempting to perform a weighted mean calculation on a variable that does not have"
+                    "associated weights. Weighted mean is only supported for face or edge centered "
+                    "variables. Performing an unweighted mean."
+                )
+        else:
+            # user-defined weights
+            assert weights.shape[-1] == self.shape[-1]
+
+        # compute the total weight
+        total_weight = weights.sum()
+
+        # compute the weighted mean, with an assumption on the index of dimension (last one is geometry)
+        weighted_mean = (self * weights).sum(axis=-1) / total_weight
+
+        # create a UxDataArray and return it
+        return UxDataArray(weighted_mean, uxgrid=self.uxgrid)
 
     def topological_mean(
         self,
@@ -1035,7 +1177,7 @@ class UxDataArray(xr.DataArray):
         "n_edge" dimension)"""
         return "n_edge" in self.dims
 
-    def isel(self, ignore_grid=False, *args, **kwargs):
+    def isel(self, ignore_grid=False, inverse_indices=False, *args, **kwargs):
         """Grid-informed implementation of xarray's ``isel`` method, which
         enables indexing across grid dimensions.
 
@@ -1067,17 +1209,50 @@ class UxDataArray(xr.DataArray):
                 raise ValueError("Only one grid dimension can be sliced at a time")
 
             if "n_node" in kwargs:
-                sliced_grid = self.uxgrid.isel(n_node=kwargs["n_node"])
+                sliced_grid = self.uxgrid.isel(
+                    n_node=kwargs["n_node"], inverse_indices=inverse_indices
+                )
             elif "n_edge" in kwargs:
-                sliced_grid = self.uxgrid.isel(n_edge=kwargs["n_edge"])
+                sliced_grid = self.uxgrid.isel(
+                    n_edge=kwargs["n_edge"], inverse_indices=inverse_indices
+                )
             else:
-                sliced_grid = self.uxgrid.isel(n_face=kwargs["n_face"])
+                sliced_grid = self.uxgrid.isel(
+                    n_face=kwargs["n_face"], inverse_indices=inverse_indices
+                )
 
             return self._slice_from_grid(sliced_grid)
 
         else:
             # original xarray implementation for non-grid dimensions
             return super().isel(*args, **kwargs)
+
+    @classmethod
+    def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
+        """
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            An Xarray data array containing data residing on an unstructured grid
+        uxgrid : Grid
+            ``Grid`` object representing an unstructured grid
+        ugrid_dims : dict, optional
+            A dictionary mapping data array dimensions to UGRID dimensions.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataArray`` with data from the ``xr.DataArray` paired with a ``ux.Grid``
+        """
+        if ugrid_dims is None:
+            ugrid_dims = uxgrid._source_dims_dict
+
+        # map each dimension to its UGRID equivalent
+        ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+
+        return cls(ds, uxgrid=uxgrid)
 
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
@@ -1118,7 +1293,7 @@ class UxDataArray(xr.DataArray):
         if _check_duplicate_nodes_indices(self.uxgrid):
             raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
-        if self.uxgrid.hole_edge_indices.size != 0:
+        if self.uxgrid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
@@ -1147,6 +1322,7 @@ class UxDataArray(xr.DataArray):
         uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
 
         return uxda
+
 
     def neighborhood_filter(
         self,
@@ -1261,3 +1437,13 @@ class UxDataArray(xr.DataArray):
         uxda_filter.data = destination_data
 
         return uxda_filter
+
+    def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
+        return UxDataArray(super().where(cond, other, drop), uxgrid=self.uxgrid)
+
+    where.__doc__ = xr.DataArray.where.__doc__
+
+    def fillna(self, value: Any):
+        return UxDataArray(super().fillna(value), uxgrid=self.uxgrid)
+
+    fillna.__doc__ = xr.DataArray.fillna.__doc__

@@ -31,6 +31,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
 
+`Custom Grid Topology <user-guide/custom-grid.ipynb>`_
+ Create a Grid from custom Grid topology and convert existing Xarray data structures to UXarray.
+
 `Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
  Read data with chunking and/or in parallel
 
@@ -46,14 +49,23 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Subsetting <user-guide/subset.ipynb>`_
  Select specific regions of a grid
 
+`Spatial Hashing <user-guide/spatial-hashing.ipynb>`_
+ Use spatial hashing to locate the faces a list of points reside in.
+
 `Cross-Sections <user-guide/cross-sections.ipynb>`_
  Select cross-sections of a grid
+
+`Zonal Means <user-guide/zonal-average.ipynb>`_
+ Compute the zonal averages across lines of constant latitude
 
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
 
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
+
+`Weighted Mean <user-guide/weighted_mean.ipynb>`_
+ Compute the weighted average
 
 `Calculus Operators <user-guide/calculus.ipynb>`_
  Apply calculus operators (gradient, integral) on unstructured grid data
@@ -64,18 +76,29 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
 
+`Structured Grids <user-guide/structured.ipynb>`_
+ Loading structured (latitude-longitude) grids
+
+`Representing Point Data <user-guide/from-points.ipynb>`_
+ Create grids from unstructured point data
+
 `Dual Mesh Construction <user-guide/dual-mesh.ipynb>`_
  Construct the Dual Mesh of an unstructured grid
+
 
 Supplementary Guides
 --------------------
 
-These user guides provide additional detail about specific features in UXarray.
+These user guides provide additional details about specific features in UXarray.
+
+`Working with HEALPix Grids <user-guide/healpix.ipynb>`_
+ Use UXarray with HEALPix
 
 `Compatibility with HoloViz Tools <user-guide/holoviz.ipynb>`_
  Use UXarray with HoloViz tools
 
-
+`Reading & Working with Geometry Files <user-guide/from_file.ipynb>`_
+ Load and work with geometry files (i.e. Shapefile, GeoJSON)
 
 .. toctree::
    :hidden:
@@ -90,10 +113,16 @@ These user guides provide additional detail about specific features in UXarray.
    user-guide/advanced-plotting.ipynb
    user-guide/subset.ipynb
    user-guide/cross-sections.ipynb
+   user-guide/zonal-average.ipynb
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
+   user-guide/weighted_mean.ipynb
    user-guide/calculus.ipynb
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
    user-guide/dual-mesh.ipynb
+   user-guide/structured.ipynb
+   user-guide/from-points.ipynb
+   user-guide/healpix.ipynb
    user-guide/holoviz.ipynb
+   user-guide/from_file.ipynb

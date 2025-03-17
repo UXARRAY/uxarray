@@ -64,60 +64,60 @@ def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
 
     Parameters
     ----------
-    grid_var : np.ndarray
-        grid variable to be modified
+    grid_var : xr.DataArray
+        Grid variable to be modified
     original_fill : constant
-        original fill value used in (``grid_var``)
+        Original fill value used in (``grid_var``)
     new_fill : constant
-        new fill value to be used in (``grid_var``)
+        New fill value to be used in (``grid_var``)
     new_dtype : np.dtype, optional
-        new data type to convert (``grid_var``) to
+        New data type to convert (``grid_var``) to
 
     Returns
-    ----------
-    grid_var : xarray.Dataset
-        Input Dataset with correct fill value and dtype
+    -------
+    grid_var : xr.DataArray
+        Modified DataArray with updated fill values and dtype
     """
 
-    # locations of fill values
+    # Identify fill value locations
     if original_fill is not None and np.isnan(original_fill):
-        fill_val_idx = np.isnan(grid_var)
-        grid_var[fill_val_idx] = 0.0  # todo?
+        # For NaN fill values
+        fill_val_idx = grid_var.isnull()
+        # Temporarily replace NaNs with a placeholder if dtype conversion is needed
+        if new_dtype is not None and np.issubdtype(new_dtype, np.floating):
+            grid_var = grid_var.fillna(0.0)
+        else:
+            # Choose an appropriate placeholder for non-floating types
+            grid_var = grid_var.fillna(new_fill)
     else:
+        # For non-NaN fill values
         fill_val_idx = grid_var == original_fill
 
-    # convert to new data type
-    if new_dtype != grid_var.dtype and new_dtype is not None:
+    # Convert to the new data type if specified
+    if new_dtype is not None and new_dtype != grid_var.dtype:
         grid_var = grid_var.astype(new_dtype)
 
-    # ensure fill value can be represented with current integer data type
-    if np.issubdtype(new_dtype, np.integer):
-        int_min = np.iinfo(grid_var.dtype).min
-        int_max = np.iinfo(grid_var.dtype).max
-        # ensure new_fill is in range [int_min, int_max]
-        if new_fill < int_min or new_fill > int_max:
-            raise ValueError(
-                f"New fill value: {new_fill} not representable by"
-                f" integer dtype: {grid_var.dtype}"
-            )
+    # Validate that the new_fill can be represented in the new_dtype
+    if new_dtype is not None:
+        if np.issubdtype(new_dtype, np.integer):
+            int_min = np.iinfo(new_dtype).min
+            int_max = np.iinfo(new_dtype).max
+            if not (int_min <= new_fill <= int_max):
+                raise ValueError(
+                    f"New fill value: {new_fill} not representable by integer dtype: {new_dtype}"
+                )
+        elif np.issubdtype(new_dtype, np.floating):
+            if not (
+                np.isnan(new_fill)
+                or (np.finfo(new_dtype).min <= new_fill <= np.finfo(new_dtype).max)
+            ):
+                raise ValueError(
+                    f"New fill value: {new_fill} not representable by float dtype: {new_dtype}"
+                )
+        else:
+            raise ValueError(f"Data type {new_dtype} not supported for grid variables")
 
-    # ensure non-nan fill value can be represented with current float data type
-    elif np.issubdtype(new_dtype, np.floating) and not np.isnan(new_fill):
-        float_min = np.finfo(grid_var.dtype).min
-        float_max = np.finfo(grid_var.dtype).max
-        # ensure new_fill is in range [float_min, float_max]
-        if new_fill < float_min or new_fill > float_max:
-            raise ValueError(
-                f"New fill value: {new_fill} not representable by"
-                f" float dtype: {grid_var.dtype}"
-            )
-    else:
-        raise ValueError(
-            f"Data type {grid_var.dtype} not supported" f"for grid variables"
-        )
-
-    # replace all zeros with a fill value
-    grid_var[fill_val_idx] = new_fill
+    grid_var = grid_var.where(~fill_val_idx, new_fill)
 
     return grid_var
 
@@ -148,13 +148,14 @@ def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
     value nodes for each face in ``face_node_connectivity``"""
 
-    # padding to shape [n_face, n_max_face_nodes + 1]
-    closed = np.ones((n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
-
-    closed[:, :-1] = face_nodes.copy()
-
-    n_nodes_per_face = np.argmax(closed == INT_FILL_VALUE, axis=1)
-
+    n_face, n_max_face_nodes = face_nodes.shape
+    n_nodes_per_face = np.empty(n_face, dtype=INT_DTYPE)
+    for i in range(n_face):
+        c = 0
+        for j in range(n_max_face_nodes):
+            if face_nodes[i, j] != INT_FILL_VALUE:
+                c += 1
+        n_nodes_per_face[i] = c
     return n_nodes_per_face
 
 
