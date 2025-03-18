@@ -3,7 +3,6 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
-from polars.testing.parametric import dtypes
 
 import uxarray as ux
 
