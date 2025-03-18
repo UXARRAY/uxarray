@@ -127,17 +127,16 @@ class UxDatasetRemapAccessor:
         self,
         destination_grid: Grid = None,
         remap_to: str = "face centers",
-        coord_type: str = "spherical",
     ):
         """Bilinear Remapping between a source (``UxDataset``) and
-        destination.`.
+        destination.
 
         Parameters
         ---------
         destination_grid : Grid
             Destination Grid for remapping
-        coord_type : str, default="spherical"
-            Indicates whether to remap using on spherical or cartesian coordinates
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
         """
         if destination_grid is None:
             raise ValueError("Destination needed for remap.")

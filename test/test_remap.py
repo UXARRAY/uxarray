@@ -268,12 +268,19 @@ def test_value_errors_idw():
 
 
 def test_bilinear():
-    mpasfile_QU = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/mesh.QU.1920km.151026.nc'
-    mpasfile_QU_2 = '/users/aaronzedwick/uxarray/test/meshfiles/mpas/QU/oQU480.231010.nc'
-    outCS = '/users/aaronzedwick/uxarray/test/meshfiles/ugrid/outCSne30/outCSne30.ug'
-
     source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    destination = ux.open_grid(outCS)
-    destination_2 = ux.open_grid(mpasfile_QU_2)
+    destination = ux.open_grid(mpasfile_QU_2)
 
-    bilinear_remap = source_uxds['latCell'].remap.bilinear(destination_2, remap_to='face centers')
+    bilinear_remap = source_uxds['latCell'].remap.bilinear(destination, remap_to='face centers')
+
+
+def test_source_data_remap_bilinear():
+    """Test the remapping of all source data positions."""
+    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    destination_grid = ux.open_grid(gridfile_geoflow)
+
+    face_centers = source_uxds['latCell'].remap.bilinear(destination_grid=destination_grid, remap_to="nodes")
+    nodes = source_uxds['latVertex'].remap.bilinear(destination_grid=destination_grid, remap_to="nodes")
+
+    assert len(face_centers.values) != 0
+    assert len(nodes.values) != 0

@@ -125,10 +125,9 @@ class UxDataArrayRemapAccessor:
         self,
         destination_grid: Grid = None,
         remap_to: str = "face centers",
-        coord_type: str = "spherical",
     ):
         """Bilinear Remapping between a source (``UxDataArray``) and
-        destination.`.
+        destination.
 
         Parameters
         ---------
