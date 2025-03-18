@@ -1,10 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from numba import njit
-
-from uxarray.grid.coordinates import _xyz_to_lonlat_deg, _normalize_xyz
-
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
@@ -14,6 +10,9 @@ import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
 from uxarray.grid.neighbors import _barycentric_coordinates
+
+from uxarray.constants import INT_FILL_VALUE
+
 
 def _bilinear(
     source_uxda: UxDataArray,
@@ -95,17 +94,18 @@ def _bilinear(
             destination_grid.node_z.values,
         )
         data_size = destination_grid.n_node
-    elif remap_to == "edge centers":
-        lon, lat = (
-            destination_grid.edge_lon.values,
-            destination_grid.edge_lat.values,
-        )
-        cart_x, cart_y, cart_z = (
-            destination_grid.edge_x.values,
-            destination_grid.edge_y.values,
-            destination_grid.edge_z.values,
-        )
-        data_size = destination_grid.n_edge
+    # TODO: Uncomment when edge support is added
+    # elif remap_to == "edge centers":
+    #     lon, lat = (
+    #         destination_grid.edge_lon.values,
+    #         destination_grid.edge_lat.values,
+    #     )
+    #     cart_x, cart_y, cart_z = (
+    #         destination_grid.edge_x.values,
+    #         destination_grid.edge_y.values,
+    #         destination_grid.edge_z.values,
+    #     )
+    #     data_size = destination_grid.n_edge
     else:
         raise ValueError(
             f"Invalid remap_to. Expected 'nodes', 'edge centers', or 'face centers', "
@@ -115,7 +115,13 @@ def _bilinear(
     point_lonlat = np.column_stack([lon, lat])
     point_xyz = np.column_stack([cart_x, cart_y, cart_z])
 
-    values = _get_values(point_xyz=point_xyz, point_lonlat=point_lonlat, dual=dual, source_data=source_data, data_size=data_size)
+    values = _get_values(
+        point_xyz=point_xyz,
+        point_lonlat=point_lonlat,
+        dual=dual,
+        source_data=source_data,
+        data_size=data_size,
+    )
 
     return values
 
@@ -163,9 +169,7 @@ def _bilinear_uxda(
 
 
 def _bilinear_uxds(
-    source_uxds: UxDataset,
-    destination_grid: Grid,
-    remap_to: str = "face centers"
+    source_uxds: UxDataset, destination_grid: Grid, remap_to: str = "face centers"
 ):
     """Bilinear Remapping implementation for ``UxDataset``.
 
@@ -179,10 +183,10 @@ def _bilinear_uxds(
         Location of where to map data, either "nodes", "edge centers", or "face centers"
     """
 
-    destination_uxds = uxarray.core.dataset.UxDataset(uxgrid=destination_grid)
+    destination_uxds = uxarray.UxDataset(uxgrid=destination_grid)
 
     for var_name in source_uxds.data_vars:
-        destination_uxds = _bilinear_uxda(
+        destination_uxds[var_name] = _bilinear_uxda(
             source_uxds[var_name], destination_grid, remap_to
         )
 
@@ -190,11 +194,14 @@ def _bilinear_uxds(
 
 
 def _get_values(point_xyz, point_lonlat, dual, source_data, data_size):
+    """Get the values for each point being remapped to by calculating and applying the weights"""
     values = np.zeros(data_size)
 
     for i in range(data_size):
         # Find the index of the polygon containing the point
-        face_ind = dual.uxgrid.get_faces_containing_point(point_xyz=point_xyz[i], point_lonlat=point_lonlat[i])
+        face_ind = dual.uxgrid.get_faces_containing_point(
+            point_xyz=point_xyz[i], point_lonlat=point_lonlat[i]
+        )
 
         number_of_faces = len(face_ind)
 
@@ -209,6 +216,8 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size):
             polygon = np.empty([nodes_per_face, 2])
             data = np.empty([nodes_per_face])
             for ind, node in enumerate(node_ind):
+                if node == INT_FILL_VALUE:
+                    break
                 polygon[ind] = [
                     dual.uxgrid.node_lon.values[node],
                     dual.uxgrid.node_lat.values[node],
@@ -219,6 +228,5 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size):
 
             weights = _barycentric_coordinates(polygon, point_lonlat[i])
             values[i] = np.sum(weights * data, axis=-1)
-
 
     return values

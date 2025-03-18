@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import numpy.testing as nt
-import pytest
 from pathlib import Path
 
 import uxarray as ux
@@ -13,6 +12,8 @@ from uxarray.remap.nearest_neighbor import _nearest_neighbor
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+gridfile_CSne30_data = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
+gridfile_CSne30_data = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
@@ -266,14 +267,6 @@ def test_value_errors_idw():
     with nt.assert_warns(UserWarning):
         source_uxds['v1'].remap.inverse_distance_weighted(destination_grid=destination_grid, remap_to="nodes", power=6)
 
-
-def test_bilinear():
-    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    destination = ux.open_grid(mpasfile_QU_2)
-
-    bilinear_remap = source_uxds['latCell'].remap.bilinear(destination, remap_to='face centers')
-
-
 def test_source_data_remap_bilinear():
     """Test the remapping of all source data positions."""
     source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
@@ -284,3 +277,54 @@ def test_source_data_remap_bilinear():
 
     assert len(face_centers.values) != 0
     assert len(nodes.values) != 0
+
+def test_bilinear_remap_center_nodes():
+    """Test remapping to center nodes."""
+    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    destination_grid = ux.open_grid(gridfile_geoflow)
+
+    data_on_face_centers = source_uxds['latCell'].remap.bilinear(destination_grid, remap_to="face centers")
+
+    assert not np.array_equal(source_uxds['latCell'], data_on_face_centers)
+
+
+def test_bilinear_remap_nodes():
+    """Test remapping to nodes."""
+    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    destination_grid = ux.open_grid(gridfile_geoflow)
+
+    data_on_nodes = source_uxds['latCell'].remap.bilinear(destination_grid, remap_to="nodes")
+
+    assert not np.array_equal(source_uxds['latCell'], data_on_nodes)
+
+def test_remap_return_types_bilinear():
+    """Tests the return type of the `UxDataset` and `UxDataArray` implementations of Bilinear Remapping."""
+    source_uxds = ux.open_dataset(gridfile_CSne30, gridfile_CSne30_data)
+    destination_grid = ux.open_grid(gridfile_CSne30)
+
+    remap_uxda_to_grid = source_uxds['var2'].remap.bilinear(destination_grid)
+
+    assert isinstance(remap_uxda_to_grid, UxDataArray)
+
+    remap_uxds_to_grid = source_uxds.remap.bilinear(destination_grid)
+
+    assert isinstance(remap_uxds_to_grid, UxDataset)
+    assert len(remap_uxds_to_grid.data_vars) == len(source_uxds.data_vars)
+
+def test_value_errors_bilinear():
+    """Tests the raising of value errors and warnings in the function."""
+    source_uxds = ux.open_dataset(gridfile_CSne30, gridfile_CSne30_data)
+    source_uxds2 = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    destination_grid = ux.open_grid(gridfile_CSne30)
+
+    with nt.assert_raises(ValueError):
+        source_uxds['var2'].remap.bilinear(destination_grid=None, remap_to="nodes")
+
+    with nt.assert_raises(ValueError):
+        source_uxds.remap.bilinear(destination_grid=None, remap_to="nodes")
+
+    with nt.assert_raises(ValueError):
+        source_uxds['var2'].remap.bilinear(destination_grid=destination_grid, remap_to="error")
+
+    with nt.assert_raises(ValueError):
+        source_uxds2['latEdge'].remap.bilinear(destination_grid=destination_grid, remap_to="nodes")
