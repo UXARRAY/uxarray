@@ -169,8 +169,8 @@ class CheckNorm:
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
 
-class CrossSection:
-    param_names = DatasetBenchmark.param_names + ['lat_step']
+class CrossSections(DatasetBenchmark):
+    param_names = DatasetBenchmark.param_names + ['n_lat']
     params = DatasetBenchmark.params + [[1, 2, 4]]
 
     def setup(self, resolution, lat_step):
@@ -179,13 +179,6 @@ class CrossSection:
         self.lats = np.arange(-45, 45, lat_step)
         _ = self.uxgrid.bounds
 
-class CrossSections(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['n_lat']
-    params = DatasetBenchmark.params + [[1, 2, 4, 8]]
-
-    def time_constant_lat_fast(self, resolution, n_lat):
-        for lat in np.linspace(-89, 89, n_lat):
-            self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')
     def teardown(self, resolution, lat_step):
         del self.uxgrid
 
