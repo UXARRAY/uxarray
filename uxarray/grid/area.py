@@ -1,6 +1,5 @@
 import numpy as np
 
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 from numba import njit
 from uxarray.constants import ERROR_TOLERANCE
@@ -227,7 +226,6 @@ def get_all_face_area_from_coords(
         face_x = x[face_nodes[face_idx, 0:max_nodes]]
         face_y = y[face_nodes[face_idx, 0:max_nodes]]
         face_z = z[face_nodes[face_idx, 0:max_nodes]]
-
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area, face_jacobian = calculate_face_area(
