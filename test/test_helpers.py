@@ -41,7 +41,7 @@ def test_face_area_coords():
     face_dimension = np.array([3], dtype=INT_DTYPE)
 
     area, _ = ux.grid.area.get_all_face_area_from_coords(
-        x, y, z, face_nodes, face_dimension, 3, coords_type="cartesian")
+        x, y, z, face_nodes, face_dimension)
     nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
 
 
@@ -54,12 +54,12 @@ def test_calculate_face_area():
     z = np.array([0.66674712, 0.43462917, 0.66674712])
 
     area, _ = ux.grid.area.calculate_face_area(
-        x, y, z, "gaussian", 5, "cartesian", latitude_adjusted_area=False)
+        x, y, z, "gaussian", 5, latitude_adjusted_area=False)
 
     nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
 
     area_corrected, _ = ux.grid.area.calculate_face_area(
-        x, y, z, "gaussian", 5, "cartesian", latitude_adjusted_area=True)
+        x, y, z, "gaussian", 5, latitude_adjusted_area=True)
 
     nt.assert_almost_equal(area_corrected, constants.CORRECTED_TRI_AREA, decimal=5)
 
