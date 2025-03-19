@@ -13,7 +13,6 @@ def calculate_face_area(
     z,
     quadrature_rule="gaussian",
     order=4,
-    coords_type="spherical",
     latitude_adjusted_area=False,
 ):
     """Calculate area of a face on sphere.
@@ -39,9 +38,6 @@ def calculate_face_area(
             - Gaussian Quadrature: 1 to 10
             - Triangular: 1, 4, 8, 10 and 12
 
-    coords_type : str, optional
-        coordinate type, default is spherical, can be cartesian also.
-
     latitude_adjusted_area : bool, optional
         If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
 
@@ -65,24 +61,6 @@ def calculate_face_area(
 
     # num triangles is two less than the total number of nodes
     num_triangles = num_nodes - 2
-
-    # TODO: Remove/clarify option for spherical coordinates
-    if coords_type == "spherical":
-        # Preallocate arrays for Cartesian coordinates
-        n_points = len(x)
-        x_cartesian = np.empty(n_points)
-        y_cartesian = np.empty(n_points)
-        z_cartesian = np.empty(n_points)
-
-        # Convert all points to Cartesian coordinates using an explicit loop
-        for i in range(n_points):
-            lon_rad = np.deg2rad(x[i])
-            lat_rad = np.deg2rad(y[i])
-            cartesian = _lonlat_rad_to_xyz(lon_rad, lat_rad)
-            x_cartesian[i], y_cartesian[i], z_cartesian[i] = cartesian
-
-        x, y, z = x_cartesian, y_cartesian, z_cartesian
-
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
     # loop through all sub-triangles of face
     total_correction = 0.0
@@ -199,10 +177,8 @@ def get_all_face_area_from_coords(
     z,
     face_nodes,
     face_geometry,
-    dim,
     quadrature_rule="triangular",
     order=4,
-    coords_type="spherical",
     latitude_adjusted_area=False,
 ):
     """Given coords, connectivity and other area calculation params, this
@@ -223,17 +199,11 @@ def get_all_face_area_from_coords(
     face_nodes : 2D ndarray, required
          node ids of each face
 
-    dim : int, required
-         dimension
-
     quadrature_rule : str, optional
         "triangular" or "gaussian". Defaults to triangular
 
     order : int, optional
         count or order for Gaussian or spherical resp. Defaults to 4 for spherical.
-
-    coords_type : str, optional
-        coordinate type, default is spherical, can be cartesian also.
 
     latitude_adjusted_area : bool, optional
         If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
@@ -256,13 +226,8 @@ def get_all_face_area_from_coords(
     for face_idx, max_nodes in enumerate(face_geometry):
         face_x = x[face_nodes[face_idx, 0:max_nodes]]
         face_y = y[face_nodes[face_idx, 0:max_nodes]]
+        face_z = z[face_nodes[face_idx, 0:max_nodes]]
 
-        # check if z dimension
-
-        if dim > 2:
-            face_z = z[face_nodes[face_idx, 0:max_nodes]]
-        else:
-            face_z = face_x * 0.0
 
         # After getting all the nodes of a face assembled call the  cal. face area routine
         face_area, face_jacobian = calculate_face_area(
@@ -271,7 +236,6 @@ def get_all_face_area_from_coords(
             face_z,
             quadrature_rule,
             order,
-            coords_type,
             latitude_adjusted_area,
         )
         # store current face area
