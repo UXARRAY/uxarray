@@ -14,7 +14,7 @@ from typing import (
     Tuple,
 )
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_faces_edge_nodes
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -71,6 +71,8 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
     _populate_bounds,
+    _populate_faces_edges_cartesian,
+    _populate_faces_edges_spherical,
     _construct_boundary_edge_indices,
     compute_temp_latlon_array,
     _find_faces,
@@ -1444,6 +1446,26 @@ class Grid:
         self._ds["face_areas"] = value
 
     @property
+    def faces_edges_cartesian(self):
+        """Cartesian Coordinates for each Face Edge.
+
+        Dimensions ``(n_face, n_max_face_edges, 2, 3)``
+        """
+        if "faces_edges_cartesian" not in self._ds:
+            _populate_faces_edges_cartesian(self)
+        return self._ds["faces_edges_cartesian"]
+
+    @property
+    def faces_edges_spherical(self):
+        """Latitude Longitude Coordinates for each Face in radians.
+
+        Dimensions ``(n_face, n_max_face_edges, 2, 2)``
+        """
+        if "faces_edges_spherical" not in self._ds:
+            _populate_faces_edges_spherical(self)
+        return self._ds["faces_edges_spherical"]
+
+    @property
     def bounds(self):
         """Latitude Longitude Bounds for each Face in radians.
 
@@ -1456,6 +1478,10 @@ class Grid:
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
+            if "faces_edges_cartesian" not in self._ds:
+                _populate_faces_edges_cartesian(self)
+            if "faces_edges_spherical" not in self._ds:
+                _populate_faces_edges_spherical(self)
             _populate_bounds(self)
         return self._ds["bounds"]
 
@@ -2638,7 +2664,8 @@ class Grid:
             return np.empty(0, dtype=np.int64)
 
         # Get the faces in terms of their edges
-        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
+        # Since this is a new subset, the cartesian_faces_edge_nodes need to be recalculated anyway
+        face_edge_nodes_xyz = _get_cartesian_faces_edge_nodes(
             subset.face_node_connectivity.values,
             subset.n_face,
             subset.n_max_face_nodes,

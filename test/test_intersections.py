@@ -161,20 +161,16 @@ def test_GCA_GCA_north_pole_angled():
 
 def test_GCA_edge_intersection_count():
 
-    from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+    from uxarray.grid.utils import _get_cartesian_faces_edge_nodes
 
     # Generate a normal face that is not crossing the antimeridian or the poles
     vertices_lonlat = [[29.5, 11.0], [29.5, 10.0], [30.5, 10.0], [30.5, 11.0]]
     vertices_lonlat = np.array(vertices_lonlat)
 
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    face_edge_nodes_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values)
+    face_edge_nodes_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                                grid.n_max_face_edges, grid.node_x.values,
+                                                                grid.node_y.values, grid.node_z.values)
 
     face_center_xyz = np.array([grid.face_x.values[0], grid.face_y.values[0], grid.face_z.values[0]], dtype=np.float64)
     north_pole_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
