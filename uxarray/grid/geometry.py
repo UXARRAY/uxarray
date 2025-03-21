@@ -1823,7 +1823,9 @@ def barycentric_coordinates_cartesian(polygon, point):
     >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
 
     Define a cartesian polygon:
-    >>> point_xyz = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64)
+    >>> point_xyz = np.array(
+    ...     [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64
+    ... )
 
     Find the weights:
     >>> bar_weights = barycentric_coordinates_cartesian(polygon, point)
