@@ -1803,3 +1803,77 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
 
     # Return the gotten distance
     return distance
+
+
+def barycentric_coordinates_cartesian(polygon, point):
+    """
+    Compute the barycentric coordinates of a point inside a convex polygon, using cartesian coordinates.
+
+    Parameters
+    ----------
+    polygon: np.array
+        Cartesian coordinates of the polygons' nodes
+    point: np.array
+        Cartesian coordinates of the point.
+
+    Examples
+    --------
+    Define a cartesian point:
+    >>> import numpy as np
+    >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
+    Define a cartesian polygon:
+    >>> point_xyz = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64)
+
+    Find the weights:
+    >>> bar_weights = barycentric_coordinates_cartesian(polygon, point)
+
+    Returns
+    -------
+    weights: np.ndarray
+        Barycentric coordinates corresponding to each vertex in the polygon.
+    """
+    n = len(polygon)
+    weights = np.zeros(n)
+
+    total_area = 0.0
+
+    # Use the first vertex as a reference point to form triangles
+    p0 = polygon[0]
+
+    for i in range(1, n - 1):
+        p1, p2 = polygon[i], polygon[i + 1]
+
+        v1, v2 = p1 - p0, p2 - p0
+        vp = point - p0
+
+        abs_det = np.abs(np.cross(v1, v2))
+        max_coord = np.argmax(abs_det)
+
+        # Select two coordinates
+        idx = [j for j in range(3) if j != max_coord]
+        A = np.column_stack((v1[idx], v2[idx]))  # 2x2 matrix
+        b = vp[idx]  # Right-hand side vector
+
+        # Solve for (b, c)
+        try:
+            b_c = np.linalg.solve(A, b)
+        except np.linalg.LinAlgError:
+            continue
+
+        a = 1 - b_c[0] - b_c[1]
+
+        # Compute triangle area
+        triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
+        total_area += triangle_area
+
+        # Accumulate weights
+        weights[0] += a * triangle_area
+        weights[i] += b_c[0] * triangle_area
+        weights[i + 1] += b_c[1] * triangle_area
+
+    # Normalize weights so they sum to 1
+    if total_area > 0:
+        weights /= total_area
+
+    return weights

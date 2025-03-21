@@ -13,7 +13,6 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
 gridfile_CSne30_data = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
-gridfile_CSne30_data = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 dsfile_vortex_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
@@ -290,12 +289,12 @@ def test_bilinear_remap_center_nodes():
 
 def test_bilinear_remap_nodes():
     """Test remapping to nodes."""
-    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    source_uxds = ux.open_dataset(gridfile_CSne30, gridfile_CSne30_data)
     destination_grid = ux.open_grid(gridfile_geoflow)
 
-    data_on_nodes = source_uxds['latCell'].remap.bilinear(destination_grid, remap_to="nodes")
+    data_on_nodes = source_uxds['var2'].remap.bilinear(destination_grid, remap_to="nodes")
 
-    assert not np.array_equal(source_uxds['latCell'], data_on_nodes)
+    assert not np.array_equal(source_uxds['var2'], data_on_nodes)
 
 def test_remap_return_types_bilinear():
     """Tests the return type of the `UxDataset` and `UxDataArray` implementations of Bilinear Remapping."""

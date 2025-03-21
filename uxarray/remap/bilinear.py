@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from uxarray.grid.geometry import barycentric_coordinates_cartesian
+
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
@@ -9,7 +11,6 @@ import numpy as np
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
-from uxarray.grid.neighbors import _barycentric_coordinates
 
 from uxarray.constants import INT_FILL_VALUE
 
@@ -213,20 +214,21 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size):
 
             # Create the polygon from the `face_node_connectivity`
             nodes_per_face = dual.uxgrid.n_nodes_per_face[face_ind[0]].values
-            polygon = np.empty([nodes_per_face, 2])
+            polygon = np.empty([nodes_per_face, 3])
             data = np.empty([nodes_per_face])
             for ind, node in enumerate(node_ind):
                 if node == INT_FILL_VALUE:
                     break
                 polygon[ind] = [
-                    dual.uxgrid.node_lon.values[node],
-                    dual.uxgrid.node_lat.values[node],
+                    dual.uxgrid.node_x.values[node],
+                    dual.uxgrid.node_y.values[node],
+                    dual.uxgrid.node_z.values[node],
                 ]
 
                 # Create the data array on the polygon
                 data[ind] = source_data[node]
 
-            weights = _barycentric_coordinates(polygon, point_lonlat[i])
+            weights = barycentric_coordinates_cartesian(polygon, point_xyz[i])
             values[i] = np.sum(weights * data, axis=-1)
 
     return values
