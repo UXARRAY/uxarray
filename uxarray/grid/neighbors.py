@@ -963,7 +963,7 @@ def _triangle_area(A, B, C):
     return 0.5 * abs(A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1]))
 
 
-# @njit(cache=True)
+@njit(cache=True)
 def _barycentric_coordinates(nodes, point):
     """
     Compute the barycentric coordinates of a point P inside a convex polygon using area-based weights.
