@@ -1838,6 +1838,7 @@ def barycentric_coordinates_cartesian(polygon, point):
     """
     n = len(polygon)
     weights = np.zeros(n)
+    total_area = 0.0
 
     # Use the first vertex as a reference point to form triangles
     p0 = polygon[0]
@@ -1870,11 +1871,18 @@ def barycentric_coordinates_cartesian(polygon, point):
         # Solve for a
         a = 1 - b_c[0] - b_c[1]
 
-        # If the barycentric coordinates are valid the proper triangle has been found, thus they are returned
-        if a >= 0 and b_c[0] >= 0 and b_c[1] >= 0:
-            weights[0] = a
-            weights[i] = b_c[0]
-            weights[i + 1] = b_c[1]
-            return weights
+        # Compute triangle area
+        triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
+        total_area += triangle_area
+
+        # Accumulate weights
+        weights[0] += a * triangle_area
+        weights[i] += b_c[0] * triangle_area
+        weights[i + 1] += b_c[1] * triangle_area
+
+    # Normalize weights so they sum to 1
+    if total_area > 0:
+        weights /= total_area
+
 
     return weights
