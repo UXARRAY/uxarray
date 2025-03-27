@@ -1884,5 +1884,4 @@ def barycentric_coordinates_cartesian(polygon, point):
     if total_area > 0:
         weights /= total_area
 
-
     return weights
