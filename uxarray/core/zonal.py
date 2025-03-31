@@ -48,4 +48,10 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
             axis=-1
         )
 
+    # Remove the "faces_edges_cartesian" and "faces_edges_spherical" since they're no longer needed
+    if "faces_edges_cartesian" in uxgrid._ds:
+        del uxgrid.faces_edges_cartesian
+
+    if "faces_edges_spherical" in uxgrid._ds:
+        del uxgrid.faces_edges_spherical
     return result

@@ -483,13 +483,6 @@ class UxDataArray(xr.DataArray):
             uxda=self, latitudes=latitudes, **kwargs
         )
 
-        # Remove the "faces_edges_cartesian" and "faces_edges_spherical" since they're no longer needed
-        if "faces_edges_cartesian" in self._ds:
-            del self.faces_edges_cartesian
-
-        if "faces_edges_spherical" in self._ds:
-            del self.faces_edges_spherical
-
         dims = list(self.dims[:-1]) + ["latitudes"]
 
         uxda = UxDataArray(
