@@ -1455,6 +1455,15 @@ class Grid:
             _populate_faces_edges_cartesian(self)
         return self._ds["faces_edges_cartesian"]
 
+    @faces_edges_cartesian.setter
+    def faces_edges_cartesian(self, value):
+        self._ds["faces_edges_cartesian"] = value
+
+    @faces_edges_cartesian.deleter
+    def faces_edges_cartesian(self):
+        if "faces_edges_cartesian" in self._ds:
+            del self._ds["faces_edges_cartesian"]
+
     @property
     def faces_edges_spherical(self):
         """Latitude Longitude Coordinates for each Face in radians.
@@ -1464,6 +1473,15 @@ class Grid:
         if "faces_edges_spherical" not in self._ds:
             _populate_faces_edges_spherical(self)
         return self._ds["faces_edges_spherical"]
+
+    @faces_edges_spherical.setter
+    def faces_edges_spherical(self, value):
+        self._ds["faces_edges_spherical"] = value
+
+    @faces_edges_spherical.deleter
+    def faces_edges_spherical(self):
+        if "faces_edges_spherical" in self._ds:
+            del self._ds["faces_edges_spherical"]
 
     @property
     def bounds(self):
