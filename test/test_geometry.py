@@ -12,9 +12,9 @@ import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad, \
     _xyz_to_lonlat_deg, _xyz_to_lonlat_rad_scalar
 from uxarray.grid.arcs import extreme_gca_latitude, extreme_gca_z
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_faces_edge_nodes, _get_lonlat_rad_faces_edge_nodes
 
-from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, _pole_point_inside_polygon_cartesian, \
+from uxarray.grid.geometry import _populate_face_latlon_bound, _populate_bounds, pole_point_inside_polygon, \
     stereographic_projection, inverse_stereographic_projection, point_in_face, haversine_distance
 
 from sklearn.metrics.pairwise import haversine_distances
@@ -77,10 +77,18 @@ def test_pole_point_inside_polygon_from_vertice_north():
                                [vertices[2], vertices[3]],
                                [vertices[3], vertices[0]]])
 
-    result = _pole_point_inside_polygon_cartesian('North', face_edge_cart)
+    x = face_edge_cart[:, :, 0]
+    y = face_edge_cart[:, :, 1]
+    z = face_edge_cart[:, :, 2]
+
+    lon, lat = _xyz_to_lonlat_rad(x, y, z)
+
+    face_edges_lonlat = np.stack((lon, lat), axis=2)
+
+    result = pole_point_inside_polygon(1, face_edge_cart,face_edges_lonlat )
     assert result, "North pole should be inside the polygon"
 
-    result = _pole_point_inside_polygon_cartesian('South', face_edge_cart)
+    result = pole_point_inside_polygon(-1, face_edge_cart,face_edges_lonlat)
     assert not result, "South pole should not be inside the polygon"
 
 
@@ -95,10 +103,19 @@ def test_pole_point_inside_polygon_from_vertice_south():
                                [vertices[1], vertices[2]],
                                [vertices[2], vertices[0]]])
 
-    result = _pole_point_inside_polygon_cartesian('North', face_edge_cart)
+    x = face_edge_cart[:, :, 0]
+    y = face_edge_cart[:, :, 1]
+    z = face_edge_cart[:, :, 2]
+
+    lon, lat = _xyz_to_lonlat_rad(x, y, z)
+
+    face_edges_lonlat = np.stack((lon, lat), axis=2)
+
+
+    result = pole_point_inside_polygon(1, face_edge_cart, face_edges_lonlat)
     assert not result, "North pole should not be inside the polygon"
 
-    result = _pole_point_inside_polygon_cartesian('South', face_edge_cart)
+    result = pole_point_inside_polygon(-1, face_edge_cart, face_edges_lonlat)
     assert result, "South pole should be inside the polygon"
 
 
@@ -115,10 +132,18 @@ def test_pole_point_inside_polygon_from_vertice_pole():
                                [vertices[2], vertices[3]],
                                [vertices[3], vertices[0]]])
 
-    result = _pole_point_inside_polygon_cartesian('North', face_edge_cart)
+    x = face_edge_cart[:, :, 0]
+    y = face_edge_cart[:, :, 1]
+    z = face_edge_cart[:, :, 2]
+
+    lon, lat = _xyz_to_lonlat_rad(x, y, z)
+
+    face_edges_lonlat = np.stack((lon, lat), axis=2)
+
+    result = pole_point_inside_polygon(1, face_edge_cart, face_edges_lonlat)
     assert result, "North pole should be inside the polygon"
 
-    result = _pole_point_inside_polygon_cartesian('South', face_edge_cart)
+    result = pole_point_inside_polygon(-1, face_edge_cart, face_edges_lonlat)
     assert not result, "South pole should not be inside the polygon"
 
 
@@ -135,7 +160,15 @@ def test_pole_point_inside_polygon_from_vertice_cross():
                                [vertices[2], vertices[3]],
                                [vertices[3], vertices[0]]])
 
-    result = _pole_point_inside_polygon_cartesian('North', face_edge_cart)
+    x = face_edge_cart[:, :, 0]
+    y = face_edge_cart[:, :, 1]
+    z = face_edge_cart[:, :, 2]
+
+    lon, lat = _xyz_to_lonlat_rad(x, y, z)
+
+    face_edges_lonlat = np.stack((lon, lat), axis=2)
+
+    result = pole_point_inside_polygon(1, face_edge_cart,face_edges_lonlat)
     assert result, "North pole should be inside the polygon"
 
 
@@ -181,7 +214,7 @@ def _max_latitude_rad_iterative(gca_cart):
             b_lonlat[0] - c_lonlat[0]) >= ERROR_TOLERANCE:
         max_lat = -np.pi
         v_b, v_c = max_section
-        angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
+        angle_v1_v2_rad = ux.grid.utils._angle_of_2_vectors(v_b, v_c)
         v0 = ac_utils.cross_fma(v_temp, v_b)
         v0 = _normalize_xyz(*v0.tolist())
         avg_angle_rad = angle_v1_v2_rad / 10.0
@@ -269,7 +302,7 @@ def _min_latitude_rad_iterative(gca_cart):
             b_lonlat[0] - c_lonlat[0]) >= ERROR_TOLERANCE:
         min_lat = np.pi
         v_b, v_c = min_section
-        angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
+        angle_v1_v2_rad = ux.grid.utils._angle_of_2_vectors(v_b, v_c)
         v0 = ac_utils.cross_fma(v_temp, v_b)
         v0 = np.array(_normalize_xyz(*v0.tolist()))
         avg_angle_rad = angle_v1_v2_rad / 10.0
@@ -1184,14 +1217,9 @@ def test_point_inside():
     grid = ux.open_grid(grid_mpas_2)
 
     # Get the face edges of all faces in the grid
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     # Loop through each face
     for i in range(grid.n_face):
@@ -1209,14 +1237,9 @@ def test_point_outside():
     grid = ux.open_grid(grid_mpas_2)
 
     # Get the face edges of all faces in the grid
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     # Set the point as the face center of a different face than the face tested
     point_xyz = np.array([grid.face_x[1].values, grid.face_y[1].values, grid.face_z[1].values])
@@ -1232,14 +1255,9 @@ def test_point_on_node():
     grid = ux.open_grid(grid_mpas_2)
 
     # Get the face edges of all faces in the grid
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     # Set the point as a node
     point_xyz = np.array([*faces_edges_cartesian[0][0][0]])
@@ -1263,14 +1281,9 @@ def test_point_inside_close():
 
     # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     # Use point in face to determine if the point is inside or out of the face
     assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=False)
@@ -1288,14 +1301,9 @@ def test_point_outside_close():
 
     # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     # Use point in face to determine if the point is inside or out of the face
     assert not point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=False)
@@ -1312,14 +1320,9 @@ def test_face_at_pole():
 
     # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
 
@@ -1334,14 +1337,9 @@ def test_face_at_antimeridian():
 
     # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
 
@@ -1357,14 +1355,9 @@ def test_face_normal_face():
 
     # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(grid.face_node_connectivity.values, grid.n_face,
+                                                            grid.n_max_face_edges, grid.node_x.values,
+                                                            grid.node_y.values, grid.node_z.values)
 
     assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
 
