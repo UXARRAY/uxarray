@@ -995,7 +995,6 @@ def _barycentric_coordinates(nodes, point):
         a2 = max(_triangle_area(point, vi, vi1), ERROR_TOLERANCE)
         sum_wi += a0 / (a1 * a2)
         w.append(a0 / (a1 * a2))
-
     barycentric_coords = [w_i / sum_wi for w_i in w]
 
     return barycentric_coords

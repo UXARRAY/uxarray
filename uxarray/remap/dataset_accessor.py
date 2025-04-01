@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from uxarray.remap.bilinear import _bilinear_uxds
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxds
 from uxarray.remap.inverse_distance_weighted import (
     _inverse_distance_weighted_remap_uxds,
@@ -13,8 +14,6 @@ from uxarray.grid import Grid
 
 
 class UxDatasetRemapAccessor:
-    """Remapping accessor for ``UxDataset``"""
-
     def __init__(self, uxds: UxDataset):
         self.uxds = uxds
 
@@ -31,12 +30,12 @@ class UxDatasetRemapAccessor:
 
     def nearest_neighbor(
         self,
-        destination_grid: Grid,
+        destination_grid: Grid = None,
         remap_to: str = "face centers",
         coord_type: str = "spherical",
     ):
-        """Nearest Neighbor Remapping between a source ``UxDataset`` and
-        destination ``Grid``
+        """Nearest Neighbor Remapping between a source (``UxDataset``) and
+        destination.`.
 
         Parameters
         ---------
@@ -48,18 +47,21 @@ class UxDatasetRemapAccessor:
             Indicates whether to remap using on spherical or cartesian coordinates
         """
 
+        if destination_grid is None:
+            raise ValueError("Destination needed for remap.")
+
         return _nearest_neighbor_uxds(self.uxds, destination_grid, remap_to, coord_type)
 
     def inverse_distance_weighted(
         self,
-        destination_grid: Grid,
+        destination_grid: Grid = None,
         remap_to: str = "face centers",
         coord_type: str = "spherical",
         power=2,
         k=8,
     ):
-        """Inverse Distance Weighted Remapping between a source ``UxDataset``
-        and destination ``Grid``
+        """Inverse Distance Weighted Remapping between a source (``UxDataset``)
+        and destination.`.
 
         Parameters
         ---------
@@ -76,6 +78,29 @@ class UxDatasetRemapAccessor:
             Number of nearest neighbors to consider in the weighted calculation.
         """
 
+        if destination_grid is None:
+            raise ValueError("Destination needed for remap.")
+
         return _inverse_distance_weighted_remap_uxds(
             self.uxds, destination_grid, remap_to, coord_type, power, k
         )
+
+    def bilinear(
+        self,
+        destination_grid: Grid = None,
+        remap_to: str = "face centers",
+    ):
+        """Bilinear Remapping between a source (``UxDataset``) and
+        destination.
+
+        Parameters
+        ---------
+        destination_grid : Grid
+            Destination Grid for remapping
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+        """
+        if destination_grid is None:
+            raise ValueError("Destination needed for remap.")
+
+        return _bilinear_uxds(self.uxds, destination_grid, remap_to)
