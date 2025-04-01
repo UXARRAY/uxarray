@@ -1176,7 +1176,7 @@ class UxDataArray(xr.DataArray):
         "n_edge" dimension)"""
         return "n_edge" in self.dims
 
-    def isel(self, ignore_grid=False, inverse_indices=False, *args, **kwargs):
+    def isel(self, ignore_grid=False, *args, **kwargs):
         """Grid-informed implementation of xarray's ``isel`` method, which
         enables indexing across grid dimensions.
 
@@ -1210,17 +1210,11 @@ class UxDataArray(xr.DataArray):
                 raise ValueError("Only one grid dimension can be sliced at a time")
 
             if "n_node" in kwargs:
-                sliced_grid = self.uxgrid.isel(
-                    n_node=kwargs["n_node"], inverse_indices=inverse_indices
-                )
+                sliced_grid = self.uxgrid.isel(n_node=kwargs["n_node"])
             elif "n_edge" in kwargs:
-                sliced_grid = self.uxgrid.isel(
-                    n_edge=kwargs["n_edge"], inverse_indices=inverse_indices
-                )
+                sliced_grid = self.uxgrid.isel(n_edge=kwargs["n_edge"])
             else:
-                sliced_grid = self.uxgrid.isel(
-                    n_face=kwargs["n_face"], inverse_indices=inverse_indices
-                )
+                sliced_grid = self.uxgrid.isel(n_face=kwargs["n_face"])
 
             return self._slice_from_grid(sliced_grid)
 
@@ -1255,23 +1249,24 @@ class UxDataArray(xr.DataArray):
 
         return cls(ds, uxgrid=uxgrid)
 
+    # TODO:
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
 
         if self._face_centered():
             da_sliced = self.isel(
-                n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
+                n_face=sliced_grid._ds["source_face_indices"], ignore_grid=True
             )
 
         elif self._edge_centered():
             da_sliced = self.isel(
-                n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
+                n_edge=sliced_grid._ds["source_edge_indices"], ignore_grid=True
             )
 
         elif self._node_centered():
             da_sliced = self.isel(
-                n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
+                n_node=sliced_grid._ds["source_node_indices"], ignore_grid=True
             )
 
         else:
