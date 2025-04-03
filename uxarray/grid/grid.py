@@ -14,7 +14,7 @@ from typing import (
     Tuple,
 )
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes, make_setter
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -179,7 +179,7 @@ class Grid:
         self,
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
-        source_dims_dict: Optional[dict] = {},
+        source_dims_dict: Optional[dict] = None,
         is_subset: bool = False,
         inverse_indices: Optional[xr.Dataset] = None,
     ):
@@ -204,7 +204,9 @@ class Grid:
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
-        self._source_dims_dict = source_dims_dict
+        self._source_dims_dict = (
+            source_dims_dict if source_dims_dict is not None else {}
+        )
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
@@ -679,7 +681,7 @@ class Grid:
 
         prefix = "<uxarray.Grid>\n"
         original_grid_str = f"Original Grid Type: {self.source_grid_spec}\n"
-        dims_heading = "Grid Dimensions:\n"
+        dims_heading = "Grid Shape:\n"
         dims_str = ""
 
         for dim_name in ugrid.DIM_NAMES:
@@ -859,7 +861,12 @@ class Grid:
 
     @property
     def n_max_face_nodes(self) -> int:
-        """The maximum number of nodes that can make up a single face."""
+        """The maximum number of nodes that can make up a single face.
+
+        For example, if a grid is composed entirely of triangular faces, the value would be 3. If a grid is composed
+        of a mix of triangles and hexagons, the value would be 6.
+
+        """
         return self.face_node_connectivity.shape[1]
 
     @property
@@ -894,24 +901,30 @@ class Grid:
     def n_nodes_per_face(self) -> xr.DataArray:
         """The number of nodes that make up each face.
 
-        Dimensions: ``(n_node, )``
+        Shape: ``(n_face, )``
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
 
         return self._ds["n_nodes_per_face"]
 
-    @n_nodes_per_face.setter
-    def n_nodes_per_face(self, value):
-        """Setter for ``n_nodes_per_face``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["n_nodes_per_face"] = value
+    n_nodes_per_face = n_nodes_per_face.setter(make_setter("n_nodes_per_face"))
+
+    @property
+    def n_edges_per_face(self) -> xr.DataArray:
+        """The number of edges that make up each face. Equivalent to ``n_nodes_per_face``.
+
+        Shape: ``(n_face, )``
+        """
+        return self.n_nodes_per_face
 
     @property
     def node_lon(self) -> xr.DataArray:
         """Longitude of each node in degrees.
 
-        Dimensions: ``(n_node, )``
+        Values are expected to be in the range ``[-180.0, 180.0]``.
+
+        Shape: ``(n_node, )``
         """
         if "node_lon" not in self._ds:
             if self.source_grid_spec == "HEALPix":
@@ -921,17 +934,13 @@ class Grid:
                 _populate_node_latlon(self)
         return self._ds["node_lon"]
 
-    @node_lon.setter
-    def node_lon(self, value):
-        """Setter for ``node_lon``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_lon"] = value
+    node_lon = node_lon.setter(make_setter("node_lon"))
 
     @property
     def node_lat(self) -> xr.DataArray:
         """Latitude of each node in degrees.
 
-        Dimensions: ``(n_node, )``
+        Shape: ``(n_node, )``
         """
         if "node_lat" not in self._ds:
             if self.source_grid_spec == "HEALPix":
@@ -941,166 +950,130 @@ class Grid:
                 _populate_node_latlon(self)
         return self._ds["node_lat"]
 
-    @node_lat.setter
-    def node_lat(self, value):
-        """Setter for ``node_lat``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_lat"] = value
+    node_lat = node_lat.setter(make_setter("node_lat"))
 
     @property
     def node_x(self) -> xr.DataArray:
         """Cartesian x location of each node in meters.
 
-        Dimensions: ``(n_node, )``
+        Shape: ``(n_node, )``
         """
         if "node_x" not in self._ds:
             _populate_node_xyz(self)
 
         return self._ds["node_x"]
 
-    @node_x.setter
-    def node_x(self, value):
-        """Setter for ``node_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_x"] = value
+    node_x = node_x.setter(make_setter("node_x"))
 
     @property
     def node_y(self) -> xr.DataArray:
         """Cartesian y location of each node in meters.
 
-        Dimensions: ``(n_node, )``
+        Shape: ``(n_node, )``
         """
         if "node_y" not in self._ds:
             _populate_node_xyz(self)
         return self._ds["node_y"]
 
-    @node_y.setter
-    def node_y(self, value):
-        """Setter for ``node_y``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_y"] = value
+    node_y = node_y.setter(make_setter("node_y"))
 
     @property
     def node_z(self) -> xr.DataArray:
         """Cartesian z location of each node in meters.
 
-        Dimensions: ``(n_node, )``
+        Shape: ``(n_node, )``
         """
         if "node_z" not in self._ds:
             _populate_node_xyz(self)
         return self._ds["node_z"]
 
-    @node_z.setter
-    def node_z(self, value):
-        """Setter for ``node_z``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_z"] = value
+    node_z = node_z.setter(make_setter("node_z"))
 
     @property
     def edge_lon(self) -> xr.DataArray:
         """Longitude of the center of each edge in degrees.
 
-        Dimensions: ``(n_edge, )``
+        Values are expected to be in the range ``[-180.0, 180.0]``.
+
+        Shape: ``(n_edge, )``
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
             _set_desired_longitude_range(self)
         return self._ds["edge_lon"]
 
-    @edge_lon.setter
-    def edge_lon(self, value):
-        """Setter for ``edge_lon``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_lon"] = value
+    edge_lon = edge_lon.setter(make_setter("edge_lon"))
 
     @property
     def edge_lat(self) -> xr.DataArray:
         """Latitude of the center of each edge in degrees.
 
-        Dimensions: ``(n_edge, )``
+        Shape: ``(n_edge, )``
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
         _set_desired_longitude_range(self)
         return self._ds["edge_lat"]
 
-    @edge_lat.setter
-    def edge_lat(self, value):
-        """Setter for ``edge_lat``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_lat"] = value
+    edge_lat = edge_lat.setter(make_setter("edge_lat"))
 
     @property
     def edge_x(self) -> xr.DataArray:
         """Cartesian x location of the center of each edge in meters.
 
-        Dimensions: ``(n_edge, )``
+        Shape: ``(n_edge, )``
         """
         if "edge_x" not in self._ds:
             _populate_edge_centroids(self)
 
         return self._ds["edge_x"]
 
-    @edge_x.setter
-    def edge_x(self, value):
-        """Setter for ``edge_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_x"] = value
+    edge_x = edge_x.setter(make_setter("edge_x"))
 
     @property
     def edge_y(self) -> xr.DataArray:
         """Cartesian y location of the center of each edge in meters.
 
-        Dimensions: ``(n_edge, )``
+        Shape: ``(n_edge, )``
         """
         if "edge_y" not in self._ds:
             _populate_edge_centroids(self)
         return self._ds["edge_y"]
 
-    @edge_y.setter
-    def edge_y(self, value):
-        """Setter for ``edge_y``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_y"] = value
+    edge_y = edge_y.setter(make_setter("edge_y"))
 
     @property
     def edge_z(self) -> xr.DataArray:
         """Cartesian z location of the center of each edge in meters.
 
-        Dimensions: ``(n_edge, )``
+        Shape: ``(n_edge, )``
         """
         if "edge_z" not in self._ds:
             _populate_edge_centroids(self)
         return self._ds["edge_z"]
 
-    @edge_z.setter
-    def edge_z(self, value):
-        """Setter for ``edge_z``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_z"] = value
+    edge_z = edge_z.setter(make_setter("edge_z"))
 
     @property
     def face_lon(self) -> xr.DataArray:
         """Longitude of the center of each face in degrees.
 
-        Dimensions: ``(n_face, )``
+        Values are expected to be in the range ``[-180.0, 180.0]``.
+
+        Shape: ``(n_face, )``
         """
         if "face_lon" not in self._ds:
             _populate_face_centroids(self)
             _set_desired_longitude_range(self)
         return self._ds["face_lon"]
 
-    @face_lon.setter
-    def face_lon(self, value):
-        """Setter for ``face_lon``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_lon"] = value
+    face_lon = face_lon.setter(make_setter("face_lon"))
 
     @property
     def face_lat(self) -> xr.DataArray:
         """Latitude of the center of each face in degrees.
 
-        Dimensions: ``(n_face, )``
+        Shape: ``(n_face, )``
         """
         if "face_lat" not in self._ds:
             _populate_face_centroids(self)
@@ -1108,66 +1081,51 @@ class Grid:
 
         return self._ds["face_lat"]
 
-    @face_lat.setter
-    def face_lat(self, value):
-        """Setter for ``face_lat``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_lat"] = value
+    face_lat = face_lat.setter(make_setter("face_lat"))
 
     @property
     def face_x(self) -> xr.DataArray:
         """Cartesian x location of the center of each face in meters.
 
-        Dimensions: ``(n_face, )``
+        Shape: ``(n_face, )``
         """
         if "face_x" not in self._ds:
             _populate_face_centroids(self)
 
         return self._ds["face_x"]
 
-    @face_x.setter
-    def face_x(self, value):
-        """Setter for ``face_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_x"] = value
+    face_x = face_x.setter(make_setter("face_x"))
 
     @property
     def face_y(self) -> xr.DataArray:
         """Cartesian y location of the center of each face in meters.
 
-        Dimensions: ``(n_face, )``
+        Shape: ``(n_face, )``
         """
         if "face_y" not in self._ds:
             _populate_face_centroids(self)
         return self._ds["face_y"]
 
-    @face_y.setter
-    def face_y(self, value):
-        """Setter for ``face_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_y"] = value
+    face_y = face_y.setter(make_setter("face_y"))
 
     @property
     def face_z(self) -> xr.DataArray:
         """Cartesian z location of the center of each face in meters.
 
-        Dimensions: ``(n_face, )``
+        Shape: ``(n_face, )``
         """
         if "face_z" not in self._ds:
             _populate_face_centroids(self)
         return self._ds["face_z"]
 
-    @face_z.setter
-    def face_z(self, value):
-        """Setter for ``face_z``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_z"] = value
+    face_z = face_z.setter(make_setter("face_z"))
 
     @property
     def face_node_connectivity(self) -> xr.DataArray:
-        """Indices of the nodes that make up each face.
+        """
+        Indices of the nodes that make up each face.
 
-        Dimensions: ``(n_face, n_max_face_nodes)``
+        Shape: ``(n_face, n_max_face_nodes)``
 
         Nodes are in counter-clockwise order.
         """
@@ -1191,17 +1149,15 @@ class Grid:
 
         return self._ds["face_node_connectivity"]
 
-    @face_node_connectivity.setter
-    def face_node_connectivity(self, value):
-        """Setter for ``face_node_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_node_connectivity"] = value
+    face_node_connectivity = face_node_connectivity.setter(
+        make_setter("face_node_connectivity")
+    )
 
     @property
     def edge_node_connectivity(self) -> xr.DataArray:
         """Indices of the two nodes that make up each edge.
 
-        Dimensions: ``(n_edge, two)``
+        Shape: ``(n_edge, two)``
 
         Nodes are in arbitrary order.
         """
@@ -1210,17 +1166,15 @@ class Grid:
 
         return self._ds["edge_node_connectivity"]
 
-    @edge_node_connectivity.setter
-    def edge_node_connectivity(self, value):
-        """Setter for ``edge_node_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_node_connectivity"] = value
+    edge_node_connectivity = edge_node_connectivity.setter(
+        make_setter("edge_node_connectivity")
+    )
 
     @property
     def edge_node_x(self) -> xr.DataArray:
         """Cartesian x location for the two nodes that make up every edge.
 
-        Dimensions: ``(n_edge, two)``
+        Shape: ``(n_edge, two)``
         """
 
         if "edge_node_x" not in self._ds:
@@ -1234,40 +1188,6 @@ class Grid:
         return self._ds["edge_node_x"]
 
     @property
-    def edge_node_y(self) -> xr.DataArray:
-        """Cartesian y location for the two nodes that make up every edge.
-
-        Dimensions: ``(n_edge, two)``
-        """
-
-        if "edge_node_y" not in self._ds:
-            _edge_node_y = self.node_y[self.edge_node_connectivity]
-
-            self._ds["edge_node_y"] = xr.DataArray(
-                data=_edge_node_y,
-                dims=["n_edge", "two"],
-            )
-
-        return self._ds["edge_node_y"]
-
-    @property
-    def edge_node_z(self) -> xr.DataArray:
-        """Cartesian z location for the two nodes that make up every edge.
-
-        Dimensions: ``(n_edge, two)``
-        """
-
-        if "edge_node_z" not in self._ds:
-            _edge_node_z = self.node_z[self.edge_node_connectivity]
-
-            self._ds["edge_node_z"] = xr.DataArray(
-                data=_edge_node_z,
-                dims=["n_edge", "two"],
-            )
-
-        return self._ds["edge_node_z"]
-
-    @property
     def node_node_connectivity(self) -> xr.DataArray:
         """Indices of the nodes that surround each node."""
         if "node_node_connectivity" not in self._ds:
@@ -1276,34 +1196,30 @@ class Grid:
             )
         return self._ds["node_node_connectivity"]
 
-    @node_node_connectivity.setter
-    def node_node_connectivity(self, value):
-        """Setter for ``node_node_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_node_connectivity"] = value
+    node_node_connectivity = node_node_connectivity.setter(
+        make_setter("node_node_connectivity")
+    )
 
     @property
     def face_edge_connectivity(self) -> xr.DataArray:
         """Indices of the edges that surround each face.
 
-        Dimensions: ``(n_face, n_max_face_edges)``
+        Shape: ``(n_face, n_max_face_edges)``
         """
         if "face_edge_connectivity" not in self._ds:
             _populate_face_edge_connectivity(self)
 
         return self._ds["face_edge_connectivity"]
 
-    @face_edge_connectivity.setter
-    def face_edge_connectivity(self, value):
-        """Setter for ``face_edge_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_edge_connectivity"] = value
+    face_edge_connectivity = face_edge_connectivity.setter(
+        make_setter("face_edge_connectivity")
+    )
 
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
         """Indices of the edges that surround each edge.
 
-        Dimensions: ``(n_face, n_max_edge_edges)``
+        Shape: ``(n_face, n_max_edge_edges)``
         """
         if "edge_edge_connectivity" not in self._ds:
             raise NotImplementedError(
@@ -1312,11 +1228,9 @@ class Grid:
 
         return self._ds["edge_edge_connectivity"]
 
-    @edge_edge_connectivity.setter
-    def edge_edge_connectivity(self, value):
-        """Setter for ``edge_edge_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_edge_connectivity"] = value
+    edge_edge_connectivity = edge_edge_connectivity.setter(
+        make_setter("edge_edge_connectivity")
+    )
 
     @property
     def node_edge_connectivity(self) -> xr.DataArray:
@@ -1328,11 +1242,9 @@ class Grid:
 
         return self._ds["node_edge_connectivity"]
 
-    @node_edge_connectivity.setter
-    def node_edge_connectivity(self, value):
-        """Setter for ``node_edge_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_edge_connectivity"] = value
+    node_edge_connectivity = node_edge_connectivity.setter(
+        make_setter("node_edge_connectivity")
+    )
 
     @property
     def face_face_connectivity(self) -> xr.DataArray:
@@ -1345,11 +1257,9 @@ class Grid:
 
         return self._ds["face_face_connectivity"]
 
-    @face_face_connectivity.setter
-    def face_face_connectivity(self, value):
-        """Setter for ``face_face_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_face_connectivity"] = value
+    face_face_connectivity = face_face_connectivity.setter(
+        make_setter("face_face_connectivity")
+    )
 
     @property
     def edge_face_connectivity(self) -> xr.DataArray:
@@ -1362,11 +1272,9 @@ class Grid:
 
         return self._ds["edge_face_connectivity"]
 
-    @edge_face_connectivity.setter
-    def edge_face_connectivity(self, value):
-        """Setter for ``edge_face_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_face_connectivity"] = value
+    edge_face_connectivity = edge_face_connectivity.setter(
+        make_setter("edge_face_connectivity")
+    )
 
     @property
     def node_face_connectivity(self) -> xr.DataArray:
@@ -1379,11 +1287,9 @@ class Grid:
 
         return self._ds["node_face_connectivity"]
 
-    @node_face_connectivity.setter
-    def node_face_connectivity(self, value):
-        """Setter for ``node_face_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_face_connectivity"] = value
+    node_face_connectivity = node_face_connectivity.setter(
+        make_setter("node_face_connectivity")
+    )
 
     @property
     def edge_node_distances(self):
@@ -1395,11 +1301,7 @@ class Grid:
             _populate_edge_node_distances(self)
         return self._ds["edge_node_distances"]
 
-    @edge_node_distances.setter
-    def edge_node_distances(self, value):
-        """Setter for ``edge_node_distances``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_node_distances"] = value
+    edge_node_distances = edge_node_distances.setter(make_setter("edge_node_distances"))
 
     @property
     def edge_face_distances(self):
@@ -1412,11 +1314,7 @@ class Grid:
             _populate_edge_face_distances(self)
         return self._ds["edge_face_distances"]
 
-    @edge_face_distances.setter
-    def edge_face_distances(self, value):
-        """Setter for ``edge_face_distances``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_face_distances"] = value
+    edge_face_distances = edge_face_distances.setter(make_setter("edge_face_distances"))
 
     @property
     def antimeridian_face_indices(self) -> np.ndarray:
@@ -1437,11 +1335,7 @@ class Grid:
             )
         return self._ds["face_areas"]
 
-    @face_areas.setter
-    def face_areas(self, value):
-        """Setter for ``face_areas``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_areas"] = value
+    face_areas = face_areas.setter(make_setter("face_areas"))
 
     @property
     def bounds(self):
@@ -1459,11 +1353,7 @@ class Grid:
             _populate_bounds(self)
         return self._ds["bounds"]
 
-    @bounds.setter
-    def bounds(self, value):
-        """Setter for ``bounds``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["bounds"] = value
+    bounds = bounds.setter(make_setter("bounds"))
 
     @property
     def face_bounds_lon(self):
@@ -1515,11 +1405,9 @@ class Grid:
             )
         return self._ds["boundary_edge_indices"]
 
-    @boundary_edge_indices.setter
-    def boundary_edge_indices(self, value):
-        """Setter for ``boundary_edge_indices``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["boundary_edge_indices"] = value
+    boundary_edge_indices = boundary_edge_indices.setter(
+        make_setter("boundary_edge_indices")
+    )
 
     @property
     def boundary_node_indices(self):
@@ -1530,11 +1418,9 @@ class Grid:
 
         return self._ds["boundary_node_indices"]
 
-    @boundary_node_indices.setter
-    def boundary_node_indices(self, value):
-        """Setter for ``boundary_node_indices``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["boundary_node_indices"] = value
+    boundary_node_indices = boundary_node_indices.setter(
+        make_setter("boundary_node_indices")
+    )
 
     @property
     def boundary_face_indices(self):
@@ -1551,11 +1437,9 @@ class Grid:
 
         return self._ds["boundary_face_indices"]
 
-    @boundary_face_indices.setter
-    def boundary_face_indices(self, value):
-        """Setter for ``boundary_face_indices``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["boundary_face_indices"] = value
+    boundary_face_indices = boundary_face_indices.setter(
+        make_setter("boundary_face_indices")
+    )
 
     @property
     def triangular(self):

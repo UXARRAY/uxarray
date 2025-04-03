@@ -53,6 +53,7 @@ def test_quad_hex():
         else:
             assert grad.values[i] != 0
 
+    # TODO:
     expected_values = np.array([27.95, 20.79, 28.96, 0, 0, 0, 0, 60.64, 0, 86.45, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     nt.assert_almost_equal(grad.values, expected_values, 1e-2)
 

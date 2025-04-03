@@ -1,7 +1,19 @@
 import numpy as np
+import xarray as xr
 from uxarray.constants import INT_FILL_VALUE
 
 from numba import njit
+
+
+def make_setter(key: str):
+    """Return a setter that assigns the value to self._ds[key] after type-checking."""
+
+    def setter(self, value):
+        if not isinstance(value, xr.DataArray):
+            raise ValueError(f"{key} must be an xr.DataArray")
+        self._ds[key] = value
+
+    return setter
 
 
 @njit(cache=True)
@@ -229,6 +241,11 @@ def _get_cartesian_face_edge_nodes(
         [[INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE],
          [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]]]])
     """
+
+    # face_edge_connectivity (n_face, n_edge)
+
+    # each edge should have a shape (2, 3)
+
     # Shift node connections to create edge connections
     face_node_conn_shift = np.roll(face_node_conn, -1, axis=1)
 
