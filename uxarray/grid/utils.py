@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 from numba import njit
 
@@ -337,3 +337,117 @@ def _get_lonlat_rad_face_edge_nodes(
     face_edges_lonlat_rad[valid_mask, 1] = node_lat_rad[valid_edges]
 
     return face_edges_lonlat_rad.reshape(n_face, n_max_face_edges, 2, 2)
+
+
+def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
+    """Closes (``face_node_connectivity``) by inserting the first node index
+    after the last non-fill-value node.
+
+    Parameters
+    ----------
+    face_node_connectivity : np.ndarray
+        Connectivity array for constructing a face from its nodes
+    n_face : constant
+        Number of faces
+    n_max_face_nodes : constant
+        Max number of nodes that compose a face
+
+    Returns
+    ----------
+    closed : ndarray
+        Closed (padded) face_node_connectivity
+
+    Example
+    ----------
+    Given face nodes with shape [2 x 5]
+        [0, 1, 2, 3, FILL_VALUE]
+        [4, 5, 6, 7, 8]
+    Pads them to the following with shape [2 x 6]
+        [0, 1, 2, 3, 0, FILL_VALUE]
+        [4, 5, 6, 7, 8, 4]
+    """
+
+    # padding to shape [n_face, n_max_face_nodes + 1]
+    closed = np.ones((n_face, n_max_face_nodes + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    # set all non-paded values to original face nodee values
+    closed[:, :-1] = face_node_connectivity.copy()
+
+    # instance of first fill value
+    first_fv_idx_2d = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    # 2d to 1d index for np.put()
+    first_fv_idx_1d = first_fv_idx_2d + ((n_max_face_nodes + 1) * np.arange(0, n_face))
+
+    # column of first node values
+    first_node_value = face_node_connectivity[:, 0].copy()
+
+    # insert first node column at occurrence of first fill value
+    np.put(closed.ravel(), first_fv_idx_1d, first_node_value)
+
+    return closed
+
+
+def _replace_fill_values(grid_var, original_fill, new_fill, new_dtype=None):
+    """Replaces all instances of the current fill value (``original_fill``) in
+    (``grid_var``) with (``new_fill``) and converts to the dtype defined by
+    (``new_dtype``)
+
+    Parameters
+    ----------
+    grid_var : xr.DataArray
+        Grid variable to be modified
+    original_fill : constant
+        Original fill value used in (``grid_var``)
+    new_fill : constant
+        New fill value to be used in (``grid_var``)
+    new_dtype : np.dtype, optional
+        New data type to convert (``grid_var``) to
+
+    Returns
+    -------
+    grid_var : xr.DataArray
+        Modified DataArray with updated fill values and dtype
+    """
+
+    # Identify fill value locations
+    if original_fill is not None and np.isnan(original_fill):
+        # For NaN fill values
+        fill_val_idx = grid_var.isnull()
+        # Temporarily replace NaNs with a placeholder if dtype conversion is needed
+        if new_dtype is not None and np.issubdtype(new_dtype, np.floating):
+            grid_var = grid_var.fillna(0.0)
+        else:
+            # Choose an appropriate placeholder for non-floating types
+            grid_var = grid_var.fillna(new_fill)
+    else:
+        # For non-NaN fill values
+        fill_val_idx = grid_var == original_fill
+
+    # Convert to the new data type if specified
+    if new_dtype is not None and new_dtype != grid_var.dtype:
+        grid_var = grid_var.astype(new_dtype)
+
+    # Validate that the new_fill can be represented in the new_dtype
+    if new_dtype is not None:
+        if np.issubdtype(new_dtype, np.integer):
+            int_min = np.iinfo(new_dtype).min
+            int_max = np.iinfo(new_dtype).max
+            if not (int_min <= new_fill <= int_max):
+                raise ValueError(
+                    f"New fill value: {new_fill} not representable by integer dtype: {new_dtype}"
+                )
+        elif np.issubdtype(new_dtype, np.floating):
+            if not (
+                np.isnan(new_fill)
+                or (np.finfo(new_dtype).min <= new_fill <= np.finfo(new_dtype).max)
+            ):
+                raise ValueError(
+                    f"New fill value: {new_fill} not representable by float dtype: {new_dtype}"
+                )
+        else:
+            raise ValueError(f"Data type {new_dtype} not supported for grid variables")
+
+    grid_var = grid_var.where(~fill_val_idx, new_fill)
+
+    return grid_var

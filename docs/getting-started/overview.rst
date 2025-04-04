@@ -36,19 +36,21 @@ other geometric faces.
 Core Data Structures
 ====================
 
-The functionality of UXarray is built around three core data structures which provide
-an Unstructured Grid aware implementation of many Xarray functions and use cases.
+The functionality of UXarray is built around three core data structures:
 
-* ``Grid`` is used to represent our Unstructured Grid, housing grid-specific methods
-  and topology variables.
-* ``UxDataset`` inherits from the ``xarray.Dataset`` class, providing much of the same
-  functionality but extended to operate on Unstructured Grids. Other than new and
-  overloaded methods, it is linked to a ``Grid`` object through the use of a class
-  property (``UxDataset.uxgrid``) to provide a grid-aware implementation. An instance
-  of ``UxDataset`` can be thought of as a collection of Data Variables that reside on
-  some Unstructured Grid as defined in the ``uxgrid`` property.
-* ``UxDataArray`` similarly inherits from the ``xarray.DataArray`` class and contains
-  a ``Grid`` property (``UxDataArray.uxgrid``) just like ``UxDataset``.
+* :class:`Grid`
+  Used to represent an Unstructured Grid, housing grid-specific methods and
+  topology variables.
+
+* :class:`UxDataset`
+  Inherits from :py:class:`xarray.Dataset`, providing the same functionality
+  but extended to operate directly on Unstructured Grids. An :class:`UxDataset`
+  is linked to a :class:`Grid` object via the :attr:`UxDataset.uxgrid` property.
+
+* :class:`UxDataArray`
+  Similarly inherits from :py:class:`xarray.DataArray` and contains a
+  :attr:`UxDataArray.uxgrid` property just like :class:`UxDataset`.
+
 
 Core Functionality
 ==================
@@ -56,10 +58,13 @@ Core Functionality
 In addition to providing a way to load in and interface with Unstructured Grids, we
 also aim to provide computational and analysis operators that directly operate on
 Unstructured Grids. Some of these include:
-* Visualization
-* Remapping
-* Subsetting & Selection
-* Aggregations
+- Visualization
+- Remapping
+- Subsetting & Selection
+- Cross Sections
+- Aggregations
+- Calculus Operations
+- Zonal Averaging
 
 A more detailed overview of supported functionality can be found in our `API Reference <https://uxarray.readthedocs.io/en/latest/api.html>`_
 and `User Guide <https://uxarray.readthedocs.io/en/latest/userguide.html>`_ sections.

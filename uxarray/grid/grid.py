@@ -16,7 +16,6 @@ from typing import (
 
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, make_setter
 
-# reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
 from uxarray.io._geopandas import _read_geodataframe
@@ -133,16 +132,17 @@ class Grid:
     """Represents a two-dimensional unstructured grid encoded following the
     UGRID conventions and provides grid-specific functionality.
 
-    Can be used standalone to work with unstructured grids, or can be paired with either a ``ux.UxDataArray`` or
-    ``ux.UxDataset`` and accessed through the ``.uxgrid`` attribute.
+    Can be used standalone to work with unstructured grids, or can be paired with either a `:py:class:`~uxarray.UxDataArray` or
+    :py:class:`~uxarray.UxDataset`and accessed through the `:py:attr:`~uxarray.UxDataArray.uxgrid` or `:py:attr:`~uxarray.UxDataset.uxgrid`
+    attributes.
 
     For constructing a grid from non-UGRID datasets or other types of supported data, see our ``ux.open_grid`` method or
-    specific class methods (``Grid.from_dataset``, ``Grid.from_face_verticies``, etc.)
+    specific class methods (py:meth:`.from_dataset`, py:meth:`.from_topology`, etc.)
 
 
     Parameters
     ----------
-    grid_ds : xr.Dataset
+    grid_ds : :py:class:`xarray.Dataset`
         ``xarray.Dataset`` encoded in the UGRID conventions
 
     source_grid_spec : str, default="UGRID"
@@ -154,7 +154,7 @@ class Grid:
     is_subset : bool, default=False
         Flag to mark if the grid is a subset or not
 
-    inverse_indices: xr.Dataset, default=None
+    inverse_indices: :py:class:`xarray.Dataset`, default=None
         A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
     Examples
@@ -277,11 +277,11 @@ class Grid:
 
     @classmethod
     def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
-        """Constructs a ``Grid`` object from a dataset.
+        """Constructs a py:class:`~uxarray.Grid` object from a dataset.
 
         Parameters
         ----------
-        dataset : xr.Dataset or path-like
+        dataset : py:class:`xarray.Dataset` or path-like
             ``xarray.Dataset`` containing unstructured grid coordinates and connectivity variables or a directory
               containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
@@ -350,8 +350,7 @@ class Grid:
         backend: Optional[str] = "geopandas",
         **kwargs,
     ):
-        """Constructs a ``Grid`` object from a using the read_file method with
-        a specified backend.
+        """Constructs a py:class:`~uxarray.Grid` from a file using a specific backend.
 
         Parameters
         ----------
@@ -399,7 +398,7 @@ class Grid:
         boundary_points=None,
         **kwargs,
     ):
-        """Create a grid from unstructured points.
+        """Create a py:class:`~uxarray.Grid` from unstructured points.
 
         This class method generates connectivity information based on the provided points.
         Depending on the chosen `method`, it constructs either a spherical Voronoi diagram
@@ -467,7 +466,7 @@ class Grid:
         dims_dict: Optional[dict] = None,
         **kwargs,
     ):
-        """Constructs a ``Grid`` object from user-defined topology variables
+        """Constructs a py:class:`~uxarray.Grid` from user-defined topology variables
         provided in the UGRID conventions.
 
         Note
@@ -518,7 +517,7 @@ class Grid:
         cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
     ):
         """
-        Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
+        Converts a structured py:class:`xarray.Dataset` or longitude and latitude coordinates into an unstructured py:class:`~uxarray.Grid`.
 
         This class method provides flexibility in converting structured grid data into an unstructured `uxarray.UxDataset`.
         Users can either supply an existing structured `xarray.Dataset` or provide longitude and latitude coordinates
@@ -565,7 +564,7 @@ class Grid:
         face_vertices: Union[list, tuple, np.ndarray],
         latlon: Optional[bool] = True,
     ):
-        """Constructs a ``Grid`` object from user-defined face vertices.
+        """Constructs a py:class:`~uxarray.Grid` from user-defined face vertices.
 
         Parameters
         ----------
@@ -596,7 +595,7 @@ class Grid:
 
     @classmethod
     def from_healpix(cls, zoom: int, pixels_only: bool = True, nest: bool = True):
-        """Constructs a ``Grid`` object representing a given HEALPix zoom level.
+        """Constructs a py:class:`~uxarray.Grid` object representing a given HEALPix zoom level.
 
         Parameters
         ----------
@@ -607,8 +606,8 @@ class Grid:
 
         Returns
         -------
-        Grid
-            An instance of ``uxarray.Grid``
+        Grid: py:class:`~uxarray.Grid`
+            A py:class:`~uxarray.Grid` representing a HEALPix grid
         """
         grid_ds = _pixels_to_ugrid(zoom, nest)
 
@@ -618,7 +617,7 @@ class Grid:
         return cls.from_dataset(grid_ds, source_grid_spec="HEALPix")
 
     def validate(self, check_duplicates=True):
-        """Validates the current ``Grid``, checking for Duplicate Nodes,
+        """Validates the current py:class:`~uxarray.Grid`, checking for Duplicate Nodes,
         Present Connectivity, and Non-Zero Face Areas.
 
         Raises
@@ -675,7 +674,7 @@ class Grid:
             )
 
     def __repr__(self):
-        """Constructs a string representation of the contents of a ``Grid``."""
+        """Constructs a string representation of the contents of a py:class:`~uxarray.Grid`."""
 
         from uxarray.conventions import descriptors
 
@@ -780,7 +779,7 @@ class Grid:
 
         Parameters
         ----------
-        other : uxarray.Grid
+        other : py:class:`~uxarray.Grid`
             The second grid object to be compared with `self`
 
         Returns
@@ -788,6 +787,10 @@ class Grid:
         If two grids are not equal : bool
         """
         return not self.__eq__(other)
+
+    # ==================================================================================================================
+    # Grid Information Properties
+    # ==================================================================================================================
 
     @property
     def dims(self) -> set:
@@ -828,103 +831,166 @@ class Grid:
         return set([desc for desc in DESCRIPTOR_NAMES if desc in self._ds])
 
     @property
-    def parsed_attrs(self) -> dict:
-        """Dictionary of parsed attributes from the source grid."""
-        warn(
-            "Grid.parsed_attrs will be deprecated in a future release. Please use Grid.attrs instead.",
-            DeprecationWarning,
-        )
-        return self._ds.attrs
-
-    @property
     def attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
+    # ==================================================================================================================
+    # Dimension Properties
+    # ==================================================================================================================
+
     @property
     def n_node(self) -> int:
-        """Total number of nodes."""
+        """Total number of nodes.
+
+        Returns
+        -------
+        n_node : int
+            The total number of nodes.
+        """
         return self._ds.sizes["n_node"]
 
     @property
     def n_edge(self) -> int:
-        """Total number of edges."""
+        """Total number of edges.
+
+        Returns
+        -------
+        n_edge : int
+            The total number of edges.
+        """
         if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
-
         return self._ds.sizes["n_edge"]
 
     @property
     def n_face(self) -> int:
-        """Total number of faces."""
+        """Total number of faces.
+
+        Returns
+        -------
+        n_face : int
+            The total number of faces.
+        """
         return self._ds.sizes["n_face"]
 
     @property
     def n_max_face_nodes(self) -> int:
-        """The maximum number of nodes that can make up a single face.
+        """Maximum number of nodes defining a single face.
 
-        For example, if a grid is composed entirely of triangular faces, the value would be 3. If a grid is composed
-        of a mix of triangles and hexagons, the value would be 6.
+        For example, if the grid is composed entirely of triangular faces, the value would be 3.
+        If the grid is composed of a mix of triangles and hexagons, the value would be 6.
 
+        Returns
+        -------
+        n_max_face_nodes : int
+            The maximum number of nodes that can define a face.
         """
         return self.face_node_connectivity.shape[1]
 
     @property
     def n_max_face_edges(self) -> int:
-        """The maximum number of edges that surround a single face.
+        """Maximum number of edges surrounding a single face.
 
-        Equivalent to ``n_max_face_nodes``
+        This is equivalent to :py:attr:`~uxarray.Grid.n_max_face_nodes`.
+
+        Returns
+        -------
+        n_max_face_edges : int
+            The maximum number of edges that can surround a face.
         """
         return self.face_edge_connectivity.shape[1]
 
     @property
     def n_max_face_faces(self) -> int:
-        """The maximum number of faces that surround a single face."""
+        """Maximum number of neighboring faces surrounding a single face.
+
+        Returns
+        -------
+        n_max_face_faces : int
+            The maximum number of faces that can surround a face.
+        """
         return self.face_face_connectivity.shape[1]
 
     @property
     def n_max_edge_edges(self) -> int:
-        """The maximum number of edges that surround a single edge."""
+        """Maximum number of edges surrounding a single edge.
+
+        Returns
+        -------
+        n_max_edge_edges : int
+            The maximum number of edges that can surround an edge.
+        """
         return self.edge_edge_connectivity.shape[1]
 
     @property
     def n_max_node_faces(self) -> int:
-        """The maximum number of faces that surround a single node."""
+        """Maximum number of faces surrounding a single node.
+
+        Returns
+        -------
+        n_max_node_faces : int
+            The maximum number of faces that can surround a node.
+        """
         return self.node_face_connectivity.shape[1]
 
     @property
     def n_max_node_edges(self) -> int:
-        """The maximum number of edges that surround a single node."""
+        """Maximum number of edges surrounding a single node.
+
+        Returns
+        -------
+        n_max_node_edges : int
+            The maximum number of edges that can surround a node.
+        """
         return self.node_edge_connectivity.shape[1]
 
     @property
     def n_nodes_per_face(self) -> xr.DataArray:
-        """The number of nodes that make up each face.
+        """Number of nodes defining each face.
 
-        Shape: ``(n_face, )``
+        Shape: (:py:attr:`~uxarray.Grid.n_face`,)
+
+        Returns
+        -------
+        n_nodes_per_face : :py:class:`xarray.DataArray`
+            An array containing the number of nodes per face.
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
-
         return self._ds["n_nodes_per_face"]
 
     n_nodes_per_face = n_nodes_per_face.setter(make_setter("n_nodes_per_face"))
 
     @property
     def n_edges_per_face(self) -> xr.DataArray:
-        """The number of edges that make up each face. Equivalent to ``n_nodes_per_face``.
+        """Number of edges defining each face.
 
-        Shape: ``(n_face, )``
+        This is equivalent to :py:attr:`~uxarray.Grid.n_nodes_per_face`.
+
+        Shape: (:py:attr:`~uxarray.Grid.n_face`,)
+
+        Returns
+        -------
+        n_edges_per_face : :py:class:`xarray.DataArray`
+            An array containing the number of edges per face.
         """
         return self.n_nodes_per_face
 
+    # ==================================================================================================================
+    # Coordinate Properties
+    # ==================================================================================================================
+
     @property
     def node_lon(self) -> xr.DataArray:
-        """Longitude of each node in degrees.
+        """Longitude coordinate of each node (in degrees).
 
-        Values are expected to be in the range ``[-180.0, 180.0]``.
+        Values are expected to be in the range [-180.0, 180.0].
 
-        Shape: ``(n_node, )``
+        Returns
+        -------
+        node_lon : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_lon" not in self._ds:
             if self.source_grid_spec == "HEALPix":
@@ -938,9 +1004,12 @@ class Grid:
 
     @property
     def node_lat(self) -> xr.DataArray:
-        """Latitude of each node in degrees.
+        """Latitude coordinate of each node (in degrees).
 
-        Shape: ``(n_node, )``
+        Returns
+        -------
+        node_lat : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_lat" not in self._ds:
             if self.source_grid_spec == "HEALPix":
@@ -954,22 +1023,27 @@ class Grid:
 
     @property
     def node_x(self) -> xr.DataArray:
-        """Cartesian x location of each node in meters.
+        """Cartesian x coordinate of each node (in meters).
 
-        Shape: ``(n_node, )``
+        Returns
+        -------
+        node_x : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_x" not in self._ds:
             _populate_node_xyz(self)
-
         return self._ds["node_x"]
 
     node_x = node_x.setter(make_setter("node_x"))
 
     @property
     def node_y(self) -> xr.DataArray:
-        """Cartesian y location of each node in meters.
+        """Cartesian y coordinate of each node (in meters).
 
-        Shape: ``(n_node, )``
+        Returns
+        -------
+        node_y : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_y" not in self._ds:
             _populate_node_xyz(self)
@@ -979,9 +1053,12 @@ class Grid:
 
     @property
     def node_z(self) -> xr.DataArray:
-        """Cartesian z location of each node in meters.
+        """Cartesian z coordinate of each node (in meters).
 
-        Shape: ``(n_node, )``
+        Returns
+        -------
+        node_z : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_z" not in self._ds:
             _populate_node_xyz(self)
@@ -991,11 +1068,14 @@ class Grid:
 
     @property
     def edge_lon(self) -> xr.DataArray:
-        """Longitude of the center of each edge in degrees.
+        """Longitude coordinate of the center of each edge (in degrees).
 
-        Values are expected to be in the range ``[-180.0, 180.0]``.
+        Values are expected to be in the range [-180.0, 180.0].
 
-        Shape: ``(n_edge, )``
+        Returns
+        -------
+        edge_lon : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
@@ -1006,35 +1086,43 @@ class Grid:
 
     @property
     def edge_lat(self) -> xr.DataArray:
-        """Latitude of the center of each edge in degrees.
+        """Latitude coordinate of the center of each edge (in degrees).
 
-        Shape: ``(n_edge, )``
+        Returns
+        -------
+        edge_lat : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
-        _set_desired_longitude_range(self)
+            _set_desired_longitude_range(self)
         return self._ds["edge_lat"]
 
     edge_lat = edge_lat.setter(make_setter("edge_lat"))
 
     @property
     def edge_x(self) -> xr.DataArray:
-        """Cartesian x location of the center of each edge in meters.
+        """Cartesian x coordinate of the center of each edge (in meters).
 
-        Shape: ``(n_edge, )``
+        Returns
+        -------
+        edge_x : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_x" not in self._ds:
             _populate_edge_centroids(self)
-
         return self._ds["edge_x"]
 
     edge_x = edge_x.setter(make_setter("edge_x"))
 
     @property
     def edge_y(self) -> xr.DataArray:
-        """Cartesian y location of the center of each edge in meters.
+        """Cartesian y coordinate of the center of each edge (in meters).
 
-        Shape: ``(n_edge, )``
+        Returns
+        -------
+        edge_y : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_y" not in self._ds:
             _populate_edge_centroids(self)
@@ -1044,9 +1132,12 @@ class Grid:
 
     @property
     def edge_z(self) -> xr.DataArray:
-        """Cartesian z location of the center of each edge in meters.
+        """Cartesian z coordinate of the center of each edge (in meters).
 
-        Shape: ``(n_edge, )``
+        Returns
+        -------
+        edge_z : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_z" not in self._ds:
             _populate_edge_centroids(self)
@@ -1056,11 +1147,14 @@ class Grid:
 
     @property
     def face_lon(self) -> xr.DataArray:
-        """Longitude of the center of each face in degrees.
+        """Longitude coordinate of the center of each face (in degrees).
 
-        Values are expected to be in the range ``[-180.0, 180.0]``.
+        Values are expected to be in the range [-180.0, 180.0].
 
-        Shape: ``(n_face, )``
+        Returns
+        -------
+        face_lon : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_lon" not in self._ds:
             _populate_face_centroids(self)
@@ -1071,36 +1165,43 @@ class Grid:
 
     @property
     def face_lat(self) -> xr.DataArray:
-        """Latitude of the center of each face in degrees.
+        """Latitude coordinate of the center of each face (in degrees).
 
-        Shape: ``(n_face, )``
+        Returns
+        -------
+        face_lat : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_lat" not in self._ds:
             _populate_face_centroids(self)
             _set_desired_longitude_range(self)
-
         return self._ds["face_lat"]
 
     face_lat = face_lat.setter(make_setter("face_lat"))
 
     @property
     def face_x(self) -> xr.DataArray:
-        """Cartesian x location of the center of each face in meters.
+        """Cartesian x coordinate of the center of each face (in meters).
 
-        Shape: ``(n_face, )``
+        Returns
+        -------
+        face_x : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_x" not in self._ds:
             _populate_face_centroids(self)
-
         return self._ds["face_x"]
 
     face_x = face_x.setter(make_setter("face_x"))
 
     @property
     def face_y(self) -> xr.DataArray:
-        """Cartesian y location of the center of each face in meters.
+        """Cartesian y coordinate of the center of each face (in meters).
 
-        Shape: ``(n_face, )``
+        Returns
+        -------
+        face_y : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_y" not in self._ds:
             _populate_face_centroids(self)
@@ -1110,9 +1211,12 @@ class Grid:
 
     @property
     def face_z(self) -> xr.DataArray:
-        """Cartesian z location of the center of each face in meters.
+        """Cartesian z coordinate of the center of each face (in meters).
 
-        Shape: ``(n_face, )``
+        Returns
+        -------
+        face_z : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_z" not in self._ds:
             _populate_face_centroids(self)
@@ -1120,16 +1224,26 @@ class Grid:
 
     face_z = face_z.setter(make_setter("face_z"))
 
+    # ==================================================================================================================
+    # Connectivity Properties
+    # ==================================================================================================================
+
     @property
     def face_node_connectivity(self) -> xr.DataArray:
         """
-        Indices of the nodes that make up each face.
+        Connectivity variable representing the indices of nodes (mesh vertices) that define each face.
 
-        Shape: ``(n_face, n_max_face_nodes)``
+        Each row (i.e., each face) contains at least three node indices and up to a maximum of
+        :py:attr:`~uxarray.Grid.n_max_face_nodes`. In grids with a mix of geometries (e.g., triangles and hexagons),
+        rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_nodes` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`. The node indices are stored in counter-clockwise order.
 
-        Nodes are in counter-clockwise order.
+        Returns
+        -------
+        face_node_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_nodes`)
+            representing the connectivity.
         """
-
         if (
             "face_node_connectivity" not in self._ds
             and self.source_grid_spec == "HEALPix"
@@ -1146,7 +1260,6 @@ class Grid:
                 dims=["n_face", "n_max_face_nodes"],
                 attrs=self._ds["face_node_connectivity"].attrs,
             )
-
         return self._ds["face_node_connectivity"]
 
     face_node_connectivity = face_node_connectivity.setter(
@@ -1155,15 +1268,20 @@ class Grid:
 
     @property
     def edge_node_connectivity(self) -> xr.DataArray:
-        """Indices of the two nodes that make up each edge.
+        """
+        Connectivity variable representing the indices of nodes (mesh vertices) that define each edge.
 
-        Shape: ``(n_edge, two)``
+        Each row (i.e., each edge) contains exactly two node indices that define the start and end points of the edge.
+        The nodes are stored in an arbitrary order.
 
-        Nodes are in arbitrary order.
+        Returns
+        -------
+        edge_node_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`, 2)
+            representing the connectivity.
         """
         if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
-
         return self._ds["edge_node_connectivity"]
 
     edge_node_connectivity = edge_node_connectivity.setter(
@@ -1171,25 +1289,16 @@ class Grid:
     )
 
     @property
-    def edge_node_x(self) -> xr.DataArray:
-        """Cartesian x location for the two nodes that make up every edge.
-
-        Shape: ``(n_edge, two)``
-        """
-
-        if "edge_node_x" not in self._ds:
-            _edge_node_x = self.node_x[self.edge_node_connectivity]
-
-            self._ds["edge_node_x"] = xr.DataArray(
-                data=_edge_node_x,
-                dims=["n_edge", "two"],
-            )
-
-        return self._ds["edge_node_x"]
-
-    @property
     def node_node_connectivity(self) -> xr.DataArray:
-        """Indices of the nodes that surround each node."""
+        """
+        Connectivity variable representing the indices of nodes (mesh vertices) that surround each node.
+
+        Returns
+        -------
+        node_node_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`, n_max_node_nodes)
+            representing the connectivity.
+        """
         if "node_node_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `node_node_connectivity` not yet supported."
@@ -1202,13 +1311,22 @@ class Grid:
 
     @property
     def face_edge_connectivity(self) -> xr.DataArray:
-        """Indices of the edges that surround each face.
+        """
+        Connectivity variable representing the indices of edges that define each face.
 
-        Shape: ``(n_face, n_max_face_edges)``
+        Each row (i.e., each face) contains at least three edge indices and up to a maximum of
+        :py:attr:`~uxarray.Grid.n_max_face_edges`. In grids with a mix of geometries (e.g., triangles and hexagons),
+        rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_edges` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        face_edge_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_edges`)
+            representing the connectivity.
         """
         if "face_edge_connectivity" not in self._ds:
             _populate_face_edge_connectivity(self)
-
         return self._ds["face_edge_connectivity"]
 
     face_edge_connectivity = face_edge_connectivity.setter(
@@ -1217,15 +1335,22 @@ class Grid:
 
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
-        """Indices of the edges that surround each edge.
+        """
+        Connectivity variable representing the indices of edges that share at least one node.
 
-        Shape: ``(n_face, n_max_edge_edges)``
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than the maximum number
+        of edge indices are padded with the fill value defined in :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        edge_edge_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`, :py:attr:`~uxarray.Grid.n_max_edge_edges`)
+            representing the connectivity.
         """
         if "edge_edge_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `edge_edge_connectivity` not yet supported."
             )
-
         return self._ds["edge_edge_connectivity"]
 
     edge_edge_connectivity = edge_edge_connectivity.setter(
@@ -1234,12 +1359,22 @@ class Grid:
 
     @property
     def node_edge_connectivity(self) -> xr.DataArray:
-        """Indices of the edges that surround each node."""
+        """
+        Connectivity variable representing the indices of edges that contain each node.
+
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than the maximum number
+        of edge indices are padded with the fill value defined in :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        node_edge_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`, :py:attr:`~uxarray.Grid.n_max_node_edges`)
+            representing the connectivity.
+        """
         if "node_edge_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `node_edge_connectivity` not yet supported."
             )
-
         return self._ds["node_edge_connectivity"]
 
     node_edge_connectivity = node_edge_connectivity.setter(
@@ -1248,13 +1383,21 @@ class Grid:
 
     @property
     def face_face_connectivity(self) -> xr.DataArray:
-        """Indices of the faces that surround each face.
+        """
+        Connectivity variable representing the indices of faces that share edges.
 
-        Dimensions ``(n_face, n_max_face_faces)``
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than
+        :py:attr:`~uxarray.Grid.n_max_face_faces` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        face_face_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_faces`)
+            representing the connectivity.
         """
         if "face_face_connectivity" not in self._ds:
             _populate_face_face_connectivity(self)
-
         return self._ds["face_face_connectivity"]
 
     face_face_connectivity = face_face_connectivity.setter(
@@ -1263,13 +1406,21 @@ class Grid:
 
     @property
     def edge_face_connectivity(self) -> xr.DataArray:
-        """Indices of the faces that saddle each edge.
+        """
+        Connectivity variable representing the indices of faces that saddle each edge.
 
-        Dimensions ``(n_edge, two)``
+        Each row (i.e., each edge) contains either one or two face indices. A single face indicates that there
+        exists an empty region not covered by any geometry (e.g., a coastline). If an edge neighbors only one face,
+        the second value is padded with :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        edge_face_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`, 2)
+            representing the connectivity.
         """
         if "edge_face_connectivity" not in self._ds:
             _populate_edge_face_connectivity(self)
-
         return self._ds["edge_face_connectivity"]
 
     edge_face_connectivity = edge_face_connectivity.setter(
@@ -1278,25 +1429,41 @@ class Grid:
 
     @property
     def node_face_connectivity(self) -> xr.DataArray:
-        """Indices of the faces that surround each node.
+        """
+        Connectivity variable representing the indices of faces that share a given node.
 
-        Dimensions ``(n_node, n_max_node_faces)``
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than
+        :py:attr:`~uxarray.Grid.n_max_node_faces` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        node_face_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`, :py:attr:`~uxarray.Grid.n_max_node_faces`)
+            representing the connectivity.
         """
         if "node_face_connectivity" not in self._ds:
             _populate_node_face_connectivity(self)
-
         return self._ds["node_face_connectivity"]
 
     node_face_connectivity = node_face_connectivity.setter(
         make_setter("node_face_connectivity")
     )
 
+    # ==================================================================================================================
+    # Descriptor Properties
+    # ==================================================================================================================
+
     @property
     def edge_node_distances(self):
-        """Distances between the two nodes that surround each edge in radians.
+        """Arc distance between the two nodes that make up each edge (in radians).
 
-        Dimensions ``(n_edge, )``
+        Returns
+        -------
+        edge_node_distances: :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
+
         if "edge_node_distances" not in self._ds:
             _populate_edge_node_distances(self)
         return self._ds["edge_node_distances"]
@@ -1305,11 +1472,14 @@ class Grid:
 
     @property
     def edge_face_distances(self):
-        """Distances between the centers of the faces that saddle each edge in
-        radians.
+        """Arc distance between the faces that saddle each edge (in radians).
 
-        Dimensions ``(n_edge, )``
+        Returns
+        -------
+        edge_face_distances: :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
+
         if "edge_face_distances" not in self._ds:
             _populate_edge_face_distances(self)
         return self._ds["edge_face_distances"]
@@ -1443,19 +1613,19 @@ class Grid:
 
     @property
     def triangular(self):
-        """Boolean indicated whether the Grid is strictly composed of
+        """Boolean flag indicating whether the Grid is strictly composed of
         triangular faces."""
         return self.n_max_face_nodes == 3
 
     @property
     def partial_sphere_coverage(self):
-        """Boolean indicated whether the Grid partial covers the unit sphere
+        """Boolean flag indicating whether the Grid partial covers the unit sphere
         (i.e. contains holes)"""
         return self.boundary_edge_indices.size != 0
 
     @property
     def global_sphere_coverage(self):
-        """Boolean indicated whether the Grid completely covers the unit sphere
+        """Boolean flag indicating whether the Grid completely covers the unit sphere
         (i.e. contains no holes)"""
         return not self.partial_sphere_coverage
 
@@ -1471,15 +1641,25 @@ class Grid:
 
     @property
     def is_subset(self):
-        """Returns `True` if the Grid is a subset, 'False' otherwise."""
+        """Boolean flag indicating whether the Grid is a subset."""
         return self._is_subset
 
     @property
     def max_face_radius(self):
-        """Maximum face radius of the grid in degrees"""
+        """Maximum face radius of the grid (in degrees)"""
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
+
+    # ==================================================================================================================
+    # Convenience Properties
+    # ==================================================================================================================
+
+    # TODO:
+
+    # ==================================================================================================================
+    # Grid Methods
+    # ==================================================================================================================
 
     def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
         """Converts all arrays to dask arrays with given chunks across grid
@@ -1556,7 +1736,7 @@ class Grid:
         distance_metric: Optional[str] = "haversine",
         reconstruct: bool = False,
     ):
-        """Get the BallTree data structure of this Grid that allows for nearest
+        """Get the `~uxarray.grid.neighbors.BallTree` data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the
         (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``),
         edge (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``,
@@ -1606,7 +1786,7 @@ class Grid:
         distance_metric: Optional[str] = "minkowski",
         reconstruct: bool = False,
     ):
-        """Get the KDTree data structure of this Grid that allows for nearest
+        """Get the `~uxarray.grid.neighbors.KDTree` data structure of this Grid that allows for nearest
         neighbor queries (k nearest or within some radius) on either the
         (``node_x``, ``node_y``, ``node_z``) and (``node_lon``, ``node_lat``),
         edge (``edge_x``, ``edge_y``, ``edge_z``) and (``edge_lon``,
@@ -1652,7 +1832,7 @@ class Grid:
         self,
         reconstruct: bool = False,
     ):
-        """Get the SpatialHash data structure of this Grid that allows for
+        """Obtain the py:class:`~uxarray.grid.neighbors.SpatialHash` that allows for
         fast face search queries. Face searches are used to find the faces that
         a list of points, in spherical coordinates, are contained within.
 
@@ -1663,7 +1843,7 @@ class Grid:
 
         Returns
         -------
-        self._spatialhash : grid.Neighbors.SpatialHash
+        self._spatialhash : `~uxarray.grid.neighbors.SpatialHash`
             SpatialHash instance
 
         Note
@@ -1700,7 +1880,7 @@ class Grid:
         )
 
     def encode_as(self, grid_type: str) -> xr.Dataset:
-        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
+        """Encodes the grid as a new py:class:`xarray.Dataset` per grid format supplied
         in the `grid_type` argument.
 
         Parameters
@@ -1711,8 +1891,8 @@ class Grid:
 
         Returns
         -------
-        out_ds : xarray.Dataset
-            The output `xarray.Dataset` that is encoded from the this grid.
+        out_ds : py:class:`xarray.Dataset`
+            The output dataset that is encoded from the this grid.
 
         Raises
         ------
@@ -1758,7 +1938,7 @@ class Grid:
         order : int, optional
             Order of quadrature rule. Defaults to 4.
         latitude_adjusted_area : bool, optional
-            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
+            If True, corrects the area of the faces accounting for lines of constant latitude. Defaults to False.
 
         Returns
         -------
@@ -1779,8 +1959,7 @@ class Grid:
         latlon: Optional[bool] = True,
         latitude_adjusted_area: Optional[bool] = False,
     ):
-        """Face areas calculation function for grid class, calculates area of
-        all faces in the grid.
+        """Computes the area of all faces in the grid.
 
         Parameters
         ----------
@@ -1897,7 +2076,7 @@ class Grid:
             self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
-        """Returns an ``xarray.Dataset`` with the variables stored under the
+        """Returns an py:class:`xarray.Dataset` with the variables stored under the
         ``Grid`` encoded in a specific grid format.
 
         Parameters
@@ -1908,7 +2087,7 @@ class Grid:
 
         Returns
         -------
-        out_ds: xarray.Dataset
+        out_ds: py:class:`xarray.Dataset`
             Dataset representing the unstructured grid in a given grid format
         """
 
@@ -1945,8 +2124,8 @@ class Grid:
         exclude_nan_polygons: Optional[bool] = True,
         **kwargs,
     ):
-        """Constructs a ``GeoDataFrame`` consisting of polygons representing
-        the faces of the current ``Grid``
+        """Constructs a py:class:`spatialpandas.GeoDataFrame` or py:class:`geopandas.GeoDataFrame`consisting of polygons representing
+        the faces of the current py:class:`~uxarray.Grid`
 
         Periodic polygons (i.e. those that cross the antimeridian) can be handled using the ``periodic_elements``
         parameter. Setting ``periodic_elements='split'`` will split each periodic polygon along the antimeridian.
@@ -2070,8 +2249,7 @@ class Grid:
         return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
-        """Constructs a ``matplotlib.collections.PolyCollection``` consisting
-        of polygons representing the faces of the current ``Grid``
+        """Constructs a py:class:`matplotlib.collections.PolyCollection`consisting of polygons representing the faces of the current py:class:`~uxarray.Grid`
 
         Parameters
         ----------
@@ -2153,8 +2331,8 @@ class Grid:
         override: Optional[bool] = False,
         **kwargs,
     ):
-        """Constructs a ``matplotlib.collections.LineCollection``` consisting
-        of lines representing the edges of the current ``Grid``
+        """Constructs a py:class:`matplotlib.collections.LineCollection` consisting
+        of lines representing the edges of the current py:class:`~uxarray.Grid`
 
         Parameters
         ----------
@@ -2214,7 +2392,7 @@ class Grid:
 
         Returns
         --------
-        dual : Grid
+        dual : py:class:`~uxarray.Grid`
             Dual Mesh Grid constructed
         """
 
@@ -2284,6 +2462,9 @@ class Grid:
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 
+    # ==================================================================================================================
+    # Geometry Methods
+    # ==================================================================================================================
     def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):
         """Identifies the indices of edges that intersect with a line of constant latitude.
 
@@ -2448,7 +2629,7 @@ class Grid:
         Parameters
         ----------
         point_xyz : numpy.ndarray
-            A point in cartesian coordinates. Best performance if
+            A point in cartesian coordinates.
         point_lonlat : numpy.ndarray
             A point in spherical coordinates.
         tolerance : numpy.ndarray

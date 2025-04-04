@@ -480,3 +480,13 @@ Accurate Computing
 
    utils.computing.cross_fma
    utils.computing.dot_fma
+
+
+Constants
+------------------
+
+.. autosummary::
+   :toctree: generated/
+
+   constants.INT_FILL_VALUE
+   constants.INT_DTYPE

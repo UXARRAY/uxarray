@@ -501,7 +501,6 @@ def test_connectivity_build_face_edges_connectivity_mpas():
     edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
 
-
     edge_node_connectivity, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
                                                               mpas_grid_ux.n_nodes_per_face.values)
 
