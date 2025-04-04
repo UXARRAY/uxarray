@@ -500,15 +500,16 @@ def test_connectivity_build_face_edges_connectivity_mpas():
     edge_nodes_expected.sort(axis=1)
     edge_nodes_expected = np.unique(edge_nodes_expected, axis=0)
 
-    edge_nodes_output, _, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
-                                                            mpas_grid_ux.n_face,
-                                                            mpas_grid_ux.n_max_face_nodes)
 
-    assert np.array_equal(edge_nodes_expected, edge_nodes_output)
+    edge_node_connectivity, _ = _build_edge_node_connectivity(mpas_grid_ux.face_node_connectivity.values,
+                                                              mpas_grid_ux.n_nodes_per_face.values)
+
+    print()
+    assert np.array_equal(edge_nodes_expected, edge_node_connectivity)
 
     n_face = mpas_grid_ux.n_node
     n_node = mpas_grid_ux.n_face
-    n_edge = edge_nodes_output.shape[0]
+    n_edge = edge_node_connectivity.shape[0]
 
     assert (n_face == n_edge - n_node + 2)
 
