@@ -91,6 +91,55 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
 
 
 @njit(cache=True)
+def _intersection_within_interval(pt_xyz, gca_a_xyz, gca_b_xyz):
+    """
+    Check if a an intersection point, which is certain to on the same plane as the CGA, lies on a given Great Circle Arc (GCA) interval, considering the smaller arc of the circle.
+    Handles the anti-meridian case as well.
+
+    Parameters
+    ----------
+    pt_xyz : numpy.ndarray
+        Cartesian coordinates of the point.
+    gca_a_xyz : numpy.ndarray
+        Cartesian coordinates of the first endpoint of the Great Circle Arc.
+    gca_b_xyz : numpy.ndarray
+        Cartesian coordinates of the second endpoint of the Great Circle Arc.
+
+    Returns
+    -------
+    bool
+        True if the point lies within the specified GCA interval, False otherwise.
+
+    Raises
+    ------
+    ValueError
+        In such cases, consider breaking the GCA into two separate arcs.
+
+    Notes
+    -----
+    - The function assumes that the point lies on the same plane as the GCA and it also assumes that the input will not be exactly 180 degree.
+    - It assumes the input represents the smaller arc of the Great Circle.
+    - The `_angle_of_2_vectors` and `_xyz_to_lonlat_rad_scalar` functions are used for calculations.
+    """
+
+    # Check if the point lies within the Great Circle Arc interval
+    pt_a = gca_a_xyz - pt_xyz
+    pt_b = gca_b_xyz - pt_xyz
+
+    # Use the dot product to determine the sign of the angle between pt_a and pt_b
+    cos_theta = np.dot(pt_a, pt_b)
+
+    # Return True if the point lies within the interval (smaller arc)
+    if cos_theta < 0:
+        return True
+    elif isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
+        # set error tolerance to 0.0
+        return True
+    else:
+        return False
+
+
+@njit(cache=True)
 def in_between(p, q, r) -> bool:
     """Determines whether the number q is between p and r.
 
@@ -369,3 +418,4 @@ def compute_arc_length(pt_a, pt_b):
     delta_theta = np.atan2(cross_2d, dot_2d)
 
     return rho * abs(delta_theta)
+

@@ -7,6 +7,7 @@ from uxarray.grid.arcs import (
     in_between,
     extreme_gca_z,
     point_within_gca,
+    _intersection_within_interval
 )
 from uxarray.utils.computing import allclose, cross, norm
 
@@ -347,13 +348,13 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     x2_xyz = -x1_xyz
 
     # Check intersection points
-    if point_within_gca(x1_xyz, w0_xyz, w1_xyz) and point_within_gca(
+    if _intersection_within_interval(x1_xyz, w0_xyz, w1_xyz) and _intersection_within_interval(
         x1_xyz, v0_xyz, v1_xyz
     ):
         res[count, :] = x1_xyz
         count += 1
 
-    if point_within_gca(x2_xyz, w0_xyz, w1_xyz) and point_within_gca(
+    if _intersection_within_interval(x2_xyz, w0_xyz, w1_xyz) and _intersection_within_interval(
         x2_xyz, v0_xyz, v1_xyz
     ):
         res[count, :] = x2_xyz
@@ -417,17 +418,20 @@ def gca_const_lat_intersection(gca_cart, const_z):
 
     nx, ny, nz = n
 
-    s_tilde = np.sqrt(nx**2 + ny**2 - (nx**2 + ny**2 + nz**2) * const_z**2)
-    p1_x = -(1.0 / (nx**2 + ny**2)) * (const_z * nx * nz + s_tilde * ny)
-    p2_x = -(1.0 / (nx**2 + ny**2)) * (const_z * nx * nz - s_tilde * ny)
-    p1_y = -(1.0 / (nx**2 + ny**2)) * (const_z * ny * nz - s_tilde * nx)
-    p2_y = -(1.0 / (nx**2 + ny**2)) * (const_z * ny * nz + s_tilde * nx)
+    nx_square_ny_square = nx**2 + ny**2
+    n_square = nx_square_ny_square + nz**2
+
+    s_tilde = np.sqrt(nx_square_ny_square - n_square * const_z**2)
+    p1_x = -(1.0 / (nx_square_ny_square)) * (const_z * nx * nz + s_tilde * ny)
+    p2_x = -(1.0 / (nx_square_ny_square)) * (const_z * nx * nz - s_tilde * ny)
+    p1_y = -(1.0 / (nx_square_ny_square)) * (const_z * ny * nz - s_tilde * nx)
+    p2_y = -(1.0 / (nx_square_ny_square)) * (const_z * ny * nz + s_tilde * nx)
 
     p1 = np.array([p1_x, p1_y, const_z])
     p2 = np.array([p2_x, p2_y, const_z])
 
-    p1_intersects_gca = point_within_gca(p1, gca_cart[0], gca_cart[1])
-    p2_intersects_gca = point_within_gca(p2, gca_cart[0], gca_cart[1])
+    p1_intersects_gca = _intersection_within_interval(p1, gca_cart[0], gca_cart[1])
+    p2_intersects_gca = _intersection_within_interval(p2, gca_cart[0], gca_cart[1])
 
     if p1_intersects_gca and p2_intersects_gca:
         res[0] = p1

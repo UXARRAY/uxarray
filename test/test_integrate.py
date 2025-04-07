@@ -19,7 +19,7 @@ from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped
     _get_faces_constLat_intersection_info, _zonal_face_weights, \
     _zonal_face_weights_robust
 
-from uxarray.grid.utils import _get_cartesian_faces_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -67,9 +67,9 @@ def test_get_faces_constLat_intersection_info_one_intersection():
     latitude_cart = -0.8660254037844386
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+    unique_intersections_cart,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
-    assert len(unique_intersections) == 1
+    assert len(unique_intersections_cart) == 1
 
 
 def test_get_faces_constLat_intersection_info_encompass_pole():
@@ -97,9 +97,9 @@ def test_get_faces_constLat_intersection_info_encompass_pole():
 
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
-                                                                                         is_GCA_list, is_latlonface)
-    assert len(unique_intersections) <= 2 * len(face_edges_cart)
+    unique_intersections_cart,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+                                                                                              is_GCA_list, is_latlonface)
+    assert len(unique_intersections_cart) <= 2 * len(face_edges_cart)
 
 
 def test_get_faces_constLat_intersection_info_on_pole():
@@ -119,9 +119,9 @@ def test_get_faces_constLat_intersection_info_on_pole():
     latitude_cart = -0.9998476951563913
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+    unique_intersections_cart,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
-    assert len(unique_intersections) == 2
+    assert len(unique_intersections_cart) == 2
 
 
 def test_get_faces_constLat_intersection_info_near_pole():
@@ -141,9 +141,9 @@ def test_get_faces_constLat_intersection_info_near_pole():
     latitude_deg = np.rad2deg(latitude_rad)
     is_latlonface = False
     is_GCA_list = None
-    unique_intersections,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
+    unique_intersections_cart,unique_intersections_lonlat, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
-    assert len(unique_intersections) == 1
+    assert len(unique_intersections_cart) == 1
 
 
 def test_get_zonal_face_interval():
@@ -1037,9 +1037,14 @@ def test_compare_zonal_weights():
     for gridfile in gridfiles:
         uxgrid = ux.open_grid(gridfile)
         n_nodes_per_face = uxgrid.n_nodes_per_face.values
-        face_edge_nodes_xyz = _get_cartesian_faces_edge_nodes(uxgrid.face_node_connectivity.values, uxgrid.n_face,
-                                                              uxgrid.n_max_face_edges, uxgrid.node_x.values,
-                                                              uxgrid.node_y.values, uxgrid.node_z.values)
+        face_edge_nodes_xyz =  _get_cartesian_face_edge_nodes(
+                uxgrid.face_node_connectivity.values,
+                uxgrid.n_face,
+                uxgrid.n_max_face_edges,
+                uxgrid.node_x.values,
+                uxgrid.node_y.values,
+                uxgrid.node_z.values,
+            )
         bounds = uxgrid.bounds.values
 
         for i, lat in enumerate(latitudes):
