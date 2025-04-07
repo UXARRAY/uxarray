@@ -19,7 +19,7 @@ from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped
     _get_faces_constLat_intersection_info, _zonal_face_weights, \
     _zonal_face_weights_robust
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_faces_edge_nodes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -1037,7 +1037,7 @@ def test_compare_zonal_weights():
     for gridfile in gridfiles:
         uxgrid = ux.open_grid(gridfile)
         n_nodes_per_face = uxgrid.n_nodes_per_face.values
-        face_edge_nodes_xyz =  _get_cartesian_face_edge_nodes(
+        face_edge_nodes_xyz =  _get_cartesian_faces_edge_nodes(
                 uxgrid.face_node_connectivity.values,
                 uxgrid.n_face,
                 uxgrid.n_max_face_edges,
