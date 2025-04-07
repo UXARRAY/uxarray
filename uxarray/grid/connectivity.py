@@ -273,7 +273,9 @@ def _populate_face_face_connectivity(grid):
     """Constructs the UGRID connectivity variable (``face_face_connectivity``)
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.face_face_connectivity``)."""
-    face_face = _build_face_face_connectivity(grid.edge_face_connectivity.values, grid.n_face, grid.n_max_face_nodes)
+    face_face = _build_face_face_connectivity(
+        grid.edge_face_connectivity.values, grid.n_face, grid.n_max_face_nodes
+    )
 
     grid._ds["face_face_connectivity"] = xr.DataArray(
         data=face_face,
@@ -284,7 +286,9 @@ def _populate_face_face_connectivity(grid):
 
 @njit(cache=True)
 def _build_face_face_connectivity(edge_face_connectivity, n_face, n_max_face_nodes):
-    face_face_connectivity = np.full((n_face, n_max_face_nodes), INT_FILL_VALUE, INT_DTYPE)
+    face_face_connectivity = np.full(
+        (n_face, n_max_face_nodes), INT_FILL_VALUE, INT_DTYPE
+    )
     face_index_position = np.zeros(n_face, dtype=INT_DTYPE)
 
     for edge_faces in edge_face_connectivity:
