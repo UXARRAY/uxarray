@@ -55,6 +55,10 @@ def _populate_edge_node_connectivity(grid):
 
     # Check edge coordinates already exist, if they do this might cause issues
 
+    if "n_edge" in grid.sizes:
+        # TODO: raise a warning or exception?
+        pass
+
     edge_node_connectivity, face_edge_connectivity = _build_edge_node_connectivity(
         grid.face_node_connectivity.values, grid.n_nodes_per_face.values
     )
@@ -94,8 +98,11 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face):
         Face Edge Connectivity with shape (n_face, n_max_face_edges)
 
     """
+
+    # Dictionary to keep track of unique edges
+    unique_edge_dict = {}
+
     edge_idx = 0
-    edge_dict = {}
 
     # Keep track of face_edge_connectivity
     face_edge_connectivity = np.full_like(
@@ -109,15 +116,15 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face):
 
             edge = (min(start_node, end_node), max(start_node, end_node))
 
-            if edge not in edge_dict:
+            if edge not in unique_edge_dict:
                 # Only store unique edges
-                edge_dict[edge] = edge_idx
+                unique_edge_dict[edge] = edge_idx
                 edge_idx += 1
 
-            face_edge_connectivity[i, current_node] = edge_dict[edge]
+            face_edge_connectivity[i, current_node] = unique_edge_dict[edge]
 
     # TODO: maybe sort these, but I don't think it's necessary
-    edge_node_connectivity = np.asarray(list(edge_dict.keys()), dtype=INT_DTYPE)
+    edge_node_connectivity = np.asarray(list(unique_edge_dict.keys()), dtype=INT_DTYPE)
 
     return edge_node_connectivity, face_edge_connectivity
 
@@ -210,7 +217,7 @@ def _populate_node_face_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.node_face_connectivity``)."""
 
-    node_faces, n_max_faces_per_node = _build_node_faces_connectivity(
+    node_faces, n_max_faces_per_node = _build_node_face_connectivity(
         grid.face_node_connectivity.values, grid.n_node
     )
 
@@ -221,7 +228,7 @@ def _populate_node_face_connectivity(grid):
     )
 
 
-def _build_node_faces_connectivity(face_nodes, n_node):
+def _build_node_face_connectivity(face_nodes, n_node):
     """Builds the `Grid.node_faces_connectivity`: integer DataArray of size
     (n_node, n_max_faces_per_node) (optional) A DataArray of indices indicating
     faces that are neighboring each node.
@@ -266,7 +273,7 @@ def _populate_face_face_connectivity(grid):
     """Constructs the UGRID connectivity variable (``face_face_connectivity``)
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.face_face_connectivity``)."""
-    face_face = _build_face_face_connectivity(grid)
+    face_face = _build_face_face_connectivity(grid.edge_face_connectivity.values, grid.n_face, grid.n_max_face_nodes)
 
     grid._ds["face_face_connectivity"] = xr.DataArray(
         data=face_face,
@@ -275,28 +282,19 @@ def _populate_face_face_connectivity(grid):
     )
 
 
-def _build_face_face_connectivity(grid):
-    """Returns face-face connectivity."""
+@njit(cache=True)
+def _build_face_face_connectivity(edge_face_connectivity, n_face, n_max_face_nodes):
+    face_face_connectivity = np.full((n_face, n_max_face_nodes), INT_FILL_VALUE, INT_DTYPE)
+    face_index_position = np.zeros(n_face, dtype=INT_DTYPE)
 
-    # Dictionary to store each faces adjacent faces
-    face_neighbors = {i: [] for i in range(grid.n_face)}
+    for edge_faces in edge_face_connectivity:
+        face_a, face_b = edge_faces
+        if face_a != INT_FILL_VALUE and face_b != INT_FILL_VALUE:
+            face_face_connectivity[face_a, face_index_position[face_a]] = face_b
+            face_index_position[face_a] += 1
 
-    # Loop through each edge_face and add to the dictionary every face that shares an edge
-    for edge_face in grid.edge_face_connectivity.values:
-        face1, face2 = edge_face
-        if face1 != INT_FILL_VALUE and face2 != INT_FILL_VALUE:
-            # Append to each face's dictionary index the opposite face index
-            face_neighbors[face1].append(face2)
-            face_neighbors[face2].append(face1)
-
-    # Convert to an array and pad it with fill values
-    face_face_conn = list(face_neighbors.values())
-    face_face_connectivity = [
-        np.pad(
-            arr, (0, grid.n_max_face_edges - len(arr)), constant_values=INT_FILL_VALUE
-        )
-        for arr in face_face_conn
-    ]
+            face_face_connectivity[face_b, face_index_position[face_b]] = face_a
+            face_index_position[face_b] += 1
 
     return face_face_connectivity
 
