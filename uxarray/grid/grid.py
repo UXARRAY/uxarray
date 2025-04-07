@@ -14,7 +14,12 @@ from typing import (
     Tuple,
 )
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, make_setter
+from uxarray.grid.utils import make_setter
+
+from uxarray.geometry.face_edges import (
+    _construct_face_edge_nodes_cartesian,
+    _construct_face_edge_nodes_spherical,
+)
 
 from uxarray.io._exodus import _read_exodus, _encode_exodus
 from uxarray.io._mpas import _read_mpas
@@ -262,6 +267,8 @@ class Grid:
 
         # flag to track if coordinates are normalized
         self._normalized = None
+
+        self._cache_geometry = False
 
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self)
@@ -1652,10 +1659,112 @@ class Grid:
         return self._ds["max_face_radius"]
 
     # ==================================================================================================================
-    # Convenience Properties
+    # Derived Geometry Arrays
     # ==================================================================================================================
 
-    # TODO:
+    @property
+    def cache_geometry(self):
+        """Boolean flag indicating whether to cache intermediary geometry arrays used within internal computations.
+
+        For example, if face_edges_cartesian and face_edges_spherical are constructed during the face bounds construction,
+        they will be cached for later use in other methods, such as zonal averaging.
+
+        The value is set to False by default to reduce memory usage.
+
+        """
+        return self._cache_geometry
+
+    @cache_geometry.setter
+    def cache_geometry(self, value: bool):
+        assert isinstance(value, bool)
+        self._cache_geometry = value
+
+    @property
+    def face_edge_nodes_cartesian(self):
+        """
+        Geometry variable containing the Cartesian coordinates of the edges that make up each face.
+
+        Returns
+        -------
+        face_edge_nodes_cartesian : py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_edges`, two, three)
+        """
+        if self.cache_geometry and "face_edge_nodes_cartesian" in self._ds:
+            return self._ds["face_edges_cartesian"]
+
+        face_edge_nodes_cartesian = _construct_face_edge_nodes_cartesian(
+            self.face_node_connectivity.values,
+            self.n_face,
+            self.n_max_face_edges,
+            self.node_x.values,
+            self.node_y.values,
+            self.node_z.values,
+        )
+
+        if self.cache_geometry:
+            self._ds["face_edge_nodes_cartesian"] = xr.DataArray(
+                data=face_edge_nodes_cartesian,
+                dims=["n_face", "n_max_face_edges", "two", "three"],
+            )
+            return self._ds["face_edge_nodes_cartesian"]
+        else:
+            return face_edge_nodes_cartesian
+
+    @property
+    def face_edge_nodes_spherical(self):
+        """
+        Geometry variable containing the Spherical coordinates of the edges that make up each face.
+
+        Returns
+        -------
+        face_edge_nodes_cartesian : py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_edges`, two, two)
+        """
+        if self.cache_geometry and "face_edge_nodes_spherical" in self._ds:
+            return self._ds["face_edge_nodes_spherical"]
+
+        face_edge_nodes_spherical = _construct_face_edge_nodes_spherical(
+            self.face_node_connectivity.values,
+            self.n_face,
+            self.n_max_face_edges,
+            self.node_lon.values,
+            self.node_lat.values,
+        )
+
+        if self.cache_geometry:
+            self._ds["face_edge_nodes_spherical"] = xr.DataArray(
+                data=face_edge_nodes_spherical,
+                dims=["n_face", "n_max_face_edges", "two", "two"],
+            )
+            return self._ds["face_edge_nodes_spherical"]
+        else:
+            return face_edge_nodes_spherical
+
+    # TODO: Polygon Coordinates (face_nodes_spherical)
+
+    @property
+    def face_nodes_cartesian(self):
+        """
+        Geometry variable containing the closed Cartesian coordinates of the nodes that make up each face.
+
+        Returns
+        -------
+        face_nodes_cartesian : py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_nodes` + 1)
+        """
+        return None
+
+    @property
+    def face_nodes_spherical(self):
+        """
+        Geometry variable containing the closed Spherical coordinates of the nodes that make up each face.
+
+        Returns
+        -------
+        face_nodes_cartesian : py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_nodes` + 1)
+        """
+        return None
 
     # ==================================================================================================================
     # Grid Methods
@@ -2703,14 +2812,7 @@ class Grid:
             return np.empty(0, dtype=np.int64)
 
         # Get the faces in terms of their edges
-        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
-            subset.face_node_connectivity.values,
-            subset.n_face,
-            subset.n_max_face_nodes,
-            subset.node_x.values,
-            subset.node_y.values,
-            subset.node_z.values,
-        )
+        face_edge_nodes_xyz = self.face_edge_nodes_cartesian
 
         # Get the original face indices from the subset
         inverse_indices = subset.inverse_indices.face.values

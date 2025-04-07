@@ -169,7 +169,7 @@ def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
 
 
 # ======================================================================================================================
-# face_edge_connectivity: Indicies of the edges that make up each face
+# face_edge_connectivity: Indices of the edges that make up each face
 # ======================================================================================================================
 
 

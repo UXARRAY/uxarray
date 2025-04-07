@@ -28,10 +28,12 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
-from uxarray.grid.utils import (
-    _get_cartesian_face_edge_nodes,
-    _get_lonlat_rad_face_edge_nodes,
-)
+# from uxarray.grid.utils import (
+#     _get_cartesian_face_edge_nodes,
+#     _get_lonlat_rad_face_edge_nodes,
+# )
+
+
 from uxarray.utils.computing import allclose, isclose
 
 POLE_POINTS_XYZ = {
@@ -1410,22 +1412,10 @@ def _populate_bounds(
     grid.normalize_cartesian_coordinates()
 
     # Prepare data for Numba functions
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    faces_edges_cartesian = grid.face_edge_nodes_cartesian
 
-    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_lon.values,
-        grid.node_lat.values,
-    )
+    # TODO: update variable names
+    faces_edges_lonlat_rad = grid.face_edge_nodes_spherical
 
     n_nodes_per_face = grid.n_nodes_per_face.values
 
