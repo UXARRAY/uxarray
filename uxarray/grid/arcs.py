@@ -418,4 +418,3 @@ def compute_arc_length(pt_a, pt_b):
     delta_theta = np.atan2(cross_2d, dot_2d)
 
     return rho * abs(delta_theta)
-

@@ -7,7 +7,7 @@ from uxarray.grid.arcs import (
     in_between,
     extreme_gca_z,
     point_within_gca,
-    _intersection_within_interval
+    _intersection_within_interval,
 )
 from uxarray.utils.computing import allclose, cross, norm
 
@@ -348,15 +348,15 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     x2_xyz = -x1_xyz
 
     # Check intersection points
-    if _intersection_within_interval(x1_xyz, w0_xyz, w1_xyz) and _intersection_within_interval(
-        x1_xyz, v0_xyz, v1_xyz
-    ):
+    if _intersection_within_interval(
+        x1_xyz, w0_xyz, w1_xyz
+    ) and _intersection_within_interval(x1_xyz, v0_xyz, v1_xyz):
         res[count, :] = x1_xyz
         count += 1
 
-    if _intersection_within_interval(x2_xyz, w0_xyz, w1_xyz) and _intersection_within_interval(
-        x2_xyz, v0_xyz, v1_xyz
-    ):
+    if _intersection_within_interval(
+        x2_xyz, w0_xyz, w1_xyz
+    ) and _intersection_within_interval(x2_xyz, v0_xyz, v1_xyz):
         res[count, :] = x2_xyz
         count += 1
 
