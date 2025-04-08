@@ -48,7 +48,7 @@ This Code of Conduct applies to all spaces managed by UXarray whether they be ph
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the the `@UXARRAY/uxarray-dev` GitHub handle as the community leaders
+reported to the `@UXARRAY/uxarray-dev` GitHub handle as the community leaders
 in this group can view and manage the reported content, and hence are responsible
 for enforcement.
 
