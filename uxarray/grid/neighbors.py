@@ -822,9 +822,6 @@ class SpatialHash:
         self._xmax = lon_max + self._dh
         self._ymax = lat_max + self._dh
 
-        print(self._xmin, self._xmax)
-        print(self._ymin, self._ymax)
-
         # Number of x points in the hash grid; used for
         # array flattening
         Lx = self._xmax - self._xmin
