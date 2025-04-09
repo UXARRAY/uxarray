@@ -320,3 +320,141 @@ def _get_lonlat_rad_face_edge_nodes(
     face_edges_lonlat_rad[valid_mask, 1] = node_lat_rad[valid_edges]
 
     return face_edges_lonlat_rad.reshape(n_face, n_max_face_edges, 2, 2)
+
+
+# @njit(cache=True)
+# def _get_edge_nodes_cartesian_single_face(face_idx,
+#                                           edge_node_connectivity,
+#                                           face_edge_connectivity,
+#                                           n_edges_per_face,
+#                                           node_x, node_y, node_z):
+#     # Number non-fill-value edges
+#     n_edges = n_edges_per_face[face_idx]
+#
+#     # Allocate data for face_edge_nodes
+#     face_edge_nodes = np.empty((n_edges, 2, 3), dtype=np.float64)
+#
+#     # Indices of the edges that make up the current face
+#     edge_indices = face_edge_connectivity[face_idx, 0:n_edges]
+#
+#     # Indices of the two nodes that make up each edge for the current face
+#     node_indices = edge_node_connectivity[edge_indices]
+#
+#     first_nodes = node_indices[:, 0]
+#     second_nodes = node_indices[:, 1]
+#
+#     # Assign x coordinates of start and end nodes
+#     face_edge_nodes[0:n_edges, 0, 0] = node_x[first_nodes]
+#     face_edge_nodes[0:n_edges, 1, 0] = node_x[second_nodes]
+#
+#     # Assign y coordinates of start and end nodes
+#     face_edge_nodes[0:n_edges, 0, 1] = node_y[first_nodes]
+#     face_edge_nodes[0:n_edges, 1, 1] = node_y[second_nodes]
+#
+#     # Assign z coordinates of start and end nodes
+#     face_edge_nodes[0:n_edges, 0, 2] = node_z[first_nodes]
+#     face_edge_nodes[0:n_edges, 1, 2] = node_z[second_nodes]
+#
+#     return face_edge_nodes
+#
+#
+# @njit(cache=True)
+# def _get_edge_nodes_spherical_single_face(face_idx,
+#                                           edge_node_connectivity,
+#                                           face_edge_connectivity,
+#                                           n_edges_per_face,
+#                                           node_lon, node_lat):
+#     # Number non-fill-value edges
+#     n_edges = n_edges_per_face[face_idx]
+#
+#     # Allocate data for face_edge_nodes
+#     face_edge_nodes = np.empty((n_edges, 2, 2), dtype=np.float64)
+#
+#     # Indices of the edges that make up the current face
+#     edge_indices = face_edge_connectivity[face_idx, 0:n_edges]
+#
+#     # Indices of the two nodes that make up each edge for the current face
+#     node_indices = edge_node_connectivity[edge_indices]
+#
+#     first_nodes = node_indices[:, 0]
+#     second_nodes = node_indices[:, 1]
+#
+#     # Assign longitude coordinates of start and end nodes
+#     face_edge_nodes[0:n_edges, 0, 0] = node_lon[first_nodes]
+#     face_edge_nodes[0:n_edges, 1, 0] = node_lon[second_nodes]
+#
+#     # Assign latitude coordinates of start and end nodes
+#     face_edge_nodes[0:n_edges, 0, 1] = node_lat[first_nodes]
+#     face_edge_nodes[0:n_edges, 1, 1] = node_lat[second_nodes]
+#
+#
+#     return face_edge_nodes
+
+
+@njit(cache=True)
+def _get_edge_nodes_cartesian_single_face(
+    face_idx, face_node_connectivity, n_edges_per_face, node_x, node_y, node_z
+):
+    # Number non-fill-value edges
+    n_edges = n_edges_per_face[face_idx]
+
+    # Allocate data for face_edge_nodes
+    face_edge_nodes = np.empty((n_edges, 2, 3), dtype=np.float64)
+
+    start_nodes = face_node_connectivity[face_idx, 0:n_edges]
+    end_nodes = np.roll(start_nodes, -1)
+
+    # Assign x coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 0] = node_x[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 0] = node_x[end_nodes]
+
+    # Assign y coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 1] = node_y[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 1] = node_y[end_nodes]
+
+    # Assign z coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 2] = node_z[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 2] = node_z[end_nodes]
+
+    return face_edge_nodes
+
+
+@njit(cache=True)
+def _get_edge_nodes_spherical_single_face(
+    face_idx, face_node_connectivity, n_edges_per_face, node_lon, node_lat
+):
+    # Number non-fill-value edges
+    n_edges = n_edges_per_face[face_idx]
+
+    # Allocate data for face_edge_nodes
+    face_edge_nodes = np.empty((n_edges, 2, 2), dtype=np.float64)
+
+    start_nodes = face_node_connectivity[face_idx, 0:n_edges]
+    end_nodes = np.roll(start_nodes, -1)
+
+    # Assign longitude coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 0] = node_lon[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 0] = node_lon[end_nodes]
+
+    # Assign latitude coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 1] = node_lat[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 1] = node_lat[end_nodes]
+
+    return face_edge_nodes
+
+
+@njit(cache=True)
+def all_elements_nan(arr):
+    """Check if all elements in an array are np.nan."""
+    for i in range(arr.shape[0]):
+        if not np.isnan(arr[i]):
+            return False
+    return True
+
+
+@njit(cache=True)
+def any_close_lat(lat_pt, atol):
+    """Check if the latitude point is close to either the North or South Pole."""
+    return np.isclose(lat_pt, 0.5 * np.pi, atol) or np.isclose(
+        lat_pt, -0.5 * np.pi, atol
+    )

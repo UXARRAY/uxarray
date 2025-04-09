@@ -84,6 +84,8 @@ def _zonal_face_weights_robust(
         (as a fraction of the total length of intersection).
     """
 
+    faces_edges_cart_candidate
+
     # Special case: latitude_cart close to +1 or -1 (near poles)
     if isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or isclose(
         latitude_cart, -1, atol=ERROR_TOLERANCE
@@ -97,6 +99,8 @@ def _zonal_face_weights_robust(
         )
 
     intervals_list = []
+
+    # TODO: Construct face edges cart here?
 
     # Iterate over faces
     for face_index, face_edges in enumerate(faces_edges_cart_candidate):

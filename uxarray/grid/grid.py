@@ -70,12 +70,12 @@ from uxarray.grid.geometry import (
     _grid_to_polygon_geodataframe,
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
-    _populate_bounds,
     _construct_boundary_edge_indices,
-    compute_temp_latlon_array,
     _find_faces,
     _populate_max_face_radius,
 )
+
+from uxarray.grid.bounds import _populate_face_bounds, _construct_face_bounds_array
 
 from uxarray.grid.neighbors import (
     BallTree,
@@ -1450,13 +1450,13 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(compute_temp_latlon_array):
+            if not is_numba_function_cached(_construct_face_bounds_array):
                 warn(
                     "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
-            _populate_bounds(self)
+            _populate_face_bounds(self)
         return self._ds["bounds"]
 
     @bounds.setter
