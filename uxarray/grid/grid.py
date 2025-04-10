@@ -1987,11 +1987,20 @@ class Grid:
             return
 
         if "node_x" in self._ds:
-            self.node_x /= self.node_x**2 + self.node_y**2 + self.node_y**2
+            denom = self.node_x**2 + self.node_y**2 + self.node_z**2
+            self.node_x /= denom
+            self.node_y /= denom
+            self.node_z /= denom
         if "edge_x" in self._ds:
-            self.edge_x /= self.edge_x**2 + self.edge_y**2 + self.edge_y**2
+            denom = self.edge_x**2 + self.edge_y**2 + self.edge_z**2
+            self.edge_x /= denom
+            self.edge_y /= denom
+            self.edge_z /= denom
         if "face_x" in self._ds:
-            self.face_x /= self.face_x**2 + self.face_y**2 + self.face_y**2
+            denom = self.face_x**2 + self.face_y**2 + self.face_z**2
+            self.face_x /= denom
+            self.face_y /= denom
+            self.face_z /= denom
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
