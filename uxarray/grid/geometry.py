@@ -29,8 +29,8 @@ from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
 from uxarray.grid.utils import (
-    _get_cartesian_face_edge_nodes,
-    _get_lonlat_rad_face_edge_nodes,
+    _get_cartesian_faces_edge_nodes,
+    _get_lonlat_rad_faces_edge_nodes,
 )
 from uxarray.utils.computing import allclose, isclose
 
@@ -688,6 +688,7 @@ def _convert_shells_to_polygons(shells):
     return polygons
 
 
+# TODO: If we don't actually use this one, remove it
 def _pole_point_inside_polygon_cartesian(pole, face_edges_xyz):
     if isinstance(pole, str):
         pole = POLE_NAME_TO_INT[pole]
@@ -1346,6 +1347,59 @@ def compute_temp_latlon_array(
     return temp_latlon_array
 
 
+def _populate_faces_edges_cartesian(grid, return_array=False):
+    faces_edges_cartesian = _get_cartesian_faces_edge_nodes(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+    )
+
+    faces_edges_cartesian_xarray = xr.DataArray(
+        faces_edges_cartesian,
+        dims=["n_face", "n_max_face_edges", "two", "three"],
+        attrs={
+            "cf_role": "faces_edges_cartesian",
+            "_FillValue": INT_FILL_VALUE,
+            "long_name": "Provide the Cartesian coordinates of the edge for each face",
+            "start_index": INT_DTYPE(0),
+        },
+    )
+
+    if return_array:
+        return faces_edges_cartesian_xarray
+    else:
+        grid._ds["faces_edges_cartesian"] = faces_edges_cartesian_xarray
+
+
+def _populate_faces_edges_spherical(grid, return_array=False):
+    faces_edges_lonlat_rad = _get_lonlat_rad_faces_edge_nodes(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_lon.values,
+        grid.node_lat.values,
+    )
+
+    faces_edges_lonlat_rad_xarray = xr.DataArray(
+        faces_edges_lonlat_rad,
+        dims=["n_face", "n_max_face_edges", "two", "two"],
+        attrs={
+            "cf_role": "faces_edges_spherical",
+            "_FillValue": INT_FILL_VALUE,
+            "long_name": "Provide the Spherical coordinates (lon lat) in radians of the edge for each face",
+            "start_index": INT_DTYPE(0),
+        },
+    )
+
+    if return_array:
+        return faces_edges_lonlat_rad_xarray
+    else:
+        grid._ds["faces_edges_spherical"] = faces_edges_lonlat_rad_xarray
+
+
 def _populate_bounds(
     grid, is_latlonface: bool = False, is_face_GCA_list=None, return_array=False
 ):
@@ -1357,6 +1411,10 @@ def _populate_bounds(
 
     Parameters
     ----------
+    grid : object
+        The grid object whose internal representation will be updated with the computed
+        face bounds.
+
     is_latlonface : bool, optional
         A global flag that indicates if faces are latlon faces. If True, all faces
         are treated as latlon faces, meaning that all edges are either longitude or
@@ -1407,25 +1465,14 @@ def _populate_bounds(
     """
 
     # Ensure grid's cartesian coordinates are normalized
+    # TODO: Is it possible to have a more flexible normalization? (Avoid duplicated normalizations)
     grid.normalize_cartesian_coordinates()
 
-    # Prepare data for Numba functions
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
+    # If the face_edges_cartesian and face_edges_lonlat_rad didn't exist,
+    # The following call will automatically populate them
+    faces_edges_cartesian = grid.faces_edges_cartesian.values
 
-    faces_edges_lonlat_rad = _get_lonlat_rad_face_edge_nodes(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_lon.values,
-        grid.node_lat.values,
-    )
+    faces_edges_lonlat_rad = grid.faces_edges_spherical.values
 
     n_nodes_per_face = grid.n_nodes_per_face.values
 
