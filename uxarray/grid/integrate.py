@@ -666,8 +666,6 @@ def _zonal_face_weights(
         Array of weights for each face intersecting the latitude line
     """
 
-    # TODO: Consider pole check here?
-
     if check_equator:
         # If near equator, use original approach
         if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
