@@ -204,18 +204,22 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
     return x_norm, y_norm, z_norm
 
 
-# TODO: Replace all other norm calls with this?
-@njit(cache=True, parallel=True)
+@njit(
+    [
+        "void(float32[:], float32[:], float32[:])",
+        "void(float64[:], float64[:], float64[:])",
+    ],
+    cache=True,
+    parallel=True,
+)
 def _normalize_xyz_parallel(x, y, z):
-    n = len(x)
-
-    for i in prange(n):
+    for i in prange(len(x)):
         # L2 Norm
-        denom = np.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2)
+        norm = np.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2)
 
-        x[i] /= denom
-        y[i] /= denom
-        z[i] /= denom
+        x[i] /= norm
+        y[i] /= norm
+        z[i] /= norm
 
 
 def _populate_node_latlon(grid) -> None:
