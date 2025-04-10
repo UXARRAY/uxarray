@@ -75,7 +75,7 @@ from uxarray.grid.geometry import (
     _populate_max_face_radius,
 )
 
-from uxarray.grid.bounds import _populate_face_bounds, _construct_face_bounds_array
+from uxarray.grid.bounds import _populate_face_bounds
 
 from uxarray.grid.neighbors import (
     BallTree,
@@ -110,8 +110,6 @@ from uxarray.grid.validation import (
     _check_area,
     _check_normalization,
 )
-
-from uxarray.utils.numba import is_numba_function_cached
 
 
 from uxarray.conventions import ugrid
@@ -1450,12 +1448,13 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(_construct_face_bounds_array):
-                warn(
-                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
-                    "This initial execution will be significantly longer.",
-                    RuntimeWarning,
-                )
+            # TODO: This only adds a few seconds, I dont think this is worth including
+            #     if not is_numba_function_cached(_construct_face_bounds_array):
+            #         warn(
+            #             "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
+            #             "This initial execution will be significantly longer.",
+            #             RuntimeWarning,
+            #         )
             _populate_face_bounds(self)
         return self._ds["bounds"]
 
