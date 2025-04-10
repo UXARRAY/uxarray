@@ -51,10 +51,10 @@ from uxarray.grid.coordinates import (
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
-    _normalize_xyz,
     prepare_points,
     _lonlat_rad_to_xyz,
     _xyz_to_lonlat_deg,
+    _normalize_xyz_parallel,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -70,12 +70,12 @@ from uxarray.grid.geometry import (
     _grid_to_polygon_geodataframe,
     _grid_to_matplotlib_polycollection,
     _grid_to_matplotlib_linecollection,
-    _populate_bounds,
     _construct_boundary_edge_indices,
-    compute_temp_latlon_array,
     _find_faces,
     _populate_max_face_radius,
 )
+
+from uxarray.grid.bounds import _populate_face_bounds
 
 from uxarray.grid.neighbors import (
     BallTree,
@@ -110,8 +110,6 @@ from uxarray.grid.validation import (
     _check_area,
     _check_normalization,
 )
-
-from uxarray.utils.numba import is_numba_function_cached
 
 
 from uxarray.conventions import ugrid
@@ -1450,13 +1448,14 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(compute_temp_latlon_array):
-                warn(
-                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
-                    "This initial execution will be significantly longer.",
-                    RuntimeWarning,
-                )
-            _populate_bounds(self)
+            # TODO: This only adds a few seconds, I dont think this is worth including
+            #     if not is_numba_function_cached(_construct_face_bounds_array):
+            #         warn(
+            #             "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
+            #             "This initial execution will be significantly longer.",
+            #             RuntimeWarning,
+            #         )
+            _populate_face_bounds(self)
         return self._ds["bounds"]
 
     @bounds.setter
@@ -1988,26 +1987,27 @@ class Grid:
             return
 
         if "node_x" in self._ds:
-            # normalize node coordinates
-            node_x, node_y, node_z = _normalize_xyz(
-                self.node_x.values, self.node_y.values, self.node_z.values
-            )
+            node_x = self.node_x.values
+            node_y = self.node_y.values
+            node_z = self.node_z.values
+            _normalize_xyz_parallel(node_x, node_y, node_z)
             self.node_x.data = node_x
             self.node_y.data = node_y
             self.node_z.data = node_z
         if "edge_x" in self._ds:
-            # normalize edge coordinates
-            edge_x, edge_y, edge_z = _normalize_xyz(
-                self.edge_x.values, self.edge_y.values, self.edge_z.values
-            )
+            edge_x = self.edge_x.values
+            edge_y = self.edge_y.values
+            edge_z = self.edge_z.values
+            _normalize_xyz_parallel(edge_x, edge_y, edge_z)
             self.edge_x.data = edge_x
             self.edge_y.data = edge_y
             self.edge_z.data = edge_z
+
         if "face_x" in self._ds:
-            # normalize face coordinates
-            face_x, face_y, face_z = _normalize_xyz(
-                self.face_x.values, self.face_y.values, self.face_z.values
-            )
+            face_x = self.face_x.values
+            face_y = self.face_y.values
+            face_z = self.face_z.values
+            _normalize_xyz_parallel(face_x, face_y, face_z)
             self.face_x.data = face_x
             self.face_y.data = face_y
             self.face_z.data = face_z

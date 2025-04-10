@@ -204,6 +204,24 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
     return x_norm, y_norm, z_norm
 
 
+@njit(
+    [
+        "void(float32[:], float32[:], float32[:])",
+        "void(float64[:], float64[:], float64[:])",
+    ],
+    cache=True,
+    parallel=True,
+)
+def _normalize_xyz_parallel(x, y, z):
+    for i in prange(len(x)):
+        # L2 Norm
+        norm = np.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2)
+
+        x[i] /= norm
+        y[i] /= norm
+        z[i] /= norm
+
+
 def _populate_node_latlon(grid) -> None:
     """Populates the lon and lat coordinates of a Grid (`node_lon`,
     `node_lat`)"""
@@ -792,20 +810,20 @@ def _xyz_to_lonlat_rad_no_norm(
     return lon, lat
 
 
-def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Normalizes a set of Cartesiain coordinates."""
-    denom = np.linalg.norm(
-        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
-    )
-
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
+# def _normalize_xyz(
+#     x: Union[np.ndarray, float],
+#     y: Union[np.ndarray, float],
+#     z: Union[np.ndarray, float],
+# ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+#     """Normalizes a set of Cartesiain coordinates."""
+#     denom = np.linalg.norm(
+#         np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
+#     )
+#
+#     x_norm = x / denom
+#     y_norm = y / denom
+#     z_norm = z / denom
+#     return x_norm, y_norm, z_norm
 
 
 @njit(cache=True)
