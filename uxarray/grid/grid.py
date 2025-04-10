@@ -51,7 +51,7 @@ from uxarray.grid.coordinates import (
     _set_desired_longitude_range,
     _populate_node_latlon,
     _populate_node_xyz,
-    _normalize_xyz,
+    _normalize_xyz_parallel,
     prepare_points,
     _lonlat_rad_to_xyz,
     _xyz_to_lonlat_deg,
@@ -1989,25 +1989,28 @@ class Grid:
 
         if "node_x" in self._ds:
             # normalize node coordinates
-            node_x, node_y, node_z = _normalize_xyz(
-                self.node_x.values, self.node_y.values, self.node_z.values
-            )
+            node_x = self.node_x.values
+            node_y = self.node_y.values
+            node_z = self.node_z.values
+            _normalize_xyz_parallel(node_x, node_y, node_z)
             self.node_x.data = node_x
             self.node_y.data = node_y
             self.node_z.data = node_z
         if "edge_x" in self._ds:
             # normalize edge coordinates
-            edge_x, edge_y, edge_z = _normalize_xyz(
-                self.edge_x.values, self.edge_y.values, self.edge_z.values
-            )
+            edge_x = self.edge_x.values
+            edge_y = self.edge_y.values
+            edge_z = self.edge_z.values
+            _normalize_xyz_parallel(edge_x, edge_y, edge_z)
             self.edge_x.data = edge_x
             self.edge_y.data = edge_y
             self.edge_z.data = edge_z
         if "face_x" in self._ds:
             # normalize face coordinates
-            face_x, face_y, face_z = _normalize_xyz(
-                self.face_x.values, self.face_y.values, self.face_z.values
-            )
+            face_x = self.face_x.values
+            face_y = self.face_y.values
+            face_z = self.face_z.values
+            _normalize_xyz_parallel(face_x, face_y, face_z)
             self.face_x.data = face_x
             self.face_y.data = face_y
             self.face_z.data = face_z
