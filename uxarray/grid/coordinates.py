@@ -204,6 +204,20 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
     return x_norm, y_norm, z_norm
 
 
+# TODO: Replace all other norm calls with this?
+@njit(cache=True, parallel=True)
+def _normalize_xyz_parallel(x, y, z):
+    n = len(x)
+
+    for i in prange(n):
+        # L2 Norm
+        denom = np.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2)
+
+        x[i] /= denom
+        y[i] /= denom
+        z[i] /= denom
+
+
 def _populate_node_latlon(grid) -> None:
     """Populates the lon and lat coordinates of a Grid (`node_lon`,
     `node_lat`)"""

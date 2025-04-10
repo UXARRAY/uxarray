@@ -54,6 +54,7 @@ from uxarray.grid.coordinates import (
     prepare_points,
     _lonlat_rad_to_xyz,
     _xyz_to_lonlat_deg,
+    _normalize_xyz_parallel,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -1987,20 +1988,30 @@ class Grid:
             return
 
         if "node_x" in self._ds:
-            denom = self.node_x**2 + self.node_y**2 + self.node_z**2
-            self.node_x /= denom
-            self.node_y /= denom
-            self.node_z /= denom
+            node_x = self.node_x.values
+            node_y = self.node_y.values
+            node_z = self.node_z.values
+            _normalize_xyz_parallel(node_x, node_y, node_z)
+            self.node_x.data = node_x
+            self.node_y.data = node_y
+            self.node_z.data = node_z
         if "edge_x" in self._ds:
-            denom = self.edge_x**2 + self.edge_y**2 + self.edge_z**2
-            self.edge_x /= denom
-            self.edge_y /= denom
-            self.edge_z /= denom
+            edge_x = self.edge_x.values
+            edge_y = self.edge_y.values
+            edge_z = self.edge_z.values
+            _normalize_xyz_parallel(edge_x, edge_y, edge_z)
+            self.edge_x.data = edge_x
+            self.edge_y.data = edge_y
+            self.edge_z.data = edge_z
+
         if "face_x" in self._ds:
-            denom = self.face_x**2 + self.face_y**2 + self.face_z**2
-            self.face_x /= denom
-            self.face_y /= denom
-            self.face_z /= denom
+            face_x = self.face_x.values
+            face_y = self.face_y.values
+            face_z = self.face_z.values
+            _normalize_xyz_parallel(face_x, face_y, face_z)
+            self.face_x.data = face_x
+            self.face_y.data = face_y
+            self.face_z.data = face_z
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
