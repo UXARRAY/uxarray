@@ -122,6 +122,7 @@ def _bilinear(
         dual=dual,
         source_data=source_data,
         data_size=data_size,
+        source_grid=source_grid,
     )
 
     return values
@@ -157,6 +158,7 @@ def _bilinear_uxda(
 
     # perform remapping
     destination_data = _bilinear(source_uxda, destination_grid, remap_to)
+
     # construct a data array for remapping variable
     uxda_remap = uxarray.core.dataarray.UxDataArray(
         data=destination_data,
@@ -194,7 +196,7 @@ def _bilinear_uxds(
     return destination_uxds
 
 
-def _get_values(point_xyz, point_lonlat, dual, source_data, data_size):
+def _get_values(point_xyz, point_lonlat, dual, source_data, data_size, source_grid):
     """Get the values for each point being remapped to by calculating and applying the weights"""
     values = np.zeros(data_size)
 
@@ -207,7 +209,15 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size):
         number_of_faces = len(face_ind)
 
         if number_of_faces == 0:
-            values[i] = 0
+            # Check to see if the point lies within the source grid instead
+            face_ind = source_grid.get_faces_containing_point(
+                point_xyz=point_xyz[i], point_lonlat=point_lonlat[i]
+            )
+
+            if len(face_ind) == 0:
+                values[i] = 0
+            else:
+                values[i] = source_data[face_ind[0]]
         else:
             # Get the index of the face that holds the point
             node_ind = dual.uxgrid.face_node_connectivity[face_ind[0]].values
