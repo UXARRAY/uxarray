@@ -1,8 +1,8 @@
-import xarray as xr
 import numpy as np
+import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.conventions import ugrid, descriptors
+from uxarray.conventions import descriptors, ugrid
 
 
 def _mpas_to_ugrid_dims(in_ds, primal=True):

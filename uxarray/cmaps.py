@@ -1,6 +1,5 @@
 from matplotlib.colors import LinearSegmentedColormap
 
-
 diverging = LinearSegmentedColormap.from_list(
     "diverging",
     (

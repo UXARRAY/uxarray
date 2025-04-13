@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import Hashable, Literal, Optional, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Hashable, Literal, Optional
 from warnings import warn
 
 import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
+from xarray.core import dtypes
+from xarray.core.options import OPTIONS
+from xarray.core.utils import UncachedAccessor
 
 import uxarray
 from uxarray.core.aggregation import _uxda_grid_aggregate
@@ -26,10 +29,6 @@ from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap import UxDataArrayRemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
-
-from xarray.core.options import OPTIONS
-from xarray.core.utils import UncachedAccessor
-from xarray.core import dtypes
 
 if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
