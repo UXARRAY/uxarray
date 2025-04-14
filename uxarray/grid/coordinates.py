@@ -204,24 +204,6 @@ def _normalize_xyz_scalar(x: float, y: float, z: float):
     return x_norm, y_norm, z_norm
 
 
-@njit(
-    [
-        "void(float32[:], float32[:], float32[:])",
-        "void(float64[:], float64[:], float64[:])",
-    ],
-    cache=True,
-    parallel=True,
-)
-def _normalize_xyz_parallel(x, y, z):
-    for i in prange(len(x)):
-        # L2 Norm
-        norm = np.sqrt(x[i] ** 2 + y[i] ** 2 + z[i] ** 2)
-
-        x[i] /= norm
-        y[i] /= norm
-        z[i] /= norm
-
-
 def _populate_node_latlon(grid) -> None:
     """Populates the lon and lat coordinates of a Grid (`node_lon`,
     `node_lat`)"""

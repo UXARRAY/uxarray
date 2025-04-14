@@ -54,7 +54,6 @@ from uxarray.grid.coordinates import (
     prepare_points,
     _lonlat_rad_to_xyz,
     _xyz_to_lonlat_deg,
-    _normalize_xyz_parallel,
 )
 from uxarray.grid.connectivity import (
     _populate_edge_node_connectivity,
@@ -1987,30 +1986,21 @@ class Grid:
             return
 
         if "node_x" in self._ds:
-            node_x = self.node_x.values
-            node_y = self.node_y.values
-            node_z = self.node_z.values
-            _normalize_xyz_parallel(node_x, node_y, node_z)
-            self.node_x.data = node_x
-            self.node_y.data = node_y
-            self.node_z.data = node_z
-        if "edge_x" in self._ds:
-            edge_x = self.edge_x.values
-            edge_y = self.edge_y.values
-            edge_z = self.edge_z.values
-            _normalize_xyz_parallel(edge_x, edge_y, edge_z)
-            self.edge_x.data = edge_x
-            self.edge_y.data = edge_y
-            self.edge_z.data = edge_z
+            norm = xr.ufuncs.sqrt(self.node_x**2 + self.node_y**2 + self.node_z**2)
+            self.node_x /= norm
+            self.node_y /= norm
+            self.node_z /= norm
 
+        if "edge_x" in self._ds:
+            norm = xr.ufuncs.sqrt(self.edge_x**2 + self.edge_y**2 + self.edge_z**2)
+            self.edge_x /= norm
+            self.edge_y /= norm
+            self.edge_z /= norm
         if "face_x" in self._ds:
-            face_x = self.face_x.values
-            face_y = self.face_y.values
-            face_z = self.face_z.values
-            _normalize_xyz_parallel(face_x, face_y, face_z)
-            self.face_x.data = face_x
-            self.face_y.data = face_y
-            self.face_z.data = face_z
+            norm = xr.ufuncs.sqrt(self.face_x**2 + self.face_y**2 + self.face_z**2)
+            self.face_x /= norm
+            self.face_y /= norm
+            self.face_z /= norm
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
