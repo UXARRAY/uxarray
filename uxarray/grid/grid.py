@@ -15,6 +15,7 @@ from typing import (
 )
 
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.utils.numba import is_numba_function_cached
 
 # reader and writer imports
 from uxarray.io._exodus import _read_exodus, _encode_exodus
@@ -1447,13 +1448,12 @@ class Grid:
         Dimensions ``(n_face", two, two)``
         """
         if "bounds" not in self._ds:
-            # TODO: This only adds a few seconds, I dont think this is worth including
-            #     if not is_numba_function_cached(_construct_face_bounds_array):
-            #         warn(
-            #             "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
-            #             "This initial execution will be significantly longer.",
-            #             RuntimeWarning,
-            #         )
+            if not is_numba_function_cached(_populate_face_bounds):
+                warn(
+                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
+                    "This initial execution will be significantly longer.",
+                    RuntimeWarning,
+                )
             _populate_face_bounds(self)
         return self._ds["bounds"]
 
