@@ -69,9 +69,10 @@ def test_edge_centroids_from_triangle():
     grid = ux.open_grid(test_triangle, latlon=False)
     _populate_edge_centroids(grid)
 
-    centroid_x = np.mean(grid.node_x[grid.edge_node_connectivity[0][0:]])
-    centroid_y = np.mean(grid.node_y[grid.edge_node_connectivity[0][0:]])
-    centroid_z = np.mean(grid.node_z[grid.edge_node_connectivity[0][0:]])
+
+    centroid_x = grid.node_x[grid.edge_node_connectivity].mean(axis=1)
+    centroid_y = grid.node_y[grid.edge_node_connectivity].mean(axis=1)
+    centroid_z = grid.node_z[grid.edge_node_connectivity].mean(axis=1)
 
     assert centroid_x == grid.edge_x[0]
     assert centroid_y == grid.edge_y[0]

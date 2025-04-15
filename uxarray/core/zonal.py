@@ -3,7 +3,7 @@ import dask.array as da
 
 
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+# from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 
 def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=False):
@@ -18,14 +18,7 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
         # Create a NumPy array for storing results
         result = np.zeros(shape, dtype=uxda.dtype)
 
-    faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
-        uxgrid.face_node_connectivity.values,
-        uxgrid.n_face,
-        uxgrid.n_max_face_nodes,
-        uxgrid.node_x.values,
-        uxgrid.node_y.values,
-        uxgrid.node_z.values,
-    )
+    face_edge_nodes_cartesian = uxda.uxgrid.face_edge_nodes_cartesian
 
     bounds = uxgrid.bounds.values
 
@@ -34,7 +27,9 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
 
         z = np.sin(np.deg2rad(lat))
 
-        faces_edge_nodes_xyz_candidate = faces_edge_nodes_xyz[face_indices, :, :, :]
+        face_edge_nodes_cartesian_candidate = face_edge_nodes_cartesian[
+            face_indices, :, :, :
+        ]
 
         n_nodes_per_face_candidate = n_nodes_per_face[face_indices]
 
@@ -42,11 +37,11 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
 
         if use_robust_weights:
             weights = _zonal_face_weights_robust(
-                faces_edge_nodes_xyz_candidate, z, bounds_candidate
+                face_edge_nodes_cartesian_candidate, z, bounds_candidate
             )["weight"].to_numpy()
         else:
             weights = _zonal_face_weights(
-                faces_edge_nodes_xyz_candidate,
+                face_edge_nodes_cartesian_candidate,
                 bounds_candidate,
                 n_nodes_per_face_candidate,
                 z,
