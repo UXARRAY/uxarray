@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from typing import TYPE_CHECKING, Union, Tuple, List, Optional, Set
+from typing import TYPE_CHECKING, Union, Tuple, List, Optional
 
 if TYPE_CHECKING:
     pass
@@ -33,7 +33,6 @@ class DataArraySubsetAccessor:
         self,
         lon_bounds: Union[Tuple, List, np.ndarray],
         lat_bounds: Union[Tuple, List, np.ndarray],
-        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
@@ -53,15 +52,8 @@ class DataArraySubsetAccessor:
             face centers, or edge centers lie within the bounds.
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
         """
-        grid = self.uxda.uxgrid.subset.bounding_box(
-            lon_bounds, lat_bounds, inverse_indices=inverse_indices
-        )
+        grid = self.uxda.uxgrid.subset.bounding_box(lon_bounds, lat_bounds)
 
         return self.uxda._slice_from_grid(grid)
 
@@ -70,7 +62,6 @@ class DataArraySubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
         element: Optional[str] = "face centers",
-        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -84,14 +75,9 @@ class DataArraySubsetAccessor:
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
         """
         grid = self.uxda.uxgrid.subset.bounding_circle(
-            center_coord, r, element, inverse_indices=inverse_indices, **kwargs
+            center_coord, r, element, **kwargs
         )
         return self.uxda._slice_from_grid(grid)
 
@@ -100,7 +86,6 @@ class DataArraySubsetAccessor:
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
         element: Optional[str] = "face centers",
-        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest
@@ -114,15 +99,10 @@ class DataArraySubsetAccessor:
             Number of neighbors to query
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
         """
 
         grid = self.uxda.uxgrid.subset.nearest_neighbor(
-            center_coord, k, element, inverse_indices=inverse_indices, **kwargs
+            center_coord, k, element, **kwargs
         )
 
         return self.uxda._slice_from_grid(grid)

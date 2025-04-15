@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from typing import TYPE_CHECKING, Union, Tuple, List, Optional, Set
+from typing import TYPE_CHECKING, Union, Tuple, List, Optional
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -31,7 +31,6 @@ class GridSubsetAccessor:
         self,
         lon_bounds: Tuple[float, float],
         lat_bounds: Tuple[float, float],
-        inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
@@ -51,11 +50,6 @@ class GridSubsetAccessor:
             face centers, or edge centers lie within the bounds.
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
         """
 
         faces_between_lons = self.uxgrid.get_faces_between_longitudes(lon_bounds)
@@ -63,14 +57,13 @@ class GridSubsetAccessor:
 
         faces = np.intersect1d(faces_between_lons, face_between_lats)
 
-        return self.uxgrid.isel(n_face=faces, inverse_indices=inverse_indices)
+        return self.uxgrid.isel(n_face=faces)
 
     def bounding_circle(
         self,
         center_coord: Union[Tuple, List, np.ndarray],
         r: Union[float, int],
         element: Optional[str] = "face centers",
-        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -84,11 +77,6 @@ class GridSubsetAccessor:
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
         """
 
         coords = np.asarray(center_coord)
@@ -102,14 +90,13 @@ class GridSubsetAccessor:
                 f"No elements founding within the bounding circle with radius {r} when querying {element}"
             )
 
-        return self._index_grid(ind, element, inverse_indices)
+        return self._index_grid(ind, element)
 
     def nearest_neighbor(
         self,
         center_coord: Union[Tuple, List, np.ndarray],
         k: int,
         element: Optional[str] = "face centers",
-        inverse_indices: Union[List[str], Set[str], bool] = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest
@@ -123,11 +110,6 @@ class GridSubsetAccessor:
             Number of neighbors to query
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - False: No index storage (default)
         """
 
         coords = np.asarray(center_coord)
@@ -136,7 +118,7 @@ class GridSubsetAccessor:
 
         _, ind = tree.query(coords, k)
 
-        return self._index_grid(ind, element, inverse_indices=inverse_indices)
+        return self._index_grid(ind, element)
 
     def _get_tree(self, coords, tree_type):
         """Internal helper for obtaining the desired KDTree or BallTree."""
@@ -154,12 +136,12 @@ class GridSubsetAccessor:
 
         return tree
 
-    def _index_grid(self, ind, tree_type, inverse_indices=False):
+    def _index_grid(self, ind, tree_type):
         """Internal helper for indexing a grid with indices based off the
         provided tree type."""
         if tree_type == "nodes":
-            return self.uxgrid.isel(inverse_indices, n_node=ind)
+            return self.uxgrid.isel(n_node=ind)
         elif tree_type == "edge centers":
-            return self.uxgrid.isel(inverse_indices, n_edge=ind)
+            return self.uxgrid.isel(n_edge=ind)
         else:
-            return self.uxgrid.isel(inverse_indices, n_face=ind)
+            return self.uxgrid.isel(n_face=ind)
