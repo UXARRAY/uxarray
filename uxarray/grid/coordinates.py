@@ -53,7 +53,7 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # set longitude range to [0, pi]
@@ -76,7 +76,7 @@ def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
         y /= denom
         z /= denom
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # Set longitude range to [0, 2*pi]
@@ -778,7 +778,7 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # set longitude range to [0, pi]
