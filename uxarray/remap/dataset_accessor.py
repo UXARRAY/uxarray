@@ -3,8 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from uxarray.remap.bilinear import _bilinear_uxds
-from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxds
-
 from uxarray.remap.inverse_distance_weighted import (
     _inverse_distance_weighted_remap_uxds,
 )
