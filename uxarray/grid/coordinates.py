@@ -1,14 +1,13 @@
-import xarray as xr
-import numpy as np
-import warnings
 import math
-
-from uxarray.conventions import ugrid
-
-from numba import njit, prange
-from uxarray.constants import ERROR_TOLERANCE
+import warnings
 from typing import Union
 
+import numpy as np
+import xarray as xr
+from numba import njit, prange
+
+from uxarray.constants import ERROR_TOLERANCE
+from uxarray.conventions import ugrid
 from uxarray.grid.utils import _small_angle_of_2_vectors
 
 

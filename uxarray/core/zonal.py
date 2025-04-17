@@ -1,6 +1,5 @@
-import numpy as np
 import dask.array as da
-
+import numpy as np
 
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes

@@ -1,9 +1,9 @@
-import xarray as xr
-from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
-from uxarray.conventions import ugrid
-
 import numpy as np
+import xarray as xr
 from scipy.spatial import SphericalVoronoi
+
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
 
 
 def _spherical_voronoi_from_points(points, **kwargs):

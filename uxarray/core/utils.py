@@ -1,5 +1,6 @@
 import xarray as xr
-from uxarray.io.utils import _parse_grid_type, _get_source_dims_dict
+
+from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
 
 def _map_dims_to_ugrid(

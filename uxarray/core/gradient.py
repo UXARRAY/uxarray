@@ -1,7 +1,7 @@
+from typing import Optional
+
 import numpy as np
 
-
-from typing import Optional
 from uxarray.constants import INT_FILL_VALUE
 
 

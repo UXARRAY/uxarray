@@ -1,17 +1,15 @@
 import os
+from collections.abc import Hashable, Iterable
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from warnings import warn
+
 import numpy as np
 import xarray as xr
-
-from collections.abc import Hashable, Iterable
-from typing import Any, Dict, Optional, Union, TYPE_CHECKING
-
-from uxarray.grid import Grid
-from uxarray.core.dataset import UxDataset
-from uxarray.core.utils import _map_dims_to_ugrid, match_chunks_to_ugrid
-
 from xarray.core.types import T_Chunks
 
-from warnings import warn
+from uxarray.core.dataset import UxDataset
+from uxarray.core.utils import _map_dims_to_ugrid, match_chunks_to_ugrid
+from uxarray.grid import Grid
 
 if TYPE_CHECKING:
     from xarray.core.types import (
