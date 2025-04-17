@@ -1,21 +1,20 @@
 import numpy as np
-import xarray as xr
 import pandas as pd
-
+import xarray as xr
 from numba import njit, prange
+
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.grid.arcs import (
+    extreme_gca_latitude,
+    point_within_gca,
+)
+from uxarray.grid.geometry import pole_point_inside_polygon
 from uxarray.grid.utils import (
     _get_edge_nodes_cartesian_single_face,
     _get_edge_nodes_spherical_single_face,
     all_elements_nan,
     any_close_lat,
 )
-from uxarray.grid.arcs import (
-    extreme_gca_latitude,
-    point_within_gca,
-)
-from uxarray.grid.geometry import pole_point_inside_polygon
-
-from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 
 def _populate_face_bounds(
