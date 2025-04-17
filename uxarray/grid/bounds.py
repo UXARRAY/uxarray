@@ -10,8 +10,8 @@ from uxarray.grid.arcs import (
 )
 from uxarray.grid.geometry import pole_point_inside_polygon
 from uxarray.grid.utils import (
-    _get_edge_nodes_cartesian_single_face,
-    _get_edge_nodes_spherical_single_face,
+    _edge_nodes_cartesian_kernel,
+    _edge_nodes_spherical_kernel,
     all_elements_nan,
     any_close_lat,
 )
@@ -83,7 +83,7 @@ def _populate_face_bounds(
     """
     grid.normalize_cartesian_coordinates()
 
-    bounds_array = _construct_face_bounds_array(
+    bounds_array = _construct_face_bounds(
         grid.face_node_connectivity.values,
         grid.n_nodes_per_face.values,
         grid.node_x.values,
@@ -135,7 +135,7 @@ def _populate_face_bounds(
 
 
 @njit(cache=True, parallel=True)
-def _construct_face_bounds_array(
+def _construct_face_bounds(
     face_node_connectivity,
     n_nodes_per_face,
     node_x,
@@ -156,11 +156,11 @@ def _construct_face_bounds_array(
     # Iterate over each face in parallel
     for face_idx in prange(n_face):
         # 1) Create the Cartesian Face Edge Nodes for the current face
-        cur_face_edge_nodes_cartesian = _get_edge_nodes_cartesian_single_face(
+        cur_face_edge_nodes_cartesian = _edge_nodes_cartesian_kernel(
             face_idx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
         )
         # 2) Create the Spherical Face Edge Nodes for the current face
-        cur_face_edge_nodes_spherical = _get_edge_nodes_spherical_single_face(
+        cur_face_edge_nodes_spherical = _edge_nodes_spherical_kernel(
             face_idx, face_node_connectivity, n_nodes_per_face, node_lon, node_lat
         )
 
@@ -171,7 +171,7 @@ def _construct_face_bounds_array(
             is_GCA_list = None
 
         # 3) Populate the bounds for the current face
-        bounds_array[face_idx] = _construct_face_bounds(
+        bounds_array[face_idx] = _face_bounds_kernel(
             cur_face_edge_nodes_cartesian,
             cur_face_edge_nodes_spherical,
             is_latlonface=is_latlonface,
@@ -182,7 +182,7 @@ def _construct_face_bounds_array(
 
 
 @njit(cache=True)
-def _construct_face_bounds(
+def _face_bounds_kernel(
     face_edges_xyz,
     face_edges_lonlat,
     is_latlonface=False,
@@ -207,12 +207,12 @@ def _construct_face_bounds(
         if has_north_pole:
             pole_point_xyz[2] = 1.0  # [0.0, 0.0, 1.0]
             pole_point_lonlat[1] = np.pi / 2  # [0.0, pi/2]
-            new_pt_latlon[0] = np.pi / 2  # [pi/2, INT_FILL_VALUE]
+            new_pt_latlon[0] = np.pi / 2  # [pi/2, nan]
             new_pt_latlon[1] = np.nan
         else:
             pole_point_xyz[2] = -1.0  # [0.0, 0.0, -1.0]
             pole_point_lonlat[1] = -np.pi / 2  # [0.0, -pi/2]
-            new_pt_latlon[0] = -np.pi / 2  # [-pi/2, INT_FILL_VALUE]
+            new_pt_latlon[0] = -np.pi / 2  # [-pi/2, nan]
             new_pt_latlon[1] = np.nan
 
         for i in range(face_edges_xyz.shape[0]):

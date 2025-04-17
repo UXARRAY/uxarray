@@ -18,7 +18,7 @@ from uxarray.grid.geometry import _pole_point_inside_polygon_cartesian, \
     stereographic_projection, inverse_stereographic_projection, point_in_face, haversine_distance
 
 
-from uxarray.grid.bounds import _populate_face_bounds, _construct_face_bounds_array, _construct_face_bounds
+from uxarray.grid.bounds import _populate_face_bounds, _construct_face_bounds, _face_bounds_kernel
 from sklearn.metrics.pairwise import haversine_distances
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -483,7 +483,7 @@ def test_populate_bounds_normal_latlon_bounds_gca():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
 
@@ -511,7 +511,7 @@ def test_populate_bounds_antimeridian_latlon_bounds_gca():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
 
@@ -525,7 +525,7 @@ def test_populate_bounds_equator_latlon_bounds_gca():
     face_edges_lonlat = np.array(
         [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
-    bounds = _construct_face_bounds(face_edges_cart, face_edges_lonlat)
+    bounds = _face_bounds_kernel(face_edges_cart, face_edges_lonlat)
     expected_bounds = np.array([[-0.05235988, 0], [6.23082543, 0]])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -541,7 +541,7 @@ def test_populate_bounds_south_sphere_latlon_bounds_gca():
     face_edges_lonlat = np.array(
         [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
-    bounds = _construct_face_bounds(face_edges_cart, face_edges_lonlat)
+    bounds = _face_bounds_kernel(face_edges_cart, face_edges_lonlat)
     expected_bounds = np.array([[-1.51843645, -1.45388627], [3.14159265, 3.92699082]])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -557,7 +557,7 @@ def test_populate_bounds_near_pole_latlon_bounds_gca():
     face_edges_lonlat = np.array(
         [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
-    bounds = _construct_face_bounds(face_edges_cart, face_edges_lonlat)
+    bounds = _face_bounds_kernel(face_edges_cart, face_edges_lonlat)
     expected_bounds = np.array([[-1.20427718, -1.14935491], [0, 0.13568803]])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -573,7 +573,7 @@ def test_populate_bounds_near_pole2_latlon_bounds_gca():
     face_edges_lonlat = np.array(
         [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
-    bounds = _construct_face_bounds(face_edges_cart, face_edges_lonlat)
+    bounds = _face_bounds_kernel(face_edges_cart, face_edges_lonlat)
     expected_bounds = np.array([[-1.20427718, -1.14935491], [6.147497, 4.960524e-16]])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -597,7 +597,7 @@ def test_populate_bounds_long_face_latlon_bounds_gca():
     face_edges_lonlat = np.array(
         [[_xyz_to_lonlat_rad(*edge[0]), _xyz_to_lonlat_rad(*edge[1])] for edge in face_edges_cart])
 
-    bounds = _construct_face_bounds(face_edges_cart, face_edges_lonlat)
+    bounds = _face_bounds_kernel(face_edges_cart, face_edges_lonlat)
 
     # The expected bounds should not contain the south pole [0,-0.5*np.pi]
     assert bounds[1][0] != 0.0
@@ -626,7 +626,7 @@ def test_populate_bounds_node_on_pole_latlon_bounds_gca():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
 
@@ -653,7 +653,7 @@ def test_populate_bounds_edge_over_pole_latlon_bounds_gca():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
 
@@ -680,7 +680,7 @@ def test_populate_bounds_pole_inside_latlon_bounds_gca():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
 
@@ -757,7 +757,7 @@ def test_populate_bounds_normal_latlon_bounds_latlonface():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_latlonface=True)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -783,7 +783,7 @@ def test_populate_bounds_antimeridian_latlon_bounds_latlonface():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_latlonface=True)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -809,7 +809,7 @@ def test_populate_bounds_node_on_pole_latlon_bounds_latlonface():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_latlonface=True)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -835,7 +835,7 @@ def test_populate_bounds_edge_over_pole_latlon_bounds_latlonface():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_latlonface=True)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -861,7 +861,7 @@ def test_populate_bounds_pole_inside_latlon_bounds_latlonface():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_latlonface=True)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -939,7 +939,7 @@ def test_populate_bounds_normal_latlon_bounds_gca_list():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_GCA_list=[True, False, True, False])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -965,7 +965,7 @@ def test_populate_bounds_antimeridian_latlon_bounds_gca_list():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_GCA_list=[True, False, True, False])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -991,7 +991,7 @@ def test_populate_bounds_node_on_pole_latlon_bounds_gca_list():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_GCA_list=[True, False, True, False])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -1017,7 +1017,7 @@ def test_populate_bounds_edge_over_pole_latlon_bounds_gca_list():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_GCA_list=[True, False, True, False])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
@@ -1043,7 +1043,7 @@ def test_populate_bounds_pole_inside_latlon_bounds_gca_list():
         grid.edge_node_connectivity.values, grid.node_lon.values,
         grid.node_lat.values)
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+    bounds = _face_bounds_kernel(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
                                          is_GCA_list=[True, False, True, False])
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
 
