@@ -1,19 +1,19 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from uxarray.core.dataset import UxDataset
     from uxarray.core.dataarray import UxDataArray
+    from uxarray.core.dataset import UxDataset
+
+import warnings
+from copy import deepcopy
 
 import numpy as np
 
 import uxarray.core.dataarray
 import uxarray.core.dataset
 from uxarray.grid import Grid
-import warnings
-
-from copy import deepcopy
-
 from uxarray.remap.utils import _remap_grid_parse
 
 

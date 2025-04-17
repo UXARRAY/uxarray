@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Optional, Union, Any
+from typing import IO, Any, Optional, Union
 from warnings import warn
 
 import numpy as np

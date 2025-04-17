@@ -1,8 +1,9 @@
 import geopandas as gpd
-import xarray as xr
 import numpy as np
-from uxarray.conventions import ugrid
+import xarray as xr
+
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, WGS84_CRS
+from uxarray.conventions import ugrid
 
 
 def _read_geodataframe(filepath, driver=None, **kwargs):

@@ -1,10 +1,10 @@
 import numpy as np
 import xarray as xr
 
-from uxarray.io._ugrid import _is_ugrid, _read_ugrid
-from uxarray.io._mpas import _mpas_to_ugrid_dims
-from uxarray.io._icon import _icon_to_ugrid_dims
 from uxarray.io._esmf import _esmf_to_ugrid_dims
+from uxarray.io._icon import _icon_to_ugrid_dims
+from uxarray.io._mpas import _mpas_to_ugrid_dims
+from uxarray.io._ugrid import _is_ugrid, _read_ugrid
 
 
 def _parse_grid_type(dataset):

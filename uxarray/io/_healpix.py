@@ -1,8 +1,9 @@
+from typing import Any, Tuple
+
 import healpix as hp
-import xarray as xr
 import numpy as np
 import polars as pl
-from typing import Any, Tuple
+import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE
