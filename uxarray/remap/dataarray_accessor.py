@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
-from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 from uxarray.remap.inverse_distance_weighted import (
     _inverse_distance_weighted_remap_uxda,
 )
+from uxarray.remap.nearest_neighbor import _nearest_neighbor_uxda
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray

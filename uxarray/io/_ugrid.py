@@ -1,10 +1,9 @@
 import numpy as np
 import xarray as xr
-from uxarray.grid.connectivity import _replace_fill_values
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-
 
 import uxarray.conventions.ugrid as ugrid
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.connectivity import _replace_fill_values
 
 
 def _read_ugrid(ds):

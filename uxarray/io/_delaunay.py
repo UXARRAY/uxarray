@@ -1,9 +1,9 @@
 import numpy as np
 import xarray as xr
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, Delaunay
+
 from uxarray.conventions import ugrid
 from uxarray.grid.geometry import stereographic_projection
-from scipy.spatial import Delaunay
 
 
 def _spherical_delaunay_from_points(points, boundary_points=None):

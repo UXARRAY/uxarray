@@ -1,10 +1,8 @@
-import numpy as np
 import dask.array as da
-
-from uxarray.grid.connectivity import get_face_node_partitions
+import numpy as np
 
 import uxarray.core.dataarray
-
+from uxarray.grid.connectivity import get_face_node_partitions
 
 NUMPY_AGGREGATIONS = {
     "mean": np.mean,

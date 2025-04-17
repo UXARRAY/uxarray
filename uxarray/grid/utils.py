@@ -1,7 +1,7 @@
 import numpy as np
-from uxarray.constants import INT_FILL_VALUE
-
 from numba import njit
+
+from uxarray.constants import INT_FILL_VALUE
 
 
 @njit(cache=True)
