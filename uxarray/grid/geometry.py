@@ -1802,3 +1802,85 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
 
     # Return the gotten distance
     return distance
+
+
+@njit(cache=True)
+def barycentric_coordinates_cartesian(polygon, point):
+    """
+    Compute the barycentric coordinates of a point inside a convex polygon, using cartesian coordinates.
+
+    Parameters
+    ----------
+    polygon: np.array
+        Cartesian coordinates of the polygons' nodes
+    point: np.array
+        Cartesian coordinates of the point.
+
+    Examples
+    --------
+    Define a cartesian point:
+    >>> import numpy as np
+    >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
+    Define a cartesian polygon:
+    >>> point_xyz = np.array(
+    ...     [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64
+    ... )
+
+    Find the weights:
+    >>> bar_weights = barycentric_coordinates_cartesian(polygon, point)
+
+    Returns
+    -------
+    weights: np.ndarray
+        Barycentric coordinates corresponding to each vertex in the polygon.
+    """
+    n = len(polygon)
+    weights = np.zeros(n)
+    total_area = 0.0
+
+    # Use the first vertex as a reference point to form triangles
+    p0 = polygon[0]
+
+    for i in range(1, n - 1):
+        # Get the two other points of the triangle
+        p1, p2 = polygon[i], polygon[i + 1]
+
+        # Find the inside portion of the equation: p - p0 =(p1 - p0)b + (p2 - p0)c
+        v1, v2 = p1 - p0, p2 - p0
+
+        # Solve the left side of the equation
+        vp = point - p0
+
+        # Find the largest coordinate, we will ignore this one and use the other two
+        abs_det = np.abs(np.cross(v1, v2))
+        max_coord = np.argmax(abs_det)
+
+        # Select the two coordinates to find corresponding weights for
+        idx = [j for j in range(3) if j != max_coord]
+        array = np.array([v1[idx[0]], v1[idx[1]]])
+        array2 = np.array([v2[idx[0]], v2[idx[1]]])
+
+        A = np.column_stack((array, array2))  # 2x2 matrix
+        b = np.array([vp[idx[0]], vp[idx[1]]])  # Right-hand side vector
+
+        # Solve for weights b, c
+        b_c = np.linalg.solve(A, b)
+
+        # Solve for a
+        a = 1 - b_c[0] - b_c[1]
+
+        # Compute triangle area
+        triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
+        total_area += triangle_area
+
+        # Accumulate weights
+        weights[0] += a * triangle_area
+        weights[i] += b_c[0] * triangle_area
+        weights[i + 1] += b_c[1] * triangle_area
+
+    # Normalize weights so they sum to 1
+    if total_area > 0:
+        weights /= total_area
+
+    return weights
