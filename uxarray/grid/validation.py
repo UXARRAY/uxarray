@@ -2,6 +2,7 @@ from warnings import warn
 
 import numpy as np
 import polars as pl
+from numba import njit
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 
@@ -111,33 +112,21 @@ def _check_normalization(grid):
         return grid._normalized
 
     if "node_x" in grid._ds:
-        if not (
-            np.isclose(
-                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
-                1.0,
-                atol=ERROR_TOLERANCE,
-            )
-        ).all():
+        if not _are_coordinates_normalized(
+            grid.node_x.values, grid.node_y.values, grid.node_z.values
+        ):
             grid._normalized = False
             return False
     if "edge_x" in grid._ds:
-        if not (
-            np.isclose(
-                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
-                1.0,
-                atol=ERROR_TOLERANCE,
-            )
-        ).all():
+        if not _are_coordinates_normalized(
+            grid.edge_x.values, grid.edge_y.values, grid.edge_z.values
+        ):
             grid._normalized = False
             return False
     if "face_x" in grid._ds:
-        if not (
-            np.isclose(
-                (grid.node_x**2 + grid.node_y**2 + grid.node_z**2),
-                1.0,
-                atol=ERROR_TOLERANCE,
-            )
-        ).all():
+        if not _are_coordinates_normalized(
+            grid.face_x.values, grid.face_y.values, grid.face_z.values
+        ):
             grid._normalized = False
             return False
 
@@ -145,3 +134,8 @@ def _check_normalization(grid):
     grid._normalized = True
 
     return True
+
+
+@njit(cache=True)
+def _are_coordinates_normalized(x, y, z):
+    return np.isclose(x**2 + y**2 + z**2, 1.0, atol=ERROR_TOLERANCE).all()
