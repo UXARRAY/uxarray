@@ -69,6 +69,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
+from uxarray.grid.rtree import _construct_rtree
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.grid.validation import (
     _check_area,
@@ -232,6 +233,7 @@ class Grid:
         self._raster_data_id = None
 
         # initialize cached data structures (nearest neighbor operations)
+        self._rtree = None
         self._ball_tree = None
         self._kd_tree = None
         self._spatialhash = None
@@ -1642,6 +1644,14 @@ class Grid:
                 setattr(self, var_name, grid_var.chunk(chunks={"n_face": n_face}))
             else:
                 setattr(self, var_name, grid_var.chunk())
+
+    def get_rtree(self, p: int = 10, page_size: int = 512, reconstruct: bool = False):
+        """TODO:"""
+
+        if self._rtree is None or reconstruct:
+            self._rtree = _construct_rtree(self.bounds, p, page_size)
+
+        return self._rtree
 
     def get_ball_tree(
         self,
