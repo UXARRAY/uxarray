@@ -104,6 +104,32 @@ class ConstructTreeStructures(DatasetBenchmark):
     def time_ball_tree(self, resolution):
         self.uxds.uxgrid.get_ball_tree()
 
+    def time_r_tree(self, resolution):
+        self.uxds.uxgrid.get_rtree()
+
+
+class QueryTreeStructures:
+    def setup(self):
+        # Load dataset
+        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
+
+        # Construct Trees
+        self.kd_tree = self.uxds_120.uxgrid.get_kd_tree(coordinate_system='spherical')
+        self.ball_tree = self.uxds_120.uxgrid.get_ball_tree(coordinate_system='spherical')
+        self.r_tree = self.uxds_120.uxgrid.get_rtree()
+        self.x = self.uxds_120.uxgrid.face_x[0].values
+        self.y = self.uxds_120.uxgrid.face_y[0].values
+        self.z = self.uxds_120.uxgrid.face_z[0].values
+
+    def time_kd_tree(self):
+        _, _ = self.kd_tree.query([0.0, 0.0], return_distance=True, k=1)
+
+    def time_ball_tree(self):
+        _, _ = self.ball_tree.query([0.0, 0.0], return_distance=True, k=1)
+
+    def time_r_tree(self):
+        _ = self.r_tree.intersects((self.x, self.y, self.z, self.x, self.y, self.z))
+
 
 class RemapDownsample:
 
