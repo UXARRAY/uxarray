@@ -5,7 +5,7 @@ from html import escape
 from typing import Hashable, Literal, Optional, TYPE_CHECKING, Any
 from warnings import warn
 
-import cartopy.crs as ccrs
+# import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 

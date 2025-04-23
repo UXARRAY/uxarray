@@ -95,7 +95,7 @@ from uxarray.grid.intersections import (
 )
 
 
-from spatialpandas import GeoDataFrame
+# from spatialpandas import GeoDataFrame
 
 from uxarray.plot.accessor import GridPlotAccessor
 
@@ -120,7 +120,7 @@ from xarray.core.utils import UncachedAccessor
 
 from warnings import warn
 
-import cartopy.crs as ccrs
+# import cartopy.crs as ccrs
 
 import copy
 
@@ -2052,7 +2052,7 @@ class Grid:
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,       # TODO: type hint
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -2179,7 +2179,7 @@ class Grid:
     def to_polycollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,           # TODO: type hint
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
@@ -2264,7 +2264,7 @@ class Grid:
     def to_linecollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,       # TODO:
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         **kwargs,

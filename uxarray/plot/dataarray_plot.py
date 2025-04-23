@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import matplotlib
+# import matplotlib
 
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
-from cartopy import crs as ccrs
-import dask.dataframe as dd
-import holoviews as hv
-import geoviews as gv
-from holoviews.operation.datashader import rasterize as hds_rasterize
+# from cartopy import crs as ccrs
+# import dask.dataframe as dd
+# import holoviews as hv
+# import geoviews as gv
+# from holoviews.operation.datashader import rasterize as hds_rasterize
 
 
 import pandas as pd

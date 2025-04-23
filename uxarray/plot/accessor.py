@@ -4,9 +4,9 @@ import functools
 import warnings
 from typing import TYPE_CHECKING, Any, Optional
 
-import cartopy.crs as ccrs
-import hvplot.pandas
-import hvplot.xarray
+# import cartopy.crs as ccrs
+# import hvplot.pandas
+# import hvplot.xarray
 import pandas as pd
 
 import uxarray.plot.dataarray_plot as dataarray_plot

@@ -21,36 +21,49 @@ requires-python = ">=3.10"
 
 # minimal dependencies start
 dependencies = [
-  "antimeridian",
-  "cartopy",
-  "dask[dataframe]",
-  "datashader",
-  "geoviews",
-  "holoviews",
-  "matplotlib",
-  "matplotlib-inline",
-  "netcdf4",
+  "xarray[io]",   # this is new
   "numba",
-  "numpy",
-  "pandas",
-  "pyarrow",
-  "requests",
-  "scikit-learn",
-  "scipy",
-  "shapely",
-  "spatialpandas",
-  "geopandas",
-  "xarray",
-  "hvplot",
-  "healpix",
   "polars",
+  "healpix",
+  "scikit-learn",
 ]
-# minimal dependencies end
 
 [project.optional-dependencies]
-complete = ["uxarray[math, dev]"]
-math = ['gmpy2']
-dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
+viz = ['matplotlib', 'cartopy', 'antimeridian', 'datashader', 'holoviews', 'geoviews', 'hvplot', 'spatialpandas', 'geopandas']
+dev = ['pathlib', 'requests', 'pytest', 'pytest-cov', 'ruff', 'asv', 'pre_commit']
+healpix = ['healpix']
+
+#dependencies = [x`
+#  "antimeridian",      *
+#  "cartopy",           *
+#  "dask[dataframe]",
+#  "datashader",        *
+#  "geoviews",          *
+#  "holoviews",         *
+#  "matplotlib",        *
+#  "matplotlib-inline",     TODO
+#  "netcdf4",               TODO: Included in Xarray[io]
+#  "numba",             *
+#  "numpy",                 TODO: Included in Xarray
+#  "pandas",                TODO: Included in Xarray
+#  "pyarrow",               TODO: do we need it?
+#  "requests",              TODO:
+#  "scikit-learn",          # TODO: Do we want this to be required?
+#  "scipy",                 TODO: Included in Xarray[io]
+#  "shapely",
+#  "spatialpandas",
+#  "geopandas",
+#  "xarray",
+#  "hvplot",
+#  "healpix",
+#  "polars",
+#]
+# minimal dependencies end
+
+#[project.optional-dependencies]
+#complete = ["uxarray[math, dev]"]
+#math = ['gmpy2']
+#dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
 
 [project.urls]
 Documentation = "https://uxarray.readthedocs.io/"

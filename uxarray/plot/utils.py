@@ -1,5 +1,5 @@
-import holoviews as hv
-import matplotlib as mpl
+# import holoviews as hv
+# import matplotlib as mpl
 
 
 class HoloviewsBackend:
@@ -7,6 +7,7 @@ class HoloviewsBackend:
     visualization."""
 
     def __init__(self):
+        import matplotlib as mpl
         self.matplotlib_backend = mpl.get_backend()
 
     def assign(self, backend: str):
@@ -30,6 +31,6 @@ class HoloviewsBackend:
         """Resets the default backend for the ``matplotlib`` module."""
         mpl.use(self.matplotlib_backend)
 
-
+# TODO: we need to consider not initializing this until the user calls .plot() the first time
 # global reference to holoviews backend utility class
-backend = HoloviewsBackend()
+# backend = HoloviewsBackend()
