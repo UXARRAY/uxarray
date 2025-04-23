@@ -138,7 +138,7 @@ def _swap_first_fill_value_with_last(arr):
     return arr
 
 
-def _get_cartesian_face_edge_nodes(
+def _get_cartesian_face_edge_nodes_array(
     face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
 ):
     """Construct an array to hold the edge Cartesian coordinates connectivity
@@ -179,7 +179,7 @@ def _get_cartesian_face_edge_nodes(
     >>> node_x = np.array([0, 1, 1, 0, 1, 0])
     >>> node_y = np.array([0, 0, 1, 1, 2, 2])
     >>> node_z = np.array([0, 0, 0, 0, 1, 1])
-    >>> _get_cartesian_face_edge_nodes(
+    >>> _get_cartesian_face_edge_nodes_array(
     ...     face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
     ... )
     array([[[[    0,     0,     0],
@@ -259,7 +259,7 @@ def _get_cartesian_face_edge_nodes(
     return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
 
 
-def _get_lonlat_rad_face_edge_nodes(
+def _get_lonlat_rad_face_edge_nodes_array(
     face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
 ):
     """Construct an array to hold the edge latitude and longitude in radians
@@ -320,3 +320,114 @@ def _get_lonlat_rad_face_edge_nodes(
     face_edges_lonlat_rad[valid_mask, 1] = node_lat_rad[valid_edges]
 
     return face_edges_lonlat_rad.reshape(n_face, n_max_face_edges, 2, 2)
+
+
+@njit(cache=True)
+def _get_cartesian_face_edge_nodes(
+    face_idx, face_node_connectivity, n_edges_per_face, node_x, node_y, node_z
+):
+    """Computes the Cartesian Coordinates of the edge nodes that make up a given face.
+
+    Parameters
+    ----------
+    face_idx : int
+        The index of the face to construct the edge nodes
+    face_node_connectivity : np.ndarray
+        Face Node Connectivity array
+    n_edges_per_face : np.ndarray
+        Number of non-fill-value edges for each face
+    node_x : np.ndarray
+        Cartesian x coordinates
+    node_y : np.ndarray
+        Cartesian y coordinates
+    node_z : np.ndarray
+        Cartesian z coordinates
+
+    Returns
+    -------
+    face_edge_nodes: np.ndarray
+        Cartesian coordinates of the edge nodes that make up a given face
+    """
+    # Number non-fill-value edges
+    n_edges = n_edges_per_face[face_idx]
+
+    # Allocate data for face_edge_nodes
+    face_edge_nodes = np.empty((n_edges, 2, 3), dtype=np.float64)
+
+    start_nodes = face_node_connectivity[face_idx, 0:n_edges]
+    end_nodes = np.roll(start_nodes, -1)
+
+    # Assign x coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 0] = node_x[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 0] = node_x[end_nodes]
+
+    # Assign y coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 1] = node_y[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 1] = node_y[end_nodes]
+
+    # Assign z coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 2] = node_z[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 2] = node_z[end_nodes]
+
+    return face_edge_nodes
+
+
+@njit(cache=True)
+def _get_spherical_face_edge_nodes(
+    face_idx, face_node_connectivity, n_edges_per_face, node_lon, node_lat
+):
+    """Computes the Spherical Coordinates of the edge nodes that make up a given face.
+
+    Parameters
+    ----------
+    face_idx : int
+        The index of the face to construct the edge nodes
+    face_node_connectivity : np.ndarray
+        Face Node Connectivity array
+    n_edges_per_face : np.ndarray
+        Number of non-fill-value edges for each face
+    node_lon : np.ndarray
+        Longitude coordinates
+    node_lat : np.ndarray
+        Latitude coordinates
+
+    Returns
+    -------
+    face_edge_nodes: np.ndarray
+        Spherical coordinates of the edge nodes that make up a given face
+    """
+    # Number non-fill-value edges
+    n_edges = n_edges_per_face[face_idx]
+
+    # Allocate data for face_edge_nodes
+    face_edge_nodes = np.empty((n_edges, 2, 2), dtype=np.float64)
+
+    start_nodes = face_node_connectivity[face_idx, 0:n_edges]
+    end_nodes = np.roll(start_nodes, -1)
+
+    # Assign longitude coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 0] = node_lon[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 0] = node_lon[end_nodes]
+
+    # Assign latitude coordinates of start and end nodes
+    face_edge_nodes[0:n_edges, 0, 1] = node_lat[start_nodes]
+    face_edge_nodes[0:n_edges, 1, 1] = node_lat[end_nodes]
+
+    return face_edge_nodes
+
+
+@njit(cache=True)
+def all_elements_nan(arr):
+    """Check if all elements in an array are np.nan."""
+    for i in range(arr.shape[0]):
+        if not np.isnan(arr[i]):
+            return False
+    return True
+
+
+@njit(cache=True)
+def any_close_lat(lat_pt, atol):
+    """Check if the latitude point is close to either the North or South Pole."""
+    return np.isclose(lat_pt, 0.5 * np.pi, atol) or np.isclose(
+        lat_pt, -0.5 * np.pi, atol
+    )

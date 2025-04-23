@@ -22,6 +22,7 @@ from uxarray.conventions import ugrid
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
+from uxarray.grid.bounds import _construct_face_bounds_array, _populate_face_bounds
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
@@ -32,7 +33,6 @@ from uxarray.grid.connectivity import (
 )
 from uxarray.grid.coordinates import (
     _lonlat_rad_to_xyz,
-    _normalize_xyz,
     _populate_edge_centroids,
     _populate_face_centerpoints,
     _populate_face_centroids,
@@ -50,9 +50,7 @@ from uxarray.grid.geometry import (
     _grid_to_matplotlib_polycollection,
     _grid_to_polygon_geodataframe,
     _populate_antimeridian_face_indices,
-    _populate_bounds,
     _populate_max_face_radius,
-    compute_temp_latlon_array,
 )
 from uxarray.grid.intersections import (
     constant_lat_intersections_face_bounds,
@@ -70,7 +68,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.rtree import _construct_rtree
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -1428,15 +1426,17 @@ class Grid:
         """Latitude Longitude Bounds for each Face in radians.
 
         Dimensions ``(n_face", two, two)``
+
+
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(compute_temp_latlon_array):
+            if not is_numba_function_cached(_construct_face_bounds_array):
                 warn(
                     "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
                     "This initial execution will be significantly longer.",
                     RuntimeWarning,
                 )
-            _populate_bounds(self)
+            _populate_face_bounds(self)
         return self._ds["bounds"]
 
     @bounds.setter
@@ -1962,30 +1962,20 @@ class Grid:
             # check if coordinates are already normalized
             return
 
-        if "node_x" in self._ds:
-            # normalize node coordinates
-            node_x, node_y, node_z = _normalize_xyz(
-                self.node_x.values, self.node_y.values, self.node_z.values
-            )
-            self.node_x.data = node_x
-            self.node_y.data = node_y
-            self.node_z.data = node_z
-        if "edge_x" in self._ds:
-            # normalize edge coordinates
-            edge_x, edge_y, edge_z = _normalize_xyz(
-                self.edge_x.values, self.edge_y.values, self.edge_z.values
-            )
-            self.edge_x.data = edge_x
-            self.edge_y.data = edge_y
-            self.edge_z.data = edge_z
-        if "face_x" in self._ds:
-            # normalize face coordinates
-            face_x, face_y, face_z = _normalize_xyz(
-                self.face_x.values, self.face_y.values, self.face_z.values
-            )
-            self.face_x.data = face_x
-            self.face_y.data = face_y
-            self.face_z.data = face_z
+        for prefix in ("node", "edge", "face"):
+            x_var = f"{prefix}_x"
+            if x_var not in self._ds:
+                continue
+
+            dx = self._ds[f"{prefix}_x"]
+            dy = self._ds[f"{prefix}_y"]
+            dz = self._ds[f"{prefix}_z"]
+
+            # normalize
+            norm = (dx**2 + dy**2 + dz**2) ** 0.5
+            self._ds[x_var] = dx / norm
+            self._ds[f"{prefix}_y"] = dy / norm
+            self._ds[f"{prefix}_z"] = dz / norm
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
@@ -2613,7 +2603,7 @@ class Grid:
             return np.empty(0, dtype=np.int64)
 
         # Get the faces in terms of their edges
-        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
+        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
             subset.face_node_connectivity.values,
             subset.n_face,
             subset.n_max_face_nodes,
