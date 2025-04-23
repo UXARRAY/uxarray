@@ -204,6 +204,8 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
+        import cartopy.crs as ccrs
+
         uxarray.plot.utils.backend.assign(backend)
 
         if "rasterize" not in kwargs:
@@ -351,7 +353,7 @@ class UxDataArrayPlotAccessor:
         engine: Optional[str] = "spatialpandas",
         rasterize: Optional[bool] = True,
         dynamic: Optional[bool] = False,
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,
         xlabel: Optional[str] = "Longitude",
         ylabel: Optional[str] = "Latitude",
         *args,
@@ -390,6 +392,8 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
+        import cartopy.crs as ccrs
+
         uxarray.plot.utils.backend.assign(backend)
 
         if dynamic and (projection is not None or kwargs.get("geo", None) is True):
@@ -485,7 +489,7 @@ class UxDataArrayPlotAccessor:
         pixel_ratio: Optional[float] = 1.0,
         dynamic: Optional[bool] = False,
         precompute: Optional[bool] = True,
-        projection: Optional[ccrs] = None,
+        projection: Optional = None,
         width: Optional[int] = 1000,
         height: Optional[int] = 500,
         colorbar: Optional[bool] = True,

@@ -21,7 +21,7 @@ requires-python = ">=3.10"
 
 # minimal dependencies start
 dependencies = [
-  "xarray[io]",   # this is new
+  "xarray[io]",
   "numba",
   "polars",
   "healpix",
@@ -29,9 +29,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+complete = ["uxarray[viz, dev, complete]"]
 viz = ['matplotlib', 'cartopy', 'antimeridian', 'datashader', 'holoviews', 'geoviews', 'hvplot', 'spatialpandas', 'geopandas']
-dev = ['pathlib', 'requests', 'pytest', 'pytest-cov', 'ruff', 'asv', 'pre_commit']
 healpix = ['healpix']
+dev = ['pathlib', 'requests', 'pytest', 'pytest-cov', 'ruff', 'asv', 'pre_commit']
 
 #dependencies = [x`
 #  "antimeridian",      *

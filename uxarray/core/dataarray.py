@@ -145,7 +145,7 @@ class UxDataArray(xr.DataArray):
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -256,7 +256,7 @@ class UxDataArray(xr.DataArray):
     def to_polycollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
