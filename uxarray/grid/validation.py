@@ -1,6 +1,7 @@
+from warnings import warn
+
 import numpy as np
 import polars as pl
-from warnings import warn
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 

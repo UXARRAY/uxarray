@@ -1,18 +1,14 @@
-import numpy as np
 import math
 
+import numpy as np
+from numba import njit
 
+from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
 from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
-
 from uxarray.grid.utils import _angle_of_2_vectors
-
-from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
-
-from uxarray.utils.computing import isclose, dot
-
-from numba import njit
+from uxarray.utils.computing import dot, isclose
 
 
 def _to_list(obj):
@@ -366,6 +362,6 @@ def compute_arc_length(pt_a, pt_b):
     rho = np.sqrt(1.0 - z1 * z2)
     cross_2d = x1 * y2 - y1 * x2
     dot_2d = x1 * x2 + y1 * y2
-    delta_theta = np.atan2(cross_2d, dot_2d)
+    delta_theta = np.arctan2(cross_2d, dot_2d)
 
     return rho * abs(delta_theta)

@@ -1,14 +1,13 @@
-import xarray as xr
-import numpy as np
-import warnings
 import math
-
-from uxarray.conventions import ugrid
-
-from numba import njit, prange
-from uxarray.constants import ERROR_TOLERANCE
+import warnings
 from typing import Union
 
+import numpy as np
+import xarray as xr
+from numba import njit, prange
+
+from uxarray.constants import ERROR_TOLERANCE
+from uxarray.conventions import ugrid
 from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
@@ -53,7 +52,7 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # set longitude range to [0, pi]
@@ -76,7 +75,7 @@ def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
         y /= denom
         z /= denom
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # Set longitude range to [0, 2*pi]
@@ -778,7 +777,7 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # set longitude range to [0, pi]

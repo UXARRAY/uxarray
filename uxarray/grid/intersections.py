@@ -1,17 +1,16 @@
 import numpy as np
-from uxarray.constants import MACHINE_EPSILON, ERROR_TOLERANCE, INT_DTYPE
+from numba import njit, prange
+
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, MACHINE_EPSILON
+from uxarray.grid.arcs import (
+    extreme_gca_z,
+    in_between,
+    point_within_gca,
+)
 from uxarray.grid.utils import (
     _angle_of_2_vectors,
 )
-from uxarray.grid.arcs import (
-    in_between,
-    extreme_gca_z,
-    point_within_gca,
-)
 from uxarray.utils.computing import allclose, cross, norm
-
-
-from numba import njit, prange
 
 
 @njit(parallel=True, nogil=True, cache=True)

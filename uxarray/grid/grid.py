@@ -1,82 +1,67 @@
-import xarray as xr
-import numpy as np
+import copy
 import os
-
 from html import escape
-
-from xarray.core.options import OPTIONS
-
 from typing import (
-    Optional,
-    Union,
     List,
+    Optional,
     Set,
     Tuple,
+    Union,
 )
+from warnings import warn
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+import cartopy.crs as ccrs
+import numpy as np
+import xarray as xr
+from spatialpandas import GeoDataFrame
+from xarray.core.options import OPTIONS
+from xarray.core.utils import UncachedAccessor
 
-# reader and writer imports
-from uxarray.io._exodus import _read_exodus, _encode_exodus
-from uxarray.io._mpas import _read_mpas
-from uxarray.io._geopandas import _read_geodataframe
-from uxarray.io._ugrid import (
-    _read_ugrid,
-    _encode_ugrid,
-    _validate_minimum_ugrid,
-)
-from uxarray.io._scrip import _read_scrip, _encode_scrip
-from uxarray.io._esmf import _read_esmf
-from uxarray.io._vertices import _read_face_vertices
-from uxarray.io._topology import _read_topology
-from uxarray.io._geos import _read_geos_cs
-from uxarray.io._icon import _read_icon
-from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
-from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
-from uxarray.io._structured import _read_structured_grid
-from uxarray.io._voronoi import _spherical_voronoi_from_points
-from uxarray.io._delaunay import (
-    _spherical_delaunay_from_points,
-    _regional_delaunay_from_points,
-)
-
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
+from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
-
-from uxarray.io.utils import _parse_grid_type
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.coordinates import (
-    _populate_face_centroids,
-    _populate_edge_centroids,
-    _populate_face_centerpoints,
-    _set_desired_longitude_range,
-    _populate_node_latlon,
-    _populate_node_xyz,
-    _normalize_xyz,
-    prepare_points,
-    _lonlat_rad_to_xyz,
-    _xyz_to_lonlat_deg,
-)
 from uxarray.grid.connectivity import (
+    _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
     _populate_face_edge_connectivity,
+    _populate_face_face_connectivity,
     _populate_n_nodes_per_face,
     _populate_node_face_connectivity,
-    _populate_edge_face_connectivity,
-    _populate_face_face_connectivity,
 )
-
+from uxarray.grid.coordinates import (
+    _lonlat_rad_to_xyz,
+    _normalize_xyz,
+    _populate_edge_centroids,
+    _populate_face_centerpoints,
+    _populate_face_centroids,
+    _populate_node_latlon,
+    _populate_node_xyz,
+    _set_desired_longitude_range,
+    _xyz_to_lonlat_deg,
+    prepare_points,
+)
+from uxarray.grid.dual import construct_dual
 from uxarray.grid.geometry import (
-    _populate_antimeridian_face_indices,
-    _grid_to_polygon_geodataframe,
-    _grid_to_matplotlib_polycollection,
-    _grid_to_matplotlib_linecollection,
-    _populate_bounds,
     _construct_boundary_edge_indices,
-    compute_temp_latlon_array,
     _find_faces,
+    _grid_to_matplotlib_linecollection,
+    _grid_to_matplotlib_polycollection,
+    _grid_to_polygon_geodataframe,
+    _populate_antimeridian_face_indices,
+    _populate_bounds,
     _populate_max_face_radius,
+    compute_temp_latlon_array,
 )
-
+from uxarray.grid.intersections import (
+    constant_lat_intersections_face_bounds,
+    constant_lat_intersections_no_extreme,
+    constant_lon_intersections_face_bounds,
+    constant_lon_intersections_no_extreme,
+    faces_within_lat_bounds,
+    faces_within_lon_bounds,
+)
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
@@ -84,49 +69,42 @@ from uxarray.grid.neighbors import (
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
-
-from uxarray.grid.intersections import (
-    constant_lat_intersections_no_extreme,
-    constant_lon_intersections_no_extreme,
-    constant_lat_intersections_face_bounds,
-    constant_lon_intersections_face_bounds,
-    faces_within_lon_bounds,
-    faces_within_lat_bounds,
-)
-
-
-from spatialpandas import GeoDataFrame
-
-from uxarray.plot.accessor import GridPlotAccessor
-
-from uxarray.subset import GridSubsetAccessor
-
-from uxarray.cross_sections import GridCrossSectionAccessor
-
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.grid.validation import (
+    _check_area,
     _check_connectivity,
     _check_duplicate_nodes,
     _check_duplicate_nodes_indices,
-    _check_area,
     _check_normalization,
 )
+from uxarray.io._delaunay import (
+    _regional_delaunay_from_points,
+    _spherical_delaunay_from_points,
+)
+from uxarray.io._esmf import _read_esmf
 
+# reader and writer imports
+from uxarray.io._exodus import _encode_exodus, _read_exodus
+from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
+from uxarray.io._geopandas import _read_geodataframe
+from uxarray.io._geos import _read_geos_cs
+from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
+from uxarray.io._icon import _read_icon
+from uxarray.io._mpas import _read_mpas
+from uxarray.io._scrip import _encode_scrip, _read_scrip
+from uxarray.io._structured import _read_structured_grid
+from uxarray.io._topology import _read_topology
+from uxarray.io._ugrid import (
+    _encode_ugrid,
+    _read_ugrid,
+    _validate_minimum_ugrid,
+)
+from uxarray.io._vertices import _read_face_vertices
+from uxarray.io._voronoi import _spherical_voronoi_from_points
+from uxarray.io.utils import _parse_grid_type
+from uxarray.plot.accessor import GridPlotAccessor
+from uxarray.subset import GridSubsetAccessor
 from uxarray.utils.numba import is_numba_function_cached
-
-
-from uxarray.conventions import ugrid
-
-from xarray.core.utils import UncachedAccessor
-
-from warnings import warn
-
-import cartopy.crs as ccrs
-
-import copy
-
-
-from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
-from uxarray.grid.dual import construct_dual
 
 
 class Grid:
@@ -803,8 +781,8 @@ class Grid:
     def coordinates(self) -> set:
         """Names of all coordinate variables."""
         from uxarray.conventions.ugrid import (
-            SPHERICAL_COORD_NAMES,
             CARTESIAN_COORD_NAMES,
+            SPHERICAL_COORD_NAMES,
         )
 
         return set(
@@ -1428,7 +1406,7 @@ class Grid:
     @property
     def face_areas(self) -> xr.DataArray:
         """The area of each face."""
-        from uxarray.conventions.descriptors import FACE_AREAS_DIMS, FACE_AREAS_ATTRS
+        from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
 
         if "face_areas" not in self._ds:
             face_areas, self._face_jacobian = self.compute_face_areas()
@@ -2358,7 +2336,7 @@ class Grid:
         >> grid = ux.open_grid(grid_path)
         >> grid.isel(n_face = [1,2,3,4])
         """
-        from .slice import _slice_node_indices, _slice_edge_indices, _slice_face_indices
+        from .slice import _slice_edge_indices, _slice_face_indices, _slice_node_indices
 
         if len(dim_kwargs) != 1:
             raise ValueError("Indexing must be along a single dimension.")

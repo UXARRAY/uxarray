@@ -1,16 +1,13 @@
+from typing import Optional, Union
+
 import numpy as np
-from numpy import deg2rad
-
 import xarray as xr
-
 from numba import njit
-
+from numpy import deg2rad
 from sklearn.neighbors import BallTree as SKBallTree
 from sklearn.neighbors import KDTree as SKKDTree
 
-from typing import Optional, Union
-
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
 
 class KDTree:
@@ -821,9 +818,6 @@ class SpatialHash:
         self._ymin = lat_min - self._dh
         self._xmax = lon_max + self._dh
         self._ymax = lat_max + self._dh
-
-        print(self._xmin, self._xmax)
-        print(self._ymin, self._ymax)
 
         # Number of x points in the hash grid; used for
         # array flattening

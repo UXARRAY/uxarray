@@ -1,8 +1,8 @@
 import numpy as np
-
-
 from numba import njit
+
 from uxarray.constants import ERROR_TOLERANCE
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 
 @njit(cache=True)

@@ -1,17 +1,18 @@
+import math
+
 import antimeridian
 import cartopy.crs as ccrs
 import geopandas
-from matplotlib.collections import LineCollection, PolyCollection
-from numba import njit, prange
 import numpy as np
 import pandas as pd
 import shapely
+import spatialpandas
+import xarray as xr
+from matplotlib.collections import LineCollection, PolyCollection
+from numba import njit, prange
 from shapely import Polygon
 from shapely import polygons as Polygons
-import spatialpandas
 from spatialpandas.geometry import MultiPolygonArray, PolygonArray
-import xarray as xr
-import math
 
 from uxarray.constants import (
     ERROR_TOLERANCE,
@@ -22,9 +23,7 @@ from uxarray.grid.arcs import (
     extreme_gca_latitude,
     point_within_gca,
 )
-
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
-
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
