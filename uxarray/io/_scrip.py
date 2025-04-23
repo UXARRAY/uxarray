@@ -1,12 +1,10 @@
-import xarray as xr
 import numpy as np
-
 import polars as pl
+import xarray as xr
 
-from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-
 from uxarray.conventions import ugrid
+from uxarray.grid.connectivity import _replace_fill_values
 
 
 def _to_ugrid(in_ds, out_ds):

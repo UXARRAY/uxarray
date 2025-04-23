@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, List, Set, Union
+
 import numpy as np
 import xarray as xr
-from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
-from typing import TYPE_CHECKING, Union, List, Set
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 if TYPE_CHECKING:
     pass

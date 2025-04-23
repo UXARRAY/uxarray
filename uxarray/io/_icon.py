@@ -1,6 +1,7 @@
-from uxarray.conventions import ugrid
-import xarray as xr
 import numpy as np
+import xarray as xr
+
+from uxarray.conventions import ugrid
 
 
 def _icon_to_ugrid_dims(in_ds):

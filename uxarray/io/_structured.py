@@ -1,11 +1,11 @@
 import numpy as np
 import xarray as xr
-from scipy.spatial import KDTree
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
+from scipy.spatial import KDTree
 
-from uxarray.conventions import ugrid
 from uxarray.constants import INT_DTYPE
+from uxarray.conventions import ugrid
 
 
 def _read_structured_grid(lon, lat, tol=1e-10):

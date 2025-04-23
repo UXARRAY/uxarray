@@ -1,11 +1,10 @@
+from collections import OrderedDict
+from functools import partial
 from html import escape
+
 import xarray.core.formatting_html as xrfm
 
-from functools import partial
-
-from uxarray.conventions import ugrid, descriptors
-
-from collections import OrderedDict
+from uxarray.conventions import descriptors, ugrid
 
 
 def _grid_header(grid, header_name=None):

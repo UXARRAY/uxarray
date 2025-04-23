@@ -1,14 +1,13 @@
-import xarray as xr
-import numpy as np
-from pathlib import PurePath
 from datetime import datetime
+from pathlib import PurePath
 
-from uxarray.grid.connectivity import _replace_fill_values
+import numpy as np
+import xarray as xr
+
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
-
 from uxarray.conventions import ugrid
+from uxarray.grid.connectivity import _replace_fill_values
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
 
 
 # Exodus Number is one-based.

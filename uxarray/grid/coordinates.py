@@ -1,14 +1,13 @@
-import xarray as xr
-import numpy as np
-import warnings
 import math
-
-from uxarray.conventions import ugrid
-
-from numba import njit, prange
-from uxarray.constants import ERROR_TOLERANCE
+import warnings
 from typing import Union
 
+import numpy as np
+import xarray as xr
+from numba import njit, prange
+
+from uxarray.constants import ERROR_TOLERANCE
+from uxarray.conventions import ugrid
 from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
@@ -790,22 +789,6 @@ def _xyz_to_lonlat_rad_no_norm(
     lon = np.where(z_mask, 0.0, lon)
 
     return lon, lat
-
-
-def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Normalizes a set of Cartesiain coordinates."""
-    denom = np.linalg.norm(
-        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
-    )
-
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
 
 
 @njit(cache=True)
