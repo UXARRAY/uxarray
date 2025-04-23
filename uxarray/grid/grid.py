@@ -22,7 +22,7 @@ from uxarray.conventions import ugrid
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.bounds import _populate_face_bounds
+from uxarray.grid.bounds import _construct_face_bounds_array, _populate_face_bounds
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
@@ -1428,7 +1428,7 @@ class Grid:
 
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(_populate_face_bounds):
+            if not is_numba_function_cached(_construct_face_bounds_array):
                 warn(
                     "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
                     "This initial execution will be significantly longer.",
@@ -1979,8 +1979,6 @@ class Grid:
             self._ds[x_var] = dx / norm
             self._ds[f"{prefix}_y"] = dy / norm
             self._ds[f"{prefix}_z"] = dz / norm
-
-        self._normalized = True
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the

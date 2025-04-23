@@ -2,7 +2,6 @@ from warnings import warn
 
 import numpy as np
 import polars as pl
-import xarray as xr
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 
@@ -117,7 +116,7 @@ def _check_normalization(grid):
         z = grid._ds[f"{name}_z"]
 
         # compute the max deviation from 1.0
-        max_dev = xr.ufuncs.abs(x**2 + y**2 + z**2 - 1.0).max().compute()
+        max_dev = abs((x**2 + y**2 + z**2 - 1.0).max().compute())
 
         if max_dev > ERROR_TOLERANCE:
             grid._normalized = False
