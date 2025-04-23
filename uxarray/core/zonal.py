@@ -2,7 +2,7 @@ import dask.array as da
 import numpy as np
 
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
 
 
 def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=False):
@@ -17,7 +17,7 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
         # Create a NumPy array for storing results
         result = np.zeros(shape, dtype=uxda.dtype)
 
-    faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes(
+    faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
         uxgrid.face_node_connectivity.values,
         uxgrid.n_face,
         uxgrid.n_max_face_nodes,
