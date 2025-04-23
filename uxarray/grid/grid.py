@@ -1870,7 +1870,6 @@ class Grid:
         self,
         quadrature_rule: Optional[str] = "triangular",
         order: Optional[int] = 4,
-        latlon: Optional[bool] = True,
         latitude_adjusted_area: Optional[bool] = False,
     ):
         """Face areas calculation function for grid class, calculates area of
@@ -1882,8 +1881,6 @@ class Grid:
             Quadrature rule to use. Defaults to "triangular".
         order : int, optional
             Order of quadrature rule. Defaults to 4.
-        latlon : bool, optional
-            If True, the coordinates are in latlon. Defaults to True.
         latitude_adjusted_area : bool, optional
             If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
@@ -1908,18 +1905,10 @@ class Grid:
         # if self._face_areas is None: # this allows for using the cached result,
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
 
-        if latlon:
-            x = self.node_lon.values
-            y = self.node_lat.values
-            z = np.zeros((self.n_node))
-            coords_type = "spherical"
-        else:
-            x = self.node_x.values
-            y = self.node_y.values
-            z = self.node_z.values
-            coords_type = "cartesian"
-
-        dim = 2
+        self.normalize_cartesian_coordinates()
+        x = self.node_x.values
+        y = self.node_y.values
+        z = self.node_z.values
 
         # Note: x, y, z are np arrays of type float
         # Using np.issubdtype to check if the type is float
@@ -1939,10 +1928,8 @@ class Grid:
             z,
             face_nodes,
             n_nodes_per_face,
-            dim,
             quadrature_rule,
             order,
-            coords_type,
             latitude_adjusted_area,
         )
 
