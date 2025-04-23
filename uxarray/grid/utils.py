@@ -138,7 +138,7 @@ def _swap_first_fill_value_with_last(arr):
     return arr
 
 
-def _get_cartesian_face_edge_nodes(
+def _get_cartesian_face_edge_nodes_array(
     face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
 ):
     """Construct an array to hold the edge Cartesian coordinates connectivity
@@ -179,7 +179,7 @@ def _get_cartesian_face_edge_nodes(
     >>> node_x = np.array([0, 1, 1, 0, 1, 0])
     >>> node_y = np.array([0, 0, 1, 1, 2, 2])
     >>> node_z = np.array([0, 0, 0, 0, 1, 1])
-    >>> _get_cartesian_face_edge_nodes(
+    >>> _get_cartesian_face_edge_nodes_array(
     ...     face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
     ... )
     array([[[[    0,     0,     0],
@@ -259,7 +259,7 @@ def _get_cartesian_face_edge_nodes(
     return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
 
 
-def _get_lonlat_rad_face_edge_nodes(
+def _get_lonlat_rad_face_edge_nodes_array(
     face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
 ):
     """Construct an array to hold the edge latitude and longitude in radians
@@ -323,10 +323,27 @@ def _get_lonlat_rad_face_edge_nodes(
 
 
 @njit(cache=True)
-def _edge_nodes_cartesian_kernel(
+def _get_cartesian_edge_nodes(
     face_idx, face_node_connectivity, n_edges_per_face, node_x, node_y, node_z
 ):
-    """Computes the Cartesian Coordinates of the edges that make up a given face."""
+    """Computes the Cartesian Coordinates of the edges that make up a given face.
+
+    Parameters
+    ----------
+    face_idx : int
+        The index of the face to construct the edge nodes
+    face_node_connectivity : np.ndarray
+        Face Node Connectivity array
+    n_edges_per_face : np.ndarray
+        Number of non-fill-value edges for each face
+    node_x : np.ndarray
+        Cartesian x coordinates
+    node_y : np.ndarray
+        Cartesian y coordinates
+    node_z : np.ndarray
+        Cartesian z coordinates
+
+    """
     # Number non-fill-value edges
     n_edges = n_edges_per_face[face_idx]
 
@@ -352,7 +369,7 @@ def _edge_nodes_cartesian_kernel(
 
 
 @njit(cache=True)
-def _edge_nodes_spherical_kernel(
+def _get_spherical_edge_nodes(
     face_idx, face_node_connectivity, n_edges_per_face, node_lon, node_lat
 ):
     """Computes the Spherical coordinates of the edges that make up a given face."""

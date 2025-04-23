@@ -2,7 +2,7 @@ from warnings import warn
 
 import numpy as np
 import polars as pl
-from numba import njit
+import xarray as xr
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 
@@ -105,37 +105,23 @@ def _find_duplicate_nodes(grid):
 
 
 def _check_normalization(grid):
-    """Checks whether all the cartesiain coordinates are normalized."""
+    if grid._normalized:
+        return True
 
-    if grid._normalized is True:
-        # grid is already normalized, no need to run extra checks
-        return grid._normalized
+    for name in ("node", "edge", "face"):
+        if f"{name}_x" not in grid._ds:
+            continue
 
-    if "node_x" in grid._ds:
-        if not _are_coordinates_normalized(
-            grid.node_x.values, grid.node_y.values, grid.node_z.values
-        ):
-            grid._normalized = False
-            return False
-    if "edge_x" in grid._ds:
-        if not _are_coordinates_normalized(
-            grid.edge_x.values, grid.edge_y.values, grid.edge_z.values
-        ):
-            grid._normalized = False
-            return False
-    if "face_x" in grid._ds:
-        if not _are_coordinates_normalized(
-            grid.face_x.values, grid.face_y.values, grid.face_z.values
-        ):
+        x = grid._ds[f"{name}_x"]
+        y = grid._ds[f"{name}_y"]
+        z = grid._ds[f"{name}_z"]
+
+        # compute the max deviation from 1.0
+        max_dev = xr.ufuncs.abs(x**2 + y**2 + z**2 - 1.0).max().compute()
+
+        if max_dev > ERROR_TOLERANCE:
             grid._normalized = False
             return False
 
-    # set the grid as normalized
     grid._normalized = True
-
     return True
-
-
-@njit(cache=True)
-def _are_coordinates_normalized(x, y, z):
-    return np.isclose(x**2 + y**2 + z**2, 1.0, atol=ERROR_TOLERANCE).all()

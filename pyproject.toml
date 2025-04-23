@@ -40,7 +40,7 @@ dependencies = [
   "shapely",
   "spatialpandas",
   "geopandas",
-  "xarray>=2024.11.0",
+  "xarray",
   "hvplot",
   "healpix",
   "polars",
