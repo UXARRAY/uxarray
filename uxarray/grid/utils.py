@@ -323,10 +323,10 @@ def _get_lonlat_rad_face_edge_nodes_array(
 
 
 @njit(cache=True)
-def _get_cartesian_edge_nodes(
+def _get_cartesian_face_edge_nodes(
     face_idx, face_node_connectivity, n_edges_per_face, node_x, node_y, node_z
 ):
-    """Computes the Cartesian Coordinates of the edges that make up a given face.
+    """Computes the Cartesian Coordinates of the edge nodes that make up a given face.
 
     Parameters
     ----------
@@ -343,6 +343,10 @@ def _get_cartesian_edge_nodes(
     node_z : np.ndarray
         Cartesian z coordinates
 
+    Returns
+    -------
+    face_edge_nodes: np.ndarray
+        Cartesian coordinates of the edge nodes that make up a given face
     """
     # Number non-fill-value edges
     n_edges = n_edges_per_face[face_idx]
@@ -369,10 +373,29 @@ def _get_cartesian_edge_nodes(
 
 
 @njit(cache=True)
-def _get_spherical_edge_nodes(
+def _get_spherical_face_edge_nodes(
     face_idx, face_node_connectivity, n_edges_per_face, node_lon, node_lat
 ):
-    """Computes the Spherical coordinates of the edges that make up a given face."""
+    """Computes the Spherical Coordinates of the edge nodes that make up a given face.
+
+    Parameters
+    ----------
+    face_idx : int
+        The index of the face to construct the edge nodes
+    face_node_connectivity : np.ndarray
+        Face Node Connectivity array
+    n_edges_per_face : np.ndarray
+        Number of non-fill-value edges for each face
+    node_lon : np.ndarray
+        Longitude coordinates
+    node_lat : np.ndarray
+        Latitude coordinates
+
+    Returns
+    -------
+    face_edge_nodes: np.ndarray
+        Spherical coordinates of the edge nodes that make up a given face
+    """
     # Number non-fill-value edges
     n_edges = n_edges_per_face[face_idx]
 

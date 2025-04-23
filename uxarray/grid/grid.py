@@ -1980,6 +1980,8 @@ class Grid:
             self._ds[f"{prefix}_y"] = dy / norm
             self._ds[f"{prefix}_z"] = dz / norm
 
+        self._normalized = True
+
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
         ``Grid`` encoded in a specific grid format.

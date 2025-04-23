@@ -10,8 +10,8 @@ from uxarray.grid.arcs import (
 )
 from uxarray.grid.geometry import pole_point_inside_polygon
 from uxarray.grid.utils import (
-    _get_cartesian_edge_nodes,
-    _get_spherical_edge_nodes,
+    _get_cartesian_face_edge_nodes,
+    _get_spherical_face_edge_nodes,
     all_elements_nan,
     any_close_lat,
 )
@@ -156,11 +156,11 @@ def _construct_face_bounds_array(
     # Iterate over each face in parallel
     for face_idx in prange(n_face):
         # 1) Create the Cartesian Face Edge Nodes for the current face
-        cur_face_edge_nodes_cartesian = _get_cartesian_edge_nodes(
+        cur_face_edge_nodes_cartesian = _get_cartesian_face_edge_nodes(
             face_idx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
         )
         # 2) Create the Spherical Face Edge Nodes for the current face
-        cur_face_edge_nodes_spherical = _get_spherical_edge_nodes(
+        cur_face_edge_nodes_spherical = _get_spherical_face_edge_nodes(
             face_idx, face_node_connectivity, n_nodes_per_face, node_lon, node_lat
         )
 
