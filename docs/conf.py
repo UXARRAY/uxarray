@@ -80,6 +80,9 @@ intersphinx_mapping = {
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
 }
 
+# TODO: Update the timeout to allow for longer Numba functions to compile
+nbsphinx_timeout = -1
+
 remove_from_toctrees = ["generated/*"]
 
 napoleon_use_admonition_for_examples = True
