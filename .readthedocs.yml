@@ -13,7 +13,7 @@ build:
       - pip install . --no-deps -vv
 
 sphinx:
-  configuration: doc/conf.py
+  configuration: docs/conf.py
   fail_on_warning: false
 
 conda:
