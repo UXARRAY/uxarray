@@ -8,7 +8,7 @@ build:
     post_checkout:
       - git fetch --unshallow || true
     pre_install:
-      - git update-index --assume-unchanged doc/conf.py ci/docs.yml
+      - git update-index --assume-unchanged docs/conf.py ci/docs.yml
     post_create_environment:
       - pip install . --no-deps -vv
 
