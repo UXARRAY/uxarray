@@ -81,10 +81,8 @@ intersphinx_mapping = {
 }
 
 
-# Notebook execution
+# Notebook execution (per cell)
 nb_execution_timeout = 120
-nbsphinx_timeout = 120  # TODO
-
 
 remove_from_toctrees = ["generated/*"]
 
