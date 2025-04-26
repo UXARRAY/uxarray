@@ -1450,6 +1450,8 @@ class Grid:
             _populate_edge_node_distances(self)
         return self._ds["edge_node_distances"]
 
+    edge_node_distances = edge_node_distances.setter(make_setter("edge_node_distances"))
+
     @property
     def edge_face_distances(self) -> xr.DataArray:
         """Arc distance between the faces that saddle each edge (in radians).
@@ -1462,6 +1464,8 @@ class Grid:
         if "edge_face_distances" not in self._ds:
             _populate_edge_face_distances(self)
         return self._ds["edge_face_distances"]
+
+    edge_face_distances = edge_face_distances.setter(make_setter("edge_face_distances"))
 
     @property
     def antimeridian_face_indices(self) -> np.ndarray:
@@ -2508,8 +2512,10 @@ class Grid:
                 "is not yet supported."
             )
         else:
+            edge_node_x = self.node_x[self.edge_node_connectivity].values
+            edge_node_y = self.node_y[self.edge_node_connectivity].values
             edges = constant_lon_intersections_no_extreme(
-                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+                lon, edge_node_x, edge_node_y, self.n_edge
             )
             return edges.squeeze()
 
