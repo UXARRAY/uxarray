@@ -80,6 +80,10 @@ intersphinx_mapping = {
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
 }
 
+
+# Notebook execution (per cell)
+nb_execution_timeout = 120
+
 remove_from_toctrees = ["generated/*"]
 
 napoleon_use_admonition_for_examples = True
