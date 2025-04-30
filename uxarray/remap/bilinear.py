@@ -9,10 +9,11 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
 
 import numpy as np
+from numba import njit
 
 import uxarray.core.dataarray
 import uxarray.core.dataset
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid import Grid
 
 
@@ -239,7 +240,33 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size, source_gr
                 # Create the data array on the polygon
                 data[ind] = source_data[node]
 
-            weights = barycentric_coordinates_cartesian(polygon, point_xyz[i])
-            values[i] = np.sum(weights * data, axis=-1)
+            # Check to see if the point lies on a node of the polygon
+            matching_indices = _find_matching_node_index(
+                polygon, point_xyz[i], tolerance=ERROR_TOLERANCE
+            )
+
+            # If the point lies on a node, assign it a weight of 1 and return the node index
+            if matching_indices[0] != -1:
+                weights, nodes = np.array([1]), matching_indices
+            else:
+                weights, nodes = barycentric_coordinates_cartesian(
+                    polygon, point_xyz[i]
+                )
+
+            values[i] = np.sum(weights * data[nodes], axis=-1)
 
     return values
+
+
+@njit(cache=True)
+def _find_matching_node_index(nodes, point, tolerance=ERROR_TOLERANCE):
+    for i in range(nodes.shape[0]):
+        match = True
+        for j in range(3):  # Compare each coordinate
+            diff = abs(nodes[i, j] - point[j])
+            if diff > tolerance + tolerance * abs(point[j]):
+                match = False
+                break
+        if match:
+            return np.array([i])  # Return first matching index
+    return np.array([-1])  # Not found

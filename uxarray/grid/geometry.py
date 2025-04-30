@@ -24,6 +24,7 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.utils.computing import allclose
 
 POLE_POINTS_XYZ = {
@@ -1251,7 +1252,7 @@ def barycentric_coordinates_cartesian(polygon, point):
     Parameters
     ----------
     polygon: np.array
-        Cartesian coordinates of the polygons' nodes
+        Cartesian coordinates of the polygon nodes
     point: np.array
         Cartesian coordinates of the point.
 
@@ -1262,7 +1263,7 @@ def barycentric_coordinates_cartesian(polygon, point):
     >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
 
     Define a cartesian polygon:
-    >>> point_xyz = np.array(
+    >>> polygon = np.array(
     ...     [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64
     ... )
 
@@ -1272,11 +1273,13 @@ def barycentric_coordinates_cartesian(polygon, point):
     Returns
     -------
     weights: np.ndarray
-        Barycentric coordinates corresponding to each vertex in the polygon.
+        Barycentric coordinates corresponding to each vertex in the triangle.
+    nodes: np.ndarray
+        Indices of which nodes of the polygon form the triangle containing the point
     """
+
     n = len(polygon)
-    weights = np.zeros(n)
-    total_area = 0.0
+    weights = np.zeros(3)
 
     # Use the first vertex as a reference point to form triangles
     p0 = polygon[0]
@@ -1285,41 +1288,64 @@ def barycentric_coordinates_cartesian(polygon, point):
         # Get the two other points of the triangle
         p1, p2 = polygon[i], polygon[i + 1]
 
-        # Find the inside portion of the equation: p - p0 =(p1 - p0)b + (p2 - p0)c
-        v1, v2 = p1 - p0, p2 - p0
+        # Get the faces in terms of their edges for the point_in_face check
+        face_edge = _get_cartesian_face_edge_nodes(
+            face_idx=0,
+            face_node_connectivity=np.array([[0, 1, 2]]),
+            n_edges_per_face=np.array([3]),
+            node_x=np.array([p0[0], p1[0], p2[0]], dtype=np.float64),
+            node_y=np.array([p0[1], p1[1], p2[1]], dtype=np.float64),
+            node_z=np.array([p0[2], p1[2], p2[2]], dtype=np.float64),
+        )
 
-        # Solve the left side of the equation
-        vp = point - p0
+        # Check to see if the point lies within the current triangle
+        contains_point = point_in_face(
+            face_edge,
+            point,
+            inclusive=True,
+        )
 
-        # Find the largest coordinate, we will ignore this one and use the other two
-        abs_det = np.abs(np.cross(v1, v2))
-        max_coord = np.argmax(abs_det)
+        # If the point is in the current triangle, get the weights for that triangle
+        if contains_point:
+            # Find the inside portion of the equation: p - p0 =(p1 - p0)b + (p2 - p0)c
+            v1, v2 = p1 - p0, p2 - p0
 
-        # Select the two coordinates to find corresponding weights for
-        idx = [j for j in range(3) if j != max_coord]
-        array = np.array([v1[idx[0]], v1[idx[1]]])
-        array2 = np.array([v2[idx[0]], v2[idx[1]]])
+            # Solve the left side of the equation
+            vp = point - p0
 
-        A = np.column_stack((array, array2))  # 2x2 matrix
-        b = np.array([vp[idx[0]], vp[idx[1]]])  # Right-hand side vector
+            # Find the largest coordinate, we will ignore this one and use the other two
+            abs_det = np.abs(np.cross(v1, v2))
+            max_coord = np.argmax(abs_det)
 
-        # Solve for weights b, c
-        b_c = np.linalg.solve(A, b)
+            # Select the two coordinates to find corresponding weights for
+            idx = [j for j in range(3) if j != max_coord]
+            array = np.array([v1[idx[0]], v1[idx[1]]])
+            array2 = np.array([v2[idx[0]], v2[idx[1]]])
 
-        # Solve for a
-        a = 1 - b_c[0] - b_c[1]
+            A = np.column_stack((array, array2))  # 2x2 matrix
+            b = np.array([vp[idx[0]], vp[idx[1]]])  # Right-hand side vector
 
-        # Compute triangle area
-        triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
-        total_area += triangle_area
+            # Solve for weights b, c
+            b_c = np.linalg.solve(A, b)
 
-        # Accumulate weights
-        weights[0] += a * triangle_area
-        weights[i] += b_c[0] * triangle_area
-        weights[i + 1] += b_c[1] * triangle_area
+            # Solve for a
+            a = 1 - b_c[0] - b_c[1]
 
-    # Normalize weights so they sum to 1
-    if total_area > 0:
-        weights /= total_area
+            # Compute triangle area
+            triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
 
-    return weights
+            # Calculate weights
+            weights[0] += a * triangle_area
+            weights[1] += b_c[0] * triangle_area
+            weights[2] += b_c[1] * triangle_area
+
+            # Normalize weights so they sum to 1
+            if triangle_area > 0:
+                weights /= triangle_area
+
+            # The nodes of the triangle, so it can be known which values to apply the weights to
+            nodes = np.array([0, i, i + 1])
+            return weights, nodes
+
+    # If the point doesn't reside in the polygon, raise an error
+    raise ValueError("Point does not reside in polygon")
