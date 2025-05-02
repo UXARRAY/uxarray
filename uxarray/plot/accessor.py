@@ -250,9 +250,10 @@ class GridPlotAccessor:
             engine=engine,
             project=False,
         )
-
-        # Use the index of each face as its color
         data = np.arange(self._uxgrid.n_face)
+        if periodic_elements == "exclude":
+            data = np.delete(data, self._uxgrid.antimeridian_face_indices)
+
         gdf = gdf.assign(data=data)
 
         return gdf.hvplot.polygons(
