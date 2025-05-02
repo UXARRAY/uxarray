@@ -21,7 +21,7 @@ def test_to_ugrid(resolution_level):
     assert uxgrid.n_face == expected_n_face
 
     n_side = uxgrid._ds.attrs["n_side"]
-    expected_area = np.ones(uxgrid.n_face) * np.pi / 3 * n_side**2
+    expected_area = np.ones(uxgrid.n_face) * np.pi / (3 * n_side**2)
     assert np.array_equal(uxgrid.face_areas.values, expected_area)
 
 @pytest.mark.parametrize("resolution_level", [0, 1, 2, 3])
