@@ -1904,6 +1904,8 @@ class Grid:
         """
         if self.source_grid_spec == "HEALPix":
             # Derive HEALPix Area
+            # Ω_pix = 4π / (12 * Nside²) = π / (3 * Nside²)
+            # Górski et al. 2005, “HEALPix: A Framework for High‐Resolution Discretization and Fast Analysis of Data Distributed on the Sphere”
             n_side = self._ds.attrs["n_side"]
             face_area = np.pi / 3 * n_side**2
             return np.ones(self.n_face) * face_area, None
