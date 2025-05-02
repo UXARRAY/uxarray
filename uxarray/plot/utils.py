@@ -1,5 +1,20 @@
+import cartopy.crs as ccrs
 import holoviews as hv
 import matplotlib as mpl
+
+
+def check_crs(kwargs, periodic_elements="exclude"):
+    """Sets default parameters based off the crs that is passed in."""
+    if "crs" in kwargs:
+        if kwargs["crs"] == ccrs.Geodetic():
+            kwargs["projection"] = kwargs.get("projection", ccrs.PlateCarree())
+            kwargs["project"] = True
+            # Allows geodetic crs to handle antimeridian wrapping
+            periodic_elements = "ignore"
+        else:
+            kwargs["crs"] = ccrs.PlateCarree()
+
+    return kwargs, periodic_elements
 
 
 class HoloviewsBackend:

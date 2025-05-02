@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING, Any, Optional
 import cartopy.crs as ccrs
 import hvplot.pandas
 import hvplot.xarray
+import numpy as np
 import pandas as pd
 
 import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
+from uxarray.plot.utils import check_crs
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
@@ -169,6 +171,9 @@ class GridPlotAccessor:
         periodic_elements="exclude",
         backend=None,
         engine="spatialpandas",
+        rasterize=False,
+        geo=True,
+        clabel="edges",
         **kwargs,
     ):
         """Plots the edges of a Grid.
@@ -203,35 +208,56 @@ class GridPlotAccessor:
         -------
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
+            :param rasterize:
         """
         uxarray.plot.utils.backend.assign(backend)
 
-        if "rasterize" not in kwargs:
-            kwargs["rasterize"] = False
-        if "projection" not in kwargs:
-            kwargs["projection"] = ccrs.PlateCarree()
-        if "clabel" not in kwargs:
-            kwargs["clabel"] = "edges"
-        if "crs" not in kwargs:
-            if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params["lon_0"]
-            else:
-                central_longitude = 0.0
-            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
+        kwargs, periodic_elements = check_crs(kwargs, periodic_elements)
 
         gdf = self._uxgrid.to_geodataframe(
             periodic_elements=periodic_elements,
-            projection=kwargs.get("projection"),
+            projection=kwargs.get("projection", ccrs.PlateCarree()),
             engine=engine,
             project=False,
         )
 
-        return gdf.hvplot.paths(geo=True, **kwargs)
+        return gdf.hvplot.paths(rasterize=rasterize, geo=geo, clabel=clabel, **kwargs)
 
-    def mesh(self, periodic_elements="exclude", backend=None, **kwargs):
-        return self.edges(periodic_elements, backend, **kwargs)
+    def mesh(self, *args, **kwargs):
+        return self.edges(*args, **kwargs)
 
     mesh.__doc__ = edges.__doc__
+
+    def polygons(
+        self,
+        periodic_elements="exclude",
+        backend=None,
+        engine="spatialpandas",
+        rasterize=False,
+        geo=True,
+        clabel="face index",
+        cmap="viridis",
+        **kwargs,
+    ):
+        """Plots the faces of the grid as polygons, shaded by their index."""
+        uxarray.plot.utils.backend.assign(backend)
+
+        kwargs, periodic_elements = check_crs(kwargs, periodic_elements)
+
+        gdf = self._uxgrid.to_geodataframe(
+            periodic_elements=periodic_elements,
+            projection=kwargs.get("projection", ccrs.PlateCarree()),
+            engine=engine,
+            project=False,
+        )
+
+        # Use the index of each face as its color
+        data = np.arange(self._uxgrid.n_face)
+        gdf = gdf.assign(data=data)
+
+        return gdf.hvplot.polygons(
+            c="data", cmap=cmap, rasterize=rasterize, geo=geo, clabel=clabel, **kwargs
+        )
 
     def face_degree_distribution(
         self,
@@ -351,7 +377,6 @@ class UxDataArrayPlotAccessor:
         engine: Optional[str] = "spatialpandas",
         rasterize: Optional[bool] = True,
         dynamic: Optional[bool] = False,
-        projection: Optional[ccrs.Projection] = None,
         xlabel: Optional[str] = "Longitude",
         ylabel: Optional[str] = "Latitude",
         *args,
@@ -392,18 +417,15 @@ class UxDataArrayPlotAccessor:
         """
         uxarray.plot.utils.backend.assign(backend)
 
-        if dynamic and (projection is not None or kwargs.get("geo", None) is True):
+        if dynamic and (
+            kwargs.get("projection", None) is not None
+            or kwargs.get("geo", None) is True
+        ):
             warnings.warn(
                 "Projections with dynamic plots may display incorrectly or update improperly. "
                 "Consider using static plots instead. See: github.com/holoviz/geoviews/issues/762"
             )
-
-        if projection is not None:
-            kwargs["projection"] = projection
-            kwargs["geo"] = True
-            if "crs" not in kwargs:
-                central_longitude = projection.proj4_params["lon_0"]
-                kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
+        kwargs, periodic_elements = check_crs(kwargs, periodic_elements)
 
         if "clabel" not in kwargs and self._uxda.name is not None:
             kwargs["clabel"] = self._uxda.name
