@@ -3,6 +3,7 @@ import healpix as hp
 import pytest
 import os
 from pathlib import Path
+import numpy as np
 
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -18,6 +19,10 @@ def test_to_ugrid(resolution_level):
     expected_n_face = hp.nside2npix(hp.order2nside(resolution_level))
 
     assert uxgrid.n_face == expected_n_face
+
+    n_side = uxgrid._ds.attrs["n_side"]
+    expected_area = np.ones(uxgrid.n_face) * np.pi / 3 * n_side**2
+    assert np.array_equal(uxgrid.face_areas.values, expected_area)
 
 @pytest.mark.parametrize("resolution_level", [0, 1, 2, 3])
 def test_boundaries(resolution_level):
@@ -41,6 +46,9 @@ def test_dataset():
 
     assert uxds.uxgrid.source_grid_spec == "HEALPix"
     assert "n_face" in uxds.dims
+
+    uxds = ux.UxDataset.from_healpix(ds_path, pixels_only=False)
+    assert "face_node_connectivity" in uxds.uxgrid._ds
 
 
 

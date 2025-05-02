@@ -282,7 +282,9 @@ class UxDataset(xr.Dataset):
         return cls(ds, uxgrid=uxgrid)
 
     @classmethod
-    def from_healpix(cls, ds: Union[str, os.PathLike, xr.Dataset], **kwargs):
+    def from_healpix(
+        cls, ds: Union[str, os.PathLike, xr.Dataset], pixels_only: bool = True, **kwargs
+    ):
         """
         Loads a dataset represented in the HEALPix format into a ``ux.UxDataSet``, paired
         with a ``Grid`` containing information about the HEALPix definition.
@@ -291,6 +293,8 @@ class UxDataset(xr.Dataset):
         ----------
         ds: str, os.PathLike, xr.Dataset
             Reference to a HEALPix Dataset
+                pixels_only : bool
+        Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
 
         Returns
         -------
@@ -308,7 +312,7 @@ class UxDataset(xr.Dataset):
         zoom = np.emath.logn(4, (ds.sizes["cell"] / 12)).astype(int)
 
         # Attach a  HEALPix Grid
-        uxgrid = Grid.from_healpix(zoom)
+        uxgrid = Grid.from_healpix(zoom, pixels_only=pixels_only)
 
         return cls.from_xarray(ds, uxgrid, {"cell": "n_face"})
 

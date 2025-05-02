@@ -1902,8 +1902,11 @@ class Grid:
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
         """
-        # if self._face_areas is None: # this allows for using the cached result,
-        # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
+        if self.source_grid_spec == "HEALPix":
+            # Derive HEALPix Area
+            n_side = self._ds.attrs["n_side"]
+            face_area = np.pi / 3 * n_side**2
+            return np.ones(self.n_face) * face_area, None
 
         self.normalize_cartesian_coordinates()
         x = self.node_x.values
