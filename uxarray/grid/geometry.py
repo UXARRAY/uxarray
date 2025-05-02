@@ -1245,30 +1245,38 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
 
 
 @njit(cache=True)
-def barycentric_coordinates_cartesian(polygon, point):
+def barycentric_coordinates(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat):
     """
     Compute the barycentric coordinates of a point inside a convex polygon, using cartesian coordinates.
 
     Parameters
     ----------
-    polygon: np.array
+    polygon_xyz: np.array
         Cartesian coordinates of the polygon nodes
-    point: np.array
+    polygon_lonlat: np.array
+        Spherical coordiantes of the polygon nodes
+    point_xyz: np.array
         Cartesian coordinates of the point.
+    point_lonlat: np.array
+        Spherical coordinates of the point.
 
     Examples
     --------
     Define a cartesian point:
     >>> import numpy as np
     >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+    >>> point_lonlat = _xyz_to_lonlat_deg(*point_xyz)
 
     Define a cartesian polygon:
-    >>> polygon = np.array(
+    >>> polygon_xyz = np.array(
     ...     [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64
     ... )
+    >>> polygon_lonlat = _xyz_to_lonlat_deg(*polygon_xyz)
 
     Find the weights:
-    >>> bar_weights = barycentric_coordinates_cartesian(polygon, point)
+    >>> bar_weights = barycentric_coordinates(
+    ...     polygon_xyz, polygon_lonlat, point_xyz, point_lonlat
+    ... )
 
     Returns
     -------
@@ -1278,15 +1286,17 @@ def barycentric_coordinates_cartesian(polygon, point):
         Indices of which nodes of the polygon form the triangle containing the point
     """
 
-    n = len(polygon)
-    weights = np.zeros(3)
+    n = len(polygon_xyz)
+    weights = np.zeros(3, dtype=np.float64)
 
     # Use the first vertex as a reference point to form triangles
-    p0 = polygon[0]
+    p0 = polygon_xyz[0]
+    lon0 = polygon_lonlat[0]
 
     for i in range(1, n - 1):
         # Get the two other points of the triangle
-        p1, p2 = polygon[i], polygon[i + 1]
+        p1, p2 = polygon_xyz[i], polygon_xyz[i + 1]
+        lon1, lon2 = polygon_lonlat[i], polygon_lonlat[i + 1]
 
         # Get the faces in terms of their edges for the point_in_face check
         face_edge = _get_cartesian_face_edge_nodes(
@@ -1301,51 +1311,73 @@ def barycentric_coordinates_cartesian(polygon, point):
         # Check to see if the point lies within the current triangle
         contains_point = point_in_face(
             face_edge,
-            point,
+            point_xyz,
             inclusive=True,
         )
 
         # If the point is in the current triangle, get the weights for that triangle
         if contains_point:
-            # Find the inside portion of the equation: p - p0 =(p1 - p0)b + (p2 - p0)c
-            v1, v2 = p1 - p0, p2 - p0
+            # Get the spherical coordinates of the polygon and point
+            x1, y1 = lon0
+            x2, y2 = lon1
+            x3, y3 = lon2
 
-            # Solve the left side of the equation
-            vp = point - p0
+            px, py = point_lonlat
 
-            # Find the largest coordinate, we will ignore this one and use the other two
-            abs_det = np.abs(np.cross(v1, v2))
-            max_coord = np.argmax(abs_det)
-
-            # Select the two coordinates to find corresponding weights for
-            idx = [j for j in range(3) if j != max_coord]
-            array = np.array([v1[idx[0]], v1[idx[1]]])
-            array2 = np.array([v2[idx[0]], v2[idx[1]]])
-
-            A = np.column_stack((array, array2))  # 2x2 matrix
-            b = np.array([vp[idx[0]], vp[idx[1]]])  # Right-hand side vector
-
-            # Solve for weights b, c
-            b_c = np.linalg.solve(A, b)
-
-            # Solve for a
-            a = 1 - b_c[0] - b_c[1]
-
-            # Compute triangle area
-            triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
-
-            # Calculate weights
-            weights[0] += a * triangle_area
-            weights[1] += b_c[0] * triangle_area
-            weights[2] += b_c[1] * triangle_area
-
-            # Normalize weights so they sum to 1
-            if triangle_area > 0:
-                weights /= triangle_area
-
-            # The nodes of the triangle, so it can be known which values to apply the weights to
             nodes = np.array([0, i, i + 1])
-            return weights, nodes
+
+            # Compute the denominator (2 * the signed area of the full triangle)
+            denom = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
+
+            # If triangle points are to close to collinear, use cartesian coordinates
+            if np.abs(denom) < 1e-10:
+                # Find the inside portion of the equation: p - p0 =(p1 - p0)b + (p2 - p0)c
+                v1, v2 = p1 - p0, p2 - p0
+
+                # Solve the left side of the equation
+                vp = point_xyz - p0
+
+                # Find the largest coordinate, we will ignore this one and use the other two
+                abs_det = np.abs(np.cross(v1, v2))
+                max_coord = np.argmax(abs_det)
+
+                # Select the two coordinates to find corresponding weights for
+                idx = [j for j in range(3) if j != max_coord]
+                array = np.array([v1[idx[0]], v1[idx[1]]])
+                array2 = np.array([v2[idx[0]], v2[idx[1]]])
+
+                A = np.column_stack((array, array2))  # 2x2 matrix
+                b = np.array([vp[idx[0]], vp[idx[1]]])  # Right-hand side vector
+
+                # Solve for weights b, c
+                b_c = np.linalg.solve(A, b)
+
+                # Solve for a
+                a = 1 - b_c[0] - b_c[1]
+
+                # Compute triangle area
+                triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
+
+                # Calculate weights
+                weights[0] += a * triangle_area
+                weights[1] += b_c[0] * triangle_area
+                weights[2] += b_c[1] * triangle_area
+
+                # Normalize weights so they sum to 1
+                if triangle_area > 0:
+                    weights /= triangle_area
+
+                # The nodes of the triangle, so it can be known which values to apply the weights to
+                return weights, nodes
+            else:
+                # Compute barycentric weights (dA, dB, dC)
+                weights[0] = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / denom
+                weights[1] = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / denom
+                weights[2] = (
+                    1.0 - weights[0] - weights[1]
+                )  # Third barycentric coordinate
+
+                return weights, nodes
 
     # If the point doesn't reside in the polygon, raise an error
     raise ValueError("Point does not reside in polygon")
