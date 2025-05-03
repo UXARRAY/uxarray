@@ -235,11 +235,10 @@ class GridPlotAccessor:
         engine="spatialpandas",
         rasterize=False,
         geo=True,
-        clabel="face index",
-        cmap="viridis",
+        fill=None,
         **kwargs,
     ):
-        """Plots the faces of the grid as polygons, shaded by their index."""
+        """Plots the faces of the grid as polygons, shaded by their face index."""
         uxarray.plot.utils.backend.assign(backend)
 
         kwargs, periodic_elements = check_crs(kwargs, periodic_elements)
@@ -250,15 +249,20 @@ class GridPlotAccessor:
             engine=engine,
             project=False,
         )
-        data = np.arange(self._uxgrid.n_face)
-        if periodic_elements == "exclude":
-            data = np.delete(data, self._uxgrid.antimeridian_face_indices)
 
-        gdf = gdf.assign(data=data)
+        if fill == "face_index":
+            data = np.arange(self._uxgrid.n_face)
+            if periodic_elements == "exclude":
+                data = np.delete(data, self._uxgrid.antimeridian_face_indices)
 
-        return gdf.hvplot.polygons(
-            c="data", cmap=cmap, rasterize=rasterize, geo=geo, clabel=clabel, **kwargs
-        )
+            kwargs["clabel"] = kwargs.get("clabel", "face index")
+            kwargs["title"] = kwargs.get("title", "Polygons shaded by face index")
+            kwargs["colorbar"] = kwargs.get("colorbar", True)
+            kwargs["cmap"] = kwargs.get("cmap", "viridis")
+            gdf = gdf.assign(polygons=data)
+            kwargs["c"] = "polygons"
+
+        return gdf.hvplot.polygons(rasterize=rasterize, geo=geo, **kwargs)
 
     def face_degree_distribution(
         self,
