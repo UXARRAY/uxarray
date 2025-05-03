@@ -16,7 +16,11 @@ def _to_ugrid(in_ds, out_ds):
     source_dims_dict = {}
 
     # Use imask, area or rank can be used but imask seemed to work for majority of cases
-    if in_ds["grid_imask"].all() or in_ds["grid_rank"].all() or in_ds["grid_area"].all():
+    if (
+        in_ds["grid_imask"].all()
+        or in_ds["grid_rank"].all()
+        or in_ds["grid_area"].all()
+    ):
         # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude and longitude scrip arrays into 1D
         corner_lat = in_ds["grid_corner_lat"].values.ravel()
