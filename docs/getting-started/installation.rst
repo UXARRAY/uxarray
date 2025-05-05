@@ -1,9 +1,9 @@
 .. currentmodule:: uxarray
 .. _installation:
 
-================
+============
 Installation
-================
+============
 
 UXarray is built **on top of** `Xarray <https://docs.xarray.dev/en/latest/getting-started-guide/installing.html#installation>`__,
 so we **strongly** recommend becoming familiar with Xarray’s installation
