@@ -155,7 +155,7 @@ class Grid:
         self,
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
-        source_dims_dict: Optional[dict] = {},
+        source_dims_dict: Optional[dict] = None,
         is_subset: bool = False,
         inverse_indices: Optional[xr.Dataset] = None,
     ):
