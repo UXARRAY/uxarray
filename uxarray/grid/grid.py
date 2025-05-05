@@ -160,7 +160,6 @@ class Grid:
         inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        # TODO:
         if source_grid_spec != "HEALPix":
             if not _validate_minimum_ugrid(grid_ds):
                 raise ValueError(
@@ -180,7 +179,7 @@ class Grid:
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
-        self._source_dims_dict = source_dims_dict
+        self._source_dims_dict = source_dims_dict or {}
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
@@ -840,7 +839,6 @@ class Grid:
             The total number of edges.
         """
         if "edge_node_connectivity" not in self._ds:
-            # TODO: Raise a warning here
             _populate_edge_node_connectivity(self)
 
         return self._ds.sizes["n_edge"]
@@ -1059,10 +1057,10 @@ class Grid:
 
         Values are expected to be in the range [-90.0, 90.0].
 
-         Returns
-         -------
-         edge_lat : :py:class:`xarray.DataArray`
-             An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
+        Returns
+        -------
+        edge_lat : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
@@ -1469,14 +1467,27 @@ class Grid:
 
     @property
     def antimeridian_face_indices(self) -> np.ndarray:
-        """TODO:"""
+        """Indices of faces that touch or cross the antimeridian.
+
+        Returns
+        -------
+        antimeridian_face_indices: :py:class:`np.ndarray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
+
+        """
         if self._antimeridian_face_indices is None:
             self._antimeridian_face_indices = _populate_antimeridian_face_indices(self)
         return self._antimeridian_face_indices
 
     @property
     def face_areas(self) -> xr.DataArray:
-        """TODO:"""
+        """Area of each face.
+
+        Returns
+        -------
+        face_areas: :py:class:`xr.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
+        """
         from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
 
         if "face_areas" not in self._ds:
@@ -1489,15 +1500,14 @@ class Grid:
     face_areas = face_areas.setter(make_setter("face_areas"))
 
     @property
-    def bounds(self):
-        """TOOD:
+    def bounds(self) -> xr.DataArray:
+        """Spherical bounds of each face in degrees
 
 
-        Latitude Longitude Bounds for each Face in radians.
-
-        Dimensions ``(n_face", two, two)``
-
-
+        Returns
+        -------
+        bounds: :py:class:`xr.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, `two`, `two`)
         """
         if "bounds" not in self._ds:
             if not is_numba_function_cached(_construct_face_bounds_array):
