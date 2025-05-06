@@ -9,9 +9,6 @@ UXarray is built **on top of** `Xarray <https://docs.xarray.dev/en/latest/gettin
 so we **strongly** recommend becoming familiar with Xarray’s installation
 process and dependencies first.
 
-For details on contributing, see the :doc:`UXarray Contributor’s Guide <contributing>`.
-
-
 Installing with Conda (recommended)
 -----------------------------------
 
