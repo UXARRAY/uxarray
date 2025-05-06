@@ -59,7 +59,7 @@ Installing from source is intended mainly for developers.
 
 #. **Create a dev environment**
 
-A ready‑made file is provided at ``ci/environment.yml``:
+   A ready-made file is provided at ``ci/environment.yml``:
 
    .. code-block:: bash
 
@@ -72,7 +72,7 @@ A ready‑made file is provided at ``ci/environment.yml``:
 
       pip install .
 
-#. **Run the test‑suite**
+#. **Run the test suite**
 
    .. code-block:: bash
 
