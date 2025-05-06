@@ -3,6 +3,7 @@ import uxarray as ux
 import holoviews as hv
 import pytest
 from pathlib import Path
+import cartopy.crs as ccrs
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -24,6 +25,7 @@ def test_topology():
         uxgrid.plot.mesh(backend=backend)
         uxgrid.plot.edges(backend=backend)
         uxgrid.plot.nodes(backend=backend)
+        uxgrid.plot.polygons(backend=backend)
         uxgrid.plot.node_coords(backend=backend)
         uxgrid.plot.corner_nodes(backend=backend)
         uxgrid.plot.face_centers(backend=backend)
@@ -97,3 +99,16 @@ def test_scatter():
     uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
     _plot_line = uxds['bottomDepth'].zonal_average().plot.scatter()
     assert isinstance(_plot_line, hv.Scatter)
+
+
+def test_geodetic():
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+    crs = ccrs.Geodetic()
+
+    _plot_grid = uxds.uxgrid.plot(crs=crs)
+
+    assert isinstance(_plot_grid, hv.Path)
+
+    _plot_da =  uxds['bottomDepth'].plot(crs=crs)
+
+    assert isinstance(_plot_da, hv.Image)
