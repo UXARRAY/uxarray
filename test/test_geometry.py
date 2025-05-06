@@ -8,7 +8,6 @@ from pathlib import Path
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
-import uxarray.utils.computing as ac_utils
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad, \
     _xyz_to_lonlat_deg, _xyz_to_lonlat_rad_scalar
 from uxarray.grid.arcs import extreme_gca_latitude, extreme_gca_z
@@ -173,8 +172,8 @@ def _max_latitude_rad_iterative(gca_cart):
     c_lonlat = _xyz_to_lonlat_rad(*v2_cart.tolist())
 
     # Initialize variables for the iterative process
-    v_temp = ac_utils.cross_fma(v1_cart, v2_cart)
-    v0 = ac_utils.cross_fma(v_temp, v1_cart)
+    v_temp = np.cross(v1_cart, v2_cart)
+    v0 = np.cross(v_temp, v1_cart)
     v0 = _normalize_xyz(*v0.tolist())
     max_section = [v1_cart, v2_cart]
 
@@ -184,7 +183,7 @@ def _max_latitude_rad_iterative(gca_cart):
         max_lat = -np.pi
         v_b, v_c = max_section
         angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
-        v0 = ac_utils.cross_fma(v_temp, v_b)
+        v0 = np.cross(v_temp, v_b)
         v0 = _normalize_xyz(*v0.tolist())
         avg_angle_rad = angle_v1_v2_rad / 10.0
 
@@ -261,8 +260,8 @@ def _min_latitude_rad_iterative(gca_cart):
     c_lonlat = _xyz_to_lonlat_rad(*v2_cart.tolist())
 
     # Initialize variables for the iterative process
-    v_temp = ac_utils.cross_fma(v1_cart, v2_cart)
-    v0 = ac_utils.cross_fma(v_temp, v1_cart)
+    v_temp = np.cross(v1_cart, v2_cart)
+    v0 = np.cross(v_temp, v1_cart)
     v0 = np.array(_normalize_xyz(*v0.tolist()))
     min_section = [v1_cart, v2_cart]
 
@@ -272,7 +271,7 @@ def _min_latitude_rad_iterative(gca_cart):
         min_lat = np.pi
         v_b, v_c = min_section
         angle_v1_v2_rad = ux.grid.arcs._angle_of_2_vectors(v_b, v_c)
-        v0 = ac_utils.cross_fma(v_temp, v_b)
+        v0 = np.cross(v_temp, v_b)
         v0 = np.array(_normalize_xyz(*v0.tolist()))
         avg_angle_rad = angle_v1_v2_rad / 10.0
 
