@@ -1,4 +1,5 @@
 import math
+import warnings
 
 import antimeridian
 import cartopy.crs as ccrs
@@ -1244,8 +1245,7 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
     return distance
 
 
-@njit(cache=True)
-def barycentric_coordinates(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat):
+def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
     """
     Compute the barycentric coordinates of a point inside a convex polygon, using cartesian coordinates.
 
@@ -1253,30 +1253,22 @@ def barycentric_coordinates(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat
     ----------
     polygon_xyz: np.array
         Cartesian coordinates of the polygon nodes
-    polygon_lonlat: np.array
-        Spherical coordiantes of the polygon nodes
     point_xyz: np.array
         Cartesian coordinates of the point.
-    point_lonlat: np.array
-        Spherical coordinates of the point.
 
     Examples
     --------
     Define a cartesian point:
     >>> import numpy as np
     >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
-    >>> point_lonlat = _xyz_to_lonlat_deg(*point_xyz)
 
     Define a cartesian polygon:
     >>> polygon_xyz = np.array(
     ...     [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64
     ... )
-    >>> polygon_lonlat = _xyz_to_lonlat_deg(*polygon_xyz)
 
     Find the weights:
-    >>> bar_weights = barycentric_coordinates(
-    ...     polygon_xyz, polygon_lonlat, point_xyz, point_lonlat
-    ... )
+    >>> bar_weights = barycentric_coordinates_cartesian(polygon_xyz, point_xyz)
 
     Returns
     -------
@@ -1287,97 +1279,249 @@ def barycentric_coordinates(polygon_xyz, polygon_lonlat, point_xyz, point_lonlat
     """
 
     n = len(polygon_xyz)
-    weights = np.zeros(3, dtype=np.float64)
 
-    # Use the first vertex as a reference point to form triangles
-    p0 = polygon_xyz[0]
-    lon0 = polygon_lonlat[0]
+    # If the polygon is a triangle, we can use the `triangle_line_intersection` algorithm to calculate the weights
+    if n == 3:
+        # Assign an empty array of size 3 to hold final weights
+        weights = np.zeros(3, dtype=np.float64)
 
-    for i in range(1, n - 1):
-        # Get the two other points of the triangle
-        p1, p2 = polygon_xyz[i], polygon_xyz[i + 1]
-        lon1, lon2 = polygon_lonlat[i], polygon_lonlat[i + 1]
-
-        # Get the faces in terms of their edges for the point_in_face check
-        face_edge = _get_cartesian_face_edge_nodes(
-            face_idx=0,
-            face_node_connectivity=np.array([[0, 1, 2]]),
-            n_edges_per_face=np.array([3]),
-            node_x=np.array([p0[0], p1[0], p2[0]], dtype=np.float64),
-            node_y=np.array([p0[1], p1[1], p2[1]], dtype=np.float64),
-            node_z=np.array([p0[2], p1[2], p2[2]], dtype=np.float64),
+        # Calculate the weights
+        triangle_weights = _triangle_line_intersection(
+            triangle=polygon_xyz, point=point_xyz
         )
 
-        # Check to see if the point lies within the current triangle
-        contains_point = point_in_face(
-            face_edge,
-            point_xyz,
-            inclusive=True,
+        # Using the results, store the weights
+        weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
+        weights[1] = triangle_weights[1]
+        weights[2] = triangle_weights[2]
+
+        # Since all the nodes of the triangle were used, return all 3 nodes
+        nodes = np.array([0, 1, 2])
+
+        return weights, nodes
+
+    # If the polygon is a quadrilateral, instead use the `newton_quadrilateral` algorithm to calculate the weights
+    elif n == 4:
+        # Assign an empty array of size 4 to hold final weights
+        weights = np.zeros(4, dtype=np.float64)
+
+        # Calculate the weights
+        quadrilateral_weights = _newton_quadrilateral(
+            quadrilateral=polygon_xyz, point=point_xyz
         )
 
-        # If the point is in the current triangle, get the weights for that triangle
-        if contains_point:
-            # Get the spherical coordinates of the polygon and point
-            x1, y1 = lon0
-            x2, y2 = lon1
-            x3, y3 = lon2
+        # Using the results, store the weights
+        weights[0] = (
+            1.0
+            - quadrilateral_weights[0]
+            - quadrilateral_weights[1]
+            + quadrilateral_weights[0] * quadrilateral_weights[1]
+        )
+        weights[1] = quadrilateral_weights[0] * (1.0 - quadrilateral_weights[1])
+        weights[2] = quadrilateral_weights[0] * quadrilateral_weights[1]
+        weights[3] = quadrilateral_weights[1] * (1.0 - quadrilateral_weights[0])
 
-            px, py = point_lonlat
+        # Since all the nodes of the quadrilateral were used, return all 4 nodes
+        nodes = np.array([0, 1, 2, 3])
 
-            nodes = np.array([0, i, i + 1])
+        return weights, nodes
 
-            # Compute the denominator (2 * the signed area of the full triangle)
-            denom = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
+    # For polygons of any other shape, break it into triangles,
+    # find the triangle containing the point,
+    # and use`triangle_line_intersection` algorithm to calculate the weights
+    else:
+        for i in range(0, n - 2):
+            # Get the three points of the triangle
+            node_0, node_1, node_2 = (
+                polygon_xyz[0],
+                polygon_xyz[i + 1],
+                polygon_xyz[i + 2],
+            )
 
-            # If triangle points are to close to collinear, use cartesian coordinates
-            if np.abs(denom) < 1e-10:
-                # Find the inside portion of the equation: p - p0 =(p1 - p0)b + (p2 - p0)c
-                v1, v2 = p1 - p0, p2 - p0
+            # Get the triangle in terms of its edges for the `point_in_face` check
+            face_edge = _get_cartesian_face_edge_nodes(
+                face_idx=0,
+                face_node_connectivity=np.array([[0, 1, 2]]),
+                n_edges_per_face=np.array([3]),
+                node_x=np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64),
+                node_y=np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64),
+                node_z=np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64),
+            )
 
-                # Solve the left side of the equation
-                vp = point_xyz - p0
+            # Check to see if the point lies within the current triangle
+            contains_point = point_in_face(
+                face_edge,
+                point_xyz,
+                inclusive=True,
+            )
 
-                # Find the largest coordinate, we will ignore this one and use the other two
-                abs_det = np.abs(np.cross(v1, v2))
-                max_coord = np.argmax(abs_det)
+            # If the point is in the current triangle, get the weights for that triangle
+            if contains_point:
+                # Create an empty array of size 3 to hold weights
+                weights = np.zeros(3, dtype=np.float64)
 
-                # Select the two coordinates to find corresponding weights for
-                idx = [j for j in range(3) if j != max_coord]
-                array = np.array([v1[idx[0]], v1[idx[1]]])
-                array2 = np.array([v2[idx[0]], v2[idx[1]]])
+                # Calculate the weights
+                triangle_weights = _triangle_line_intersection(
+                    triangle=np.array([node_0, node_1, node_2], dtype=np.float64),
+                    point=point_xyz,
+                )
 
-                A = np.column_stack((array, array2))  # 2x2 matrix
-                b = np.array([vp[idx[0]], vp[idx[1]]])  # Right-hand side vector
+                # Assign the weights based off the results
+                weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
+                weights[1] = triangle_weights[1]
+                weights[2] = triangle_weights[2]
 
-                # Solve for weights b, c
-                b_c = np.linalg.solve(A, b)
+                # Assign the current nodes as the nodes to return
+                nodes = np.array([0, i + 1, i + 2])
 
-                # Solve for a
-                a = 1 - b_c[0] - b_c[1]
-
-                # Compute triangle area
-                triangle_area = 0.5 * np.linalg.norm(np.cross(v1, v2))
-
-                # Calculate weights
-                weights[0] += a * triangle_area
-                weights[1] += b_c[0] * triangle_area
-                weights[2] += b_c[1] * triangle_area
-
-                # Normalize weights so they sum to 1
-                if triangle_area > 0:
-                    weights /= triangle_area
-
-                # The nodes of the triangle, so it can be known which values to apply the weights to
                 return weights, nodes
-            else:
-                # Compute barycentric weights (dA, dB, dC)
-                weights[0] = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / denom
-                weights[1] = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / denom
-                weights[2] = (
-                    1.0 - weights[0] - weights[1]
-                )  # Third barycentric coordinate
 
-                return weights, nodes
+        # If the point doesn't reside in the polygon, raise an error
+        raise ValueError("Point does not reside in polygon")
 
-    # If the point doesn't reside in the polygon, raise an error
-    raise ValueError("Point does not reside in polygon")
+
+def _triangle_line_intersection(triangle, point, threshold=1e12):
+    """
+    Compute interpolation coefficients for a point relative to a triangle.
+
+    Parameters
+    ----------
+    triangle: np.array
+        Cartesian coordinates for a triangle
+    point: np.array
+        Cartesian coordinates for a point within the triangle
+    threshold: np.array
+        Condition number threshold for warning
+
+    Examples
+    --------
+    Calculate the weights
+    >>> weights_t = _triangle_line_intersection(triangle=tri_xyz, point=point_xyz)
+
+    Using the results gotten, store the weights
+    >>> weights_t[0] = 1 - triangle_weights[1] - triangle_weights[2]
+    >>> weights_t[1] = triangle_weights[1]
+    >>> weights_t[2] = triangle_weights[2]
+
+    Returns
+    -------
+    triangle_weights: np.array
+        The weights of each point in the triangle
+    """
+
+    # Convert inputs to numpy arrays
+    point = np.asarray(point, dtype=float)
+    node_0, node_1, node_2 = (np.asarray(p, dtype=float) for p in triangle)
+
+    # Build interpolation matrix
+    matrix = np.column_stack((point, node_1 - node_0, node_2 - node_0))
+
+    # Estimate condition number via max column-sum norm
+    conditional_number = np.sum(np.abs(matrix), axis=0)
+    try:
+        matrix_inv = np.linalg.inv(matrix)
+    except np.linalg.LinAlgError:
+        warnings.warn(
+            "Singular matrix detected in fit (likely colinear elements)", RuntimeWarning
+        )
+        return None
+
+    matrix_inv_column_sum = np.sum(np.abs(matrix_inv), axis=0)
+    cond_est = np.max(conditional_number) * np.max(matrix_inv_column_sum)
+    if cond_est > threshold:
+        warnings.warn("WARNING: Poor conditioning in matrix", RuntimeWarning)
+
+    # Right-hand side: vector from `node_0` to the point
+    right_side = point - node_0
+
+    # Compute the triangle weights
+    triangle_weights = matrix_inv.dot(right_side)
+    return triangle_weights
+
+
+def _newton_quadrilateral(quadrilateral, point, threshold=1e12, max_iterations=150):
+    """
+    Compute interpolation coefficients for a point relative to a quadrilateral.
+
+    Parameters
+    ----------
+    quadrilateral: np.array
+        Cartesian coordinates for a quadrilateral
+    point: np.array
+        Cartesian coordinates for a point within the triangle
+    threshold: np.array
+        Condition number threshold for warning
+    max_iterations: int
+        Maximum number of Newton iterations
+
+    Examples
+    --------
+    Calculate the weights
+    >>> weights_q = _newton_quadrilateral(quadrilateral=quad_xyz, point=point_xyz)
+
+    Using the results gotten, store the weights
+    >>> weights_q[0] = (
+    ...     1.0
+    ...     - quadrilateral_weights[0]
+    ...     - quadrilateral_weights[1]
+    ...     + quadrilateral_weights[0] * quadrilateral_weights[1]
+    ... )
+    >>> weights_q[1] = quadrilateral_weights[0] * (1.0 - quadrilateral_weights[1])
+    >>> weights_q[2] = quadrilateral_weights[0] * quadrilateral_weights[1]
+    >>> weights_q[3] = quadrilateral_weights[1] * (1.0 - quadrilateral_weights[0])
+
+    Returns
+    -------
+    triangle_weights: np.array
+        The weights of the quadrilateral
+
+    """
+
+    # Assign the nodes of the quadrilateral
+    node_0 = quadrilateral[0]
+    node_1 = quadrilateral[1]
+    node_2 = quadrilateral[2]
+    node_3 = quadrilateral[3]
+
+    # Calculate the need values
+    A = node_0 - node_1 + node_2 - node_3
+    B = node_1 - node_0
+    C = node_3 - node_0
+    D = point
+    E = node_0 - point
+
+    # Assign an empty array to hold weights
+    quadrilateral_weights = np.zeros(3)
+
+    for _ in range(max_iterations):
+        # Assign current weights to value
+        dA, dB, dC = quadrilateral_weights
+
+        # Calculate the value of the function at X
+        value_at_x = dA * dB * A + dA * B + dB * C + dC * D + E
+
+        if np.linalg.norm(value_at_x) < 1e-15:
+            break
+
+        # Create the Jacobian matrix
+        jacobian_matrix = np.empty((3, 3), dtype=np.float64)
+        jacobian_matrix[:, 0] = A * dB + B
+        jacobian_matrix[:, 1] = A * dA + C
+        jacobian_matrix[:, 2] = D
+
+        # Invert the Jacobian matrix
+        try:
+            jacobian_inv = np.linalg.inv(jacobian_matrix)
+        except np.linalg.LinAlgError:
+            break
+
+        # Estimate condition number
+        cond_est = np.linalg.cond(jacobian_matrix)
+        if cond_est > threshold:
+            warnings.warn("WARNING: Poor conditioning in matrix", RuntimeWarning)
+
+        # Newton update
+        delta = jacobian_inv @ value_at_x
+        quadrilateral_weights -= delta
+
+    return quadrilateral_weights

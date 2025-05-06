@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from uxarray.grid.geometry import barycentric_coordinates
+from uxarray.grid.geometry import barycentric_coordinates_cartesian
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
@@ -227,8 +227,8 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size, source_gr
             # Create the polygon from the `face_node_connectivity`
             nodes_per_face = dual.uxgrid.n_nodes_per_face[face_ind[0]].values
             polygon_xyz = np.empty([nodes_per_face, 3], dtype=np.float64)
-            polygon_lonlat = np.empty([nodes_per_face, 2], dtype=np.float64)
             data = np.empty([nodes_per_face])
+
             for ind, node in enumerate(node_ind):
                 if node == INT_FILL_VALUE:
                     break
@@ -236,10 +236,6 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size, source_gr
                     dual.uxgrid.node_x.values[node],
                     dual.uxgrid.node_y.values[node],
                     dual.uxgrid.node_z.values[node],
-                ]
-                polygon_lonlat[ind] = [
-                    dual.uxgrid.node_lon.values[node],
-                    dual.uxgrid.node_lat.values[node],
                 ]
 
                 # Create the data array on the polygon
@@ -254,11 +250,9 @@ def _get_values(point_xyz, point_lonlat, dual, source_data, data_size, source_gr
             if matching_indices[0] != -1:
                 weights, nodes = np.array([1]), matching_indices
             else:
-                weights, nodes = barycentric_coordinates(
+                weights, nodes = barycentric_coordinates_cartesian(
                     polygon_xyz=polygon_xyz,
-                    polygon_lonlat=polygon_lonlat,
                     point_xyz=point_xyz[i],
-                    point_lonlat=point_lonlat[i],
                 )
 
             values[i] = np.sum(weights * data[nodes], axis=-1)
