@@ -58,7 +58,14 @@ extensions = [
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinx_remove_toctrees",
+    "sphinx_copybutton",
 ]
+
+
+# nbsphinx_execute = "never"
+# jupyter_execute_notebooks = "off"
+# nb_execution_mode = "off"
+
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
