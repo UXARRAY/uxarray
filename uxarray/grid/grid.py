@@ -10,10 +10,8 @@ from typing import (
 )
 from warnings import warn
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
-from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
@@ -2007,7 +2005,7 @@ class Grid:
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -2114,6 +2112,8 @@ class Grid:
         )
 
         if exclude_nan_polygons and non_nan_polygon_indices is not None:
+            from spatialpandas import GeoDataFrame
+
             # exclude any polygons that contain NaN values
             gdf = GeoDataFrame({"geometry": gdf["geometry"][non_nan_polygon_indices]})
 
@@ -2134,7 +2134,7 @@ class Grid:
     def to_polycollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
@@ -2219,7 +2219,7 @@ class Grid:
     def to_linecollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: Optional = None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         **kwargs,

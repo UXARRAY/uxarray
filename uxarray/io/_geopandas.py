@@ -1,4 +1,3 @@
-import geopandas as gpd
 import numpy as np
 import xarray as xr
 
@@ -63,8 +62,10 @@ def _gpd_read(filepath, driver=None, **kwargs):
     int
         Maximum number of nodes in a polygon/multipolygon.
     """
+    import geopandas
+
     try:
-        gdf = gpd.read_file(filepath, driver=driver, **kwargs)
+        gdf = geopandas.read_file(filepath, driver=driver, **kwargs)
         gdf = _set_crs(gdf)
     except Exception as e:
         print(f"An error occurred while reading the geospatial data: {e}")

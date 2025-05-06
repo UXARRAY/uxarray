@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-import matplotlib
+# import matplotlib
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
-import dask.dataframe as dd
-import geoviews as gv
-import holoviews as hv
+# import dask.dataframe as dd
+# import geoviews as gv
+# import holoviews as hv
 import pandas as pd
-from cartopy import crs as ccrs
-from holoviews.operation.datashader import rasterize as hds_rasterize
 
+# from cartopy import crs as ccrs
+# from holoviews.operation.datashader import rasterize as hds_rasterize
 import uxarray.plot.utils
 
 
@@ -26,7 +26,7 @@ def rasterize(
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
-    projection: Optional[ccrs] = None,
+    projection: Optional = None,
     width: Optional[int] = 1000,
     height: Optional[int] = 500,
     colorbar: Optional[bool] = True,
@@ -120,7 +120,7 @@ def _point_raster(
     pixel_ratio: Optional[float] = 1.0,
     dynamic: Optional[bool] = False,
     precompute: Optional[bool] = True,
-    projection: Optional[ccrs] = None,
+    projection: Optional = None,
     width: Optional[int] = 1000,
     height: Optional[int] = 500,
     colorbar: Optional[bool] = True,
@@ -135,6 +135,9 @@ def _point_raster(
     **kwargs,
 ):
     """Implementation of Point Rasterization."""
+    import cartopy.crs as ccrs
+    import dask.dataframe as dd
+    import holoviews as hv
 
     if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
@@ -173,7 +176,7 @@ def _point_raster(
 
     if current_backend == "matplotlib":
         # use holoviews matplotlib backend
-        raster = hds_rasterize(
+        raster = hv.operation.datashader.rasterize(
             points,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
@@ -189,7 +192,7 @@ def _point_raster(
         )
     elif current_backend == "bokeh":
         # use holoviews bokeh backend
-        raster = hds_rasterize(
+        raster = hv.operation.datashader.rasterize(
             points,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
@@ -232,10 +235,12 @@ def _polygon_raster(
     ylabel: Optional[str] = "Latitude",
     cache: Optional[bool] = True,
     override: Optional[bool] = False,
-    projection: Optional[ccrs] = None,
+    projection: Optional = None,
     **kwargs,
 ):
     """Implementation of Polygon Rasterization."""
+    import geoviews as gv
+    import holoviews as hv
 
     if "clabel" not in kwargs and uxda.name is not None:
         # set default label for color bar
@@ -265,7 +270,7 @@ def _polygon_raster(
 
     if current_backend == "matplotlib":
         # use holoviews matplotlib backend
-        raster = hds_rasterize(
+        raster = hv.operation.datashader.rasterize(
             _polygons,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
@@ -281,7 +286,7 @@ def _polygon_raster(
         )
     elif current_backend == "bokeh":
         # use holoviews bokeh backend
-        raster = hds_rasterize(
+        raster = hv.operation.datashader.rasterize(
             _polygons,
             pixel_ratio=pixel_ratio,
             dynamic=dynamic,
