@@ -10,7 +10,6 @@ from uxarray.grid.arcs import (
 from uxarray.grid.utils import (
     _angle_of_2_vectors,
 )
-from uxarray.utils.computing import allclose, cross, norm
 
 
 @njit(parallel=True, nogil=True, cache=True)
@@ -320,16 +319,16 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     if angle_v0v1 > np.pi:
         v0_xyz, v1_xyz = v1_xyz, v0_xyz
 
-    w0w1_norm = cross(w0_xyz, w1_xyz)
-    v0v1_norm = cross(v0_xyz, v1_xyz)
-    cross_norms = cross(w0w1_norm, v0v1_norm)
+    w0w1_norm = np.cross(w0_xyz, w1_xyz)
+    v0v1_norm = np.cross(v0_xyz, v1_xyz)
+    cross_norms = np.cross(w0w1_norm, v0v1_norm)
 
     # Initialize result array and counter
     res = np.empty((2, 3))
     count = 0
 
     # Check if the two GCAs are parallel
-    if allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
+    if np.allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
         if point_within_gca(v0_xyz, w0_xyz, w1_xyz):
             res[count, :] = v0_xyz
             count += 1
@@ -341,7 +340,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
         return res[:count, :]
 
     # Normalize the cross_norms
-    cross_norms = cross_norms / norm(cross_norms)
+    cross_norms = cross_norms / np.linalg.norm(cross_norms)
     x1_xyz = cross_norms
     x2_xyz = -x1_xyz
 
@@ -412,7 +411,7 @@ def gca_const_lat_intersection(gca_cart, const_z):
     if not in_between(z_min, const_z, z_max):
         return res
 
-    n = cross(x1, x2)
+    n = np.cross(x1, x2)
 
     nx, ny, nz = n
 

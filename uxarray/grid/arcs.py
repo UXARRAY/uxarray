@@ -8,7 +8,8 @@ from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
 from uxarray.grid.utils import _angle_of_2_vectors
-from uxarray.utils.computing import dot, isclose
+
+# from uxarray.utils.computing import dot, isclose
 
 
 def _to_list(obj):
@@ -79,7 +80,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     # Return True if the point lies within the interval (smaller arc)
     if cos_theta < 0:
         return True
-    elif isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
+    elif np.isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
         # set error tolerance to 0.0
         return True
     else:
@@ -214,7 +215,7 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     n2 = gca_cart[1]
 
     # Compute dot product
-    dot_n1_n2 = dot(n1, n2)
+    dot_n1_n2 = np.dot(n1, n2)
 
     # Compute denominator
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
@@ -228,7 +229,7 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
         d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
         # Handle cases where d_a_max is very close to 0 or 1
-        if isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or isclose(
+        if np.isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or np.isclose(
             d_a_max, 1.0, atol=ERROR_TOLERANCE
         ):
             d_a_max = clip_scalar(d_a_max, 0.0, 1.0)
@@ -295,7 +296,7 @@ def extreme_gca_z(gca_cart, extreme_type):
     n2 = gca_cart[1]
 
     # Compute dot product
-    dot_n1_n2 = dot(n1, n2)
+    dot_n1_n2 = np.dot(n1, n2)
 
     # Compute denominator
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
@@ -309,7 +310,7 @@ def extreme_gca_z(gca_cart, extreme_type):
         d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
         # Handle cases where d_a_max is very close to 0 or 1
-        if isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or isclose(
+        if np.isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or np.isclose(
             d_a_max, 1.0, atol=ERROR_TOLERANCE
         ):
             d_a_max = clip_scalar(d_a_max, 0.0, 1.0)

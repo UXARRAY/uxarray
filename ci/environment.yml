@@ -7,7 +7,6 @@ dependencies:
   - cartopy
   - dask
   - datashader
-  - gmpy2
   - geoviews
   - h5netcdf
   - hdf5
