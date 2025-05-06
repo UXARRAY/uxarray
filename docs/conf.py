@@ -58,7 +58,14 @@ extensions = [
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinx_remove_toctrees",
+    "sphinx_copybutton",
 ]
+
+
+# nbsphinx_execute = "never"
+# jupyter_execute_notebooks = "off"
+# nb_execution_mode = "off"
+
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
@@ -79,6 +86,10 @@ intersphinx_mapping = {
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
 }
+
+
+# Notebook execution (per cell)
+nb_execution_timeout = 120
 
 remove_from_toctrees = ["generated/*"]
 
