@@ -42,6 +42,9 @@ def test_dataset():
     assert uxds.uxgrid.source_grid_spec == "HEALPix"
     assert "n_face" in uxds.dims
 
+    uxds = ux.UxDataset.from_healpix(ds_path, pixels_only=False)
+    assert "face_node_connectivity" in uxds.uxgrid._ds
+
 
 
 def test_number_of_boundary_nodes():
