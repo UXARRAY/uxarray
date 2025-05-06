@@ -23,7 +23,7 @@ dependencies:
     - sphinx-book-theme
     - sphinx-autosummary-accessors
     - sphinx-remove-toctrees
-    - sphinx_copybutton
+    - sphinx-copybutton
     - myst-nb
     - sphinx-design
     - nbsphinx
