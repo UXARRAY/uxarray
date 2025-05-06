@@ -9,8 +9,6 @@ from uxarray.grid.coordinates import (
 )
 from uxarray.grid.utils import _angle_of_2_vectors
 
-# from uxarray.utils.computing import dot, isclose
-
 
 def _to_list(obj):
     if not isinstance(obj, list):
