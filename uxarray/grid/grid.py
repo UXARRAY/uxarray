@@ -230,7 +230,7 @@ class Grid:
 
         self._raster_data_id = None
 
-        # TODO:
+        # Cache for KDTrees
         self._kdtrees: dict[str, SPKDTree] = {}
 
         # initialize cached data structures (nearest neighbor operations)
