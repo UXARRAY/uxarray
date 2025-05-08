@@ -1700,7 +1700,34 @@ class Grid:
     def get_kdtree(
         self, coordinates: Optional[str] = "face", reconstruct: bool = False
     ):
-        """TODO:"""
+        """
+        Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
+
+        Parameters
+        ----------
+        coordinates : {'node', 'edge', 'face'}, default='face'
+            Which set of grid coordinates to use when constructing the KDTree:
+            - 'node': corner-node positions
+            - 'edge': edge-center positions
+            - 'face': face-center positions
+        reconstruct : bool, default=False
+            If True, always rebuild the KDTree even if one exists for the given coordinate set.
+
+        Returns
+        -------
+        scipy.spatial.KDTree
+            A KDTree built from the specified 3D coordinates of the grid.
+
+        Raises
+        ------
+        ValueError
+            If `coordinates` is not one of 'node', 'edge', or 'face'.
+
+        Notes
+        -----
+        - Trees are cached per-coordinate-set in `self._kdtrees` to avoid repeated construction.
+        - The tree uses the (x, y, z) Cartesian values stored on each grid element.
+        """
         if coordinates not in ("node", "edge", "face"):
             raise ValueError(
                 f"Invalid coordinates='{coordinates}'; "
