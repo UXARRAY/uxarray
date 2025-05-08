@@ -25,14 +25,14 @@ class RemapAccessor:
 
         return prefix + methods_heading
 
-    def __call__(self, *args, **kwargs):
-        """TODO: Default Remapping is Nearest Neighbor"""
+    def __call__(self, *args, **kwargs) -> UxDataArray | UxDataset:
+        """Default Remapping (Nearest Neighbor)"""
         return self.nearest_neighbor(*args, **kwargs)
 
     def nearest_neighbor(
         self, destination_grid: Grid, remap_to: str = "faces", **kwargs
-    ):
-        """TODO:
+    ) -> UxDataArray | UxDataset:
+        """Nearest Neighbor Remapping.
 
         Parameters
         ---------
@@ -43,6 +43,8 @@ class RemapAccessor:
 
         Returns
         -------
+        remapped: UxDataArray or UxDataset
+            TODO
 
         """
 
@@ -50,8 +52,8 @@ class RemapAccessor:
 
     def inverse_distance_weighted(
         self, destination_grid: Grid, remap_to: str = "faces", power=2, k=8, **kwargs
-    ):
-        """TODO
+    ) -> UxDataArray | UxDataset:
+        """Inverse Distance Weighted Remapping.
 
         Parameters
         ---------
@@ -67,6 +69,8 @@ class RemapAccessor:
 
         Returns
         -------
+        remapped: UxDataArray or UxDataset
+            TODO
         """
 
         return _inverse_distance_weighted_remap(
