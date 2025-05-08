@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python=3.11
   - cartopy
+  - cmocean
   - dask
   - datashader
   - gmpy2

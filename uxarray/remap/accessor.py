@@ -18,9 +18,9 @@ class RemapAccessor:
     def __repr__(self) -> str:
         prefix = f"<{type(self.ux_obj)}.remap>\n"
         methods_heading = "Supported Methods:\n"
-        methods_heading += "  * nearest_neighbor(destination_obj, remap_to)\n"
+        methods_heading += "  * nearest_neighbor(destination_grid, remap_to)\n"
         methods_heading += (
-            "  * inverse_distance_weighted(destination_obj, remap_to, power, k)\n"
+            "  * inverse_distance_weighted(destination_grid, remap_to, power, k)\n"
         )
 
         return prefix + methods_heading
