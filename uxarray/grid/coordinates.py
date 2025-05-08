@@ -1,5 +1,4 @@
 import math
-import warnings
 from typing import Union
 
 import numpy as np
@@ -251,7 +250,7 @@ def _populate_face_centroids(grid, repopulate=False):
     repopulate : bool, optional
         Bool used to turn on/off repopulating the face coordinates of the centroids
     """
-    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     node_x = grid.node_x.values
     node_y = grid.node_y.values
@@ -527,7 +526,6 @@ def _populate_face_centerpoints(grid, repopulate=False):
     -------
     None, populates the grid with the face centerpoints: face_lon, face_lat
     """
-    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values

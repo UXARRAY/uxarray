@@ -13,6 +13,7 @@ from warnings import warn
 import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
+from scipy.spatial import KDTree as SPKDTree
 from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
@@ -228,6 +229,9 @@ class Grid:
         }
 
         self._raster_data_id = None
+
+        # TODO:
+        self._kdtrees: dict[str, SPKDTree] = {}
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -1692,6 +1696,26 @@ class Grid:
                 self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
+
+    def get_kdtree(
+        self, coordinates: Optional[str] = "face", reconstruct: bool = False
+    ):
+        """TODO:"""
+        if coordinates not in ("node", "edge", "face"):
+            raise ValueError(
+                f"Invalid coordinates='{coordinates}'; "
+                "must be 'node', 'edge', or 'face'."
+            )
+
+        if reconstruct or coordinates not in self._kdtrees:
+            x = getattr(self, f"{coordinates}_x").values
+            y = getattr(self, f"{coordinates}_y").values
+            z = getattr(self, f"{coordinates}_z").values
+
+            points = np.vstack([x, y, z]).T
+            self._kdtrees[coordinates] = SPKDTree(points)
+
+        return self._kdtrees[coordinates]
 
     def get_kd_tree(
         self,
