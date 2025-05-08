@@ -170,14 +170,6 @@ def test_idw_power_zero_is_mean():
     assert np.allclose(out.values, expected)
 
 
-def test_idw_k_greater_than_sources():
-    """If k exceeds the number of source points, default to all available."""
-    src_da, grid = _make_node_da([5.0, 1.0, 3.0])
-    out = src_da.remap.inverse_distance_weighted(
-        destination_grid=grid, remap_to="nodes", power=2, k=10
-    )
-    assert out.shape == src_da.shape
-
 
 def test_invalid_remap_to_raises():
     src_da, grid = _make_node_da([0.0, 1.0, 2.0])

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -43,10 +42,6 @@ def _inverse_distance_weighted_remap(
     # Fall back onto nearest neighbor
     if k == 1:
         return _nearest_neighbor_remap(source, destination_grid, destination_dim)
-
-    if k > source.shape[-1]:
-        k = source.shape[-1]
-        warnings.warn(f"k is greater than the total number of elements, setting k={k}")
 
     _assert_dimension(destination_dim)
 
