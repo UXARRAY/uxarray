@@ -1697,11 +1697,13 @@ class Grid:
 
         return self._ball_tree
 
-    def get_kdtree(
+    def _get_scipy_kd_tree(
         self, coordinates: Optional[str] = "face", reconstruct: bool = False
     ):
         """
         Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
+
+        In the future, this will become the default KDtree and will be moved to the Public API.
 
         Parameters
         ----------

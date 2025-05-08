@@ -62,7 +62,7 @@ def _nearest_neighbor_query(
     distances : numpy.ndarray, optional
         Distances to the nearest source points, returned only if `return_distances` is True.
     """
-    source_tree = source_grid.get_kdtree(coordinates=KDTREE_DIM_MAP[source_dim])
+    source_tree = source_grid._get_scipy_kd_tree(coordinates=KDTREE_DIM_MAP[source_dim])
     destination_points = _prepare_points(destination_grid, destination_dim)
     distances, nearest_indices = source_tree.query(destination_points, k=k, workers=-1)
 
