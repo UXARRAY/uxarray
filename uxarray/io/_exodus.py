@@ -128,6 +128,13 @@ def _encode_exodus(ds, outfile=None):
 
     exo_ds = xr.Dataset()
 
+    n_elem = ds["face_node_connectivity"].shape[0]
+    exo_ds.coords["num_elem"] = (
+        "num_elem",
+        np.arange(1, n_elem + 1, dtype=INT_DTYPE),
+        {"long_name": "element index (1-based)"},
+    )
+
     now = datetime.now()
     date = now.strftime("%Y:%m:%d")
     time = now.strftime("%H:%M:%S")
