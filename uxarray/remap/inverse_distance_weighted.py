@@ -27,6 +27,23 @@ from .utils import (
 
 
 def _idw_weights(distances, power):
+    """
+    Compute inverse-distance weights for IDW interpolation.
+
+    Parameters
+    ----------
+    distances : np.ndarray
+        Array of distances to the k nearest neighbors for each query point,
+        with shape (n_points, k).
+    power : int
+        Exponent controlling distance decay. Larger values reduce the influence
+        of more distant neighbors.
+
+    Returns
+    -------
+    weights : np.ndarray
+        Normalized weights with the same shape as `distances`, where each row sums to 1.
+    """
     weights = 1.0 / (distances**power + 1e-6)
     weights /= np.sum(weights, axis=1, keepdims=True)
     return weights
@@ -39,6 +56,36 @@ def _inverse_distance_weighted_remap(
     power: int = 2,
     k: int = 8,
 ):
+    """
+    Apply inverse-distance-weighted (IDW) remapping to a UXarray object.
+
+    Each value on the destination grid is computed as a weighted average of
+    the k nearest source points, with weights inversely related to distance.
+
+    Parameters
+    ----------
+    source : UxDataArray or UxDataset
+        The data to be remapped.
+    destination_grid : Grid
+        The UXarray grid instance on which to interpolate data.
+    destination_dim : {'n_node', 'n_edge', 'n_face'}, default='n_face'
+        The spatial dimension on `destination_grid` to receive interpolated values.
+    power : int, default=2
+        Exponent in the inverse-distance weighting function. Larger values
+        emphasize closer neighbors.
+    k : int, default=8
+        Number of nearest neighbors to include in the weighted average.
+
+    Returns
+    -------
+    UxDataArray or UxDataset
+        A new UXarray object with values interpolated onto `destination_grid`.
+
+    Notes
+    -----
+    - If `k == 1`, falls back to nearest-neighbor remapping.
+    - IDW remapping can blur sharp gradients and does not conserve integrated quantities.
+    """
     # Fall back onto nearest neighbor
     if k == 1:
         return _nearest_neighbor_remap(source, destination_grid, destination_dim)

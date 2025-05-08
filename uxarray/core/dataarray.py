@@ -1184,34 +1184,47 @@ class UxDataArray(xr.DataArray):
         inverse_indices: bool = False,
         **indexers_kwargs,
     ):
-        """Return a new :py:class:`uxarray.UxDataArray` whose data is given by selecting indexes along the specified dimension(s).
+        """
+        Grid-aware index selection.
+
+        Performs xarray-style integer-location indexing along specified dimensions.
+        If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
+        and `ignore_grid=False`, the underlying grid is sliced accordingly,
+        and remaining indexers are applied to the resulting DataArray.
 
         Parameters
         ----------
-        indexers : dict, optional
-            A dict with keys matching dimensions and values given
-            by integers, slice objects or arrays.
-            indexer can be a integer, slice, array-like or DataArray.
-            If DataArrays are passed as indexers, xarray-style indexing will be
-            carried out. See :ref:`indexing` for the details.
-            One of indexers or indexers_kwargs must be provided.
-        drop : bool, default: False
-            If ``drop=True``, drop coordinates variables indexed by integers
-            instead of making them scalar.
-        missing_dims : {"raise", "warn", "ignore"}, default: "raise"
-            What to do if dimensions that should be selected from are not present in the
-            DataArray:
-            - "raise": raise an exception
-            - "warn": raise a warning, and ignore the missing dimensions
-            - "ignore": ignore the missing dimensions
-        **indexers_kwargs : {dim: indexer, ...}, optional
-            The keyword arguments form of ``indexers``.
+        indexers : Mapping[Any, Any], optional
+            A mapping of dimension names to indexers. Each indexer may be an integer,
+            slice, array-like, or DataArray. Mutually exclusive with indexing via kwargs.
+        drop : bool, default=False
+            If True, drop any coordinate variables indexed by integers instead of
+            retaining them as length-1 dimensions.
+        missing_dims : {'raise', 'warn', 'ignore'}, default='raise'
+            Behavior when indexers reference dimensions not present in the array.
+            - 'raise': raise an error
+            - 'warn': emit a warning and ignore missing dimensions
+            - 'ignore': ignore missing dimensions silently
+        ignore_grid : bool, default=False
+            If False (default), allow slicing on one grid dimension to automatically
+            update the associated UXarray grid. If True, fall back to pure xarray behavior.
+        inverse_indices : bool, default=False
+            For grid-based slicing, pass this flag to `Grid.isel` to invert indices
+            when selecting (useful for staggering or reversing order).
+        **indexers_kwargs : dimension=indexer pairs, optional
+            Alternative syntax for specifying `indexers` via keyword arguments.
 
         Returns
         -------
-        indexed : uxarray.UxDataArray
+        UxDataArray
+            A new UxDataArray indexed according to `indexers` and updated grid if applicable.
 
-
+        Raises
+        ------
+        TypeError
+            If `indexers` is provided and is not a Mapping.
+        ValueError
+            If more than one grid dimension is selected and `ignore_grid=False`.
         """
         from uxarray.constants import GRID_DIMS
         from uxarray.core.dataarray import UxDataArray
