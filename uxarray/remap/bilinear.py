@@ -143,7 +143,7 @@ def _bilinear_uxda(
         Source UxDataArray for remapping
     destination_grid : Grid
         Destination Grid for remapping
-    remap_to : str, default="nodes"
+    remap_to : str, default="face centers"
         Location of where to map data, either "nodes", "edge centers", or "face centers"
     """
 
