@@ -24,7 +24,6 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
-from uxarray.utils.computing import allclose
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -877,7 +876,7 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
             if intersection_point.ndim == 1:
                 # Only one point
                 point = intersection_point
-                if allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
+                if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
                     return True
                 intersection_points[intersection_count] = point
                 intersection_count += 1
@@ -886,7 +885,7 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
                 num_points = intersection_point.shape[0]
                 for j in range(num_points):
                     point = intersection_point[j]
-                    if allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
+                    if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
                         return True
                     intersection_points[intersection_count] = point
                     intersection_count += 1
@@ -904,9 +903,9 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
         intersection_point = unique_intersection_points[0]
         for i in range(n_edges):
             edge_xyz = edges_xyz[i]
-            if allclose(
+            if np.allclose(
                 intersection_point, edge_xyz[0], atol=ERROR_TOLERANCE
-            ) or allclose(intersection_point, edge_xyz[1], atol=ERROR_TOLERANCE):
+            ) or np.allclose(intersection_point, edge_xyz[1], atol=ERROR_TOLERANCE):
                 return 0
 
     return unique_count

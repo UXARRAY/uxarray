@@ -1,15 +1,9 @@
-import sys
-
 from uxarray.utils.numba import is_numba_function_cached
 from unittest import TestCase
 
-import unittest
 from unittest.mock import MagicMock, patch, mock_open
-import os
 import pickle
 import numba
-from uxarray.utils import computing
-import numpy as np
 
 
 class TestNumba(TestCase):

@@ -10,7 +10,6 @@ from uxarray.grid.intersections import (
     gca_const_lat_intersection,
     get_number_of_intersections,
 )
-from uxarray.utils.computing import isclose
 
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
@@ -85,7 +84,7 @@ def _zonal_face_weights_robust(
     """
 
     # Special case: latitude_cart close to +1 or -1 (near poles)
-    if isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or isclose(
+    if np.isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or np.isclose(
         latitude_cart, -1, atol=ERROR_TOLERANCE
     ):
         # Evenly distribute weight among candidate faces
