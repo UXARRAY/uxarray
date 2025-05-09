@@ -1238,7 +1238,12 @@ class UxDataArray(xr.DataArray):
         idx_map.update(indexers_kwargs)
 
         # detect grid dims
-        grid_dims = [d for d in GRID_DIMS if d in idx_map]
+        grid_dims = [
+            d
+            for d in GRID_DIMS
+            if d in idx_map
+            and not (isinstance(idx_map[d], slice) and idx_map[d] == slice(None))
+        ]
 
         # Grid Branch
         if not ignore_grid and len(grid_dims) == 1:
