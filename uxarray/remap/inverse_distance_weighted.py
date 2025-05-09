@@ -2,204 +2,144 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+import xarray as xr
+
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
+    from uxarray.grid.grid import Grid
 
-import warnings
-from copy import deepcopy
-
-import numpy as np
-
-import uxarray.core.dataarray
-import uxarray.core.dataset
 from uxarray.grid import Grid
-from uxarray.remap.utils import _remap_grid_parse
+from uxarray.remap.nearest_neighbor import (
+    _nearest_neighbor_query,
+    _nearest_neighbor_remap,
+)
+
+from .utils import (
+    LABEL_TO_COORD,
+    SPATIAL_DIMS,
+    _assert_dimension,
+    _construct_remapped_ds,
+    _get_remap_dims,
+    _to_dataset,
+)
+
+
+def _idw_weights(distances, power):
+    """
+    Compute inverse-distance weights for IDW interpolation.
+
+    Parameters
+    ----------
+    distances : np.ndarray
+        Array of distances to the k nearest neighbors for each query point,
+        with shape (n_points, k).
+    power : int
+        Exponent controlling distance decay. Larger values reduce the influence
+        of more distant neighbors.
+
+    Returns
+    -------
+    weights : np.ndarray
+        Normalized weights with the same shape as `distances`, where each row sums to 1.
+    """
+    weights = 1.0 / (distances**power + 1e-6)
+    weights /= np.sum(weights, axis=1, keepdims=True)
+    return weights
 
 
 def _inverse_distance_weighted_remap(
-    source_grid: Grid,
+    source: UxDataArray | UxDataset,
     destination_grid: Grid,
-    source_data: np.ndarray,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
-    power=2,
-    k=8,
-) -> np.ndarray:
-    """Inverse Distance Weighted Remapping between two grids.
-
-    Parameters:
-    -----------
-    source_grid : Grid
-        Source grid that data is mapped from.
-    destination_grid : Grid
-        Destination grid to remap data to.
-    source_data : np.ndarray
-        Data variable to remap.
-    remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edge centers", or "face centers".
-    coord_type: str, default="spherical"
-        Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian".
-    power : int, default=2
-        Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
-        power causes points that are further away to have less influence
-    k : int, default=8
-        Number of nearest neighbors to consider in the weighted calculation.
-
-    Returns:
-    --------
-    destination_data : np.ndarray
-        Data mapped to the destination grid.
-    """
-
-    if power > 5:
-        warnings.warn("It is recommended not to exceed a power of 5.0.", UserWarning)
-    if k > source_grid.n_node:
-        raise ValueError(
-            f"Number of nearest neighbors to be used in the calculation is {k}, but should not exceed the "
-            f"number of nodes in the source grid of {source_grid.n_node}"
-        )
-    if k <= 1:
-        raise ValueError(
-            f"Number of nearest neighbors to be used in the calculation is {k}, but should be greater than 1"
-        )
-
-    # ensure array is a np.ndarray
-    source_data = np.asarray(source_data)
-
-    _, distances, nearest_neighbor_indices = _remap_grid_parse(
-        source_data,
-        source_grid,
-        destination_grid,
-        coord_type,
-        remap_to,
-        k=k,
-        query=True,
-    )
-
-    weights = 1 / (distances**power + 1e-6)
-    weights /= np.sum(weights, axis=1, keepdims=True)
-
-    destination_data = np.sum(
-        source_data[..., nearest_neighbor_indices] * weights, axis=-1
-    )
-
-    return destination_data
-
-
-def _inverse_distance_weighted_remap_uxda(
-    source_uxda: UxDataArray,
-    destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
-    power=2,
-    k=8,
+    destination_dim: str = "n_face",
+    power: int = 2,
+    k: int = 8,
 ):
-    """Inverse Distance Weighted Remapping implementation for ``UxDataArray``.
+    """
+    Apply inverse-distance-weighted (IDW) remapping to a UXarray object.
+
+    Each value on the destination grid is computed as a weighted average of
+    the k nearest source points, with weights inversely related to distance.
 
     Parameters
-    ---------
-    source_uxda : UxDataArray
-        Source UxDataArray for remapping
+    ----------
+    source : UxDataArray or UxDataset
+        The data to be remapped.
     destination_grid : Grid
-        Destination grid for remapping
-    remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type : str, default="spherical"
-        Indicates whether to remap using on Spherical or Cartesian coordinates for the computations when
-        remapping.
+        The UXarray grid instance on which to interpolate data.
+    destination_dim : {'n_node', 'n_edge', 'n_face'}, default='n_face'
+        The spatial dimension on `destination_grid` to receive interpolated values.
     power : int, default=2
-        Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
-        power causes points that are further away to have less influence
+        Exponent in the inverse-distance weighting function. Larger values
+        emphasize closer neighbors.
     k : int, default=8
-        Number of nearest neighbors to consider in the weighted calculation.
+        Number of nearest neighbors to include in the weighted average.
+
+    Returns
+    -------
+    UxDataArray or UxDataset
+        A new UXarray object with values interpolated onto `destination_grid`.
+
+    Notes
+    -----
+    - If `k == 1`, falls back to nearest-neighbor remapping.
+    - IDW remapping can blur sharp gradients and does not conserve integrated quantities.
     """
+    # Fall back onto nearest neighbor
+    if k == 1:
+        return _nearest_neighbor_remap(source, destination_grid, destination_dim)
 
-    # check dimensions remapped to and from
-    if (
-        (source_uxda._node_centered() and remap_to != "nodes")
-        or (source_uxda._face_centered() and remap_to != "face centers")
-        or (source_uxda._edge_centered() and remap_to != "edge centers")
-    ):
-        warnings.warn(
-            f"Your data is stored on {source_uxda.dims[-1]}, but you are remapping to {remap_to}"
-        )
+    _assert_dimension(destination_dim)
 
-    # prepare dimensions
-    if remap_to == "nodes":
-        destination_dim = "n_node"
-    elif remap_to == "face centers":
-        destination_dim = "n_face"
-    else:
-        destination_dim = "n_edge"
+    # Perform remapping on a UxDataset
+    ds, is_da, name = _to_dataset(source)
 
-    destination_dims = list(source_uxda.dims)
-    destination_dims[-1] = destination_dim
+    # Determine which spatial dimensions we need to remap
+    dims_to_remap = _get_remap_dims(ds)
 
-    # perform remapping
-    destination_data = _inverse_distance_weighted_remap(
-        source_uxda.uxgrid,
-        destination_grid,
-        source_uxda.data,
-        remap_to,
-        coord_type,
-        power,
-        k,
-    )
+    indices_weights_map = {}
 
-    # preserve only non-spatial coordinates
-    destination_coords = deepcopy(source_uxda.coords)
-    if destination_dim in destination_coords:
-        del destination_coords[destination_dim]
-
-    # construct data array for remapping variable
-    uxda_remap = uxarray.core.dataarray.UxDataArray(
-        data=destination_data,
-        name=source_uxda.name,
-        dims=destination_dims,
-        uxgrid=destination_grid,
-        coords=destination_coords,
-    )
-
-    # return UxDataArray with remapped variable
-    return uxda_remap
-
-
-def _inverse_distance_weighted_remap_uxds(
-    source_uxds: UxDataset,
-    destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
-    power=2,
-    k=8,
-):
-    """Inverse Distance Weighted implementation for ``UxDataset``.
-
-    Parameters
-    ---------
-    source_uxds : UxDataset
-        Source UxDataset for remapping
-    destination_grid : Grid
-        Destination for remapping
-    remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type : str, default="spherical"
-        Indicates whether to remap using on Spherical or Cartesian coordinates
-    power : int, default=2
-        Power parameter for inverse distance weighting. This controls how local or global the remapping is, a higher
-        power causes points that are further away to have less influence
-    k : int, default=8
-        Number of nearest neighbors to consider in the weighted calculation.
-    """
-    destination_uxds = uxarray.UxDataset(uxgrid=destination_grid)
-    for var_name in source_uxds.data_vars:
-        destination_uxds[var_name] = _inverse_distance_weighted_remap_uxda(
-            source_uxds[var_name],
+    # Build Nearest Neighbor Index & Weight Arrays
+    for src_dim in dims_to_remap:
+        indices, distances = _nearest_neighbor_query(
+            ds.uxgrid,
             destination_grid,
-            remap_to,
-            coord_type,
-            power,
-            k,
+            src_dim,
+            destination_dim,
+            k=k,
+            return_distances=True,
         )
 
-    return destination_uxds
+        weights = _idw_weights(distances, power)
+
+        indices_weights_map[src_dim] = (indices, weights)
+
+    remapped_vars = {}
+    for name, da in ds.data_vars.items():
+        spatial = set(da.dims) & SPATIAL_DIMS
+        if spatial:
+            source_dim = spatial.pop()
+            inds, w = indices_weights_map[source_dim]
+
+            # pack indices & weights into tiny DataArrays:
+            indexer = xr.DataArray(inds, dims=[LABEL_TO_COORD[destination_dim], "k"])
+            weight_da = xr.DataArray(w, dims=[LABEL_TO_COORD[destination_dim], "k"])
+
+            # gather the k neighbor values:
+            da_k = da.isel({source_dim: indexer}, ignore_grid=True)
+
+            # weighted sum over the small "k" axis:
+            da_idw = (da_k * weight_da).sum(dim="k")
+
+            # attach the new grid
+            da_idw.uxgrid = destination_grid
+            remapped_vars[name] = da_idw
+        else:
+            remapped_vars[name] = da
+
+    ds_remapped = _construct_remapped_ds(
+        source, remapped_vars, destination_grid, destination_dim
+    )
+
+    return ds_remapped[name] if is_da else ds_remapped

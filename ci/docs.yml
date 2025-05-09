@@ -4,6 +4,7 @@ channels:
 dependencies:
     - python
     - dask
+    - cmocean
     - netcdf4
     - numba
     - numpy
