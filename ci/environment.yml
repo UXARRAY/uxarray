@@ -7,7 +7,6 @@ dependencies:
   - cartopy
   - dask
   - datashader
-  - gmpy2
   - geoviews
   - h5netcdf
   - hdf5
@@ -37,5 +36,3 @@ dependencies:
   - geopandas
   - xarray
   - asv
-  - pip:
-    - git+https://github.com/philipc2/pyfma.git # fix until https://github.com/nschloe/pyfma/pull/17 is merged

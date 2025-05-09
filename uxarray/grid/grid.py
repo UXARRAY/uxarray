@@ -13,6 +13,7 @@ from warnings import warn
 import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
+from scipy.spatial import KDTree as SPKDTree
 from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
@@ -227,6 +228,9 @@ class Grid:
         }
 
         self._raster_data_id = None
+
+        # Cache for KDTrees
+        self._kdtrees: dict[str, SPKDTree] = {}
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -1764,6 +1768,55 @@ class Grid:
                 self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
+
+    def _get_scipy_kd_tree(
+        self, coordinates: Optional[str] = "face", reconstruct: bool = False
+    ):
+        """
+        Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
+
+        In the future, this will become the default KDtree and will be moved to the Public API.
+
+        Parameters
+        ----------
+        coordinates : {'node', 'edge', 'face'}, default='face'
+            Which set of grid coordinates to use when constructing the KDTree:
+            - 'node': corner-node positions
+            - 'edge': edge-center positions
+            - 'face': face-center positions
+        reconstruct : bool, default=False
+            If True, always rebuild the KDTree even if one exists for the given coordinate set.
+
+        Returns
+        -------
+        scipy.spatial.KDTree
+            A KDTree built from the specified 3D coordinates of the grid.
+
+        Raises
+        ------
+        ValueError
+            If `coordinates` is not one of 'node', 'edge', or 'face'.
+
+        Notes
+        -----
+        - Trees are cached per-coordinate-set in `self._kdtrees` to avoid repeated construction.
+        - The tree uses the (x, y, z) Cartesian values stored on each grid element.
+        """
+        if coordinates not in ("node", "edge", "face"):
+            raise ValueError(
+                f"Invalid coordinates='{coordinates}'; "
+                "must be 'node', 'edge', or 'face'."
+            )
+
+        if reconstruct or coordinates not in self._kdtrees:
+            x = getattr(self, f"{coordinates}_x").values
+            y = getattr(self, f"{coordinates}_y").values
+            z = getattr(self, f"{coordinates}_z").values
+
+            points = np.vstack([x, y, z]).T
+            self._kdtrees[coordinates] = SPKDTree(points)
+
+        return self._kdtrees[coordinates]
 
     def get_kd_tree(
         self,

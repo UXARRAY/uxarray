@@ -7,7 +7,6 @@ conda remove -y --force \
     dask \
     datashader \
     distributed \
-    gmpy2 \
     holoviews \
     numpy \
     pandas \

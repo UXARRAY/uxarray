@@ -1,5 +1,4 @@
 import math
-import warnings
 from typing import Union
 
 import numpy as np
@@ -251,15 +250,15 @@ def _populate_face_centroids(grid, repopulate=False):
     repopulate : bool, optional
         Bool used to turn on/off repopulating the face coordinates of the centroids
     """
-    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
-
-    node_x = grid.node_x.values
-    node_y = grid.node_y.values
-    node_z = grid.node_z.values
-    face_nodes = grid.face_node_connectivity.values
-    n_nodes_per_face = grid.n_nodes_per_face.values
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     if "face_lon" not in grid._ds or repopulate:
+        node_x = grid.node_x.values
+        node_y = grid.node_y.values
+        node_z = grid.node_z.values
+        face_nodes = grid.face_node_connectivity.values
+        n_nodes_per_face = grid.n_nodes_per_face.values
+
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
             centroid_x, centroid_y, centroid_z = _construct_face_centroids(
@@ -270,7 +269,7 @@ def _populate_face_centroids(grid, repopulate=False):
             # If there are cartesian centroids already use those instead
             centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
 
-        # Convert from xyz to latlon TODO
+        # Convert from xyz to latlon
         centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
             centroid_x, centroid_y, centroid_z, normalize=False
         )
@@ -527,7 +526,6 @@ def _populate_face_centerpoints(grid, repopulate=False):
     -------
     None, populates the grid with the face centerpoints: face_lon, face_lat
     """
-    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
