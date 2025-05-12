@@ -16,6 +16,8 @@ dsfiles_geoflow = [
 ]
 mpasfile_QU = ROOT / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
 mpasfile_QU_2 = ROOT / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+outCSne30 = ROOT / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+outCSne30_var2 = ROOT / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
 # ------------------------------------------------------------
 # Helper: small 3‐point spherical grid
@@ -245,3 +247,12 @@ def test_b_value_errors():
 
     with nt.assert_raises(ValueError):
         uxds['v1'].remap.bilinear(destination_grid=dest, remap_to="nodes")
+
+def test_b_quadrilateral():
+    """Bilinear remapping on quadrilaterals, to test Newton Quadrilateral weights calculation"""
+    uxds = ux.open_dataset(outCSne30, outCSne30_var2)
+    dest = ux.open_grid(mpasfile_QU)
+
+    out = uxds['var2'].remap.bilinear(destination_grid=dest)
+
+    assert out.size > 0
