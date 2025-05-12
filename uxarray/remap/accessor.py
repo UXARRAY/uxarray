@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid.grid import Grid
 
+from uxarray.remap.bilinear import _bilinear
 from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_remap
 
@@ -88,3 +89,27 @@ class RemapAccessor:
         return _inverse_distance_weighted_remap(
             self.ux_obj, destination_grid, remap_to, power, k
         )
+
+    def bilinear(
+        self, destination_grid: Grid, remap_to: str = "faces", **kwargs
+    ) -> UxDataArray | UxDataset:
+        """
+        Bilinear Remapping between a source (``UxDataset``) and
+        destination.
+
+        Parameters
+        ---------
+        destination_grid : Grid
+            Destination Grid for remapping
+        remap_to : str, default="nodes"
+            Location of where to map data, either "nodes" or "face centers"
+
+        Returns
+        -------
+        UxDataArray or UxDataset
+            A new object with data mapped onto `destination_grid`.
+        """
+        if destination_grid is None:
+            raise ValueError("Destination needed for remap.")
+
+        return _bilinear(self.ux_obj, destination_grid, remap_to)

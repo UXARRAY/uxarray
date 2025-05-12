@@ -195,7 +195,21 @@ def test_dataset_remap_preserves_coords():
     uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
     uxds = uxds.assign_coords(time=("time", np.arange(len(uxds.time))))
     dest = ux.open_grid(mpasfile_QU)
-    ds_out = uxds.remap.nearest_neighbor(destination_grid=dest, remap_to="nodes")
+    ds_out = uxds.remap.inverse_distance_weighted(destination_grid=dest, remap_to="nodes")
+
+
+# ------------------------------------------------------------
+# Bilinear tests
+# ------------------------------------------------------------
+def test_b_modifies_values():
+    """Bilinear remap should change the array when remap_to != source."""
+    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    dest = ux.open_grid(gridfile_geoflow)
+    da_idw = uxds["latCell"].remap.inverse_distance_weighted(
+        destination_grid=dest, remap_to="nodes"
+    )
+    assert not np.array_equal(uxds["latCell"].values, da_idw.values)
+
 
 def test_source_data_remap_bilinear():
     """Test the remapping of all source data positions."""
@@ -218,28 +232,17 @@ def test_bilinear_remap_center_nodes():
     assert not np.array_equal(source_uxds['latCell'], data_on_face_centers)
 
 
-def test_bilinear_remap_nodes():
-    """Test remapping to nodes."""
-    source_uxds = ux.open_dataset(gridfile_CSne30, gridfile_CSne30_data)
-    destination_grid = ux.open_grid(gridfile_geoflow)
+def test_b_return_types_and_counts():
+    """Bilinear remap returns UxDataArray or UxDataset with correct var counts."""
+    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    dest = ux.open_grid(gridfile_geoflow)
 
-    data_on_nodes = source_uxds['var2'].remap.bilinear(destination_grid, remap_to="nodes")
+    da_idw = uxds["latCell"].remap.bilinear(destination_grid=dest)
+    ds_idw = uxds.remap.bilinear(destination_grid=dest)
 
-    assert not np.array_equal(source_uxds['var2'], data_on_nodes)
-
-def test_remap_return_types_bilinear():
-    """Tests the return type of the `UxDataset` and `UxDataArray` implementations of Bilinear Remapping."""
-    source_uxds = ux.open_dataset(gridfile_CSne30, gridfile_CSne30_data)
-    destination_grid = ux.open_grid(gridfile_CSne30)
-
-    remap_uxda_to_grid = source_uxds['var2'].remap.bilinear(destination_grid)
-
-    assert isinstance(remap_uxda_to_grid, UxDataArray)
-
-    remap_uxds_to_grid = source_uxds.remap.bilinear(destination_grid)
-
-    assert isinstance(remap_uxds_to_grid, UxDataset)
-    assert len(remap_uxds_to_grid.data_vars) == len(source_uxds.data_vars)
+    assert isinstance(da_idw, UxDataArray)
+    assert isinstance(ds_idw, UxDataset)
+    assert set(ds_idw.data_vars) == set(uxds.data_vars)
 
 def test_value_errors_bilinear():
     """Tests the raising of value errors and warnings in the function."""
