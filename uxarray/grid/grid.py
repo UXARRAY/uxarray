@@ -1574,7 +1574,7 @@ class Grid:
 
     @property
     def max_face_radius(self):
-        """Maximum face radius of the grid in degrees"""
+        """TODO: Maximum face radius of the grid in degrees"""
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
@@ -2624,7 +2624,10 @@ class Grid:
             point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
 
         # Get the maximum face radius of the grid, plus a small adjustment for if the point is this exact radius away
+        # TODO: Use a smaller eps
         max_face_radius = self.max_face_radius.values + 0.0001
+
+        # tree = self._get_scipy_kd_tree()
 
         # Try to find a subset in which the point resides
         try:

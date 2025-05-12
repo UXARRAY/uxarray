@@ -1129,79 +1129,63 @@ def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
     return index
 
 
-def _populate_max_face_radius(self):
-    """Populates `max_face_radius`
+def _populate_max_face_radius(grid):
+    """Populates `max_face_radius`"""
 
-    Returns
-    -------
-    max_distance : np.float64
-        The max distance from a node to a face center
-    """
+    face_node_connectivity = grid.face_node_connectivity.values
 
-    # Parse all variables needed for `njit` functions
-    face_node_connectivity = self.face_node_connectivity.values
-    node_lats_rad = np.deg2rad(self.node_lat.values)
-    node_lons_rad = np.deg2rad(self.node_lon.values)
-    face_lats_rad = np.deg2rad(self.face_lat.values)
-    face_lons_rad = np.deg2rad(self.face_lon.values)
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
+
+    face_x = grid.face_x.values
+    face_y = grid.face_y.values
+    face_z = grid.face_z.values
 
     # Get the max distance
     max_distance = calculate_max_face_radius(
         face_node_connectivity,
-        node_lats_rad,
-        node_lons_rad,
-        face_lats_rad,
-        face_lons_rad,
+        node_x,
+        node_y,
+        node_z,
+        face_x,
+        face_y,
+        face_z,
     )
 
-    # Return the max distance, which is the `max_face_radius`
-    return np.rad2deg(max_distance)
+    return max_distance
 
 
 @njit(cache=True)
 def calculate_max_face_radius(
-    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
+    face_node_connectivity, node_x, node_y, node_z, face_x, face_y, face_z
 ):
-    """Finds the max face radius in the mesh.
-    Parameters
-    ----------
-        face_node_connectivity : numpy.ndarray
-            Cartesian coordinates of all the faces according to their edges
-        node_lats_rad : numpy.ndarray
-            The `Grid.node_lat` array in radians
-        node_lons_rad : numpy.ndarray
-           The `Grid.node_lon` array in radians
-        face_lats_rad : numpy.ndarray
-           The `Grid.face_lat` array in radians
-        face_lons_rad : numpy.ndarray
-           The `Grid.face_lon` array in radians
-
-    Returns
-    -------
-    The max distance from a node to a face center
-    """
+    """Finds the max face radius in the grid."""
 
     # Array to store all distances of each face to it's furthest node.
     end_distances = np.zeros(len(face_node_connectivity))
 
     # Loop over each face and its nodes
-    for ind, face in enumerate(face_node_connectivity):
+    for face_idx, cur_face in enumerate(face_node_connectivity):
         # Filter out INT_FILL_VALUE
-        valid_nodes = face[face != INT_FILL_VALUE]
+        node_indices = cur_face[cur_face != INT_FILL_VALUE]
 
-        # Get the face lat/lon of this face
-        face_lat = face_lats_rad[ind]
-        face_lon = face_lons_rad[ind]
+        fx = face_x[face_idx]
+        fy = face_y[face_idx]
+        fz = face_z[face_idx]
 
-        # Get the node lat/lon of this face
-        node_lat_rads = node_lats_rad[valid_nodes]
-        node_lon_rads = node_lons_rad[valid_nodes]
+        nx = node_x[node_indices]
+        ny = node_y[node_indices]
+        nz = node_z[node_indices]
 
-        # Calculate Haversine distances for all nodes in this face
-        distances = haversine_distance(node_lon_rads, node_lat_rads, face_lon, face_lat)
+        # vectorized distance calculation
+        dx = nx - fx
+        dy = ny - fy
+        dz = nz - fz
+        distances = np.sqrt(dx * dx + dy * dy + dz * dz)
 
         # Store the max distance for this face
-        end_distances[ind] = np.max(distances)
+        end_distances[face_idx] = np.max(distances)
 
     # Return the maximum distance found across all faces
     return np.max(end_distances)
