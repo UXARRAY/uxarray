@@ -109,7 +109,5 @@ class RemapAccessor:
         UxDataArray or UxDataset
             A new object with data mapped onto `destination_grid`.
         """
-        if destination_grid is None:
-            raise ValueError("Destination needed for remap.")
 
         return _bilinear(self.ux_obj, destination_grid, remap_to)

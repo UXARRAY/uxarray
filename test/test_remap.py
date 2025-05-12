@@ -171,13 +171,14 @@ def test_idw_power_zero_is_mean():
     assert np.allclose(out.values, expected)
 
 
-
 def test_invalid_remap_to_raises():
     src_da, grid = _make_node_da([0.0, 1.0, 2.0])
     with pytest.raises(ValueError):
         src_da.remap.nearest_neighbor(destination_grid=grid, remap_to="foobars")
     with pytest.raises(ValueError):
         src_da.remap.inverse_distance_weighted(destination_grid=grid, remap_to="123")
+    with pytest.raises(ValueError):
+        src_da.remap.bilinear(destination_grid=grid, remap_to="nothing")
 
 
 def test_nn_equals_idw_high_power():
@@ -196,6 +197,7 @@ def test_dataset_remap_preserves_coords():
     uxds = uxds.assign_coords(time=("time", np.arange(len(uxds.time))))
     dest = ux.open_grid(mpasfile_QU)
     ds_out = uxds.remap.inverse_distance_weighted(destination_grid=dest, remap_to="nodes")
+    assert "time" in ds_out.coords
 
 
 # ------------------------------------------------------------
@@ -211,53 +213,35 @@ def test_b_modifies_values():
     assert not np.array_equal(uxds["latCell"].values, da_idw.values)
 
 
-def test_source_data_remap_bilinear():
-    """Test the remapping of all source data positions."""
-    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    destination_grid = ux.open_grid(gridfile_geoflow)
-
-    face_centers = source_uxds['latCell'].remap.bilinear(destination_grid=destination_grid, remap_to="nodes")
-    nodes = source_uxds['latVertex'].remap.bilinear(destination_grid=destination_grid, remap_to="nodes")
-
-    assert len(face_centers.values) != 0
-    assert len(nodes.values) != 0
-
-def test_bilinear_remap_center_nodes():
-    """Test remapping to center nodes."""
-    source_uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    destination_grid = ux.open_grid(gridfile_geoflow)
-
-    data_on_face_centers = source_uxds['latCell'].remap.bilinear(destination_grid, remap_to="face centers")
-
-    assert not np.array_equal(source_uxds['latCell'], data_on_face_centers)
-
-
 def test_b_return_types_and_counts():
     """Bilinear remap returns UxDataArray or UxDataset with correct var counts."""
     uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
     dest = ux.open_grid(gridfile_geoflow)
 
     da_idw = uxds["latCell"].remap.bilinear(destination_grid=dest)
-    ds_idw = uxds.remap.bilinear(destination_grid=dest)
+
+    # Create a dataset with only a face centered variable
+    face_center_uxds = uxds["latCell"].to_dataset()
+    ds_idw = face_center_uxds.remap.bilinear(destination_grid=dest)
 
     assert isinstance(da_idw, UxDataArray)
     assert isinstance(ds_idw, UxDataset)
-    assert set(ds_idw.data_vars) == set(uxds.data_vars)
+    assert set(ds_idw.data_vars) == set(face_center_uxds.data_vars)
 
-def test_value_errors_bilinear():
-    """Tests the raising of value errors and warnings in the function."""
-    source_uxds = ux.open_dataset(gridfile_CSne30, gridfile_CSne30_data)
-    source_uxds2 = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    destination_grid = ux.open_grid(gridfile_CSne30)
+def test_b_edge_centers_dim_change():
+    """Bilinear remap to edge centers produces an 'n_edge' dimension."""
+    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    dest = ux.open_grid(mpasfile_QU)
+    da = uxds["latCell"].remap.bilinear(
+        destination_grid=dest, remap_to="edge centers"
+    )
+    assert "n_edge" in da.dims
+
+
+def test_b_value_errors():
+    """Bilinear remapping raises a value error when the source data is not on the faces"""
+    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
+    dest = ux.open_grid(gridfile_geoflow)
 
     with nt.assert_raises(ValueError):
-        source_uxds['var2'].remap.bilinear(destination_grid=None, remap_to="nodes")
-
-    with nt.assert_raises(ValueError):
-        source_uxds.remap.bilinear(destination_grid=None, remap_to="nodes")
-
-    with nt.assert_raises(ValueError):
-        source_uxds['var2'].remap.bilinear(destination_grid=destination_grid, remap_to="error")
-
-    with nt.assert_raises(ValueError):
-        source_uxds2['latEdge'].remap.bilinear(destination_grid=destination_grid, remap_to="nodes")
+        uxds['v1'].remap.bilinear(destination_grid=dest, remap_to="nodes")
