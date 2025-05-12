@@ -20,7 +20,7 @@ from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.plot.accessor import UxDatasetPlotAccessor
-from uxarray.remap import UxDatasetRemapAccessor
+from uxarray.remap.accessor import RemapAccessor
 
 
 class UxDataset(xr.Dataset):
@@ -77,7 +77,7 @@ class UxDataset(xr.Dataset):
 
     # declare plotting accessor
     plot = UncachedAccessor(UxDatasetPlotAccessor)
-    remap = UncachedAccessor(UxDatasetRemapAccessor)
+    remap = UncachedAccessor(RemapAccessor)
 
     def _repr_html_(self) -> str:
         if OPTIONS["display_style"] == "text":

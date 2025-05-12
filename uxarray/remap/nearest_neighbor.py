@@ -1,151 +1,140 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 
-from uxarray.remap.utils import _remap_grid_parse
+import xarray as xr
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
+    from uxarray.grid import Grid
 
-from copy import deepcopy
 
 import numpy as np
 
-import uxarray.core.dataarray
-import uxarray.core.dataset
 from uxarray.grid import Grid
 
+from .utils import (
+    KDTREE_DIM_MAP,
+    LABEL_TO_COORD,
+    SPATIAL_DIMS,
+    _assert_dimension,
+    _construct_remapped_ds,
+    _get_remap_dims,
+    _prepare_points,
+    _to_dataset,
+)
 
-def _nearest_neighbor(
+
+def _nearest_neighbor_query(
     source_grid: Grid,
     destination_grid: Grid,
-    source_data: np.ndarray,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
-) -> np.ndarray:
-    """Nearest Neighbor Remapping between two grids, mapping data that resides
-    on the corner nodes, edge centers, or face centers on the source grid to
-    the corner nodes, edge centers, or face centers of the destination grid.
+    source_dim: str,
+    destination_dim: str,
+    k: int = 1,
+    return_distances: bool = False,
+):
+    """
+    Query the nearest neighbors from a source grid for specified destination points.
+
+    Builds or retrieves a KDTree on the source grid, then finds the k nearest source
+    points for each destination location and optionally returns their distances.
 
     Parameters
-    ---------
+    ----------
     source_grid : Grid
-        Source grid that data is mapped to
+        The grid providing source points for interpolation.
     destination_grid : Grid
-        Destination grid to remap data to
-    source_data : np.ndarray
-        Data variable to remaps
-    remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type: str, default="spherical"
-        Coordinate type to use for nearest neighbor query, either "spherical" or "Cartesian"
+        The grid defining query points where values will be interpolated.
+    source_dim : str
+        The spatial dimension on the source grid (e.g., 'n_node', 'n_edge', 'n_face').
+    destination_dim : str
+        The spatial dimension on the destination grid to query against.
+    k : int, default=1
+        Number of nearest neighbors to retrieve for each destination point.
+    return_distances : bool, default=False
+        If True, return a tuple (indices, distances), otherwise return indices only.
 
     Returns
     -------
-    destination_data : np.ndarray
-        Data mapped to destination grid
+    indices : numpy.ndarray
+        Array of shape (n_points, k) with indices of the nearest source points.
+    distances : numpy.ndarray, optional
+        Distances to the nearest source points, returned only if `return_distances` is True.
     """
+    source_tree = source_grid._get_scipy_kd_tree(coordinates=KDTREE_DIM_MAP[source_dim])
+    destination_points = _prepare_points(destination_grid, destination_dim)
+    distances, nearest_indices = source_tree.query(destination_points, k=k, workers=-1)
 
-    # ensure array is a np.ndarray
-    source_data = np.asarray(source_data)
-
-    _, _, nearest_neighbor_indices = _remap_grid_parse(
-        source_data,
-        source_grid,
-        destination_grid,
-        coord_type,
-        remap_to,
-        k=1,
-        query=True,
-    )
-
-    # support arbitrary dimension data using Ellipsis "..."
-    destination_data = source_data[..., nearest_neighbor_indices]
-
-    # case for 1D slice of data
-    if source_data.ndim == 1:
-        destination_data = destination_data.squeeze()
-
-    return destination_data
-
-
-def _nearest_neighbor_uxda(
-    source_uxda: UxDataArray,
-    destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
-):
-    """Nearest Neighbor Remapping implementation for ``UxDataArray``.
-
-    Parameters
-    ---------
-    source_uxda : UxDataArray
-        Source UxDataArray for remapping
-    destination_grid : Grid
-        Destination for remapping
-    remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type : str, default="spherical"
-        Indicates whether to remap using on Spherical or Cartesian coordinates for nearest neighbor computations when
-        remapping.
-    """
-
-    # prepare dimensions
-    if remap_to == "nodes":
-        destination_dim = "n_node"
-    elif remap_to == "edge centers":
-        destination_dim = "n_edge"
+    if return_distances:
+        return nearest_indices, distances
     else:
-        destination_dim = "n_face"
-
-    destination_dims = list(source_uxda.dims)
-    destination_dims[-1] = destination_dim
-
-    # perform remapping
-    destination_data = _nearest_neighbor(
-        source_uxda.uxgrid, destination_grid, source_uxda.data, remap_to, coord_type
-    )
-
-    # preserve only non-spatial coordinates
-    destination_coords = deepcopy(source_uxda.coords)
-    if destination_dim in destination_coords:
-        del destination_coords[destination_dim]
-
-    # construct data array for remapping variable
-    uxda_remap = uxarray.core.dataarray.UxDataArray(
-        data=destination_data,
-        name=source_uxda.name,
-        dims=destination_dims,
-        uxgrid=destination_grid,
-        coords=destination_coords,
-    )
-    return uxda_remap
+        return nearest_indices
 
 
-def _nearest_neighbor_uxds(
-    source_uxds: UxDataset,
+def _nearest_neighbor_remap(
+    source: UxDataArray | UxDataset,
     destination_grid: Grid,
-    remap_to: str = "face centers",
-    coord_type: str = "spherical",
+    destination_dim: str = "n_face",
 ):
-    """Nearest Neighbor Remapping implementation for ``UxDataset``.
+    """
+    Apply nearest-neighbor remapping from a UXarray object onto another grid.
+
+    Each value in the destination grid is assigned the value of the closest source point.
 
     Parameters
-    ---------
-    source_uxds : UxDataset
-        Source UxDataset for remapping
+    ----------
+    source : UxDataArray or UxDataset
+        The data array or dataset to be remapped.
     destination_grid : Grid
-        Destination for remapping
-    remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edge centers", or "face centers"
-    coord_type : str, default="spherical"
-        Indicates whether to remap using on Spherical or Cartesian coordinates
-    """
-    destination_uxds = uxarray.UxDataset(uxgrid=destination_grid)
-    for var_name in source_uxds.data_vars:
-        destination_uxds[var_name] = _nearest_neighbor_uxda(
-            source_uxds[var_name], destination_grid, remap_to, coord_type
-        )
+        The UXarray Grid instance to which data will be remapped.
+    destination_dim : str, default='n_face'
+        The spatial dimension on the destination grid ('n_node', 'n_edge', 'n_face').
 
-    return destination_uxds
+    Returns
+    -------
+    UxDataArray or UxDataset
+        A new UXarray object with data values assigned to `destination_grid`.
+    """
+    _assert_dimension(destination_dim)
+
+    # Perform remapping on a UxDataset
+    ds, is_da, name = _to_dataset(source)
+
+    # Determine which spatial dimensions we need to remap
+    dims_to_remap = _get_remap_dims(ds)
+
+    # Build Nearest Neighbor Index Arrays
+    indices_map: Dict[str, np.ndarray] = {
+        src_dim: _nearest_neighbor_query(
+            ds.uxgrid, destination_grid, src_dim, destination_dim
+        )
+        for src_dim in dims_to_remap
+    }
+    remapped_vars = {}
+
+    for name, da in ds.data_vars.items():
+        spatial_keys = set(da.dims) & SPATIAL_DIMS
+        if spatial_keys:
+            source_dim = spatial_keys.pop()
+
+            indices = indices_map[source_dim]
+            indexer = xr.DataArray(
+                indices,
+                dims=[
+                    LABEL_TO_COORD[destination_dim],
+                ],
+            )
+
+            da_remap = da.isel({source_dim: indexer}, ignore_grid=True)
+
+            da_remap.uxgrid = destination_grid
+            remapped_vars[name] = da_remap
+        else:
+            remapped_vars[name] = da
+
+    ds_remapped = _construct_remapped_ds(
+        source, remapped_vars, destination_grid, destination_dim
+    )
+
+    return ds_remapped[name] if is_da else ds_remapped
