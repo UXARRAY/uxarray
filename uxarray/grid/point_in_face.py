@@ -209,7 +209,7 @@ def _point_in_face_query(
         pts = pts[np.newaxis, :]
     # Cull with k-d tree
     kdt = source_grid._get_scipy_kd_tree()
-    radius = source_grid.max_face_radius
+    radius = source_grid.max_face_radius * 1.05
     cand_lists = kdt.query_ball_point(x=pts, r=radius, workers=-1)
 
     # Prepare flattened candidates and offsets

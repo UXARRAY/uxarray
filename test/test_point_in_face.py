@@ -60,6 +60,9 @@ def test_node_corners(grid):
     For each corner node, verify that querying its coordinate in both
     Cartesian and spherical (lon/lat) returns exactly the faces sharing it.
     """
+
+    print(grid.max_face_radius)
+
     node_coords = np.vstack([
         grid.node_x.values,
         grid.node_y.values,

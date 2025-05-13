@@ -7,7 +7,7 @@ import numpy as np
 import shapely
 import spatialpandas
 from matplotlib.collections import LineCollection, PolyCollection
-from numba import njit
+from numba import njit, prange
 from shapely import Polygon
 from shapely import polygons as Polygons
 from spatialpandas.geometry import MultiPolygonArray, PolygonArray
@@ -1156,39 +1156,51 @@ def _populate_max_face_radius(grid):
     return max_distance
 
 
-@njit(cache=True)
+@njit(cache=True, parallel=True)
 def calculate_max_face_radius(
-    face_node_connectivity, node_x, node_y, node_z, face_x, face_y, face_z
-):
-    """Finds the max face radius in the grid."""
+    face_node_connectivity: np.ndarray,
+    node_x: np.ndarray,
+    node_y: np.ndarray,
+    node_z: np.ndarray,
+    face_x: np.ndarray,
+    face_y: np.ndarray,
+    face_z: np.ndarray,
+) -> float:
+    n_faces, n_max_nodes = face_node_connectivity.shape
+    # workspace to hold the max squared-distance for each face
+    max2_per_face = np.empty(n_faces, dtype=np.float64)
 
-    # Array to store all distances of each face to it's furthest node.
-    end_distances = np.zeros(len(face_node_connectivity))
+    # parallel outer loop
+    for i in prange(n_faces):
+        fx = face_x[i]
+        fy = face_y[i]
+        fz = face_z[i]
 
-    # Loop over each face and its nodes
-    for face_idx, cur_face in enumerate(face_node_connectivity):
-        # Filter out INT_FILL_VALUE
-        node_indices = cur_face[cur_face != INT_FILL_VALUE]
+        # track the max squared distance for this face
+        face_max2 = 0.0
 
-        fx = face_x[face_idx]
-        fy = face_y[face_idx]
-        fz = face_z[face_idx]
+        # loop over all possible node slots
+        for j in range(n_max_nodes):
+            idx = face_node_connectivity[i, j]
+            if idx == INT_FILL_VALUE:
+                continue
+            dx = node_x[idx] - fx
+            dy = node_y[idx] - fy
+            dz = node_z[idx] - fz
+            d2 = dx * dx + dy * dy + dz * dz
+            if d2 > face_max2:
+                face_max2 = d2
 
-        nx = node_x[node_indices]
-        ny = node_y[node_indices]
-        nz = node_z[node_indices]
+        max2_per_face[i] = face_max2
 
-        # vectorized distance calculation
-        dx = nx - fx
-        dy = ny - fy
-        dz = nz - fz
-        distances = np.sqrt(dx * dx + dy * dy + dz * dz)
+    # now do a simple serial reduction
+    global_max2 = 0.0
+    for i in range(n_faces):
+        if max2_per_face[i] > global_max2:
+            global_max2 = max2_per_face[i]
 
-        # Store the max distance for this face
-        end_distances[face_idx] = np.max(distances)
-
-    # Return the maximum distance found across all faces
-    return np.max(end_distances)
+    # one sqrt at the end
+    return math.sqrt(global_max2)
 
 
 @njit(cache=True)
