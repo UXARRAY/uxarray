@@ -1573,7 +1573,7 @@ class Grid:
 
     @property
     def max_face_radius(self):
-        """TODO: Maximum face radius of the grid in degrees"""
+        """Maximum Euclidean distance from each face center to its nodes."""
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]

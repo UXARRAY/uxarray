@@ -50,18 +50,23 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
         if point_within_gca(point, face_edges[e, 0], face_edges[e, 1]):
             return True
 
-    # Build a closed loop of vertices
+    # # Build a closed loop of vertices
     n = face_edges.shape[0]
-    verts = np.empty((n + 1, 3), dtype=np.float64)
-    for i in range(n):
-        verts[i] = face_edges[i, 0]
-    verts[n] = face_edges[0, 0]
+    # verts = np.empty((n + 1, 3), dtype=np.float64)
+    # for i in range(n):
+    #     verts[i] = face_edges[i, 0]
+    # verts[n] = face_edges[0, 0]
 
     total = 0.0
     p = point
     for i in range(n):
-        vi = verts[i] - p
-        vj = verts[i + 1] - p
+        a = face_edges[i, 0]
+        b = face_edges[i + 1, 0] if i + 1 < n else face_edges[0, 0]
+
+        vi = a - p
+        vj = b - p
+        # vi = verts[i] - p
+        # vj = verts[i + 1] - p
 
         # check if you’re right on a vertex
         if np.linalg.norm(vi) < ERROR_TOLERANCE or np.linalg.norm(vj) < ERROR_TOLERANCE:
@@ -109,14 +114,17 @@ def _get_faces_containing_point(
     hits : np.ndarray, shape (h,)
         Subset of `candidate_indices` for which the point is inside the face.
     """
-    hits = []
-    for idx in candidate_indices:
+    hit_buf = np.empty(candidate_indices.shape[0], dtype=INT_DTYPE)
+    count = 0
+    for k in range(candidate_indices.shape[0]):
+        fidx = candidate_indices[k]
         face_edges = _get_cartesian_face_edge_nodes(
-            idx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
+            fidx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
         )
         if _face_contains_point(face_edges, point):
-            hits.append(idx)
-    return np.asarray(hits, dtype=INT_DTYPE)
+            hit_buf[count] = fidx
+            count += 1
+    return hit_buf[:count]
 
 
 @njit(cache=True, parallel=True)
