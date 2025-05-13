@@ -491,7 +491,7 @@ class UxDataArray(xr.DataArray):
             uxgrid=self.uxgrid,
             dims=dims,
             coords={"latitudes": latitudes},
-            name=(self.name or "data") + "_zonal_mean",
+            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
             attrs={"zonal_mean": True},
         )
 
