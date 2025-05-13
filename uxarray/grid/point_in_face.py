@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
@@ -208,26 +207,19 @@ def _point_in_face_query(
     pts = np.asarray(points, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts[np.newaxis, :]
-    start = time.time()
-    # 1) cull with k-d tree
+    # Cull with k-d tree
     kdt = source_grid._get_scipy_kd_tree()
     radius = source_grid.max_face_radius
     cand_lists = kdt.query_ball_point(x=pts, r=radius, workers=-1)
-    end = time.time()
-    print(f"Cull Time: {end - start} s")
 
-    start = time.time()
-    # 2) prepare flattened candidates and offsets
+    # Prepare flattened candidates and offsets
     flat_cands = np.concatenate([np.array(lst, dtype=np.int64) for lst in cand_lists])
     lens = np.array([len(lst) for lst in cand_lists], dtype=np.int64)
     offs = np.empty(len(lens) + 1, dtype=np.int64)
     offs[0] = 0
     np.cumsum(lens, out=offs[1:])
-    end = time.time()
 
-    print(f"Flatten Time: {end - start} s")
-
-    # 3) perform the batch winding‐number test
+    # Perform the batch winding‐number test
     return _batch_point_in_face(
         pts,
         flat_cands,
