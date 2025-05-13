@@ -139,4 +139,3 @@ def test_point_along_arc():
     out2 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 25.41], dtype=np.float64), return_counts=False)
 
     nt.assert_array_equal(out1[0], out2[0])
-

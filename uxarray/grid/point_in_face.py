@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Tuple
-import numpy as np
 
+import numpy as np
 from numba import njit, prange
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.arcs import point_within_gca
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _small_angle_of_2_vectors
 
 if TYPE_CHECKING:
-    from uxarray.grid.grid import Grid
     from numpy.typing import ArrayLike
+
+    from uxarray.grid.grid import Grid
 
 
 @njit(cache=True)
@@ -36,70 +37,57 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
     inside : bool
         True if the point is inside the face or lies exactly on a node/edge; False otherwise.
     """
-    # 1a) quick tests for exact node‐ or edge‐hits
+    # Check for an exact hit with any of the corner nodes
     for e in range(face_edges.shape[0]):
-        if np.allclose(face_edges[e, 0], point,
-                       rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+        if np.allclose(
+            face_edges[e, 0], point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
+        ):
             return True
-        if np.allclose(face_edges[e, 1], point,
-                       rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+        if np.allclose(
+            face_edges[e, 1], point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
+        ):
             return True
-        if point_within_gca(point,
-                            face_edges[e, 0],
-                            face_edges[e, 1]):
+        if point_within_gca(point, face_edges[e, 0], face_edges[e, 1]):
             return True
 
-    # 1b) build closed loop of vertices
+    # Build a closed loop of vertices
     n = face_edges.shape[0]
     verts = np.empty((n + 1, 3), dtype=np.float64)
     for i in range(n):
         verts[i] = face_edges[i, 0]
     verts[n] = face_edges[0, 0]
 
-    # 2) accumulate signed angle
     total = 0.0
     p = point
     for i in range(n):
-        vi = verts[i]   - p
-        vj = verts[i+1] - p
+        vi = verts[i] - p
+        vj = verts[i + 1] - p
 
-        ni = np.linalg.norm(vi)
-        nj = np.linalg.norm(vj)
-        # degenerate on-vertex case
-        if ni < ERROR_TOLERANCE or nj < ERROR_TOLERANCE:
+        # check if you’re right on a vertex
+        if np.linalg.norm(vi) < ERROR_TOLERANCE or np.linalg.norm(vj) < ERROR_TOLERANCE:
             return True
 
-        ui = vi / ni
-        uj = vj / nj
+        ang = _small_angle_of_2_vectors(vi, vj)
 
-        cosang = ui.dot(uj)
-        # clamp for numerical safety
-        if cosang >  1.0: cosang =  1.0
-        if cosang < -1.0: cosang = -1.0
-        ang = np.arccos(cosang)
-
-        # sign = sign of (ui × uj)·p
-        cx = ui[1]*uj[2] - ui[2]*uj[1]
-        cy = ui[2]*uj[0] - ui[0]*uj[2]
-        cz = ui[0]*uj[1] - ui[1]*uj[0]
-        sign = 1.0 if (cx*p[0] + cy*p[1] + cz*p[2]) >= 0.0 else -1.0
+        # determine sign from cross
+        c = np.cross(vi, vj)
+        sign = 1.0 if (c[0] * p[0] + c[1] * p[1] + c[2] * p[2]) >= 0.0 else -1.0
 
         total += sign * ang
 
     return np.abs(total) > np.pi
 
 
-
 @njit(cache=True)
 def _get_faces_containing_point(
-        point: np.ndarray,
-        candidate_indices: np.ndarray,
-        face_node_connectivity: np.ndarray,
-        n_nodes_per_face: np.ndarray,
-        node_x: np.ndarray,
-        node_y: np.ndarray,
-        node_z: np.ndarray
-    ) -> np.ndarray:
+    point: np.ndarray,
+    candidate_indices: np.ndarray,
+    face_node_connectivity: np.ndarray,
+    n_nodes_per_face: np.ndarray,
+    node_x: np.ndarray,
+    node_y: np.ndarray,
+    node_z: np.ndarray,
+) -> np.ndarray:
     """
     Test each candidate face to see if it contains the query point.
 
@@ -124,10 +112,7 @@ def _get_faces_containing_point(
     hits = []
     for idx in candidate_indices:
         face_edges = _get_cartesian_face_edge_nodes(
-            idx,
-            face_node_connectivity,
-            n_nodes_per_face,
-            node_x, node_y, node_z
+            idx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
         )
         if _face_contains_point(face_edges, point):
             hits.append(idx)
@@ -136,15 +121,15 @@ def _get_faces_containing_point(
 
 @njit(cache=True, parallel=True)
 def _batch_point_in_face(
-        points: np.ndarray,
-        flat_candidate_indices: np.ndarray,
-        offsets: np.ndarray,
-        face_node_connectivity: np.ndarray,
-        n_nodes_per_face: np.ndarray,
-        node_x: np.ndarray,
-        node_y: np.ndarray,
-        node_z: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    points: np.ndarray,
+    flat_candidate_indices: np.ndarray,
+    offsets: np.ndarray,
+    face_node_connectivity: np.ndarray,
+    n_nodes_per_face: np.ndarray,
+    node_x: np.ndarray,
+    node_y: np.ndarray,
+    node_z: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Parallel entry-point: for each point, test all candidate faces in batch.
 
@@ -169,9 +154,7 @@ def _batch_point_in_face(
     """
     n_points = offsets.shape[0] - 1
     results = np.full(
-        (n_points, face_node_connectivity.shape[1]),
-        INT_FILL_VALUE,
-        dtype=INT_DTYPE
+        (n_points, face_node_connectivity.shape[1]), INT_FILL_VALUE, dtype=INT_DTYPE
     )
     counts = np.zeros(n_points, dtype=INT_DTYPE)
 
@@ -182,11 +165,7 @@ def _batch_point_in_face(
         cands = flat_candidate_indices[start:end]
 
         hits = _get_faces_containing_point(
-            p,
-            cands,
-            face_node_connectivity,
-            n_nodes_per_face,
-            node_x, node_y, node_z
+            p, cands, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
         )
         for j, fi in enumerate(hits):
             results[i, j] = fi
@@ -195,11 +174,9 @@ def _batch_point_in_face(
     return results, counts
 
 
-
 def _point_in_face_query(
-        source_grid: Grid,
-        points: ArrayLike
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    source_grid: Grid, points: ArrayLike
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Find grid faces that contain given Cartesian point(s) on the unit sphere.
 

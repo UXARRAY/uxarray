@@ -4,10 +4,10 @@ from html import escape
 from typing import (
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
-Sequence,
 )
 from warnings import warn
 
@@ -41,13 +41,11 @@ from uxarray.grid.coordinates import (
     _populate_node_latlon,
     _populate_node_xyz,
     _set_desired_longitude_range,
-    _xyz_to_lonlat_deg,
     prepare_points,
 )
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.geometry import (
     _construct_boundary_edge_indices,
-    _find_faces,
     _grid_to_matplotlib_linecollection,
     _grid_to_matplotlib_polycollection,
     _grid_to_polygon_geodataframe,
@@ -69,7 +67,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
+from uxarray.grid.point_in_face import _point_in_face_query
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -105,7 +103,6 @@ from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
 from uxarray.utils.numba import is_numba_function_cached
-from uxarray.grid.point_in_face import _point_in_face_query
 
 
 class Grid:
@@ -2567,12 +2564,12 @@ class Grid:
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
     def get_faces_containing_point(
-            self,
-            *,
-            point_lonlat: Optional[Sequence[float]] = None,
-            point_xyz: Optional[Sequence[float]] = None,
-            tolerance: float = ERROR_TOLERANCE,
-            return_counts: bool = True,
+        self,
+        *,
+        point_lonlat: Optional[Sequence[float]] = None,
+        point_xyz: Optional[Sequence[float]] = None,
+        tolerance: float = ERROR_TOLERANCE,
+        return_counts: bool = True,
     ) -> Union[Tuple[np.ndarray, np.ndarray], List[List[int]]]:
         """
         Identify which faces (cells) on the grid contain the given point(s).
@@ -2606,7 +2603,9 @@ class Grid:
         """
         # 1) validate
         if (point_lonlat is None) == (point_xyz is None):
-            raise ValueError("Exactly one of `point_lonlat` or `point_xyz` must be provided.")
+            raise ValueError(
+                "Exactly one of `point_lonlat` or `point_xyz` must be provided."
+            )
 
         # 2) convert to cartesian
         if point_xyz is None:
@@ -2627,5 +2626,3 @@ class Grid:
             return output
 
         return face_indices, counts
-
-

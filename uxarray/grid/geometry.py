@@ -25,8 +25,6 @@ from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
 
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
-
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
     "South": np.array([0.0, 0.0, -1.0]),
