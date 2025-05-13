@@ -66,10 +66,10 @@ def test_node_corners(grid):
         grid.node_z.values,
     ]).T
 
-    conn   = grid.node_face_connectivity.values
+    conn = grid.node_face_connectivity.values
     counts = np.sum(conn != INT_FILL_VALUE, axis=1)
 
-    # Cartesian tests (as before)…
+    # Cartesian tests
     for nid, (x, y, z) in enumerate(node_coords):
         expected = conn[nid, :counts[nid]].tolist()
 
@@ -86,6 +86,7 @@ def test_node_corners(grid):
         grid.node_lat.values,
     ]).T
 
+    # Spherical tests
     for nid, (lon, lat) in enumerate(node_lonlat):
         expected = conn[nid, :counts[nid]].tolist()
 

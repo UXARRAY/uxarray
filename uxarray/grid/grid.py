@@ -19,7 +19,7 @@ from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE
 from uxarray.conventions import ugrid
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
@@ -2568,11 +2568,10 @@ class Grid:
         *,
         point_lonlat: Optional[Sequence[float]] = None,
         point_xyz: Optional[Sequence[float]] = None,
-        tolerance: float = ERROR_TOLERANCE,
         return_counts: bool = True,
     ) -> Union[Tuple[np.ndarray, np.ndarray], List[List[int]]]:
         """
-        Identify which faces (cells) on the grid contain the given point(s).
+        Identify which faces on the grid contain the given point(s).
 
         Exactly one of `point_lonlat` or `point_xyz` must be provided.
 
@@ -2582,8 +2581,6 @@ class Grid:
             Longitude and latitude in **degrees**: (lon, lat).
         point_xyz : array_like of shape (3,), optional
             Cartesian coordinates on the unit sphere: (x, y, z).
-        tolerance : float, default=ERROR_TOLERANCE
-            Distance tolerance for classifying points on edges or nodes.
         return_counts : bool, default=True
             - If True (default), returns a tuple `(face_indices, counts)`.
             - If False, returns a `list` of per-point lists of face indices.
@@ -2601,13 +2598,12 @@ class Grid:
             A Python list of length `N`, where each element is the
             list of face-indices (no padding) for that query point.
         """
-        # 1) validate
         if (point_lonlat is None) == (point_xyz is None):
             raise ValueError(
                 "Exactly one of `point_lonlat` or `point_xyz` must be provided."
             )
 
-        # 2) convert to cartesian
+        # Convert to cartesian if points are spherical
         if point_xyz is None:
             lon, lat = map(np.deg2rad, point_lonlat)
             point_xyz = _lonlat_rad_to_xyz(lon, lat)
@@ -2615,10 +2611,10 @@ class Grid:
         if pts.ndim == 1:
             pts = pts[np.newaxis, :]
 
-        # 3) run the Numba query
+        # Determine faces containing points
         face_indices, counts = _point_in_face_query(source_grid=self, points=pts)
 
-        # 4) if caller only wants the indices, strip out fill‐values
+        # Return a list of lists if counts are not desired
         if not return_counts:
             output: List[List[int]] = []
             for i, c in enumerate(counts):

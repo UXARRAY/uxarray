@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
@@ -50,12 +51,7 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
         if point_within_gca(point, face_edges[e, 0], face_edges[e, 1]):
             return True
 
-    # # Build a closed loop of vertices
     n = face_edges.shape[0]
-    # verts = np.empty((n + 1, 3), dtype=np.float64)
-    # for i in range(n):
-    #     verts[i] = face_edges[i, 0]
-    # verts[n] = face_edges[0, 0]
 
     total = 0.0
     p = point
@@ -65,8 +61,6 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
 
         vi = a - p
         vj = b - p
-        # vi = verts[i] - p
-        # vj = verts[i + 1] - p
 
         # check if you’re right on a vertex
         if np.linalg.norm(vi) < ERROR_TOLERANCE or np.linalg.norm(vj) < ERROR_TOLERANCE:
@@ -214,18 +208,24 @@ def _point_in_face_query(
     pts = np.asarray(points, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts[np.newaxis, :]
-
+    start = time.time()
     # 1) cull with k-d tree
     kdt = source_grid._get_scipy_kd_tree()
     radius = source_grid.max_face_radius
-    cand_lists = kdt.query_ball_point(x=pts, r=radius)
+    cand_lists = kdt.query_ball_point(x=pts, r=radius, workers=-1)
+    end = time.time()
+    print(f"Cull Time: {end - start} s")
 
-    # 2) prepare flattened candidates + offsets
+    start = time.time()
+    # 2) prepare flattened candidates and offsets
     flat_cands = np.concatenate([np.array(lst, dtype=np.int64) for lst in cand_lists])
     lens = np.array([len(lst) for lst in cand_lists], dtype=np.int64)
     offs = np.empty(len(lens) + 1, dtype=np.int64)
     offs[0] = 0
     np.cumsum(lens, out=offs[1:])
+    end = time.time()
+
+    print(f"Flatten Time: {end - start} s")
 
     # 3) perform the batch winding‐number test
     return _batch_point_in_face(
