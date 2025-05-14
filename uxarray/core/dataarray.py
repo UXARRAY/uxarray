@@ -559,21 +559,17 @@ class UxDataArray(xr.DataArray):
             tpose = self.isel(n_face=faces_in_bin).transpose(..., 'n_face')
             means[ii, ...] = tpose.weighted_mean().data
         
-        res = _compute_azimuthal_mean(
-            uxda=self, latitudes=latitudes, **kwargs
-        )
-
         face_axis = self.dims.index("n_face")
         dims = list(self.dims)
-        dims[face_axis] = "latitudes"
+        dims[face_axis] = "radius"
 
         uxda = UxDataArray(
-            res,
+            means,
             uxgrid=self.uxgrid,
             dims=dims,
-            coords={"latitudes": latitudes},
-            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
-            attrs={"zonal_mean": True},
+            coords={"radius": radii},
+            name=self.name + "_azimuthal_mean" if self.name is not None else "azimuthal_mean",
+            attrs={"azimuthal_mean": True},
         )
 
         return uxda
