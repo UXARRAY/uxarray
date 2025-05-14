@@ -124,7 +124,12 @@ def _slice_face_indices(
         edge_indices = edge_indices[edge_indices != INT_FILL_VALUE]
         ds = ds.isel(n_edge=edge_indices)
         ds["subgrid_edge_indices"] = xr.DataArray(edge_indices, dims=["n_edge"])
+        print(edge_indices)
     else:
+        # Otherwise, drop edge variables since we can't deterime which edges to keep
+        for conn_name in grid._ds.data_vars:
+            if "edge_" in conn_name:
+                ds = ds.drop_vars(conn_name)
         edge_indices = None
 
     ds["subgrid_node_indices"] = xr.DataArray(node_indices, dims=["n_node"])
@@ -136,15 +141,14 @@ def _slice_face_indices(
     }
     node_indices_dict[INT_FILL_VALUE] = INT_FILL_VALUE
 
-    for conn_name in grid._ds.data_vars:
-        # update or drop connectivity variables to correctly point to the new index of each element
+    def map_fn(i):
+        return node_indices_dict.get(i, INT_FILL_VALUE)
 
+    for conn_name in ds.data_vars:
+        # update or drop connectivity variables to correctly point to the new index of each element
         if "_node_connectivity" in conn_name:
-            # update connectivity vars that index into nodes
             ds[conn_name] = xr.DataArray(
-                np.vectorize(node_indices_dict.__getitem__, otypes=[INT_DTYPE])(
-                    ds[conn_name].values
-                ),
+                data=np.vectorize(map_fn, otypes=[INT_DTYPE])(ds[conn_name].values),
                 dims=ds[conn_name].dims,
                 attrs=ds[conn_name].attrs,
             )
