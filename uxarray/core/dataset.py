@@ -283,7 +283,11 @@ class UxDataset(xr.Dataset):
 
     @classmethod
     def from_healpix(
-        cls, ds: Union[str, os.PathLike, xr.Dataset], pixels_only: bool = True, **kwargs
+        cls,
+        ds: Union[str, os.PathLike, xr.Dataset],
+        pixels_only: bool = True,
+        face_dim: str = "cell",
+        **kwargs,
     ):
         """
         Loads a dataset represented in the HEALPix format into a ``ux.UxDataSet``, paired
@@ -293,8 +297,10 @@ class UxDataset(xr.Dataset):
         ----------
         ds: str, os.PathLike, xr.Dataset
             Reference to a HEALPix Dataset
-        pixels_only : bool
+        pixels_only : bool, optional
             Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
+        face_dim: str, optional
+            Data dimension corresponding to the HEALPix face mapping. Typically, is set to "cell", but may differ.
 
         Returns
         -------
@@ -305,16 +311,19 @@ class UxDataset(xr.Dataset):
         if not isinstance(ds, xr.Dataset):
             ds = xr.open_dataset(ds, **kwargs)
 
-        if "cell" not in ds.dims:
-            raise ValueError("Healpix dataset must contain a 'cell' dimension.")
+        if face_dim not in ds.dims:
+            raise ValueError(
+                f"The provided face dimension '{face_dim}' is present in the provided healpix dataset."
+                f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
+            )
 
         # Compute the HEALPix Zoom Level
-        zoom = np.emath.logn(4, (ds.sizes["cell"] / 12)).astype(int)
+        zoom = np.emath.logn(4, (ds.sizes[face_dim] / 12)).astype(int)
 
         # Attach a  HEALPix Grid
         uxgrid = Grid.from_healpix(zoom, pixels_only=pixels_only, **kwargs)
 
-        return cls.from_xarray(ds, uxgrid, {"cell": "n_face"})
+        return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
