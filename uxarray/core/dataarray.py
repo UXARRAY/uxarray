@@ -571,7 +571,7 @@ class UxDataArray(xr.DataArray):
             dims=dims,
             coords={"radius": radii},
             name=self.name + "_azimuthal_mean" if self.name is not None else "azimuthal_mean",
-            attrs={"azimuthal_mean": True},
+            attrs={"azimuthal_mean": True, "center_lon": coords[0], "center_lat": coords[1]},
         )
 
         return uxda, hit_count
