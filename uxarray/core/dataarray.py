@@ -520,7 +520,8 @@ class UxDataArray(xr.DataArray):
             Contains azimuthal means with a new 'radius' dimension and corresponding coordinates.
             Name will be original_name + '_azimuthal_mean' or 'azimuthal_mean' if unnamed.
 
-            Contains `hit_count` variable that indicates the number of faces included in the
+        np.ndarray(dtype=np.int_)
+            `hit_count` variable that indicates the number of faces included in the
             calculation at each radius.
 
         Examples
@@ -544,8 +545,8 @@ class UxDataArray(xr.DataArray):
         faces_processed = np.array([], dtype=np.int_)
 
         radii = np.arange(0, outer_radius + radius_step, radius_step)
-        means = np.zeros((r.size, *self.to_xarray().isel(drop=True, n_face=0).shape))
-        hit_count = np.zeros_like(rbins, dtype=np.int_)
+        means = np.zeros((radii.size, *self.to_xarray().isel(drop=True, n_face=0).shape))
+        hit_count = np.zeros_like(radii, dtype=np.int_)
 
         for ii, rad in enumerate(radii):
             faces_within_rad = tree.query_radius(coords, rad)
@@ -572,7 +573,7 @@ class UxDataArray(xr.DataArray):
             attrs={"azimuthal_mean": True},
         )
 
-        return uxda
+        return uxda, hit_count
 
     # Alias for 'zonal_mean', since this name is also commonly used.
     azimuthal_average = azimuthal_mean
