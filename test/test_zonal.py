@@ -88,3 +88,14 @@ class TestZonalCSne30:
 
         assert len(uxds['psi'].zonal_mean(lat=1)) == 1
         assert len(uxds['psi'].zonal_mean(lat=(-90, 90, 1))) == 181
+
+
+
+def test_mismatched_dims():
+    uxgrid = ux.Grid.from_healpix(zoom=0)
+    uxda = ux.UxDataArray(np.ones((10, uxgrid.n_face, 5)), dims=['a', 'n_face', 'b'], uxgrid=uxgrid)
+
+    za = uxda.zonal_average()
+
+    assert za.shape == (10, 19, 5)
+    assert za.dims[1] == "latitudes"

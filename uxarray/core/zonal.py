@@ -22,8 +22,6 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
         # Create a NumPy array for storing results
         result = np.zeros(shape, dtype=uxda.dtype)
 
-    print(result.shape)
-
     faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
         uxgrid.face_node_connectivity.values,
         uxgrid.n_face,
