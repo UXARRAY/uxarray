@@ -513,7 +513,7 @@ class UxDataArray(xr.DataArray):
 
         radius_step: scalar, int, float
             Means will be computed at intervals of `radius_step` on the interval [0, outer_radius]
-        
+
         Returns
         -------
         UxDataArray
@@ -527,7 +527,7 @@ class UxDataArray(xr.DataArray):
         Examples
         --------
         # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
-        >>> uxds["var"].azimuthal_mean((10, 50), 5., 0.5)
+        >>> uxds["var"].azimuthal_mean((10, 50), 5.0, 0.5)
 
         Notes
         -----
@@ -545,21 +545,25 @@ class UxDataArray(xr.DataArray):
         faces_processed = np.array([], dtype=np.int_)
 
         radii = np.arange(0, outer_radius + radius_step, radius_step)
-        means = np.zeros((radii.size, *self.to_xarray().isel(drop=True, n_face=0).shape))
+        means = np.zeros(
+            (radii.size, *self.to_xarray().isel(drop=True, n_face=0).shape)
+        )
         hit_count = np.zeros_like(radii, dtype=np.int_)
 
         for ii, rad in enumerate(radii):
             faces_within_rad = tree.query_radius(coords, rad)
-            faces_in_bin = np.setdiff1d(faces_within_rad, faces_processed, assume_unique=True)
+            faces_in_bin = np.setdiff1d(
+                faces_within_rad, faces_processed, assume_unique=True
+            )
             hit_count[ii] = faces_in_bin.size
 
             if hit_count[ii] == 0:
                 continue
 
             faces_processed = faces_within_rad
-            tpose = self.isel(n_face=faces_in_bin).transpose(..., 'n_face')
+            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
             means[ii, ...] = tpose.weighted_mean().data
-        
+
         face_axis = self.dims.index("n_face")
         dims = list(self.dims)
         dims[face_axis] = "radius"
@@ -570,8 +574,14 @@ class UxDataArray(xr.DataArray):
             uxgrid=self.uxgrid,
             dims=dims,
             coords={"radius": radii},
-            name=self.name + "_azimuthal_mean" if self.name is not None else "azimuthal_mean",
-            attrs={"azimuthal_mean": True, "center_lon": coords[0], "center_lat": coords[1]},
+            name=self.name + "_azimuthal_mean"
+            if self.name is not None
+            else "azimuthal_mean",
+            attrs={
+                "azimuthal_mean": True,
+                "center_lon": coords[0],
+                "center_lat": coords[1],
+            },
         )
 
         return uxda, hit_count
@@ -579,7 +589,6 @@ class UxDataArray(xr.DataArray):
     # Alias for 'zonal_mean', since this name is also commonly used.
     azimuthal_average = azimuthal_mean
 
-    
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.
 
