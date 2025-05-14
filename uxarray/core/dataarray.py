@@ -482,7 +482,9 @@ class UxDataArray(xr.DataArray):
             uxda=self, latitudes=latitudes, **kwargs
         )
 
-        dims = list(self.dims[:-1]) + ["latitudes"]
+        face_axis = self.dims.index("n_face")
+        dims = list(self.dims)
+        dims[face_axis] = "latitudes"
 
         uxda = UxDataArray(
             res,
