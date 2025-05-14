@@ -500,6 +500,86 @@ class UxDataArray(xr.DataArray):
     # Alias for 'zonal_mean', since this name is also commonly used.
     zonal_average = zonal_mean
 
+    def azimuthal_mean(self, center_coord, outer_radius, radius_step, **kwargs):
+        """Compute averages along circles of constant great-circle distance from a point.
+
+        Parameters
+        ----------
+        center_coord: tuple, list, ndarray
+            Longitude and latitude of the center of the bounding circle
+
+        outer_radius: scalar, int, float
+            The maximum radius, in great-circle degrees, at which the azimuthal mean will be computed.
+
+        radius_step: scalar, int, float
+            Means will be computed at intervals of `radius_step`
+        
+        Returns
+        -------
+        UxDataArray
+            Contains zonal means with a new 'radius' dimension and corresponding coordinates.
+            Name will be original_name + '_azimuthal_mean' or 'azimuthal_mean' if unnamed.
+
+        Examples
+        --------
+        # All latitudes from -90° to 90° at 10° intervals
+        >>> uxds["var"].zonal_mean()
+
+        # Single latitude at 30°
+        >>> uxds["var"].zonal_mean(lat=30.0)
+
+        # Range from -60° to 60° at 10° intervals
+        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
+
+        Notes
+        -----
+        Only supported for face-centered data variables. Candidate faces are determined
+        using bounding circles - for r = [r1, r2, r3] faces whose bounds contain the target latitude
+        are included in calculations.
+        """
+        if not self._face_centered():
+            raise ValueError(
+                "Zonal mean computations are currently only supported for face-centered data variables."
+            )
+
+        if isinstance(lat, tuple):
+            # zonal mean over a range of latitudes
+            latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
+            latitudes = np.clip(latitudes, -90, 90)
+        elif isinstance(lat, (float, int)):
+            # zonal mean over a single latitude
+            latitudes = [lat]
+        elif isinstance(lat, (list, np.ndarray)):
+            # zonal mean over an array of arbitrary latitudes
+            latitudes = np.asarray(lat)
+        else:
+            raise ValueError(
+                "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
+            )
+
+        res = _compute_non_conservative_zonal_mean(
+            uxda=self, latitudes=latitudes, **kwargs
+        )
+
+        face_axis = self.dims.index("n_face")
+        dims = list(self.dims)
+        dims[face_axis] = "latitudes"
+
+        uxda = UxDataArray(
+            res,
+            uxgrid=self.uxgrid,
+            dims=dims,
+            coords={"latitudes": latitudes},
+            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
+            attrs={"zonal_mean": True},
+        )
+
+        return uxda
+
+    # Alias for 'zonal_mean', since this name is also commonly used.
+    azimuthal_average = azimuthal_mean
+
+    
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.
 
