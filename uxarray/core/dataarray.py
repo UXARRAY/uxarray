@@ -1401,6 +1401,50 @@ class UxDataArray(xr.DataArray):
 
         return cls(ds, uxgrid=uxgrid)
 
+    @classmethod
+    def from_healpix(
+        cls,
+        da: xr.DataArray,
+        pixels_only: bool = True,
+        face_dim: str = "cell",
+        **kwargs,
+    ):
+        """
+        Loads a data array represented in the HEALPix format into a ``ux.UxDataArray``, paired
+        with a ``Grid`` containing information about the HEALPix definition.
+
+        Parameters
+        ----------
+        da: xr.DataArray
+            Reference to a HEALPix DataArray
+        pixels_only : bool, optional
+            Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
+        face_dim: str, optional
+            Data dimension corresponding to the HEALPix face mapping. Typically, is set to "cell", but may differ.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataArray`` instance
+        """
+
+        if not isinstance(da, xr.DataArray):
+            raise ValueError("`da` must be a xr.DataArray")
+
+        if face_dim not in da.dims:
+            raise ValueError(
+                f"The provided face dimension '{face_dim}' is present in the provided healpix data array."
+                f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
+            )
+
+        # Compute the HEALPix Zoom Level
+        zoom = np.emath.logn(4, (da.sizes[face_dim] / 12)).astype(int)
+
+        # Attach a  HEALPix Grid
+        uxgrid = Grid.from_healpix(zoom, pixels_only=pixels_only, **kwargs)
+
+        return cls.from_xarray(da, uxgrid, {face_dim: "n_face"})
+
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
