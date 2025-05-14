@@ -563,6 +563,7 @@ class UxDataArray(xr.DataArray):
         face_axis = self.dims.index("n_face")
         dims = list(self.dims)
         dims[face_axis] = "radius"
+        means = np.moveaxis(means, 0, face_axis)
 
         uxda = UxDataArray(
             means,
