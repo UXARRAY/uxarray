@@ -512,52 +512,54 @@ class UxDataArray(xr.DataArray):
             The maximum radius, in great-circle degrees, at which the azimuthal mean will be computed.
 
         radius_step: scalar, int, float
-            Means will be computed at intervals of `radius_step`
+            Means will be computed at intervals of `radius_step` on the interval [0, outer_radius]
         
         Returns
         -------
         UxDataArray
-            Contains zonal means with a new 'radius' dimension and corresponding coordinates.
+            Contains azimuthal means with a new 'radius' dimension and corresponding coordinates.
             Name will be original_name + '_azimuthal_mean' or 'azimuthal_mean' if unnamed.
+
+            Contains `hit_count` variable that indicates the number of faces included in the
+            calculation at each radius.
 
         Examples
         --------
-        # All latitudes from -90° to 90° at 10° intervals
-        >>> uxds["var"].zonal_mean()
-
-        # Single latitude at 30°
-        >>> uxds["var"].zonal_mean(lat=30.0)
-
-        # Range from -60° to 60° at 10° intervals
-        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
+        # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
+        >>> uxds["var"].azimuthal_mean((10, 50), 5., 0.5)
 
         Notes
         -----
         Only supported for face-centered data variables. Candidate faces are determined
-        using bounding circles - for r = [r1, r2, r3] faces whose bounds contain the target latitude
-        are included in calculations.
+        using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
+        r2 < d <= r3 are included in calculations for r3.
         """
         if not self._face_centered():
             raise ValueError(
-                "Zonal mean computations are currently only supported for face-centered data variables."
+                "Azimuthal mean computations are currently only supported for face-centered data variables."
             )
 
-        if isinstance(lat, tuple):
-            # zonal mean over a range of latitudes
-            latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
-            latitudes = np.clip(latitudes, -90, 90)
-        elif isinstance(lat, (float, int)):
-            # zonal mean over a single latitude
-            latitudes = [lat]
-        elif isinstance(lat, (list, np.ndarray)):
-            # zonal mean over an array of arbitrary latitudes
-            latitudes = np.asarray(lat)
-        else:
-            raise ValueError(
-                "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
-            )
+        coords = np.asarray(center_coord)
+        tree = self.uxgrid.get_ball_tree()
+        faces_processed = np.array([], dtype=np.int_)
 
-        res = _compute_non_conservative_zonal_mean(
+        radii = np.arange(0, outer_radius + radius_step, radius_step)
+        means = np.zeros((r.size, *self.to_xarray().isel(drop=True, n_face=0).shape))
+        hit_count = np.zeros_like(rbins, dtype=np.int_)
+
+        for ii, rad in enumerate(radii):
+            faces_within_rad = tree.query_radius(coords, rad)
+            faces_in_bin = np.setdiff1d(faces_within_rad, faces_processed, assume_unique=True)
+            hit_count[ii] = faces_in_bin.size
+
+            if hit_count[ii] == 0:
+                continue
+
+            faces_processed = faces_within_rad
+            tpose = self.isel(n_face=faces_in_bin).transpose(..., 'n_face')
+            means[ii, ...] = tpose.weighted_mean().data
+        
+        res = _compute_azimuthal_mean(
             uxda=self, latitudes=latitudes, **kwargs
         )
 
