@@ -1,3 +1,4 @@
+import math
 from typing import Any, Tuple
 
 import healpix as hp
@@ -7,6 +8,29 @@ import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE
+
+
+def get_zoom_from_cells(cells):
+    """
+    Compute zoom level n such that cells == 12 * 4**n.
+    Raises ValueError if log4(cells/12) is not an exact integer.
+    """
+    # guard against non‐positive or non‐numeric input
+    ratio = float(cells) / 12.0
+
+    # raw log base 4
+    raw = math.log(ratio, 4)
+    # nearest integer
+    zoom = round(raw)
+    # verify exactness up to a tiny tolerance
+    if not raw == zoom:
+        raise ValueError(
+            f"cells={cells} does not equal the expected number of cells "
+            f"for a global zoom level. UXarray does not currently support "
+            f"regional HEALPix grids"
+        )
+
+    return zoom
 
 
 def pix2corner_ang(

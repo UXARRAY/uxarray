@@ -80,3 +80,10 @@ def test_from_healpix_dataset():
 
     uxda = ux.UxDataset.from_healpix(xrda, face_dim="n_face")
     assert isinstance(uxda, ux.UxDataset)
+
+
+def test_invalid_cells():
+    # 11 is not a valid number of global cells
+    xrda = xr.DataArray(data=np.ones(11), dims=['cell']).to_dataset(name='cell')
+    with pytest.raises(ValueError):
+        uxda = ux.UxDataset.from_healpix(xrda)
