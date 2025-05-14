@@ -500,7 +500,7 @@ class UxDataArray(xr.DataArray):
     # Alias for 'zonal_mean', since this name is also commonly used.
     zonal_average = zonal_mean
 
-    def azimuthal_mean(self, center_coord, outer_radius, radius_step, **kwargs):
+    def azimuthal_mean(self, center_coord, outer_radius: int, radius_step: int):
         """Compute averages along circles of constant great-circle distance from a point.
 
         Parameters
@@ -527,7 +527,8 @@ class UxDataArray(xr.DataArray):
         Examples
         --------
         # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
-        >>> uxds["var"].azimuthal_mean((10, 50), 5.0, 0.5)
+        >>> az = uxds["var"].azimuthal_mean((10, 50), 5.0, 0.5)
+        >>> az.plot.line(title="Azimuthal Mean")
 
         Notes
         -----
@@ -545,16 +546,18 @@ class UxDataArray(xr.DataArray):
         faces_processed = np.array([], dtype=np.int_)
 
         radii = np.arange(0, outer_radius + radius_step, radius_step)
-        means = np.zeros(
-            (radii.size, *self.to_xarray().isel(drop=True, n_face=0).shape)
+        means = np.full(
+            (radii.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
         )
         hit_count = np.zeros_like(radii, dtype=np.int_)
 
         for ii, rad in enumerate(radii):
             faces_within_rad = tree.query_radius(coords, rad)
+
             faces_in_bin = np.setdiff1d(
                 faces_within_rad, faces_processed, assume_unique=True
             )
+
             hit_count[ii] = faces_in_bin.size
 
             if hit_count[ii] == 0:
@@ -562,6 +565,7 @@ class UxDataArray(xr.DataArray):
 
             faces_processed = faces_within_rad
             tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
+
             means[ii, ...] = tpose.weighted_mean().data
 
         face_axis = self.dims.index("n_face")
@@ -586,7 +590,6 @@ class UxDataArray(xr.DataArray):
 
         return uxda, hit_count
 
-    # Alias for 'zonal_mean', since this name is also commonly used.
     azimuthal_average = azimuthal_mean
 
     def weighted_mean(self, weights=None):
