@@ -1736,6 +1736,7 @@ class Grid:
             )
 
         if reconstruct or coordinates not in self._kdtrees:
+            self.normalize_cartesian_coordinates()
             x = getattr(self, f"{coordinates}_x").values
             y = getattr(self, f"{coordinates}_y").values
             z = getattr(self, f"{coordinates}_z").values
