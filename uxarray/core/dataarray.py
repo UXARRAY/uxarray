@@ -26,6 +26,7 @@ from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
@@ -1345,11 +1346,12 @@ class UxDataArray(xr.DataArray):
                 f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
             )
 
-        # Compute the HEALPix Zoom Level
-        zoom = np.emath.logn(4, (da.sizes[face_dim] / 12)).astype(int)
-
-        # Attach a  HEALPix Grid
-        uxgrid = Grid.from_healpix(zoom, pixels_only=pixels_only, **kwargs)
+        # Attach a HEALPix Grid
+        uxgrid = Grid.from_healpix(
+            zoom=get_zoom_from_cells(da.sizes[face_dim]),
+            pixels_only=pixels_only,
+            **kwargs,
+        )
 
         return cls.from_xarray(da, uxgrid, {face_dim: "n_face"})
 
