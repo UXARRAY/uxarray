@@ -144,7 +144,7 @@ def _slice_face_indices(
     if edge_indices is not None:
 
         def map_edge_indices(i):
-            return node_indices_dict.get(i, INT_FILL_VALUE)
+            return edge_indices_dict.get(i, INT_FILL_VALUE)
     else:
         map_edge_indices = None
 
