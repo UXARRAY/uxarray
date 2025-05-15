@@ -1,4 +1,3 @@
-import math
 from typing import Any, Tuple
 
 import healpix as hp
@@ -12,22 +11,32 @@ from uxarray.constants import INT_DTYPE
 
 def get_zoom_from_cells(cells):
     """
-    Compute zoom level n such that cells == 12 * 4**n.
-    Raises ValueError if log4(cells/12) is not an exact integer.
+    Compute the HEALPix zoom level n such that cells == 12 * 4**n.
+    Only global HEALPix grids (i.e. exactly 12 * 4**n cells) are supported.
+    Raises ValueError with detailed HEALPix guidance otherwise.
     """
-    # guard against non‐positive or non‐numeric input
-    ratio = float(cells) / 12.0
-
-    # raw log base 4
-    raw = math.log(ratio, 4)
-    # nearest integer
-    zoom = round(raw)
-    # verify exactness up to a tiny tolerance
-    if not raw == zoom:
+    if not isinstance(cells, int) or cells < 12:
         raise ValueError(
-            f"cells={cells} does not equal the expected number of cells "
-            f"for a global zoom level. UXarray does not currently support "
-            f"regional HEALPix grids"
+            f"Invalid cells={cells!r}: a global HEALPix grid must have "
+            f"an integer number of cells ≥ 12 (12 base pixels at zoom=0)."
+        )
+
+    if cells % 12 != 0:
+        raise ValueError(
+            f"Invalid cells={cells}: global HEALPix grids have exactly 12 * 4**n cells"
+        )
+
+    power = cells // 12
+    zoom = 0
+
+    while power > 1 and power % 4 == 0:
+        power //= 4
+        zoom += 1
+
+    if power != 1:
+        raise ValueError(
+            f"Invalid cells={cells}: no integer n satisfies cells==12 * 4**n. "
+            f"Only global HEALPix grids (with cells = 12 × 4^n) are supported."
         )
 
     return zoom
