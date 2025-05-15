@@ -73,7 +73,6 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
 
         total += sign * ang
 
-    print(np.abs(total))
     return np.abs(total) > np.pi
 
 
