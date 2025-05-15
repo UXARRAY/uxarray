@@ -176,6 +176,7 @@ def _prepare_points(grid, element_dim):
     ValueError
         If `element_dim` is not in `KDTREE_DIM_MAP`.
     """
+    grid.normalize_cartesian_coordinates()
     element_dim = KDTREE_DIM_MAP[element_dim]
     return np.vstack(
         [

@@ -26,6 +26,7 @@ from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
@@ -482,7 +483,9 @@ class UxDataArray(xr.DataArray):
             uxda=self, latitudes=latitudes, **kwargs
         )
 
-        dims = list(self.dims[:-1]) + ["latitudes"]
+        face_axis = self.dims.index("n_face")
+        dims = list(self.dims)
+        dims[face_axis] = "latitudes"
 
         uxda = UxDataArray(
             res,
@@ -1306,6 +1309,51 @@ class UxDataArray(xr.DataArray):
         ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
 
         return cls(ds, uxgrid=uxgrid)
+
+    @classmethod
+    def from_healpix(
+        cls,
+        da: xr.DataArray,
+        pixels_only: bool = True,
+        face_dim: str = "cell",
+        **kwargs,
+    ):
+        """
+        Loads a data array represented in the HEALPix format into a ``ux.UxDataArray``, paired
+        with a ``Grid`` containing information about the HEALPix definition.
+
+        Parameters
+        ----------
+        da: xr.DataArray
+            Reference to a HEALPix DataArray
+        pixels_only : bool, optional
+            Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
+        face_dim: str, optional
+            Data dimension corresponding to the HEALPix face mapping. Typically, is set to "cell", but may differ.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataArray`` instance
+        """
+
+        if not isinstance(da, xr.DataArray):
+            raise ValueError("`da` must be a xr.DataArray")
+
+        if face_dim not in da.dims:
+            raise ValueError(
+                f"The provided face dimension '{face_dim}' is present in the provided healpix data array."
+                f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
+            )
+
+        # Attach a HEALPix Grid
+        uxgrid = Grid.from_healpix(
+            zoom=get_zoom_from_cells(da.sizes[face_dim]),
+            pixels_only=pixels_only,
+            **kwargs,
+        )
+
+        return cls.from_xarray(da, uxgrid, {face_dim: "n_face"})
 
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached

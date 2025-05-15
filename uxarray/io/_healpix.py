@@ -9,6 +9,39 @@ import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE
 
 
+def get_zoom_from_cells(cells):
+    """
+    Compute the HEALPix zoom level n such that cells == 12 * 4**n.
+    Only global HEALPix grids (i.e. exactly 12 * 4**n cells) are supported.
+    Raises ValueError with detailed HEALPix guidance otherwise.
+    """
+    if not isinstance(cells, int) or cells < 12:
+        raise ValueError(
+            f"Invalid cells={cells!r}: a global HEALPix grid must have "
+            f"an integer number of cells ≥ 12 (12 base pixels at zoom=0)."
+        )
+
+    if cells % 12 != 0:
+        raise ValueError(
+            f"Invalid cells={cells}: global HEALPix grids have exactly 12 * 4**n cells"
+        )
+
+    power = cells // 12
+    zoom = 0
+
+    while power > 1 and power % 4 == 0:
+        power //= 4
+        zoom += 1
+
+    if power != 1:
+        raise ValueError(
+            f"Invalid cells={cells}: no integer n satisfies cells==12 * 4**n. "
+            f"Only global HEALPix grids (with cells = 12 × 4^n) are supported."
+        )
+
+    return zoom
+
+
 def pix2corner_ang(
     nside: int, ipix: Any, nest: bool = False, lonlat: bool = False
 ) -> Tuple[Any, Any, Any, Any]:

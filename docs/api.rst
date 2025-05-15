@@ -201,6 +201,7 @@ I/O & Conversion
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
    UxDataArray.from_xarray
+   UxDataArray.from_healpix
 
 
 UxDataset
