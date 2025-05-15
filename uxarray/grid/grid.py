@@ -39,6 +39,7 @@ from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_node_latlon,
     _populate_node_xyz,
+    _prepare_points_for_kdtree,
     _set_desired_longitude_range,
     _xyz_to_lonlat_deg,
     prepare_points,
@@ -2679,3 +2680,12 @@ class Grid:
             face_indices = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
 
             return face_indices
+
+    def get_faces_within_radius_of_point(
+        self, *, center_lonlat=None, center_xyz=None, r: float
+    ):
+        pts = _prepare_points_for_kdtree(center_lonlat, center_xyz)
+        # TODO: maybe use the bounds as a backend?
+        return self._get_scipy_kd_tree().query_ball_point(
+            x=pts, r=2 * np.sin(np.deg2rad(r) / 2), workers=-1
+        )

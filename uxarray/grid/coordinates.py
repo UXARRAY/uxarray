@@ -866,3 +866,14 @@ def prepare_points(points, normalize):
         )
 
     return np.vstack([x, y, z]).T
+
+
+def _prepare_points_for_kdtree(lonlat, xyz):
+    if xyz is None:
+        lon, lat = map(np.deg2rad, lonlat)
+        xyz = _lonlat_rad_to_xyz(lon, lat)
+    pts = np.asarray(xyz, dtype=np.float64)
+    if pts.ndim == 1:
+        pts = pts[np.newaxis, :]
+
+    return pts
