@@ -4,6 +4,7 @@ from html import escape
 from typing import (
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
@@ -18,7 +19,7 @@ from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE
 from uxarray.conventions import ugrid
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
@@ -33,20 +34,18 @@ from uxarray.grid.connectivity import (
     _populate_node_face_connectivity,
 )
 from uxarray.grid.coordinates import (
-    _lonlat_rad_to_xyz,
     _populate_edge_centroids,
     _populate_face_centerpoints,
     _populate_face_centroids,
     _populate_node_latlon,
     _populate_node_xyz,
+    _prepare_points_for_kdtree,
     _set_desired_longitude_range,
-    _xyz_to_lonlat_deg,
     prepare_points,
 )
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.geometry import (
     _construct_boundary_edge_indices,
-    _find_faces,
     _grid_to_matplotlib_linecollection,
     _grid_to_matplotlib_polycollection,
     _grid_to_polygon_geodataframe,
@@ -68,7 +67,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
+from uxarray.grid.point_in_face import _point_in_face_query
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -135,7 +134,7 @@ class Grid:
         A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
     Examples
-    ----------
+    --------
 
     >>> import uxarray as ux
     >>> grid_path = "/path/to/grid.nc"
@@ -1574,7 +1573,7 @@ class Grid:
 
     @property
     def max_face_radius(self):
-        """Maximum face radius of the grid in degrees"""
+        """Maximum Euclidean distance from each face center to its nodes."""
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
@@ -2566,116 +2565,83 @@ class Grid:
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
     def get_faces_containing_point(
-        self, point_xyz=None, point_lonlat=None, tolerance=ERROR_TOLERANCE
-    ):
-        """Identifies the indices of faces that contain a given point.
+        self,
+        *,
+        point_lonlat: Sequence[float] | np.ndarray = None,
+        point_xyz: Sequence[float] | np.ndarray = None,
+        return_counts: bool = True,
+    ) -> Tuple[np.ndarray, np.ndarray] | List[List[int]]:
+        """
+        Identify which faces on the grid contain the given point(s).
+
+        Exactly one of `point_lonlat` or `point_xyz` must be provided.
 
         Parameters
         ----------
-        point_xyz : numpy.ndarray
-            A point in cartesian coordinates. Best performance if
-        point_lonlat : numpy.ndarray
-            A point in spherical coordinates.
-        tolerance : numpy.ndarray
-            An optional error tolerance for points that lie on the nodes of a face.
+        point_lonlat : array_like of shape (2,), optional
+            Longitude and latitude in **degrees**: (lon, lat).
+        point_xyz : array_like of shape (3,), optional
+            Cartesian coordinates on the unit sphere: (x, y, z).
+        return_counts : bool, default=True
+            - If True (default), returns a tuple `(face_indices, counts)`.
+            - If False, returns a `list` of per-point lists of face indices.
 
         Returns
         -------
-        index : numpy.ndarray
-            Array of the face indices containing point. Empty if no face is found. This function will typically return
-            a single face, unless the point falls directly on a corner or edge, where there will be multiple values.
+        If `return_counts=True`:
+          face_indices : np.ndarray, shape (N, M) or (N,)
+            - 2D array of face indices with unused slots are filled with `INT_FILL_VALUE`.
+          counts : np.ndarray, shape (N,)
+            Number of valid face indices in each row of `face_indices`.
+
+        If `return_counts=False`:
+          List[List[int]]
+            A Python list of length `N`, where each element is the
+            list of face indices (no padding) for that query point.
+
+        Notes
+        -----
+        - **Most** points will lie strictly inside exactly one face:
+          in that common case, `counts == 1` and the returned
+          `face_indices` can be collapsed to shape `(N,)`, with no padding.
+        - If a point falls exactly on a corner shared by multiple faces,
+          multiple face indices will appear in the first columns of each row;
+          the remainder of each row is filled with `INT_FILL_VALUE`.
 
         Examples
         --------
-        Open a grid from a file path:
-
         >>> import uxarray as ux
-        >>> uxgrid = ux.open_grid("grid_filename.nc")
+        >>> grid_path = "/path/to/grid.nc"
+        >>> uxgrid = ux.open_grid(grid_path)
 
-        Define a spherical point:
+        # 1. Query a Spherical (lon/lat) point
+        >>> indices, counts = uxgrid.get_faces_containing_point(point_lonlat=(0.0, 0.0))
 
-        >>> import numpy as np
-        >>> point_lonlat = np.array([45.2, 32.6], dtype=np.float64)
-
-        Define a cartesian point:
-
-        >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
-
-        Find the indices of the faces that contain the given point:
-
-        >>> lonlat_point_face_indices = uxgrid.get_faces_containing_point(
-        ...     point_lonlat=point_lonlat
-        ... )
-        >>> xyz_point_face_indices = uxgrid.get_faces_containing_point(
-        ...     point_xyz=point_xyz
+        # 2. Query a Cartesian (xyz) point
+        >>> indices, counts = uxgrid.get_faces_containing_point(
+        ...     point_xyz=(0.0, 0.0, 1.0)
         ... )
 
+        # 3. Return indices as a list of lists (no counts nor padding)
+        >>> indices = uxgrid.get_faces_containing_point(
+        ...     point_xyz=(0.0, 0.0, 1.0), return_counts=False
+        ... )
         """
-        if point_xyz is None and point_lonlat is None:
-            raise ValueError("Either `point_xyz` or `point_lonlat` must be passed in.")
 
-        # Depending on the provided point coordinates, convert to get all needed coordinate systems
-        if point_xyz is None:
-            point_lonlat = np.asarray(point_lonlat, dtype=np.float64)
-            point_xyz = np.array(
-                _lonlat_rad_to_xyz(*np.deg2rad(point_lonlat)), dtype=np.float64
-            )
-        elif point_lonlat is None:
-            point_xyz = np.asarray(point_xyz, dtype=np.float64)
-            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
+        pts = _prepare_points_for_kdtree(point_lonlat, point_xyz)
 
-        # Get the maximum face radius of the grid, plus a small adjustment for if the point is this exact radius away
-        max_face_radius = self.max_face_radius.values + 0.0001
+        # Determine faces containing points
+        face_indices, counts = _point_in_face_query(source_grid=self, points=pts)
 
-        # Try to find a subset in which the point resides
-        try:
-            subset = self.subset.bounding_circle(
-                r=max_face_radius,
-                center_coord=point_lonlat,
-                element="face centers",
-                inverse_indices=True,
-            )
-        # If no subset is found, warn the user
-        except ValueError:
-            # If the grid is partial, let the user know the point likely lies outside the grid region
-            if self.partial_sphere_coverage:
-                warn(
-                    "No faces found. The grid has partial spherical coverage, and the point may be outside the defined region of the grid."
-                )
-            else:
-                warn("No faces found. Try adjusting the tolerance.")
-            return np.empty(0, dtype=np.int64)
+        # Return a list of lists if counts are not desired
+        if not return_counts:
+            output: List[List[int]] = []
+            for i, c in enumerate(counts):
+                output.append(face_indices[i, :c].tolist())
+            return output
 
-        # Get the faces in terms of their edges
-        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
-            subset.face_node_connectivity.values,
-            subset.n_face,
-            subset.n_max_face_nodes,
-            subset.node_x.values,
-            subset.node_y.values,
-            subset.node_z.values,
-        )
+        if (counts == 1).all():
+            face_indices = face_indices[:, 0]
+            face_indices = face_indices[:, None]
 
-        # Get the original face indices from the subset
-        inverse_indices = subset.inverse_indices.face.values
-
-        # Check to see if the point is on the nodes of any face
-        lies_on_node = np.isclose(
-            face_edge_nodes_xyz,
-            point_xyz[None, None, :],  # Expands dimensions for broadcasting
-            rtol=tolerance,
-            atol=tolerance,
-        )
-
-        edge_matches = np.all(lies_on_node, axis=-1)
-        face_matches = np.any(edge_matches, axis=1)
-        face_indices = inverse_indices[np.any(face_matches, axis=1)]
-
-        # If a face is in face_indices, return that as the point was found to lie on a node
-        if len(face_indices) != 0:
-            return face_indices
-        else:
-            # Check if any of the faces in the subset contain the point
-            face_indices = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
-
-            return face_indices
+        return face_indices, counts
