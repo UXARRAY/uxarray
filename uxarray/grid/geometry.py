@@ -17,6 +17,7 @@ from uxarray.constants import (
     ERROR_TOLERANCE,
     INT_DTYPE,
     INT_FILL_VALUE,
+    MACHINE_EPSILON,
 )
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
@@ -1313,7 +1314,97 @@ def _triangle_line_intersection(triangle, point, threshold=1e12):
     return triangle_weights
 
 
-def _newton_quadrilateral(quadrilateral, point, threshold=1e12, max_iterations=150):
+# @njit
+# def _newton_quadrilateral(quadrilateral, point, threshold=1e12, max_iterations=150):
+#     """
+#     Compute interpolation coefficients for a point relative to a quadrilateral.
+#
+#     Parameters
+#     ----------
+#     quadrilateral: np.array
+#         Cartesian coordinates for a quadrilateral
+#     point: np.array
+#         Cartesian coordinates for a point within the triangle
+#     threshold: np.array
+#         Condition number threshold for warning
+#     max_iterations: int
+#         Maximum number of Newton iterations
+#
+#     Examples
+#     --------
+#     Calculate the weights
+#     >>> weights_q = _newton_quadrilateral(quadrilateral=quad_xyz, point=point_xyz)
+#
+#     Using the results gotten, store the weights
+#     >>> weights_q[0] = (
+#     ...     1.0
+#     ...     - quadrilateral_weights[0]
+#     ...     - quadrilateral_weights[1]
+#     ...     + quadrilateral_weights[0] * quadrilateral_weights[1]
+#     ... )
+#     >>> weights_q[1] = quadrilateral_weights[0] * (1.0 - quadrilateral_weights[1])
+#     >>> weights_q[2] = quadrilateral_weights[0] * quadrilateral_weights[1]
+#     >>> weights_q[3] = quadrilateral_weights[1] * (1.0 - quadrilateral_weights[0])
+#
+#     Returns
+#     -------
+#     triangle_weights: np.array
+#         The weights of the quadrilateral
+#
+#     """
+#
+#     # Assign the nodes of the quadrilateral
+#     node_0 = quadrilateral[0]
+#     node_1 = quadrilateral[1]
+#     node_2 = quadrilateral[2]
+#     node_3 = quadrilateral[3]
+#
+#     # Calculate the need values
+#     A = node_0 - node_1 + node_2 - node_3
+#     B = node_1 - node_0
+#     C = node_3 - node_0
+#     D = point
+#     E = node_0 - point
+#
+#     # Assign an empty array to hold weights
+#     quadrilateral_weights = np.zeros(3)
+#
+#     for _ in range(max_iterations):
+#         # Assign current weights to value
+#         dA, dB, dC = quadrilateral_weights
+#
+#         # Calculate the value of the function at X
+#         value_at_x = dA * dB * A + dA * B + dB * C + dC * D + E
+#
+#         if np.linalg.norm(value_at_x) < 1e-15:
+#             break
+#
+#         # Create the Jacobian matrix
+#         jacobian_matrix = np.empty((3, 3), dtype=np.float64)
+#         jacobian_matrix[:, 0] = A * dB + B
+#         jacobian_matrix[:, 1] = A * dA + C
+#         jacobian_matrix[:, 2] = D
+#
+#         # Invert the Jacobian matrix
+#         try:
+#             jacobian_inv = np.linalg.inv(jacobian_matrix)
+#         except np.linalg.LinAlgError:
+#             break
+#
+#         # Estimate condition number
+#         cond_est = np.linalg.cond(jacobian_matrix)
+#         # if cond_est > threshold:
+#         #     warnings.warn("WARNING: Poor conditioning in matrix", RuntimeWarning)
+#
+#         # Newton update
+#         delta = jacobian_inv @ value_at_x
+#         quadrilateral_weights -= delta
+#
+#     return quadrilateral_weights
+
+
+@njit
+def _newton_quadrilateral(quadrilateral, point, max_iterations=150):
     """
     Compute interpolation coefficients for a point relative to a quadrilateral.
 
@@ -1323,8 +1414,6 @@ def _newton_quadrilateral(quadrilateral, point, threshold=1e12, max_iterations=1
         Cartesian coordinates for a quadrilateral
     point: np.array
         Cartesian coordinates for a point within the triangle
-    threshold: np.array
-        Condition number threshold for warning
     max_iterations: int
         Maximum number of Newton iterations
 
@@ -1350,52 +1439,79 @@ def _newton_quadrilateral(quadrilateral, point, threshold=1e12, max_iterations=1
         The weights of the quadrilateral
 
     """
-
-    # Assign the nodes of the quadrilateral
+    # unpack nodes
     node_0 = quadrilateral[0]
     node_1 = quadrilateral[1]
     node_2 = quadrilateral[2]
     node_3 = quadrilateral[3]
 
-    # Calculate the need values
+    # precompute constant vectors
     A = node_0 - node_1 + node_2 - node_3
     B = node_1 - node_0
     C = node_3 - node_0
     D = point
     E = node_0 - point
 
-    # Assign an empty array to hold weights
-    quadrilateral_weights = np.zeros(3)
+    # unknowns [alpha, beta, gamma]
+    weights = np.zeros(3, dtype=quadrilateral.dtype)
 
     for _ in range(max_iterations):
-        # Assign current weights to value
-        dA, dB, dC = quadrilateral_weights
+        dA = weights[0]
+        dB = weights[1]
+        dC = weights[2]
 
-        # Calculate the value of the function at X
-        value_at_x = dA * dB * A + dA * B + dB * C + dC * D + E
+        value_at_x = np.empty(3, dtype=quadrilateral.dtype)
+        for i in range(3):
+            value_at_x[i] = dA * dB * A[i] + dA * B[i] + dB * C[i] + dC * D[i] + E[i]
 
-        if np.linalg.norm(value_at_x) < 1e-15:
+        # check convergence
+        norm2 = 0.0
+        for i in range(3):
+            norm2 += value_at_x[i] * value_at_x[i]
+        if math.sqrt(norm2) < 1e-15:
             break
 
-        # Create the Jacobian matrix
-        jacobian_matrix = np.empty((3, 3), dtype=np.float64)
-        jacobian_matrix[:, 0] = A * dB + B
-        jacobian_matrix[:, 1] = A * dA + C
-        jacobian_matrix[:, 2] = D
+        # build Jacobian J[i,j]
+        J = np.empty((3, 3), dtype=quadrilateral.dtype)
+        for i in range(3):
+            J[i, 0] = A[i] * dB + B[i]
+            J[i, 1] = A[i] * dA + C[i]
+            J[i, 2] = D[i]
 
-        # Invert the Jacobian matrix
-        try:
-            jacobian_inv = np.linalg.inv(jacobian_matrix)
-        except np.linalg.LinAlgError:
+        # compute det(J)
+        det = (
+            J[0, 0] * (J[1, 1] * J[2, 2] - J[1, 2] * J[2, 1])
+            - J[0, 1] * (J[1, 0] * J[2, 2] - J[1, 2] * J[2, 0])
+            + J[0, 2] * (J[1, 0] * J[2, 1] - J[1, 1] * J[2, 0])
+        )
+
+        # if singular (or nearly), bail out
+        if abs(det) < MACHINE_EPSILON:
             break
 
-        # Estimate condition number
-        cond_est = np.linalg.cond(jacobian_matrix)
-        if cond_est > threshold:
-            warnings.warn("WARNING: Poor conditioning in matrix", RuntimeWarning)
+        # adjugate / det
+        invJ = np.empty((3, 3), dtype=quadrilateral.dtype)
+        invJ[0, 0] = (J[1, 1] * J[2, 2] - J[1, 2] * J[2, 1]) / det
+        invJ[0, 1] = -(J[0, 1] * J[2, 2] - J[0, 2] * J[2, 1]) / det
+        invJ[0, 2] = (J[0, 1] * J[1, 2] - J[0, 2] * J[1, 1]) / det
+        invJ[1, 0] = -(J[1, 0] * J[2, 2] - J[1, 2] * J[2, 0]) / det
+        invJ[1, 1] = (J[0, 0] * J[2, 2] - J[0, 2] * J[2, 0]) / det
+        invJ[1, 2] = -(J[0, 0] * J[1, 2] - J[0, 2] * J[1, 0]) / det
+        invJ[2, 0] = (J[1, 0] * J[2, 1] - J[1, 1] * J[2, 0]) / det
+        invJ[2, 1] = -(J[0, 0] * J[2, 1] - J[0, 1] * J[2, 0]) / det
+        invJ[2, 2] = (J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]) / det
+
+        # delta = invJ @ value_at_x
+        delta = np.empty(3, dtype=quadrilateral.dtype)
+        for i in range(3):
+            delta[i] = (
+                invJ[i, 0] * value_at_x[0]
+                + invJ[i, 1] * value_at_x[1]
+                + invJ[i, 2] * value_at_x[2]
+            )
 
         # Newton update
-        delta = jacobian_inv @ value_at_x
-        quadrilateral_weights -= delta
+        for i in range(3):
+            weights[i] -= delta[i]
 
-    return quadrilateral_weights
+    return weights
