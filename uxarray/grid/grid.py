@@ -34,12 +34,12 @@ from uxarray.grid.connectivity import (
     _populate_node_face_connectivity,
 )
 from uxarray.grid.coordinates import (
-    _lonlat_rad_to_xyz,
     _populate_edge_centroids,
     _populate_face_centerpoints,
     _populate_face_centroids,
     _populate_node_latlon,
     _populate_node_xyz,
+    _prepare_points_for_kdtree,
     _set_desired_longitude_range,
     prepare_points,
 )
@@ -2599,18 +2599,8 @@ class Grid:
             A Python list of length `N`, where each element is the
             list of face-indices (no padding) for that query point.
         """
-        if (point_lonlat is None) == (point_xyz is None):
-            raise ValueError(
-                "Exactly one of `point_lonlat` or `point_xyz` must be provided."
-            )
 
-        # Convert to cartesian if points are spherical
-        if point_xyz is None:
-            lon, lat = map(np.deg2rad, point_lonlat)
-            point_xyz = _lonlat_rad_to_xyz(lon, lat)
-        pts = np.asarray(point_xyz, dtype=np.float64)
-        if pts.ndim == 1:
-            pts = pts[np.newaxis, :]
+        pts = _prepare_points_for_kdtree(point_lonlat, point_xyz)
 
         # Determine faces containing points
         face_indices, counts = _point_in_face_query(source_grid=self, points=pts)

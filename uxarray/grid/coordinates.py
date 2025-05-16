@@ -866,3 +866,21 @@ def prepare_points(points, normalize):
         )
 
     return np.vstack([x, y, z]).T
+
+
+def _prepare_points_for_kdtree(lonlat, xyz):
+    if (lonlat is None) == (xyz is None):
+        raise ValueError(
+            "Both Cartesian (xyz) and Spherical (lonlat) coordinates were provided. One one can be "
+            "provided at a time."
+        )
+
+    # Convert to cartesian if points are spherical
+    if xyz is None:
+        lon, lat = map(np.deg2rad, lonlat)
+        xyz = _lonlat_rad_to_xyz(lon, lat)
+    pts = np.asarray(xyz, dtype=np.float64)
+    if pts.ndim == 1:
+        pts = pts[np.newaxis, :]
+
+    return pts
