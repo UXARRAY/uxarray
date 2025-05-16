@@ -2589,40 +2589,45 @@ class Grid:
         Returns
         -------
         If `return_counts=True`:
-          face_indices : np.ndarray, shape (N, M)
-            2D array of face indices; unused slots are filled with `INT_FILL_VALUE`.
+          face_indices : np.ndarray, shape (N, M) or (N,)
+            - 2D array of face indices when `counts` contains values >1 or
+              when mixed counts exist; unused slots are filled with `INT_FILL_VALUE`.
+            - If **all** `counts == 1`, this will be squeezed to a 1-D array of shape `(N,)`.
           counts : np.ndarray, shape (N,)
             Number of valid face indices in each row of `face_indices`.
 
         If `return_counts=False`:
           List[List[int]]
             A Python list of length `N`, where each element is the
-            list of face-indices (no padding) for that query point.
+            list of face indices (no padding) for that query point.
+
+        Notes
+        -----
+        - **Most** points will lie strictly inside exactly one face:
+          in that common case, `counts == 1` and the returned
+          `face_indices` can be collapsed to shape `(N,)`, with no padding.
+        - If a point falls exactly on a corner shared by multiple faces,
+          multiple face indices will appear in the first columns of each row;
+          the remainder of each row is filled with `INT_FILL_VALUE`.
 
         Examples
         --------
-
         >>> import uxarray as ux
         >>> grid_path = "/path/to/grid.nc"
         >>> uxgrid = ux.open_grid(grid_path)
 
-        1. Query a Spherical (lonlat) point
-
+        # 1. Query a Spherical (lon/lat) point
         >>> indices, counts = uxgrid.get_faces_containing_point(point_lonlat=(0.0, 0.0))
 
-        2. Query a Cartesian (xyz) point
-
+        # 2. Query a Cartesian (xyz) point
         >>> indices, counts = uxgrid.get_faces_containing_point(
         ...     point_xyz=(0.0, 0.0, 1.0)
         ... )
 
-        3. Return indices as a list of lists
-
+        # 3. Return indices as a list of lists (no counts nor padding)
         >>> indices = uxgrid.get_faces_containing_point(
         ...     point_xyz=(0.0, 0.0, 1.0), return_counts=False
         ... )
-
-
         """
 
         pts = _prepare_points_for_kdtree(point_lonlat, point_xyz)
@@ -2636,5 +2641,9 @@ class Grid:
             for i, c in enumerate(counts):
                 output.append(face_indices[i, :c].tolist())
             return output
+
+        if (counts == 1).all():
+            # collapse to a 1D array of length n_points
+            face_indices = face_indices[:, 0]
 
         return face_indices, counts
