@@ -7,7 +7,7 @@ import numpy as np
 import shapely
 import spatialpandas
 from matplotlib.collections import LineCollection, PolyCollection
-from numba import njit
+from numba import njit, prange
 from shapely import Polygon
 from shapely import polygons as Polygons
 from spatialpandas.geometry import MultiPolygonArray, PolygonArray
@@ -16,9 +16,6 @@ from uxarray.constants import (
     ERROR_TOLERANCE,
     INT_DTYPE,
     INT_FILL_VALUE,
-)
-from uxarray.grid.arcs import (
-    point_within_gca,
 )
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
@@ -1011,200 +1008,78 @@ def inverse_stereographic_projection(x, y, central_lon, central_lat):
     return lon, lat
 
 
-@njit(cache=True)
-def point_in_face(
-    edges_xyz,
-    point_xyz,
-    inclusive=True,
-):
-    """Determines if a point lies inside a face.
+def _populate_max_face_radius(grid):
+    """Populates `max_face_radius`"""
 
-    Parameters
-    ----------
-        edges_xyz : numpy.ndarray
-            Cartesian coordinates of each point in the face
-        point_xyz : numpy.ndarray
-            Cartesian coordinate of the point
-        inclusive : bool
-            Flag to determine whether to include points on the nodes and edges of the face
+    face_node_connectivity = grid.face_node_connectivity.values
 
-    Returns
-    -------
-    bool
-        True if point is inside face, False otherwise
-    """
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
 
-    # Validate the inputs
-    if len(edges_xyz[0][0]) != 3:
-        raise ValueError("`edges_xyz` vertices must be in Cartesian coordinates.")
-
-    if len(point_xyz) != 3:
-        raise ValueError("`point_xyz` must be a single [3] Cartesian coordinate.")
-
-    # Initialize the intersection count
-    intersection_count = 0
-
-    # Set to hold unique intersections
-    unique_intersections = set()
-
-    location = _classify_polygon_location(edges_xyz)
-
-    if location == 1:
-        ref_point_xyz = REF_POINT_SOUTH_XYZ
-    elif location == -1:
-        ref_point_xyz = REF_POINT_NORTH_XYZ
-    else:
-        ref_point_xyz = REF_POINT_SOUTH_XYZ
-
-    # Initialize the points arc between the point and the reference point
-    gca_cart = np.empty((2, 3), dtype=np.float64)
-    gca_cart[0] = point_xyz
-    gca_cart[1] = ref_point_xyz
-
-    # Loop through the face's edges, checking each one for intersection
-    for ind in range(len(edges_xyz)):
-        # If the point lies on an edge, return True if inclusive
-        if point_within_gca(
-            point_xyz,
-            edges_xyz[ind][0],
-            edges_xyz[ind][1],
-        ):
-            if inclusive:
-                return True
-            else:
-                return False
-
-        # Get the number of intersections between the edge and the point arc
-        intersections = gca_gca_intersection(edges_xyz[ind], gca_cart)
-
-        # Add any unique intersections to the intersection_count
-        for intersection in intersections:
-            intersection_tuple = (
-                intersection[0],
-                intersection[1],
-                intersection[2],
-            )
-            if intersection_tuple not in unique_intersections:
-                unique_intersections.add(intersection_tuple)
-                intersection_count += 1
-
-    # Return True if the number of intersections is odd, False otherwise
-    return intersection_count % 2 == 1
-
-
-@njit(cache=True)
-def _find_faces(face_edge_cartesian, point_xyz, inverse_indices):
-    """Finds the faces that contain a given point, inside a subset `face_edge_cartesian`
-    Parameters
-    ----------
-        face_edge_cartesian : numpy.ndarray
-            Cartesian coordinates of all the faces according to their edges
-        point_xyz : numpy.ndarray
-            Cartesian coordinate of the point
-        inverse_indices : numpy.ndarray
-           The original indices of the subsetted grid
-
-    Returns
-    -------
-    index : array
-        The index of the face that contains the point
-    """
-
-    index = []
-
-    # Run for each face in the subset
-    for i, face in enumerate(inverse_indices):
-        # Check to see if the face contains the point
-        contains_point = point_in_face(
-            face_edge_cartesian[i],
-            point_xyz,
-            inclusive=True,
-        )
-
-        # If the point is found, add it to the index array
-        if contains_point:
-            index.append(face)
-
-    # Return the index array
-    return index
-
-
-def _populate_max_face_radius(self):
-    """Populates `max_face_radius`
-
-    Returns
-    -------
-    max_distance : np.float64
-        The max distance from a node to a face center
-    """
-
-    # Parse all variables needed for `njit` functions
-    face_node_connectivity = self.face_node_connectivity.values
-    node_lats_rad = np.deg2rad(self.node_lat.values)
-    node_lons_rad = np.deg2rad(self.node_lon.values)
-    face_lats_rad = np.deg2rad(self.face_lat.values)
-    face_lons_rad = np.deg2rad(self.face_lon.values)
+    face_x = grid.face_x.values
+    face_y = grid.face_y.values
+    face_z = grid.face_z.values
 
     # Get the max distance
     max_distance = calculate_max_face_radius(
         face_node_connectivity,
-        node_lats_rad,
-        node_lons_rad,
-        face_lats_rad,
-        face_lons_rad,
+        node_x,
+        node_y,
+        node_z,
+        face_x,
+        face_y,
+        face_z,
     )
 
-    # Return the max distance, which is the `max_face_radius`
-    return np.rad2deg(max_distance)
+    return max_distance
 
 
-@njit(cache=True)
+@njit(cache=True, parallel=True)
 def calculate_max_face_radius(
-    face_node_connectivity, node_lats_rad, node_lons_rad, face_lats_rad, face_lons_rad
-):
-    """Finds the max face radius in the mesh.
-    Parameters
-    ----------
-        face_node_connectivity : numpy.ndarray
-            Cartesian coordinates of all the faces according to their edges
-        node_lats_rad : numpy.ndarray
-            The `Grid.node_lat` array in radians
-        node_lons_rad : numpy.ndarray
-           The `Grid.node_lon` array in radians
-        face_lats_rad : numpy.ndarray
-           The `Grid.face_lat` array in radians
-        face_lons_rad : numpy.ndarray
-           The `Grid.face_lon` array in radians
+    face_node_connectivity: np.ndarray,
+    node_x: np.ndarray,
+    node_y: np.ndarray,
+    node_z: np.ndarray,
+    face_x: np.ndarray,
+    face_y: np.ndarray,
+    face_z: np.ndarray,
+) -> float:
+    n_faces, n_max_nodes = face_node_connectivity.shape
+    # workspace to hold the max squared-distance for each face
+    max2_per_face = np.empty(n_faces, dtype=np.float64)
 
-    Returns
-    -------
-    The max distance from a node to a face center
-    """
+    # parallel outer loop
+    for i in prange(n_faces):
+        fx = face_x[i]
+        fy = face_y[i]
+        fz = face_z[i]
 
-    # Array to store all distances of each face to it's furthest node.
-    end_distances = np.zeros(len(face_node_connectivity))
+        # track the max squared distance for this face
+        face_max2 = 0.0
 
-    # Loop over each face and its nodes
-    for ind, face in enumerate(face_node_connectivity):
-        # Filter out INT_FILL_VALUE
-        valid_nodes = face[face != INT_FILL_VALUE]
+        # loop over all possible node slots
+        for j in range(n_max_nodes):
+            idx = face_node_connectivity[i, j]
+            if idx == INT_FILL_VALUE:
+                continue
+            dx = node_x[idx] - fx
+            dy = node_y[idx] - fy
+            dz = node_z[idx] - fz
+            d2 = dx * dx + dy * dy + dz * dz
+            if d2 > face_max2:
+                face_max2 = d2
 
-        # Get the face lat/lon of this face
-        face_lat = face_lats_rad[ind]
-        face_lon = face_lons_rad[ind]
+        max2_per_face[i] = face_max2
 
-        # Get the node lat/lon of this face
-        node_lat_rads = node_lats_rad[valid_nodes]
-        node_lon_rads = node_lons_rad[valid_nodes]
+    # now do a simple serial reduction
+    global_max2 = 0.0
+    for i in range(n_faces):
+        if max2_per_face[i] > global_max2:
+            global_max2 = max2_per_face[i]
 
-        # Calculate Haversine distances for all nodes in this face
-        distances = haversine_distance(node_lon_rads, node_lat_rads, face_lon, face_lat)
-
-        # Store the max distance for this face
-        end_distances[ind] = np.max(distances)
-
-    # Return the maximum distance found across all faces
-    return np.max(end_distances)
+    # one sqrt at the end
+    return math.sqrt(global_max2)
 
 
 @njit(cache=True)

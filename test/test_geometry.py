@@ -11,10 +11,12 @@ from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad, \
     _xyz_to_lonlat_deg, _xyz_to_lonlat_rad_scalar
 from uxarray.grid.arcs import extreme_gca_latitude, extreme_gca_z
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_lonlat_rad_face_edge_nodes_array
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_lonlat_rad_face_edge_nodes_array, _get_cartesian_face_edge_nodes
 
 from uxarray.grid.geometry import _pole_point_inside_polygon_cartesian, \
-    stereographic_projection, inverse_stereographic_projection, point_in_face, haversine_distance
+    stereographic_projection, inverse_stereographic_projection,  haversine_distance
+
+from uxarray.grid.point_in_face import _face_contains_point
 
 
 from uxarray.grid.bounds import _populate_face_bounds, _construct_face_bounds_array, _construct_face_bounds
@@ -1183,24 +1185,19 @@ def test_point_inside():
 
     # Open grid
     grid = ux.open_grid(grid_mpas_2)
+    grid.normalize_cartesian_coordinates()
 
-    # Get the face edges of all faces in the grid
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes_array(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
 
     # Loop through each face
     for i in range(grid.n_face):
+        face_edges = _get_cartesian_face_edge_nodes(
+            i, grid.face_node_connectivity.values, grid.n_nodes_per_face.values, grid.node_x.values, grid.node_y.values, grid.node_z.values
+        )
+
         # Set the point as the face center of the polygon
         point_xyz = np.array([grid.face_x[i].values, grid.face_y[i].values, grid.face_z[i].values])
-
         # Assert that the point is in the polygon
-        assert point_in_face(faces_edges_cartesian[i], point_xyz, inclusive=True)
+        assert _face_contains_point(face_edges, point_xyz)
 
 
 def test_point_outside():
@@ -1223,7 +1220,7 @@ def test_point_outside():
     point_xyz = np.array([grid.face_x[1].values, grid.face_y[1].values, grid.face_z[1].values])
 
     # Assert that the point is not in the face tested
-    assert not point_in_face(faces_edges_cartesian[0], point_xyz, inclusive=True)
+    assert not _face_contains_point(faces_edges_cartesian[0], point_xyz)
 
 
 def test_point_on_node():
@@ -1246,10 +1243,7 @@ def test_point_on_node():
     point_xyz = np.array([*faces_edges_cartesian[0][0][0]])
 
     # Assert that the point is in the face when inclusive is true
-    assert point_in_face(faces_edges_cartesian[0], point_xyz, inclusive=True)
-
-    # Assert that the point is not in the face when inclusive is false
-    assert not point_in_face(faces_edges_cartesian[0], point_xyz, inclusive=False)
+    assert _face_contains_point(faces_edges_cartesian[0], point_xyz)
 
 
 def test_point_inside_close():
@@ -1274,7 +1268,7 @@ def test_point_inside_close():
     )
 
     # Use point in face to determine if the point is inside or out of the face
-    assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=False)
+    assert _face_contains_point(faces_edges_cartesian[0], point)
 
 
 def test_point_outside_close():
@@ -1299,7 +1293,7 @@ def test_point_outside_close():
     )
 
     # Use point in face to determine if the point is inside or out of the face
-    assert not point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=False)
+    assert not _face_contains_point(faces_edges_cartesian[0], point)
 
 
 def test_face_at_pole():
@@ -1322,7 +1316,7 @@ def test_face_at_pole():
         grid.node_z.values,
     )
 
-    assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
+    assert _face_contains_point(faces_edges_cartesian[0], point)
 
 
 def test_face_at_antimeridian():
@@ -1344,7 +1338,7 @@ def test_face_at_antimeridian():
         grid.node_z.values,
     )
 
-    assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
+    assert _face_contains_point(faces_edges_cartesian[0], point)
 
 
 def test_face_normal_face():
@@ -1367,7 +1361,7 @@ def test_face_normal_face():
         grid.node_z.values,
     )
 
-    assert point_in_face(faces_edges_cartesian[0], point_xyz=point, inclusive=True)
+    assert _face_contains_point(faces_edges_cartesian[0], point)
 
 
 def test_stereographic_projection_stereographic_projection():
