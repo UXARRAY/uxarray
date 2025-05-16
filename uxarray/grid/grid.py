@@ -11,11 +11,8 @@ from typing import (
 )
 from warnings import warn
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
-from scipy.spatial import KDTree as SPKDTree
-from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
@@ -230,7 +227,7 @@ class Grid:
         self._raster_data_id = None
 
         # Cache for KDTrees
-        self._kdtrees: dict[str, SPKDTree] = {}
+        self._kdtrees = {}
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -1729,6 +1726,8 @@ class Grid:
         - Trees are cached per-coordinate-set in `self._kdtrees` to avoid repeated construction.
         - The tree uses the (x, y, z) Cartesian values stored on each grid element.
         """
+        from scipy.spatial import KDTree as SPKDTree
+
         if coordinates not in ("node", "edge", "face"):
             raise ValueError(
                 f"Invalid coordinates='{coordinates}'; "
@@ -2060,7 +2059,7 @@ class Grid:
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -2109,6 +2108,8 @@ class Grid:
         gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
+
+        from spatialpandas import GeoDataFrame
 
         if engine not in ["spatialpandas", "geopandas"]:
             raise ValueError(
@@ -2187,7 +2188,7 @@ class Grid:
     def to_polycollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
@@ -2272,7 +2273,7 @@ class Grid:
     def to_linecollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         **kwargs,

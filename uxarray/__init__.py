@@ -1,4 +1,3 @@
-from .cmaps import diverging, sequential, sequential_blue, sequential_green
 from .constants import INT_DTYPE, INT_FILL_VALUE
 from .core.api import concat, open_dataset, open_grid, open_mfdataset
 from .core.dataarray import UxDataArray
@@ -27,8 +26,4 @@ __all__ = (
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
-    "sequential",
-    "diverging",
-    "sequential_blue",
-    "sequential_green",
 )

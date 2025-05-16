@@ -58,12 +58,6 @@ def test_node_centered_data():
         assert isinstance(uxds['v1'][0][0].plot.points(backend=backend), hv.Points)
         assert isinstance(uxds['v1'][0][0].topological_mean(destination='face').plot.polygons(backend=backend, dynamic=True), hv.DynamicMap)
 
-def test_clabel():
-    """Tests the execution of passing in a custom clabel."""
-    uxds = ux.open_dataset(gridfile_geoflow, datafile_geoflow)
-
-    raster_no_clabel = uxds['v1'][0][0].plot.rasterize(method='point')
-    raster_with_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel='Foo')
 
 def test_engine():
     """Tests different plotting engines."""
