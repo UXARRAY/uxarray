@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import functools
 import warnings
 from typing import TYPE_CHECKING, Any, Optional
 
-import cartopy.crs as ccrs
 import pandas as pd
 
-import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
 
 if TYPE_CHECKING:
@@ -63,6 +60,7 @@ class GridPlotAccessor:
         ValueError
             If the provided `element` is not one of the accepted options.
         """
+        import hvplot.pandas
 
         uxarray.plot.utils.backend.assign(backend)
 
@@ -202,8 +200,8 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
+        import cartopy.crs as ccrs
         import hvplot.pandas
-        import hvplot.xarray
 
         uxarray.plot.utils.backend.assign(backend)
 
@@ -248,6 +246,8 @@ class GridPlotAccessor:
     ):
         """Plots the distribution of the number of nodes per face as a bar
         plot."""
+        import hvplot.pandas
+
         uxarray.plot.utils.backend.assign(backend)
 
         n_nodes_per_face = self._uxgrid.n_nodes_per_face.values
@@ -352,7 +352,7 @@ class UxDataArrayPlotAccessor:
         engine: Optional[str] = "spatialpandas",
         rasterize: Optional[bool] = True,
         dynamic: Optional[bool] = False,
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         xlabel: Optional[str] = "Longitude",
         ylabel: Optional[str] = "Latitude",
         *args,
@@ -391,8 +391,8 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
+        import cartopy.crs as ccrs
         import hvplot.pandas
-        import hvplot.xarray
 
         uxarray.plot.utils.backend.assign(backend)
 
@@ -456,6 +456,7 @@ class UxDataArrayPlotAccessor:
         ValueError
             If the data is not mapped to the nodes, edges, or faces.
         """
+        import hvplot.pandas
 
         uxarray.plot.utils.backend.assign(backend)
 
@@ -479,90 +480,18 @@ class UxDataArrayPlotAccessor:
 
         return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
 
-    @functools.wraps(dataarray_plot.rasterize)
-    def rasterize(
-        self,
-        method: Optional[str] = "point",
-        backend: Optional[str] = "bokeh",
-        periodic_elements: Optional[str] = "exclude",
-        exclude_antimeridian: Optional[bool] = None,
-        pixel_ratio: Optional[float] = 1.0,
-        dynamic: Optional[bool] = False,
-        precompute: Optional[bool] = True,
-        projection: Optional[ccrs] = None,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        colorbar: Optional[bool] = True,
-        cmap: Optional[str] = "Blues",
-        aggregator: Optional[str] = "mean",
-        interpolation: Optional[str] = "linear",
-        npartitions: Optional[int] = 1,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        size: Optional[int] = 5,
-        **kwargs,
-    ):
-        """Raster plot of a data variable residing on an unstructured grid
-        element.
-
-        Parameters
-        ----------
-        method: str
-            Selects what type of element to rasterize (point, trimesh, polygon).
-        backend: str
-            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
-        projection: ccrs
-             Custom projection to transform (lon, lat) coordinates for rendering
-        pixel_ratio: float
-            Determines the resolution of the outputted raster.
-        cache: bool
-            Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
-            calls
-
-        Notes
-        -----
-        For further information about supported keyword arguments, please refer to the [Holoviews Documentation](https://holoviews.org/_modules/holoviews/operation/datashader.html#rasterize)
-        or run holoviews.help(holoviews.operation.datashader.rasterize).
-        """
-
-        warnings.warn(
-            "``UxDataArray.plot.rasterize()`` will be deprecated in a future release. Please use "
-            "``UxDataArray.plot.polygons(rasterize=True)`` or ``UxDataArray.plot.points(rasterize=True)``",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return dataarray_plot.rasterize(
-            self._uxda,
-            method=method,
-            backend=backend,
-            periodic_elements=periodic_elements,
-            exclude_antimeridian=exclude_antimeridian,
-            pixel_ratio=pixel_ratio,
-            dynamic=dynamic,
-            precompute=precompute,
-            projection=projection,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            aggregator=aggregator,
-            interpolation=interpolation,
-            npartitions=npartitions,
-            cache=cache,
-            override=override,
-            size=size,
-            **kwargs,
-        )
-
     def line(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.line()``"""
+        import hvplot.xarray
+
         uxarray.plot.utils.backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.line(*args, **kwargs)
 
     def scatter(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.scatter()``"""
+        import hvplot.xarray
+
         uxarray.plot.utils.backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.scatter(*args, **kwargs)

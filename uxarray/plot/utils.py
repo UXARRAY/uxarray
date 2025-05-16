@@ -3,9 +3,7 @@ class HoloviewsBackend:
     visualization."""
 
     def __init__(self):
-        import matplotlib as mpl
-
-        self.matplotlib_backend = mpl.get_backend()
+        self.matplotlib_backend = None
 
     def assign(self, backend: str):
         """Assigns a backend for use with HoloViews visualization.
@@ -16,18 +14,20 @@ class HoloviewsBackend:
             Plotting backend to use, one of 'matplotlib', 'bokeh'
         """
 
-        from holoviews import Store, extension
+        if self.matplotlib_backend is None:
+            import matplotlib as mpl
+
+            self.matplotlib_backend = mpl.get_backend()
+
+        import holoviews as hv
 
         if backend not in ["bokeh", "matplotlib", None]:
             raise ValueError(
                 f"Unsupported backend. Expected one of ['bokeh', 'matplotlib'], but received {backend}"
             )
-        if backend is not None:
-            from holoviews import Store, extension
-
-            if backend != Store.current_backend:
-                # only call hv.extension if it needs to be changed
-                extension(backend)
+        if backend is not None and backend != hv.Store.current_backend:
+            # only call hv.extension if it needs to be changed
+            hv.extension(backend)
 
     def reset_mpl_backend(self):
         """Resets the default backend for the ``matplotlib`` module."""
@@ -36,5 +36,4 @@ class HoloviewsBackend:
         mpl.use(self.matplotlib_backend)
 
 
-# global reference to holoviews backend utility class
 backend = HoloviewsBackend()
