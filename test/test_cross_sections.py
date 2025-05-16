@@ -198,3 +198,25 @@ class TestArcs:
         out2 = uxgrid.get_faces_at_constant_latitude(lat=25.41)
 
         nt.assert_array_equal(out1, out2)
+
+
+
+def test_double_cross_section():
+    uxgrid = ux.open_grid(quad_hex_grid_path)
+
+    # construct edges
+    sub_lat = uxgrid.cross_section.constant_latitude(0.0)
+
+    sub_lat_lon = sub_lat.cross_section.constant_longitude(0.0)
+
+    assert "n_edge" not in sub_lat_lon._ds.dims
+
+    _ = uxgrid.face_edge_connectivity
+    _ = uxgrid.edge_node_connectivity
+    _ = uxgrid.edge_lon
+
+    sub_lat = uxgrid.cross_section.constant_latitude(0.0)
+
+    sub_lat_lon = sub_lat.cross_section.constant_longitude(0.0)
+
+    assert "n_edge" in sub_lat_lon._ds.dims
