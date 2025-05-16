@@ -12,7 +12,6 @@ import geoviews as gv
 import holoviews as hv
 import pandas as pd
 from cartopy import crs as ccrs
-from holoviews.operation.datashader import rasterize as hds_rasterize
 
 import uxarray.plot.utils
 
@@ -134,6 +133,8 @@ def _point_raster(
     size: Optional[int] = 5.0,
     **kwargs,
 ):
+    from holoviews.operation.datashader import rasterize as hds_rasterize
+
     """Implementation of Point Rasterization."""
 
     if "clabel" not in kwargs and uxda.name is not None:
@@ -235,6 +236,8 @@ def _polygon_raster(
     projection: Optional[ccrs] = None,
     **kwargs,
 ):
+    from holoviews.operation.datashader import rasterize as hds_rasterize
+
     """Implementation of Polygon Rasterization."""
 
     if "clabel" not in kwargs and uxda.name is not None:
