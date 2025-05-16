@@ -7,9 +7,6 @@ import matplotlib
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
-import dask.dataframe as dd
-import geoviews as gv
-import holoviews as hv
 import pandas as pd
 from cartopy import crs as ccrs
 
@@ -133,6 +130,8 @@ def _point_raster(
     size: Optional[int] = 5.0,
     **kwargs,
 ):
+    import dask.dataframe as dd
+    from holoviews import Points, Store
     from holoviews.operation.datashader import rasterize as hds_rasterize
 
     """Implementation of Point Rasterization."""
@@ -160,7 +159,7 @@ def _point_raster(
         lon, lat, _ = projection.transform_points(ccrs.PlateCarree(), lon, lat).T
 
     uxarray.plot.utils.backend.assign(backend)
-    current_backend = hv.Store.current_backend
+    current_backend = Store.current_backend
 
     point_dict = {"lon": lon, "lat": lat, "var": uxda.data}
     point_df = pd.DataFrame.from_dict(point_dict)
@@ -168,9 +167,9 @@ def _point_raster(
 
     # construct a holoviews points object
     if current_backend == "matplotlib":
-        points = hv.Points(point_ddf, ["lon", "lat"]).opts(s=size)
+        points = Points(point_ddf, ["lon", "lat"]).opts(s=size)
     else:
-        points = hv.Points(point_ddf, ["lon", "lat"]).opts(size=size)
+        points = Points(point_ddf, ["lon", "lat"]).opts(size=size)
 
     if current_backend == "matplotlib":
         # use holoviews matplotlib backend
@@ -236,6 +235,8 @@ def _polygon_raster(
     projection: Optional[ccrs] = None,
     **kwargs,
 ):
+    import geoviews as gv
+    from holoviews import Polygons, Store
     from holoviews.operation.datashader import rasterize as hds_rasterize
 
     """Implementation of Polygon Rasterization."""
@@ -253,7 +254,7 @@ def _polygon_raster(
     )
 
     uxarray.plot.utils.backend.assign(backend)
-    current_backend = hv.Store.current_backend
+    current_backend = Store.current_backend
 
     if current_backend == "matplotlib":
         _polygons = gv.Polygons(
@@ -262,9 +263,7 @@ def _polygon_raster(
         )
     else:
         # GeoViews Issue with Projections:
-        _polygons = hv.Polygons(
-            gdf, vdims=[uxda.name if uxda.name is not None else "var"]
-        )
+        _polygons = Polygons(gdf, vdims=[uxda.name if uxda.name is not None else "var"])
 
     if current_backend == "matplotlib":
         # use holoviews matplotlib backend

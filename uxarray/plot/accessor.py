@@ -5,8 +5,6 @@ import warnings
 from typing import TYPE_CHECKING, Any, Optional
 
 import cartopy.crs as ccrs
-import hvplot.pandas
-import hvplot.xarray
 import pandas as pd
 
 import uxarray.plot.dataarray_plot as dataarray_plot
@@ -204,6 +202,9 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
+        import hvplot.pandas
+        import hvplot.xarray
+
         uxarray.plot.utils.backend.assign(backend)
 
         if "rasterize" not in kwargs:
@@ -390,6 +391,9 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
+        import hvplot.pandas
+        import hvplot.xarray
+
         uxarray.plot.utils.backend.assign(backend)
 
         if dynamic and (projection is not None or kwargs.get("geo", None) is True):
