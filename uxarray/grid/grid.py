@@ -134,7 +134,7 @@ class Grid:
         A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
     Examples
-    ----------
+    --------
 
     >>> import uxarray as ux
     >>> grid_path = "/path/to/grid.nc"
@@ -2598,6 +2598,31 @@ class Grid:
           List[List[int]]
             A Python list of length `N`, where each element is the
             list of face-indices (no padding) for that query point.
+
+        Examples
+        --------
+
+        >>> import uxarray as ux
+        >>> grid_path = "/path/to/grid.nc"
+        >>> uxgrid = ux.open_grid(grid_path)
+
+        1. Query a Spherical (lonlat) point
+
+        >>> indices, counts = uxgrid.get_faces_containing_point(point_lonlat=(0.0, 0.0))
+
+        2. Query a Cartesian (xyz) point
+
+        >>> indices, counts = uxgrid.get_faces_containing_point(
+        ...     point_xyz=(0.0, 0.0, 1.0)
+        ... )
+
+        3. Return indices as a list of lists
+
+        >>> indices = uxgrid.get_faces_containing_point(
+        ...     point_xyz=(0.0, 0.0, 1.0), return_counts=False
+        ... )
+
+
         """
 
         pts = _prepare_points_for_kdtree(point_lonlat, point_xyz)
