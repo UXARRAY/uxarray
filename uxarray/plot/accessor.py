@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
+from uxarray.plot.utils import backend as plotting_backend
+
 
 class GridPlotAccessor:
     """Plotting accessor for ``Grid``.
@@ -62,7 +64,7 @@ class GridPlotAccessor:
         """
         import hvplot.pandas
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         if element in ["nodes", "corner nodes", "node_latlon"]:
             lon, lat = self._uxgrid.node_lon.values, self._uxgrid.node_lat.values
@@ -203,7 +205,7 @@ class GridPlotAccessor:
         import cartopy.crs as ccrs
         import hvplot.pandas
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = False
@@ -248,7 +250,7 @@ class GridPlotAccessor:
         plot."""
         import hvplot.pandas
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         n_nodes_per_face = self._uxgrid.n_nodes_per_face.values
 
@@ -287,7 +289,7 @@ class GridPlotAccessor:
     ):
         """Plots a histogram of the face areas using hvplot."""
         # Assign the plotting backend if provided
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         # Extract face areas from the grid
         face_areas = self._uxgrid.face_areas.values
@@ -394,7 +396,7 @@ class UxDataArrayPlotAccessor:
         import cartopy.crs as ccrs
         import hvplot.pandas
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         if dynamic and (projection is not None or kwargs.get("geo", None) is True):
             warnings.warn(
@@ -458,7 +460,7 @@ class UxDataArrayPlotAccessor:
         """
         import hvplot.pandas
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         uxgrid = self._uxda.uxgrid
         data_mapping = self._uxda.data_mapping
@@ -484,7 +486,7 @@ class UxDataArrayPlotAccessor:
         """Wrapper for ``hvplot.line()``"""
         import hvplot.xarray
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.line(*args, **kwargs)
 
@@ -492,7 +494,7 @@ class UxDataArrayPlotAccessor:
         """Wrapper for ``hvplot.scatter()``"""
         import hvplot.xarray
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.scatter(*args, **kwargs)
 
