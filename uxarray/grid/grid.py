@@ -2590,7 +2590,7 @@ class Grid:
         -------
         If `return_counts=True`:
           face_indices : np.ndarray, shape (N, M) or (N,)
-            - 2D array of face indices when `counts` when mixed counts exist; unused slots are filled with `INT_FILL_VALUE`.
+            - 2D array of face indices with unused slots are filled with `INT_FILL_VALUE`.
           counts : np.ndarray, shape (N,)
             Number of valid face indices in each row of `face_indices`.
 
