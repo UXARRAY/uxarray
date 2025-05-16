@@ -22,7 +22,6 @@ from .utils import (
     _construct_remapped_ds,
     _get_remap_dims,
     _prepare_points,
-    _prepare_points_spherical,
     _to_dataset,
 )
 
@@ -73,12 +72,8 @@ def _bilinear(
         # get destination coordinate pairs
         point_xyz = _prepare_points(destination_grid, destination_dim)
 
-        # Get the point coordinates to use for search
-        point_lonlat = _prepare_points_spherical(destination_grid, destination_dim)
-
         weights, indices = _get_values(
             point_xyz=point_xyz,
-            point_lonlat=point_lonlat,
             dual=dual,
             data_size=getattr(destination_grid, f"n_{KDTREE_DIM_MAP[destination_dim]}"),
             source_grid=ds.uxgrid,
@@ -114,22 +109,18 @@ def _bilinear(
     return ds_remapped[name] if is_da else ds_remapped
 
 
-def _get_values(point_xyz, point_lonlat, dual, data_size, source_grid):
+def _get_values(point_xyz, dual, data_size, source_grid):
     """Get barycentric weights and source face indices for each destination point."""
     all_weights = np.zeros((data_size, 4), dtype=np.float64)
     all_indices = np.zeros((data_size, 4), dtype=int)
 
     for i in range(data_size):
         # Get dual face(s) that contain the point
-        face_ind = dual.get_faces_containing_point(
-            point_xyz=point_xyz[i], point_lonlat=point_lonlat[i]
-        )
+        face_ind = dual.get_faces_containing_point(point_xyz=point_xyz[i])
 
         # If not found in dual, fallback to source grid
         if len(face_ind) == 0:
-            face_ind = source_grid.get_faces_containing_point(
-                point_xyz=point_xyz[i], point_lonlat=point_lonlat[i]
-            )
+            face_ind = source_grid.get_faces_containing_point(point_xyz=point_xyz[i])
             if len(face_ind) == 0:
                 # No face found, weights remain as 0
                 continue

@@ -94,15 +94,14 @@ class RemapAccessor:
         self, destination_grid: Grid, remap_to: str = "faces", **kwargs
     ) -> UxDataArray | UxDataset:
         """
-        Bilinear Remapping between a source (``UxDataset``) and
-        destination.
+        Perform bilinear remapping.
 
         Parameters
         ---------
         destination_grid : Grid
             Destination Grid for remapping
-        remap_to : str, default="nodes"
-            Location of where to map data, either "nodes" or "face centers"
+        remap_to : {'nodes', 'edges', 'faces'}, default='faces'
+            Which grid element receives the remapped values.
 
         Returns
         -------

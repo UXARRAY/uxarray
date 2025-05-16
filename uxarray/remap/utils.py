@@ -185,34 +185,3 @@ def _prepare_points(grid, element_dim):
             getattr(grid, f"{element_dim}_z").values,
         ]
     ).T
-
-
-def _prepare_points_spherical(grid, element_dim):
-    """
-    Gather 3D spherical coordinates for grid elements to query against.
-
-    Parameters
-    ----------
-    grid : Grid
-        The UXarray grid containing coordinate arrays.
-    element_dim : str
-        A label or key indicating which set of coordinates to use
-        (mapped via `KDTREE_DIM_MAP`).
-
-    Returns
-    -------
-    points : np.ndarray, shape (n_points, 2)
-        Stack of lonlat values for the specified grid elements.
-
-    Raises
-    ------
-    ValueError
-        If `element_dim` is not in `KDTREE_DIM_MAP`.
-    """
-    element_dim = KDTREE_DIM_MAP[element_dim]
-    return np.vstack(
-        [
-            getattr(grid, f"{element_dim}_lon").values,
-            getattr(grid, f"{element_dim}_lat").values,
-        ]
-    ).T
