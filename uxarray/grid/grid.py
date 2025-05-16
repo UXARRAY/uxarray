@@ -2590,9 +2590,7 @@ class Grid:
         -------
         If `return_counts=True`:
           face_indices : np.ndarray, shape (N, M) or (N,)
-            - 2D array of face indices when `counts` contains values >1 or
-              when mixed counts exist; unused slots are filled with `INT_FILL_VALUE`.
-            - If **all** `counts == 1`, this will be squeezed to a 1-D array of shape `(N,)`.
+            - 2D array of face indices with unused slots are filled with `INT_FILL_VALUE`.
           counts : np.ndarray, shape (N,)
             Number of valid face indices in each row of `face_indices`.
 
@@ -2643,7 +2641,7 @@ class Grid:
             return output
 
         if (counts == 1).all():
-            # collapse to a 1D array of length n_points
             face_indices = face_indices[:, 0]
+            face_indices = face_indices[:, None]
 
         return face_indices, counts
