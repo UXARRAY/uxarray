@@ -2645,5 +2645,6 @@ class Grid:
         if (counts == 1).all():
             # collapse to a 1D array of length n_points
             face_indices = face_indices[:, 0]
+            face_indices = face_indices[:, None]
 
         return face_indices, counts

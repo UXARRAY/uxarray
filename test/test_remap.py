@@ -235,7 +235,7 @@ def test_b_edge_centers_dim_change():
     uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
     dest = ux.open_grid(mpasfile_QU)
     da = uxds["latCell"].remap.bilinear(
-        destination_grid=dest, remap_to="edge centers"
+        destination_grid=dest, remap_to="edges"
     )
     assert "n_edge" in da.dims
 
