@@ -2567,10 +2567,10 @@ class Grid:
     def get_faces_containing_point(
         self,
         *,
-        point_lonlat: Optional[Sequence[float]] = None,
-        point_xyz: Optional[Sequence[float]] = None,
+        point_lonlat: Sequence[float] | np.ndarray = None,
+        point_xyz: Sequence[float] | np.ndarray = None,
         return_counts: bool = True,
-    ) -> Union[Tuple[np.ndarray, np.ndarray], List[List[int]]]:
+    ) -> Tuple[np.ndarray, np.ndarray] | List[List[int]]:
         """
         Identify which faces on the grid contain the given point(s).
 

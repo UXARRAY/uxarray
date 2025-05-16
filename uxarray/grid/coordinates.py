@@ -869,7 +869,7 @@ def prepare_points(points, normalize):
 
 
 def _prepare_points_for_kdtree(lonlat, xyz):
-    if (lonlat is None) == (xyz is None):
+    if (lonlat is not None) and (xyz is not None):
         raise ValueError(
             "Both Cartesian (xyz) and Spherical (lonlat) coordinates were provided. One one can be "
             "provided at a time."
