@@ -31,7 +31,16 @@ class GridPlotAccessor:
         self._uxgrid = uxgrid
 
     def __call__(self, **kwargs) -> Any:
-        return self.edges(**kwargs)
+        # Decide what to plot based on what's in the Grid
+        if self._uxgrid.n_face > 0:
+            # If we have faces, use the existing edges plotting
+            return self.edges(**kwargs)
+        elif self._uxgrid.n_edge > 0:
+            # If we have edges but no faces, plot linestrings
+            return self.linestrings(**kwargs)
+        else:
+            # If we only have nodes, plot points
+            return self.points(**kwargs)
 
     def points(self, element="nodes", backend=None, **kwargs):
         """Generate a point plot based on the specified grid element type
@@ -77,11 +86,32 @@ class GridPlotAccessor:
         else:
             raise ValueError(f"Unsupported element {element}")
 
+        # Set default kwargs for better visualization
+        if "color" not in kwargs:
+            kwargs["color"] = "blue"
+        if "size" not in kwargs:
+            kwargs["size"] = 50
+        if "title" not in kwargs:
+            if self._uxgrid.n_face == 0 and self._uxgrid.n_edge == 0:
+                kwargs["title"] = "Points"
+            else:
+                kwargs["title"] = f"{element.capitalize()}"
+
+        # Set projection defaults
+        if "projection" not in kwargs:
+            kwargs["projection"] = ccrs.PlateCarree()
+        if "crs" not in kwargs:
+            if "projection" in kwargs:
+                central_longitude = kwargs["projection"].proj4_params.get("lon_0", 0.0)
+            else:
+                central_longitude = 0.0
+            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
+
         verts = {"lon": lon, "lat": lat}
 
         points_df = pd.DataFrame.from_dict(verts)
 
-        return points_df.hvplot.points("lon", "lat", **kwargs)
+        return points_df.hvplot.points("lon", "lat", geo=True, **kwargs)
 
     def nodes(self, backend=None, **kwargs):
         """Generate a point plot for the grid corner nodes.
@@ -214,7 +244,7 @@ class GridPlotAccessor:
             kwargs["clabel"] = "edges"
         if "crs" not in kwargs:
             if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+                central_longitude = kwargs["projection"].proj4_params.get("lon_0", 0.0)
             else:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
@@ -305,6 +335,93 @@ class GridPlotAccessor:
         )
 
         return histogram
+
+    def linestrings(
+        self,
+        periodic_elements="exclude",
+        backend=None,
+        engine="spatialpandas",
+        **kwargs,
+    ):
+        """Plots the LineString geometries of a Grid.
+
+        This function plots the line segments of the grid as geographical paths using `hvplot`.
+        It automatically sets default values for projection and styling which can be overridden
+        by passing additional keyword arguments. The backend for plotting can also be specified.
+
+        Parameters
+        ----------
+        periodic_elements : str, optional, default="exclude"
+            Specifies whether to include or exclude periodic elements in the grid.
+            Options are:
+            - "exclude": Exclude periodic elements,
+            - "ignore": Include periodic elements without any corrections
+            - "split": Split periodic elements.
+        backend : str or None, optional
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
+        engine: str, optional
+            Engine to use for GeoDataFrame construction. One of ['spatialpandas', 'geopandas']
+        **kwargs : dict
+            Additional keyword arguments passed to `hvplot.paths`.
+
+        Returns
+        -------
+        gdf.hvplot.paths : hvplot.paths
+            A paths plot of the LineString geometries in the unstructured grid
+        """
+        uxarray.plot.utils.backend.assign(backend)
+
+        # Set default style parameters
+        if "color" not in kwargs:
+            kwargs["color"] = "blue"
+        if "line_width" not in kwargs and "linewidth" not in kwargs:
+            if backend == "matplotlib":
+                kwargs["linewidth"] = 2
+            else:
+                kwargs["line_width"] = 2
+        if "title" not in kwargs:
+            kwargs["title"] = "LineString Geometries"
+        if "rasterize" not in kwargs:
+            kwargs["rasterize"] = False
+        if "projection" not in kwargs:
+            kwargs["projection"] = ccrs.PlateCarree()
+        if "clabel" not in kwargs:
+            kwargs["clabel"] = "lines"
+        if "crs" not in kwargs:
+            if "projection" in kwargs:
+                central_longitude = kwargs["projection"].proj4_params.get("lon_0", 0.0)
+            else:
+                central_longitude = 0.0
+            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
+
+        # Create LineString geometries from edge_node_connectivity
+        if self._uxgrid.n_edge > 0 and hasattr(self._uxgrid, "edge_node_connectivity"):
+            edge_conn = self._uxgrid.edge_node_connectivity.values
+            node_lon = self._uxgrid.node_lon.values
+            node_lat = self._uxgrid.node_lat.values
+
+            import geopandas as gpd
+            from shapely.geometry import LineString
+
+            geometries = []
+            for edge in edge_conn:
+                start_node, end_node = edge
+                if start_node >= 0 and end_node >= 0:  # Ensure valid indices
+                    line = LineString(
+                        [
+                            (node_lon[start_node], node_lat[start_node]),
+                            (node_lon[end_node], node_lat[end_node]),
+                        ]
+                    )
+                    geometries.append(line)
+
+            # Create a GeoDataFrame
+            gdf = gpd.GeoDataFrame(geometry=geometries, crs="EPSG:4326")
+
+            return gdf.hvplot.paths(geo=True, **kwargs)
+        else:
+            # Fallback to simple point plot if no edges are available
+            return self.points(**kwargs)
 
 
 class UxDataArrayPlotAccessor:
