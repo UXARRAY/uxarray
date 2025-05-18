@@ -1,3 +1,6 @@
+import holoviews as hv
+
+
 class HoloviewsBackend:
     """Utility class to compare and set a HoloViews plotting backend for
     visualization."""
@@ -19,12 +22,11 @@ class HoloviewsBackend:
 
             self.matplotlib_backend = mpl.get_backend()
 
-        import holoviews as hv
-
         if backend not in ["bokeh", "matplotlib", None]:
             raise ValueError(
                 f"Unsupported backend. Expected one of ['bokeh', 'matplotlib'], but received {backend}"
             )
+        print(hv.Store.current_backend)
         if backend is not None and backend != hv.Store.current_backend:
             # only call hv.extension if it needs to be changed
             hv.extension(backend)

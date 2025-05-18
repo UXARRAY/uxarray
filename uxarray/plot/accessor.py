@@ -12,6 +12,9 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
+import hvplot.pandas
+import hvplot.xarray
+
 from uxarray.plot.utils import backend as plotting_backend
 
 
@@ -62,7 +65,6 @@ class GridPlotAccessor:
         ValueError
             If the provided `element` is not one of the accepted options.
         """
-        import hvplot.pandas
 
         plotting_backend.assign(backend)
 
@@ -203,7 +205,6 @@ class GridPlotAccessor:
             A paths plot of the edges of the unstructured grid
         """
         import cartopy.crs as ccrs
-        import hvplot.pandas
 
         plotting_backend.assign(backend)
 
@@ -248,7 +249,6 @@ class GridPlotAccessor:
     ):
         """Plots the distribution of the number of nodes per face as a bar
         plot."""
-        import hvplot.pandas
 
         plotting_backend.assign(backend)
 
@@ -394,7 +394,6 @@ class UxDataArrayPlotAccessor:
             A shaded polygon plot
         """
         import cartopy.crs as ccrs
-        import hvplot.pandas
 
         plotting_backend.assign(backend)
 
@@ -458,7 +457,6 @@ class UxDataArrayPlotAccessor:
         ValueError
             If the data is not mapped to the nodes, edges, or faces.
         """
-        import hvplot.pandas
 
         plotting_backend.assign(backend)
 
@@ -484,7 +482,6 @@ class UxDataArrayPlotAccessor:
 
     def line(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.line()``"""
-        import hvplot.xarray
 
         plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
@@ -492,7 +489,6 @@ class UxDataArrayPlotAccessor:
 
     def scatter(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.scatter()``"""
-        import hvplot.xarray
 
         plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
