@@ -24,7 +24,7 @@ from uxarray.conventions import ugrid
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.bounds import _construct_face_bounds_array, _populate_face_bounds
+from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
@@ -102,7 +102,6 @@ from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
-from uxarray.utils.numba import is_numba_function_cached
 
 
 class Grid:
@@ -1431,12 +1430,6 @@ class Grid:
 
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(_construct_face_bounds_array):
-                warn(
-                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
-                    "This initial execution will be significantly longer.",
-                    RuntimeWarning,
-                )
             _populate_face_bounds(self)
         return self._ds["bounds"]
 
