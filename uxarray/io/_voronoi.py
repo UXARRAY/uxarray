@@ -1,6 +1,5 @@
 import numpy as np
 import xarray as xr
-from scipy.spatial import SphericalVoronoi
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
@@ -8,6 +7,7 @@ from uxarray.conventions import ugrid
 
 def _spherical_voronoi_from_points(points, **kwargs):
     """Generates a spherical Delaunay Voronoi diagram from given points."""
+    from scipy.spatial import SphericalVoronoi
 
     if not np.allclose(np.linalg.norm(points, axis=1), 1.0):
         raise ValueError("All input points must lie on the unit sphere.")
