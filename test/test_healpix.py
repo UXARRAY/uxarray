@@ -1,7 +1,9 @@
 import uxarray as ux
 import healpix as hp
+import numpy as np
 import pytest
 import os
+import xarray as xr
 from pathlib import Path
 
 
@@ -54,3 +56,34 @@ def test_number_of_boundary_nodes():
 
     assert n_face == uxgrid.n_face
     assert n_max_face_nodes == uxgrid.n_max_face_nodes
+
+
+def test_from_healpix_healpix():
+    xrda = xr.DataArray(data=np.ones(12), dims=['cell'])
+    uxda = ux.UxDataArray.from_healpix(xrda)
+    assert isinstance(uxda, ux.UxDataArray)
+    xrda = xrda.rename({'cell': 'n_face'})
+    with pytest.raises(ValueError):
+        uxda = ux.UxDataArray.from_healpix(xrda)
+
+
+    uxda = ux.UxDataArray.from_healpix(xrda, face_dim="n_face")
+    assert isinstance(uxda, ux.UxDataArray)
+
+def test_from_healpix_dataset():
+    xrda = xr.DataArray(data=np.ones(12), dims=['cell']).to_dataset(name='cell')
+    uxda = ux.UxDataset.from_healpix(xrda)
+    assert isinstance(uxda, ux.UxDataset)
+    xrda = xrda.rename({'cell': 'n_face'})
+    with pytest.raises(ValueError):
+        uxda = ux.UxDataset.from_healpix(xrda)
+
+    uxda = ux.UxDataset.from_healpix(xrda, face_dim="n_face")
+    assert isinstance(uxda, ux.UxDataset)
+
+
+def test_invalid_cells():
+    # 11 is not a valid number of global cells
+    xrda = xr.DataArray(data=np.ones(11), dims=['cell']).to_dataset(name='cell')
+    with pytest.raises(ValueError):
+        uxda = ux.UxDataset.from_healpix(xrda)
