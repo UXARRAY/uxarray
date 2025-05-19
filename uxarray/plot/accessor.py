@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-import functools
 import warnings
 from typing import TYPE_CHECKING, Any, Optional
 
-import cartopy.crs as ccrs
-import hvplot.pandas
-import hvplot.xarray
 import pandas as pd
 
-import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
+
+import hvplot.pandas
+import hvplot.xarray
+
+from uxarray.plot.utils import backend as plotting_backend
 
 
 class GridPlotAccessor:
@@ -66,7 +66,7 @@ class GridPlotAccessor:
             If the provided `element` is not one of the accepted options.
         """
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         if element in ["nodes", "corner nodes", "node_latlon"]:
             lon, lat = self._uxgrid.node_lon.values, self._uxgrid.node_lat.values
@@ -204,7 +204,9 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
-        uxarray.plot.utils.backend.assign(backend)
+        import cartopy.crs as ccrs
+
+        plotting_backend.assign(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = False
@@ -247,7 +249,8 @@ class GridPlotAccessor:
     ):
         """Plots the distribution of the number of nodes per face as a bar
         plot."""
-        uxarray.plot.utils.backend.assign(backend)
+
+        plotting_backend.assign(backend)
 
         n_nodes_per_face = self._uxgrid.n_nodes_per_face.values
 
@@ -286,7 +289,7 @@ class GridPlotAccessor:
     ):
         """Plots a histogram of the face areas using hvplot."""
         # Assign the plotting backend if provided
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         # Extract face areas from the grid
         face_areas = self._uxgrid.face_areas.values
@@ -351,7 +354,7 @@ class UxDataArrayPlotAccessor:
         engine: Optional[str] = "spatialpandas",
         rasterize: Optional[bool] = True,
         dynamic: Optional[bool] = False,
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         xlabel: Optional[str] = "Longitude",
         ylabel: Optional[str] = "Latitude",
         *args,
@@ -390,7 +393,9 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
-        uxarray.plot.utils.backend.assign(backend)
+        import cartopy.crs as ccrs
+
+        plotting_backend.assign(backend)
 
         if dynamic and (projection is not None or kwargs.get("geo", None) is True):
             warnings.warn(
@@ -453,7 +458,7 @@ class UxDataArrayPlotAccessor:
             If the data is not mapped to the nodes, edges, or faces.
         """
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         uxgrid = self._uxda.uxgrid
         data_mapping = self._uxda.data_mapping
@@ -475,91 +480,17 @@ class UxDataArrayPlotAccessor:
 
         return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
 
-    @functools.wraps(dataarray_plot.rasterize)
-    def rasterize(
-        self,
-        method: Optional[str] = "point",
-        backend: Optional[str] = "bokeh",
-        periodic_elements: Optional[str] = "exclude",
-        exclude_antimeridian: Optional[bool] = None,
-        pixel_ratio: Optional[float] = 1.0,
-        dynamic: Optional[bool] = False,
-        precompute: Optional[bool] = True,
-        projection: Optional[ccrs] = None,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        colorbar: Optional[bool] = True,
-        cmap: Optional[str] = "Blues",
-        aggregator: Optional[str] = "mean",
-        interpolation: Optional[str] = "linear",
-        npartitions: Optional[int] = 1,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        size: Optional[int] = 5,
-        **kwargs,
-    ):
-        """Raster plot of a data variable residing on an unstructured grid
-        element.
-
-        Parameters
-        ----------
-        method: str
-            Selects what type of element to rasterize (point, trimesh, polygon).
-        backend: str
-            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
-        projection: ccrs
-             Custom projection to transform (lon, lat) coordinates for rendering
-        pixel_ratio: float
-            Determines the resolution of the outputted raster.
-        cache: bool
-            Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
-            calls
-
-        Notes
-        -----
-        For further information about supported keyword arguments, please refer to the [Holoviews Documentation](https://holoviews.org/_modules/holoviews/operation/datashader.html#rasterize)
-        or run holoviews.help(holoviews.operation.datashader.rasterize).
-        """
-
-        warnings.warn(
-            "``UxDataArray.plot.rasterize()`` will be deprecated in a future release. Please use "
-            "``UxDataArray.plot.polygons(rasterize=True)`` or ``UxDataArray.plot.points(rasterize=True)``",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return dataarray_plot.rasterize(
-            self._uxda,
-            method=method,
-            backend=backend,
-            periodic_elements=periodic_elements,
-            exclude_antimeridian=exclude_antimeridian,
-            pixel_ratio=pixel_ratio,
-            dynamic=dynamic,
-            precompute=precompute,
-            projection=projection,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            aggregator=aggregator,
-            interpolation=interpolation,
-            npartitions=npartitions,
-            cache=cache,
-            override=override,
-            size=size,
-            **kwargs,
-        )
-
     def line(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.line()``"""
-        uxarray.plot.utils.backend.assign(backend)
+
+        plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.line(*args, **kwargs)
 
     def scatter(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.scatter()``"""
-        uxarray.plot.utils.backend.assign(backend)
+
+        plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.scatter(*args, **kwargs)
 

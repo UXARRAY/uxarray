@@ -1,27 +1,22 @@
+from __future__ import annotations
+
 import os
-from collections.abc import Hashable, Iterable
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 from warnings import warn
 
 import numpy as np
-import xarray as xr
-from xarray.core.types import T_Chunks
 
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import _map_dims_to_ugrid, match_chunks_to_ugrid
 from uxarray.grid import Grid
 
 if TYPE_CHECKING:
-    from xarray.core.types import (
-        ConcatOptions,
-    )
-
-    T_DataVars = Union[ConcatOptions, Iterable[Hashable]]
+    from xarray import Dataset
 
 
 def open_grid(
-    grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
-    chunks: T_Chunks = None,
+    grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
+    chunks=None,
     use_dual: Optional[bool] = False,
     **kwargs: Dict[str, Any],
 ):
@@ -66,6 +61,8 @@ def open_grid(
     Lazily load grid variables using Dask
     >>> uxgrid = ux.open_grid("grid_filename.nc", chunks=-1)
     """
+    import xarray as xr
+
     # Handle chunk-related kwargs first.
     data_chunks = kwargs.pop("data_chunks", None)
     if data_chunks is not None:
@@ -117,9 +114,9 @@ def open_grid(
 
 
 def open_dataset(
-    grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
+    grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
     filename_or_obj: str | os.PathLike[Any],
-    chunks: T_Chunks = None,
+    chunks=None,
     chunk_grid: bool = True,
     use_dual: Optional[bool] = False,
     grid_kwargs: Optional[Dict[str, Any]] = None,
@@ -171,6 +168,7 @@ def open_dataset(
     >>> import uxarray as ux
     >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
     """
+    import xarray as xr
 
     if grid_kwargs is None:
         grid_kwargs = {}
@@ -191,9 +189,9 @@ def open_dataset(
 
 
 def open_mfdataset(
-    grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
+    grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
     paths: Union[str, os.PathLike],
-    chunks: T_Chunks = None,
+    chunks=None,
     chunk_grid: bool = True,
     use_dual: Optional[bool] = False,
     grid_kwargs: Optional[Dict[str, Any]] = None,
@@ -256,6 +254,7 @@ def open_mfdataset(
 
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
+    import xarray as xr
 
     if grid_kwargs is None:
         grid_kwargs = {}
@@ -297,6 +296,8 @@ def _get_grid(
 
 def concat(objs, *args, **kwargs):
     # Ensure there is at least one object to concat.
+    import xarray as xr
+
     if not objs:
         raise ValueError("No objects provided for concatenation.")
 
@@ -317,6 +318,3 @@ def concat(objs, *args, **kwargs):
 
     res = xr.concat(objs, *args, **kwargs)
     return UxDataset(res, uxgrid=uxgrid)
-
-
-concat.__doc__ = xr.concat.__doc__

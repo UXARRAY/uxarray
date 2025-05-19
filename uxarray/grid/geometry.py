@@ -1,16 +1,7 @@
 import math
 
-import antimeridian
-import cartopy.crs as ccrs
-import geopandas
 import numpy as np
-import shapely
-import spatialpandas
-from matplotlib.collections import LineCollection, PolyCollection
 from numba import njit, prange
-from shapely import Polygon
-from shapely import polygons as Polygons
-from spatialpandas.geometry import MultiPolygonArray, PolygonArray
 
 from uxarray.constants import (
     ERROR_TOLERANCE,
@@ -125,6 +116,7 @@ def _build_polygon_shells(
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
+    import cartopy.crs as ccrs
 
     closed_face_nodes = _pad_closed_face_nodes(
         face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
@@ -153,6 +145,8 @@ def _correct_central_longitude(node_lon, node_lat, projection):
     """Shifts the central longitude of an unstructured grid, which moves the
     antimeridian when visualizing, which is used when projections have a
     central longitude other than 0.0."""
+    import cartopy.crs as ccrs
+
     if projection:
         central_longitude = projection.proj4_params["lon_0"]
         if central_longitude != 0.0:
@@ -175,6 +169,10 @@ def _correct_central_longitude(node_lon, node_lat, projection):
 def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     or ``geopandas.GeoDataFrame`` with a geometry column of polygons."""
+    import geopandas
+    import shapely
+    import spatialpandas
+    from spatialpandas.geometry import PolygonArray
 
     node_lon, node_lat, central_longitude = _correct_central_longitude(
         grid.node_lon.values, grid.node_lat.values, projection
@@ -262,6 +260,11 @@ def _build_geodataframe_without_antimeridian(
     """Builds a ``spatialpandas.GeoDataFrame`` or
     ``geopandas.GeoDataFrame``excluding any faces that cross the
     antimeridian."""
+    import geopandas
+    import shapely
+    import spatialpandas
+    from spatialpandas.geometry import PolygonArray
+
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells_without_antimeridian = np.delete(
@@ -293,6 +296,10 @@ def _build_geodataframe_with_antimeridian(
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
     including any faces that cross the antimeridian."""
+    import geopandas
+    import spatialpandas
+    from spatialpandas.geometry import MultiPolygonArray
+
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
     )
@@ -312,6 +319,9 @@ def _build_corrected_shapely_polygons(
     projected_polygon_shells,
     antimeridian_face_indices,
 ):
+    import antimeridian
+    from shapely import polygons as Polygons
+
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells = projected_polygon_shells
@@ -390,6 +400,7 @@ def _build_corrected_polygon_shells(polygon_shells):
 
     # import optional dependencies
     import antimeridian
+    from shapely import Polygon
 
     # list of shapely Polygons representing each Face in our grid
     polygons = [Polygon(shell) for shell in polygon_shells]
@@ -432,6 +443,8 @@ def _grid_to_matplotlib_polycollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
+    import cartopy.crs as ccrs
+    from matplotlib.collections import PolyCollection
 
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
@@ -636,6 +649,8 @@ def _grid_to_matplotlib_linecollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
+    import cartopy.crs as ccrs
+    from matplotlib.collections import LineCollection
 
     if periodic_elements == "split" and projection is not None:
         apply_projection = False
@@ -669,6 +684,8 @@ def _grid_to_matplotlib_linecollection(
 
 def _convert_shells_to_polygons(shells):
     """Convert polygon shells to shapely Polygon or MultiPolygon objects."""
+    from shapely import Polygon
+
     polygons = []
     for shell in shells:
         # Remove NaN values from each polygon shell
