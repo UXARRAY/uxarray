@@ -1,7 +1,3 @@
-import os
-import warnings
-
-import geopandas as gpd
 import numpy as np
 import xarray as xr
 from shapely.geometry import (
@@ -448,6 +444,7 @@ def _read_geodataframe(filepath, driver=None, **kwargs):
     dict
         Dictionary mapping source mesh dimensions to UGRID dimensions.
     """
+
     grid_ds = xr.Dataset()
 
     # max_coord_size is calculated here based on the original code's pattern
