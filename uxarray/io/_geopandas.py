@@ -1,3 +1,6 @@
+import os
+import warnings
+
 import numpy as np
 import xarray as xr
 from shapely.geometry import (
@@ -40,6 +43,8 @@ def _gpd_read(filepath, driver=None, **kwargs):
         Maximum number of nodes in a polygon/multipolygon (including closing node).
         Returns 0 if no polygons are found.
     """
+    import geopandas as gpd
+
     try:
         gdf = gpd.read_file(filepath, driver=driver, **kwargs)
         gdf = _set_crs(gdf)
