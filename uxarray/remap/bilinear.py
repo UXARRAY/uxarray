@@ -118,6 +118,13 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
     # 1) query the dual grid
     face_indices, hits = dual.get_faces_containing_point(point_xyz=point_xyz)
 
+    # Get the information needed from the dual mesh
+    x = dual.node_x.values
+    y = dual.node_y.values
+    z = dual.node_z.values
+    face_node_conn = dual.face_node_connectivity
+    n_nodes_per_face = dual.n_nodes_per_face
+
     for i in range(data_size):
         # -- fallback: no hit on dual → try primal grid
         if hits[i] == 0:
@@ -135,19 +142,15 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
         fidx = int(face_indices[i, 0])
 
         # build the polygon of that dual cell (i.e. original face centers)
-        node_inds = dual.face_node_connectivity[fidx].values
-        nverts = int(dual.n_nodes_per_face[fidx].values)
+        node_inds = face_node_conn[fidx].values
+        nverts = int(n_nodes_per_face[fidx].values)
 
         polygon_xyz = np.zeros((nverts, 3), dtype=np.float64)
         polygon_face_indices = np.full(nverts, INT_FILL_VALUE, dtype=int)
         for j, node in enumerate(node_inds[:nverts]):
             if node == INT_FILL_VALUE:
                 break
-            polygon_xyz[j] = (
-                dual.node_x.values[node],
-                dual.node_y.values[node],
-                dual.node_z.values[node],
-            )
+            polygon_xyz[j] = (x[node], y[node], z[node])
             polygon_face_indices[j] = int(node)
 
         # snap if exactly on a vertex
