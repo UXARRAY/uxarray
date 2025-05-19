@@ -11,11 +11,8 @@ from typing import (
 )
 from warnings import warn
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
-from scipy.spatial import KDTree as SPKDTree
-from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
@@ -24,7 +21,7 @@ from uxarray.conventions import ugrid
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.bounds import _construct_face_bounds_array, _populate_face_bounds
+from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
@@ -102,7 +99,6 @@ from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
-from uxarray.utils.numba import is_numba_function_cached
 
 
 class Grid:
@@ -230,7 +226,7 @@ class Grid:
         self._raster_data_id = None
 
         # Cache for KDTrees
-        self._kdtrees: dict[str, SPKDTree] = {}
+        self._kdtrees = {}
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -1431,12 +1427,6 @@ class Grid:
 
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(_construct_face_bounds_array):
-                warn(
-                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
-                    "This initial execution will be significantly longer.",
-                    RuntimeWarning,
-                )
             _populate_face_bounds(self)
         return self._ds["bounds"]
 
@@ -1729,6 +1719,8 @@ class Grid:
         - Trees are cached per-coordinate-set in `self._kdtrees` to avoid repeated construction.
         - The tree uses the (x, y, z) Cartesian values stored on each grid element.
         """
+        from scipy.spatial import KDTree as SPKDTree
+
         if coordinates not in ("node", "edge", "face"):
             raise ValueError(
                 f"Invalid coordinates='{coordinates}'; "
@@ -2060,7 +2052,7 @@ class Grid:
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -2109,6 +2101,8 @@ class Grid:
         gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
+
+        from spatialpandas import GeoDataFrame
 
         if engine not in ["spatialpandas", "geopandas"]:
             raise ValueError(
@@ -2187,7 +2181,7 @@ class Grid:
     def to_polycollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
@@ -2272,7 +2266,7 @@ class Grid:
     def to_linecollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         **kwargs,
@@ -2590,9 +2584,7 @@ class Grid:
         -------
         If `return_counts=True`:
           face_indices : np.ndarray, shape (N, M) or (N,)
-            - 2D array of face indices when `counts` contains values >1 or
-              when mixed counts exist; unused slots are filled with `INT_FILL_VALUE`.
-            - If **all** `counts == 1`, this will be squeezed to a 1-D array of shape `(N,)`.
+            - 2D array of face indices with unused slots are filled with `INT_FILL_VALUE`.
           counts : np.ndarray, shape (N,)
             Number of valid face indices in each row of `face_indices`.
 
@@ -2643,7 +2635,6 @@ class Grid:
             return output
 
         if (counts == 1).all():
-            # collapse to a 1D array of length n_points
             face_indices = face_indices[:, 0]
             face_indices = face_indices[:, None]
 

@@ -1,4 +1,3 @@
-import geopandas as gpd
 import numpy as np
 import xarray as xr
 
@@ -23,6 +22,7 @@ def _read_geodataframe(filepath, driver=None, **kwargs):
     xr.Dataset
         ugrid aware xarray.Dataset.
     """
+
     grid_ds = xr.Dataset()
 
     gdf, max_coord_size = _gpd_read(filepath, driver=driver, **kwargs)
@@ -63,6 +63,9 @@ def _gpd_read(filepath, driver=None, **kwargs):
     int
         Maximum number of nodes in a polygon/multipolygon.
     """
+
+    import geopandas as gpd
+
     try:
         gdf = gpd.read_file(filepath, driver=driver, **kwargs)
         gdf = _set_crs(gdf)
