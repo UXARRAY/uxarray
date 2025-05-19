@@ -1299,7 +1299,7 @@ def _triangle_line_intersection(triangle, point, threshold=1e12):
     # Construct matrix for barycentric interpolation
     v1 = node_1 - node_0
     v2 = node_2 - node_0
-    v  = point - node_0
+    v = point - node_0
 
     # Construct the matrix (columns: v1, v2, point - node_0)
     matrix = np.column_stack((point, v1, v2))
@@ -1345,7 +1345,9 @@ def _newton_quadrilateral(quadrilateral, point, max_iterations=150):
     Examples
     --------
     Calculate the weights
-    >>> quadrilateral_weights = _newton_quadrilateral(quadrilateral=quad_xyz, point=point_xyz)
+    >>> quadrilateral_weights = _newton_quadrilateral(
+    ...     quadrilateral=quad_xyz, point=point_xyz
+    ... )
     >>> weights_q = np.zeros(4, dtype=np.float64)
 
     Using the results gotten, store the weights
