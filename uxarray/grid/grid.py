@@ -2600,21 +2600,31 @@ class Grid:
           return multiple indices in the first `counts[i]` columns of row `i`,
           with any remaining columns filled by `INT_FILL_VALUE`.
 
+
         Examples
         --------
-        >>> # Single lon/lat point
+
+        Query a single spherical point
+
         >>> face_indices, counts = uxgrid.get_faces_containing_point(points=(0.0, 0.0))
-        >>> # Single Cartesian point
-        >>> face_indices, counts = uxgrid.get_faces_containing_point(
-        ...     points=[0.0, 0.0, 1.0]
-        ... )
-        >>> # Multiple lon/lat points
+
+        Query a single Cartesian point
+
+         >>> face_indices, counts = uxgrid.get_faces_containing_point(
+         ...     points=[0.0, 0.0, 1.0]
+         ... )
+
+        Query multiple points at once
+
         >>> pts = [(0.0, 0.0), (10.0, 20.0)]
         >>> face_indices, counts = uxgrid.get_faces_containing_point(points=pts)
-        >>> # Return as list of lists
+
+        Return a list of lists
+
         >>> face_indices_list = uxgrid.get_faces_containing_point(
         ...     points=[0.0, 0.0, 1.0], return_counts=False
         ... )
+
         """
 
         # Determine faces containing points
