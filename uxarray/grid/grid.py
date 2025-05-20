@@ -424,7 +424,7 @@ class Grid:
             ds = _regional_delaunay_from_points(_points, boundary_points)
         else:
             raise ValueError(
-                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."
+                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay', 'regional_delaunay']."
             )
 
         return cls.from_dataset(dataset=ds, source_grid_spec=method)
