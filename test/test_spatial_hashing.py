@@ -141,3 +141,12 @@ def test_list_of_coords_mpas_primal():
     assert bcoords.shape[0] == num_particles
     assert bcoords.shape[1] == 6 # max sides of an element
     assert np.all(face_ids >= 0) # All particles should be inside an element
+
+def test_colinear_latlon():
+    """Verifies valid spatial hashing for colinear points in latlon coordinates"""
+
+    from uxarray.grid.neighbors import _barycentric_coordinates
+
+    polygon = np.array([[-45, 87.87916205], [45, 87.87916205], [135, 87.87916205], [-135, 87.87916205]])
+    point = np.array([-45, -87.87916205])
+    weights = _barycentric_coordinates(polygon, point)
