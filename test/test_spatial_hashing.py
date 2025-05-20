@@ -142,11 +142,22 @@ def test_list_of_coords_mpas_primal():
     assert bcoords.shape[1] == 6 # max sides of an element
     assert np.all(face_ids >= 0) # All particles should be inside an element
 
-def test_colinear_latlon():
+def test_barycentric_coordinates_colinear_latlon():
     """Verifies valid spatial hashing for colinear points in latlon coordinates"""
 
-    from uxarray.grid.neighbors import _barycentric_coordinates
+    from uxarray.grid.neighbors import _barycentric_coordinates, _barycentric_coordinates_cartesian
+    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
     polygon = np.array([[-45, 87.87916205], [45, 87.87916205], [135, 87.87916205], [-135, 87.87916205]])
     point = np.array([-45, -87.87916205])
-    weights = _barycentric_coordinates(polygon, point)
+    #weights = _barycentric_coordinates(polygon, point)
+
+    # Convert to Cartesian coordinates
+    polygon_rad = np.deg2rad(polygon)
+    point_rad = np.deg2rad(point)
+    x, y, z = _lonlat_rad_to_xyz(polygon_rad[:,0], polygon_rad[:,1])
+    polygon_cartesian = np.array([x, y, z]).T
+    x, y, z = _lonlat_rad_to_xyz(point_rad[0], point_rad[1])
+    point_cartesian = np.array([x, y, z])
+    weights = _barycentric_coordinates_cartesian(polygon_cartesian, point_cartesian)
+    print(weights)

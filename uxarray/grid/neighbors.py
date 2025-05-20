@@ -793,6 +793,8 @@ class SpatialHash:
     ----------
     grid : ux.Grid
         Source grid used to construct the hash grid and hash table
+    coordinate_system : str, default="spherical"
+        Sets the coordinate type used for barycentric coordinate.
     reconstruct : bool, default=False
         If true, reconstructs the spatial hash
 
@@ -805,8 +807,17 @@ class SpatialHash:
         self,
         grid,
         reconstruct: bool = False,
+        coordinate_system: Optional[str] = "spherical",
     ):
         self._source_grid = grid
+
+        if coordinate_system not in ["cartesian", "spherical"]:
+            raise TypeError(
+                f"Unknown coordinate_system, {coordinate_system}, use either 'cartesian' or "
+                f"'spherical'"
+            )
+
+        self.coordinate_system = coordinate_system
         self._nelements = self._source_grid.n_face
 
         self.reconstruct = reconstruct
@@ -964,6 +975,17 @@ def _triangle_area(A, B, C):
 
 
 @njit(cache=True)
+def _triangle_area_cartesian(A, B, C):
+    """
+    Compute the area of a triangle given by three points.
+    """
+    d1 = B - A
+    d2 = C - A
+    d3 = np.cross(d1, d2)
+    return 0.5 * np.linalg.norm(d3)
+
+
+@njit(cache=True)
 def _barycentric_coordinates(nodes, point):
     """
     Compute the barycentric coordinates of a point P inside a convex polygon using area-based weights.
@@ -993,6 +1015,44 @@ def _barycentric_coordinates(nodes, point):
         a0 = _triangle_area(vim1, vi, vi1)
         a1 = max(_triangle_area(point, vim1, vi), ERROR_TOLERANCE)
         a2 = max(_triangle_area(point, vi, vi1), ERROR_TOLERANCE)
+        sum_wi += a0 / (a1 * a2)
+        w.append(a0 / (a1 * a2))
+
+    barycentric_coords = [w_i / sum_wi for w_i in w]
+
+    return barycentric_coords
+
+
+@njit(cache=True)
+def _barycentric_coordinates_cartesian(nodes, point):
+    """
+    Compute the barycentric coordinates of a point P inside a convex polygon using area-based weights.
+    So that this method generalizes to n-sided polygons, we use the Waschpress points as the generalized
+    barycentric coordinates, which is only valid for convex polygons.
+
+    Parameters
+    ----------
+        nodes : numpy.ndarray
+            Cartesian coordinates (x,y,z) of each corner node of a face
+        point : numpy.ndarray
+            Cartesian coordinates (x,y,z) of the point
+    Returns
+    -------
+    numpy.ndarray
+        Barycentric coordinates corresponding to each vertex.
+
+    """
+    n = len(nodes)
+    sum_wi = 0
+    w = []
+
+    for i in range(0, n):
+        vim1 = nodes[i - 1]
+        vi = nodes[i]
+        vi1 = nodes[(i + 1) % n]
+        a0 = _triangle_area_cartesian(vim1, vi, vi1)
+        a1 = max(_triangle_area_cartesian(point, vim1, vi), ERROR_TOLERANCE)
+        a2 = max(_triangle_area_cartesian(point, vi, vi1), ERROR_TOLERANCE)
         sum_wi += a0 / (a1 * a2)
         w.append(a0 / (a1 * a2))
 
