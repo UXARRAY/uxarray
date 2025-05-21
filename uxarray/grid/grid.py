@@ -157,7 +157,7 @@ class Grid:
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         # TODO:
-        if source_grid_spec != "HEALPix" and source_grid_spec != "points":
+        if source_grid_spec != "HEALPix":
             if not _validate_minimum_ugrid(grid_ds):
                 raise ValueError(
                     "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
