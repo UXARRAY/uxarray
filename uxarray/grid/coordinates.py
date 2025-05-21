@@ -868,19 +868,39 @@ def prepare_points(points, normalize):
     return np.vstack([x, y, z]).T
 
 
-def _prepare_points_for_kdtree(lonlat, xyz):
-    if (lonlat is not None) and (xyz is not None):
+def points_atleast_2d_xyz(points):
+    """
+    Ensure the input is at least 2D and return Cartesian (x, y, z) coordinates.
+
+    Parameters
+    ----------
+    points : array_like, shape (N, 2) or (N, 3)
+        - If shape is (N, 2), interpreted as [longitude, latitude] in degrees.
+        - If shape is (N, 3), interpreted as Cartesian [x, y, z] coordinates.
+
+    Returns
+    -------
+    points_xyz : ndarray, shape (N, 3)
+        Cartesian coordinates [x, y, z] for each input point.
+
+    Raises
+    ------
+    ValueError
+        If `points` (after `np.atleast_2d`) does not have 2 or 3 columns.
+
+    """
+
+    points = np.atleast_2d(points)
+
+    if points.shape[1] == 2:
+        points_lonlat_rad = np.deg2rad(points)
+        x, y, z = _lonlat_rad_to_xyz(points_lonlat_rad[:, 0], points_lonlat_rad[:, 1])
+        points_xyz = np.vstack([x, y, z]).T
+    elif points.shape[1] == 3:
+        points_xyz = points
+    else:
         raise ValueError(
-            "Both Cartesian (xyz) and Spherical (lonlat) coordinates were provided. One one can be "
-            "provided at a time."
+            "Points are neither Cartesian (shape N x 3) nor Spherical (shape N x 2)."
         )
 
-    # Convert to cartesian if points are spherical
-    if xyz is None:
-        lon, lat = map(np.deg2rad, lonlat)
-        xyz = _lonlat_rad_to_xyz(lon, lat)
-    pts = np.asarray(xyz, dtype=np.float64)
-    if pts.ndim == 1:
-        pts = pts[np.newaxis, :]
-
-    return pts
+    return points_xyz
