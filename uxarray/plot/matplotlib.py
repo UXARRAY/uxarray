@@ -87,10 +87,7 @@ def _sample_grid(
     ax=None,
 ):
     pts, valid, nx, ny = _get_points_from_axis(ax)
-    face_indices, counts = data.uxgrid.get_faces_containing_point(
-        point_xyz=pts,
-        return_counts=True,
-    )
+    face_indices, counts = data.uxgrid.get_faces_containing_point(pts)
 
     # TODO: instead of picking the first face, consider an average
 
