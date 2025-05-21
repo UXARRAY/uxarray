@@ -115,14 +115,14 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
     all_indices = np.zeros((data_size, 4), dtype=int)
 
     # Query dual grid
-    face_indices, hits = dual.get_faces_containing_point(point_xyz=point_xyz)
+    face_indices, hits = dual.get_faces_containing_point(points=point_xyz)
 
     # Handle fallback cases (hits == 0)
     fallback_mask = hits == 0
     fallback_idxs = np.where(fallback_mask)[0]
     for i in fallback_idxs:
         cur_inds, counts = source_grid.get_faces_containing_point(
-            point_xyz=point_xyz[i]
+            points=point_xyz[i]
         )
         if counts == 0:
             continue
