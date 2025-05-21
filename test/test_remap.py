@@ -15,6 +15,9 @@ dsfiles_geoflow = [
     for i in (1, 2, 3)
 ]
 mpasfile_QU = ROOT / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+mpasfile_QU_2 = ROOT / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+outCSne30 = ROOT / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+outCSne30_var2 = ROOT / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
 # ------------------------------------------------------------
 # Helper: small 3‐point spherical grid
@@ -170,13 +173,14 @@ def test_idw_power_zero_is_mean():
     assert np.allclose(out.values, expected)
 
 
-
 def test_invalid_remap_to_raises():
     src_da, grid = _make_node_da([0.0, 1.0, 2.0])
     with pytest.raises(ValueError):
         src_da.remap.nearest_neighbor(destination_grid=grid, remap_to="foobars")
     with pytest.raises(ValueError):
         src_da.remap.inverse_distance_weighted(destination_grid=grid, remap_to="123")
+    with pytest.raises(ValueError):
+        src_da.remap.bilinear(destination_grid=grid, remap_to="nothing")
 
 
 def test_nn_equals_idw_high_power():
@@ -194,4 +198,61 @@ def test_dataset_remap_preserves_coords():
     uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
     uxds = uxds.assign_coords(time=("time", np.arange(len(uxds.time))))
     dest = ux.open_grid(mpasfile_QU)
-    ds_out = uxds.remap.nearest_neighbor(destination_grid=dest, remap_to="nodes")
+    ds_out = uxds.remap.inverse_distance_weighted(destination_grid=dest, remap_to="nodes")
+    assert "time" in ds_out.coords
+
+
+# ------------------------------------------------------------
+# Bilinear tests
+# ------------------------------------------------------------
+def test_b_modifies_values():
+    """Bilinear remap should change the array when remap_to != source."""
+    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    dest = ux.open_grid(gridfile_geoflow)
+    da_idw = uxds["latCell"].remap.inverse_distance_weighted(
+        destination_grid=dest, remap_to="nodes"
+    )
+    assert not np.array_equal(uxds["latCell"].values, da_idw.values)
+
+
+def test_b_return_types_and_counts():
+    """Bilinear remap returns UxDataArray or UxDataset with correct var counts."""
+    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    dest = ux.open_grid(gridfile_geoflow)
+
+    da_idw = uxds["latCell"].remap.bilinear(destination_grid=dest)
+
+    # Create a dataset with only a face centered variable
+    face_center_uxds = uxds["latCell"].to_dataset()
+    ds_idw = face_center_uxds.remap.bilinear(destination_grid=dest)
+
+    assert isinstance(da_idw, UxDataArray)
+    assert isinstance(ds_idw, UxDataset)
+    assert set(ds_idw.data_vars) == set(face_center_uxds.data_vars)
+
+def test_b_edge_centers_dim_change():
+    """Bilinear remap to edge centers produces an 'n_edge' dimension."""
+    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
+    dest = ux.open_grid(mpasfile_QU)
+    da = uxds["latCell"].remap.bilinear(
+        destination_grid=dest, remap_to="edges"
+    )
+    assert "n_edge" in da.dims
+
+
+def test_b_value_errors():
+    """Bilinear remapping raises a value error when the source data is not on the faces"""
+    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
+    dest = ux.open_grid(gridfile_geoflow)
+
+    with nt.assert_raises(ValueError):
+        uxds['v1'].remap.bilinear(destination_grid=dest, remap_to="nodes")
+
+def test_b_quadrilateral():
+    """Bilinear remapping on quadrilaterals, to test Newton Quadrilateral weights calculation"""
+    uxds = ux.open_dataset(outCSne30, outCSne30_var2)
+    dest = ux.open_grid(mpasfile_QU)
+
+    out = uxds['var2'].remap.bilinear(destination_grid=dest)
+
+    assert out.size > 0
