@@ -8,12 +8,14 @@ import numpy as np
 from cartopy.mpl import geoaxes
 
 if TYPE_CHECKING:
+    from cartopy.mpl.geoaxes import GeoAxes
+
     from uxarray import UxDataArray
 
 
 def imshow(
     data: UxDataArray,
-    ax: geoaxes.GeoAxes = None,
+    ax: GeoAxes = None,
     *,
     projection: ccrs.CRS = ccrs.PlateCarree(),
     **kwargs,
@@ -57,7 +59,7 @@ def _ensure_geoaxes(
     ax,
     *,
     projection,
-) -> geoaxes.GeoAxes:
+) -> GeoAxes:
     """
     Return a GeoAxes. If `ax` is already a GeoAxes, return it; otherwise
     create a new figure & GeoAxes with the given projection.
