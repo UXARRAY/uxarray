@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from uxarray import UxDataArray
 
 
-def uxplot(data: UxDataArray, ax=None, **kwargs):
+def plot(data: UxDataArray, ax=None, **kwargs):
     fig = ax.get_figure()
     fig.canvas.draw()
     res = _sample_grid(data, ax)
@@ -23,12 +23,27 @@ def uxplot(data: UxDataArray, ax=None, **kwargs):
     return im
 
 
-def uxcontour(data: UxDataArray, ax=None, **kwargs):
+def contour(data: UxDataArray, ax=None, **kwargs):
     fig = ax.get_figure()
     fig.canvas.draw()
     res = _sample_grid(data, ax)
 
     im = ax.contour(
+        res,
+        origin="lower",
+        extent=ax.get_xlim() + ax.get_ylim(),
+        **kwargs,
+    )
+
+    return im
+
+
+def contourf(data: UxDataArray, ax=None, **kwargs):
+    fig = ax.get_figure()
+    fig.canvas.draw()
+    res = _sample_grid(data, ax)
+
+    im = ax.contourf(
         res,
         origin="lower",
         extent=ax.get_xlim() + ax.get_ylim(),
