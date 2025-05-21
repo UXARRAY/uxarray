@@ -25,12 +25,13 @@ grid_files = [gridfile_CSne8,
               gridfile_geoflow,
               gridfile_mpas]
 
-def test_construction():
+# Parameterize test over grid files
+@pytest.mark.parametrize("grid_file", grid_files)
+def test_construction(grid_file):
     """Tests the construction of the SpatialHash object"""
-    for grid_file in grid_files:
-        uxgrid = ux.open_grid(grid_file)
-        face_ids, bcoords = uxgrid.get_spatial_hash().query([0.9, 1.8])
-        assert face_ids.shape[0] == bcoords.shape[0]
+    uxgrid = ux.open_grid(grid_file)
+    face_ids, bcoords = uxgrid.get_spatial_hash().query([0.9, 1.8])
+    assert face_ids.shape[0] == bcoords.shape[0]
 
 
 def test_is_inside():
@@ -143,21 +144,30 @@ def test_list_of_coords_mpas_primal():
     assert np.all(face_ids >= 0) # All particles should be inside an element
 
 def test_barycentric_coordinates_colinear_latlon():
-    """Verifies valid spatial hashing for colinear points in latlon coordinates"""
-
-    from uxarray.grid.neighbors import _barycentric_coordinates, _barycentric_coordinates_cartesian
+    """Verifies valid barycentric coordinates for colinear points in latlon coordinates with a query point inside the face"""
+    from uxarray.grid.neighbors import _barycentric_coordinates, _barycentric_coordinates_cartesian, _local_projection_error
     from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
     polygon = np.array([[-45, 87.87916205], [45, 87.87916205], [135, 87.87916205], [-135, 87.87916205]])
-    point = np.array([-45, -87.87916205])
-    #weights = _barycentric_coordinates(polygon, point)
+    # North pole
+    pole = np.array([0, 90]) # Point where the local linear projection error is maximal
+    point = np.array([-45, 89.87916205]) # A point somewhere in the polar cap
 
     # Convert to Cartesian coordinates
     polygon_rad = np.deg2rad(polygon)
     point_rad = np.deg2rad(point)
+    pole_rad = np.deg2rad(pole)
     x, y, z = _lonlat_rad_to_xyz(polygon_rad[:,0], polygon_rad[:,1])
     polygon_cartesian = np.array([x, y, z]).T
     x, y, z = _lonlat_rad_to_xyz(point_rad[0], point_rad[1])
     point_cartesian = np.array([x, y, z])
+    x, y, z = _lonlat_rad_to_xyz(pole_rad[0], pole_rad[1])
+    pole_cartesian = np.array([x, y, z])
+
+    max_projection_error = _local_projection_error(polygon_cartesian, pole_cartesian)
+
     weights = _barycentric_coordinates_cartesian(polygon_cartesian, point_cartesian)
-    print(weights)
+    proj_uv = np.dot(weights, polygon_cartesian[:, :])
+    err = np.linalg.norm(proj_uv - point_cartesian)
+
+    assert err < max_projection_error + ERROR_TOLERANCE, f"Projection error {err} exceeds tolerance {max_projection_error + ERROR_TOLERANCE}"
