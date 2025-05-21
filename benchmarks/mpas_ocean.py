@@ -120,6 +120,8 @@ class RemapDownsample:
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_120["bottomDepth"].remap.inverse_distance_weighted(self.uxds_480.uxgrid)
 
+    def time_bilinear_remapping(self):
+        self.uxds_120["bottomDepth"].remap.bilinear(self.uxds_480.uxgrid)
 
 class RemapUpsample:
 
@@ -135,6 +137,9 @@ class RemapUpsample:
 
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
+
+    def time_bilinear_remapping(self):
+        self.uxds_480["bottomDepth"].remap.bilinear(self.uxds_120.uxgrid)
 
 
 class HoleEdgeIndices(DatasetBenchmark):
