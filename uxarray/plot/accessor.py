@@ -74,6 +74,7 @@ class GridPlotAccessor:
         ValueError
             If the provided `element` is not one of the accepted options.
         """
+        import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
 
@@ -372,6 +373,8 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the LineString geometries in the unstructured grid
         """
+        import cartopy.crs as ccrs
+
         uxarray.plot.utils.backend.assign(backend)
 
         # Set default style parameters
