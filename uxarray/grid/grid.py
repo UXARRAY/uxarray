@@ -2324,7 +2324,7 @@ class Grid:
 
         return line_collection
 
-    def get_dual(self):
+    def get_dual(self, check_duplicate_nodes: bool = False):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
@@ -2336,8 +2336,10 @@ class Grid:
             Dual Mesh Grid constructed
         """
 
-        if _check_duplicate_nodes_indices(self):
-            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+        if check_duplicate_nodes:
+            if _check_duplicate_nodes_indices(self):
+                # TODO: This is very slow
+                raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)
