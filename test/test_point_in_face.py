@@ -35,7 +35,7 @@ def test_face_centers(grid):
 
     for fid, center in enumerate(centers_xyz):
         hits = grid.get_faces_containing_point(
-            point_xyz=center,
+            points=center,
             return_counts=False
         )
         assert isinstance(hits, list)
@@ -50,7 +50,7 @@ def test_face_centers(grid):
 
     for fid, (lon, lat) in enumerate(centers_lonlat):
         hits = grid.get_faces_containing_point(
-            point_lonlat=(lon, lat),
+            points=(lon, lat),
             return_counts=False
         )
         assert hits[0] == [fid]
@@ -61,7 +61,6 @@ def test_node_corners(grid):
     Cartesian and spherical (lon/lat) returns exactly the faces sharing it.
     """
 
-    print(grid.max_face_radius)
 
     node_coords = np.vstack([
         grid.node_x.values,
@@ -77,7 +76,7 @@ def test_node_corners(grid):
         expected = conn[nid, :counts[nid]].tolist()
 
         hits_xyz = grid.get_faces_containing_point(
-            point_xyz=(x, y, z),
+            points=(x, y, z),
             return_counts=False
         )[0]
         assert set(hits_xyz) == set(expected)
@@ -94,7 +93,7 @@ def test_node_corners(grid):
         expected = conn[nid, :counts[nid]].tolist()
 
         hits_ll = grid.get_faces_containing_point(
-            point_lonlat=(lon, lat),
+            points=(lon, lat),
             return_counts=False
         )[0]
         assert set(hits_ll) == set(expected)
@@ -110,24 +109,24 @@ def test_number_of_faces_found():
     # For a face center only one face should be found
     point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values], dtype=np.float64)
 
-    assert len(grid.get_faces_containing_point(point_xyz=point_xyz, return_counts=False)[0]) == 1
+    assert len(grid.get_faces_containing_point(point_xyz, return_counts=False)[0]) == 1
 
     # For an edge two faces should be found
     point_xyz = np.array([grid.edge_x[100].values, grid.edge_y[100].values, grid.edge_z[100].values], dtype=np.float64)
 
-    assert len(grid.get_faces_containing_point(point_xyz=point_xyz, return_counts=False)[0]) == 2
+    assert len(grid.get_faces_containing_point(point_xyz, return_counts=False)[0]) == 2
 
     # For a node three faces should be found
     point_xyz = np.array([grid.node_x[100].values, grid.node_y[100].values, grid.node_z[100].values], dtype=np.float64)
 
-    assert len(grid.get_faces_containing_point(point_xyz=point_xyz, return_counts=False)[0]) == 3
+    assert len(grid.get_faces_containing_point(point_xyz, return_counts=False)[0]) == 3
 
     partial_grid.normalize_cartesian_coordinates()
 
     # Test for a node on the edge where only 2 faces should be found
     point_xyz = np.array([partial_grid.node_x[1].values, partial_grid.node_y[1].values, partial_grid.node_z[1].values], dtype=np.float64)
 
-    assert len(partial_grid.get_faces_containing_point(point_xyz=point_xyz, return_counts=False)[0]) == 2
+    assert len(partial_grid.get_faces_containing_point(point_xyz, return_counts=False)[0]) == 2
 
 def test_point_along_arc():
     node_lon = np.array([-40, -40, 40, 40])
@@ -137,9 +136,24 @@ def test_point_along_arc():
     uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
 
     # point at exactly 20 degrees latitude
-    out1 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 20], dtype=np.float64), return_counts=False)
+    out1 = uxgrid.get_faces_containing_point(np.array([0, 20], dtype=np.float64), return_counts=False)
 
     # point at 25.41 degrees latitude (max along the great circle arc)
-    out2 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 25.41], dtype=np.float64), return_counts=False)
+    out2 = uxgrid.get_faces_containing_point(np.array([0, 25.41], dtype=np.float64), return_counts=False)
 
     nt.assert_array_equal(out1[0], out2[0])
+
+
+def test_coordinates(grid):
+
+    lonlat = np.vstack([grid.node_lon.values, grid.node_lat.values]).T
+    xyz = np.vstack([grid.node_x.values, grid.node_y.values, grid.node_z.values]).T
+
+    faces_from_lonlat, _ = grid.get_faces_containing_point(points=lonlat)
+    faces_from_xyz, _ = grid.get_faces_containing_point(points=xyz)
+
+    nt.assert_array_equal(faces_from_lonlat, faces_from_xyz)
+
+    with pytest.raises(ValueError):
+        dummy_points = np.ones((10, 4))
+        faces_query_both, _ = grid.get_faces_containing_point(points=dummy_points)

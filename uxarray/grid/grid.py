@@ -36,8 +36,8 @@ from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_node_latlon,
     _populate_node_xyz,
-    _prepare_points_for_kdtree,
     _set_desired_longitude_range,
+    points_atleast_2d_xyz,
     prepare_points,
 )
 from uxarray.grid.dual import construct_dual
@@ -2560,72 +2560,77 @@ class Grid:
 
     def get_faces_containing_point(
         self,
-        *,
-        point_lonlat: Sequence[float] | np.ndarray = None,
-        point_xyz: Sequence[float] | np.ndarray = None,
+        points: Sequence[float] | np.ndarray,
         return_counts: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray] | List[List[int]]:
         """
-        Identify which faces on the grid contain the given point(s).
-
-        Exactly one of `point_lonlat` or `point_xyz` must be provided.
+        Identify which grid faces contain the given point(s).
 
         Parameters
         ----------
-        point_lonlat : array_like of shape (2,), optional
-            Longitude and latitude in **degrees**: (lon, lat).
-        point_xyz : array_like of shape (3,), optional
-            Cartesian coordinates on the unit sphere: (x, y, z).
+        points : array_like, shape (N, 2) or (2,) or shape (N, 3) or (3,)
+            Query point(s) to locate on the grid.
+            - If last dimension is 2, interpreted as (longitude, latitude) in **degrees**.
+            - If last dimension is 3, interpreted as Cartesian coordinates on the unit sphere: (x, y, z).
+            You may pass a single point (shape `(2,)` or `(3,)`) or multiple points (shape `(N, 2)` or `(N, 3)`).
         return_counts : bool, default=True
-            - If True (default), returns a tuple `(face_indices, counts)`.
-            - If False, returns a `list` of per-point lists of face indices.
+            - If True, returns a tuple `(face_indices, counts)`.
+            - If False, returns a `list` of per-point lists of face indices (no padding).
 
         Returns
         -------
         If `return_counts=True`:
-          face_indices : np.ndarray, shape (N, M) or (N,)
-            - 2D array of face indices with unused slots are filled with `INT_FILL_VALUE`.
+          face_indices : np.ndarray, shape (N, M) or (N, 1)
+              2D array of face indices.  Rows are padded with `INT_FILL_VALUE` when a point
+              lies on corners of multiple faces.  If every queried point falls in exactly
+              one face, the result has shape `(N, 1)`.
           counts : np.ndarray, shape (N,)
-            Number of valid face indices in each row of `face_indices`.
+              Number of valid face indices in each row of `face_indices`.
 
         If `return_counts=False`:
           List[List[int]]
-            A Python list of length `N`, where each element is the
-            list of face indices (no padding) for that query point.
+              Python list of length `N`, where each element is the list of face
+              indices for that point (no padding, in natural order).
 
         Notes
         -----
-        - **Most** points will lie strictly inside exactly one face:
-          in that common case, `counts == 1` and the returned
-          `face_indices` can be collapsed to shape `(N,)`, with no padding.
-        - If a point falls exactly on a corner shared by multiple faces,
-          multiple face indices will appear in the first columns of each row;
-          the remainder of each row is filled with `INT_FILL_VALUE`.
+        - Most points will lie strictly inside exactly one face; in that case,
+          `counts == 1` and `face_indices` has one column.
+        - Points that lie exactly on a vertex or edge shared by multiple faces
+          return multiple indices in the first `counts[i]` columns of row `i`,
+          with any remaining columns filled by `INT_FILL_VALUE`.
+
 
         Examples
         --------
-        >>> import uxarray as ux
-        >>> grid_path = "/path/to/grid.nc"
-        >>> uxgrid = ux.open_grid(grid_path)
 
-        # 1. Query a Spherical (lon/lat) point
-        >>> indices, counts = uxgrid.get_faces_containing_point(point_lonlat=(0.0, 0.0))
+        Query a single spherical point
 
-        # 2. Query a Cartesian (xyz) point
-        >>> indices, counts = uxgrid.get_faces_containing_point(
-        ...     point_xyz=(0.0, 0.0, 1.0)
+        >>> face_indices, counts = uxgrid.get_faces_containing_point(points=(0.0, 0.0))
+
+        Query a single Cartesian point
+
+         >>> face_indices, counts = uxgrid.get_faces_containing_point(
+         ...     points=[0.0, 0.0, 1.0]
+         ... )
+
+        Query multiple points at once
+
+        >>> pts = [(0.0, 0.0), (10.0, 20.0)]
+        >>> face_indices, counts = uxgrid.get_faces_containing_point(points=pts)
+
+        Return a list of lists
+
+        >>> face_indices_list = uxgrid.get_faces_containing_point(
+        ...     points=[0.0, 0.0, 1.0], return_counts=False
         ... )
 
-        # 3. Return indices as a list of lists (no counts nor padding)
-        >>> indices = uxgrid.get_faces_containing_point(
-        ...     point_xyz=(0.0, 0.0, 1.0), return_counts=False
-        ... )
         """
 
-        pts = _prepare_points_for_kdtree(point_lonlat, point_xyz)
-
         # Determine faces containing points
-        face_indices, counts = _point_in_face_query(source_grid=self, points=pts)
+        face_indices, counts = _point_in_face_query(
+            source_grid=self, points=points_atleast_2d_xyz(points)
+        )
 
         # Return a list of lists if counts are not desired
         if not return_counts:
