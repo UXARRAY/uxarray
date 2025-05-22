@@ -40,6 +40,7 @@ def imshow(
     -------
     The AxesImage returned by `ax.imshow`.
     """
+    _ensure_dimensions(data)
     ax = _ensure_geoaxes(ax, projection=projection)
     fig = ax.get_figure()
     fig.canvas.draw()
@@ -53,6 +54,31 @@ def imshow(
     )
 
     return im
+
+
+def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
+    """
+    Ensures that the data array passed into the plotting routine is exactly one-dimensional over
+    the faces of the unstructured grid.
+
+    Raises
+    ------
+    ValueError
+        If the DataArray has more or fewer than one dimension.
+    ValueError
+        If the sole dimension is not named "n_face".
+    """
+    # Check dimensionality
+    if data.ndim != 1:
+        raise ValueError(
+            f"Expected a 1D DataArray over 'n_face', but got {data.ndim} dimensions: {data.dims}"
+        )
+
+    # Check dimension name
+    if data.dims[0] != "n_face":
+        raise ValueError(f"Expected dimension 'n_face', but got '{data.dims[0]}'")
+
+    return data
 
 
 def _ensure_geoaxes(

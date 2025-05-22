@@ -3,7 +3,10 @@ import uxarray as ux
 import holoviews as hv
 import pytest
 from pathlib import Path
+import numpy as np
 
+from matplotlib.image import AxesImage
+from uxarray.plot.matplotlib import imshow
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
@@ -94,11 +97,19 @@ def test_scatter():
 
 
 
-def test_imshow():
-    from matplotlib.image import AxesImage
-    from uxarray.plot.matplotlib import imshow
-    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+class TestImshow:
+    def test_returns_axes_image(self):
+        ds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+        im = imshow(ds["bottomDepth"])
+        assert isinstance(im, AxesImage)
 
-    im = imshow(uxds['bottomDepth'])
+    def test_invalid_dims_raises_value_error(self):
+        # create a dummy UxDataArray with a non-n_face dim
+        uxda = ux.UxDataArray(data=np.ones(10), dims=["foo"])
+        with pytest.raises(ValueError):
+            imshow(uxda)
 
-    assert isinstance(im, AxesImage)
+    def test_invalid_param(self):
+        ds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+        with pytest.raises(AttributeError):
+            im = imshow(ds["bottomDepth"], bad_param="foo")
