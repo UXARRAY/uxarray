@@ -91,3 +91,14 @@ def test_scatter():
     uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
     _plot_line = uxds['bottomDepth'].zonal_average().plot.scatter()
     assert isinstance(_plot_line, hv.Scatter)
+
+
+
+def test_imshow():
+    from matplotlib.image import AxesImage
+    from uxarray.plot.matplotlib import imshow
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    im = imshow(uxds['bottomDepth'])
+
+    assert isinstance(im, AxesImage)
