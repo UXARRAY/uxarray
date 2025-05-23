@@ -145,7 +145,7 @@ def test_list_of_coords_mpas_primal():
 
 def test_barycentric_coordinates_colinear_latlon():
     """Verifies valid barycentric coordinates for colinear points in latlon coordinates with a query point inside the face"""
-    from uxarray.grid.neighbors import _barycentric_coordinates, _barycentric_coordinates_cartesian, _local_projection_error
+    from uxarray.grid.neighbors import _barycentric_coordinates_cartesian, _local_projection_error
     from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
     polygon = np.array([[-45, 87.87916205], [45, 87.87916205], [135, 87.87916205], [-135, 87.87916205]])
@@ -171,3 +171,19 @@ def test_barycentric_coordinates_colinear_latlon():
     err = np.linalg.norm(proj_uv - point_cartesian)
 
     assert err < max_projection_error + ERROR_TOLERANCE, f"Projection error {err} exceeds tolerance {max_projection_error + ERROR_TOLERANCE}"
+
+
+def test_global_antimeridian_query():
+    """Verifies correct values when a query is made across the global antimeridian"""
+    uxgrid = ux.open_grid(gridfile_CSne30)
+    points = np.array([[-179.0, 0.0], [-180.0, 0.0], [180.0, 0.0], [179.0, 0.0]])
+    face_ids, bcoords = uxgrid.get_spatial_hash(coordinate_system='cartesian',global_grid=True).query(points)
+
+    # # since (-180,0) and (180,0) are the same point, they should return the same face id
+    # # and the same barycentric coordinates
+    assert face_ids[2] == face_ids[1]
+    assert np.allclose(bcoords[2], bcoords[1], atol=ERROR_TOLERANCE)
+
+    # The other points should be found, indepenent of which side of the antimeridian they are on
+    assert face_ids[0] != -1
+    assert face_ids[3] != -1
