@@ -6,6 +6,7 @@ from numba import njit
 from numpy import deg2rad
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 
 class KDTree:
@@ -795,6 +796,8 @@ class SpatialHash:
         Source grid used to construct the hash grid and hash table
     coordinate_system : str, default="spherical"
         Sets the coordinate type used for barycentric coordinate.
+    global_grid : bool, default=False
+        If true, the hash grid is constructed using the domain [-pi,pi] x [-pi,pi]
     reconstruct : bool, default=False
         If true, reconstructs the spatial hash
 
@@ -806,8 +809,9 @@ class SpatialHash:
     def __init__(
         self,
         grid,
-        reconstruct: bool = False,
         coordinate_system: Optional[str] = "spherical",
+        global_grid: Optional[bool] = False,
+        reconstruct: bool = False,
     ):
         self._source_grid = grid
 
@@ -837,16 +841,23 @@ class SpatialHash:
         # Hash grid size
         self._dh = self._hash_cell_size()
 
-        # Lower left corner of the hash grid
-        lon_min = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
-        lat_min = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
-        lon_max = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
-        lat_max = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
+        if global_grid:
+            # Set the hash grid to be a global grid
+            self._xmin = -np.pi
+            self._ymin = -np.pi
+            self._xmax = np.pi
+            self._ymax = np.pi
+        else:
+            # Lower left corner of the hash grid
+            lon_min = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
+            lat_min = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
+            lon_max = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
+            lat_max = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
 
-        self._xmin = lon_min - self._dh
-        self._ymin = lat_min - self._dh
-        self._xmax = lon_max + self._dh
-        self._ymax = lat_max + self._dh
+            self._xmin = lon_min - self._dh
+            self._ymin = lat_min - self._dh
+            self._xmax = lon_max + self._dh
+            self._ymax = lat_max + self._dh
 
         # Number of x points in the hash grid; used for
         # array flattening
@@ -868,7 +879,9 @@ class SpatialHash:
         """Computes the 2-d hash index (i,j) for the location (x,y), where x and y are given in spherical
         coordinates (in degrees)"""
 
-        i = ((coords[:, 0] - self._xmin) / self._dh).astype(INT_DTYPE)
+        # Wrap longitude to [-pi, pi]
+        lon = (coords[:, 0] + np.pi) % (2 * np.pi) - np.pi
+        i = ((lon - self._xmin) / self._dh).astype(INT_DTYPE)
         j = ((coords[:, 1] - self._ymin) / self._dh).astype(INT_DTYPE)
         return i, j
 
@@ -885,29 +898,37 @@ class SpatialHash:
 
         if self._face_hash_table is None or self.reconstruct:
             index_to_face = [[] for i in range(self._nx * self._ny)]
-            lon_bounds = np.sort(self._source_grid.face_bounds_lon.to_numpy(), 1)
-            lat_bounds = self._source_grid.face_bounds_lat.to_numpy()
+            lon_bounds = np.deg2rad(self._source_grid.face_bounds_lon.to_numpy())
+            lat_bounds = np.deg2rad(self._source_grid.face_bounds_lat.to_numpy())
 
             coords = np.column_stack(
                 (
-                    np.deg2rad(lon_bounds[:, 0].flatten()),
-                    np.deg2rad(lat_bounds[:, 0].flatten()),
+                    lon_bounds[:, 0].flatten(),
+                    lat_bounds[:, 0].flatten(),
                 )
             )
             i1, j1 = self._hash_index2d(coords)
             coords = np.column_stack(
                 (
-                    np.deg2rad(lon_bounds[:, 1].flatten()),
-                    np.deg2rad(lat_bounds[:, 1].flatten()),
+                    lon_bounds[:, 1].flatten(),
+                    lat_bounds[:, 1].flatten(),
                 )
             )
             i2, j2 = self._hash_index2d(coords)
-
             try:
                 for eid in range(self._source_grid.n_face):
                     for j in range(j1[eid], j2[eid] + 1):
-                        for i in range(i1[eid], i2[eid] + 1):
-                            index_to_face[i + self._nx * j].append(eid)
+                        if i1[eid] <= i2[eid]:
+                            # Normal case, no wrap
+                            for i in range(i1[eid], i2[eid] + 1):
+                                index_to_face[(i % self._nx) + self._nx * j].append(eid)
+                        else:
+                            # Wrap-around case
+                            for i in range(i1[eid], self._nx):
+                                index_to_face[(i % self._nx) + self._nx * j].append(eid)
+                            for i in range(0, i2[eid] + 1):
+                                index_to_face[(i % self._nx) + self._nx * j].append(eid)
+
             except IndexError:
                 raise IndexError(
                     "list index out of range. This may indicate incorrect `edge_node_distances` values."
@@ -974,7 +995,10 @@ class SpatialHash:
         Parameters
         ----------
         coords : array_like
-            coordinate pairs in degrees (lon, lat) to query
+            coordinate pairs in degrees (lon, lat) or cartesian (x,y,z) to query. If the SpatialHash.coordinate_system is
+            "spherical", then coords should be in degrees (lon, lat). If the SpatialHash.coordinate_system is "cartesian",
+            then coords can either be in degrees (lon, lat) or cartesian (x,y,z).
+
         in_radians : bool, optional
             if True, queries assuming coords are inputted in radians, not degrees. Only applies to spherical coords
 
@@ -991,9 +1015,20 @@ class SpatialHash:
         if self.coordinate_system == "spherical":
             coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
         else:
-            # TODO: allow user to specify either spherical or cartesian query coordinates.
+            # allow user to specify either spherical or cartesian query coordinates.
             # If the self.coordinate_system is cartesian, then the coords should be cartesian
-            coords = _prepare_xyz_for_query(coords)
+            # expand if only a single node pair is provided
+            if coords.ndim == 1:
+                coords = np.expand_dims(coords, axis=0)
+
+            if coords.shape[1] == 2:
+                coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
+
+            # Calculate corresponding cartesian coordinates
+            x, y, z = _lonlat_rad_to_xyz(coords[:, 0], coords[:, 1])
+            cart_coords = np.array([x, y, z]).T
+
+            cart_coords = _prepare_xyz_for_query(cart_coords)
 
         num_coords = coords.shape[0]
         max_nodes = self._source_grid.n_max_face_nodes
@@ -1006,15 +1041,15 @@ class SpatialHash:
         n_nodes_per_face = self._source_grid.n_nodes_per_face.to_numpy()
         face_node_connectivity = self._source_grid.face_node_connectivity.to_numpy()
 
+        # Get the list of candidate faces for each coordinate
+        candidate_faces = [
+            self._face_hash_table[pid] for pid in self._hash_index(coords)
+        ]
+
         if self.coordinate_system == "spherical":
             # Precompute radian values for node coordinates:
             node_lon = np.deg2rad(self._source_grid.node_lon.to_numpy())
             node_lat = np.deg2rad(self._source_grid.node_lat.to_numpy())
-
-            # Get the list of candidate faces for each coordinate
-            candidate_faces = [
-                self._face_hash_table[pid] for pid in self._hash_index(coords)
-            ]
 
             if self.coordinate_system == "spherical":
                 for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
@@ -1044,7 +1079,7 @@ class SpatialHash:
                 axis=-1,
             )  # shape (n_face, N, 3)
 
-            for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
+            for i, (coord, candidates) in enumerate(zip(cart_coords, candidate_faces)):
                 for face_id in candidates:
                     n_nodes = n_nodes_per_face[face_id]
                     bcoord = np.asarray(
