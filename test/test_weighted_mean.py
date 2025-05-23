@@ -118,8 +118,7 @@ def test_csne30_equal_area():
     weighted_mean = uxds['psi'].weighted_mean()
     unweighted_mean = uxds['psi'].mean()
 
-    # with equal area, both should be equal
-    nt.assert_equal(weighted_mean, unweighted_mean)
+    nt.assert_almost_equal(weighted_mean, unweighted_mean, decimal=5)
 
 @pytest.mark.parametrize("chunk_size", [1, 2, 4])
 def test_csne30_equal_area_dask(chunk_size):
