@@ -36,7 +36,7 @@ def test_construction(grid_file):
 
 def test_is_inside():
     """Verifies simple test for points inside and outside an element."""
-    verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+    verts = [(-180, 0.0), (0.0, -90.0),  (0.0, 90.0)]
     uxgrid = ux.open_grid(verts, latlon=True)
     # Verify that a point outside the element returns a face id of -1
     face_ids, bcoords = uxgrid.get_spatial_hash().query([90.0, 0.0])
@@ -45,43 +45,43 @@ def test_is_inside():
     face_ids, bcoords = uxgrid.get_spatial_hash().query([-90.0, 0.0])
 
     assert face_ids[0] == 0
-    assert np.allclose(bcoords[0], [0.25, 0.5, 0.25], atol=1e-06)
+    assert np.allclose(bcoords[0], [0.5, 0.25, 0.25], atol=1e-06)
 
 
 def test_query_on_vertex():
     """Verifies correct values when a query is made exactly on a vertex"""
-    verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+    verts = [(-180, 0.0), (0.0, -90.0),  (0.0, 90.0)]
     uxgrid = ux.open_grid(verts, latlon=True)
     # Verify that a point outside the element returns a face id of -1
     face_ids, bcoords = uxgrid.get_spatial_hash().query([0.0, 90.0])
     assert face_ids[0] == 0
-    assert np.isclose(bcoords[0,0],1.0,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,2],1.0,atol=ERROR_TOLERANCE)
     assert np.isclose(bcoords[0,1],0.0,atol=ERROR_TOLERANCE)
-    assert np.isclose(bcoords[0,2],0.0,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,0],0.0,atol=ERROR_TOLERANCE)
 
 
 def test_query_on_edge():
     """Verifies correct values when a query is made exactly on an edge of a face"""
-    verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+    verts = [(-180, 0.0), (0.0, -90.0),  (0.0, 90.0)]
     uxgrid = ux.open_grid(verts, latlon=True)
     # Verify that a point outside the element returns a face id of -1
     face_ids, bcoords = uxgrid.get_spatial_hash().query([0.0, 0.0])
     assert face_ids[0] == 0
-    assert np.isclose(bcoords[0,0],0.5,atol=ERROR_TOLERANCE)
-    assert np.isclose(bcoords[0,1],0.0,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,0],0.0,atol=ERROR_TOLERANCE)
+    assert np.isclose(bcoords[0,1],0.5,atol=ERROR_TOLERANCE)
     assert np.isclose(bcoords[0,2],0.5,atol=ERROR_TOLERANCE)
 
 
 def test_list_of_coords_simple():
     """Verifies test using list of points inside and outside an element"""
-    verts = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
+    verts = [(-180, 0.0), (0.0, -90.0),  (0.0, 90.0)]
     uxgrid = ux.open_grid(verts, latlon=True)
 
     coords = [[90.0, 0.0], [-90.0, 0.0]]
     face_ids, bcoords = uxgrid.get_spatial_hash().query(coords)
     assert face_ids[0] == -1
     assert face_ids[1] == 0
-    assert np.allclose(bcoords[1], [0.25, 0.5, 0.25], atol=1e-06)
+    assert np.allclose(bcoords[1], [0.5, 0.25, 0.25], atol=1e-06)
 
 
 def test_list_of_coords_fesom():
