@@ -26,7 +26,6 @@ def construct_dual(grid):
     dual_node_z = grid.face_z.values
 
     # Get other information from the grid needed
-    n_node = grid.n_node
     node_x = grid.node_x.values
     node_y = grid.node_y.values
     node_z = grid.node_z.values
@@ -98,11 +97,15 @@ def construct_faces(
         y node coordinates from the primal mesh
     node_z: np.ndarray
         z node coordinates from the primal mesh
+    construct_node_face_connectivity: np.ndarray
+        Empty array to store connectivity
+    max_edges: int
+        The max number of edges in a face
 
 
     Returns
     --------
-    node_face_connectivity : ndarray
+    construct_node_face_connectivity : ndarray
         Constructed node_face_connectivity for the dual mesh
     """
     n_valid = valid_node_indices.shape[0]
