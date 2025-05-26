@@ -5,7 +5,6 @@ from html import escape
 from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 from xarray.core import dtypes
@@ -146,7 +145,7 @@ class UxDataArray(xr.DataArray):
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -257,7 +256,7 @@ class UxDataArray(xr.DataArray):
     def to_polycollection(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         return_indices: Optional[bool] = False,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,

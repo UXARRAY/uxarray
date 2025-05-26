@@ -1,26 +1,20 @@
 import math
 
-import antimeridian
-import cartopy.crs as ccrs
-import geopandas
 import numpy as np
-import shapely
-import spatialpandas
-from matplotlib.collections import LineCollection, PolyCollection
 from numba import njit, prange
-from shapely import Polygon
-from shapely import polygons as Polygons
-from spatialpandas.geometry import MultiPolygonArray, PolygonArray
 
 from uxarray.constants import (
     ERROR_TOLERANCE,
     INT_DTYPE,
     INT_FILL_VALUE,
+    MACHINE_EPSILON,
 )
 from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
+from uxarray.grid.point_in_face import _face_contains_point
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -122,6 +116,7 @@ def _build_polygon_shells(
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
+    import cartopy.crs as ccrs
 
     closed_face_nodes = _pad_closed_face_nodes(
         face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
@@ -150,6 +145,8 @@ def _correct_central_longitude(node_lon, node_lat, projection):
     """Shifts the central longitude of an unstructured grid, which moves the
     antimeridian when visualizing, which is used when projections have a
     central longitude other than 0.0."""
+    import cartopy.crs as ccrs
+
     if projection:
         central_longitude = projection.proj4_params["lon_0"]
         if central_longitude != 0.0:
@@ -172,6 +169,10 @@ def _correct_central_longitude(node_lon, node_lat, projection):
 def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     or ``geopandas.GeoDataFrame`` with a geometry column of polygons."""
+    import geopandas
+    import shapely
+    import spatialpandas
+    from spatialpandas.geometry import PolygonArray
 
     node_lon, node_lat, central_longitude = _correct_central_longitude(
         grid.node_lon.values, grid.node_lat.values, projection
@@ -259,6 +260,11 @@ def _build_geodataframe_without_antimeridian(
     """Builds a ``spatialpandas.GeoDataFrame`` or
     ``geopandas.GeoDataFrame``excluding any faces that cross the
     antimeridian."""
+    import geopandas
+    import shapely
+    import spatialpandas
+    from spatialpandas.geometry import PolygonArray
+
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells_without_antimeridian = np.delete(
@@ -290,6 +296,10 @@ def _build_geodataframe_with_antimeridian(
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
     including any faces that cross the antimeridian."""
+    import geopandas
+    import spatialpandas
+    from spatialpandas.geometry import MultiPolygonArray
+
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
     )
@@ -309,6 +319,9 @@ def _build_corrected_shapely_polygons(
     projected_polygon_shells,
     antimeridian_face_indices,
 ):
+    import antimeridian
+    from shapely import polygons as Polygons
+
     if projected_polygon_shells is not None:
         # use projected shells if a projection is applied
         shells = projected_polygon_shells
@@ -387,6 +400,7 @@ def _build_corrected_polygon_shells(polygon_shells):
 
     # import optional dependencies
     import antimeridian
+    from shapely import Polygon
 
     # list of shapely Polygons representing each Face in our grid
     polygons = [Polygon(shell) for shell in polygon_shells]
@@ -429,6 +443,8 @@ def _grid_to_matplotlib_polycollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
+    import cartopy.crs as ccrs
+    from matplotlib.collections import PolyCollection
 
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
@@ -633,6 +649,8 @@ def _grid_to_matplotlib_linecollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
+    import cartopy.crs as ccrs
+    from matplotlib.collections import LineCollection
 
     if periodic_elements == "split" and projection is not None:
         apply_projection = False
@@ -666,6 +684,8 @@ def _grid_to_matplotlib_linecollection(
 
 def _convert_shells_to_polygons(shells):
     """Convert polygon shells to shapely Polygon or MultiPolygon objects."""
+    from shapely import Polygon
+
     polygons = []
     for shell in shells:
         # Remove NaN values from each polygon shell
@@ -1115,3 +1135,328 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
 
     # Return the gotten distance
     return distance
+
+
+@njit(cache=True)
+def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
+    """
+    Compute the barycentric coordinates of a point inside a convex polygon, using cartesian coordinates.
+
+    Parameters
+    ----------
+    polygon_xyz: np.array
+        Cartesian coordinates of the polygon nodes
+    point_xyz: np.array
+        Cartesian coordinates of the point.
+
+    Examples
+    --------
+    Define a cartesian point:
+    >>> import numpy as np
+    >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+
+    Define a cartesian polygon:
+    >>> polygon_xyz = np.array(
+    ...     [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]], dtype=np.float64
+    ... )
+
+    Find the weights:
+    >>> bar_weights = barycentric_coordinates_cartesian(polygon_xyz, point_xyz)
+
+    Returns
+    -------
+    weights: np.ndarray
+        Barycentric coordinates corresponding to each vertex in the triangle.
+    nodes: np.ndarray
+        Indices of which nodes of the polygon form the triangle containing the point
+    """
+
+    n = len(polygon_xyz)
+
+    # If the polygon is a triangle, we can use the `triangle_line_intersection` algorithm to calculate the weights
+    if n == 3:
+        # Assign an empty array of size 3 to hold final weights
+        weights = np.zeros(3, dtype=np.float64)
+
+        # Calculate the weights
+        triangle_weights = _triangle_line_intersection(
+            triangle=polygon_xyz, point=point_xyz
+        )
+
+        # Using the results, store the weights
+        weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
+        weights[1] = triangle_weights[1]
+        weights[2] = triangle_weights[2]
+
+        # Since all the nodes of the triangle were used, return all 3 nodes
+        nodes = np.array([0, 1, 2])
+
+        return weights, nodes
+
+    # If the polygon is a quadrilateral, instead use the `newton_quadrilateral` algorithm to calculate the weights
+    elif n == 4:
+        # Assign an empty array of size 4 to hold final weights
+        weights = np.zeros(4, dtype=np.float64)
+
+        # Calculate the weights
+        quadrilateral_weights = _newton_quadrilateral(
+            quadrilateral=polygon_xyz, point=point_xyz
+        )
+
+        # Using the results, store the weights
+        weights[0] = (
+            1.0
+            - quadrilateral_weights[0]
+            - quadrilateral_weights[1]
+            + quadrilateral_weights[0] * quadrilateral_weights[1]
+        )
+        weights[1] = quadrilateral_weights[0] * (1.0 - quadrilateral_weights[1])
+        weights[2] = quadrilateral_weights[0] * quadrilateral_weights[1]
+        weights[3] = quadrilateral_weights[1] * (1.0 - quadrilateral_weights[0])
+
+        # Since all the nodes of the quadrilateral were used, return all 4 nodes
+        nodes = np.array([0, 1, 2, 3])
+
+        return weights, nodes
+
+    # For polygons of any other shape, break it into triangles,
+    # find the triangle containing the point,
+    # and use`triangle_line_intersection` algorithm to calculate the weights
+    else:
+        for i in range(0, n - 2):
+            # Get the three points of the triangle
+            node_0, node_1, node_2 = (
+                polygon_xyz[0],
+                polygon_xyz[i + 1],
+                polygon_xyz[i + 2],
+            )
+
+            # Get the triangle in terms of its edges for the `point_in_face` check
+            face_edge = _get_cartesian_face_edge_nodes(
+                face_idx=0,
+                face_node_connectivity=np.array([[0, 1, 2]]),
+                n_edges_per_face=np.array([3]),
+                node_x=np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64),
+                node_y=np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64),
+                node_z=np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64),
+            )
+
+            # Check to see if the point lies within the current triangle
+            contains_point = _face_contains_point(
+                face_edge,
+                point_xyz,
+            )
+
+            # If the point is in the current triangle, get the weights for that triangle
+            if contains_point:
+                # Create an empty array of size 3 to hold weights
+                weights = np.zeros(3, dtype=np.float64)
+
+                # Create the triangle
+                triangle = np.zeros((3, 3), dtype=np.float64)
+                triangle[0] = node_0
+                triangle[1] = node_1
+                triangle[2] = node_2
+
+                # Calculate the weights
+                triangle_weights = _triangle_line_intersection(
+                    triangle=triangle,
+                    point=point_xyz,
+                )
+
+                # Assign the weights based off the results
+                weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
+                weights[1] = triangle_weights[1]
+                weights[2] = triangle_weights[2]
+
+                # Assign the current nodes as the nodes to return
+                nodes = np.array([0, i + 1, i + 2])
+
+                return weights, nodes
+
+        # If the point doesn't reside in the polygon, raise an error
+        raise ValueError("Point does not reside in polygon")
+
+
+@njit(cache=True)
+def _triangle_line_intersection(triangle, point, threshold=1e12):
+    """
+    Compute interpolation coefficients for a point relative to a triangle.
+
+    Parameters
+    ----------
+    triangle: np.array
+        Cartesian coordinates for a triangle
+    point: np.array
+        Cartesian coordinates for a point within the triangle
+    threshold: np.array
+        Condition number threshold for warning
+
+    Examples
+    --------
+    Calculate the weights
+    >>> weights_t = _triangle_line_intersection(triangle=tri_xyz, point=point_xyz)
+
+    Using the results gotten, store the weights
+    >>> weights_t[0] = 1 - triangle_weights[1] - triangle_weights[2]
+    >>> weights_t[1] = triangle_weights[1]
+    >>> weights_t[2] = triangle_weights[2]
+
+    Returns
+    -------
+    triangle_weights: np.array
+        The weights of each point in the triangle
+    """
+
+    # triangle: shape (3, 3), point: shape (3,)
+    node_0 = triangle[0]
+    node_1 = triangle[1]
+    node_2 = triangle[2]
+
+    # Construct matrix for barycentric interpolation
+    v1 = node_1 - node_0
+    v2 = node_2 - node_0
+    v = point - node_0
+
+    # Construct the matrix (columns: v1, v2, point - node_0)
+    matrix = np.column_stack((point, v1, v2))
+
+    # Estimate condition number (max column-sum norm)
+    conditional_number = np.sum(np.abs(matrix), axis=0)
+
+    # Compute inverse of matrix
+    det = np.linalg.det(matrix)
+    if np.abs(det) < 1e-12:
+        # Singular matrix; return NaNs
+        return np.full(3, np.nan)
+
+    matrix_inv = np.linalg.inv(matrix)
+    matrix_inv_column_sum = np.sum(np.abs(matrix_inv), axis=0)
+    cond_est = np.max(conditional_number) * np.max(matrix_inv_column_sum)
+
+    # Check conditioning
+    if cond_est > threshold:
+        # Still continue, but you might choose to return NaNs
+        pass
+
+    # Compute triangle weights
+    triangle_weights = matrix_inv @ v
+
+    return triangle_weights
+
+
+@njit(cache=True)
+def _newton_quadrilateral(quadrilateral, point, max_iterations=150):
+    """
+    Compute interpolation coefficients for a point relative to a quadrilateral.
+
+    Parameters
+    ----------
+    quadrilateral: np.array
+        Cartesian coordinates for a quadrilateral
+    point: np.array
+        Cartesian coordinates for a point within the triangle
+    max_iterations: int
+        Maximum number of Newton iterations
+
+    Examples
+    --------
+    Calculate the weights
+    >>> quadrilateral_weights = _newton_quadrilateral(
+    ...     quadrilateral=quad_xyz, point=point_xyz
+    ... )
+    >>> weights_q = np.zeros(4, dtype=np.float64)
+
+    Using the results gotten, store the weights
+    >>> weights_q[0] = (
+    ...     1.0
+    ...     - quadrilateral_weights[0]
+    ...     - quadrilateral_weights[1]
+    ...     + quadrilateral_weights[0] * quadrilateral_weights[1]
+    ... )
+    >>> weights_q[1] = quadrilateral_weights[0] * (1.0 - quadrilateral_weights[1])
+    >>> weights_q[2] = quadrilateral_weights[0] * quadrilateral_weights[1]
+    >>> weights_q[3] = quadrilateral_weights[1] * (1.0 - quadrilateral_weights[0])
+
+    Returns
+    -------
+    triangle_weights: np.array
+        The weights of the quadrilateral
+
+    """
+    # unpack nodes
+    node_0 = quadrilateral[0]
+    node_1 = quadrilateral[1]
+    node_2 = quadrilateral[2]
+    node_3 = quadrilateral[3]
+
+    # precompute constant vectors
+    A = node_0 - node_1 + node_2 - node_3
+    B = node_1 - node_0
+    C = node_3 - node_0
+    D = point
+    E = node_0 - point
+
+    # unknowns [alpha, beta, gamma]
+    weights = np.zeros(3, dtype=quadrilateral.dtype)
+
+    for _ in range(max_iterations):
+        dA = weights[0]
+        dB = weights[1]
+        dC = weights[2]
+
+        value_at_x = np.empty(3, dtype=quadrilateral.dtype)
+        for i in range(3):
+            value_at_x[i] = dA * dB * A[i] + dA * B[i] + dB * C[i] + dC * D[i] + E[i]
+
+        # check convergence
+        norm2 = 0.0
+        for i in range(3):
+            norm2 += value_at_x[i] * value_at_x[i]
+        if math.sqrt(norm2) < 1e-15:
+            break
+
+        # build Jacobian J[i,j]
+        J = np.empty((3, 3), dtype=quadrilateral.dtype)
+        for i in range(3):
+            J[i, 0] = A[i] * dB + B[i]
+            J[i, 1] = A[i] * dA + C[i]
+            J[i, 2] = D[i]
+
+        # compute det(J)
+        det = (
+            J[0, 0] * (J[1, 1] * J[2, 2] - J[1, 2] * J[2, 1])
+            - J[0, 1] * (J[1, 0] * J[2, 2] - J[1, 2] * J[2, 0])
+            + J[0, 2] * (J[1, 0] * J[2, 1] - J[1, 1] * J[2, 0])
+        )
+
+        # if singular (or nearly), bail out
+        if abs(det) < MACHINE_EPSILON:
+            break
+
+        # adjugate / det
+        invJ = np.empty((3, 3), dtype=quadrilateral.dtype)
+        invJ[0, 0] = (J[1, 1] * J[2, 2] - J[1, 2] * J[2, 1]) / det
+        invJ[0, 1] = -(J[0, 1] * J[2, 2] - J[0, 2] * J[2, 1]) / det
+        invJ[0, 2] = (J[0, 1] * J[1, 2] - J[0, 2] * J[1, 1]) / det
+        invJ[1, 0] = -(J[1, 0] * J[2, 2] - J[1, 2] * J[2, 0]) / det
+        invJ[1, 1] = (J[0, 0] * J[2, 2] - J[0, 2] * J[2, 0]) / det
+        invJ[1, 2] = -(J[0, 0] * J[1, 2] - J[0, 2] * J[1, 0]) / det
+        invJ[2, 0] = (J[1, 0] * J[2, 1] - J[1, 1] * J[2, 0]) / det
+        invJ[2, 1] = -(J[0, 0] * J[2, 1] - J[0, 1] * J[2, 0]) / det
+        invJ[2, 2] = (J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]) / det
+
+        # delta = invJ @ value_at_x
+        delta = np.empty(3, dtype=quadrilateral.dtype)
+        for i in range(3):
+            delta[i] = (
+                invJ[i, 0] * value_at_x[0]
+                + invJ[i, 1] * value_at_x[1]
+                + invJ[i, 2] * value_at_x[2]
+            )
+
+        # Newton update
+        for i in range(3):
+            weights[i] -= delta[i]
+
+    return weights
