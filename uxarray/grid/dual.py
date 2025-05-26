@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
@@ -35,10 +35,17 @@ def construct_dual(grid):
     # Get an array with the number of edges for each face
     n_edges_mask = node_face_connectivity != INT_FILL_VALUE
     n_edges = np.sum(n_edges_mask, axis=1)
+    max_edges = len(node_face_connectivity[0])
+
+    valid_node_indices = np.where(n_edges >= 3)[0]
+
+    construct_node_face_connectivity = np.full(
+        (len(valid_node_indices), max_edges), INT_FILL_VALUE, dtype=INT_DTYPE
+    )
 
     # Construct and return the faces
     new_node_face_connectivity = construct_faces(
-        n_node,
+        valid_node_indices,
         n_edges,
         dual_node_x,
         dual_node_y,
@@ -47,14 +54,16 @@ def construct_dual(grid):
         node_x,
         node_y,
         node_z,
+        construct_node_face_connectivity,
+        max_edges,
     )
 
     return new_node_face_connectivity
 
 
-@njit(cache=True)
+@njit(cache=True, parallel=True)
 def construct_faces(
-    n_node,
+    valid_node_indices,
     n_edges,
     dual_node_x,
     dual_node_y,
@@ -63,14 +72,16 @@ def construct_faces(
     node_x,
     node_y,
     node_z,
+    construct_node_face_connectivity,
+    max_edges,
 ):
     """Construct the faces of the dual mesh based on a given
     node_face_connectivity.
 
     Parameters
     ----------
-    n_node: np.ndarray
-        number of nodes in the primal mesh
+    valid_node_indices: np.ndarray
+        number of valid nodes in the primal mesh
     n_edges: np.ndarray
         array of the number of edges for each dual face
     dual_node_x: np.ndarray
@@ -94,16 +105,10 @@ def construct_faces(
     node_face_connectivity : ndarray
         Constructed node_face_connectivity for the dual mesh
     """
-    correction = 0
-    max_edges = len(node_face_connectivity[0])
-    construct_node_face_connectivity = np.full(
-        (np.sum(n_edges > 2), max_edges), INT_FILL_VALUE, dtype=INT_DTYPE
-    )
-    for i in range(n_node):
-        # If we have less than 3 edges, we can't construct anything but a line
-        if n_edges[i] < 3:
-            correction += 1
-            continue
+    n_valid = valid_node_indices.shape[0]
+
+    for out_idx in prange(n_valid):
+        i = valid_node_indices[out_idx]
 
         # Construct temporary face to hold unordered face nodes
         temp_face = np.array(
@@ -111,11 +116,11 @@ def construct_faces(
         )
 
         # Get a list of the valid non fill value nodes
-        valid_node_indices = node_face_connectivity[i][0 : n_edges[i]]
+        connected_faces = node_face_connectivity[i][0 : n_edges[i]]
         index = 0
 
         # Connect the face centers around the node to make dual face
-        for node_idx in valid_node_indices:
+        for node_idx in connected_faces:
             temp_face[index] = node_idx
             index += 1
 
@@ -141,7 +146,8 @@ def construct_faces(
                 dual_node_z,
                 max_edges,
             )
-            construct_node_face_connectivity[i - correction] = _face
+            construct_node_face_connectivity[out_idx] = _face
+
     return construct_node_face_connectivity
 
 
